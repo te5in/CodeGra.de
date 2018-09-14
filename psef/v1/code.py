@@ -49,9 +49,10 @@ def put_comment(code_id: int, line: int) -> EmptyResponse:
     :raises PermissionException: If the user can not can grade work in the
                                  attached course. (INCORRECT_PERMISSION)
     """
-    comment = db.session.query(models.Comment).filter(
-        models.Comment.file_id == code_id, models.Comment.line == line
-    ).one_or_none()
+    comment = db.session.query(
+        models.Comment
+    ).filter(models.Comment.file_id == code_id,
+             models.Comment.line == line).one_or_none()
 
     def __get_comment() -> str:
         content = ensure_json_dict(request.get_json())
@@ -119,8 +120,7 @@ def remove_comment(code_id: int, line: int) -> EmptyResponse:
 @api.route("/code/<int:file_id>", methods=['GET'])
 @auth.login_required
 def get_code(file_id: int) -> t.Union[werkzeug.wrappers.Response, JSONResponse[
-    t.Union[t.Mapping[str, str], models.File, _FeedbackMapping]
-]]:
+    t.Union[t.Mapping[str, str], models.File, _FeedbackMapping]]]:
     """Get data from the :class:`.models.File` with the given id.
 
     .. :quickref: Code; Get code or its metadata.
@@ -157,7 +157,7 @@ def get_code(file_id: int) -> t.Union[werkzeug.wrappers.Response, JSONResponse[
         return jsonify(file)
     elif get_type == 'feedback':
         return jsonify(get_feedback(file, linter=False))
-    elif get_type == 'pdf' or get_type == 'file-url':
+    elif get_type in ('pdf', 'file-url'):
         return jsonify({'name': get_file_url(file)})
     elif get_type == 'linter-feedback':
         return jsonify(get_feedback(file, linter=True))
@@ -323,20 +323,24 @@ def split_code(
     old_id = code.id
     old_diskname = None if code.is_directory else code.get_diskname()
     db.session.flush()
-    code = db.session.query(models.File).get(code.id)
+    code = t.cast(models.File, db.session.query(models.File).get(code.id))
+    assert code is not None
 
     db.session.expunge(code)
     make_transient(code)
-    code.id = None
+    code.id = None  # type: ignore
     db.session.add(code)
     db.session.flush()
 
     code.fileowner = new_owner
     if not code.is_directory:
+        assert old_diskname is not None
         _, code.filename = psef.files.random_file_path()
         shutil.copyfile(old_diskname, code.get_diskname())
     else:
-        redistribute_directory(code, models.File.query.get(old_id))
+        redistribute_directory(
+            code, t.cast(models.File, models.File.query.get(old_id))
+        )
 
     return code
 

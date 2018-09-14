@@ -166,6 +166,7 @@
                            :tree="fileTree"
                            :context="contextAmount"
                            :teacher-tree="teacherTree"
+                           :can-see-revision="canSeeRevision"
                            :font-size="fontSize"
                            :char-column="charColumn"
                            :show-whitespace="showWhitespace"/>
@@ -567,6 +568,8 @@ export default {
                     this.teacherTree.isTeacher = true;
                     this.diffTree = this.matchFiles(this.studentTree, this.teacherTree);
                     this.diffTree.isDiff = true;
+                } else {
+                    this.diffTree = this.matchFiles(this.studentTree, this.studentTree);
                 }
                 this.selectFileTree();
             });

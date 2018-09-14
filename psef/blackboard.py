@@ -81,12 +81,18 @@ def parse_info_file(file: str) -> SubmissionInfo:
     :returns: The parsed information
     :rtype: SubmissionInfo
     """
+
+    grade: t.Optional[float]
+
     # _TXT_FMT is a object gotten from `re.compile`
     with open(file, 'r+') as f:
         with mmap.mmap(f.fileno(), 0) as data:
             # casting here is wrong, however see
             # https://github.com/python/typeshed/issues/1467
             match = _TXT_FMT.match(t.cast(bytes, data))
+
+            if match is None:
+                raise ValueError('Invalid format')
 
             try:
                 grade = float(match.group('grade'))
@@ -98,8 +104,8 @@ def parse_info_file(file: str) -> SubmissionInfo:
 
             if bb_files:
                 files = [
-                    FileInfo(org, cur) for org, cur in
-                    _TXT_FILES_FMT.findall(bb_files.decode('utf-8'))
+                    FileInfo(org, cur) for org, cur in _TXT_FILES_FMT.
+                    findall(bb_files.decode('utf-8'))
                 ]
             else:
                 content = (
@@ -114,13 +120,14 @@ def parse_info_file(file: str) -> SubmissionInfo:
                 student_id=match.group('id').decode('utf-8'),
                 assignment_name=match.group('assignment').decode('utf-8'),
                 created_at=dateparser.parse(
-                    match.group('datetime').decode('utf-8')
-                    .replace(" o'clock", ""),
+                    match.group('datetime').decode('utf-8').replace(
+                        " o'clock", ""
+                    ),
                     tzinfos={'CET': gettz('Europe/Amsterdam')}
                 ),
                 grade=grade,
                 text=match.group('text').decode('utf-8').rstrip(),
                 comment=match.group('comment').decode('utf-8').rstrip(),
-                files=files
+                files=files,
             )
             return info
