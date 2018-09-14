@@ -249,8 +249,8 @@ def get_feedback_from_submission(submission_id: int) -> JSONResponse[Feedback]:
         res['user'][comment.file_id][comment.line] = comment.comment
 
     linter_comments = models.LinterComment.query.filter(
-        t.cast(DbColumn[models.File], models.LinterComment.file)
-        .has(work=work)
+        t.cast(DbColumn[models.File],
+               models.LinterComment.file).has(work=work)
     ).order_by(
         t.cast(DbColumn[int], models.LinterComment.file_id).asc(),
         t.cast(DbColumn[int], models.LinterComment.line).asc(),
@@ -320,7 +320,7 @@ def select_rubric_items(submission_id: int, ) -> EmptyResponse:
 
     if any(
         item.rubricrow.assignment_id != submission.assignment_id
-        for item in items
+        for item in items if item.rubricrow is not None
     ):
         raise APIException(
             'Selected rubric item is not coupled to the given submission',
@@ -635,6 +635,8 @@ def create_new_file(submission_id: int) -> JSONResponse[t.Mapping[str, t.Any]]:
             400,
         )
 
+    filename: t.Optional[str]
+
     for idx, part in enumerate(patharr[end_idx:]):
         if _is_last(idx) and not create_dir:
             is_dir = False
@@ -655,14 +657,16 @@ def create_new_file(submission_id: int) -> JSONResponse[t.Mapping[str, t.Any]]:
         parent = code
     db.session.commit()
 
+    assert code is not None
     return jsonify(psef.files.get_stat_information(code))
 
 
 @api.route("/submissions/<int:submission_id>/files/", methods=['GET'])
 @auth.login_required
-def get_dir_contents(submission_id: int
-                     ) -> t.Union[JSONResponse[psef.files.FileTree],
-                                  JSONResponse[t.Mapping[str, t.Any]]]:
+def get_dir_contents(
+    submission_id: int
+) -> t.Union[JSONResponse[psef.files.FileTree], JSONResponse[t.Mapping[str, t.
+                                                                       Any]]]:
     """Return the file directory info of a file of the given submission
     (:class:`.models.Work`).
 
