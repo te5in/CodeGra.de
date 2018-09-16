@@ -26,7 +26,7 @@ from psef import app, blackboard
 from psef.errors import APICodes, APIException
 from psef.ignore import InvalidFile, IgnoreFilterManager
 
-_KNOWN_ARCHIVE_EXTENSIONS = tuple(archive.extension_map.keys())
+_KNOWN_ARCHIVE_EXTENSIONS = (*archive.extension_map.keys(), '.tar.xz')
 
 # Gestolen van Erik Kooistra
 _BB_TXT_FORMAT = re.compile(
