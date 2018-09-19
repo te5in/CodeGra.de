@@ -539,7 +539,7 @@
         display: block;
         margin-left: .75em;
         pointer-events: none;
-        border-right: 2px solid fade(@color-diff-removed-light, 50%);
+        border-right: 2px solid fade(@color-diff-removed-light, 80%);
         color: transparent;
         transition: border-width 300ms;
 
@@ -550,5 +550,6 @@
 
     &.char-column-wide::before {
         border-right-width: .66em;
+        border-right-color: fade(@color-diff-removed-light, 60%);
     }
 }
