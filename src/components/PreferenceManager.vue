@@ -129,7 +129,12 @@ export default {
         }),
 
         charColumn() {
-            const offset = Number(this.charColumnOffset);
+            let offset = Number(this.charColumnOffset);
+
+            if (Number.isNaN(offset)) {
+                offset = 80;
+            }
+
             return {
                 visible: this.charColumnVisible,
                 offset,
