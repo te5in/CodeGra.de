@@ -126,17 +126,16 @@ export default {
             storeFontSize: 'fontSize',
             storeContextAmount: 'contextAmount',
             storeCharColumn: 'charColumn',
-            storeCharColumnOffset: 'charColumnOffset',
         }),
 
         charColumn() {
-            const res = {
+            const offset = Number(this.charColumnOffset);
+            return {
                 visible: this.charColumnVisible,
-                offset: Number(this.charColumnOffset),
+                offset,
                 wide: this.charColumnWide,
+                text: Array(offset + 1).join('.'),
             };
-            res.text = Array(res.offset + 1).join('.');
-            return res;
         },
     },
 
@@ -196,7 +195,7 @@ export default {
             if (this.showCharColumn) {
                 this.charColumnVisible = this.storeCharColumn.visible;
                 this.charColumnOffset = this.storeCharColumn.offset;
-                this.charColumnWidth = this.storeCharColumn.width;
+                this.charColumnWide = this.storeCharColumn.wide;
             }
 
             if (this.showWhitespace) {
@@ -217,6 +216,14 @@ export default {
 
             promise.then(() => {
                 this.loading = false;
+            });
+        },
+
+        saveCharColumn() {
+            this.charColumnLoading = true;
+            this.$store.dispatch('pref/setCharColumn', this.charColumn).then(() => {
+                this.charColumnLoading = false;
+                this.$emit('charcolumn', this.charColumn);
             });
         },
     },
@@ -297,27 +304,15 @@ export default {
         },
 
         charColumnVisible() {
-            this.charColumnLoading = true;
-            this.$store.dispatch('pref/setCharColumn', this.charColumn).then(() => {
-                this.charColumnLoading = false;
-                this.$emit('charcolumn', this.charColumn);
-            });
+            this.saveCharColumn();
         },
 
         charColumnOffset() {
-            this.charColumnLoading = true;
-            this.$store.dispatch('pref/setCharColumn', this.charColumn).then(() => {
-                this.charColumnLoading = false;
-                this.$emit('charcolumn', this.charColumn);
-            });
+            this.saveCharColumn();
         },
 
         charColumnWide() {
-            this.charColumnLoading = true;
-            this.$store.dispatch('pref/setCharColumn', this.charColumn).then(() => {
-                this.charColumnLoading = false;
-                this.$emit('charcolumn', this.charColumn);
-            });
+            this.saveCharColumn();
         },
 
         storeFontSize(val) {
