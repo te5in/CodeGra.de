@@ -1,13 +1,19 @@
 <template>
 <div class="home-grid">
-    <h4 style="margin-left: 1em;">Welcome {{ nameOfUser }} to CodeGrade</h4>
+    <h4 style="margin-left: 1em;">
+        Welcome {{ nameOfUser }}!
+        <img class="large" src="/static/img/codegrade.svg" v-if="darkMode"/>
+        <img class="large" src="/static/img/codegrade-inv.svg" v-else/>
+        <img class="small" src="/static/img/logo.svg" v-if="darkMode"/>
+        <img class="small" src="/static/img/logo-inv.svg" v-else/>
+    </h4>
     <hr>
     <loader v-if="loadingCourses"/>
     <div v-else-if="courses.length === 0">
         <span class="no-courses">You have no courses yet!</span>
     </div>
     <div class="outer-block" v-else>
-        <div class="card-wrapper" v-for="course in courses">
+        <div class="card-wrapper" v-for="course in courses" :key="course.id">
             <b-card no-body>
                 <b-card-header :class="`text-${getColorPair(course.name).color}`"
                                :style="{ backgroundColor: getColorPair(course.name).background }">
@@ -27,6 +33,7 @@
                                v-if="course.assignments.length > 0">
                             <tbody>
                                 <router-link v-for="assig in course.assignments"
+                                             :key="assig.id"
                                              :to="submissionsRoute(assig)"
                                              class="assig-list-item">
                                     <td>
@@ -113,6 +120,7 @@ export default {
     computed: {
         ...mapGetters('courses', { unsortedCourses: 'courses' }),
         ...mapGetters('user', { nameOfUser: 'name' }),
+        ...mapGetters('pref', ['darkMode']),
 
         courses() {
             return Object.values(this.unsortedCourses).sort(
@@ -187,6 +195,24 @@ export default {
 <style lang="less" scoped>
 @import "~mixins.less";
 
+h4 img {
+    float: right;
+    height: 1.3em;
+    margin-right: 1em;
+
+    @media @media-small {
+        &.large {
+            display: none;
+        }
+    }
+
+    @media @media-no-small {
+        &.small {
+            display: none;
+        }
+    }
+}
+
 .home-grid .outer-block {
     display: flex;
     flex-wrap: wrap;
@@ -237,6 +263,12 @@ export default {
         flex: 1;
         padding: 1em;
         flex-basis: 33%;
+        @media @media-no-large {
+            flex-basis: 50%;
+        }
+        @media @media-small {
+            flex-basis: 100%;
+        }
         flex-grow: 0;
 
         .card-header {
