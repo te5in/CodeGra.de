@@ -26,8 +26,8 @@
             Succesfully created assignment!
         </b-alert>
 
-        <div v-if="!assignment.is_lti && permissions.can_edit_assignment_info">
-            <b-form-fieldset>
+        <div v-if="permissions.can_edit_assignment_info || permissions.can_edit_maximum_grade">
+            <b-form-fieldset v-if="!assignment.is_lti && permissions.can_edit_assignment_info">
                 <b-input-group prepend="Name">
                     <input type="text"
                            class="form-control"
@@ -40,7 +40,7 @@
                 </b-input-group>
             </b-form-fieldset>
 
-            <b-form-fieldset>
+            <b-form-fieldset v-if="!assignment.is_lti && permissions.can_edit_assignment_info">
                 <b-input-group prepend="Deadline">
                     <input type="datetime-local"
                            class="form-control"
@@ -51,6 +51,9 @@
                                        ref="updateDeadline"/>
                     </b-input-group-append>
                 </b-input-group>
+            </b-form-fieldset>
+            <b-form-fieldset v-if="permissions.can_edit_maximum_grade">
+                <maximum-grade :assignment-id="assignmentId"/>
             </b-form-fieldset>
         </div>
 
@@ -182,6 +185,7 @@ import {
     FinishedGraderToggles,
     LocalHeader,
     SubmissionUploader,
+    MaximumGrade,
 } from '@/components';
 
 export default {
@@ -324,6 +328,7 @@ export default {
         FinishedGraderToggles,
         LocalHeader,
         SubmissionUploader,
+        MaximumGrade,
     },
 };
 </script>

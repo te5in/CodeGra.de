@@ -249,8 +249,8 @@ def get_feedback_from_submission(submission_id: int) -> JSONResponse[Feedback]:
         res['user'][comment.file_id][comment.line] = comment.comment
 
     linter_comments = models.LinterComment.query.filter(
-        t.cast(DbColumn[models.File], models.LinterComment.file)
-        .has(work=work)
+        t.cast(DbColumn[models.File],
+               models.LinterComment.file).has(work=work)
     ).order_by(
         t.cast(DbColumn[int], models.LinterComment.file_id).asc(),
         t.cast(DbColumn[int], models.LinterComment.line).asc(),
@@ -451,13 +451,21 @@ def patch_submission(submission_id: int) -> JSONResponse[models.Work]:
     if 'grade' in content:
         ensure_keys_in_dict(content, [('grade', (numbers.Real, type(None)))])
         grade = t.cast(t.Optional[float], content['grade'])
+        assig = work.assignment
 
-        if not (grade is None or (0 <= float(grade) <= 10)):
+        if not (
+            grade is None or
+            (assig.min_grade <= float(grade) <= assig.max_grade)
+        ):
             raise APIException(
-                'Grade submitted not between 0 and 10',
-                f'Grade for work with id {submission_id} '
-                f'is {content["grade"]} which is not between 0 and 10',
-                APICodes.INVALID_PARAM, 400
+                (
+                    f'Grade submitted not between {assig.min_grade} and'
+                    f' {assig.max_grade}'
+                ), (
+                    f'Grade for work with id {submission_id} '
+                    f'is {content["grade"]} which is not between '
+                    f'{assig.min_grade} and {assig.max_grade}'
+                ), APICodes.INVALID_PARAM, 400
             )
 
         work.set_grade(grade, current_user)

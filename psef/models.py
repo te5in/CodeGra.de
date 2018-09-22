@@ -1139,11 +1139,15 @@ class Work(Base):
             if not self.selected_items:
                 return None
 
-            max_points = self.assignment.max_rubric_points
-            assert max_points is not None
+            max_rubric_points = self.assignment.max_rubric_points
+            assert max_rubric_points is not None
 
             selected = sum(item.points for item in self.selected_items)
-            return psef.helpers.between(0, selected / max_points * 10, 10)
+            return psef.helpers.between(
+                self.assignment.min_grade,
+                selected / max_rubric_points * 10,
+                self.assignment.max_grade,
+            )
         return self._grade
 
     def set_grade(
@@ -1221,6 +1225,7 @@ class Work(Base):
                 False if initial else self.grade,
                 self.assignment.lti_outcome_service_url,
                 self.assignment.assignment_results[self.user_id].sourcedid,
+                lti_points_possible=self.assignment.lti_points_possible,
                 url=url,
             )
             newest_grade_history_id = db.session.query(
@@ -2135,6 +2140,15 @@ class Assignment(Base):
         nullable=True,
         default=None,
     )
+    _max_grade: t.Optional[float] = db.Column(
+        'max_grade', db.Float, nullable=True, default=None
+    )
+    lti_points_possible: t.Optional[float] = db.Column(
+        'lti_points_possible',
+        db.Float,
+        nullable=True,
+        default=None,
+    )
 
     # All stuff for LTI
     lti_assignment_id: str = db.Column(db.Unicode, unique=True)
@@ -2184,6 +2198,19 @@ class Assignment(Base):
 
     # This variable is available through a backref
     linters: t.Iterable['AssignmentLinter']
+
+    @property
+    def max_grade(self) -> float:
+        return 10 if self._max_grade is None else self._max_grade
+
+    # We don't use property.setter because in that case `new_val` could only be
+    # a `float` because of https://github.com/python/mypy/issues/220
+    def set_max_grade(self, new_val: t.Union[None, float, int]) -> None:
+        self._max_grade = new_val
+
+    @property
+    def min_grade(self) -> float:
+        return 0
 
     def _submit_grades(self) -> None:
         subs = t.cast(
@@ -2482,6 +2509,12 @@ class Assignment(Base):
                                                   # can be higher and lower
                                                   # than the actual max. Will
                                                   # be `null` if unset.
+                'max_grade': float, # The maximum grade you can get for this
+                                    # assignment. This is based around the idea
+                                    # that a 10 is a 'perfect' score. So if
+                                    # this value is 12 a user can score 2
+                                    # additional bonus points. If this value is
+                                    # `null` it is unset and regarded as a 10.
             }
 
         :returns: An object as described above.
@@ -2503,6 +2536,7 @@ class Assignment(Base):
             'done_email': None,
             'reminder_time': None,
             'fixed_max_rubric_points': self.fixed_max_rubric_points,
+            'max_grade': self._max_grade,
         }
 
         try:

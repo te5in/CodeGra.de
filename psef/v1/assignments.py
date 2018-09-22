@@ -214,6 +214,7 @@ def set_reminder(
 
 
 @api.route('/assignments/<int:assignment_id>', methods=['PATCH'])
+@auth.login_required
 def update_assignment(assignment_id: int) -> EmptyResponse:
     """Update the given :class:`.models.Assignment` with new values.
 
@@ -286,6 +287,13 @@ def update_assignment(assignment_id: int) -> EmptyResponse:
         auth.ensure_permission('can_edit_cgignore', assig.course_id)
         ensure_keys_in_dict(content, [('ignore', str)])
         assig.cgignore = t.cast(str, content['ignore'])
+
+    if 'max_grade' in content:
+        auth.ensure_permission('can_edit_maximum_grade', assig.course_id)
+        ensure_keys_in_dict(content, [('max_grade', (float, int, type(None)))])
+        assig.set_max_grade(
+            t.cast(t.Union[float, int, None], content['max_grade'])
+        )
 
     if any(t in content for t in ['done_type', 'reminder_time', 'done_email']):
         auth.ensure_permission(

@@ -70,6 +70,10 @@ export default {
             type: Object,
             default: null,
         },
+        assignment: {
+            type: Object,
+            default: null,
+        },
         rubric: {
             type: Object,
             default: null,
@@ -120,6 +124,9 @@ export default {
             let grade = Math.max(0, (this.selectedPoints / this.maxPoints) * 10);
             if (Object.keys(this.selected).length === 0) {
                 grade = null;
+            }
+            if (this.assignment && this.assignment.max_grade < grade) {
+                grade = this.assignment.max_grade;
             }
             return grade;
         },

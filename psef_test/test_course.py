@@ -522,8 +522,9 @@ def test_add_courseroles(
                     found_amount += 1
                     assert (
                         len(role['perms']) == len(
-                            session.query(m.Permission)
-                            .filter_by(course_permission=True).all()
+                            session.query(
+                                m.Permission
+                            ).filter_by(course_permission=True).all()
                         )
                     )
                     for perm_n, value in role['perms'].items():
@@ -787,6 +788,7 @@ def test_add_assignment(
                 'done_email': None,
                 'reminder_time': None,
                 'fixed_max_rubric_points': None,
+                'max_grade': None,
             }
         )
 

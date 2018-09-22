@@ -184,5 +184,11 @@
     "course_permission": false,
     "short_description": "Search users",
     "long_description": "Users with this permission can search for users on the side, this means they can see all other users on the site."
+  },
+  "can_edit_maximum_grade": {
+    "default_value": false,
+    "course_permission": true,
+    "short_description": "Edit the maximum grade possible",
+    "long_description": "Users with this permission can edit the maximum grade possible, and therefore also determine if getting a 'bonus' for an assignment is also possible."
   }
 }

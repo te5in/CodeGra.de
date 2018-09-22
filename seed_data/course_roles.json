@@ -46,7 +46,8 @@
       "can_see_grade_history",
       "can_submit_own_work",
       "can_delete_submission",
-      "can_submit_others_work"
+      "can_submit_others_work",
+      "can_edit_maximum_grade"
     ],
     "initial_role": true
   },

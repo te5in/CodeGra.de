@@ -91,6 +91,12 @@ class LTI:  # pylint: disable=too-many-public-methods
         return self
 
     @property
+    def assigment_points_possible(self) -> float:
+        """The amount of points possible for the launched assignment.
+        """
+        raise NotImplementedError
+
+    @property
     def user_id(self) -> str:
         """The unique id of the current LTI user.
         """
@@ -304,6 +310,9 @@ class LTI:  # pylint: disable=too-many-public-methods
                 )
                 db.session.add(assig_res)
 
+        if self.has_assigment_points_possible():
+            assignment.lti_points_possible = self.assigment_points_possible
+
         assignment.lti_outcome_service_url = self.outcome_service_url
 
         if not assignment.is_done:
@@ -402,6 +411,13 @@ class LTI:  # pylint: disable=too-many-public-methods
         """
         raise NotImplementedError
 
+    def has_assigment_points_possible(self) -> bool:
+        """Check if the current LTI request has a ``pointsPossible`` field.
+
+        :returns: A boolean indicating if a ``pointsPossible`` field was found.
+        """
+        raise NotImplementedError
+
     @staticmethod
     def generate_xml() -> str:  # pragma: no cover
         """Generate a config XML for this LTI consumer.
@@ -412,12 +428,15 @@ class LTI:  # pylint: disable=too-many-public-methods
     def passback_grade(
         key: str,
         secret: str,
-        grade: t.Union[float, None, bool, str, int],
+        grade: t.Union[float, None, bool, int],
         service_url: str,
         sourcedid: str,
+        lti_points_possible: t.Optional[float],
         url: str = None,
     ) -> 'OutcomeResponse':
         """Do a LTI grade passback.
+
+        .. todo:: Update docs
 
         :param key: The oauth key to use.
         :param secret: The oauth secret to use.
@@ -443,16 +462,36 @@ class LTI:  # pylint: disable=too-many-public-methods
         if grade is None:
             return req.post_delete_result()
         else:
-            if isinstance(grade, bool):
-                grade = None
-            elif not isinstance(grade, str):
-                grade = str(grade / 10)
-            return req.post_replace_result(grade, result_data=opts)
+            if isinstance(grade, bool) or grade is None:
+                return req.post_replace_result(None, result_data=opts)
+
+            if grade > 10:
+                assert lti_points_possible is not None
+                return req.post_replace_result(
+                    str((grade / 10) * lti_points_possible),
+                    result_data=opts,
+                    raw=True,
+                )
+
+            return req.post_replace_result(
+                str(grade / 10),
+                result_data=opts,
+                raw=False,
+            )
 
 
 class CanvasLTI(LTI):
     """The LTI class used for the Canvas LMS.
     """
+
+    def has_assigment_points_possible(self) -> bool:
+        return 'custom_canvas_points_possible' in self.launch_params
+
+    @property
+    def assigment_points_possible(self) -> float:
+        """The amount of points possible for the launched assignment.
+        """
+        return float(self.launch_params['custom_canvas_points_possible'])
 
     @property
     def username(self) -> str:
@@ -554,6 +593,7 @@ class OutcomeRequest:  # pragma: no cover, pylint: disable=protected-access,inva
     ) -> None:
         self.operation = operation
         self.score = score
+        self.raw_score: bool = False
         self.result_data = result_data
         self.outcome_response = None  # type: t.Optional['OutcomeResponse']
         self.message_identifier = message_identifier
@@ -577,7 +617,10 @@ class OutcomeRequest:  # pragma: no cover, pylint: disable=protected-access,inva
         return request
 
     def post_replace_result(
-        self, score: str, result_data: t.Mapping[str, str] = None
+        self,
+        score: t.Optional[str],
+        result_data: t.Mapping[str, str] = None,
+        raw: bool = False
     ) -> 'OutcomeResponse':
         '''
         POSTs the given score to the Tool Consumer with a replaceResult.
@@ -590,9 +633,11 @@ class OutcomeRequest:  # pragma: no cover, pylint: disable=protected-access,inva
         :param str text: text
         :param str url: url
         :param str launchUrl: The lti launch url
+        :param raw: Post the raw amount of points.
         '''
         self.operation = REPLACE_REQUEST
         self.score = score
+        self.raw_score = raw
         self.result_data = result_data
         if result_data is not None:
             if len(result_data) > 1:
@@ -774,7 +819,11 @@ class OutcomeRequest:  # pragma: no cover, pylint: disable=protected-access,inva
             result = etree.SubElement(record, 'result')
 
         if self.score is not None:
-            result_score = etree.SubElement(result, 'resultScore')
+            if self.raw_score:
+                result_score = etree.SubElement(result, 'resultTotalScore')
+            else:
+                result_score = etree.SubElement(result, 'resultScore')
+
             language = etree.SubElement(result_score, 'language')
             language.text = 'en'
             text_string = etree.SubElement(result_score, 'textString')

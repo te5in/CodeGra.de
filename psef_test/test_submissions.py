@@ -1806,3 +1806,116 @@ def test_uploading_invalid_file(
             },
             result=error_template,
         )
+
+
+@pytest.mark.parametrize(
+    'named_user', [
+        'Robin',
+        http_error(error=403)('Student2'),
+        http_error(error=403)('Thomas Schaper'),
+    ],
+    indirect=True
+)
+@pytest.mark.parametrize(
+    'max_grade', [10, 4, 15, http_error(error=400)('Hello')]
+)
+@pytest.mark.parametrize('filename', ['test_flake8.tar.gz'], indirect=True)
+def test_maximum_grade(
+    logged_in, named_user, ta_user, assignment_real_works, error_template,
+    max_grade, test_client, request
+):
+    assignment, work = assignment_real_works
+    work_id = work['id']
+
+    marker = request.node.get_marker('http_error')
+    code = 204 if marker is None else marker.kwargs['error']
+
+    data = {'grade': 11}
+
+    with logged_in(ta_user):
+        test_client.req(
+            'patch',
+            f'/api/v1/submissions/{work_id}',
+            400,
+            data=data,
+            result=error_template,
+        )
+
+    with logged_in(named_user):
+        test_client.req(
+            'patch',
+            f'/api/v1/assignments/{assignment.id}',
+            code,
+            data={'max_grade': max_grade},
+            result=error_template if code >= 400 else None
+        )
+
+    if code >= 400:
+        with logged_in(ta_user):
+            test_client.req(
+                'patch',
+                f'/api/v1/submissions/{work_id}',
+                400,
+                data=data,
+                result=error_template,
+            )
+        return
+
+    with logged_in(ta_user):
+        test_client.req(
+            'patch',
+            f'/api/v1/submissions/{work_id}',
+            200,
+            data={'grade': max_grade},
+        )
+
+        assert test_client.req(
+            'get', f'/api/v1/assignments/{assignment.id}', 200
+        )['max_grade'] == max_grade
+
+        test_client.req(
+            'patch',
+            f'/api/v1/submissions/{work_id}',
+            400,
+            data={'grade': max_grade + 0.5},
+            result=error_template
+        )
+
+        test_client.req(
+            'patch',
+            f'/api/v1/submissions/{work_id}',
+            400,
+            data={'grade': -0.5},
+        )
+
+        test_client.req(
+            'patch',
+            f'/api/v1/submissions/{work_id}',
+            200,
+            data={'grade': max_grade},
+        )
+
+    with logged_in(named_user):
+        test_client.req(
+            'patch',
+            f'/api/v1/assignments/{assignment.id}',
+            204,
+            data={'max_grade': None},
+        )
+        assert test_client.req(
+            'get', f'/api/v1/assignments/{assignment.id}', 200
+        )['max_grade'] is None
+
+    with logged_in(ta_user):
+        test_client.req(
+            'patch',
+            f'/api/v1/submissions/{work_id}',
+            400,
+            data={'grade': 10.5},
+        )
+        test_client.req(
+            'patch',
+            f'/api/v1/submissions/{work_id}',
+            200,
+            data={'grade': 10},
+        )
