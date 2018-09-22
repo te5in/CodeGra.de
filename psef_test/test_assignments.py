@@ -9,15 +9,17 @@ import datetime
 from functools import reduce
 from collections import defaultdict
 
-import pytest
-
 import psef
+import pytest
 import psef.models as m
 from psef.errors import APICodes
 from psef.helpers import ensure_keys_in_dict
 
-http_err = pytest.mark.http_err
-perm_error = pytest.mark.perm_error
+from helpers import create_marker
+
+# http_err = pytest.mark.http_err
+perm_error = create_marker(pytest.mark.perm_error)
+http_err = create_marker(pytest.mark.http_err)
 
 
 @pytest.fixture
@@ -36,7 +38,8 @@ def original_rubric_data():
                                 'description': 'item description',
                                 'header': 'header',
                                 'points': 5,
-                            }, {
+                            },
+                            {
                                 'description': 'item description',
                                 'header': 'header',
                                 'points': 4,
@@ -81,7 +84,7 @@ def rubric(
 def test_get_all_assignments(
     named_user, hidden, test_client, logged_in, request, error_template
 ):
-    perm_err = request.node.get_marker('perm_error')
+    perm_err = request.node.get_closest_marker('perm_error')
     if perm_err:
         error = perm_err.kwargs['error']
     else:
@@ -277,7 +280,7 @@ def test_update_assignment_wrong_permissions(
     error_template,
     request,
 ):
-    marker = request.node.get_marker('http_err')
+    marker = request.node.get_closest_marker('http_err')
     with logged_in(named_user):
         is_logged_in = not isinstance(named_user, str)
         res = test_client.req(
@@ -335,7 +338,7 @@ def test_add_rubric_row(
 
     row['items'] = [item, item]
 
-    marker = request.node.get_marker('http_err')
+    marker = request.node.get_closest_marker('http_err')
     code = 200 if marker is None else marker.kwargs['error']
 
     with logged_in(teacher_user):
@@ -391,7 +394,7 @@ def test_update_rubric_row(
 
     row['items'] = [item, item]
 
-    marker = request.node.get_marker('http_err')
+    marker = request.node.get_closest_marker('http_err')
     code = 200 if marker is None else marker.kwargs['error']
 
     with logged_in(teacher_user):
@@ -408,8 +411,8 @@ def test_update_rubric_row(
         if marker is None:
             assert len(data) == len(rubric)
             assert data[0]['header'] == row_header or rubric[0]['header']
-            assert data[0]['description'
-                           ] == row_description or rubric[0]['description']
+            assert data[0]['description'] == row_description or rubric[0][
+                'description']
             assert len(data[0]['items']) == 2
             assert data[0]['items'][0]['id'] > 0
             assert data[0]['items'][0]['points'] == item_points
@@ -463,7 +466,7 @@ def test_get_and_add_rubric_row(
     for item in [item] if item else [item, None]:
         if item is not None:
             row['items'] = [item]
-        marker = request.node.get_marker('http_err')
+        marker = request.node.get_closest_marker('http_err')
         code = 200 if marker is None else marker.kwargs['error']
         res = [
             {
@@ -515,7 +518,7 @@ def test_delete_rubric(
     assignment, named_user, logged_in, test_client, error_template, request,
     teacher_user, rubric
 ):
-    marker = request.node.get_marker('http_err')
+    marker = request.node.get_closest_marker('http_err')
     code = 204 if marker is None else marker.kwargs['error']
 
     with logged_in(named_user):
@@ -564,7 +567,7 @@ def test_update_add_rubric_wrong_permissions(
     request,
     teacher_user,
 ):
-    marker = request.node.get_marker('http_err')
+    marker = request.node.get_closest_marker('http_err')
     rubric = {
         'header':
             f'My header',
@@ -794,15 +797,15 @@ def test_updating_wrong_rubric(
 
 
 @pytest.mark.parametrize(
+    'max_points', [http_err(error=400)('err'),
+                   http_err(error=400)(-1), 10, 2]
+)
+@pytest.mark.parametrize(
     'named_user', [
         http_err(error=403)('Student1'),
         http_err(error=401)('NOT_LOGGED_IN'), 'Robin'
     ],
     indirect=True
-)
-@pytest.mark.parametrize(
-    'max_points', [http_err(error=400)('err'),
-                   http_err(error=400)(-1), 10, 2]
 )
 @pytest.mark.parametrize('filename', ['test_flake8.tar.gz'], indirect=True)
 def test_set_fixed_max_points(
@@ -813,7 +816,7 @@ def test_set_fixed_max_points(
     work_id = work['id']
     assignment_id = assignment.id
 
-    marker = request.node.get_marker('http_err')
+    marker = request.node.get_closest_marker('http_err')
     code = 200 if marker is None else marker.kwargs['error']
     res = list if marker is None else error_template
 
@@ -883,7 +886,7 @@ def test_set_fixed_max_points(
             'single_file_archive', [{
                 'id': int,
                 'name': 'single_file_work'
-            }], 'single_file_archive', ['.tar.gz', '.zip']
+            }], 'single_file_archive', ['.tar.gz', '.tar.xz', '.zip']
         ), (
             'multiple_file_archive', [
                 {
@@ -1053,12 +1056,6 @@ def test_upload_files(
 @pytest.mark.parametrize('assignment', ['new', 'old'], indirect=True)
 @pytest.mark.parametrize('after_deadline', [True, False])
 @pytest.mark.parametrize(
-    'author',
-    ['student1',
-     http_err(error=404)(-1),
-     http_err(error=400)('admin')]
-)
-@pytest.mark.parametrize(
     'named_user',
     [
         http_err(error=403)('Student1'),
@@ -1067,6 +1064,12 @@ def test_upload_files(
     ],
     indirect=True,
 )
+@pytest.mark.parametrize(
+    'author',
+    ['student1',
+     http_err(error=404)(-1),
+     http_err(error=400)('admin')]
+)
 def test_upload_for_other(
     named_user, test_client, logged_in, assignment, name, error_template,
     teacher_user, after_deadline, author, session, request
@@ -1074,7 +1077,7 @@ def test_upload_for_other(
     if isinstance(author, int):
         author = 'DOES_NOT_EXIST'
 
-    marker = request.node.get_marker('http_err')
+    marker = request.node.get_closest_marker('http_err')
     code = 201 if marker is None else marker.kwargs['error']
     res = None if marker is None else error_template
 
@@ -1096,8 +1099,7 @@ def test_upload_for_other(
         named_user.courses[assignment.course_id].set_permission(
             session.query(
                 m.Permission
-            ).filter_by(name='can_upload_after_deadline').first(),
-            False
+            ).filter_by(name='can_upload_after_deadline').first(), False
         )
 
     with logged_in(named_user):
@@ -1169,7 +1171,7 @@ def test_divide_assignments(
     assignment, graders, named_user, logged_in, test_client, error_template,
     request, with_works
 ):
-    marker = request.node.get_marker('http_err')
+    marker = request.node.get_closest_marker('http_err')
     code = 204 if marker is None else marker.kwargs['error']
     res = None if marker is None else error_template
 
@@ -1453,7 +1455,7 @@ def test_get_all_graders(
         )
 
     with logged_in(named_user):
-        marker = request.node.get_marker('http_err')
+        marker = request.node.get_closest_marker('http_err')
         code = 200 if marker is None else marker.kwargs['error']
         test_client.req(
             'get',
@@ -1513,9 +1515,9 @@ def test_get_all_submissions(
     error_template,
     extended,
 ):
-    marker = request.node.get_marker('http_err')
-    no_hide = request.node.get_marker('no_hidden')
-    no_grade = request.node.get_marker('no_grade')
+    marker = request.node.get_closest_marker('http_err')
+    no_hide = request.node.get_closest_marker('no_hidden')
+    no_grade = request.node.get_closest_marker('no_grade')
 
     with logged_in(named_user):
         if no_hide and state_is_hidden:
@@ -1523,7 +1525,7 @@ def test_get_all_submissions(
         elif marker is None:
             code = 200
             works = m.Work.query.filter_by(assignment_id=assignment.id)
-            if request.node.get_marker('no_others') is not None:
+            if request.node.get_closest_marker('no_others') is not None:
                 works = works.filter_by(user_id=named_user.id)
 
             res = []
@@ -1687,7 +1689,7 @@ def test_upload_blackboard_zip(
             if u['CourseRole']['name'] == 'Student'
         )
 
-    marker = request.node.get_marker('http_err')
+    marker = request.node.get_closest_marker('http_err')
     with logged_in(named_user):
         if marker is not None:
             code = marker.kwargs['error']
@@ -2256,8 +2258,7 @@ def test_ignored_upload_files(
     for ext in exts:
         with logged_in(named_user):
             res = test_client.req(
-                'post',
-                f'/api/v1/assignments/{assignment.id}/submission?'
+                'post', f'/api/v1/assignments/{assignment.id}/submission?'
                 'ignored_files=error',
                 400,
                 real_data={
@@ -2386,8 +2387,7 @@ def test_ignored_upload_files(
 
     with logged_in(named_user):
         res = test_client.req(
-            'post',
-            f'/api/v1/assignments/{assignment.id}/submission?'
+            'post', f'/api/v1/assignments/{assignment.id}/submission?'
             'ignored_files=error',
             400,
             real_data={
@@ -2407,8 +2407,7 @@ def test_ignored_upload_files(
         assert set([f'{name}']) == set(r[0] for r in res['invalid_files'])
 
         res = test_client.req(
-            'post',
-            f'/api/v1/assignments/{assignment.id}/submission?'
+            'post', f'/api/v1/assignments/{assignment.id}/submission?'
             'ignored_files=delete',
             400,
             real_data={
@@ -2479,8 +2478,7 @@ def test_ignoring_dirs_tar_archives(
 
     with logged_in(student_user):
         res = test_client.req(
-            'post',
-            f'/api/v1/assignments/{assignment.id}/submission?'
+            'post', f'/api/v1/assignments/{assignment.id}/submission?'
             'ignored_files=error',
             400,
             real_data={
@@ -2678,7 +2676,7 @@ def test_grader_done(
     course_id = assignment.course_id
 
     code = 204
-    marker = request.node.get_marker('http_err')
+    marker = request.node.get_closest_marker('http_err')
     if marker is not None:
         code = marker.kwargs['error']
 
@@ -2942,7 +2940,7 @@ def test_reminder_email(
         data['done_email'] = 'not_a_email'
         code = 400
 
-    marker = request.node.get_marker('http_err')
+    marker = request.node.get_closest_marker('http_err')
     if marker is not None:
         code = marker.kwargs['error']
 
@@ -2994,8 +2992,7 @@ def test_reminder_email(
                 'get', f'/api/v1/assignments/{assig_id}', 200, result=dict
             )
             assert assig['done_type'] == data[
-                'done_type'
-            ], 'Make sure state is the same as in the data sent'
+                'done_type'], 'Make sure state is the same as in the data sent'
 
             if assig['done_type'] is None:
                 assert assig['reminder_time'] is None, """
@@ -3009,8 +3006,7 @@ def test_reminder_email(
                     'reminder_time'
                 ], 'Make sure time is the same as in the data sent'
                 assert assig['done_email'] == data[
-                    'done_email'
-                ], 'Make sure email is correct'
+                    'done_email'], 'Make sure email is correct'
 
     with logged_in(named_user):
         test_client.req(
@@ -3188,8 +3184,8 @@ def test_notification_permission(
 ):
     assig_id = assignment.id
     teacher_user.courses[assignment.course_id].set_permission(
-        m.Permission.query.filter_by(name='can_update_course_notifications', )
-        .one(),
+        m.Permission.query.filter_by(name='can_update_course_notifications', ).
+        one(),
         False,
     )
     with logged_in(teacher_user):

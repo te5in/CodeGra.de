@@ -242,7 +242,7 @@ export default {
     },
 
     computed: {
-        ...mapGetters('courses', ['assignments']),
+        ...mapGetters('courses', ['courses', 'assignments']),
 
         ...mapGetters('user', ['loggedIn', 'name']),
 
@@ -307,8 +307,12 @@ export default {
 
         this.canManageSite = perms.every(x => x);
 
-        this.$root.$on('sidebar::show', () => {
-            this.toggleMobileSidebar();
+        this.$root.$on('sidebar::show', (submenu) => {
+            if (submenu === undefined) {
+                this.toggleMobileSidebar();
+            } else {
+                this.openUpperSubMenu(this.findEntry(submenu), false);
+            }
         });
 
         this.$on('sidebar::close', () => {
@@ -353,14 +357,16 @@ export default {
                 // NOOP
             } else if (this.$route.query.sbloc === 'a') {
                 this.openMenuStack([this.findEntry('assignments')]);
+            } else if (this.$route.query.sbloc === 'c') {
+                this.openMenuStack([this.findEntry('courses')]);
             } else {
-                const assignment = this.assignments[this.$route.params.assignmentId];
+                const course = this.courses[this.$route.params.courseId];
                 const menuStack = [this.findEntry('courses')];
-                if (assignment != null) {
+                if (course != null) {
                     menuStack.push({
-                        header: assignment.course.name,
+                        header: course.name,
                         component: 'assignment-list',
-                        data: assignment,
+                        data: { course },
                         reload: true,
                     });
                 }

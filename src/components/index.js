@@ -38,3 +38,4 @@ export { default as FileUploader } from './FileUploader';
 export { default as OverviewMode } from './OverviewMode';
 export { default as SubmissionUploader } from './SubmissionUploader';
 export { default as MaximumGrade } from './MaximumGrade';
+export { default as HomeGrid } from './HomeGrid';
