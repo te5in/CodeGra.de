@@ -4,9 +4,9 @@ import zipfile
 import datetime
 
 import pytest
-import psef.models as m
 from pytest import approx
 
+import psef.models as m
 from helpers import create_marker
 
 http_error = create_marker(pytest.mark.http_error)
@@ -1822,7 +1822,13 @@ def test_uploading_invalid_file(
     indirect=True
 )
 @pytest.mark.parametrize(
-    'max_grade', [10, 4, 15, http_error(error=400)('Hello')]
+    'max_grade', [
+        10,
+        4,
+        15,
+        http_error(error=400)('Hello'),
+        http_error(error=400)(-2),
+    ]
 )
 @pytest.mark.parametrize('filename', ['test_flake8.tar.gz'], indirect=True)
 def test_maximum_grade(

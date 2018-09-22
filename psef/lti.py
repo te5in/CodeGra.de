@@ -436,8 +436,6 @@ class LTI:  # pylint: disable=too-many-public-methods
     ) -> 'OutcomeResponse':
         """Do a LTI grade passback.
 
-        .. todo:: Update docs
-
         :param key: The oauth key to use.
         :param secret: The oauth secret to use.
         :param grade: The grade to pass back, between 0 and
@@ -445,6 +443,9 @@ class LTI:  # pylint: disable=too-many-public-methods
             no grade information will be send.
         :param service_url: The url used for grade passback.
         :param sourcedid: The ``sourcedid`` used in the grade passback.
+        :param lti_points_possible: The maximum amount of points possible for
+            the assignment we are passing back as reported by the LMS during
+            launch.
         :param url: The url used as general feedback to the student which will
             probably be clickable.
         :returns: The response of the LTI consumer.
