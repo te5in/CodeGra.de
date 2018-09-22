@@ -453,7 +453,6 @@ def test_lti_grade_passback(
     patch_delete.called = False
     patch_replace.called = False
 
-
     assig, token = do_lti_launch(
         username='NEW_USERNAME',
         lti_id='NEW_ID',

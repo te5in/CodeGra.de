@@ -2201,16 +2201,24 @@ class Assignment(Base):
 
     @property
     def max_grade(self) -> float:
+        """Get the maximum grade possible for this assignment.
+
+        :returns: The maximum a grade for a submission.
+        """
         return 10 if self._max_grade is None else self._max_grade
 
     # We don't use property.setter because in that case `new_val` could only be
     # a `float` because of https://github.com/python/mypy/issues/220
     def set_max_grade(self, new_val: t.Union[None, float, int]) -> None:
+        """Set or unset the maximum grade for this assignment.
+
+        :param new_val: The new value for ``_max_grade``.
+        :return: Nothing.
+        """
         self._max_grade = new_val
 
-    @property
-    def min_grade(self) -> float:
-        return 0
+    min_grade = 0
+    """The minimum grade for an submission in this assignment."""
 
     def _submit_grades(self) -> None:
         subs = t.cast(
@@ -2390,13 +2398,11 @@ class Assignment(Base):
         """Is the current assignment open, which means the assignment is in the
         state students submit work.
         """
-        if (
+        return bool(
             self.deadline is not None and
             self.state == _AssignmentStateEnum.open and
             self.deadline >= psef.helpers.get_request_start_time()
-        ):
-            return True
-        return False
+        )
 
     @property
     def is_hidden(self) -> bool:
