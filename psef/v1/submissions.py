@@ -671,9 +671,10 @@ def create_new_file(submission_id: int) -> JSONResponse[t.Mapping[str, t.Any]]:
 
 @api.route("/submissions/<int:submission_id>/files/", methods=['GET'])
 @auth.login_required
-def get_dir_contents(submission_id: int
-                     ) -> t.Union[JSONResponse[psef.files.FileTree],
-                                  JSONResponse[t.Mapping[str, t.Any]]]:
+def get_dir_contents(
+    submission_id: int
+) -> t.Union[JSONResponse[psef.files.FileTree], JSONResponse[t.Mapping[str, t.
+                                                                       Any]]]:
     """Return the file directory info of a file of the given submission
     (:class:`.models.Work`).
 
