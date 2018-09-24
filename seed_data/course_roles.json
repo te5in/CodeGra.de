@@ -47,7 +47,9 @@
       "can_submit_own_work",
       "can_delete_submission",
       "can_submit_others_work",
-      "can_edit_maximum_grade"
+      "can_edit_maximum_grade",
+      "can_manage_plagiarism",
+      "can_view_plagiarism"
     ],
     "initial_role": true
   },

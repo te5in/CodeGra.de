@@ -1,6 +1,6 @@
 <template>
 <div class="page home">
-    <div v-if="!loggedIn">
+    <div class="login-wrapper" v-if="!loggedIn">
         <img class="logo" src="static/img/codegrade.svg" v-if="this.$store.getters['pref/darkMode']"/>
         <img class="logo" src="static/img/codegrade-inv.svg" v-else/>
         <login class="login"/>
@@ -40,8 +40,7 @@ export default {
 <style lang="less" scoped>
 @import "~mixins.less";
 
-.page.home {
-    margin-top: 2em;
+.page.home .login-wrapper {
     margin: 2em auto;
     .login {
         @media @media-medium {

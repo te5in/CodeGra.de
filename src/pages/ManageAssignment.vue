@@ -7,9 +7,9 @@
 </div>
 <div class="manage-assignment" v-else>
     <local-header title="">
-        <span slot="title">
+        <h4 slot="title" style="margin-bottom: 0px;">
             {{ assignment.name }} - <small>{{ assignment.deadline }}</small>
-        </span>
+        </h4>
 
         <assignment-state :assignment="assignment"
                           class="assignment-state"
@@ -89,6 +89,18 @@
                                          submitting."/>
                     </span>
                     <c-g-ignore-file :assignment-id="assignmentId"/>
+                </b-card>
+
+                <b-card v-if="permissions.can_manage_plagiarism || permissions.can_view_plagiarism">
+                    <span slot="header">
+                        Plagiarism checking
+                        <description-popover
+                            description="Run a plagiarism checker or view
+                            the results."/>
+                    </span>
+                    <plagiarism-runner :assignment="assignment"
+                                       :can-manage="permissions.can_manage_plagiarism"
+                                       :can-view="permissions.can_view_plagiarism"/>
                 </b-card>
             </div>
 
@@ -186,6 +198,7 @@ import {
     LocalHeader,
     SubmissionUploader,
     MaximumGrade,
+    PlagiarismRunner,
 } from '@/components';
 
 export default {
@@ -329,6 +342,7 @@ export default {
         LocalHeader,
         SubmissionUploader,
         MaximumGrade,
+        PlagiarismRunner,
     },
 };
 </script>
@@ -360,6 +374,10 @@ export default {
 }
 
 .finished-grader-toggles {
+    margin: -1.25rem;
+}
+
+.plagiarism-runner {
     margin: -1.25rem;
 }
 </style>
