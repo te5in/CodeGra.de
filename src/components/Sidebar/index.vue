@@ -140,6 +140,8 @@ const floatingRoutes = new Set([
     'home',
     'submission',
     'submission_file',
+    'plagiarism_overview',
+    'plagiarism_detail',
 ]);
 const hideRoutes = floatingRoutes;
 

@@ -46,7 +46,6 @@
                 <submit-button @click="cancelFeedback"
                                ref="deleteFeedbackButton"
                                default="danger"
-                               show-inline
                                :label="false">
                     <icon name="times" aria-hidden="true"/>
                 </submit-button>
