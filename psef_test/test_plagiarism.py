@@ -4,11 +4,10 @@ import random
 import itertools
 import subprocess
 
-import pytest
-from sqlalchemy import func
-
 import psef
+import pytest
 from helpers import create_marker
+from sqlalchemy import func
 
 http_err = create_marker(pytest.mark.http_err)
 
@@ -640,6 +639,7 @@ def test_get_plagiarism_providers(test_client):
                             'type': 'singleselect',
                             'mandatory': bool,
                             'possible_options': list,
+                            'placeholder': None,
                         },
                         {
                             'name': 'suffixes',
@@ -647,6 +647,7 @@ def test_get_plagiarism_providers(test_client):
                             'description': str,
                             'type': 'strvalue',
                             'mandatory': bool,
+                            'placeholder': '.xxx, .yyy',
                         },
                         {
                             'name': 'simil',
@@ -654,6 +655,7 @@ def test_get_plagiarism_providers(test_client):
                             'description': str,
                             'type': 'numbervalue',
                             'mandatory': bool,
+                            'placeholder': 25,
                         }
                     ],
             },
