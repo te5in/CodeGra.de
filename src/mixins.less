@@ -539,6 +539,10 @@
 }
 
 .code-viewer-char-column {
+    &.show-char-column {
+        position: relative;
+    }
+
     &::before {
         content: attr(data-char-column);
         position: absolute;
