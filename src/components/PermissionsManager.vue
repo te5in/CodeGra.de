@@ -65,6 +65,8 @@ import 'vue-awesome/icons/floppy-o';
 import 'vue-awesome/icons/ban';
 import 'vue-awesome/icons/info';
 
+import { waitAtLeast } from '@/utils';
+
 import DescriptionPopover from './DescriptionPopover';
 import Loader from './Loader';
 import SubmitButton from './SubmitButton';
@@ -185,10 +187,11 @@ export default {
             const newValue = !item[field.key];
             item[field.key] = 'loading';
             this.$set(this.items, i, item);
-            this.$http.patch(this.getChangePermUrl(this.courseId, field.id), {
+            const req = this.$http.patch(this.getChangePermUrl(this.courseId, field.id), {
                 value: newValue,
                 permission: item.name,
-            }).then(() => {
+            });
+            waitAtLeast(500, req).then(() => {
                 item[field.key] = newValue;
                 this.$set(this.items, i, item);
             });

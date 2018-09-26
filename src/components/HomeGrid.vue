@@ -1,13 +1,23 @@
 <template>
 <div class="home-grid">
-    <h4 style="margin-left: 1em;">Welcome {{ nameOfUser }} to CodeGrade</h4>
-    <hr>
+    <local-header>
+        <template slot="title">
+            Welcome {{ nameOfUser }}!
+        </template>
+        <img class="large" src="/static/img/codegrade.svg" v-if="darkMode"/>
+        <img class="large" src="/static/img/codegrade-inv.svg" v-else/>
+        <img class="small" src="/static/img/logo.svg" v-if="darkMode"/>
+        <img class="small" src="/static/img/logo-inv.svg" v-else/>
+    </local-header>
     <loader v-if="loadingCourses"/>
     <div v-else-if="courses.length === 0">
         <span class="no-courses">You have no courses yet!</span>
     </div>
-    <div class="outer-block" v-else>
-        <div class="card-wrapper" v-for="course in courses">
+    <masonry :cols="{default: 3, [$root.largeWidth]: 2, [$root.mediumWidth]: 1 }"
+             :gutter="30"
+             class="outer-block"
+             v-else>
+        <div class="card-wrapper" v-for="course in courses" :key="course.id">
             <b-card no-body>
                 <b-card-header :class="`text-${getColorPair(course.name).color}`"
                                :style="{ backgroundColor: getColorPair(course.name).background }">
@@ -27,6 +37,7 @@
                                v-if="course.assignments.length > 0">
                             <tbody>
                                 <router-link v-for="assig in course.assignments"
+                                             :key="assig.id"
                                              :to="submissionsRoute(assig)"
                                              class="assig-list-item">
                                     <td>
@@ -58,7 +69,7 @@
                 </b-card-body>
             </b-card>
         </div>
-    </div>
+    </masonry>
 </div>
 </template>
 
@@ -74,6 +85,7 @@ import { hashString, cmpNoCase } from '@/utils';
 import AssignmentState from './AssignmentState';
 import UserInfo from './UserInfo';
 import Loader from './Loader';
+import LocalHeader from './LocalHeader';
 
 const COLOR_PAIRS = [
     { background: '#70A3A2', color: 'dark' },
@@ -113,6 +125,7 @@ export default {
     computed: {
         ...mapGetters('courses', { unsortedCourses: 'courses' }),
         ...mapGetters('user', { nameOfUser: 'name' }),
+        ...mapGetters('pref', ['darkMode']),
 
         courses() {
             return Object.values(this.unsortedCourses).sort(
@@ -180,6 +193,7 @@ export default {
         Icon,
         UserInfo,
         Loader,
+        LocalHeader,
     },
 };
 </script>
@@ -187,11 +201,32 @@ export default {
 <style lang="less" scoped>
 @import "~mixins.less";
 
-.home-grid .outer-block {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: left;
+.local-header img {
+    float: right;
 
+    &.large {
+        height: 1.3em;
+        margin-top: .5rem;
+    }
+
+    &.small {
+        height: 1.8em;
+    }
+
+    @media @media-small {
+        &.large {
+            display: none;
+        }
+    }
+
+    @media @media-no-small {
+        &.small {
+            display: none;
+        }
+    }
+}
+
+.home-grid .outer-block {
     .card-body.card-no-padding {
         padding: 0;
     }
@@ -234,10 +269,14 @@ export default {
     }
 
     .card-wrapper {
-        flex: 1;
-        padding: 1em;
-        flex-basis: 33%;
-        flex-grow: 0;
+        padding-bottom: 1em;
+
+        .card-body {
+            @media @media-medium {
+                max-height: 15em;
+                overflow: auto;
+            }
+        }
 
         .card-header {
             padding: .75rem;

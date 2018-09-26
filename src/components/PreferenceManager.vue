@@ -398,11 +398,6 @@ export default {
         .dark-input-group-colors;
     }
 
-    #app.dark &,
-    #app.dark ~ .popover & {
-        .dark-selects-colors;
-    }
-
     .table {
         .loader {
             margin-top: 4px;

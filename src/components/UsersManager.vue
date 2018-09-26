@@ -204,6 +204,7 @@ export default {
                 this.$set(this.updating, user.User.id, false);
                 delete this.updating[user.User.id];
             }).catch((err) => {
+                // TODO: visual feedback
                 // eslint-disable-next-line
                 console.dir(err)
             });
