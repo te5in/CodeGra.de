@@ -4,10 +4,11 @@ import random
 import itertools
 import subprocess
 
-import psef
 import pytest
-from helpers import create_marker
 from sqlalchemy import func
+
+import psef
+from helpers import create_marker
 
 http_err = create_marker(pytest.mark.http_err)
 
@@ -29,23 +30,6 @@ def get_all_files_of_dir(d, upper):
     return res
 
 
-@pytest.mark.parametrize(
-    'named_user', ['Robin', http_err(error=403)('Student3')], indirect=True
-)
-@pytest.mark.parametrize(
-    'provider', [
-        'JPlag',
-        http_err(error=400)(None),
-        http_err(error=404)('unknown'),
-    ]
-)
-@pytest.mark.parametrize(
-    'old_assignments', [
-        [],
-        http_err(error=400)(['']),
-        http_err(error=404)([-1]),
-    ]
-)
 @pytest.mark.parametrize(
     'lang', [
         'Python 3',
@@ -71,6 +55,23 @@ def get_all_files_of_dir(d, upper):
         '*.py,*.PY',
     ]
 )
+@pytest.mark.parametrize(
+    'old_assignments', [
+        [],
+        http_err(error=400)(['']),
+        http_err(error=404)([-1]),
+    ]
+)
+@pytest.mark.parametrize(
+    'provider', [
+        'JPlag',
+        http_err(error=400)(None),
+        http_err(error=404)('unknown'),
+    ]
+)
+@pytest.mark.parametrize(
+    'named_user', ['Robin', http_err(error=403)('Student3')], indirect=True
+)
 @pytest.mark.parametrize('bb_tar_gz', ['correct.tar.gz'])
 def test_jplag(
     bb_tar_gz, logged_in, request, assignment, test_client, named_user,
@@ -83,7 +84,7 @@ def test_jplag(
         f'{os.path.dirname(__file__)}/'
         f'../test_data/test_blackboard/{bb_tar_gz}'
     )
-    marker = request.node.get_marker('http_err')
+    marker = request.node.get_closest_marker('http_err')
     code = marker.kwargs['error'] if marker else 200
 
     call_arguments = None
