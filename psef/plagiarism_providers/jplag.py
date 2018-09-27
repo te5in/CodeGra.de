@@ -66,13 +66,13 @@ class JPlag(plag.PlagiarismProvider):
                 (
                     "A comma separated list of suffixes. A file is only parsed"
                     " if it ends with one of the given suffixes exactly, no"
-                    " regex is supported. To parse all files input '.*' as"
-                    " suffix. If this value is left empty suitable suffixes"
-                    " will be selected for the selected language."
+                    " regex is supported. If this value is left empty suitable"
+                    " suffixes will be selected for the selected language."
                 ),
                 plag.OptionTypes.strvalue,
                 False,
                 None,
+                placeholder='.xxx, .yyy',
             ),
             plag.Option(
                 "simil",
@@ -87,6 +87,7 @@ class JPlag(plag.PlagiarismProvider):
                 plag.OptionTypes.numbervalue,
                 False,
                 None,
+                placeholder=25,
             ),
         ]
 

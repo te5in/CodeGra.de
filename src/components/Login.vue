@@ -26,7 +26,8 @@
                        @click.native="submit"
                        :label="showForgot ? 'Request email' : 'Login'"
                        :show-empty="false"/>
-        <div class="login-links">
+        <!-- This happens when a logged in user wants to reset its password -->
+        <div class="login-links" v-if="!loggedIn">
             <a class="login"
                :href="showForgot ? '#login' : '#forgot'"
                @click="reset">
@@ -38,7 +39,7 @@
 </template>
 
 <script>
-import { mapActions } from 'vuex';
+import { mapActions, mapGetters } from 'vuex';
 
 import PasswordInput from './PasswordInput';
 import SubmitButton from './SubmitButton';
@@ -58,6 +59,10 @@ export default {
     },
 
     computed: {
+        ...mapGetters('user', [
+            'loggedIn',
+        ]),
+
         showForgot() {
             return this.$route.hash === '#forgot';
         },

@@ -48,9 +48,10 @@
                         that you don't know this password. In this case
                         you should use the
                         <router-link :to="{
-                                          name: 'login',
-                                          hash: '#forgot'
-                                          }">
+                                          name: 'home',
+                                          hash: '#forgot',
+                                          }"
+                                     target="_blank">
                             reset password</router-link> page.<br><br>
 
                         However this does require
