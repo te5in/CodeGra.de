@@ -69,6 +69,13 @@ case "$TO_RUN" in
             res=0
         fi
         ;;
+    "js_unit")
+        make privacy_statement
+        [[ -z "$NO_INSTALL" ]] && npm install
+        npm run unit
+        res="$?"
+        set +x xtrace
+        ;;
 
 esac
 

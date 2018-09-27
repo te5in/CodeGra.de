@@ -22,3 +22,4 @@ PRIVACY_STATEMENT.md
 config.ini
 /.dir-locals.el
 .cov2emacs.log
+/coverage/

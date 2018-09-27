@@ -44,7 +44,6 @@ import { diffLines } from 'diff';
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/plus';
 import 'vue-awesome/icons/cog';
-import 'vue-multiselect/dist/vue-multiselect.min.css';
 
 import { visualizeWhitespace, last, range } from '@/utils';
 
