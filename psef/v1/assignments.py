@@ -475,6 +475,12 @@ def process_rubric_row(
     items = t.cast(list, row['items'])
     row_id = None
 
+    if header == '':
+        raise APIException(
+            'A row can\'t have an empty header',
+            f'The row "{row}" has an empty header', APICodes.INVALID_PARAM, 400
+        )
+
     if 'id' in row:
         ensure_keys_in_dict(row, [('id', int)])
         row_id = t.cast(int, row['id'])
