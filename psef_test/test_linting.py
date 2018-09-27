@@ -6,10 +6,11 @@ import time
 import datetime
 from random import shuffle
 
-import psef
 import pytest
-import psef.models as m
+from werkzeug.local import LocalProxy
 
+import psef
+import psef.models as m
 from helpers import create_marker
 
 run_error = create_marker(pytest.mark.run_error)
@@ -27,13 +28,8 @@ ALL_LINTERS = sorted(['Flake8', 'MixedWhitespace', 'Pylint'])
                 ('Flake8', '', ['W191', 'E211', 'E201', 'E202'])
             ]
         ),
-        run_error(error=400, )(
-            ('test_flake8.tar.gz', [('Flake8', False, '')])
-        ),
-        run_error(error=400)(('test_flake8.tar.gz', [('Flake8', 5, '')])),
         run_error(error=400)(('test_flake8.tar.gz', [(6, '666', '')])),
-        run_error(error=400)(('test_flake8.tar.gz', [(False, False, '')])),
-        run_error(error=400)(('test_flake8.tar.gz', [(False, '', '')])),
+        run_error(error=400)(('test_flake8.tar.gz', [('Flake8', False, '')])),
         run_error(crash='Pylint')(
             ('test_flake8.tar.gz', [('Pylint', '[MASTER]\njobs=-1', '')])
         ),
@@ -84,31 +80,9 @@ ALL_LINTERS = sorted(['Flake8', 'MixedWhitespace', 'Pylint'])
     ],
     indirect=['filename'],
 )
-@pytest.mark.parametrize(
-    'named_user,use_teacher', [
-        ('Robin', False),
-        pytest.param(
-            'Student1',
-            True,
-            marks=[pytest.mark.get_works,
-                   pytest.mark.perm_error(error=403)]
-        ),
-        pytest.param(
-            'Student1',
-            False,
-            marks=[pytest.mark.get_works,
-                   pytest.mark.perm_error(error=403)]
-        ),
-        perm_error(error=403)(('admin', False)),
-        perm_error(error=401)(('NOT_LOGGED_IN', False)),
-        perm_error(error=401)(('NOT_LOGGED_IN', True)),
-    ],
-    indirect=['named_user']
-)
 def test_linters(
-    teacher_user, named_user, test_client, logged_in, use_teacher,
-    assignment_real_works, linter_cfgs_exp, request, error_template, session,
-    monkeypatch_celery
+    teacher_user, test_client, logged_in, assignment_real_works,
+    linter_cfgs_exp, request, error_template, session, monkeypatch_celery
 ):
     assignment, single_work = assignment_real_works
     assig_id = assignment.id
@@ -120,13 +94,7 @@ def test_linters(
     else:
         run_err = {}
 
-    get_work = request.node.get_closest_marker('get_works')
-    perm_err = request.node.get_closest_marker('perm_error')
-    set_perm_err = (not use_teacher) and perm_err
-    if set_perm_err:
-        run_err['error'] = set_perm_err.kwargs['error']
-
-    with logged_in(teacher_user if use_teacher else named_user):
+    with logged_in(teacher_user):
         for linter, cfg, _ in linter_cfgs_exp:
             data = {}
             if linter != False:  # NOQA
@@ -196,11 +164,11 @@ def test_linters(
         linter_result = test_client.req(
             'get',
             f'/api/v1/assignments/{assig_id}/linters/',
-            code if set_perm_err else 200,
-            result=error_template if set_perm_err else result,
+            200,
+            result=result,
         )
 
-        for linter in linter_result if not set_perm_err else []:
+        for linter in linter_result:
             if [True for lint in linter_cfgs_exp if lint[0] == linter['name']]:
                 if 'id' not in linter:
                     assert run_err.get('crash') != linter['name']
@@ -209,8 +177,8 @@ def test_linters(
                 test_client.req(
                     'get',
                     f'/api/v1/linters/{linter["id"]}',
-                    400 if set_perm_err else 200,
-                    result=error_template if set_perm_err else {
+                    200,
+                    result={
                         'name': linter['name'],
                         'done': 0 if run_err.get('crash') == lname else 3,
                         'working': 0,
@@ -219,7 +187,7 @@ def test_linters(
                     }
                 )
 
-    with logged_in(named_user):
+    with logged_in(teacher_user):
         code_id = session.query(m.File.id).filter(
             m.File.work_id == single_work['id'],
             m.File.parent != None,  # NOQA
@@ -230,13 +198,11 @@ def test_linters(
         for linter, _, exp in linter_cfgs_exp:
             linters[linter] = list(exp)
 
-        can_see_comm = not perm_err or get_work
-
         res = sorted(
             test_client.req(
                 'get',
                 f'/api/v1/code/{code_id}',
-                200 if can_see_comm else perm_err.kwargs['error'],
+                200,
                 query={
                     'type': 'linter-feedback'
                 },
@@ -244,15 +210,11 @@ def test_linters(
             key=lambda el: el[0]
         )
 
-        if can_see_comm:
-            for _, feedbacks in res:
-                for name, linter_comm in feedbacks:
-                    assert linters[name].pop(0) == linter_comm['code']
+        for _, feedbacks in res:
+            for name, linter_comm in feedbacks:
+                assert linters[name].pop(0) == linter_comm['code']
 
-            if get_work:
-                assert not res
-            else:  # Check all codes are given
-                assert not any(linters.values())
+        assert not any(linters.values())
 
         for linter in linter_result:
             if 'id' not in linter:
@@ -261,13 +223,99 @@ def test_linters(
             test_client.req(
                 'delete',
                 f'/api/v1/linters/{linter["id"]}',
-                perm_err.kwargs['error'] if perm_err else 204,
+                204,
             )
             test_client.req(
                 'get',
                 f'/api/v1/linters/{linter["id"]}',
-                perm_err.kwargs['error'] if perm_err else 404,
-                result=None if perm_err else error_template
+                404,
+                result=error_template
+            )
+
+
+@pytest.mark.parametrize('filename', ['test_flake8.tar.gz'], indirect=True)
+def test_linters_permissions(
+    teacher_user, student_user, test_client, logged_in, assignment_real_works,
+    request, error_template, session, monkeypatch_celery
+):
+    assignment, single_work = assignment_real_works
+    linter, cfgs = 'Flake8', ''
+    student_user2 = LocalProxy(
+        session.query(m.User).filter_by(name="Student2").one
+    )
+    data = {'name': linter, 'cfg': cfgs}
+    assig_id = assignment.id
+
+    with logged_in(student_user):
+        test_client.req(
+            'post',
+            f'/api/v1/assignments/{assig_id}/linter',
+            403,
+            data=data,
+            result=error_template,
+        )
+    with logged_in(teacher_user):
+        test_client.req(
+            'post',
+            f'/api/v1/assignments/{assig_id}/linter',
+            200,
+            data=data,
+        )
+    with logged_in(student_user):
+        test_client.req(
+            'get',
+            f'/api/v1/assignments/{assig_id}/linters/',
+            403,
+            result=error_template,
+        )
+
+    code_id = session.query(m.File.id).filter(
+        m.File.work_id == single_work['id'],
+        m.File.parent != None,  # NOQA
+        m.File.name != '__init__.py',
+    ).first()[0]
+    with logged_in(student_user):
+        test_client.req(
+            'get',
+            f'/api/v1/code/{code_id}',
+            200,
+            query={'type': 'linter-feedback'},
+        )
+    with logged_in(student_user2):
+        # Other student cannot view linter feedback
+        test_client.req(
+            'get',
+            f'/api/v1/code/{code_id}',
+            403,
+            query={'type': 'linter-feedback'},
+        )
+
+    with logged_in(teacher_user):
+        linter_result = test_client.req(
+            'get',
+            f'/api/v1/assignments/{assig_id}/linters/',
+            200,
+        )
+    assert any('id' in l for l in linter_result)
+
+    with logged_in(student_user):
+        for linter in linter_result:
+            if 'id' not in linter:
+                continue
+            test_client.req(
+                'delete',
+                f'/api/v1/linters/{linter["id"]}',
+                403,
+                result=error_template,
+            )
+    with logged_in(teacher_user):
+        for linter in linter_result:
+            if 'id' not in linter:
+                continue
+            test_client.req(
+                'get',
+                f'/api/v1/linters/{linter["id"]}',
+                200,
             )
 
 

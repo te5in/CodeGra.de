@@ -69,14 +69,11 @@ def get_all_files_of_dir(d, upper):
         http_err(error=404)('unknown'),
     ]
 )
-@pytest.mark.parametrize(
-    'named_user', ['Robin', http_err(error=403)('Student3')], indirect=True
-)
 @pytest.mark.parametrize('bb_tar_gz', ['correct.tar.gz'])
 def test_jplag(
-    bb_tar_gz, logged_in, request, assignment, test_client, named_user,
-    teacher_user, provider, old_assignments, lang, simil, suffixes,
-    error_template, monkeypatch, monkeypatch_celery, session, unknown_key
+    bb_tar_gz, logged_in, request, assignment, test_client, teacher_user,
+    provider, old_assignments, lang, simil, suffixes, error_template,
+    monkeypatch, monkeypatch_celery, session, unknown_key
 ):
     student_user = session.query(psef.models.User).filter_by(name='Student2'
                                                              ).one()
@@ -153,7 +150,6 @@ def test_jplag(
     monkeypatch.setattr(subprocess, 'check_output', my_check_output)
 
     with logged_in(teacher_user):
-
         test_client.req(
             'post',
             f'/api/v1/assignments/{assignment.id}/submissions/',
@@ -161,17 +157,26 @@ def test_jplag(
             real_data={'file': (bb_tar_gz, 'bb.tar.gz')},
         )
 
-    with logged_in(named_user):
-        data = {
-            'provider': provider,
-            'old_assignments': old_assignments,
-            'lang': lang,
-            'simil': simil,
-            'suffixes': suffixes,
-            'unknown_key': unknown_key,
-        }
-        data = {k: v for k, v in data.items() if v is not None}
+    data = {
+        'provider': provider,
+        'old_assignments': old_assignments,
+        'lang': lang,
+        'simil': simil,
+        'suffixes': suffixes,
+        'unknown_key': unknown_key,
+    }
+    data = {k: v for k, v in data.items() if v is not None}
 
+    with logged_in(student_user):
+        plag = test_client.req(
+            'post',
+            f'/api/v1/assignments/{assignment.id}/plagiarism',
+            403,
+            data=data,
+            result=error_template,
+        )
+
+    with logged_in(teacher_user):
         plag = test_client.req(
             'post',
             f'/api/v1/assignments/{assignment.id}/plagiarism',
@@ -185,7 +190,6 @@ def test_jplag(
             }
         )
         if code >= 400:
-            # Do some checking
             return
 
         assert plag['config'] == [list(v) for v in sorted(data.items())]
