@@ -576,38 +576,63 @@ export default {
                 push(ids, name) { this.entries.push({ ids, name }); },
             };
 
-            for (let i = 0; i < tree1.entries.length; i += 1) {
-                const child1 = tree1.entries[i];
-                let match = false;
-                for (let j = 0; j < tree2.entries.length; j += 1) {
-                    const child2 = tree2.entries[j];
-                    if (child1.name === child2.name) {
-                        match = true;
-                        if (child1.entries && child2.entries) {
-                            diffTree.entries.push(this.matchFiles(child1, child2));
-                        } else if (child1.id !== child2.id) {
-                            child1.revision = child2;
-                            child2.revision = child1;
-                            diffTree.push([child1.id, child2.id], child1.name);
-                        }
-                        break;
-                    }
-                }
-                if (!match) {
-                    child1.revision = null;
-                    diffTree.push([child1.id, null], child1.name);
-                }
-            }
+            const lookupTree2 = tree2.entries.reduce((accum, cur) => {
+                accum[cur.name] = Object.assign({}, cur, { done: false });
+                return accum;
+            }, {});
 
-            for (let i = 0; i < tree2.entries.length; i += 1) {
-                const child2 = tree2.entries[i];
-                if (!child2.revision && !child2.entries) {
-                    const match = tree1.entries.find(child1 => child1.name === child2.name);
-                    diffTree.push([match ? match.id : null, child2.id], child2.name);
-                }
-            }
+            tree1.entries.forEach((self) => {
+                const other = lookupTree2[self.name];
 
-            diffTree.entries.sort((a, b) => cmpNoCase(a.name, b.name));
+                if (other == null) {
+                    self.revision = null;
+                    diffTree.push([self.id, null], self.name);
+                    return;
+                }
+
+                other.done = true;
+
+                if (self.entries && other.entries) {
+                    diffTree.entries.push(this.matchFiles(self, other));
+                } else if (self.entries == null && other.entries == null) {
+                    self.revision = other;
+                    other.revision = self;
+                    diffTree.push([self.id, other.id], self.name);
+                } else if (self.entries) {
+                    diffTree.push([null, other.id], other.name);
+                    diffTree.entries.push(this.matchFiles(self, {
+                        name: self.name,
+                        entries: [],
+                    }));
+                } else if (other.entries) {
+                    diffTree.push([self.id, null], self.name);
+                    diffTree.entries.push(this.matchFiles({
+                        name: other.name,
+                        entries: [],
+                    }, other));
+                }
+            });
+
+            Object.values(lookupTree2).forEach((val) => {
+                if (val.done) {
+                    return;
+                }
+                if (val.entries) {
+                    diffTree.entries.push(this.matchFiles({
+                        name: val.name,
+                        entries: [],
+                    }, val));
+                } else {
+                    diffTree.push([null, val.id], val.name);
+                }
+            });
+
+            diffTree.entries.sort((a, b) => {
+                if (a.name === b.name) {
+                    return a.entries ? -1 : 1;
+                }
+                return cmpNoCase(a.name, b.name);
+            });
 
             delete diffTree.push;
             return diffTree;

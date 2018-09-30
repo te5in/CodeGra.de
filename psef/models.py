@@ -3000,7 +3000,7 @@ class PlagiarismRun(Base):
     )  # type: 'Assignment'
 
     # This variable is available through a backref
-    cases: t.Iterable['PlagiarismCase']
+    cases: t.List['PlagiarismCase']
 
     @property
     def provider_name(self) -> str:
@@ -3226,8 +3226,12 @@ class PlagiarismMatch(Base):
     __tablename__ = 'PlagiarismMatch'
     id = db.Column('id', db.Integer, primary_key=True)  # type: int
 
-    file1_id = db.Column('file1_id', db.Integer, db.ForeignKey('File.id'))
-    file2_id = db.Column('file2_id', db.Integer, db.ForeignKey('File.id'))
+    file1_id = db.Column(
+        'file1_id', db.Integer, db.ForeignKey('File.id', ondelete='CASCADE')
+    )
+    file2_id = db.Column(
+        'file2_id', db.Integer, db.ForeignKey('File.id', ondelete='CASCADE')
+    )
 
     file1_start = db.Column('file1_start', db.Integer, nullable=False)
     file1_end = db.Column('file1_end', db.Integer, nullable=False)

@@ -39,12 +39,10 @@
 </template>
 
 <script>
-import { diffLines } from 'diff';
-
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/plus';
 import 'vue-awesome/icons/cog';
-import 'vue-multiselect/dist/vue-multiselect.min.css';
+import DiffMatchPatch from 'diff-match-patch';
 
 import { visualizeWhitespace, last, range } from '@/utils';
 
@@ -132,19 +130,54 @@ export default {
         },
 
         diffCode(origCode, revCode) {
-            const diff = diffLines(origCode, revCode);
+            const ADDED = 1;
+            const REMOVED = -1;
+
+            // This was copied from the diff-match-patch repository
+            function diffText(text1, text2) {
+                const dmp = new DiffMatchPatch();
+                // eslint-disable-next-line no-underscore-dangle
+                const { chars1, chars2, lineArray } = dmp.diff_linesToChars_(text1, text2);
+                const diffs = dmp.diff_main(chars1, chars2, false);
+                // eslint-disable-next-line no-underscore-dangle
+                dmp.diff_charsToLines_(diffs, lineArray);
+                return diffs;
+            }
+
+            const diff = diffText(origCode, revCode);
             const lines = [];
 
-            for (let i = 0; i < diff.length; i += 1) {
+            diff.forEach(([state, text]) => {
                 let cls = '';
-                if (diff[i].added) cls = 'added';
-                else if (diff[i].removed) cls = 'removed';
-
-                let partLines = diff[i].value.split('\n');
-                if (!partLines[partLines.length - 1]) partLines.pop();
-                partLines = partLines.map(txt => ({ txt, cls }));
-                lines.push(...partLines);
-            }
+                if (state === ADDED) {
+                    cls = 'added';
+                } else if (state === REMOVED) {
+                    cls = 'removed';
+                }
+                text.split('\n').forEach((txt, i) => {
+                    // Merge lines. The diff output will be:
+                    // [[0, 'hello\n\n']], [-1, 'bye'], [1, 'thomas']]
+                    // When diffing: `hello
+                    //
+                    // bye`
+                    // with `hello
+                    //
+                    // thomas`
+                    //
+                    // And the output should be `hello
+                    //
+                    // - bye
+                    // + thomas`
+                    //
+                    // Without this merging the output will contain an extra newline.
+                    const line = { txt, cls };
+                    if (i === 0 && lines.length > 0 && last(lines).txt === '') {
+                        lines[lines.length - 1] = line;
+                    } else {
+                        lines.push(line);
+                    }
+                });
+            });
 
             lines.forEach((line) => {
                 line.txt = this.$htmlEscape(line.txt);
@@ -158,16 +191,10 @@ export default {
 
             this.lines = lines;
         },
-    },
 
-    computed: {
-        changedParts() {
+        getChangedParts() {
             const res = [];
             const end = this.lines.length;
-
-            if (!this.diffOnly) {
-                return res;
-            }
 
             this.lines.forEach((line, i) => {
                 const startLine = Math.max(i - this.context, 0);
@@ -185,6 +212,12 @@ export default {
             });
 
             return res;
+        },
+    },
+
+    computed: {
+        changedParts() {
+            return this.getChangedParts();
         },
     },
 

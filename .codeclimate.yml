@@ -1,10 +1,38 @@
-engines: 
+version: 2
+
+plugins:
   eslint:
     enabled: true
-  pep8:
+    channel: "eslint-4"
+    config:
+      extensions:
+        - .vue
+
+exclude_patterns:
+  - "**/psef_test/*.py"
+  - "**/test/**/*"
+  - "**/config/**/*.js"
+
+checks:
+  argument-count:
+    enabled: false
+  complex-logic:
     enabled: true
-    
-ratings:
-   paths:
-   - "**.js"
-   - "**.py"
+  file-lines:
+    enabled: true
+  method-complexity:
+    enabled: true
+  method-count:
+    enabled: false
+  method-lines:
+    enabled: false
+  nested-control-flow:
+    enabled: false
+  return-statements:
+    enabled: false
+    config:
+      threshold: 8
+  similar-code:
+    enabled: true
+  identical-code:
+    enabled: true

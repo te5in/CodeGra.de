@@ -52,9 +52,9 @@ import Vue from 'vue';
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/plus';
 import 'vue-awesome/icons/cog';
-import 'vue-multiselect/dist/vue-multiselect.min.css';
 
 import { visualizeWhitespace, cmpNoCase } from '@/utils';
+import '@/polyfills';
 
 import FeedbackArea from './FeedbackArea';
 import LinterFeedbackArea from './LinterFeedbackArea';

@@ -1,7 +1,7 @@
 TEST_FILE?=psef_test/
 SHELL=/bin/bash
 TEST_FLAGS?=
-PYTHON?=env/bin/python3.6
+PYTHON?=env/bin/python3
 export PYTHONPATH=$(CURDIR)
 
 .PHONY: test_setup

@@ -9,13 +9,13 @@ import datetime
 from functools import reduce
 from collections import defaultdict
 
-import psef
 import pytest
+
+import psef
 import psef.models as m
+from helpers import create_marker
 from psef.errors import APICodes
 from psef.helpers import ensure_keys_in_dict
-
-from helpers import create_marker
 
 # http_err = pytest.mark.http_err
 perm_error = create_marker(pytest.mark.perm_error)
@@ -315,7 +315,8 @@ err400 = http_err(error=400)
 )
 @pytest.mark.parametrize(
     'row_header',
-    [err400(None), 'new rheader', err400(5)]
+    [err400(None), 'new rheader',
+     err400(5), err400('')]
 )
 def test_add_rubric_row(
     item_description, item_points, row_description, row_header, assignment,
