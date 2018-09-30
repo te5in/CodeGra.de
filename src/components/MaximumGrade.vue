@@ -60,7 +60,6 @@ export default {
     data() {
         return {
             maxGrade: null,
-            JSON,
         };
     },
 

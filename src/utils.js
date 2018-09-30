@@ -216,9 +216,10 @@ export function range(start, end) {
 export function isDecimalNumber(val) {
     if (typeof val === 'number') return true;
     else if (typeof val !== 'string') return false;
-    let res = /^-{0,1}[1-9]\d*$/.test(val);
+    let res = /^-?[1-9]\d*$/.test(val);
     res = res || /^0$/.test(val);
-    res = res || /^-{0,1}[1-9]\d*\.\d+$/.test(val);
+    res = res || /^-?[1-9]\d*\.\d+$/.test(val);
+    res = res || /^-?0\.\d+$/.test(val);
     return res;
 }
 

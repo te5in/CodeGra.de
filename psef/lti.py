@@ -463,7 +463,7 @@ class LTI:  # pylint: disable=too-many-public-methods
         if grade is None:
             return req.post_delete_result()
         else:
-            if isinstance(grade, bool) or grade is None:
+            if isinstance(grade, bool):
                 return req.post_replace_result(None, result_data=opts)
 
             if grade > 10:

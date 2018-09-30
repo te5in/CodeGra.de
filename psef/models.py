@@ -2245,7 +2245,7 @@ class Assignment(Base):
         self._max_grade = new_val
 
     min_grade = 0
-    """The minimum grade for an submission in this assignment."""
+    """The minimum grade for a submission in this assignment."""
 
     def _submit_grades(self) -> None:
         subs = t.cast(
