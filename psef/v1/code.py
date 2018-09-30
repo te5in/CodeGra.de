@@ -291,6 +291,27 @@ def delete_code(file_id: int) -> EmptyResponse:
                 APICodes.INVALID_STATE,
                 400,
             )
+        if db.session.query(
+            models.PlagiarismMatch.query.filter(
+                (models.PlagiarismMatch.file1_id == code.id)
+                | (models.PlagiarismMatch.file2_id == code.id)
+            ).exists()
+        ).scalar():
+            # TODO: This leaks information. The question is if this is really
+            # a big issue. To stop leaking information all the other error
+            # messages also need to be adjusted, and even then: the other
+            # properties can probably be checked (if it has comments of
+            # children) so we would still leak some information. Another better
+            # option would be to only mark the file as deleted.
+            raise APIException(
+                (
+                    'You cannot delete this code as it is implicated in'
+                    ' plagiarism'
+                ),
+                f'The file "{file_id}" is implicated in a plagiarism match.',
+                APICodes.INVALID_STATE, 400
+            )
+
         code.delete_from_disk()
         db.session.delete(code)
     elif code.fileowner == models.FileOwner.both:

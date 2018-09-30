@@ -3,8 +3,8 @@ import uuid
 import datetime
 
 import pytest
-import psef.models as m
 
+import psef.models as m
 from helpers import create_marker
 
 perm_error = create_marker(pytest.mark.perm_error)
@@ -187,10 +187,10 @@ def test_get_code_plaintext_revisions(
         assert teacher_file_id != student_file_id
 
     with logged_in(student_user):
-        res = test_client.get(f'/api/v1/code/{student_file_id}', )
+        res = test_client.get(f'/api/v1/code/{student_file_id}')
         assert res.status_code == 200
 
-        res = test_client.get(f'/api/v1/code/{teacher_file_id}', )
+        res = test_client.get(f'/api/v1/code/{teacher_file_id}')
         assert res.status_code == 200
 
     with logged_in(teacher_user):
@@ -517,12 +517,17 @@ def test_delete_code_twice(
     'filename', ['../test_submissions/multiple_dir_archive.zip'],
     indirect=True
 )
-def test_delete_code_with_comment(
+def test_invalid_delete_code(
     assignment_real_works, test_client, request, error_template, ta_user,
     logged_in, session
 ):
     assignment, work = assignment_real_works
     work_id = work['id']
+    other_work = m.Work.query.filter_by(assignment=assignment
+                                        ).filter(m.Work.id != work_id).first()
+    other_code = m.File.query.filter_by(
+        work_id=other_work.id, is_directory=False
+    ).first()
 
     with logged_in(ta_user):
         res = test_client.req(
@@ -541,7 +546,6 @@ def test_delete_code_with_comment(
         session.commit()
 
         f = res['entries'][0]['entries'][0]
-        print(f)
         new_f = test_client.req(
             'patch',
             f'/api/v1/code/{f["id"]}',
@@ -575,6 +579,55 @@ def test_delete_code_with_comment(
             f'/api/v1/code/{new_f["id"]}',
             400,
             result=error_template,
+        )
+
+        # Delete comment
+        test_client.req(
+            'delete',
+            f'/api/v1/code/{new_f["id"]}/comments/0',
+            204,
+        )
+
+        p_run = m.PlagiarismRun(assignment=assignment, json_config='')
+        p_case = m.PlagiarismCase(
+            work1_id=work_id,
+            work2_id=other_work.id,
+            match_avg=50,
+            match_max=50
+        )
+        p_match = m.PlagiarismMatch(
+            file1_id=new_f['id'],
+            file2=other_code,
+            file1_start=0,
+            file1_end=1,
+            file2_start=0,
+            file2_end=1
+        )
+        p_case.matches.append(p_match)
+        p_run.cases.append(p_case)
+        session.add(p_run)
+        session.commit()
+        p_case_id = p_case.id
+        p_run_id = p_run.id
+        assert p_case_id
+        assert p_run_id
+
+        # Still not possible
+        test_client.req(
+            'delete',
+            f'/api/v1/code/{new_f["id"]}',
+            400,
+            result=error_template,
+        )
+
+        session.delete(p_case)
+        session.commit()
+
+        # Not it should work as there is no comment and not plagiarism case
+        test_client.req(
+            'delete',
+            f'/api/v1/code/{new_f["id"]}',
+            204,
         )
 
 

@@ -4,9 +4,9 @@ import zipfile
 import datetime
 
 import pytest
-import psef.models as m
 from pytest import approx
 
+import psef.models as m
 from helpers import create_marker
 
 http_error = create_marker(pytest.mark.http_error)
@@ -1545,6 +1545,9 @@ def test_delete_submission(
 ):
     assignment, work = assignment_real_works
     work_id = work['id']
+    other_work = m.Work.query.filter_by(assignment=assignment
+                                        ).filter(m.Work.id != work_id).first()
+    assert other_work, "Other work should exist"
 
     perm_err = request.node.get_closest_marker('perm_error')
     if perm_err:
@@ -1554,11 +1557,36 @@ def test_delete_submission(
 
     files = [f.id for f in m.File.query.filter_by(work_id=work_id).all()]
     assert files
-    diskname = m.File.query.filter_by(
-        work_id=work_id, is_directory=False
-    ).first().get_diskname()
+    code = m.File.query.filter_by(work_id=work_id, is_directory=False).first()
 
+    diskname = code.get_diskname()
     assert os.path.isfile(diskname)
+
+    other_code = m.File.query.filter_by(
+        work_id=other_work.id, is_directory=False
+    ).first()
+
+    p_run = m.PlagiarismRun(assignment=assignment, json_config='')
+    p_case = m.PlagiarismCase(
+        work1_id=work_id, work2_id=other_work.id, match_avg=50, match_max=50
+    )
+    p_match = m.PlagiarismMatch(
+        file1=code,
+        file2=other_code,
+        file1_start=0,
+        file1_end=1,
+        file2_start=0,
+        file2_end=1
+    )
+    p_case.matches.append(p_match)
+    p_run.cases.append(p_case)
+    session.add(p_run)
+    session.commit()
+    p_case_id = p_case.id
+    p_run_id = p_run.id
+
+    assert p_case_id
+    assert p_run_id
 
     with logged_in(teacher_user):
         test_client.req(
@@ -1585,11 +1613,15 @@ def test_delete_submission(
         for f in files:
             assert m.File.query.get(f)
         assert m.Work.query.get(work_id)
+        assert m.PlagiarismCase.query.get(p_case_id)
+        assert m.PlagiarismRun.query.get(p_run_id)
     else:
         assert not os.path.isfile(diskname)
         assert m.Work.query.get(work_id) is None
         for f in files:
             assert m.File.query.get(f) is None
+        assert m.PlagiarismCase.query.get(p_case_id) is None
+        assert m.PlagiarismRun.query.get(p_run_id)
 
 
 @pytest.mark.parametrize('filename', ['test_flake8.tar.gz'], indirect=True)
