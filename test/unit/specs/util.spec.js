@@ -1,4 +1,4 @@
-import { range, last, visualizeWhitespace, nSpaces, nTabs } from '@/utils';
+import { range, last, visualizeWhitespace, nSpaces, nTabs, isDecimalNumber } from '@/utils';
 
 describe('visualizeWhitespace in utils.js', () => {
     it('should be a function', () => {
@@ -60,5 +60,37 @@ describe('last in util.js', () => {
         const lastItem = { c: 'd' };
         expect(last([{ a: 'b' }, lastItem])).toBe(lastItem);
         expect(last([{ a: 'b' }, last])).not.toBe({ c: 'd' });
+    });
+});
+
+describe('isDecimalNumber in util.js', () => {
+    it('should accept numbers', () => {
+        expect(isDecimalNumber(5)).toBe(true);
+        expect(isDecimalNumber(-2)).toBe(true);
+        expect(isDecimalNumber(11)).toBe(true);
+    });
+
+    it('should only accept numbers and strings', () => {
+        expect(isDecimalNumber({})).toBe(false);
+        expect(isDecimalNumber([])).toBe(false);
+        expect(isDecimalNumber(new Number(5))).toBe(true);
+        expect(isDecimalNumber(new String('5'))).toBe(true);
+    });
+
+    it('should work for some strings', () => {
+        expect(isDecimalNumber('hello')).toBe(false);
+        expect(isDecimalNumber('0x5')).toBe(false);
+        expect(isDecimalNumber('08')).toBe(false);
+        expect(isDecimalNumber('1.')).toBe(false);
+        expect(isDecimalNumber('0.')).toBe(false);
+        expect(isDecimalNumber('.50')).toBe(false);
+
+        expect(isDecimalNumber('0')).toBe(true);
+        expect(isDecimalNumber('0.8')).toBe(true);
+        expect(isDecimalNumber('-0.8')).toBe(true);
+        expect(isDecimalNumber('10')).toBe(true);
+        expect(isDecimalNumber('-10')).toBe(true);
+        expect(isDecimalNumber('-10.10')).toBe(true);
+        expect(isDecimalNumber('10.10')).toBe(true);
     });
 });
