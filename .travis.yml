@@ -47,6 +47,7 @@ before_script:
   - export DEBUG_ON=True
   - psql -c 'create database travis_ci_test;' -U postgres
   - pip install travis-sphinx
+  - python -c "import fcntl; fcntl.fcntl(1, fcntl.F_SETFL, 0)"
   - curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > ./cc-test-reporter
   - chmod +x ./cc-test-reporter
   - ./cc-test-reporter before-build
