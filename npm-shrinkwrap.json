@@ -130,7 +130,7 @@
     },
     "acorn-jsx": {
       "version": "3.0.1",
-      "resolved": "http://registry.npmjs.org/acorn-jsx/-/acorn-jsx-3.0.1.tgz",
+      "resolved": "https://registry.npmjs.org/acorn-jsx/-/acorn-jsx-3.0.1.tgz",
       "integrity": "sha1-r9+UiPsezvyDSPb7IvRk4ypYs2s=",
       "dev": true,
       "requires": {
@@ -139,7 +139,7 @@
       "dependencies": {
         "acorn": {
           "version": "3.3.0",
-          "resolved": "http://registry.npmjs.org/acorn/-/acorn-3.3.0.tgz",
+          "resolved": "https://registry.npmjs.org/acorn/-/acorn-3.3.0.tgz",
           "integrity": "sha1-ReN/s56No/JbruP/U2niu18iAXo=",
           "dev": true
         }
@@ -3268,6 +3268,11 @@
       "resolved": "https://registry.npmjs.org/diff/-/diff-3.4.0.tgz",
       "integrity": "sha512-QpVuMTEoJMF7cKzi6bvWhRulU1fZqZnvyVQgNhPaxxuTYwyjn/j1v9falseQ/uXWwPnO56RBfwtg4h/EQXmucA=="
     },
+    "diff-match-patch": {
+      "version": "1.0.4",
+      "resolved": "https://registry.npmjs.org/diff-match-patch/-/diff-match-patch-1.0.4.tgz",
+      "integrity": "sha512-Uv3SW8bmH9nAtHKaKSanOQmj2DnlH65fUpcrMdfdaOxUG02QQ4YGZ8AE7kKOMisF7UqvOlGKVYWRvezdncW9lg=="
+    },
     "diffie-hellman": {
       "version": "5.0.2",
       "resolved": "https://registry.npmjs.org/diffie-hellman/-/diffie-hellman-5.0.2.tgz",
@@ -5235,8 +5240,7 @@
         "jsbn": {
           "version": "0.1.1",
           "bundled": true,
-          "dev": true,
-          "optional": true
+          "dev": true
         },
         "json-schema": {
           "version": "0.2.3",

@@ -5,6 +5,7 @@
   "globals": {
     "expect": true,
     "sinon": true,
+    "jest": true,
     "it": true
   }
 }
