@@ -168,9 +168,16 @@ def create_app(config: t.Mapping = None, skip_celery: bool = False) -> t.Any:  #
             )
             raise
 
-    if hasattr(
-        resulting_app, 'debug'
-    ) and resulting_app.debug:  # pragma: no cover
+    if getattr(
+        resulting_app,
+        'debug',
+        False,
+    ) and not getattr(
+        resulting_app,
+        'testing',
+        False,
+    ):  # pragma: no cover
+
         import flask_sqlalchemy
         typ = t.TypeVar('typ')
 

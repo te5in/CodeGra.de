@@ -95,6 +95,7 @@
                                    type="text"
                                    class="form-control"
                                    @keydown.ctrl.enter="runPlagiarismChecker"
+                                   :placeholder="option.placeholder"
                                    v-model="selectedOptions[option.name]"/>
                             <input v-else-if="option.type == 'numbervalue'"
                                    @input="selectedOptions[option.name] = $event.target.value == '' ? undefined : (
@@ -102,6 +103,7 @@
                                                                               : Number($event.target.value))"
                                    type="number"
                                    class="form-control"
+                                   :placeholder="option.placeholder"
                                    @keydown.ctrl.enter="runPlagiarismChecker"/>
                             <b-form-checkbox v-else-if="option.type == 'boolvalue'"
                                              v-model="selectedOptions[option.name]"/>

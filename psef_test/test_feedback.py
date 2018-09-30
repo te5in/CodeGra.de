@@ -1,8 +1,8 @@
 import re
 
 import pytest
-import psef.models as m
 
+import psef.models as m
 from helpers import create_marker
 
 perm_error = create_marker(pytest.mark.perm_error)
@@ -279,7 +279,6 @@ def test_delete_feedback(
         'Thomas Schaper',
         perm_error(error=403)('admin'),
         late_error(('Student1')),
-        perm_error(error=401)('NOT_LOGGED_IN'),
     ],
     indirect=True
 )

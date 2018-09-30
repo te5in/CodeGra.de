@@ -59,6 +59,15 @@
                 </b-card>
             </div>
         </b-tab>
+        <b-tab title="General feedback">
+            <b-card class="file-card">
+                <pre style="margin-bottom: 0; font-size: 100%;"
+                     v-if="submission.comment">{{ submission.comment }}</pre>
+                <span v-else>
+                    No general feedback given :(
+                </span>
+            </b-card>
+        </b-tab>
         <b-tab title="Changed files" class="code" v-if="canSeeRevision">
             <b-card v-if="changedFiles.length === 0" class="file-card">
                 <span>
@@ -128,7 +137,6 @@ import { getLanguage, highlight } from 'highlightjs';
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/plus';
 import 'vue-awesome/icons/cog';
-import 'vue-multiselect/dist/vue-multiselect.min.css';
 
 import { visualizeWhitespace, last, getExtension, range } from '@/utils';
 

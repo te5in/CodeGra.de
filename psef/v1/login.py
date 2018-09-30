@@ -35,19 +35,17 @@ def login() -> ExtendedJSONResponse[t.Mapping[str, t.Union[models.User, str]]]:
 
     :returns: A response containing the JSON serialized user
 
-    :<json str email: The email of the user to log in.
-    :<json str username: The password of the user to log in.
+    :<json str username: The username of the user to log in.
+    :<json str password: The password of the user to log in.
 
     :>json user: The user that was logged in.
     :>jsonobj user: :py:class:`~.models.User`
     :>json str access_token: A JWT token that can be used to send requests to
         the server logged in as the given user.
 
-    :raises APIException: If the request does not contain email and/or password
-        parameter. (MISSING_REQUIRED_PARAM)
-    :raises APIException: If no user with email exists or the password is
+    :raises APIException: If no user with username exists or the password is
         wrong. (LOGIN_FAILURE)
-    :raises APIException: If the user with the given email and password is
+    :raises APIException: If the user with the given username and password is
         inactive. (INACTIVE_USER)
     """
     data = ensure_json_dict(request.get_json())
@@ -67,7 +65,7 @@ def login() -> ExtendedJSONResponse[t.Mapping[str, t.Union[models.User, str]]]:
 
     if user is None or user.password != password:
         raise APIException(
-            'The supplied email or password is wrong.', (
+            'The supplied username or password is wrong.', (
                 'The user with username "{}" does not exist ' +
                 'or has a different password'
             ).format(username), APICodes.LOGIN_FAILURE, 400
