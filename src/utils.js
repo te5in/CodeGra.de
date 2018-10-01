@@ -176,6 +176,17 @@ export function range(start, end) {
     return res;
 }
 
+export function isDecimalNumber(val) {
+    if (typeof val === 'number' || (val instanceof Number)) return true;
+    else if (!(typeof val === 'string' || (val instanceof String))) return false;
+
+    let res = /^-?[1-9]\d*$/.test(val);
+    res = res || /^0$/.test(val);
+    res = res || /^-?[1-9]\d*\.\d+$/.test(val);
+    res = res || /^-?0\.\d+$/.test(val);
+    return res;
+}
+
 export function hashString(str) {
     let hash = 0;
     if (str.length === 0) return hash;

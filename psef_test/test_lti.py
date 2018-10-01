@@ -247,6 +247,7 @@ def test_lti_grade_passback(
     monkeypatch_celery, error_template, session
 ):
     due_at = datetime.datetime.utcnow() + datetime.timedelta(days=1)
+    assig_max_points = 8
 
     class Patch:
         def __init__(self):
@@ -297,6 +298,7 @@ def test_lti_grade_passback(
                 'context_title': 'WRONG_TITLE!!',
                 'oauth_consumer_key': 'my_lti',
                 'lis_outcome_service_url': source_id,
+                'custom_canvas_points_possible': assig_max_points,
             }
             if source_id:
                 data['lis_result_sourcedid'] = source_id
@@ -357,6 +359,7 @@ def test_lti_grade_passback(
     assert not patch_delete.called
     assert patch_replace.args[0] is None
     assert 'url' in patch_replace.kwargs['result_data']
+    assert not patch_replace.kwargs.get('raw', False)
     patch_delete.called = False
     patch_replace.called = False
 
@@ -381,6 +384,7 @@ def test_lti_grade_passback(
     assert not patch_delete.called
     assert patch_replace.args[0] == '0.5'
     assert patch_replace.kwargs['result_data'] is None
+    assert not patch_replace.kwargs.get('raw', False)
     patch_delete.called = False
     patch_replace.called = False
 
@@ -407,6 +411,7 @@ def test_lti_grade_passback(
     assert not patch_replace.dirty
     assert patch_replace.args[0] == '0.6'
     assert patch_replace.kwargs['result_data'] is None
+    assert not patch_replace.kwargs.get('raw', False)
     patch_delete.called = False
     patch_replace.called = False
     patch_replace.dirty = None
@@ -415,6 +420,37 @@ def test_lti_grade_passback(
 
     assert not patch_replace.called
     assert patch_delete.called
+    patch_delete.called = False
+    patch_replace.called = False
+
+    with app.app_context():
+        test_client.req(
+            'patch',
+            f'/api/v1/assignments/{assig["id"]}',
+            204,
+            data={
+                'max_grade': 11,
+            },
+            headers={'Authorization': f'Bearer {token}'},
+        )
+
+    set_grade(token, 6, work['id'])
+    assert patch_replace.called
+    assert not patch_delete.called
+    assert not patch_replace.dirty
+    assert patch_replace.args[0] == '0.6'
+    assert patch_replace.kwargs['result_data'] is None
+    assert not patch_replace.kwargs.get('raw', False)
+    patch_delete.called = False
+    patch_replace.called = False
+
+    set_grade(token, 11, work['id'])
+    assert patch_replace.called
+    assert not patch_delete.called
+    assert not patch_replace.dirty
+    assert patch_replace.args[0] == str(1.1 * assig_max_points)
+    assert patch_replace.kwargs['result_data'] is None
+    assert patch_replace.kwargs.get('raw', False)
     patch_delete.called = False
     patch_replace.called = False
 

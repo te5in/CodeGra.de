@@ -19,6 +19,7 @@
         <lticm:property name="custom_canvas_assignment_title">$Canvas.assignment.title</lticm:property>
         <lticm:property name="custom_canvas_assignment_due_at">$Canvas.assignment.dueAt.iso8601</lticm:property>
         <lticm:property name="custom_canvas_assignment_published">$Canvas.assignment.published</lticm:property>
+        <lticm:property name="custom_canvas_points_possible">$Canvas.assignment.pointsPossible</lticm:property>
       </blti:custom>
     <blti:extensions platform="canvas.instructure.com">
       <lticm:property name="tool_id">codegra_de</lticm:property>

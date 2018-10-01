@@ -148,6 +148,7 @@ def test_get_assignment(
                 'reminder_time': None,
                 'done_email': None,
                 'fixed_max_rubric_points': None,
+                'max_grade': None,
             }
         else:
             res = error_template

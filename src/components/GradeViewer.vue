@@ -6,6 +6,7 @@
             v-model="rubricPoints"
             style="margin-bottom: 15px;"
             :editable="editable"
+            :assignment="assignment"
             :submission="submission"
             :rubric="rubric"
             ref="rubricViewer"/>
@@ -27,7 +28,7 @@
                    class="form-control"
                    step="any"
                    min="0"
-                   max="10"
+                   :max="maxAllowedGrade"
                    :disabled="!editable"
                    placeholder="Grade"
                    @keydown.enter="putGrade"
@@ -120,6 +121,10 @@ export default {
     },
 
     computed: {
+        maxAllowedGrade() {
+            return this.assignment.max_grade == null ? 10 : this.assignment.max_grade;
+        },
+
         deleteButtonText() {
             if (this.showRubric) {
                 if (this.rubricOverridden) {
@@ -226,8 +231,8 @@ export default {
             const overrideGrade = ((this.rubricOverridden || !this.showRubric) &&
                                    this.externalGrade !== this.grade);
 
-            if (!(grade >= 0 && grade <= 10) && overrideGrade) {
-                this.$refs.submitButton.fail(`Grade '${this.grade}' must be between 0 and 10`);
+            if (!(grade >= 0 && grade <= this.maxAllowedGrade) && overrideGrade) {
+                this.$refs.submitButton.fail(`Grade '${this.grade}' must be between 0 and ${this.maxAllowedGrade}`);
                 return;
             }
 

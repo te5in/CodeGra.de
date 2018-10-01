@@ -789,6 +789,7 @@ def test_add_assignment(
                 'done_email': None,
                 'reminder_time': None,
                 'fixed_max_rubric_points': None,
+                'max_grade': None,
             }
         )
 
