@@ -2,7 +2,7 @@ alembic==1.0.0
 celery==4.2.1
 coverage==4.5.1
 Flask==1.0.2
-Flask-JWT-Extended==3.13.0
+Flask-JWT-Extended==3.13.1
 Flask-Mail==0.9.1
 Flask-Migrate==2.2.1
 Flask-Script==2.0.6
@@ -29,7 +29,7 @@ python-archive==0.2
 flake8==3.5.0
 pylint==2.1.1
 git+https://github.com/i-kiwamu/python3-oauth2.git
-click==6.7
+click==7.0
 lxml==4.2.4
 sphinx-rtd-theme==0.4.1
 Sphinx==1.8.1
@@ -44,5 +44,5 @@ PyJWT==1.6.4
 validate-email==1.3
 typing-extensions==3.6.5
 Flask-Limiter==1.0.1
-pytest-xdist==1.23.0
+pytest-xdist==1.23.2
 dataclasses==0.6
