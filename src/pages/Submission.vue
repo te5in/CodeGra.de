@@ -592,11 +592,14 @@ export default {
 
                 other.done = true;
 
+                if (self.id !== other.id) {
+                    self.revision = other;
+                    other.revision = self;
+                }
+
                 if (self.entries && other.entries) {
                     diffTree.entries.push(this.matchFiles(self, other));
                 } else if (self.entries == null && other.entries == null) {
-                    self.revision = other;
-                    other.revision = self;
                     diffTree.push([self.id, other.id], self.name);
                 } else if (self.entries) {
                     diffTree.push([null, other.id], other.name);

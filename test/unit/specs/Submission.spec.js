@@ -78,6 +78,12 @@ describe('matchFiles in Submission.vue', () => {
                 },
             ],
         });
+        // No revision should be added
+        expect(tree1.entries[0]).toEqual({
+            name: 'file1',
+            id: 2,
+            revision: undefined,
+        });
     });
 
     it('should work with a modified tree', () => {
@@ -96,6 +102,16 @@ describe('matchFiles in Submission.vue', () => {
                     ],
                 },
             ],
+        });
+        expect(tree1.entries[0]).toEqual({
+            name: 'file1',
+            id: 2,
+            revision: null,
+        });
+        expect(tree1.entries[1]).toEqual({
+            entries: [{ name: 'file2', id: 4, revision: expect.any(Object) }],
+            name: 'sub1',
+            id: 3,
         });
     });
 
@@ -137,6 +153,12 @@ describe('matchFiles in Submission.vue', () => {
                 },
             ],
         });
+        expect(tree1.entries[1]).toEqual({
+            entries: expect.any(Array),
+            name: 'sub1',
+            revision: expect.any(Object),
+            id: 3,
+        });
     });
 
     it('should work when replacing a file with a directory', () => {
@@ -156,6 +178,11 @@ describe('matchFiles in Submission.vue', () => {
                     ids: [8, null],
                 },
             ],
+        });
+        expect(tree4.entries[1]).toEqual({
+            name: 'sub1',
+            revision: expect.any(Object),
+            id: 8,
         });
     });
 });

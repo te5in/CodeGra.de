@@ -126,11 +126,16 @@ export default {
         },
 
         fileHasRevision(f) {
+            if (f.entries) return false;
+
             return f.revision !== undefined ||
                 (f.ids && f.ids[0] !== f.ids[1]);
         },
 
         dirHasRevision(d) {
+            if (d.revision !== undefined) {
+                return true;
+            }
             for (let i = 0; i < d.entries.length; i += 1) {
                 if (this.hasRevision(d.entries[i])) {
                     return true;
