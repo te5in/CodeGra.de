@@ -215,24 +215,25 @@ export default {
                     icon: 'edit',
                     title: 'Assignments',
                     header: () => {
-                        const { course } = this.assignments[this.$LTIAssignmentId];
-                        return course ? course.name : 'Assignments';
+                        const assig = this.assignments[this.$LTIAssignmentId];
+                        return assig ? assig.course.name : 'Assignments';
                     },
                     component: 'assignment-list',
                     condition: () => {
                         if (this.loggedIn && this.$inLTI && this.$LTIAssignmentId) {
-                            const { course } = this.assignments[this.$LTIAssignmentId];
-                            if (course) {
-                                return course.canManage ||
-                                    course.assignments.some(a => a.canManage);
+                            const assig = this.assignments[this.$LTIAssignmentId];
+                            if (assig) {
+                                return assig.course.canManage ||
+                                    assig.course.assignments.some(a => a.canManage);
                             }
                         }
                         return false;
                     },
                     reload: true,
-                    data: () => ({
-                        course: this.assignments[this.$LTIAssignmentId].course,
-                    }),
+                    data: () => {
+                        const assig = this.assignments[this.$LTIAssignmentId];
+                        return assig ? { course: assig.course } : {};
+                    },
                 },
             ],
             currentEntry: null,
