@@ -61,12 +61,6 @@ export default {
             state: 'default',
             cancelled: true,
             btnId: this.id || `submitButton-i-${i++}`,
-            variants: {
-                default: this.default,
-                success: this.success,
-                failure: this.failure,
-                warning: this.warning,
-            },
             mult: 1,
             timeout: null,
             showConfirm: false,
@@ -79,6 +73,15 @@ export default {
             return (this.showError &&
                     (this.state === 'failure' || this.state === 'warning') &&
                     (Boolean(this.err) || this.showEmpty));
+        },
+
+        variants() {
+            return {
+                default: this.default,
+                success: this.success,
+                failure: this.failure,
+                warning: this.warning,
+            };
         },
     },
 

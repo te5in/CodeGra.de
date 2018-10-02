@@ -288,13 +288,16 @@ export default {
             const el = $event.target.closest('li.line');
             if (!el) return;
 
-            const line = el.getAttribute('data-line');
+            const line = Number(el.getAttribute('data-line'));
             Vue.set(this.editing, line, true);
-            Vue.set(this.feedback, line, '');
 
-            const feedbackArea = el.querySelector('.feedback-area');
+            if (this.feedback[line] == null) {
+                Vue.set(this.feedback, line, { line, msg: '' });
+            }
+
+            const feedbackArea = el.querySelector('.feedback-area textarea');
             if (feedbackArea) {
-                feedbackArea.querySelector('textarea').focus();
+                feedbackArea.focus();
             }
         },
 

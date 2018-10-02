@@ -40,6 +40,7 @@ module.exports = {
         'no-plusplus': 'off',
         'function-paren-newline': ['error', 'consistent'],
         'no-bitwise': 'off',
+        'no-mixed-operators': 'off',
 
         // allow vuex
         'no-param-reassign': ["error", { 'props': false }],

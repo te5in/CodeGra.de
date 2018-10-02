@@ -10,7 +10,7 @@
         <user-info/>
     </b-card>
 
-    <b-card header="Snippets" v-if="snippets">
+    <b-card header="Snippets" class="snippets" v-if="snippets">
         <snippet-manager/>
     </b-card>
 </div>
@@ -99,5 +99,9 @@ export default {
 .sidebar-user-info {
     overflow-y: auto;
     padding: 1rem;
+}
+
+.snippets .snippet-manager {
+    margin: -1.25rem;
 }
 </style>
