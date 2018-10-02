@@ -140,20 +140,18 @@
 # `postgresql://dbusername:dbpassword@dbhost/dbname`
 # sqlalchemy_database_uri = postgresql:///codegrade_dev
 
-# The amount of bytes that should be used for randomly generation JWT keys.
-# You should probably not change this.
-# bytes_random = 64
-
 # Secret key for signing session JWT tokens.
-# By default a random string is used if debug mode is off. This is secure but
-# means users have to login again after restarting the server
-# secret_key = Wowsers
+# The option to automatically generate keys has been removed as this was error
+# prone, especially in combination with processes and uwsgi. You can leave this
+# empty in which case the enviroment variable `CODEGRADE_JWT_SECRET_KEY` is
+# used.
+# secret_key =
 
-# Secret key for signing LTI tokens. This should be a strong random key that is
-# not public. By default a random strings of %(bytes_random)s amount of bytes is
-# generated during startup. It might be best to not change this. These tokens
-# have a very short lifetime so restarting the server will always mean a LTI
-# launch will never work if you restart the server while launching.
+# Secret key for signing LTI tokens.
+# The option to automatically generate keys has been removed as this was error
+# prone, especially in combination with processes and uwsgi. You can leave this
+# empty in which case the enviroment variable `CODEGRADE_LTI_SECRET_KEY` is
+# used.
 # lti_secret_key =
 
 # The amount of days until a login token should expire in days. Can be a float

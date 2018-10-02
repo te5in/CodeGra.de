@@ -46,7 +46,8 @@ def set_int(
 
 
 def set_str(
-    out: t.MutableMapping[str, t.Any], parser: t.Any, item: str, default: t.Optional[str]
+    out: t.MutableMapping[str, t.Any], parser: t.Any, item: str,
+    default: t.Optional[str]
 ) -> None:
     val = parser.get(item)
     out[item] = str(default if val is None else val)
@@ -61,28 +62,31 @@ set_str(
     CONFIG, backend_ops, 'SQLALCHEMY_DATABASE_URI',
     os.getenv('SQLALCHEMY_DATABASE_URI', 'postgresql:///codegrade_dev')
 )
-CONFIG['_USING_SQLITE'] = CONFIG['SQLALCHEMY_DATABASE_URI'
-                                 ].startswith('sqlite')
+CONFIG['_USING_SQLITE'] = CONFIG['SQLALCHEMY_DATABASE_URI'].startswith(
+    'sqlite'
+)
 CONFIG['DATABASE_CONNECT_OPTIONS'] = {}
 
-# The amount of bytes that should be used for randomly generation JWT keys.
-set_int(CONFIG, backend_ops, 'BYTES_RANDOM', 64)
-
 # Secret key for signing JWT tokens.
-#
-# If a enviroment variable `SECRET_KEY` is available this key is used, except
-# when it is `GENERATE` which means it will geneate a random key. If the
-# enviroment variable is not set the key will be set to `secret`
 set_str(
-    CONFIG, backend_ops, 'SECRET_KEY', 'secret'
-    if CONFIG['DEBUG'] else secrets.token_hex(CONFIG['BYTES_RANDOM'])
+    CONFIG,
+    backend_ops,
+    'SECRET_KEY',
+    (
+        'secret' if CONFIG['DEBUG'] else
+        os.environ.get('CODEGRADE_JWT_SECRET_KEY')
+    ),
 )
 
-# This should be a strong random key that is not public. Generating random
-# bytes works perfectly. It is probably useless to change this option.
+# This should be a strong random key that is not public.
 set_str(
-    CONFIG, backend_ops, 'LTI_SECRET_KEY',
-    secrets.token_hex(CONFIG['BYTES_RANDOM'])
+    CONFIG,
+    backend_ops,
+    'LTI_SECRET_KEY',
+    (
+        'hunter123' if CONFIG['DEBUG'] else
+        os.environ.get('CODEGRADE_LTI_SECRET_KEY')
+    ),
 )
 
 CONFIG['JWT_ALGORITHM'] = 'HS512'
@@ -200,10 +204,8 @@ admin has reset your status or that you have been assigned new
 submission(s).</p>
     """.strip(),
 )
-set_str(CONFIG,
-        backend_ops,
-        'DONE_TEMPLATE',
-        """
+set_str(
+    CONFIG, backend_ops, 'DONE_TEMPLATE', """
 <p>Dear,
 
 This email has been sent to let you know that all work has been graded on the
@@ -214,7 +216,8 @@ the assignment to 'done' so that the students can see their grade!
 This email was automatically sent because of reminder that was set for this
 assignment. You can change these settings <a
 href="{site_url}/courses/{course_id}">here</a>.</p>
-        """.strip())
+        """.strip()
+)
 
 ############
 # FEATURES #

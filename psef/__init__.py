@@ -16,8 +16,6 @@ import flask_jwt_extended as flask_jwt
 from flask import Flask, g, jsonify, current_app
 from flask_limiter import Limiter, RateLimitExceeded
 
-import config as global_config
-
 app = current_app  # pylint: disable=invalid-name
 
 LTI_ROLE_LOOKUPS = {
@@ -75,6 +73,7 @@ def create_app(config: t.Mapping = None, skip_celery: bool = False) -> t.Any:  #
     :param skip_celery: Set to true to disable sanity checks for celery.
     :returns: A new psef app object.
     """
+    import config as global_config
     resulting_app = Flask(__name__)
 
     @resulting_app.before_request
@@ -101,6 +100,12 @@ def create_app(config: t.Mapping = None, skip_celery: bool = False) -> t.Any:  #
 
     if config is not None:  # pragma: no cover
         resulting_app.config.update(config)
+
+    if (
+        resulting_app.config['SECRET_KEY'] is None or
+        resulting_app.config['LTI_SECRET_KEY'] is None
+    ):  # pragma: no cover
+        raise ValueError('The option to generate keys has been removed')
 
     @resulting_app.errorhandler(RateLimitExceeded)
     def __handle_error(_: RateLimitExceeded) -> 'flask.Response':  # pylint: disable=unused-variable
