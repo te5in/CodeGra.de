@@ -16,7 +16,8 @@
             <icon name="arrow-left"/>
         </b-input-group-prepend>
         <h4 slot="title" class="title">
-            Plagiarism comparison for assignment &quot;{{assignment.name}}&quot;
+            Plagiarism comparison between &quot;{{detail.users[0].name}}&quot; and
+            &quot;{{detail.users[1].name}}&quot; for assignment &quot;{{assignment.name}}&quot;
         </h4>
         <b-input-group-append>
             <b-btn v-b-modal.plagiarism-export>Export</b-btn>
