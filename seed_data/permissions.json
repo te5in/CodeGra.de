@@ -202,5 +202,11 @@
       "course_permission": true,
       "short_description": "Manage plagiarism",
       "long_description": "Users with this permission can add and delete plagiarism runs."
+  },
+  "can_list_course_users": {
+    "default_value": true,
+    "course_permission": true,
+    "short_description": "List course users",
+    "long_description": "Users with this permission can see all users of this course including the name of their role."
   }
 }

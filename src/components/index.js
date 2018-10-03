@@ -18,6 +18,8 @@ export { default as Linters } from './Linters';
 export { default as Loader } from './Loader';
 export { default as LocalHeader } from './LocalHeader';
 export { default as Login } from './Login';
+export { default as ForgotPassword } from './ForgotPassword';
+export { default as Register } from './Register';
 export { default as Notifications } from './Notifications';
 export { default as PasswordInput } from './PasswordInput';
 export { default as PdfViewer } from './PdfViewer';

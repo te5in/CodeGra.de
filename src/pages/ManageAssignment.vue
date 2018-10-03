@@ -157,7 +157,8 @@
                     author field you can select who should be the author. This
                     function can be used to submit work for a student."/>
             </span>
-            <submission-uploader :assignment="assignment" for-others/>
+            <submission-uploader :assignment="assignment" for-others
+                                 :can-list-users="permissions.can_list_course_users"/>
         </b-card>
 
         <b-card header="Blackboard zip"
@@ -264,7 +265,7 @@ export default {
         async loadPermissions() {
             this.permissions = null;
             this.permissions = await this.$hasPermission(
-                MANAGE_COURSE_PERMISSIONS,
+                ['can_list_course_users', ...MANAGE_COURSE_PERMISSIONS],
                 this.assignment.course.id,
                 true,
             );

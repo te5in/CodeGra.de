@@ -10,9 +10,9 @@ import typing as t
 
 import flask_jwt_extended as flask_jwt
 from flask import request, current_app
+from sqlalchemy import case, func
 from validate_email import validate_email
 from flask_limiter.util import get_remote_address
-from sqlalchemy.sql.expression import or_
 
 import psef.auth as auth
 import psef.models as models
@@ -21,7 +21,7 @@ from psef import limiter, current_user
 from psef.errors import APICodes, APIException
 from psef.models import db
 from psef.helpers import (
-    JSONResponse, jsonify, escape_like, ensure_json_dict, ensure_keys_in_dict
+    JSONResponse, jsonify, ensure_json_dict, ensure_keys_in_dict
 )
 
 from . import api
@@ -35,8 +35,11 @@ def search_users() -> JSONResponse[t.Sequence[models.User]]:
 
     .. :quickref: User; Fuzzy search for a user by name and username.
 
-    :param str q: The string to search for, all SQL wildcard are escaped and
+    :query str q: The string to search for, all SQL wildcard are escaped and
         spaces are replaced by wildcards.
+    :query int exclude_course: Exclude all users that are in the given course
+        from the search results. You need the permission
+        `can_list_course_users` on this course to use this parameter.
 
     :returns: A list of :py:class:`.models.User` objects that match the given
         query string.
@@ -51,21 +54,38 @@ def search_users() -> JSONResponse[t.Sequence[models.User]]:
     ensure_keys_in_dict(request.args, [('q', str)])
     query = t.cast(str, request.args.get('q'))
 
-    if len(query) < 3:
-        raise APIException(
-            'The search string should be at least 3 chars',
-            f'The search string "{query}" is not 3 chars or longer.',
-            APICodes.INVALID_PARAM, 400
-        )
-
-    likes = [
-        t.cast(t.Any, col).ilike(
-            '%{}%'.format(
-                escape_like(query).replace(' ', '%'),
+    if 'exclude_course' in request.args:
+        try:
+            exclude_course = int(request.args['exclude_course'])
+        except ValueError:
+            raise APIException(
+                'The "exclude_course" parameter should be an integer', (
+                    f'The given parameter "{request.args["exclude_course"]}"'
+                    ' could not parsed as an int'
+                ), APICodes.INVALID_PARAM, 400
             )
-        ) for col in [models.User.name, models.User.username]
-    ]
-    return jsonify(models.User.query.filter(or_(*likes)).all())
+        auth.ensure_permission('can_list_course_users', exclude_course)
+
+        base = db.session.query(models.User).join(
+            models.user_course,
+            models.user_course.c.user_id == models.User.id,
+            isouter=True,
+        ).join(
+            models.CourseRole,
+            models.CourseRole.id == models.user_course.c.course_id,
+            isouter=True,
+        ).group_by(models.User).having(
+            func.sum(
+                case(
+                    [(models.CourseRole.course_id == exclude_course, 1)],
+                    else_=0
+                )
+            ) == 0
+        )
+    else:
+        base = models.User.query
+
+    return jsonify(helpers.filter_users_by_name(query, base).all())
 
 
 @api.route('/user', methods=['POST'])

@@ -1,51 +1,44 @@
 <template>
 <div class="login">
-    <div @keyup.enter="submit">
-        <b-form-fieldset>
-            <input type="text"
-                   class="form-control"
-                   placeholder="Username"
-                   v-model="username"
-                   ref="username"/>
-        </b-form-fieldset>
+    <b-form-fieldset>
+        <input type="text"
+               class="form-control"
+               placeholder="Username"
+               v-model="username"
+               ref="username"
+               @keyup.enter="submit"/>
+    </b-form-fieldset>
 
-        <b-form-fieldset v-if="!showForgot">
-            <password-input v-model="password"
-                            placeholder="Password"/>
-        </b-form-fieldset>
-    </div>
+    <b-form-fieldset>
+        <password-input v-model="password"
+                        placeholder="Password"
+                        @keyup.native.enter="submit"/>
+    </b-form-fieldset>
 
-    <p v-if="showForgot">
-        A link to reset your password will be send to your e-mail shortly. This
-        link can be used for a limited period of time. Please check your spam
-        folder if you did not receive the e-mail shortly after requesting it.
-    </p>
-
-    <b-form-fieldset class="text-center">
+    <div class="text-center">
         <submit-button ref="submit"
                        @click.native="submit"
-                       :label="showForgot ? 'Request email' : 'Login'"
+                       label="Login"
                        :show-empty="false"/>
-        <!-- This happens when a logged in user wants to reset its password -->
-        <div class="login-links" v-if="!loggedIn">
-            <a class="login"
-               :href="showForgot ? '#login' : '#forgot'"
-               @click="reset">
-                {{ showForgot ? 'Login' : 'Forgot password' }}
-            </a>
+
+        <div class="login-links">
+            <router-link :to="{ name: 'forgot' }">
+                Forgot password
+            </router-link>
         </div>
-    </b-form-fieldset>
+    </div>
 </div>
 </template>
 
 <script>
-import { mapActions, mapGetters } from 'vuex';
+import { mapActions } from 'vuex';
 
 import PasswordInput from './PasswordInput';
 import SubmitButton from './SubmitButton';
 
 export default {
     name: 'login',
+
     data() {
         return {
             username: '',
@@ -58,22 +51,6 @@ export default {
         SubmitButton,
     },
 
-    computed: {
-        ...mapGetters('user', [
-            'loggedIn',
-        ]),
-
-        showForgot() {
-            return this.$route.hash === '#forgot';
-        },
-    },
-
-    watch: {
-        showForgot() {
-            this.reset();
-        },
-    },
-
     mounted() {
         this.$nextTick(() => {
             if (this.$refs.username) {
@@ -83,46 +60,17 @@ export default {
     },
 
     methods: {
-        reset() {
-            this.username = '';
-            this.password = '';
-            this.$nextTick(() => this.$refs.username.focus());
-
-            if (this.$refs.submit) {
-                this.$refs.submit.reset();
-            }
-        },
+        ...mapActions('user', ['login']),
 
         submit(event) {
-            if (this.showForgot) {
-                this.submitReset(event);
-            } else {
-                this.login(event);
-            }
-        },
-
-        submitReset(event) {
             event.preventDefault();
-            if (!this.username) {
-                this.$refs.submit.fail('Please enter a username.');
-                return;
-            }
 
-            this.$refs.submit.submit(this.$http.patch('/api/v1/login?type=reset_email', {
-                username: this.username,
-            }).catch((err) => {
-                throw err.response.data.message;
-            }));
-        },
-
-        login(event) {
-            event.preventDefault();
             if (!this.password || !this.username) {
                 this.$refs.submit.fail('Please enter a username and password.');
                 return;
             }
 
-            this.$refs.submit.submit(this.tryLogin({
+            this.$refs.submit.submit(this.login({
                 username: this.username,
                 password: this.password,
             }).then(() => {
@@ -132,9 +80,6 @@ export default {
                 throw reason ? reason.message : '';
             }));
         },
-        ...mapActions({
-            tryLogin: 'user/login',
-        }),
     },
 };
 </script>
@@ -142,10 +87,9 @@ export default {
 <style lang="less" scoped>
 @link-margin: 2em;
 .login-links {
-    margin-top: 15px;
-    text-align: center;
+    margin-top: 1rem;
 
-    a.login {
+    a {
         text-decoration: underline !important;
     }
 }

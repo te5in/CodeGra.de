@@ -546,6 +546,9 @@ class User(Base):
     :ivar reset_email_on_lti: Determines if the email should be reset on the
         next LTI launch.
     """
+    if t.TYPE_CHECKING:  # pragma: no cover
+        query = Base.query  # type: t.ClassVar[_MyQuery['User']]
+
     # Python 3 implicitly set __hash__ to None if we override __eq__
     # We set it back to its default implementation
     __hash__ = object.__hash__
@@ -970,6 +973,15 @@ class Course(Base):
                 (a for a in self.assignments if not a.is_hidden),
                 key=lambda item: item.deadline
             )
+
+    def get_all_users_in_course(self) -> '_MyQuery[t.Tuple[User, CourseRole]]':
+        return db.session.query(User, CourseRole).join(
+            user_course,
+            user_course.c.user_id == User.id,
+        ).join(
+            CourseRole,
+            CourseRole.id == user_course.c.course_id,
+        ).filter(CourseRole.course_id == self.id)
 
 
 class GradeHistory(Base):

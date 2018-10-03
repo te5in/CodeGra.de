@@ -1,6 +1,6 @@
 import pytest
-import psef.models as m
 
+import psef.models as m
 from helpers import create_marker
 
 perm_error = create_marker(pytest.mark.perm_error)
@@ -224,9 +224,9 @@ def test_get_course_assignments(
 @pytest.mark.parametrize(
     'named_user', [
         'Robin',
-        perm_error(error=403)('Thomas Schaper'),
+        perm_error(error=403)('admin'),
         perm_error(error=401)('NOT_LOGGED_IN'),
-        perm_error(error=403)('Student1'),
+        'Student1',
     ],
     indirect=['named_user']
 )
@@ -801,3 +801,52 @@ def test_add_assignment(
             )
 
             assert len([r for r in res if r['name'] == name]) == 1
+
+
+@pytest.mark.parametrize(
+    'named_user', [
+        'Robin',
+        perm_error(error=403)('admin'),
+    ], indirect=True
+)
+@pytest.mark.parametrize(
+    'q,course_id,users',
+    [
+        ('UdeNt', True, ['student{}'.format(i) for i in range(1, 5)]),
+        ('UdeNt', 'Other', []),  # Other course
+        ('admin', True, []),
+    ]
+)
+def test_searching_user_in_course(
+    named_user, error_template, logged_in, test_client, q, users, request,
+    course_id, assignment, session, teacher_user
+):
+    perm_marker = request.node.get_closest_marker('perm_error')
+    http_marker = request.node.get_closest_marker('http_error')
+    teacher_user = teacher_user._get_current_object()
+
+    code = 200 if http_marker is None else http_marker.kwargs['error']
+    code = code if perm_marker is None else perm_marker.kwargs['error']
+
+    if course_id is True:
+        c_id = assignment.course_id
+    else:
+        other_course = m.Course(name='Other course')
+        session.add(other_course)
+        session.flush()
+        other_course_teacher_role = m.CourseRole.query.filter_by(
+            course_id=other_course.id, name='Teacher'
+        ).one()
+        teacher_user.courses[other_course.id] = other_course_teacher_role
+        session.commit()
+        c_id = other_course.id
+
+    with logged_in(named_user):
+        res = test_client.req(
+            'get',
+            f'/api/v1/courses/{c_id}/users/?q={q}&course_id={c_id}',
+            code,
+            result=error_template if code >= 400 else list
+        )
+        if code < 400:
+            assert [i['username'] for i in res] == sorted(users)

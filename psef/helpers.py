@@ -12,6 +12,7 @@ from functools import wraps
 import flask
 import mypy_extensions
 from typing_extensions import Protocol
+from sqlalchemy.sql.expression import or_
 
 import psef
 import psef.errors
@@ -289,6 +290,35 @@ def get_or_404(
             psef.errors.APICodes.OBJECT_ID_NOT_FOUND, 404
         )
     return obj
+
+
+def filter_users_by_name(
+    query: str, base: 'psef.models._MyQuery[psef.models.User]'
+) -> 'psef.models._MyQuery[psef.models.User]':
+    """Find users from the given base query using the given query string.
+
+    :param query: The string to filter usernames and names of users with.
+    :param base: The query to filter.
+    :returns: A new query with the users filtered.
+    """
+    if len(query) < 3:
+        raise psef.errors.APIException(
+            'The search string should be at least 3 chars',
+            f'The search string "{query}" is not 3 chars or longer.',
+            psef.errors.APICodes.INVALID_PARAM, 400
+        )
+
+    likes = [
+        t.cast(t.Any, col).ilike(
+            '%{}%'.format(
+                escape_like(query).replace(' ', '%'),
+            )
+        ) for col in [psef.models.User.name, psef.models.User.username]
+    ]
+
+    return base.filter(or_(*likes)).order_by(
+        t.cast(psef.models.DbColumn[str], psef.models.User.name)
+    )
 
 
 def ensure_keys_in_dict(

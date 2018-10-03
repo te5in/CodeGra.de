@@ -53,6 +53,8 @@
         <user-selector v-model="author"
                        select-label=""
                        :disabled="disabled"
+                       :base-url="`/api/v1/courses/${assignment.course.id}/users/`"
+                       :use-selector="canListUsers"
                        v-if="forOthers"
                        :placeholder="`${defaultAuthor.name} (${defaultAuthor.username})`"/>
     </file-uploader>
@@ -84,6 +86,11 @@ export default {
         },
 
         forOthers: {
+            type: Boolean,
+            required: true,
+        },
+
+        canListUsers: {
             type: Boolean,
             required: true,
         },

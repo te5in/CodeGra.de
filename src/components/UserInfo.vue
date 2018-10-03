@@ -47,10 +47,7 @@
                         (Canvas, blackboard or another) it can happen
                         that you don't know this password. In this case
                         you should use the
-                        <router-link :to="{
-                                          name: 'home',
-                                          hash: '#forgot',
-                                          }"
+                        <router-link :to="{ name: 'forgot' }"
                                      target="_blank">
                             reset password</router-link> page.<br><br>
 

@@ -146,13 +146,14 @@ def _send_reminder_mails_1(assignment_id: int) -> None:
 
     with p.mail.mail.connect() as conn:
         for user_id in to_mail:
-            if user_id in finished:
+            user = p.models.User.query.get(user_id)
+            if user is None or user.id in finished:
                 continue
 
             try:
                 p.mail.send_grade_reminder_email(
                     assig,
-                    p.models.User.query.get(user_id),
+                    user,
                     conn,
                 )
             # pylint: disable=broad-except
