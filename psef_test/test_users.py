@@ -1,8 +1,8 @@
-import psef as p
 import pytest
+
+import psef as p
 import psef.errors as e
 import psef.models as m
-
 from helpers import create_marker
 
 perm_error = create_marker(pytest.mark.perm_error)
@@ -45,7 +45,58 @@ def test_searching_users(
             result=error_template if code >= 400 else list
         )
         if code < 400:
-            assert sorted(i['username'] for i in res) == sorted(users)
+            assert [i['username'] for i in res] == sorted(users)
+
+
+@pytest.mark.parametrize(
+    'named_user', [
+        'Robin',
+        perm_error(error=403)('admin'),
+    ], indirect=True
+)
+@pytest.mark.parametrize(
+    'q,course_id,users', [
+        ('UdeNt', True, []),
+        ('UdeNt', 'Other', ['student{}'.format(i) for i in range(1, 5)]),
+        ('admin', True, ['admin']),
+        perm_error(error=400)(('admin', 'notanint', 'NOT IMPORTANT')),
+    ]
+)
+def test_searching_user_excluding_course(
+    named_user, error_template, logged_in, test_client, q, users, request,
+    course_id, assignment, session, teacher_user
+):
+    perm_marker = request.node.get_closest_marker('perm_error')
+    http_marker = request.node.get_closest_marker('http_error')
+    teacher_user = teacher_user._get_current_object()
+
+    code = 200 if http_marker is None else http_marker.kwargs['error']
+    code = code if perm_marker is None else perm_marker.kwargs['error']
+
+    if course_id is True:
+        c_id = assignment.course_id
+    elif course_id == 'Other':
+        other_course = m.Course(name='Other course')
+        session.add(other_course)
+        session.flush()
+        other_course_teacher_role = m.CourseRole.query.filter_by(
+            course_id=other_course.id, name='Teacher'
+        ).one()
+        teacher_user.courses[other_course.id] = other_course_teacher_role
+        session.commit()
+        c_id = other_course.id
+    else:
+        c_id = course_id
+
+    with logged_in(named_user):
+        res = test_client.req(
+            'get',
+            f'/api/v1/users/?q={q}&exclude_course={c_id}',
+            code,
+            result=error_template if code >= 400 else list
+        )
+        if code < 400:
+            assert [i['username'] for i in res] == sorted(users)
 
 
 def test_searching_users_rate_limit(

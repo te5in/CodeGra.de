@@ -21,6 +21,7 @@
         <span id="submission-file-uploader-wrapper">
             <submission-uploader :assignment="assignment"
                                  :for-others="canUploadForOthers"
+                                 :can-list-users="canListUsers"
                                  :disabled="fileUploaderDisabled"
                                  @created="goToSubmission"/>
         </span>
@@ -50,6 +51,7 @@ export default {
             canDownload: false,
             rubric: null,
             graders: null,
+            canListUsers: null,
             wrongFiles: [],
         };
     },
@@ -131,10 +133,12 @@ export default {
                         'can_see_others_work',
                         'can_see_grade_before_open',
                         'can_upload_after_deadline',
+                        'can_list_course_users',
                     ],
                     this.courseId,
-                ).then(([submitOwn, submitOthers, others, before, afterDeadline]) => {
+                ).then(([submitOwn, submitOthers, others, before, afterDeadline, canList]) => {
                     this.canUploadForOthers = submitOthers;
+                    this.canListUsers = canList;
                     this.canUpload = (
                         (submitOwn || submitOthers) &&
                             (this.assignment.state === assignmentState.SUBMITTING ||

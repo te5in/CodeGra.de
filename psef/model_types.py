@@ -217,6 +217,9 @@ class _MyQuery(t.Generic[T], t.Iterable):  # pragma: no cover
     ) -> None:
         ...
 
+    def from_self(self, *args: t.Type[Z]) -> '_MyQuery[Z]':
+        ...
+
     def join(self, *args: t.Any, **kwargs: t.Any) -> '_MyQuery[T]':
         ...
 

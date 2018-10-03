@@ -9,7 +9,8 @@
              :filter="filter"
              :sort-compare="sortTable"
              sort-by="User"
-             :response="true">
+             :response="true"
+             v-if="canListUsers">
 
         <template slot="User" slot-scope="item">
             <span class="username">{{item.value.name}} ({{item.value.username}})</span>
@@ -35,6 +36,10 @@
             </b-dropdown>
         </template>
     </b-table>
+    <b-alert show variant="danger" v-else>
+        You can only acutally manage users when you also have the 'list course
+        users' ('can_list_course_users') permission
+    </b-alert>
 
     <b-popover class="new-user-popover"
                :triggers="course.is_lti ? 'hover' : ''"
@@ -46,6 +51,8 @@
         <b-input-group>
             <user-selector v-model="newStudentUsername"
                            placeholder="New student"
+                           :use-selector="canListUsers && canSearchUsers"
+                           :extra-params="{ exclude_course: course.id }"
                            :disabled="course.is_lti"/>
 
             <template slot="append">
@@ -103,6 +110,8 @@ export default {
             loading: true,
             updating: {},
             newStudentUsername: null,
+            canListUsers: false,
+            canSearchUsers: false,
             newRole: '',
             error: '',
             fields: {
@@ -129,8 +138,10 @@ export default {
     },
 
     watch: {
-        course() {
-            this.loadData();
+        course(newVal, oldVal) {
+            if (newVal.id !== oldVal.id) {
+                this.loadData();
+            }
         },
     },
 
@@ -142,9 +153,11 @@ export default {
         async loadData() {
             this.loading = true;
 
-            await Promise.all([
+            [, , this.canListUsers, this.canSearchUsers] = await Promise.all([
                 this.getAllUsers(),
                 this.getAllRoles(),
+                this.$hasPermission('can_list_course_users', this.courseId),
+                this.$hasPermission('can_search_users'),
             ]);
 
             this.loading = false;
@@ -177,7 +190,7 @@ export default {
         getAllUsers() {
             return this.$http.get(`/api/v1/courses/${this.courseId}/users/`).then(({ data }) => {
                 this.users = data;
-            });
+            }, () => []);
         },
 
         getAllRoles() {

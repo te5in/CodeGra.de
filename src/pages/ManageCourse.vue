@@ -68,7 +68,8 @@ export default {
 
     watch: {
         tabIndex(newVal) {
-            this.filter = '';
+            if (this.filter !== '') this.filter = '';
+
             this.$router.replace(Object.assign({}, this.$route, {
                 hash: newVal === 1 ? '#roles' : '#users',
             }));

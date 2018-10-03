@@ -1115,6 +1115,7 @@ def post_submissions(assignment_id: int) -> EmptyResponse:
     student_course_role = models.CourseRole.query.filter_by(
         name='Student', course_id=assignment.course_id
     ).first()
+    assert student_course_role is not None
     global_role = models.Role.query.filter_by(name='Student').first()
 
     subs = []

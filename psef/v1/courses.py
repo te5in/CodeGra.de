@@ -8,14 +8,13 @@ are used to create courses and return information about courses.
 import typing as t
 import datetime
 
-import sqlalchemy
 from flask import request
 from mypy_extensions import TypedDict
 
 import psef.auth as auth
 import psef.models as models
 import psef.helpers as helpers
-from psef import LTI_ROLE_LOOKUPS, current_user
+from psef import LTI_ROLE_LOOKUPS, limiter, current_user
 from psef.errors import APICodes, APIException
 from psef.models import db
 from psef.helpers import (
@@ -328,37 +327,41 @@ def set_course_permission_user(
 
 
 @api.route('/courses/<int:course_id>/users/', methods=['GET'])
-def get_all_course_users(course_id: int
-                         ) -> JSONResponse[t.Sequence[_UserCourse]]:
+@auth.login_required
+def get_all_course_users(
+    course_id: int
+) -> JSONResponse[t.Union[t.List[_UserCourse], t.List[models.User]]]:
     """Return a list of all :class:`.models.User` objects and their
     :class:`.models.CourseRole` in the given :class:`.models.Course`.
 
     .. :quickref: Course; Get all users for a single course.
 
     :param int course_id: The id of the course
+
+    :query string q: Search for users matching this query string. This will
+        change the output to a list of users.
+
     :returns: A response containing the JSON serialized users and course roles
 
     :>jsonarr User:  A member of the given course.
     :>jsonarrtype User: :py:class:`~.models.User`
     :>jsonarr CourseRole: The role that this user has.
     :>jsonarrtype CourseRole: :py:class:`~.models.CourseRole`
-
-    :raises APIException: If there is no course with the given id.
-                          (OBJECT_ID_NOT_FOUND)
-    :raises PermissionException: If there is no logged in user. (NOT_LOGGED_IN)
-    :raises PermissionException: If the user can not manage the course with the
-                                 given id. (INCORRECT_PERMISSION)
     """
-    auth.ensure_permission('can_edit_course_users', course_id)
+    auth.ensure_permission('can_list_course_users', course_id)
+    course = helpers.get_or_404(models.Course, course_id)
 
-    users: t.Sequence[sqlalchemy.util.KeyedTuple]
-    users = db.session.query(models.User, models.CourseRole).join(
-        models.user_course,
-        models.user_course.c.user_id == models.User.id,
-    ).join(
-        models.CourseRole,
-        models.CourseRole.id == models.user_course.c.course_id
-    ).filter(models.CourseRole.course_id == course_id).all()
+    if 'q' in request.args:
+
+        @limiter.limit('1 per second', key_func=lambda: str(current_user.id))
+        def get_users_in_course() -> t.List[models.User]:
+            query = request.args.get('q')
+            base = course.get_all_users_in_course().from_self(models.User)
+            return helpers.filter_users_by_name(query, base).all()
+
+        return jsonify(get_users_in_course())
+
+    users = course.get_all_users_in_course()
 
     user_course: t.List[_UserCourse]
     user_course = [
@@ -528,7 +531,7 @@ def get_course_data(course_id: int) -> JSONResponse[t.Mapping[str, t.Any]]:
     """
     # TODO: Optimize this loop to a single query
     for course_role in current_user.courses.values():
-        if course_role.course.id == course_id:
+        if course_role.course_id == course_id:
             return jsonify(
                 {
                     'role': course_role.name,
