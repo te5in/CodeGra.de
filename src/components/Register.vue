@@ -70,6 +70,8 @@ import DescriptionPopover from './DescriptionPopover';
 import PasswordInput from './PasswordInput';
 
 export default {
+    name: 'register',
+
     data() {
         return {
             username: '',

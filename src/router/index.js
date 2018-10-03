@@ -5,6 +5,9 @@ import {
     ResetPassword,
     LTILaunch,
     Home,
+    Login,
+    ForgotPassword,
+    Register,
     ManageCourse,
     ManageAssignment,
     Submission,
@@ -29,6 +32,21 @@ const router = new Router({
             path: '/',
             name: 'home',
             component: Home,
+        },
+        {
+            path: '/login',
+            name: 'login',
+            component: Login,
+        },
+        {
+            path: '/forgot',
+            name: 'forgot',
+            component: ForgotPassword,
+        },
+        {
+            path: '/register',
+            name: 'register',
+            component: Register,
         },
         {
             path: '/reset_password',
@@ -88,7 +106,9 @@ const router = new Router({
 let restorePath = '';
 
 const notLoggedInRoutes = new Set([
-    'home',
+    'login',
+    'forgot',
+    'register',
     'lti-launch',
     'reset-password',
 ]);
@@ -99,19 +119,25 @@ router.beforeEach((to, from, next) => {
     resetPageTitle();
 
     const loggedIn = store.getters['user/loggedIn'];
-    if (loggedIn && restorePath) {
-        // Reset restorePath before calling (synchronous) next.
-        const path = restorePath;
-        restorePath = '';
-        next({ path });
-    } else if (!loggedIn && !notLoggedInRoutes.has(to.name)) {
+    if (loggedIn) {
+        if (restorePath) {
+            // Reset restorePath before calling (synchronous) next.
+            const path = restorePath;
+            restorePath = '';
+            next({ path });
+        } else if (to.name === 'login' || to.name === 'register') {
+            next('/home');
+        } else {
+            next();
+        }
+    } else if (!notLoggedInRoutes.has(to.name)) {
         store.dispatch('user/verifyLogin').then(() => {
             next();
-        }).catch(() => {
+        }, () => {
             // Store path so we can go to the requested route
             // when the user is logged in.
             restorePath = to.path;
-            next('/?sbloc=l');
+            next('/login');
         });
     } else {
         next();

@@ -127,17 +127,16 @@ import 'vue-awesome/icons/refresh';
 
 import { Loader } from '@/components';
 
-import Login from './Login';
 import UserInfo from './UserInfo';
 import CourseList from './CourseList';
 import AssignmentList from './AssignmentList';
-import Register from './Register';
 
 import { MANAGE_SITE_PERIMSSIONS } from '../../constants';
 
 
 const floatingRoutes = new Set([
     'home',
+    'forgot',
     'submission',
     'submission_file',
     'plagiarism_overview',
@@ -166,24 +165,19 @@ export default {
                     icon: 'bolt-o',
                     iconStyle: 'border: 3px solid; border-radius: 50%;',
                     title: 'Login',
-                    header: () => {
-                        if (this.$route.hash === '#forgot') {
-                            return 'Reset password';
-                        } else {
-                            return 'Login';
-                        }
-                    },
-                    width: '600px',
-                    component: 'login',
                     condition: () => !this.loggedIn,
+                    onClick: () => {
+                        this.$router.push({ name: 'login' });
+                    },
                 },
                 {
                     name: 'register',
                     icon: 'rocket',
                     header: 'Register',
-                    width: '600px',
-                    component: 'register',
                     condition: () => !this.loggedIn,
+                    onClick: () => {
+                        this.$router.push({ name: 'register' });
+                    },
                 },
                 {
                     name: 'user',
@@ -267,7 +261,11 @@ export default {
 
         hideInitialEntries() {
             const route = this.$route.name;
-            return this.$inLTI || !this.$root.$isMediumWindow || hideRoutes.has(route);
+            return (
+                this.$inLTI ||
+                !this.$root.$isMediumWindow ||
+                hideRoutes.has(route)
+            );
         },
 
         showRegularLogo() {
@@ -291,7 +289,8 @@ export default {
         },
 
         $route(newVal, oldVal) {
-            if (newVal.name === oldVal.name) {
+            const newName = newVal.name;
+            if (newName === oldVal.name) {
                 return;
             }
             if (this.hideInitialEntries) {
@@ -303,12 +302,14 @@ export default {
     },
 
     async mounted() {
-        const [, perms] = await Promise.all([
-            this.loadCourses(),
-            this.$hasPermission(MANAGE_SITE_PERIMSSIONS),
-        ]);
+        if (this.loggedIn) {
+            const [, perms] = await Promise.all([
+                this.loadCourses(),
+                this.$hasPermission(MANAGE_SITE_PERIMSSIONS),
+            ]);
 
-        this.canManageSite = perms.every(x => x);
+            this.canManageSite = perms.every(x => x);
+        }
 
         this.$root.$on('sidebar::show', (submenu) => {
             if (submenu === undefined) {
@@ -337,7 +338,7 @@ export default {
         logout() {
             this.logoutUser();
             this.closeSubMenu(true);
-            this.$router.push({ name: 'home' });
+            this.$router.push({ name: 'login' });
         },
 
         refreshItems() {
@@ -350,14 +351,12 @@ export default {
         },
 
         setInitialEntry() {
-            if (this.$route.query.sbloc === 'm') {
-                this.openMenuStack([this.findEntry('user')]);
-            } else if (this.$route.query.sbloc === 'l' && !this.loggedIn) {
-                this.openMenuStack([this.findEntry('login')]);
-            } else if (this.$route.query.sbloc === 'r' && !this.loggedIn) {
-                this.openMenuStack([this.findEntry('register')]);
-            } else if (this.hideInitialEntries) {
+            if (this.hideInitialEntries) {
                 // NOOP
+            } else if (this.$route.name === 'login' || this.$route.name === 'register') {
+                this.currentEntry = this.findEntry(this.$route.name);
+            } else if (this.$route.query.sbloc === 'm') {
+                this.openMenuStack([this.findEntry('user')]);
             } else if (this.$route.query.sbloc === 'a') {
                 this.openMenuStack([this.findEntry('assignments')]);
             } else if (this.$route.query.sbloc === 'c') {
@@ -391,8 +390,10 @@ export default {
         },
 
         openUpperSubMenu(entry, toggle = false) {
-            if (toggle && this.currentEntry &&
-                entry.name === this.currentEntry.name) {
+            if (entry.onClick != null) {
+                this.currentEntry = entry;
+                entry.onClick();
+            } else if (toggle && this.currentEntry && entry.name === this.currentEntry.name) {
                 this.closeSubMenu(true);
             } else {
                 const hadSubMenuOpen = this.subMenus.length > 0;
@@ -416,14 +417,14 @@ export default {
             this.$root.$emit('sidebar::submenu-closed');
 
             if (closeAll) {
-                this.currentEntry = null;
                 this.subMenus = [];
+                this.currentEntry = null;
             } else {
                 this.subMenus.pop();
-            }
 
-            if (this.subMenus.length === 0) {
-                this.currentEntry = null;
+                if (this.subMenus.length === 0) {
+                    this.currentEntry = null;
+                }
             }
 
             if ((closeAll || this.subMenus.length === 0) && this.mobileVisible) {
@@ -468,11 +469,9 @@ export default {
     components: {
         Icon,
         Loader,
-        Login,
         UserInfo,
         CourseList,
         AssignmentList,
-        Register,
     },
 };
 </script>
