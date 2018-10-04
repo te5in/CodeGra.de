@@ -10,6 +10,7 @@ import datetime
 from functools import wraps
 
 import flask
+import structlog
 import mypy_extensions
 from typing_extensions import Protocol
 from sqlalchemy.sql.expression import or_
@@ -22,6 +23,8 @@ import psef.json_encoders as json
 if t.TYPE_CHECKING:  # pragma: no cover
     from psef import model_types  # pylint: disable=unused-import
     import werkzeug  # pylint: disable=unused-import
+
+logger = structlog.get_logger()
 
 #: Type vars
 T = t.TypeVar('T')
@@ -369,7 +372,10 @@ def ensure_keys_in_dict(
         )
 
 
-def ensure_json_dict(json_value: JSONType) -> t.Dict[str, JSONType]:
+def ensure_json_dict(
+    json_value: JSONType,
+    replace_log: t.Optional[t.Callable[[str, object], object]] = None
+) -> t.Dict[str, JSONType]:
     """Make sure that the given json is a JSON dictionary
 
     :param json_value: The input json that should be checked.
@@ -379,6 +385,11 @@ def ensure_json_dict(json_value: JSONType) -> t.Dict[str, JSONType]:
         (INVALID_PARAM)
     """
     if isinstance(json_value, t.Dict):
+        to_log = json_value
+        if replace_log is not None:
+            to_log = {k: replace_log(k, v) for k, v in json_value.items()}
+        logger.info('JSON request processed', request_data=to_log)
+
         return json_value
     raise psef.errors.APIException(
         'The given JSON is not a object as is required',
@@ -393,6 +404,7 @@ def _maybe_add_warning(
     warning: t.Optional[psef.errors.HttpWarning],
 ) -> None:
     if warning is not None:
+        logger.info('Added warning to response', warning=warning)
         response.headers['Warning'] = warning
 
 
@@ -432,6 +444,13 @@ def extended_jsonify(
         psef.app.json_encoder = json.CustomJSONEncoder
     response.status_code = status_code
 
+    if not isinstance(obj, psef.errors.APIException):
+        logger.info(
+            'Created extended json return response',
+            reponse_type=str(type(obj)),
+            response=response.response,
+        )
+
     _maybe_add_warning(response, warning)
 
     return response
@@ -450,7 +469,13 @@ def jsonify(
     :param warning: The warning that should be added to the response
     :returns: The response with the jsonified object as payload
     """
-    response = flask.make_response(flask.jsonify(obj))
+    response = flask.jsonify(obj)
+    if not isinstance(obj, psef.errors.APIException):
+        logger.info(
+            'Created json return response',
+            reponse_type=str(type(obj)),
+            response=response.response,
+        )
     response.status_code = status_code
 
     _maybe_add_warning(response, warning)
@@ -492,6 +517,7 @@ def ensure_feature(feature_name: str) -> None:
     :raises APIException: If the feature is not enabled. (DISABLED_FEATURE)
     """
     if not has_feature(feature_name):
+        logger.warning('Tried to use disabled feature', feature=feature_name)
         raise psef.errors.APIException(
             'This feature is not enabled for this instance.',
             f'The feature "{feature_name}" is not enabled.',

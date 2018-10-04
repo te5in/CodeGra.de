@@ -12,6 +12,7 @@ import datetime
 import flask
 import oauth2
 import dateutil
+import structlog
 import flask_jwt_extended as flask_jwt
 from lxml import etree, objectify
 
@@ -23,6 +24,8 @@ from psef import LTI_ROLE_LOOKUPS, app, current_user
 from psef.auth import _user_active
 from psef.errors import APICodes, APIException
 from psef.models import db
+
+logger = structlog.get_logger()
 
 
 def init_app(_: t.Any) -> None:
@@ -450,6 +453,15 @@ class LTI:  # pylint: disable=too-many-public-methods
             probably be clickable.
         :returns: The response of the LTI consumer.
         """
+        logger.info(
+            'Doing LTI grade passback',
+            consumer_key=key,
+            consumer_secret=secret,
+            lti_outcome_service_url=service_url,
+            url=url,
+            grade=grade,
+        )
+
         req = OutcomeRequest(
             consumer_key=key,
             consumer_secret=secret,
@@ -700,6 +712,9 @@ class OutcomeRequest:  # pragma: no cover, pylint: disable=protected-access,inva
         '''
         POST an OAuth signed request to the Tool Consumer.
         '''
+        log = logger.bind(operation=self.operation)
+        log.info('Posting outcome request')
+
         if not self.has_required_attributes():
             raise ValueError(
                 'OutcomeRequest does not have all required attributes'
@@ -740,9 +755,24 @@ class OutcomeRequest:  # pragma: no cover, pylint: disable=protected-access,inva
             http = httplib2.Http
             http._normalize_headers = monkey_patch_function
 
+        log = log.bind(
+            response=response,
+            response_body=content,
+        )
+        log.info('Posted outcome request')
+
         self.outcome_response = OutcomeResponse.from_post_response(
             response, content
         )
+
+        if not self.was_outcome_post_successful():
+            log.error(
+                'Posting outcome failed',
+                lti_code_major=self.outcome_response.code_major,
+                lti_severity=self.outcome_response.severity,
+            )
+        log.try_unbind('response', 'response_body', 'operation')
+
         return self.outcome_response
 
     def process_xml(self, xml: str) -> None:

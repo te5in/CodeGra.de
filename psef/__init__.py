@@ -7,14 +7,21 @@ this backend is named ``psef``.
 import os
 import sys
 import json as system_json
+import uuid
 import types
 import typing as t
+import logging
 import datetime
 
 import flask  # pylint: disable=unused-import
+import structlog
 import flask_jwt_extended as flask_jwt
-from flask import Flask, g, jsonify, current_app
+from flask import Flask, g, jsonify, request, current_app
+from sqlalchemy import event
 from flask_limiter import Limiter, RateLimitExceeded
+from sqlalchemy.engine.base import Engine
+
+logger = structlog.get_logger()
 
 app = current_app  # pylint: disable=invalid-name
 
@@ -81,6 +88,13 @@ def create_app(config: t.Mapping = None, skip_celery: bool = False) -> t.Any:  #
         g.request_start_time = datetime.datetime.utcnow()
 
     @resulting_app.before_request
+    def __set_query_durations() -> None:
+        g.queries_amount = 0
+        g.queries_total_duration = 0
+        g.queries_max_duration = None
+        g.query_start = None
+
+    @resulting_app.before_request
     @flask_jwt.jwt_optional
     def __set_current_user() -> None:  # pylint: disable=unused-variable
         # This code is necessary to make `flask_jwt_extended` understand that
@@ -106,6 +120,74 @@ def create_app(config: t.Mapping = None, skip_celery: bool = False) -> t.Any:  #
         resulting_app.config['LTI_SECRET_KEY'] is None
     ):  # pragma: no cover
         raise ValueError('The option to generate keys has been removed')
+
+    @resulting_app.before_request
+    def __create_logger() -> None:  # pylint: disable=unused-variable
+        g.request_id = uuid.uuid4()
+        log = logger.new(
+            request_id=str(g.request_id),
+            current_user=current_user and current_user.username,
+            path=flask.request.path,
+            view=getattr(flask.request.url_rule, 'rule', None),
+            base_url=resulting_app.config['EXTERNAL_URL'],
+        )
+        log.info(
+            "Request started", host=request.host_url, method=request.method
+        )
+
+    @event.listens_for(Engine, "before_cursor_execute")
+    def __before_cursor_execute(*_args: object) -> None:
+        if hasattr(g, 'query_start'):
+            g.query_start = datetime.datetime.utcnow()
+
+    @event.listens_for(Engine, "after_cursor_execute")
+    def __after_cursor_execute(*_args: object) -> None:
+        if hasattr(g, 'queries_amount'):
+            g.queries_amount += 1
+        if hasattr(g, 'query_start'):
+            delta = (datetime.datetime.utcnow() -
+                     g.query_start).total_seconds()
+            if hasattr(g, 'queries_total_duration'):
+                g.queries_total_duration += delta
+            if (
+                hasattr(g, 'queries_max_duration') and (
+                    g.queries_max_duration is None or
+                    delta > g.queries_max_duration
+                )
+            ):
+                g.queries_max_duration = delta
+
+    processors = [
+        structlog.stdlib.filter_by_level,
+        structlog.stdlib.add_logger_name,
+        structlog.stdlib.add_log_level,
+        structlog.stdlib.PositionalArgumentsFormatter(),
+        structlog.processors.format_exc_info,
+        structlog.processors.TimeStamper(fmt="iso"),
+        structlog.processors.StackInfoRenderer(),
+        structlog.processors.format_exc_info,
+        structlog.processors.UnicodeDecoder(),
+        structlog.processors.JSONRenderer(),
+    ]
+    structlog.configure(
+        processors=processors,
+        context_class=structlog.threadlocal.wrap_dict(dict),
+        logger_factory=structlog.stdlib.LoggerFactory(),
+        wrapper_class=structlog.stdlib.BoundLogger,
+        cache_logger_on_first_use=True,
+    )
+    if getattr(resulting_app, 'debug', False):
+        structlog.configure(
+            processors=processors[:-2] + [structlog.dev.ConsoleRenderer()]
+        )
+    logging.basicConfig(
+        format="%(message)s",
+        stream=sys.stdout,
+    )
+    logging.getLogger('psef').setLevel(logging.DEBUG)
+    logging.getLogger('werkzeug').setLevel(logging.ERROR)
+    # Let the celery logger shut up
+    logging.getLogger('celery').propagate = False
 
     @resulting_app.errorhandler(RateLimitExceeded)
     def __handle_error(_: RateLimitExceeded) -> 'flask.Response':  # pylint: disable=unused-variable
@@ -173,33 +255,26 @@ def create_app(config: t.Mapping = None, skip_celery: bool = False) -> t.Any:  #
             )
             raise
 
-    if getattr(
-        resulting_app,
-        'debug',
-        False,
-    ) and not getattr(
-        resulting_app,
-        'testing',
-        False,
-    ):  # pragma: no cover
+    typ = t.TypeVar('typ')
 
-        import flask_sqlalchemy
-        typ = t.TypeVar('typ')
-
-        @resulting_app.after_request
-        def __print_queries(res: typ) -> typ:  # pylint: disable=unused-variable
-            queries = flask_sqlalchemy.get_debug_queries()
-            print(  # pylint: disable=bad-builtin
-                (
-                    '\n{} - - made {} amount of queries totaling '
-                    '{:.4f} seconds. The longest took {:.4f} seconds.'
-                ).format(
-                    flask.request.path,
-                    len(queries),
-                    sum(q.duration for q in queries) if queries else 0,
-                    max(q.duration for q in queries) if queries else 0,
-                )
-            )
-            return res
+    @resulting_app.after_request
+    def __after_request(res: typ) -> typ:  # pylint: disable=unused-variable
+        queries_amount = g.queries_amount
+        queries_total_duration = g.queries_total_duration
+        queries_max_duration = g.queries_max_duration or 0
+        log_msg = (
+            logger.info if queries_max_duration < 0.5 and queries_amount < 20
+            else logger.warning
+        )
+        end_time = datetime.datetime.utcnow()
+        log_msg(
+            'Request finished',
+            request_time=str(end_time - g.request_start_time),
+            status_code=getattr(res, 'status_code', None),
+            queries_amount=queries_amount,
+            queries_total_duration=queries_total_duration,
+            queries_max_duration=queries_max_duration
+        )
+        return res
 
     return resulting_app

@@ -9,14 +9,17 @@ import os
 import uuid
 import typing as t
 import tempfile
-import traceback
 import subprocess
+
+import structlog
 
 import psef
 import psef.files
 import psef.models as models
 from psef.models import db
 from psef.helpers import get_class_by_name, get_all_subclasses
+
+logger = structlog.get_logger()
 
 
 def init_app(_: t.Any) -> None:
@@ -208,7 +211,11 @@ class LinterRunner():
             # We want to catch all exceptions here as need to set our linter to
             # the crashed state.
             except Exception:  # pylint: disable=broad-except
-                traceback.print_exc()
+                logger.warning(
+                    'The linter crashed',
+                    linter_instance_id=linter_instance.id,
+                    exc_info=True,
+                )
                 linter_instance.state = models.LinterState.crashed
                 db.session.commit()
 

@@ -48,7 +48,10 @@ def login() -> ExtendedJSONResponse[t.Mapping[str, t.Union[models.User, str]]]:
     :raises APIException: If the user with the given username and password is
         inactive. (INACTIVE_USER)
     """
-    data = ensure_json_dict(request.get_json())
+    data = ensure_json_dict(
+        request.get_json(),
+        replace_log=lambda k, v: '<PASSWORD>' if k == 'password' else v
+    )
     ensure_keys_in_dict(data, [('username', str), ('password', str)])
     username = t.cast(str, data['username'])
     password = t.cast(str, data['password'])
@@ -66,9 +69,9 @@ def login() -> ExtendedJSONResponse[t.Mapping[str, t.Union[models.User, str]]]:
     if user is None or user.password != password:
         raise APIException(
             'The supplied username or password is wrong.', (
-                'The user with username "{}" does not exist ' +
+                f'The user with username "{username}" does not exist '
                 'or has a different password'
-            ).format(username), APICodes.LOGIN_FAILURE, 400
+            ), APICodes.LOGIN_FAILURE, 400
         )
 
     if not user.is_active:
@@ -198,7 +201,10 @@ def user_patch_handle_reset_password() -> JSONResponse[t.Mapping[str, str]]:
     :returns: A response with a jsonified mapping between ``access_token`` and
         a token which can be used to login. This is only key available.
     """
-    data = ensure_json_dict(request.get_json())
+    data = ensure_json_dict(
+        request.get_json(),
+        replace_log=lambda k, v: '<PASSWORD>' if 'password' in k else v
+    )
     ensure_keys_in_dict(
         data, [('new_password', str),
                ('token', str),
@@ -246,7 +252,10 @@ def user_patch_handle_change_user_data() -> EmptyResponse:
 
     :returns: An empty response.
     """
-    data = ensure_json_dict(request.get_json())
+    data = ensure_json_dict(
+        request.get_json(),
+        replace_log=lambda k, v: f'<PASSWORD "{k}">' if 'password' in k else v
+    )
 
     ensure_keys_in_dict(
         data, [

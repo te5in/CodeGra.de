@@ -11,6 +11,7 @@ import numbers
 import datetime
 from collections import defaultdict
 
+import structlog
 import sqlalchemy.sql as sql
 from flask import request
 from sqlalchemy.orm import undefer, joinedload
@@ -35,6 +36,8 @@ from psef.helpers import (
 
 from . import api
 from .. import plagiarism
+
+logger = structlog.get_logger()
 
 
 @api.route('/assignments/', methods=['GET'])
@@ -91,6 +94,7 @@ def get_all_assignments() -> JSONResponse[t.Sequence[models.Assignment]]:
 
 
 @api.route("/assignments/<int:assignment_id>", methods=['GET'])
+@auth.login_required
 def get_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
     """Return the given :class:`.models.Assignment`.
 
@@ -1094,9 +1098,12 @@ def post_submissions(assignment_id: int) -> EmptyResponse:
     try:
         submissions = psef.files.process_blackboard_zip(files[0])
     except Exception:  # pylint: disable=broad-except
-        import traceback
-        traceback.print_exc()
         # TODO: Narrow this exception down.
+        logger.info(
+            'Exception encountered when processing blackboard zip',
+            assignment_id=assignment.id,
+            exc_info=True,
+        )
         submissions = []
 
     if not submissions:
