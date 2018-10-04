@@ -42,10 +42,8 @@ export default {
 
             setPageTitle('LTI is launching, please wait');
 
-            this.$http.get('/api/v1/lti/launch/2', {
-                headers: {
-                    Jwt: this.$route.query.jwt,
-                },
+            this.$http.post('/api/v1/lti/launch/2', {
+                jwt_token: this.$route.query.jwt,
             }).then(async ({ data }) => {
                 if (data.access_token) {
                     await this.updateAccessToken(data.access_token);

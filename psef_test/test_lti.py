@@ -5,11 +5,11 @@ import datetime
 import jwt
 import pytz
 import pytest
+import dateutil.parser
+
 import psef.lti as lti
 import psef.auth as auth
 import psef.models as m
-import dateutil.parser
-
 from helpers import create_marker
 
 perm_error = create_marker(pytest.mark.perm_error)
@@ -22,6 +22,17 @@ def monkeypatch_oauth_check(monkeypatch):
         return
 
     monkeypatch.setattr(auth, 'ensure_valid_oauth', valid_oauth)
+
+
+def test_lti_config(test_client, error_template):
+    test_client.req('get', '/api/v1/lti/', 400, result=error_template)
+    test_client.req(
+        'get', '/api/v1/lti/?lms=unkown', 400, result=error_template
+    )
+    res = test_client.get('/api/v1/lti/?lms=Canvas')
+    assert res.status_code == 200
+    assert res.content_type.startswith('application/xml')
+    assert '$Canvas' in res.get_data(as_text=True)
 
 
 def test_lti_new_user_new_course(test_client, app, logged_in, ta_user):
@@ -65,10 +76,10 @@ def test_lti_new_user_new_course(test_client, app, logged_in, ta_user):
             url = urllib.parse.urlparse(res.headers['Location'])
             jwt = urllib.parse.parse_qs(url.query)['jwt'][0]
             lti_res = test_client.req(
-                'get',
+                'post',
                 '/api/v1/lti/launch/2',
                 200,
-                headers={'Jwt': jwt},
+                data={'jwt_token': jwt},
             )
             if published == 'false':
                 assert lti_res['assignment']['state'] == 'hidden'
@@ -185,10 +196,10 @@ def test_lti_no_course_roles(
             url = urllib.parse.urlparse(res.headers['Location'])
             jwt = urllib.parse.parse_qs(url.query)['jwt'][0]
             lti_res = test_client.req(
-                'get',
+                'post',
                 '/api/v1/lti/launch/2',
                 code,
-                headers={'Jwt': jwt},
+                data={'jwt_token': jwt},
             )
             if not parse:
                 return lti_res
@@ -307,10 +318,10 @@ def test_lti_grade_passback(
             url = urllib.parse.urlparse(res.headers['Location'])
             jwt = urllib.parse.parse_qs(url.query)['jwt'][0]
             lti_res = test_client.req(
-                'get',
+                'post',
                 '/api/v1/lti/launch/2',
                 200,
-                headers={'Jwt': jwt},
+                data={'jwt_token': jwt},
             )
             if published == 'false':
                 assert lti_res['assignment']['state'] == 'hidden'
@@ -512,10 +523,10 @@ def test_lti_assignment_create(
             url = urllib.parse.urlparse(res.headers['Location'])
             jwt = urllib.parse.parse_qs(url.query)['jwt'][0]
             lti_res = test_client.req(
-                'get',
+                'post',
                 '/api/v1/lti/launch/2',
                 200,
-                headers={'Jwt': jwt},
+                data={'jwt_token': jwt},
             )
             if published == 'false':
                 assert lti_res['assignment']['state'] == 'hidden'
@@ -583,10 +594,10 @@ def test_reset_lti_email(test_client, app, logged_in, ta_user, session):
             url = urllib.parse.urlparse(res.headers['Location'])
             jwt = urllib.parse.parse_qs(url.query)['jwt'][0]
             lti_res = test_client.req(
-                'get',
+                'post',
                 '/api/v1/lti/launch/2',
                 200,
-                headers={'Jwt': jwt},
+                data={'jwt_token': jwt},
             )
             if published == 'false':
                 assert lti_res['assignment']['state'] == 'hidden'
@@ -677,9 +688,9 @@ def test_invalid_jwt(
         url = urllib.parse.urlparse(res.headers['Location'])
         jwt = urllib.parse.parse_qs(url.query)['jwt'][0]
         lti_res = test_client.req(
-            'get',
+            'post',
             '/api/v1/lti/launch/2',
             400,
-            headers={'Jwt': 'INVALID_JWT'},
+            data={'jwt_token': 'INVALID_JWT'},
             result=error_template
         )

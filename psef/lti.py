@@ -8,6 +8,7 @@
 
 import typing as t
 import datetime
+from urllib.parse import urlparse
 
 import flask
 import oauth2
@@ -22,6 +23,7 @@ import psef.models as models
 import psef.helpers as helpers
 from psef import LTI_ROLE_LOOKUPS, app, current_user
 from psef.auth import _user_active
+from dataclasses import dataclass
 from psef.errors import APICodes, APIException
 from psef.models import db
 
@@ -30,6 +32,17 @@ logger = structlog.get_logger()
 
 def init_app(_: t.Any) -> None:
     pass
+
+
+@dataclass
+class LTIProperty:
+    """An LTI property.
+
+    :ivar internal: The name the property should be names in the launch params.
+    :ivar external: The external name of the property.
+    """
+    internal: str
+    external: str
 
 
 # TODO: This class has so many public methods as they are properties. A lot of
@@ -92,6 +105,22 @@ class LTI:  # pylint: disable=too-many-public-methods
         auth.ensure_valid_oauth(self.key, self.secret, req)
 
         return self
+
+    @staticmethod
+    def get_lti_properties() -> t.List[LTIProperty]:
+        """All extension properties used by this LMS.
+
+        :returns: The extension properties needed.
+        """
+        raise NotImplementedError
+
+    @staticmethod
+    def get_custom_extensions() -> str:
+        """Get a string that will be used verbatim in the LTI xml.
+
+        :returns: A string used as extension
+        """
+        raise NotImplementedError
 
     @property
     def assigment_points_possible(self) -> float:
@@ -496,6 +525,57 @@ class LTI:  # pylint: disable=too-many-public-methods
 class CanvasLTI(LTI):
     """The LTI class used for the Canvas LMS.
     """
+
+    @staticmethod
+    def get_lti_properties() -> t.List[LTIProperty]:
+        """All extension properties used by Canvas.
+
+        :returns: The extension properties needed.
+        """
+        return [
+            LTIProperty(
+                internal='custom_canvas_course_name',
+                external='$Canvas.course.name'
+            ),
+            LTIProperty(
+                internal='custom_canvas_course_id',
+                external='$Canvas.course.id'
+            ),
+            LTIProperty(
+                internal='custom_canvas_assignment_id',
+                external='$Canvas.assignment.id'
+            ),
+            LTIProperty(
+                internal='custom_canvas_assignment_title',
+                external='$Canvas.assignment.title'
+            ),
+            LTIProperty(
+                internal='custom_canvas_assignment_due_at',
+                external='$Canvas.assignment.dueAt.iso8601'
+            ),
+            LTIProperty(
+                internal='custom_canvas_assignment_published',
+                external='$Canvas.assignment.published'
+            ),
+            LTIProperty(
+                internal='custom_canvas_points_possible',
+                external='$Canvas.assignment.pointsPossible'
+            ),
+        ]
+
+    @staticmethod
+    def get_custom_extensions() -> str:
+        """Get the custom extension use by Canvas.
+
+        :returns: The extension used by canvas.
+        """
+        return """
+    <blti:extensions platform="canvas.instructure.com">
+      <lticm:property name="tool_id">codegrade</lticm:property>
+      <lticm:property name="privacy_level">public</lticm:property>
+      <lticm:property name="domain">{}</lticm:property>
+    </blti:extensions>
+        """.format(urlparse(app.config['EXTERNAL_URL']).netloc)
 
     def has_assigment_points_possible(self) -> bool:
         return 'custom_canvas_points_possible' in self.launch_params
