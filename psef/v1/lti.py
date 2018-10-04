@@ -9,11 +9,12 @@ directly after a successful lti launch.
 import typing as t
 import urllib
 import datetime
-import traceback
 import urllib.parse
 
 import jwt
 import flask
+import structlog
+
 import psef.errors as errors
 import psef.models as models
 import psef.helpers as helpers
@@ -22,6 +23,8 @@ from psef.lti import CanvasLTI
 from psef.models import db
 
 from . import api
+
+logger = structlog.get_logger()
 
 
 @api.route('/lti/launch/1', methods=['POST'])
@@ -69,14 +72,19 @@ def second_phase_lti_launch() -> helpers.JSONResponse[
         also not always available, check!
     :raises APIException: If the given Jwt token is not valid. (INVALID_PARAM)
     """
+    token = flask.request.headers.get('Jwt', None)
     try:
         launch_params = jwt.decode(
-            flask.request.headers.get('Jwt', None),
+            token,
             app.config['LTI_SECRET_KEY'],
             algorithms=['HS512'],
         )['params']
     except jwt.DecodeError:
-        traceback.print_exc()
+        logger.warning(
+            'Invalid JWT token encountered',
+            token=token,
+            exc_info=True,
+        )
         raise errors.APIException(
             (
                 'Decoding given JWT token failed, LTI is probably '

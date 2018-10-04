@@ -9,16 +9,83 @@ the mapping of the variables at the bottom of this file.
 import os
 import typing as t
 import tempfile
-import traceback
 import subprocess
 from operator import itemgetter
 
+import structlog
+from flask import g
 from celery import Celery as _Celery
-from celery.utils.log import get_task_logger
+from celery import signals
 
 import psef as p
 
-logger = get_task_logger(__name__)  # pylint: disable=invalid-name
+logger = structlog.get_logger()
+
+
+@signals.setup_logging.connect
+def __celery_setup_logging(
+    *_: object, **__: object
+) -> None:  # pragma: no cover
+    pass
+
+
+@signals.before_task_publish.connect
+def __celery_before_task_publish(
+    sender: str, headers: object, **_: object
+) -> None:  # pragma: no cover
+    logger.info('Publishing task', sender=sender, headers=headers)
+
+
+@signals.after_task_publish.connect
+def __celery_after_task_publish(
+    sender: str, headers: object, **_: object
+) -> None:  # pragma: no cover
+    logger.info('Published task', sender=sender, headers=headers)
+
+
+@signals.task_success.connect
+def __celery_success(**kwargs: object) -> None:
+    logger.info(
+        'Task finished',
+        result=kwargs['result'],
+    )
+
+
+@signals.task_failure.connect
+def __celery_failure(**_: object) -> None:  # pragma: no cover
+    logger.error(
+        'Task failed',
+        exc_info=True,
+    )
+
+
+@signals.task_revoked.connect
+def __celery_revoked(**kwargs: object) -> None:  # pragma: no cover
+    logger.info(
+        'Task revoked',
+        terminated=kwargs['terminated'],
+        signum=kwargs['signum'],
+        expired=kwargs['expired'],
+    )
+
+
+@signals.task_unknown.connect
+def __celery_unkown(**kwargs: object) -> None:  # pragma: no cover
+    logger.warning(
+        'Unknown task received',
+        task_name=kwargs['name'],
+        request_id=kwargs['id'],
+        raw_message=kwargs['message'],
+    )
+
+
+@signals.task_rejected.connect
+def __celery_rejected(**kwargs: object) -> None:  # pragma: no cover
+    logger.warning(
+        'Rejected task received',
+        raw_message=kwargs['message'],
+    )
+
 
 # pylint: disable=missing-docstring,no-self-use,pointless-statement
 if t.TYPE_CHECKING:  # pragma: no cover
@@ -59,7 +126,10 @@ class MyCelery(Celery):
         if t.TYPE_CHECKING:  # pragma: no cover
 
             class TaskBase:
-                pass
+                """Example task base for Mypy annotations
+                """
+                request: t.Any
+                name: str
         else:
             # self.Task is available in the `Celery` object.
             TaskBase = self.Task  # pylint: disable=access-member-before-definition,invalid-name
@@ -74,19 +144,48 @@ class MyCelery(Celery):
                 # https://web.archive.org/web/20150617151604/http://slides.skien.cc/flask-hacks-and-best-practices/#15
 
                 # pylint: disable=protected-access
+                assert outer_self._flask_app  # pragma: no cover
 
-                if outer_self._flask_app is None:  # pragma: no cover
-                    raise ValueError('You forgot the initialize celery!')
+                log = logger.new(
+                    request_id=self.request.id,
+                    in_celery=True,
+                    task_name=self.name,
+                    # pylint: disable=protected-access
+                    base_url=outer_self._flask_app.config['EXTERNAL_URL'],
+                )
+
+                log.info('Starting task', args=args, kwargs=kwargs)
 
                 if outer_self._flask_app.config['TESTING']:
-                    return TaskBase.__call__(self, *args, **kwargs)
-
+                    g.request_id = self.request.id
+                    g.queries_amount = 0
+                    g.queries_total_duration = 0
+                    g.queries_max_duration = None
+                    g.query_start = None
+                    result = TaskBase.__call__(self, *args, **kwargs)
+                    logger.bind(
+                        queries_amount=g.queries_amount,
+                        queries_max_duration=g.queries_max_duration,
+                        queries_total_duration=g.queries_total_duration,
+                    )
+                    return result
                 with outer_self._flask_app.app_context():  # pragma: no cover
-                    return TaskBase.__call__(self, *args, **kwargs)
+                    g.request_id = self.request.id
+                    g.queries_amount = 0
+                    g.queries_total_duration = 0
+                    g.queries_max_duration = None
+                    g.query_start = None
+                    result = TaskBase.__call__(self, *args, **kwargs)
+                    logger.bind(
+                        queries_amount=g.queries_amount,
+                        queries_max_duration=g.queries_max_duration,
+                        queries_total_duration=g.queries_total_duration,
+                    )
+                    return result
 
         self.Task = _ContextTask  # pylint: disable=invalid-name
 
-    def init_app(self, app: t.Any) -> None:
+    def init_flask_app(self, app: t.Any) -> None:
         self._flask_app = app
 
 
@@ -101,8 +200,13 @@ def init_app(app: t.Any) -> None:
     """
     celery.conf.update(app.config['CELERY_CONFIG'])
     # This is a weird class that is like a dict but not really.
-    celery.conf.update({'task_ignore_result': True})
-    celery.init_app(app)
+    celery.conf.update(
+        {
+            'task_ignore_result': True,
+            'celery_hijack_root_logger': False
+        }
+    )
+    celery.init_flask_app(app)
 
 
 @celery.task
@@ -122,9 +226,22 @@ def _passback_grades_1(submission_ids: t.Sequence[int]) -> None:
     if not submission_ids:  # pragma: no cover
         return
 
-    for sub in p.models.Work.query.filter(p.models.Work.id.in_(  # type: ignore
-        submission_ids,
-    )):
+    subs = p.models.Work.query.filter(
+        t.cast(p.models.DbColumn[int], p.models.Work.id).in_(
+            submission_ids,
+        )
+    ).all()
+
+    found_ids = [s.id for s in subs]
+    logger.info(
+        'Passback grades',
+        gotten_submissions=submission_ids,
+        found_submissions=found_ids,
+        all_found=len(subs) == len(submission_ids),
+        difference=list(set(submission_ids) ^ set(found_ids))
+    )
+
+    for sub in subs:
         sub.passback_grade()
 
 
@@ -160,9 +277,12 @@ def _send_reminder_mails_1(assignment_id: int) -> None:
             except Exception:  # pragma: no cover
                 # This happens if mail sending fails or if the user has no
                 # e-mail address.
-                # TODO: add some sort of logging system.
                 # TODO: make this exception more specific
-                pass
+                logger.warning(
+                    'Could not send email',
+                    receiving_user_id=user_id,
+                    exc_info=True
+                )
 
 
 @celery.task
@@ -194,7 +314,12 @@ def _run_plagiarism_control_1(
     csv_location: str,
 ) -> None:
     plagiarism_run = p.models.PlagiarismRun.query.get(plagiarism_run_id)
-    assert plagiarism_run is not None
+    if plagiarism_run is None:  # pragma: no cover
+        logger.info(
+            'Plagiarism run was already deleted',
+            plagiarism_run_id=plagiarism_run_id,
+        )
+        return
 
     with tempfile.TemporaryDirectory(
     ) as result_dir, tempfile.TemporaryDirectory() as tempdir:
@@ -247,7 +372,11 @@ def _run_plagiarism_control_1(
                                    b'').decode('utf-8').replace('\0', '')
             plagiarism_run.state = p.models.PlagiarismState.crashed
         except Exception:  # pylint: disable=broad-except
-            traceback.print_exc()
+            logger.warning(
+                'Plagiarism runner crashed',
+                plagiarism_run_id=plagiarism_run.id,
+                exc_info=True
+            )
             plagiarism_run.log = 'Unknown crash!'
             plagiarism_run.state = p.models.PlagiarismState.crashed
         else:

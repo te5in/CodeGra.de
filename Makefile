@@ -39,7 +39,7 @@ test_data:
 
 .PHONY: start_dev_celery
 start_dev_celery:
-	DEBUG=on env/bin/celery worker --app=runcelery:celery -E -l info
+	DEBUG=on env/bin/celery worker --app=runcelery:celery -E --logfile=/dev/null
 
 .PHONY: start_dev_server
 start_dev_server:

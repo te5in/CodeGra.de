@@ -123,7 +123,6 @@ def test_client(app):
             **kwargs,
         )
 
-        print(rv.get_data(as_text=True))
         assert rv.status_code == status_code
 
         if status_code == 204:

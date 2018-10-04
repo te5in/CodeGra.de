@@ -18,6 +18,7 @@ from operator import itemgetter
 from itertools import cycle
 from collections import defaultdict
 
+import structlog
 from sqlalchemy import orm, event
 from itsdangerous import BadSignature, URLSafeTimedSerializer
 from werkzeug.utils import cached_property
@@ -30,6 +31,8 @@ import psef  # pylint: disable=cyclic-import
 from psef import current_app
 
 from .model_types import T, MyDb, DbColumn  # pylint: disable=unused-import
+
+logger = structlog.get_logger()
 
 db = t.cast(  # pylint: disable=invalid-name
     'MyDb',
@@ -857,8 +860,11 @@ class User(Base):
                 salt=self.reset_token
             )
         except BadSignature:
-            import traceback
-            traceback.print_exc()
+            logger.warning(
+                'Invalid password reset token encountered',
+                token=token,
+                exc_info=True,
+            )
             raise psef.auth.PermissionException(
                 'The given token is not valid',
                 f'The given token {token} is not valid.',

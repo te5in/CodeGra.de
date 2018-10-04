@@ -8,11 +8,14 @@ This module does not contain any error checking or handling.
 import typing as t
 from enum import IntEnum, unique
 
-from flask import Response, jsonify
+import structlog
+from flask import Response, g, jsonify, request
 
 import psef
 
 HttpWarning = t.NewType('HttpWarning', str)  # pylint: disable=invalid-name
+
+logger = structlog.get_logger()
 
 
 @unique
@@ -50,6 +53,7 @@ class APICodes(IntEnum):
     RATE_LIMIT_EXCEEDED = 19
     OBJECT_ALREADY_EXISTS = 20
     INVALID_ARCHIVE = 21
+    ROUTE_NOT_FOUND = 22
 
 
 class APIException(Exception):
@@ -118,5 +122,44 @@ def init_app(app: t.Any) -> None:
         """
         response = jsonify(error)
         response.status_code = error.status_code
+        logger.warning(
+            'APIException occurred',
+            api_exception=error.__to_json__(),
+        )
+        psef.models.db.session.expire_all()
+        return response
+
+    # Coverage is disabled for the next to handlers as they should never
+    # run. When they run there is a bug in the application so we cant really
+    # test them.
+
+    @app.errorhandler(404)
+    def handle_404(_: object) -> Response:  # pylint: disable=unused-variable; #pragma: no cover
+        api_exp = APIException(
+            'The request route was not found',
+            f'The route "{request.path}" does not exist',
+            APICodes.ROUTE_NOT_FOUND, 404
+        )
+        response = jsonify(api_exp)
+        logger.warning('A unknown route was requested')
+        response.status_code = 404
+        return response
+
+    @app.errorhandler(Exception)
+    def __handle_unknown_error(_: Exception) -> Response:  # pylint: disable=unused-variable; #pragma: no cover
+        """Handle an unhandled error.
+
+        This function should never really be called, as it means our code
+        contains a bug.
+        """
+        api_exp = APIException(
+            f'Something went wrong (id: {g.request_id})', (
+                'The reason for this is unknown, '
+                'please contact the system administrator'
+            ), APICodes.UNKOWN_ERROR, 500
+        )
+        response = jsonify(api_exp)
+        response.status_code = 500
+        logger.error('Unknown exception occurred', exc_info=True)
         psef.models.db.session.expire_all()
         return response

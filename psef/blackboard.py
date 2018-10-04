@@ -8,8 +8,11 @@ import mmap
 import typing as t
 import datetime
 
+import structlog
 from dateutil import parser as dateparser
 from dateutil.tz import gettz
+
+logger = structlog.get_logger()
 
 _TXT_FMT = re.compile(
     r"Name: (?P<name>.+) \((?P<id>[^\n]*)\)\n"
@@ -108,6 +111,10 @@ def parse_info_file(file: str) -> SubmissionInfo:
                     findall(bb_files.decode('utf-8'))
                 ]
             else:
+                logger.debug(
+                    'Processed blackboard without files submission',
+                    match=str(data.read()),
+                )
                 content = (
                     b'No files were uploaded! The'
                     b'comments for this submission were:\n"""\n' +
@@ -130,4 +137,5 @@ def parse_info_file(file: str) -> SubmissionInfo:
                 comment=match.group('comment').decode('utf-8').rstrip(),
                 files=files,
             )
+
             return info

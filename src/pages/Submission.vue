@@ -26,8 +26,8 @@
                             :submissions="submissions"
                             :filter="filterSubmissions"/>
 
-        <b-input-group>
-            <b-input-group-append>
+        <b-input-group class="submission-header-buttons">
+            <b-input-group-append v-if="canSeeFeedback">
                 <b-button class="overview-btn"
                           :variant="overviewMode ? 'primary' : 'secondary'"
                           @click="toggleOverviewMode(false)"
@@ -124,7 +124,8 @@
                         Archive
                     </b-button>
 
-                    <b-button @click="downloadType('feedback')"
+                    <b-button v-if="canSeeFeedback"
+                              @click="downloadType('feedback')"
                               variant="primary">
                         Feedback
                     </b-button>
@@ -298,7 +299,7 @@ export default {
         },
 
         overviewMode() {
-            return parseBool(this.$route.query.overview, false);
+            return this.canSeeFeedback && parseBool(this.$route.query.overview, false);
         },
 
         selectedRevision() {
@@ -902,9 +903,16 @@ export default {
     margin-top: 1em;
 }
 
-#codeviewer-overview-toggle {
-    border-top-left-radius: .25rem;
-    border-bottom-left-radius: .25rem;
+.submission-header-buttons {
+    .input-group-append:first-child button:first-of-type {
+        border-top-left-radius: .25rem;
+        border-bottom-left-radius: .25rem;
+    }
+
+    .input-group-append:last-child button:last-of-type {
+        border-top-right-radius: .25rem;
+        border-bottom-right-radius: .25rem;
+    }
 }
 </style>
 
