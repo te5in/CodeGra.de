@@ -178,7 +178,6 @@ export default {
 
 .nav-wrapper {
     flex: 1 1 auto;
-    margin-right: 15px;
 }
 </style>
 

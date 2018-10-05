@@ -806,55 +806,53 @@ export default {
 <style lang="less" scoped>
 @import "~mixins.less";
 
-.page {
+.outer-container {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    height: 100vh;
+    max-height: 100%;
     margin-bottom: 0 !important;
 }
 
-@media @media-large {
-    .page {
-        overflow-x: hidden;
-        height: 100vh;
-    }
-
-    .outer-container {
-        display: flex;
-        flex-direction: column;
-        flex-grow: 1;
-        flex-shrink: 1;
-        max-height: 100%;
-        margin-bottom: 0;
-    }
-
-    .code-and-grade {
-        position: relative;
-        display: flex;
-        flex-direction: column;
-        max-height: 100%;
-    }
-}
-
 .inner-container {
+    flex: 1 1 auto;
+    flex-wrap: nowrap;
     min-height: 0;
-}
 
-.row {
-    flex-grow: 1;
-    flex-shrink: 1;
+    @media @media-small {
+        flex-direction: column;
+        justify-content: start !important;
+    }
 }
 
 .submission-nav-bar {
     flex: 1 1 auto;
+    margin-right: 15px;
+}
+
+.code-and-grade {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    max-height: 100%;
+
+    @media @media-small {
+        flex: 0 1 auto;
+    }
 }
 
 .pdf-viewer {
-    flex-grow: 1;
-    flex-shrink: 1;
+    flex: 1 1 auto;
     min-height: 0;
+
+    @media @media-small {
+        flex: 1 1 100vh;
+    }
 }
 
 .image-viewer {
-    flex-grow: 0;
-    flex-shrink: 1;
+    flex: 0 1 auto;
     min-height: 0;
 }
 
@@ -866,11 +864,17 @@ export default {
     // Fixes performance issues on scrolling because the entire
     // code viewer isn't repainted anymore.
     will-change: transform;
+
+    @media @media-small {
+        flex: 0 1 auto;
+        flex: 0 1 -webkit-max-content;
+        flex: 0 1 -moz-max-content;
+        flex: 0 1 max-content;
+    }
 }
 
 .grade-viewer {
-    flex-grow: 0;
-    flex-shrink: 0;
+    flex: 0 0 auto;
 }
 
 .no-file,
@@ -879,7 +883,7 @@ export default {
 .diff-viewer,
 .pdf-viewer,
 .image-viewer,
-.file-tree {
+.file-tree-container {
     margin-bottom: 1rem;
 }
 
@@ -887,16 +891,23 @@ export default {
     padding: 0;
 }
 
+@small-max-tree-height: 15vh;
+
 .file-tree-container {
-    display: flex;
-    flex-direction: column;
     max-height: 100%;
+
+    @media @media-small {
+        flex: 0 0 auto;
+    }
 }
 
 .file-tree {
-    flex-grow: 0;
-    flex-shrink: 1;
+    max-height: 100%;
     overflow: auto;
+
+    @media @media-small {
+        max-height: @small-max-tree-height;
+    }
 }
 
 .loader {
