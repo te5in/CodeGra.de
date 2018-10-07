@@ -454,6 +454,8 @@ export default {
         ]]) => {
             this.editable = canGrade;
             this.canSeeFeedback = canSeeGrade;
+            this.canSeeFeedback = this.canSeeFeedback ||
+                (this.assignment.state === assignmentState.DONE);
             this.canDeleteSubmission = canDeleteSubmission;
             this.gradeHistory = canSeeGradeHistory;
 
@@ -504,8 +506,6 @@ export default {
         getAssignment() {
             return this.$http.get(`/api/v1/assignments/${this.assignmentId}`).then(({ data: assignment }) => {
                 this.assignment = assignment;
-                this.canSeeFeedback = this.canSeeFeedback ||
-                    (assignment.state === assignmentState.DONE);
             });
         },
 
