@@ -605,6 +605,7 @@ ${arrayToSentence(wrongCategories)}.`);
 
             &.item-description {
                 height: 10em;
+                overflow: auto;
             }
         }
 
@@ -683,6 +684,7 @@ ${arrayToSentence(wrongCategories)}.`);
 .button-bar,
 .card.extra-bar {
     border: 0;
+
     .card-body {
         justify-content: space-between;
         display: flex;
@@ -690,6 +692,7 @@ ${arrayToSentence(wrongCategories)}.`);
         align-items: center;
     }
 }
+
 .button-bar {
     margin-top: 2em;
     .override-checkbox {
@@ -703,6 +706,7 @@ ${arrayToSentence(wrongCategories)}.`);
         width: 5em;
     }
 }
+
 .card.extra-bar {
     padding: 1em;
 }
@@ -715,12 +719,15 @@ ${arrayToSentence(wrongCategories)}.`);
     .btn {
         width: 50%;
     }
+
     .btn:first-child {
         border-right: 1px solid white;
     }
+
     .btn:last-child {
         border-left: 1px solid white;
     }
+
     #app.dark & .btn {
         border-color: @color-primary;
     }
