@@ -61,7 +61,7 @@
         </b-tab>
         <b-tab title="General feedback">
             <b-card class="file-card">
-                <pre style="margin-bottom: 0; font-size: 100%;"
+                <pre class="general-feedback"
                      v-if="submission.comment">{{ submission.comment }}</pre>
                 <span v-else>
                     No general feedback given :(
@@ -447,6 +447,15 @@ export default {
 
     .code .card {
         margin-top: 0;
+    }
+
+    .general-feedback {
+        margin-bottom: 0;
+        font-size: 100%;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        word-break: break-word;
+        hyphens: auto;
     }
 }
 
