@@ -453,8 +453,7 @@ export default {
             canSeeGradeHistory,
         ]]) => {
             this.editable = canGrade;
-            this.canSeeFeedback = canSeeGrade;
-            this.canSeeFeedback = this.canSeeFeedback ||
+            this.canSeeFeedback = canSeeGrade ||
                 (this.assignment.state === assignmentState.DONE);
             this.canDeleteSubmission = canDeleteSubmission;
             this.gradeHistory = canSeeGradeHistory;
