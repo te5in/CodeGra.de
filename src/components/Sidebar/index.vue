@@ -351,10 +351,10 @@ export default {
         },
 
         setInitialEntry() {
-            if (this.hideInitialEntries) {
-                // NOOP
-            } else if (this.$route.name === 'login' || this.$route.name === 'register') {
+            if (this.$route.name === 'login' || this.$route.name === 'register') {
                 this.currentEntry = this.findEntry(this.$route.name);
+            } else if (this.$route.name == null || !this.loggedIn || this.hideInitialEntries) {
+                // NOOP
             } else if (this.$route.query.sbloc === 'm') {
                 this.openMenuStack([this.findEntry('user')]);
             } else if (this.$route.query.sbloc === 'a') {
