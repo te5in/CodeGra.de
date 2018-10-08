@@ -136,6 +136,10 @@ export default {
             default: null,
             type: Array,
         },
+        canSeeAssignee: {
+            type: Boolean,
+            required: true,
+        },
     },
 
     data() {
@@ -147,24 +151,6 @@ export default {
             currentPage: 1,
             filter: this.$route.query.q || '',
             latest: this.getLatest(this.submissions),
-            fields: {
-                user: {
-                    label: 'User',
-                    sortable: true,
-                },
-                grade: {
-                    label: 'Grade',
-                    sortable: true,
-                },
-                created_at: {
-                    label: 'Created at',
-                    sortable: true,
-                },
-                assignee: {
-                    label: 'Assigned to',
-                    sortable: true,
-                },
-            },
             assigneeFilter: false,
             assignees: [],
             assigneeUpdating: [],
@@ -179,6 +165,32 @@ export default {
 
         canChangeAssignee() {
             return this.graders != null;
+        },
+
+        fields() {
+            const fields = [
+                {
+                    key: 'user',
+                    label: 'User',
+                    sortable: true,
+                }, {
+                    key: 'grade',
+                    label: 'Grade',
+                    sortable: true,
+                }, {
+                    key: 'created_at',
+                    label: 'Created at',
+                    sortable: true,
+                },
+            ];
+            if (this.canSeeAssignee) {
+                fields.push({
+                    key: 'assignee',
+                    label: 'Assigned to',
+                    sortable: true,
+                });
+            }
+            return fields;
         },
 
         exportFilename() {

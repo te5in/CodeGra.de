@@ -12,6 +12,7 @@ from helpers import create_marker
 http_error = create_marker(pytest.mark.http_error)
 perm_error = create_marker(pytest.mark.perm_error)
 data_error = create_marker(pytest.mark.data_error)
+list_error = create_marker(pytest.mark.list_error)
 
 
 @pytest.mark.parametrize('filename', ['test_flake8.tar.gz'], indirect=True)
@@ -189,12 +190,20 @@ def test_patch_submission(
             f'/api/v1/submissions/{work_id}',
             200,
             result={
-                'id': work_id,
-                'assignee': None,
-                'user': dict,
-                'created_at': str,
-                'grade': None if error else grade,
-                'comment': None if error else feedback,
+                'id':
+                    work_id,
+                'assignee':
+                    None,
+                'user':
+                    dict,
+                'created_at':
+                    str,
+                'grade':
+                    None if error else grade,
+                'comment':
+                    None if error else feedback,
+                'comment_author':
+                    (None if error or 'feedback' not in data else dict),
             }
         )
 
@@ -240,8 +249,10 @@ def test_delete_grade_submission(
                 'created_at': str,
                 'grade': None,
                 'comment': 'ww',
+                'comment_author': dict,
             }
         )
+        assert res['comment_author']['id'] == ta_user.id
 
 
 def test_patch_non_existing_submission(

@@ -1,9 +1,12 @@
 <template>
-    <b-card class="feedback-area non-editable" v-if="(done && !editing)">
-        <div @click="changeFeedback($event)" :style="{'min-height': '1em'}">
-            <div v-html="newlines($htmlEscape(serverFeedback))"></div>
-        </div>
-    </b-card>
+    <div class="feedback-area-wrapper non-editable" v-if="(done && !editing)">
+        <div class="author" v-if="author">{{ author }}</div>
+        <b-card class="feedback-area non-editable" :class="{'has-author': author != null}">
+            <div @click="changeFeedback($event)" :style="{'min-height': '1em'}">
+                <div v-html="newlines($htmlEscape(serverFeedback))"></div>
+            </div>
+        </b-card>
+    </div>
     <div class="feedback-area edit" v-else
          @click.stop>
         <b-collapse class="collapsep"
@@ -87,6 +90,12 @@ export default {
             required: true,
         },
 
+        author: {
+            type: [String, Object],
+            required: false,
+            default: undefined,
+        },
+
         fileId: {
             type: Number,
             required: true,
@@ -138,6 +147,7 @@ export default {
     computed: {
         ...mapGetters({
             snippets: 'user/snippets',
+            nameCurrentUser: 'user/name',
         }),
     },
 
@@ -184,6 +194,7 @@ export default {
                 this.$emit('feedbackChange', {
                     line: this.line,
                     msg: submitted,
+                    author: { name: this.nameCurrentUser },
                 });
             }, (err) => {
                 throw err.response.data.message;
@@ -319,16 +330,46 @@ export default {
 <style lang="less" scoped>
 @import '~mixins.less';
 
+.author {
+    flex: 0;
+    padding-right: 10px;
+    padding-left: 10px;
+    padding-top: 0.5rem;
+}
+
+.feedback-area-wrapper {
+    &.non-editable {
+        display: flex;
+        align-items: top;
+        border: 1px solid rgba(0, 0, 0, 0.125);
+        border-radius: 0.25rem;
+    }
+}
+
 .feedback-area {
     .default-text-colors;
 
     &.non-editable {
+        margin-top: 0;
         background-color: @footer-color;
+        flex: 1;
+        &.has-author {
+            border-top: 0;
+            border-right: 0;
+            border-bottom: 0;
+            border-top-left-radius: 0;
+            border-bottom-left-radius: 0;
+        }
+        &:not(.has-author) {
+            border: 0;
+        }
 
         #app.dark & {
             background-color: @color-primary;
             border-color: @color-primary-darkest;
         }
+        white-space: pre-wrap;
+        word-break: break-word;
     }
 
     &.edit {
@@ -338,11 +379,6 @@ export default {
 
 .card-body {
     padding: 0.5rem;
-}
-
-.non-editable {
-    white-space: pre-wrap;
-    word-break: break-word;
 }
 
 button {

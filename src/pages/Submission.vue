@@ -74,13 +74,13 @@
                     <icon name="edit"/>
                 </b-button>
                 <b-popover target="codeviewer-general-feedback"
-                           title="General feedback"
+                           :title="`General feedback${submission.comment_author ? ' by ' + submission.comment_author.name : ''}`"
                            triggers="click"
                            container="#submission-page"
                            @show="beforeShowPopover"
                            placement="bottom">
                     <general-feedback-area style="width: 35em;"
-                                           @updated="(val) => { submission.comment = val; }"
+                                           @updated="generalFeedbackUpdated"
                                            :submission="submission"
                                            :editable="editable"/>
                 </b-popover>
@@ -218,6 +218,8 @@ import 'vue-awesome/icons/exclamation-triangle';
 import 'vue-awesome/icons/history';
 import 'vue-awesome/icons/binoculars';
 
+import { mapGetters } from 'vuex';
+
 import { filterSubmissions, cmpNoCase, formatGrade, parseBool } from '@/utils';
 
 import {
@@ -284,6 +286,10 @@ export default {
     },
 
     computed: {
+        ...mapGetters({
+            nameCurrentUser: 'user/name',
+        }),
+
         studentMode() {
             return this.$route.query.revision === 'student';
         },
@@ -471,6 +477,11 @@ export default {
     },
 
     methods: {
+        generalFeedbackUpdated(val) {
+            this.submission.comment = val;
+            this.submission.comment_author = { name: this.nameCurrentUser };
+        },
+
         setRevision(val) {
             this.$router.push({
                 name: this.$route.params.fileId ? 'submission_file' : 'submission',

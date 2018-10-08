@@ -60,7 +60,7 @@ def test_add_feedback(
     def get_result():
         if data_err or perm_err:
             return {}
-        return {'0': {'line': 0, 'msg': data['comment']}}
+        return {'0': {'line': 0, 'msg': data['comment'], 'author': dict}}
 
     with logged_in(named_user):
         test_client.req(
@@ -72,13 +72,15 @@ def test_add_feedback(
         )
 
     with logged_in(ta_user):
-        test_client.req(
+        res = test_client.req(
             'get',
             f'/api/v1/code/{code_id}',
             200,
             query={'type': 'feedback'},
             result=get_result()
         )
+        if not (data_error or perm_error):
+            assert res['author']['id'] == named_user.id
 
     with logged_in(named_user):
         if not data_err:
@@ -106,7 +108,13 @@ def test_add_feedback(
     'named_user', [
         'Thomas Schaper',
         perm_error(error=403)('admin'),
-        late_error(('Student1')),
+        pytest.param(
+            'Student1',
+            marks=[
+                pytest.mark.late_error,
+                pytest.mark.list_error,
+            ]
+        ),
         perm_error(error=401)('NOT_LOGGED_IN'),
     ],
     indirect=True
@@ -119,6 +127,7 @@ def test_get_feedback(
     assig_id = assignment.id
     perm_err = request.node.get_closest_marker('perm_error')
     late_err = request.node.get_closest_marker('late_error')
+    list_err = request.node.get_closest_marker('list_error')
 
     code_id = session.query(m.File.id).filter(
         m.File.work_id == work['id'],
@@ -151,13 +160,18 @@ def test_get_feedback(
             res = {
                 '0': {
                     'line': 0,
-                    'msg': 'for line 0'
+                    'msg': 'for line 0',
+                    'author': dict,
                 },
                 '1': {
                     'line': 1,
-                    'msg': 'for line - 1'
+                    'msg': 'for line - 1',
+                    'author': dict,
                 }
             }
+            if list_err:
+                del res['0']['author']
+                del res['1']['author']
 
         test_client.req(
             'get',
@@ -180,13 +194,18 @@ def test_get_feedback(
             res = {
                 '0': {
                     'line': 0,
-                    'msg': 'for line 0'
+                    'msg': 'for line 0',
+                    'author': dict,
                 },
                 '1': {
                     'line': 1,
-                    'msg': 'for line - 1'
+                    'msg': 'for line - 1',
+                    'author': dict,
                 }
             }
+            if list_err:
+                del res['0']['author']
+                del res['1']['author']
 
         test_client.req(
             'get',
@@ -223,11 +242,13 @@ def test_delete_feedback(
     result = {
         '0': {
             'line': 0,
-            'msg': 'for line 0'
+            'msg': 'for line 0',
+            'author': dict,
         },
         '1': {
             'line': 1,
-            'msg': 'line1'
+            'msg': 'line1',
+            'author': dict,
         }
     }
 
@@ -278,7 +299,13 @@ def test_delete_feedback(
     'named_user', [
         'Thomas Schaper',
         perm_error(error=403)('admin'),
-        late_error(('Student1')),
+        pytest.param(
+            'Student1',
+            marks=[
+                pytest.mark.late_error,
+                pytest.mark.list_error,
+            ]
+        ),
     ],
     indirect=True
 )
@@ -290,6 +317,7 @@ def test_get_all_feedback(
     assig_id = assignment.id
     perm_err = request.node.get_closest_marker('perm_error')
     late_err = request.node.get_closest_marker('late_error')
+    list_err = request.node.get_closest_marker('list_error')
 
     code_id = session.query(m.File.id).filter(
         m.File.work_id == work['id'],
@@ -391,15 +419,15 @@ def test_get_all_feedback(
             assert expected.match(res.data.decode('utf8'))
 
     with logged_in(named_user):
+        out = {'user': dict, 'general': str, 'linter': dict, 'authors': None}
+        if not list_err:
+            out['authors'] = dict
+
         res = test_client.req(
             'get',
             f'/api/v1/submissions/{work["id"]}/feedbacks/',
             perm_err.kwargs['error'] if perm_err else 200,
-            result=error_template if perm_err else {
-                'user': dict,
-                'general': str,
-                'linter': dict,
-            },
+            result=error_template if perm_err else out,
         )
 
         if not perm_err:

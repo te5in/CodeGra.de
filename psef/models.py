@@ -1142,6 +1142,14 @@ class Work(Base):
     )
     _grade: t.Optional[float] = db.Column('grade', db.Float, default=None)
     comment: str = orm.deferred(db.Column('comment', db.Unicode, default=None))
+    comment_author_id: t.Optional[int] = db.Column(
+        'comment_author_id',
+        db.Integer,
+        db.ForeignKey('User.id', ondelete='SET NULL'),
+        nullable=True,
+    )
+
+    orm.deferred(db.Column('comment', db.Unicode, default=None))
     created_at: datetime.datetime = db.Column(
         db.DateTime, default=datetime.datetime.utcnow
     )
@@ -1158,7 +1166,9 @@ class Work(Base):
         lazy='joined',
         backref=db.backref('submissions', lazy='select', uselist=True)
     )  # type: 'Assignment'
-
+    comment_author = db.relationship(
+        'User', foreign_keys=comment_author_id, lazy='select'
+    )  # type: t.Optional[User]
     user = db.relationship(
         'User', foreign_keys=user_id, lazy='joined'
     )  # type: User
@@ -1426,19 +1436,32 @@ class Work(Base):
                 'comment': t.Optional[str] # General feedback comment for
                                            # this submission, or None in
                                            # the same cases as the grade.
+                'comment_author': t.Optional[User] # The author of the comment
+                                                   # field submission, or None
+                                                   # if the logged in user
+                                                   # doesn't have permission to
+                                                   # see the assignee.
                 **self.__to_json__()
             }
 
         :returns: A object as described above.
         """
-        res = self.__to_json__()
+        res: t.Dict[str, object] = {
+            'comment': None,
+            'comment_author': None,
+            **self.__to_json__()
+        }
 
         try:
             psef.auth.ensure_can_see_grade(self)
         except psef.auth.PermissionException:
-            res['comment'] = None
+            pass
         else:
             res['comment'] = self.comment
+            if psef.current_user.has_permission(
+                'can_see_assignee', self.assignment.course_id
+            ):
+                res['comment_author'] = self.comment_author
 
         return res
 
@@ -1948,11 +1971,33 @@ class Comment(Base):
 
     def __to_json__(self) -> t.Mapping[str, t.Any]:
         """Creates a JSON serializable representation of this object.
+
+
+        This object will look like this:
+
+        .. code:: python
+
+            {
+                'line': int, # The line of this comment.
+                'msg': str,  # The message of this comment.
+                'author': t.Optional[User], # The author of this comment. This
+                                            # is ``None`` if the user does not
+                                            # have permission to see it.
+            }
+
+        :returns: A object as described above.
         """
-        return {
+        res = {
             'line': self.line,
             'msg': self.comment,
         }
+
+        if psef.current_user.has_permission(
+            'can_see_assignee', self.file.work.assignment.course_id
+        ):
+            res['author'] = self.user
+
+        return res
 
 
 @enum.unique

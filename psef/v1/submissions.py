@@ -39,7 +39,11 @@ Feedback = TypedDict(  # pylint: disable=invalid-name
             int,
             t.MutableMapping[int, t.List[t.Tuple[str, models.LinterComment]]],
         ],
-        'general': str
+        'general': str,
+        'authors': t.Optional[t.MutableMapping[
+            int,
+            t.MutableMapping[int, models.User]
+        ]],
     }
 )
 
@@ -211,6 +215,7 @@ def delete_submission(submission_id: int) -> EmptyResponse:
 
 
 @api.route('/submissions/<int:submission_id>/feedbacks/', methods=['GET'])
+@auth.login_required
 def get_feedback_from_submission(submission_id: int) -> JSONResponse[Feedback]:
     """Get all feedback for a submission
 
@@ -224,14 +229,24 @@ def get_feedback_from_submission(submission_id: int) -> JSONResponse[Feedback]:
         only the final key is not a string but a list of tuples where the first
         item is the linter code and the second item is a
         :class:`.models.LinterComment`.
+    :>json authors: The authors of the user feedback. In the example above the
+        author of the feedback 'Nice job!' would be at ``{5: {0: $USER}}``.
     """
     work = helpers.get_or_404(models.Work, submission_id)
     auth.ensure_can_see_grade(work)
+    can_view_author = current_user.has_permission(
+        'can_see_assignee', work.assignment.course_id
+    )
 
+    # The authors dict gets filled if `can_view_authors` is set to `True`. This
+    # value is used so that `mypy` wont complain about indexing null values.
+    authors: t.MutableMapping[int, t.MutableMapping[int, models.
+                                                    User]] = defaultdict(dict)
     res: Feedback = {
         'general': work.comment or '',
         'user': defaultdict(dict),
         'linter': defaultdict(lambda: defaultdict(list)),
+        'authors': authors if can_view_author else None,
     }
 
     comments = models.Comment.query.filter(
@@ -243,6 +258,8 @@ def get_feedback_from_submission(submission_id: int) -> JSONResponse[Feedback]:
 
     for comment in comments:
         res['user'][comment.file_id][comment.line] = comment.comment
+        if can_view_author:
+            authors[comment.file_id][comment.line] = comment.user
 
     linter_comments = models.LinterComment.query.filter(
         t.cast(DbColumn[models.File],
@@ -443,6 +460,7 @@ def patch_submission(submission_id: int) -> JSONResponse[models.Work]:
         feedback = t.cast(str, content['feedback'])
 
         work.comment = feedback
+        work.comment_author = current_user
 
     if 'grade' in content:
         ensure_keys_in_dict(content, [('grade', (numbers.Real, type(None)))])

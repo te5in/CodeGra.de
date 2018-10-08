@@ -50,7 +50,8 @@
                                 <feedback-area :feedback="feedback.user[id][line]"
                                                :editable="false"
                                                :line="line"
-                                               :fileId="id"
+                                               :fileId="Number(id)"
+                                               :author="feedback.authors && feedback.authors[id][line].name"
                                                :can-use-snippets="false"
                                                v-if="feedback.user[id][line] != null"/>
                             </li>
@@ -61,6 +62,9 @@
         </b-tab>
         <b-tab title="General feedback">
             <b-card class="file-card">
+                <span v-if="!!submission.comment_author" slot="header">
+                    {{ submission.comment_author.name }} wrote:
+                </span>
                 <pre class="general-feedback"
                      v-if="submission.comment">{{ submission.comment }}</pre>
                 <span v-else>

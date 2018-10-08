@@ -32,6 +32,7 @@
 
                     <feedback-area :editing="editing[i] === true"
                                    :feedback="feedback[i].msg"
+                                   :author="feedback[i].author && feedback[i].author.name"
                                    :editable="editable"
                                    :line="i"
                                    :fileId="file.id"
@@ -135,6 +136,7 @@ export default {
             selectedLanguage: 'Default',
             languages,
             canUseSnippets: false,
+            canSeeAssignee: false,
         };
     },
 
@@ -142,9 +144,11 @@ export default {
         Promise.all([
             this.loadCodeWithSettings(false),
             this.$hasPermission('can_use_snippets'),
-        ]).then(([, snips]) => {
+            this.$hasPermission('can_see_assignee', this.assignment.course.id),
+        ]).then(([, snips, assignee]) => {
             this.canUseSnippets = snips;
             this.loading = false;
+            this.canSeeAssignee = assignee;
         });
     },
 
@@ -305,6 +309,9 @@ export default {
             if (this.editable) {
                 this.editing[line] = false;
                 this.feedback[line] = feedback;
+                if (!this.canSeeAssignee) {
+                    delete this.feedback[line].author;
+                }
             }
         },
     },

@@ -1540,6 +1540,9 @@ def test_get_all_submissions(
                 )
                 if extended:
                     res[-1]['comment'] = None if no_grade else work.comment
+                    res[-1]['comment_author'] = (
+                        None if no_grade or not work.comment else dict
+                    )
         else:
             code = marker.kwargs['error']
 
