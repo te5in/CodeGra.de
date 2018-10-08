@@ -7,18 +7,22 @@ import re
 import abc
 import typing as t
 import datetime
+import contextlib
+import subprocess
 from functools import wraps
 
 import flask
 import structlog
 import mypy_extensions
 from typing_extensions import Protocol
+from werkzeug.datastructures import FileStorage
 from sqlalchemy.sql.expression import or_
 
 import psef
-import psef.errors
 import psef.models
 import psef.json_encoders as json
+
+from . import errors, models
 
 if t.TYPE_CHECKING:  # pragma: no cover
     from psef import model_types  # pylint: disable=unused-import
@@ -201,6 +205,36 @@ class EmptyResponse:
         raise NotImplementedError("Do not use this class as actual data")
 
 
+def get_in_or_error(
+    model: t.Type[Y], in_column: psef.models.DbColumn[T], in_values: t.List[T]
+) -> t.List[Y]:
+    """Get object by doing an ``IN`` query.
+
+    This method protects against empty ``in_values``, and will return an empty
+    list in that case. If not all items from the ``in_values`` this function
+    will raise an exception.
+
+    :param model: The objects to get.
+    :param in_column: The column of the object to perform the in on.
+    :param in_values: The values used for the ``IN`` clause.
+    :returns: A list of objects with the same length as ``in_values``.
+
+    :raises APIException: If on of the items in ``in_values`` was not found.
+    """
+    if not in_values:
+        return []
+
+    res = models.db.session.query(model).filter(in_column.in_(in_values)).all()
+    if len(res) != len(in_values):
+        raise psef.errors.APIException(
+            f'Not all requested {model.__name__.lower()} could be found', (
+                f'Out of the {len(in_values)} requested only {len(res)} were'
+                ' found'
+            ), psef.errors.APICodes.OBJECT_ID_NOT_FOUND, 404
+        )
+    return res
+
+
 def _filter_or_404(model: t.Type[Y], get_all: bool,
                    criteria: t.Tuple) -> t.Union[Y, t.Sequence[Y]]:
     """Get the specified object by filtering or raise an exception.
@@ -265,6 +299,7 @@ def get_or_404(
     model: t.Type[Y],
     object_id: t.Any,
     options: t.Optional[t.List[t.Any]] = None,
+    also_error: t.Optional[t.Callable[[Y], bool]] = None,
 ) -> Y:
     """Get the specified object by primary key or raise an exception.
 
@@ -276,6 +311,9 @@ def get_or_404(
     :param object_id: The primary key identifier for the given object.
     :param options: A list of options to give to the executed query. This can
         be used to undefer or eagerly load some columns or relations.
+    :param also_error: If this function when called with the found object
+        returns ``True`` generate the 404 error even though the object was
+        found.
     :returns: The requested object.
 
     :raises APIException: If no object with the given id could be found.
@@ -286,7 +324,7 @@ def get_or_404(
         query = query.options(*options)
     obj: t.Optional[Y] = query.get(object_id)
 
-    if obj is None:
+    if obj is None or (also_error is not None and also_error(obj)):
         raise psef.errors.APIException(
             f'The requested "{model.__name__}" was not found',
             f'There is no "{model.__name__}" with primary key {object_id}',
@@ -605,3 +643,126 @@ def extended_requested() -> bool:
     """
     return flask.request.args.get('extended',
                                   'false').lower() in {'true', '1', ''}
+
+
+@contextlib.contextmanager
+def defer(function: t.Callable[[], object]) -> t.Generator[None, None, None]:
+    """Defer a function call to the end of the context manager.
+
+    :param: The function to call.
+    :returns: A context manager that can be used to execute the given function
+        at the end of the block.
+    """
+    try:
+        yield
+    finally:
+        function()
+
+
+def call_external(call_args: t.List[str]) -> t.Tuple[bool, str, str]:
+    """Safely call an external program without any exceptions.
+
+    .. note:: This function should not be used when you don't want to handle
+        errors as it will silently fail.
+
+    :param call_args: The call passed to :py:func:`~subprocess.check_output`
+        with ``shell`` set to ``False``.
+    :returns: A tuple with the first argument if the process crashed, the
+        second item is the ``stdout`` and the third and final item is the
+        ``stderr``.
+    """
+    stdout = ''
+    stderr = ''
+    ok = True
+
+    try:
+        stdout = subprocess.check_output(
+            call_args, stderr=subprocess.STDOUT, shell=False
+        )
+    except subprocess.CalledProcessError as err:
+        logger.warning(
+            'External program crashed.', call_args=call_args, exc_info=True
+        )
+        stdout = (err.stdout or b'').decode('utf-8').replace('\0', '')
+        stderr = (err.stderr or b'').decode('utf-8').replace('\0', '')
+        ok = False
+    except Exception:  # pylint: disable=broad-except
+        logger.warning(
+            'External program crashed.', call_args=call_args, exc_info=True
+        )
+        stderr = 'Unknown crash!'
+        ok = False
+    else:
+        if isinstance(stdout, bytes):
+            stdout = stdout.decode('utf-8').replace('\0', '')
+
+    return (ok, stdout, stderr)
+
+
+def get_files_from_request(
+    *,
+    check_size: bool,
+    keys: t.Sequence[str],
+    only_start: bool = False,
+) -> t.MutableSequence[FileStorage]:
+    """Get all the submitted files in the current request.
+
+    This function also checks if the files are in the correct format and are
+    lot too large if you provide check_size. This is done for the entire
+    request, not only the processed files.
+
+    :param check_size: Should the size of the request be checked.
+    :param keys: The keys the files should match in the request.
+    :param only_start: If set to false the key of the request should only match
+        the start of one of the keys in ``keys``.
+    :returns: The files in the current request. The length of this list is
+        always at least one and if ``only_start`` is false is never larger than
+        the length of ``keys``.
+    :raises APIException: When a given file is not correct.
+    """
+    res = []
+
+    if (
+        check_size and flask.request.content_length and (
+            flask.request.content_length >
+            psef.current_app.config['MAX_UPLOAD_SIZE']
+        )
+    ):
+        raise_file_too_big_exception()
+
+    if not flask.request.files:
+        raise errors.APIException(
+            "No file in HTTP request.",
+            "There was no file in the HTTP request.",
+            errors.APICodes.MISSING_REQUIRED_PARAM, 400
+        )
+
+    if only_start:
+        for key, file in flask.request.files.items():
+            if any(key.startswith(cur_key) for cur_key in keys):
+                res.append(file)
+    else:
+        for key in keys:
+            if key in flask.request.files:
+                res.append(flask.request.files[key])
+
+        # Make sure we never return more files than requested.
+        assert len(keys) >= len(res)
+
+    if not res:
+        raise errors.APIException(
+            'Request did not contain any valid files', (
+                'The request did not contain any files {} the parameter'
+                ' name{} with "{}"'
+            ).format(
+                'where' if only_start else 'with',
+                ' started' if only_start else '',
+                ','.join(keys),
+            ), errors.APICodes.MISSING_REQUIRED_PARAM, 400
+        )
+
+    # Werkzeug >= 0.14.0 should check this, however the documentation is not
+    # completely clear and it is better to blow up here than somewhere else.
+    assert all(f.filename for f in res)
+
+    return res

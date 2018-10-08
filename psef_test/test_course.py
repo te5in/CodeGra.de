@@ -114,6 +114,7 @@ def test_get_course_data(
                 'name': course_name,
                 'created_at': str,
                 'is_lti': add_lti,
+                'virtual': False,
             }
         )
 
@@ -153,6 +154,7 @@ def test_add_course(
                 'id': int,
                 'name': name,
                 'created_at': str,
+                'virtual': False,
                 'is_lti': False,
             }
         )
@@ -168,6 +170,7 @@ def test_add_course(
                     'name': name,
                     'created_at': str,
                     'is_lti': False,
+                    'virtual': False,
                 }
             )
 
@@ -440,6 +443,7 @@ def test_get_courseroles(
                         'id': int,
                         'created_at': str,
                         'is_lti': False,
+                        'virtual': False,
                     }
             }
             if extended:

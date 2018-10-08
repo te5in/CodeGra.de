@@ -6,6 +6,7 @@
         <thead>
             <tr>
                 <th>Previous runs</th>
+                <th>Started</th>
                 <th :colspan="canManage ? 2 : 1">State</th>
             </tr>
         </thead>
@@ -16,14 +17,24 @@
                 @click="goToOverview(run)">
                 <td>
                     <a v-if="canGoToOverview(run)"
-                        class="invisible-link"
-                        href="#"
-                        @click.prevent>
+                       class="invisible-link"
+                       href="#"
+                       @click.prevent>
                         {{ run.provider_name }}
                     </a>
                     <span v-else>
                         {{ run.provider_name }}
                     </span>
+                    <description-popover hug-text>
+                        <ul slot="description" style="text-align: left;">
+                            <li v-for="config in run.config">
+                                {{ translateOption(config[0], run) }}: {{ config[1] }}
+                            </li>
+                        </ul>
+                    </description-popover>
+                </td>
+                <td>
+                    {{ run.created_at }}
                 </td>
                 <td class="run-state">
                     {{ run.state }}
@@ -100,7 +111,7 @@
                             <input v-else-if="option.type == 'numbervalue'"
                                    @input="selectedOptions[option.name] = $event.target.value == '' ? undefined : (
                                            isNaN(Number($event.target.value)) ? ($event.target.value)
-                                                                              : Number($event.target.value))"
+                                           : Number($event.target.value))"
                                    type="number"
                                    class="form-control"
                                    :placeholder="option.placeholder"
@@ -112,7 +123,7 @@
                                            v-model="selectedOptions[option.name]"/>
                             <multiselect v-else-if="option.type == 'multiselect'"
                                          v-model="selectedOptions[option.name]"
-                                         :options="option.possible_options"
+                                         :options="option.possible_options || []"
                                          :searchable="true"
                                          :multiple="true"
                                          track-by="id"
@@ -121,11 +132,22 @@
                                          select-label=""
                                          :hide-selected="true"
                                          :internal-search="true"
-                                         :loading="option.possible_options === 0">
+                                         :loading="option.possible_options == null">
                                 <span slot="noResult">
                                     No results were found.
                                 </span>
                             </multiselect>
+                            <div v-else-if="option.type === 'file'" style="display: flex;">
+                                <b-form-file :class="`file-uploader-form ${option.name}`"
+                                             :ref="`${selectedProvider.name}||${option.name}`"
+                                             name="file"
+                                             style="z-index: 0;"
+                                             placeholder="Click here to choose a file..."
+                                             v-model="selectedOptions[option.name]"/>
+                                <b-btn variant="warning"
+                                       style="margin-left: 5px;"
+                                       @click="$refs[`${selectedProvider.name}||${option.name}`].map(a => a.reset())">Clear</b-btn>
+                            </div>
                         </td>
                     </tr>
                 </tbody>
@@ -154,7 +176,7 @@ import Multiselect from 'vue-multiselect';
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/times';
 
-import { cmpNoCase } from '@/utils';
+import { cmpNoCase, formatDate } from '@/utils';
 
 import DescriptionPopover from './DescriptionPopover';
 import Loader from './Loader';
@@ -188,7 +210,14 @@ export default {
             selectedOptions: null,
             allOldAssignments: [],
             runs: null,
+            oldSubmissions: null,
             runsPollingInterval: null,
+            translateOptionSpecialCases: {
+                provider: 'Provider',
+                has_old_submissions: 'Old submission archive uploaded',
+                has_base_code: 'Had base code uploaded',
+                old_assignments: 'Old assignments',
+            },
         };
     },
 
@@ -234,6 +263,21 @@ export default {
     },
 
     methods: {
+        translateOption(optName, run) {
+            const provName = run.provider_name;
+            if (optName in this.translateOptionSpecialCases) {
+                return this.translateOptionSpecialCases[optName];
+            }
+
+            if (provName == null) {
+                return optName;
+            }
+            const provider = this.providers.find(prov => prov.name === provName);
+            return (
+                provider.options.find(opt => opt.name === optName) || { title: optName }
+            ).title;
+        },
+
         makeOptions(provider) {
             const options = { provider: provider.name };
 
@@ -265,14 +309,37 @@ export default {
                 );
             }
 
+            let data;
+            if (this.selectedProvider.options.some(opt => opt.type === 'file' && selectedOptions[opt.name] != null)) {
+                data = new FormData();
+
+                this.selectedProvider.options.forEach((opt) => {
+                    if (opt.type === 'file') {
+                        const optData = selectedOptions[opt.name];
+                        selectedOptions[`has_${opt.name}`] = optData != null;
+                        if (selectedOptions[opt.name] != null) {
+                            data.append(opt.name, optData);
+                        }
+                        delete selectedOptions[opt.name];
+                    }
+                });
+                data.append('json', new Blob([JSON.stringify(selectedOptions)], {
+                    type: 'application/json',
+                }));
+            } else {
+                selectedOptions.has_base_code = false;
+                selectedOptions.has_old_submissions = false;
+                data = selectedOptions;
+            }
+
             const req = this.$http.post(
                 `/api/v1/assignments/${this.assignment.id}/plagiarism`,
-                selectedOptions,
+                data,
             ).then(
-                (res) => {
-                    this.runs.push(res.data);
-                },
-                (err) => {
+                ({ data: run }) => {
+                    run.created_at = formatDate(run.created_at);
+                    this.runs.push(run);
+                }, (err) => {
                     let res = err.response.data.message;
                     if (err.response.data.invalid_options) {
                         res += ` (${err.response.data.invalid_options.join('. ')})`;
@@ -281,7 +348,7 @@ export default {
                 },
             );
 
-            this.$refs.runButton.submit(req);
+            return this.$refs.runButton.submit(req);
         },
 
         async getOldAssignments() {
@@ -292,36 +359,77 @@ export default {
                 () => {},
             ));
 
-            const assignments = (await Promise.all(permissions.reduce(
-                (promises, [courseId, { can_view_plagiarism: canView }]) => {
-                    if (canView) {
-                        promises.push(
-                            this.$http.get(`/api/v1/courses/${courseId}/assignments/`).then(
-                                ({ data }) => data,
-                                () => [],
-                            ),
-                        );
-                    }
-                    return promises;
-                },
-                [],
-            ))).reduce(
-                (a, b) => a.concat(b),
-            ).map(
-                (assig) => {
-                    const courseName = this.$htmlEscape(assig.course.name);
-                    const assigName = this.$htmlEscape(assig.name);
-                    assig.label = `${courseName} - ${assigName}`;
-                    return assig;
-                },
-            ).sort(
-                (a, b) => cmpNoCase(a.label, b.label),
-            );
-
-            if (assignments.length) {
-                this.allOldAssignments.push(...assignments);
-                this.addOldAssignmentsOption();
+            let assignments = [];
+            if (permissions.length) {
+                assignments = (await Promise.all(permissions.reduce(
+                    (promises, [courseId, { can_view_plagiarism: canView }]) => {
+                        if (canView) {
+                            promises.push(
+                                this.$http.get(`/api/v1/courses/${courseId}/assignments/`).then(
+                                    ({ data }) => data,
+                                    () => [],
+                                ),
+                            );
+                        }
+                        return promises;
+                    },
+                    [],
+                ))).reduce(
+                    (a, b) => a.concat(b),
+                ).map(
+                    (assig) => {
+                        const courseName = this.$htmlEscape(assig.course.name);
+                        const assigName = this.$htmlEscape(assig.name);
+                        assig.label = `${courseName} - ${assigName}`;
+                        return assig;
+                    },
+                ).sort(
+                    (a, b) => cmpNoCase(a.label, b.label),
+                );
             }
+
+            this.allOldAssignments = assignments;
+            this.providers.forEach((prov) => {
+                prov.options.forEach((opt) => {
+                    if (opt.name === 'old_assignments') {
+                        opt.possible_options = this.oldAssignments;
+                    }
+                });
+            });
+        },
+
+
+        addOldSubmissionsOption() {
+            this.providers.forEach((provider) => {
+                provider.options.push({
+                    name: 'old_submissions',
+                    title: 'Old submissions',
+                    description: `Code that should also be checked as
+                                      old assignment(s) that is/are not
+                                      yet in CodeGrade. This should be an
+                                      archive with a subdirectory for
+                                      every old submission.`,
+                    mandatory: false,
+                    type: 'file',
+                });
+            });
+        },
+
+        addBaseCodeOption() {
+            this.providers.forEach((provider) => {
+                if (provider.base_code) {
+                    provider.options.push({
+                        name: 'base_code',
+                        title: 'Base code',
+                        description: `Code to be excluded from plagiarism
+                                      checking. This can be used to upload
+                                      template code to reduce the amount of
+                                      false positives.`,
+                        mandatory: false,
+                        type: 'file',
+                    });
+                }
+            });
         },
 
         addOldAssignmentsOption() {
@@ -332,13 +440,13 @@ export default {
                     description: 'Include submissions from assignments from previous years in this run.',
                     type: 'multiselect',
                     mandatory: false,
-                    possible_options: this.oldAssignments,
+                    possible_options: null,
                 });
             }
         },
 
         canGoToOverview(run) {
-            return this.canView && run.state === 'done';
+            return this.canView && run.state !== 'running';
         },
 
         goToOverview(run) {
@@ -379,6 +487,9 @@ export default {
             ).catch(
                 () => [],
             );
+            runs.forEach((run) => {
+                run.created_at = formatDate(run.created_at);
+            });
             this.runs = runs;
         },
 
@@ -415,6 +526,10 @@ export default {
     async mounted() {
         await Promise.all([this.loadProviders(), this.loadRuns()]);
 
+        this.addOldAssignmentsOption();
+        this.addBaseCodeOption();
+        this.addOldSubmissionsOption();
+
         this.pollRuns();
     },
 
@@ -444,9 +559,39 @@ export default {
         margin-bottom: 0;
     }
 
-    tr.run-done:hover {
+    tr.run-done:hover, tr.run-crashed:hover {
         background-color: rgba(0, 0, 0, .075);
         cursor: pointer;
+    }
+
+    tr.run-crashed {
+        td {
+            border-color: lighten(@alert-danger-color, 30%);
+            #app.dark & {
+                border-color: @alert-danger-color;
+            }
+        }
+        &:nth-of-type(2n+1) {
+            background: lighten(@alert-danger-color, 20%);
+            #app.dark & {
+                background: @alert-danger-color;
+            }
+        }
+        &:nth-of-type(2n) {
+            background: lighten(@alert-danger-color, 30%);
+            #app.dark & {
+                background: lighten(@alert-danger-color, 10%);
+            }
+        }
+        &:hover {
+            background: lighten(@alert-danger-color, 10%);
+            #app.dark & {
+                background: darken(@alert-danger-color, 10%);
+                td {
+                    border-color: darken(@alert-danger-color, 10%);
+                }
+            }
+        }
     }
 
     td {

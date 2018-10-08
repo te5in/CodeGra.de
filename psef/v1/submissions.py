@@ -147,12 +147,6 @@ def get_zip(work: models.Work,
     """
     auth.ensure_can_view_files(work, exclude_owner == FileOwner.student)
 
-    code = helpers.filter_single_or_404(
-        models.File,
-        models.File.work_id == work.id,
-        t.cast(DbColumn[int], models.File.parent_id).is_(None),
-    )
-
     path, name = psef.files.random_file_path('MIRROR_UPLOAD_DIR')
 
     with open(
@@ -166,9 +160,11 @@ def get_zip(work: models.Work,
         compression=zipfile.ZIP_DEFLATED,
     ) as zipf:
         # Restore the files to tmpdir
-        psef.files.restore_directory_structure(code, tmpdir, exclude_owner)
+        tree_root = psef.files.restore_directory_structure(
+            work, tmpdir, exclude_owner
+        )
 
-        zipf.write(tmpdir, code.name)
+        zipf.write(tmpdir, tree_root['name'])
 
         for root, _dirs, files in os.walk(tmpdir):
             for file in files:

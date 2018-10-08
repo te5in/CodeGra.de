@@ -12,9 +12,13 @@ import csv
 import enum
 import typing as t
 
+import structlog
+
 import dataclasses
 
 from . import files, errors, models, helpers
+
+logger = structlog.get_logger()
 
 
 def init_app(app: t.Any) -> None:
@@ -82,7 +86,6 @@ class Option:
 
 
 def process_output_csv(
-    plagiarism_run: models.PlagiarismRun,
     lookup_map: t.Dict[str, int],
     old_submissions: t.Container[int],
     file_tree_lookup: t.Dict[int, files.FileTree],
@@ -107,7 +110,6 @@ def process_output_csv(
 
     Fields 5-10 can occur any number of times, but have to occur at least once.
 
-    :param plagiarism_run: The plagiarism run that created this csv file.
     :param lookup_map: A dictionary that should map the name of each toplevel
         directory to a submission id.
     :param old_submissions: Some sort of set that contains the ids of all
@@ -119,6 +121,7 @@ def process_output_csv(
     :param delimiter: The delimiter used for this csv file.
     """
     res = []
+    seen: t.Dict[t.Tuple[int, int], models.PlagiarismCase] = {}
 
     with open(csvfile, newline='') as f:
         for dir1, dir2, match1, match2, *matches in csv.reader(
@@ -131,15 +134,32 @@ def process_output_csv(
             if sub1_id in old_submissions and sub2_id in old_submissions:
                 continue
 
-            match_max = max(float(match1), float(match2))
-            match_avg = (float(match1) + float(match2)) / 2
-            new_case = models.PlagiarismCase(
-                plagiarism_run=plagiarism_run,
-                work1_id=sub1_id,
-                work2_id=sub2_id,
-                match_avg=match_avg,
-                match_max=match_max,
-            )
+            if sub1_id == sub2_id:
+                logger.warning(
+                    'Found plagiarism within a submission',
+                    submission_id=sub1_id
+                )
+                continue
+
+            tup = t.cast(t.Tuple[int, int], tuple(sorted((sub1_id, sub2_id))))
+            if tup in seen:
+                logger.warning(
+                    'Duplicate plagiarism case in csv file',
+                    submission1_id=sub1_id,
+                    submission2_id=sub2_id,
+                )
+                new_case = seen[tup]
+            else:
+                match_max = max(float(match1), float(match2))
+                match_avg = (float(match1) + float(match2)) / 2
+                new_case = models.PlagiarismCase(
+                    work1_id=sub1_id,
+                    work2_id=sub2_id,
+                    match_avg=match_avg,
+                    match_max=match_max,
+                )
+                seen[tup] = new_case
+
             for match in zip(*[iter(matches)] * 6):
                 fname1, fstart1, fend1, fname2, fstart2, fend2 = match
                 f_id1 = files.search_path_in_filetree(
@@ -177,6 +197,14 @@ class PlagiarismProvider(metaclass=abc.ABCMeta):
     done using :func:`PlagiarismProvider.transform_csv` which is called just
     before the csv file is processed.
     """
+
+    @staticmethod
+    def supports_base_code() -> bool:
+        """Does this provider support base code.
+
+        :returns: A boolean indicating if the provider supports base code.
+        """
+        return True
 
     @staticmethod
     def transform_csv(csvfile: str) -> str:
@@ -276,9 +304,12 @@ class PlagiarismProvider(metaclass=abc.ABCMeta):
             mandatory options miss, if an option has an incorrect value or if
             given value was not recognized.
         """
-        values = helpers.ensure_json_dict(values).copy()
+        complete_values = helpers.ensure_json_dict(values)
+        values = complete_values.copy()
         values.pop('provider', None)
         values.pop('old_assignments', None)
+        values.pop('has_base_code', None)
+        values.pop('has_old_submissions', None)
         seen = set()
 
         errs = []
@@ -324,7 +355,7 @@ class PlagiarismProvider(metaclass=abc.ABCMeta):
                 invalid_options=errs
             )
         else:
-            self._set_provider_values(values)
+            self._set_provider_values(complete_values)
 
     @abc.abstractmethod
     def _set_provider_values(self,

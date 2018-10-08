@@ -22,9 +22,10 @@ from werkzeug.utils import secure_filename
 from werkzeug.datastructures import FileStorage
 
 import psef.models as models
-from psef import app, blackboard
-from psef.errors import APICodes, APIException
-from psef.ignore import InvalidFile, IgnoreFilterManager
+
+from . import app, helpers, blackboard
+from .errors import APICodes, APIException
+from .ignore import InvalidFile, IgnoreFilterManager
 
 _KNOWN_ARCHIVE_EXTENSIONS = (*archive.extension_map.keys(), '.tar.xz')
 
@@ -225,12 +226,12 @@ def search_path_in_filetree(filetree: FileTree, path: str) -> int:
 
 
 def restore_directory_structure(
-    code: models.File,
+    work: models.Work,
     parent: str,
     exclude: models.FileOwner = models.FileOwner.teacher
 ) -> FileTree:
-    """Restores the directory structure recursively for a code submission (a
-    :class:`.models.Work`).
+    """Restores the directory structure recursively for a submission
+    (a :class:`.models.Work`).
 
     The directory structure is returned like this:
 
@@ -261,17 +262,38 @@ def restore_directory_structure(
            ],
        }
 
+    :param work: A submissions.
+    :param parent: Path to parent directory.
+    :param exclude: The file owner to exclude.
+    :returns: A tree as described.
+    """
+    code = helpers.filter_single_or_404(
+        models.File,
+        models.File.work_id == work.id,
+        t.cast(models.DbColumn[int], models.File.parent_id).is_(None),
+        models.File.fileowner != exclude,
+    )
+    return _restore_directory_structure(code, parent, exclude)
+
+
+def _restore_directory_structure(
+    code: models.File,
+    parent: str,
+    exclude: models.FileOwner = models.FileOwner.teacher
+) -> FileTree:
+    """Worker function for :py:func:`.restore_directory_structure`
+
     :param code: A file
     :param parent: Path to parent directory
     :param exclude: The file owner to exclude.
-    :returns: A tree as described
+    :returns: A tree as described in :py:func:`.restore_directory_structure`
     """
     out = os.path.join(parent, code.name)
     if code.is_directory:
         os.mkdir(out)
         children = code.children.filter(models.File.fileowner != exclude).all()
         subtree: t.List[FileTree] = [
-            restore_directory_structure(child, out, exclude)
+            _restore_directory_structure(child, out, exclude)
             for child in children
         ]
         return {
@@ -328,8 +350,6 @@ def rename_directory_structure(rootdir: str) -> ExtractFileTree:
         folders = path[start:].split(os.sep)
         subdir = dict.fromkeys(files)
 
-        # `reduce` returns a reference within `directory` so `directory` will
-        # change on the next two lines.
         parent = directory
         for folder in folders[:-1]:
             parent = parent[folder]
@@ -372,13 +392,15 @@ def is_archive(file: FileStorage) -> bool:
 def extract_to_temp(
     file: FileStorage,
     ignore_filter: IgnoreFilterManager,
-    handle_ignore: IgnoreHandling = IgnoreHandling.keep
+    handle_ignore: IgnoreHandling = IgnoreHandling.keep,
+    archive_name: str = 'archive',
 ) -> str:
     """Extracts the contents of file into a temporary directory.
 
     :param file: The archive to extract.
     :param ignore_filter: The files and directories that should be ignored.
     :param handle_ignore: Determines how ignored files should be handled.
+    :param archive_name: The name used for the archive in error messages.
     :returns: The pathname of the new temporary directory.
     """
     tmpfd, tmparchive = tempfile.mkstemp()
@@ -401,16 +423,19 @@ def extract_to_temp(
             archive.extract(tmparchive, to_path=tmpdir, method='safe')
             if handle_ignore == IgnoreHandling.delete:
                 ignore_filter.delete_from_dir(tmpdir)
-    except (tarfile.ReadError, zipfile.BadZipFile):
+    except (
+        tarfile.ReadError, zipfile.BadZipFile,
+        archive.UnrecognizedArchiveFormat
+    ):
         raise APIException(
-            'The given archive could not be extracted',
+            f'The given {archive_name} could not be extracted',
             "The given archive doesn't seem to be an archive",
             APICodes.INVALID_ARCHIVE,
             400,
         )
     except (InvalidFile, archive.UnsafeArchive) as e:
         raise APIException(
-            'The given archive contains invalid files',
+            f'The given {archive_name} contains invalid files',
             str(e),
             APICodes.INVALID_FILE_IN_ARCHIVE,
             400,
@@ -438,7 +463,7 @@ def extract(
         :py:func:`rename_directory_structure`.
     """
     if handle_ignore == IgnoreHandling.keep and ignore_filter is None:
-        ignore_filter = IgnoreFilterManager([])
+        ignore_filter = IgnoreFilterManager(None)
     elif ignore_filter is None:  # pragma: no cover
         raise ValueError
 
@@ -522,7 +547,7 @@ def process_files(
     :param ignore_filter: The files and directories that should be ignored.
     :param handle_ignore: Determines how ignored files should be handled.
     :returns: The tree of the files as is described by
-              :py:func:`rename_directory_structure`
+        :py:func:`rename_directory_structure`
     """
 
     def consider_archive(f: FileStorage) -> bool:

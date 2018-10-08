@@ -1,5 +1,8 @@
+import io
 import os
 import csv
+import json
+import math
 import random
 import itertools
 import subprocess
@@ -11,6 +14,11 @@ import psef
 from helpers import create_marker
 
 http_err = create_marker(pytest.mark.http_err)
+
+
+def nCr(n, r):
+    f = math.factorial
+    return f(n) / f(r) / f(n - r)
 
 
 def get_random_path(d, upper):
@@ -91,6 +99,11 @@ def test_jplag(
     def my_check_output(call, **kwargs):
         nonlocal call_arguments, called_num, written_rows
         assert not kwargs['shell']
+        assert '-bc' not in call, (
+            "Base code should not "
+            "be given when not supplied"
+        )
+        assert '-a' in call, "Old submission should always be given"
 
         called_num += 1
         call_arguments = call
@@ -164,6 +177,8 @@ def test_jplag(
         'simil': simil,
         'suffixes': suffixes,
         'unknown_key': unknown_key,
+        'has_old_submissions': False,
+        'has_base_code': False,
     }
     data = {k: v for k, v in data.items() if v is not None}
 
@@ -186,7 +201,8 @@ def test_jplag(
                 'id': int,
                 'state': str,
                 'provider_name': str,
-                'config': list
+                'config': list,
+                'created_at': str,
             }
         )
         if code >= 400:
@@ -211,7 +227,8 @@ def test_jplag(
                 'id': int,
                 'state': 'done',
                 'provider_name': str,
-                'config': list
+                'config': list,
+                'created_at': str,
             }
         )
         test_client.req(
@@ -340,8 +357,11 @@ def test_jplag_old_assignments(
 
     def my_check_output(call, **kwargs):
         f_p = os.path.join(call[call.index('-r') + 1], 'computer_matches.csv')
+        archive_dir = call[call.index('-a') + 1]
         data_dir = call[3]
-        dirs = os.listdir(data_dir)
+        data_dirs = os.listdir(data_dir)
+        archive_dirs = os.listdir(archive_dir)
+        dirs = data_dirs + archive_dirs
         with open(f_p, 'w') as f:
             writer = csv.writer(f, delimiter=';')
             for dir1, dir2 in itertools.product(dirs, dirs):
@@ -351,10 +371,16 @@ def test_jplag_old_assignments(
                         dir2,
                         75,
                         20,
-                        get_random_path(dir1, data_dir),
+                        get_random_path(
+                            dir1,
+                            data_dir if dir1 in data_dirs else archive_dir
+                        ),
                         5,
                         10,
-                        get_random_path(dir2, data_dir),
+                        get_random_path(
+                            dir2,
+                            data_dir if dir2 in data_dirs else archive_dir
+                        ),
                         0,
                         4,
                     ]
@@ -383,6 +409,8 @@ def test_jplag_old_assignments(
             'provider': 'JPlag',
             'old_assignments': [other_assignment.id],
             'lang': 'Python 3',
+            'has_old_submissions': False,
+            'has_base_code': False,
         }
 
         plag = test_client.req(
@@ -394,7 +422,8 @@ def test_jplag_old_assignments(
                 'id': int,
                 'state': str,
                 'provider_name': str,
-                'config': list
+                'config': list,
+                'created_at': str,
             }
         )
         plag = test_client.req(
@@ -408,19 +437,25 @@ def test_jplag_old_assignments(
                 'config': list,
                 'log': str,
                 'cases': list,
+                'created_at': str,
             }
         )
+        amount_subs = assignment.get_from_latest_submissions(
+            func.count(psef.models.Work.id)
+        ).scalar()
+        amount_other_subs = other_assignment.get_from_latest_submissions(
+            func.count(psef.models.Work.id)
+        ).scalar()
         assert (
             len(plag['cases']) == (
-                assignment.get_from_latest_submissions(
-                    func.count(psef.models.Work.id)
-                ).scalar() ** 2 * other_assignment.get_from_latest_submissions(
-                    func.count(psef.models.Work.id)
-                ).scalar()
+                nCr(amount_subs + amount_other_subs, 2) -
+                nCr(amount_other_subs, 2)
             )
         ), "The amount of cases should be the maximum"
         for jcase in plag['cases']:
             case = session.query(psef.models.PlagiarismCase).get(jcase['id'])
+            assert jcase['submissions'][0]['id'] != jcase['submissions'][1][
+                'id']
             if case.work1.assignment_id == case.work2.assignment_id:
                 assert case.work1.assignment_id == assignment.id
 
@@ -548,13 +583,281 @@ def test_jplag_old_assignments(
             200,
         )[idx]
         assert case['id'] == old_case['id']
-        assert case['submissions'] == None
+        assert case['submissions'] is None
         assert sorted(list(case['assignments'][idx2].keys())) == [
             'course', 'name'
         ]
         assert sorted(list(case['assignments'][idx2]['course'].keys())) == [
             'name'
         ]
+
+
+@pytest.mark.parametrize('bb_tar_gz', ['correct.tar.gz'])
+@pytest.mark.parametrize(
+    'old_subs_tar_gz',
+    ['correct.tar.gz', http_err(error=400)('wrong.tar.gz')]
+)
+def test_jplag_old_submissions(
+    bb_tar_gz, logged_in, assignment, test_client, teacher_user,
+    error_template, monkeypatch, monkeypatch_celery, session, old_subs_tar_gz,
+    request, student_user
+):
+    student_user = student_user._get_current_object()
+    bb_tar_gz = (
+        f'{os.path.dirname(__file__)}/'
+        f'../test_data/test_blackboard/{bb_tar_gz}'
+    )
+    old_subs_tar_gz = (
+        f'{os.path.dirname(__file__)}/'
+        f'../test_data/test_old_sumbissions/{old_subs_tar_gz}'
+    )
+    amount_old_subs = 2
+
+    marker = request.node.get_marker('http_err')
+    code = marker.kwargs['error'] if marker else 200
+
+    def my_check_output(call, **kwargs):
+        f_p = os.path.join(call[call.index('-r') + 1], 'computer_matches.csv')
+        archive_dir = call[call.index('-a') + 1]
+        data_dir = call[3]
+        data_dirs = os.listdir(data_dir)
+        archive_dirs = os.listdir(archive_dir)
+        dirs = data_dirs + archive_dirs
+        with open(f_p, 'w') as f:
+            writer = csv.writer(f, delimiter=';')
+            for dir1, dir2 in itertools.product(dirs, dirs):
+                writer.writerow(
+                    [
+                        dir1,
+                        dir2,
+                        75,
+                        20,
+                        get_random_path(
+                            dir1,
+                            data_dir if dir1 in data_dirs else archive_dir
+                        ),
+                        5,
+                        10,
+                        get_random_path(
+                            dir2,
+                            data_dir if dir2 in data_dirs else archive_dir
+                        ),
+                        0,
+                        4,
+                    ]
+                )
+
+        return b'Log!'
+
+    monkeypatch.setattr(subprocess, 'check_output', my_check_output)
+
+    with logged_in(teacher_user):
+        test_client.req(
+            'post',
+            f'/api/v1/assignments/{assignment.id}/submissions/',
+            204,
+            real_data={'file': (bb_tar_gz, 'bb.tar.gz')},
+        )
+
+    with logged_in(teacher_user):
+        courses = test_client.req('get', '/api/v1/courses/', 200)
+        data = {
+            'provider': 'JPlag',
+            'old_assignments': [],
+            'lang': 'Python 3',
+            'has_old_submissions': True,
+            'has_base_code': False,
+        }
+
+        plag = test_client.req(
+            'post',
+            f'/api/v1/assignments/{assignment.id}/plagiarism',
+            400,
+            data=data,
+            result=error_template
+        )
+        plag = test_client.req(
+            'post',
+            f'/api/v1/assignments/{assignment.id}/plagiarism',
+            code,
+            real_data={
+                'json': (io.BytesIO(json.dumps(data).encode()), 'j'),
+                'old_submissions': (old_subs_tar_gz, 'old_subs.tar.gz'),
+            },
+        )
+        if code >= 400:
+            return
+
+        plag = test_client.req(
+            'get',
+            f'/api/v1/plagiarism/{plag["id"]}?extended',
+            200,
+            result={
+                'id': int,
+                'state': 'done',
+                'provider_name': str,
+                'config': list,
+                'log': str,
+                'cases': list,
+                'created_at': str,
+            }
+        )
+        for jcase in plag['cases']:
+            case = session.query(psef.models.PlagiarismCase).get(jcase['id'])
+            assert jcase['submissions'][0]['id'] != jcase['submissions'][1][
+                'id']
+            if case.work1.assignment_id == case.work2.assignment_id:
+                assert case.work1.assignment_id == assignment.id
+
+        virtual_courses = psef.models.Course.query.filter_by(virtual=True
+                                                             ).all()
+        assert len(virtual_courses) == 1
+        assert len(virtual_courses[0].assignments) == 1
+        assert len(virtual_courses[0].assignments[0].submissions
+                   ) == amount_old_subs
+        amount_subs = assignment.get_from_latest_submissions(
+            func.count(psef.models.Work.id)
+        ).scalar()
+        assert (
+            len(plag['cases']) ==
+            (nCr(amount_subs + amount_old_subs, 2) - nCr(amount_old_subs, 2))
+        ), "The amount of cases should be the maximum"
+
+        # Make sure we can't find this virtual user
+        test_client.req(
+            'get',
+            f'/api/v1/users/?q=pim de',
+            200,
+            result=[],
+        )
+        assert len(
+            psef.models.User.query.filter(
+                psef.models.User.name.ilike('%pim de%')
+            ).all()
+        ) == 1
+
+        # Make sure we were not added to any course
+        assert courses == test_client.req('get', '/api/v1/courses/', 200)
+
+        for jcase in plag['cases']:
+            case = session.query(psef.models.PlagiarismCase).get(jcase['id'])
+            if case.work1.assignment_id != case.work2.assignment_id:
+                break
+        else:
+            assert False
+
+        assert test_client.get(
+            f'/api/v1/code/{case.matches[0].file1_id}'
+        ).status_code == 200
+        assert test_client.get(
+            f'/api/v1/code/{case.matches[0].file2_id}'
+        ).status_code == 200
+    with logged_in(student_user):
+        test_client.req(
+            'get',
+            f'/api/v1/code/{case.matches[0].file2_id}',
+            403,
+            result=error_template
+        )
+        test_client.req(
+            'get',
+            f'/api/v1/code/{case.matches[0].file2_id}',
+            403,
+            result=error_template
+        )
+
+
+@pytest.mark.parametrize('bb_tar_gz', ['correct.tar.gz'])
+@pytest.mark.parametrize('base_code_tar_gz', ['correct.tar.gz'])
+def test_jplag_base_code(
+    bb_tar_gz,
+    logged_in,
+    assignment,
+    test_client,
+    teacher_user,
+    error_template,
+    monkeypatch,
+    monkeypatch_celery,
+    session,
+    base_code_tar_gz,
+):
+    bb_tar_gz = (
+        f'{os.path.dirname(__file__)}/'
+        f'../test_data/test_blackboard/{bb_tar_gz}'
+    )
+    base_code_tar_gz = (
+        f'{os.path.dirname(__file__)}/'
+        f'../test_data/test_old_sumbissions/{base_code_tar_gz}'
+    )
+
+    def my_check_output(call, **kwargs):
+        f_p = os.path.join(call[call.index('-r') + 1], 'computer_matches.csv')
+        assert call[call.index('-bc') + 1].startswith('/tmp/')
+        assert os.listdir(call[call.index('-bc') + 1]) == ['dir']
+        assert len(os.listdir('{}/dir'.format(call[call.index('-bc') + 1]))
+                   ) > 1
+        open(f_p, 'w').close()
+        return b'Done!'
+
+    monkeypatch.setattr(subprocess, 'check_output', my_check_output)
+
+    with logged_in(teacher_user):
+        test_client.req(
+            'post',
+            f'/api/v1/assignments/{assignment.id}/submissions/',
+            204,
+            real_data={'file': (bb_tar_gz, 'bb.tar.gz')},
+        )
+
+    with logged_in(teacher_user):
+        data = {
+            'provider': 'JPlag',
+            'old_assignments': [],
+            'lang': 'Python 3',
+            'has_old_submissions': False,
+            'has_base_code': True,
+        }
+
+        plag = test_client.req(
+            'post',
+            f'/api/v1/assignments/{assignment.id}/plagiarism',
+            400,
+            data=data,
+            result=error_template
+        )
+        plag = test_client.req(
+            'post',
+            f'/api/v1/assignments/{assignment.id}/plagiarism',
+            400,
+            real_data={
+                'json': (io.BytesIO(json.dumps(data).encode()), 'j'),
+                'base_code': (base_code_tar_gz, 'base_code.no_arch'),
+            },
+        )
+        plag = test_client.req(
+            'post',
+            f'/api/v1/assignments/{assignment.id}/plagiarism',
+            200,
+            real_data={
+                'json': (io.BytesIO(json.dumps(data).encode()), 'j'),
+                'base_code': (base_code_tar_gz, 'base_code.tar.gz'),
+            },
+        )
+
+        plag = test_client.req(
+            'get',
+            f'/api/v1/plagiarism/{plag["id"]}?extended',
+            200,
+            result={
+                'id': int,
+                'state': 'done',
+                'provider_name': str,
+                'config': list,
+                'log': 'Done!',
+                'cases': list,
+                'created_at': str,
+            }
+        )
 
 
 @pytest.mark.parametrize('subprocess_exception', [True, False])
@@ -594,6 +897,8 @@ def test_chrased_jplag(
             'provider': 'JPlag',
             'old_assignments': [],
             'lang': 'Python 3',
+            'has_old_submissions': False,
+            'has_base_code': False,
         }
 
         plag = test_client.req(
@@ -605,7 +910,8 @@ def test_chrased_jplag(
                 'id': int,
                 'state': str,
                 'provider_name': str,
-                'config': list
+                'config': list,
+                'created_at': str,
             }
         )
         plag = test_client.req(
@@ -620,6 +926,7 @@ def test_chrased_jplag(
                 'config': list,
                 'log': str,
                 'cases': [],
+                'created_at': str,
             }
         )
         if subprocess_exception:
@@ -635,6 +942,8 @@ def test_get_plagiarism_providers(test_client):
             {
                 'name':
                     'JPlag',
+                'base_code':
+                    True,
                 'options':
                     [
                         {

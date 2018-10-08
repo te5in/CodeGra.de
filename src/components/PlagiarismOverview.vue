@@ -10,6 +10,18 @@
 <loader v-else-if="loadingData || assignment == null"/>
 <div class="plagiarism-overview" v-else>
     <local-header :title="`Plagiarism overview for assignment &quot;${assignment.name}&quot; of &quot;${assignment.course.name}&quot;`">
+        <b-btn v-b-modal.run-log style="margin-left: 15px;">
+            Show log
+        </b-btn>
+        <b-modal ref="runModal"
+                 id="run-log"
+                 title="Log"
+                 hide-footer
+                 v-model="modalDisplayed">
+            <pre style="overflow: auto" v-if="modalDisplayed">
+                {{ run.log }}
+            </pre>
+        </b-modal>
         <input v-model="filter"
                class="filter-input form-control"
                placeholder="Filter students"/>
@@ -83,7 +95,9 @@ export default {
     data() {
         return {
             overview: null,
+            run: null,
             filter: '',
+            modalDisplayed: false,
             tableFields: [{
                 key: 'user1',
                 sortable: true,
@@ -139,7 +153,7 @@ export default {
         $route(newRoute, oldRoute) {
             if (
                 newRoute.params.assignmentId !== oldRoute.params.assignmentId ||
-                newRoute.params.plagiarismRunId !== oldRoute.params.plagiarismRunId
+                    newRoute.params.plagiarismRunId !== oldRoute.params.plagiarismRunId
             ) {
                 this.loadOverview();
             }
@@ -207,31 +221,39 @@ export default {
         loadOverview() {
             this.loadingData = true;
 
-            this.$http.get(
+            return Promise.all([this.$http.get(
                 `/api/v1/plagiarism/${this.plagiarismRunId}/cases/`,
-            ).then(
-                ({ data }) => {
-                    for (let i = 0, l = data.length; i < l; i++) {
-                        if (this.canViewCase(data[i])) {
+            ), this.$http.get(`/api/v1/plagiarism/${this.plagiarismRunId}?extended`)]).then(
+                ([{ data: cases }, { data: run }]) => {
+                    cases.forEach((curCase) => {
+                        if (this.canViewCase(curCase)) {
                             // eslint-disable-next-line
-                            data[i]._rowVariant = 'info';
+                            curCase._rowVariant = 'info';
                         } else {
                             // eslint-disable-next-line
-                            data[i]._rowVariant = 'warning';
+                            curCase._rowVariant = 'warning';
                         }
-                    }
+                    });
 
-                    this.overview = data;
-                },
-                (err) => {
+                    this.overview = cases;
+                    this.run = run;
+                    this.loadingData = false;
+
+                    if (this.run.state === 'crashed') {
+                        this.modalDisplayed = true;
+                    }
+                }, (err) => {
                     this.error = err.response.data.message;
                 },
-            ).then(
-                () => { this.loadingData = false; },
             );
         },
 
         getOtherAssignmentDesc(item, index) {
+            const assig = item.assignments[index];
+            if (assig && assig.course.virtual) {
+                return 'This submission was uploaded during running as part of an archive of old submissions.';
+            }
+
             let desc = `This assignment was submitted to the assignment "${item.assignments[index].name}" of "${item.assignments[index].course.name}"`;
 
             if (item.submissions != null) {
@@ -275,6 +297,15 @@ export default {
 
 <style lang="less">
 @import "~mixins.less";
+
+.plagiarism-overview .modal-dialog {
+    width: 75vw;
+    margin-left: 12.5vw;
+    margin-right: 12.5vw;
+    .modal-content {
+        width: 75vw;
+    }
+}
 
 .plagiarism-overview .overview-table {
     .table-info,

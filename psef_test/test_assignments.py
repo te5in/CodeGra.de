@@ -982,7 +982,7 @@ def test_upload_files(
                 real_data={'err': (io.BytesIO(b'my file content'), 'ror')},
                 result=error_template
             )
-            assert res['message'].startswith('The parameter name should')
+            assert res['message'].startswith('Request did not contain')
 
             res = test_client.req(
                 'post',
@@ -997,11 +997,7 @@ def test_upload_files(
                 },
                 result=error_template
             )
-            assert res['message'].startswith(
-                'The filename should not be empty'
-                # This second part is to maintain compatibility with werkzeug
-                # >=0.14
-            ) or res['message'].startswith('No file in HTTP')
+            assert res['message'].startswith('No file in HTTP')
 
             if assignment.is_open or named_user.has_permission(
                 'can_upload_after_deadline', assignment.course_id
@@ -1731,8 +1727,6 @@ def test_upload_blackboard_zip(
             real_data={'err': (io.BytesIO(b'my file content'), 'ror')},
             result=error_template
         )
-        if marker is None:
-            assert res['message'].startswith('The parameter name should')
 
         filename = (
             f'{os.path.dirname(__file__)}/'

@@ -36,6 +36,7 @@ class JPlag(plag.PlagiarismProvider):
         self.lang: t.Optional[str] = None
         self.suffixes: t.Optional[str] = None
         self.simil: int = 25
+        self.has_base_code: bool = False
 
     @property
     def matches_output(self) -> str:
@@ -99,6 +100,8 @@ class JPlag(plag.PlagiarismProvider):
         :returns: Nothing.
         """
         self.lang = _SUPPORTED_LANGS[str(values['lang'])]
+        self.has_base_code = bool(values['has_base_code'])
+
         if 'suffixes' in values:
             self.suffixes = str(values['suffixes'])
         if 'simil' in values:
@@ -124,8 +127,11 @@ class JPlag(plag.PlagiarismProvider):
             '-s',
             '-r', '{ result_dir }',
             '-m', f'{self.simil}%',
+            '-a', '{ archive_dir }',
         ]
         # yapf: enable
+        if self.has_base_code:
+            res.extend(['-bc', '{ base_code_dir }'])
 
         if self.suffixes is not None:
             res.extend(['-p', self.suffixes])

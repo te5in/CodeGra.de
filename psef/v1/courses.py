@@ -52,7 +52,11 @@ def delete_role(course_id: int, role_id: int) -> EmptyResponse:
     """
     auth.ensure_permission('can_edit_course_roles', course_id)
 
-    course = helpers.get_or_404(models.Course, course_id)
+    course = helpers.get_or_404(
+        models.Course,
+        course_id,
+        also_error=lambda c: c.virtual,
+    )
     role = helpers.filter_single_or_404(
         models.CourseRole, models.CourseRole.course_id == course_id,
         models.CourseRole.id == role_id
@@ -113,7 +117,11 @@ def add_role(course_id: int) -> EmptyResponse:
     ensure_keys_in_dict(content, [('name', str)])
     name = t.cast(str, content['name'])
 
-    course = helpers.get_or_404(models.Course, course_id)
+    course = helpers.get_or_404(
+        models.Course,
+        course_id,
+        also_error=lambda c: c.virtual,
+    )
 
     if models.CourseRole.query.filter_by(
         name=name, course_id=course_id
@@ -398,7 +406,11 @@ def get_all_course_assignments(
     """
     auth.ensure_permission('can_see_assignments', course_id)
 
-    course = helpers.get_or_404(models.Course, course_id)
+    course = helpers.get_or_404(
+        models.Course,
+        course_id,
+        also_error=lambda c: c.virtual,
+    )
 
     return jsonify(course.get_all_visible_assignments())
 
@@ -424,7 +436,11 @@ def create_new_assignment(course_id: int) -> JSONResponse[models.Assignment]:
     ensure_keys_in_dict(content, [('name', str)])
     name = t.cast(str, content['name'])
 
-    course = helpers.get_or_404(models.Course, course_id)
+    course = helpers.get_or_404(
+        models.Course,
+        course_id,
+        also_error=lambda c: c.virtual,
+    )
 
     if course.lti_course_id is not None:
         raise APIException(
@@ -561,5 +577,9 @@ def get_permissions_for_course(
     :returns: A mapping between the permission name and a boolean indicating if
         the currently logged in user has this permission.
     """
-    course = helpers.get_or_404(models.Course, course_id)
+    course = helpers.get_or_404(
+        models.Course,
+        course_id,
+        also_error=lambda c: c.virtual,
+    )
     return jsonify(current_user.get_all_permissions(course))

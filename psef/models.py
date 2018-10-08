@@ -542,6 +542,8 @@ class User(Base):
     :ivar courses: A mapping between course_id and course-role for all courses
         this user is currently enrolled.
     :ivar email: The e-mail of this user.
+    :ivar virtual: Is this user an actual user of the site, or is it a virtual
+        user.
     :ivar password: The password of this user, it is automatically hashed.
     :ivar assignment_results: The way this user can do LTI grade passback.
     :ivar assignments_assigned: A mapping between assignment_ids and
@@ -564,6 +566,9 @@ class User(Base):
 
     name: str = db.Column('name', db.Unicode)
     active: bool = db.Column('active', db.Boolean, default=True)
+    virtual = db.Column(
+        'virtual', db.Boolean, default=False, nullable=False, index=True
+    )
     role_id: int = db.Column('Role_id', db.Integer, db.ForeignKey('Role.id'))
     courses: t.MutableMapping[int, CourseRole] = db.relationship(
         'CourseRole',
@@ -621,6 +626,20 @@ class User(Base):
     def __ne__(self, other: t.Any) -> bool:  # pragma: no cover
         return not self.__eq__(other)
 
+    @classmethod
+    def create_virtual_user(cls: t.Type['User'], name: str) -> 'User':
+        """Create a virtual user with the given name.
+
+        :return: A newly created virtual user with the given name prepended
+            with 'Virtual - ' and a random username.
+        """
+        return cls(
+            name=f'Virtual - {name}',
+            username=f'VIRTUAL_USER__{uuid.uuid4()}',
+            virtual=True,
+            email=''
+        )
+
     def has_permission(
         self,
         permission: t.Union[str, Permission],
@@ -638,7 +657,7 @@ class User(Base):
         :raises KeyError: If the permission parameter is a string and no
                          permission with this name exists.
         """
-        if not self.active:
+        if not self.active or self.virtual:
             return False
         if course_id is None:
             return self.role.has_permission(permission)
@@ -674,6 +693,8 @@ class User(Base):
             and a boolean indicating if the current user has this permission
             for the course with this course id.
         """
+        assert not self.virtual
+
         if not wanted_perms:
             return {}
 
@@ -775,6 +796,7 @@ class User(Base):
         :param perm: The permission or permission name
         :returns: True if the user has the permission once
         """
+        assert not self.virtual
 
         permission: Permission
         if isinstance(perm, Permission):
@@ -811,6 +833,8 @@ class User(Base):
                   permission and the value indicates if this user has this
                   permission.
         """
+        assert not self.virtual
+
         if isinstance(course_id, Course):
             course_id = course_id.id
 
@@ -850,6 +874,8 @@ class User(Base):
         :raises psef.auth.PermissionException: If something was wrong with the
             given token.
         """
+        assert not self.virtual
+
         timed_serializer = URLSafeTimedSerializer(
             psef.current_app.config['SECRET_KEY']
         )
@@ -924,6 +950,10 @@ class Course(Base):
     )
     lti_provider: LTIProvider = db.relationship("LTIProvider")
 
+    virtual: bool = db.Column(
+        'virtual', db.Boolean, default=False, nullable=False
+    )
+
     assignments = db.relationship(
         "Assignment", back_populates="course", cascade='all,delete'
     )  # type: t.MutableSequence[Assignment]
@@ -932,13 +962,17 @@ class Course(Base):
         self,
         name: str = None,
         lti_course_id: str = None,
-        lti_provider: LTIProvider = None
+        lti_provider: LTIProvider = None,
+        virtual: bool = False,
     ) -> None:
         super().__init__(
             name=name,
             lti_course_id=lti_course_id,
             lti_provider=lti_provider,
+            virtual=virtual,
         )
+        if virtual:
+            return
         for role_name, perms in CourseRole.get_default_course_roles().items():
             CourseRole(name=role_name, course=self, _permissions=perms)
 
@@ -954,6 +988,7 @@ class Course(Base):
                 'id': int, # The id of this course.
                 'created_at': str, # ISO UTC date.
                 'is_lti': bool, # Is the this course a LTI course,
+                'virtual': bool, # Is this a virtual course,
             }
 
         :returns: A object as described above.
@@ -963,6 +998,7 @@ class Course(Base):
             'name': self.name,
             'created_at': self.created_at.isoformat(),
             'is_lti': self.lti_course_id is not None,
+            'virtual': self.virtual,
         }
 
     def get_all_visible_assignments(self) -> t.Sequence['Assignment']:
@@ -981,13 +1017,52 @@ class Course(Base):
             )
 
     def get_all_users_in_course(self) -> '_MyQuery[t.Tuple[User, CourseRole]]':
+        """Get a query that returns all users in the current course and their
+            role.
+
+        :returns: A query that contains all users in the current course and
+            their role.
+        """
         return db.session.query(User, CourseRole).join(
             user_course,
             user_course.c.user_id == User.id,
         ).join(
             CourseRole,
             CourseRole.id == user_course.c.course_id,
-        ).filter(CourseRole.course_id == self.id)
+        ).filter(
+            CourseRole.course_id == self.id,
+            t.cast(DbColumn[bool], User.virtual).isnot(True)
+        )
+
+    @classmethod
+    def create_virtual_course(
+        cls: t.Type['Course'], tree: 'psef.files.ExtractFileTree'
+    ) -> 'Course':
+        """Create a virtual course.
+
+        The course will contain a single assignment. The tree should be a
+        single directory with multiple directories under it. For each directory
+        a user will be created and a submission will be created using the files
+        of this directory.
+
+        :param tree: The tree to use to create the submissions.
+        :returns: A virtual course with a random name.
+        """
+        assert len(tree) == 1
+        name = list(tree.keys())[0]
+        vals = list(tree.values())[0]
+
+        self = cls(name=f'VIRTUAL_COURSE__{uuid.uuid4()}', virtual=True)
+        assig = Assignment(name=f'Virtual assignment - {name}', course=self)
+        self.assignments.append(assig)
+        for subdir in vals:
+            assert isinstance(subdir, dict)
+            assert len(subdir) == 1
+            subdir_name = list(subdir.keys())[0]
+            user = User.create_virtual_user(subdir_name)
+            work = Work(assignment=assig, user=user)
+            work.add_file_tree(subdir)
+        return self
 
 
 class GradeHistory(Base):
@@ -1078,14 +1153,21 @@ class Work(Base):
     )  # type: t.MutableSequence['RubricItem']
 
     assignment = db.relationship(
-        'Assignment', foreign_keys=assignment_id, lazy='joined'
+        'Assignment',
+        foreign_keys=assignment_id,
+        lazy='joined',
+        backref=db.backref('submissions', lazy='select', uselist=True)
     )  # type: 'Assignment'
+
     user = db.relationship(
         'User', foreign_keys=user_id, lazy='joined'
     )  # type: User
     assignee = db.relationship(
         'User', foreign_keys=assigned_to, lazy='joined'
     )  # type: t.Optional[User]
+
+    # This variable is generated from the backref from all files
+    files: 't.List["File"]'
 
     def divide_new_work(self) -> None:
         """Divide a freshly created work.
@@ -1415,55 +1497,50 @@ class Work(Base):
                 },
             }
 
-    def add_file_tree(
-        self, session: 'orm.scoped_session', tree: 'psef.files.ExtractFileTree'
-    ) -> None:
-        """Add the given tree to given session.
+    def add_file_tree(self, tree: 'psef.files.ExtractFileTree') -> None:
+        """Add the given tree to as only files to the current work.
 
-        .. warning::
+        .. warning:: All previous files will be unlinked from this assignment.
 
-            The db session is not commited!
-
-        :param session: The db session
         :param tree: The file tree as described by
             :py:func:`psef.files.rename_directory_structure`
         :returns: Nothing
         """
-        return self._add_file_tree(session, tree, None)
+        res = self._add_file_tree(tree, None)
+        assert len(res) == 1, "There can be only one top directory"
 
     def _add_file_tree(
         self,
-        session: 'orm.scoped_session',
         tree: 'psef.files.ExtractFileTree',
         top: t.Optional['File'],
-    ) -> None:
+    ) -> t.List['File']:
         """Add the given tree to the session with top as parent.
 
-        :param session: The db session
         :param tree: The file tree as described by
                           :py:func:`psef.files.rename_directory_structure`
         :param top: The parent file
         :returns: Nothing
         """
+        res = []
         for old_top, children in tree.items():
             new_top = File(
                 work=self, is_directory=True, name=old_top, parent=top
             )
-            session.add(new_top)
+            res.append(new_top)
+
             for child in children:
                 if isinstance(child, t.MutableMapping):
-                    self._add_file_tree(session, child, new_top)
+                    self._add_file_tree(child, new_top)
                     continue
                 name, filename = child
-                session.add(
-                    File(
-                        work=self,
-                        name=name,
-                        filename=filename,
-                        is_directory=False,
-                        parent=new_top
-                    )
+                File(
+                    work=self,
+                    name=name,
+                    filename=filename,
+                    is_directory=False,
+                    parent=new_top
                 )
+        return res
 
     def get_all_feedback(self) -> t.Tuple[t.Iterable[str], t.Iterable[str], ]:
         """Get all feedback for this work.
@@ -1644,7 +1721,13 @@ class File(Base):
         backref=db.backref('children', lazy='dynamic')
     )  # type: 'File'
 
-    work = db.relationship('Work', foreign_keys=work_id)  # type: 'Work'
+    work = db.relationship(
+        'Work',
+        foreign_keys=work_id,
+        backref=db.backref(
+            'files', lazy='select', uselist=True, cascade='all,delete'
+        )
+    )  # type: 'Work'
 
     @staticmethod
     def get_exclude_owner(owner: t.Optional[str], course_id: int) -> FileOwner:
@@ -2146,7 +2229,7 @@ class Assignment(Base):
     __tablename__ = "Assignment"
     id: int = db.Column('id', db.Integer, primary_key=True)
     name: str = db.Column('name', db.Unicode)
-    cgignore: str = db.Column('cgignore', db.Unicode)
+    cgignore: t.Optional[str] = db.Column('cgignore', db.Unicode)
     state: _AssignmentStateEnum = db.Column(
         'state',
         db.Enum(_AssignmentStateEnum),
@@ -2243,6 +2326,9 @@ class Assignment(Base):
 
     # This variable is available through a backref
     linters: t.Iterable['AssignmentLinter']
+
+    # This variable is available through a backref
+    submissions: t.Iterable['Work']
 
     @property
     def max_grade(self) -> float:
@@ -3045,6 +3131,7 @@ class PlagiarismRun(Base):
                                       # run.
                 'config': t.List[t.List[str]], # A sorted association list with
                                                # the config used for this run.
+                'created_at': str, # ISO UTC date.
             }
 
         :returns: A object as described above.
@@ -3054,6 +3141,7 @@ class PlagiarismRun(Base):
             'state': self.state.name,
             'provider_name': self.provider_name,
             'config': json.loads(self.json_config),
+            'created_at': self.created_at.isoformat(),
         }
 
     def __extended_to_json__(self) -> t.Mapping[str, object]:

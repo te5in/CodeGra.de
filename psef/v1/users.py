@@ -83,7 +83,7 @@ def search_users() -> JSONResponse[t.Sequence[models.User]]:
             ) == 0
         )
     else:
-        base = models.User.query
+        base = models.User.query.filter_by(virtual=False)
 
     return jsonify(helpers.filter_users_by_name(query, base).all())
 

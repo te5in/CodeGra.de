@@ -124,6 +124,7 @@ def get_plag_opts() -> JSONResponse[t.List[t.Dict[str, object]]]:
 
     :returns: An array of plagiarism providers.
     :>jsonarr str name: The name of the plagiarism provider.
+    :>jsonarr bool base_code: Does this plagiarism provider support base code.
     :>jsonarr array options: The extra possible options for this provider, this
         is an array of JSON serialized :class:`.plagiarism.Option` classes.
     """
@@ -131,7 +132,8 @@ def get_plag_opts() -> JSONResponse[t.List[t.Dict[str, object]]]:
         [
             {
                 'name': cls.__name__,
-                'options': cls.get_options()
+                'options': cls.get_options(),
+                'base_code': cls.supports_base_code(),
             } for cls in sorted(
                 helpers.get_all_subclasses(plagiarism.PlagiarismProvider),
                 key=lambda o: o.__name__

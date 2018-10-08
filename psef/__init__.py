@@ -178,7 +178,11 @@ def create_app(config: t.Mapping = None, skip_celery: bool = False) -> t.Any:  #
     )
     if getattr(resulting_app, 'debug', False):
         structlog.configure(
-            processors=processors[:-2] + [structlog.dev.ConsoleRenderer()]
+            processors=processors[:-2] + [
+                structlog.dev.ConsoleRenderer(
+                    colors=not getattr(resulting_app, 'testing', False)
+                )
+            ]
         )
     logging.basicConfig(
         format="%(message)s",

@@ -233,11 +233,6 @@ class LinterRunner():
         res: t.Dict[int, t.Mapping[int, t.Sequence[t.Tuple[str, str]]]]
         res = {}
 
-        code = db.session.query(models.File).filter_by(
-            work_id=linter_instance.work_id,
-            parent=None,
-        ).one()
-
         with tempfile.TemporaryDirectory() as tmpdir:
 
             def __emit(f: str, line: int, code: str, msg: str) -> None:
@@ -250,12 +245,12 @@ class LinterRunner():
                     temp_res[f][line] = []
                 temp_res[f][line].append((code, msg))
 
-            files = psef.files.restore_directory_structure(
-                code,
+            tree_root = psef.files.restore_directory_structure(
+                linter_instance.work,
                 tmpdir,
             )
 
-            self.linter.run(os.path.join(tmpdir, code.name), __emit)
+            self.linter.run(os.path.join(tmpdir, tree_root['name']), __emit)
 
         del tmpdir
 
@@ -268,7 +263,7 @@ class LinterRunner():
                 res[tree['id']] = temp_res[parent]
                 del temp_res[parent]
 
-        __do(files, '')
+        __do(tree_root, '')
 
         models.LinterComment.query.filter_by(linter_id=linter_instance.id
                                              ).delete()

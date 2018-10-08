@@ -7,9 +7,10 @@ the mapping of the variables at the bottom of this file.
 :license: AGPLv3, see LICENSE for details.
 """
 import os
+import shutil
 import typing as t
 import tempfile
-import subprocess
+import itertools
 from operator import itemgetter
 
 import structlog
@@ -311,75 +312,77 @@ def _run_plagiarism_control_1(
     main_assignment_id: int,
     old_assignment_ids: t.List[int],
     call_args: t.List[str],
+    base_code_dir: t.Optional[str],
     csv_location: str,
 ) -> None:
-    plagiarism_run = p.models.PlagiarismRun.query.get(plagiarism_run_id)
-    if plagiarism_run is None:  # pragma: no cover
-        logger.info(
-            'Plagiarism run was already deleted',
-            plagiarism_run_id=plagiarism_run_id,
-        )
-        return
+    def at_end() -> None:
+        if base_code_dir:
+            shutil.rmtree(base_code_dir)
 
-    with tempfile.TemporaryDirectory(
-    ) as result_dir, tempfile.TemporaryDirectory() as tempdir:
-        file_lookup_tree: t.Dict[int, p.files.FileTree] = {}
-        submission_lookup = {}
-        old_subs = set()
+    with p.helpers.defer(
+        at_end,
+    ), tempfile.TemporaryDirectory(
+    ) as result_dir, tempfile.TemporaryDirectory(
+    ) as tempdir, tempfile.TemporaryDirectory() as archive_dir:
+        plagiarism_run = p.models.PlagiarismRun.query.get(plagiarism_run_id)
+        if plagiarism_run is None:  # pragma: no cover
+            logger.info(
+                'Plagiarism run was already deleted',
+                plagiarism_run_id=plagiarism_run_id,
+            )
+            return
 
-        for assig_id, main_assig in zip(
-            [main_assignment_id, *old_assignment_ids],
-            [True, *[False] * len(old_assignment_ids)]
-        ):
-            assig = p.models.Assignment.query.get(assig_id)
-            assert assig is not None, "Invalid run"
-
-            for sub in assig.get_all_latest_submissions():
-                if not main_assig:
-                    old_subs.add(sub.id)
-
-                dir_name = f'{sub.user.name} || {assig.id}-{sub.user_id}'
-                submission_lookup[dir_name] = sub.id
-                parent = os.path.join(tempdir, dir_name)
-                os.mkdir(parent)
-
-                code = p.helpers.filter_single_or_404(
-                    p.models.File,
-                    p.models.File.work_id == sub.id,
-                    t.cast(p.models.DbColumn[int],
-                           p.models.File.parent_id).is_(None),
-                )
-                part_tree = p.files.restore_directory_structure(code, parent)
-                file_lookup_tree[sub.id] = {
-                    'name': dir_name,
-                    'id': -1,
-                    'entries': [part_tree],
-                }
-
+        archival_arg_present = '{ archive_dir }' in call_args
         if '{ restored_dir }' in call_args:
             call_args[call_args.index('{ restored_dir }')] = tempdir
         if '{ result_dir }' in call_args:
             call_args[call_args.index('{ result_dir }')] = result_dir
+        if archival_arg_present:
+            call_args[call_args.index('{ archive_dir }')] = archive_dir
+        if base_code_dir:
+            call_args[call_args.index('{ base_code_dir }')] = base_code_dir
 
-        try:
-            stdout = subprocess.check_output(
-                call_args, stderr=subprocess.STDOUT, shell=False
+        file_lookup_tree: t.Dict[int, p.files.FileTree] = {}
+        submission_lookup = {}
+        old_subs = set()
+
+        assig_ids = [main_assignment_id, *old_assignment_ids]
+        assigs = p.models.Assignment.query.filter(
+            t.cast(p.models.DbColumn[int],
+                   p.models.Assignment.id).in_(assig_ids)
+        ).all()
+        # Make sure all assignments were found
+        assert len(assigs) == len(assig_ids)
+
+        # The .all is needed for mypy
+        for sub in itertools.chain.from_iterable(
+            a.get_all_latest_submissions().all() for a in assigs
+        ):
+            main_assig = sub.assignment_id == main_assignment_id
+
+            dir_name = (
+                f'{sub.user.name} || {sub.assignment_id}'
+                f'-{sub.id}-{sub.user_id}'
             )
-        except subprocess.CalledProcessError as err:
-            plagiarism_run.log = (err.stdout or
-                                  b'').decode('utf-8').replace('\0', '')
-            plagiarism_run.log += (err.stderr or
-                                   b'').decode('utf-8').replace('\0', '')
-            plagiarism_run.state = p.models.PlagiarismState.crashed
-        except Exception:  # pylint: disable=broad-except
-            logger.warning(
-                'Plagiarism runner crashed',
-                plagiarism_run_id=plagiarism_run.id,
-                exc_info=True
-            )
-            plagiarism_run.log = 'Unknown crash!'
-            plagiarism_run.state = p.models.PlagiarismState.crashed
-        else:
+            submission_lookup[dir_name] = sub.id
+            parent = os.path.join(tempdir, dir_name)
+
+            if not main_assig:
+                old_subs.add(sub.id)
+                if archival_arg_present:
+                    parent = os.path.join(archive_dir, dir_name)
+
+            os.mkdir(parent)
+            part_tree = p.files.restore_directory_structure(sub, parent)
+            file_lookup_tree[sub.id] = {
+                'name': dir_name,
+                'id': -1,
+                'entries': [part_tree],
+            }
+
+        ok, stdout, stderr = p.helpers.call_external(call_args)
+        plagiarism_run.log = stdout + stderr
+        if ok:
             csv_file = os.path.join(result_dir, csv_location)
             csv_file = p.helpers.get_class_by_name(
                 p.plagiarism.PlagiarismProvider,
@@ -387,14 +390,13 @@ def _run_plagiarism_control_1(
             ).transform_csv(csv_file)
 
             for case in p.plagiarism.process_output_csv(
-                plagiarism_run, submission_lookup, old_subs, file_lookup_tree,
-                csv_file
+                submission_lookup, old_subs, file_lookup_tree, csv_file
             ):
-                p.models.db.session.add(case)
-            plagiarism_run.log = stdout.decode('utf-8').replace('\0', '')
+                plagiarism_run.cases.append(case)
             plagiarism_run.state = p.models.PlagiarismState.done
-        finally:
-            p.models.db.session.commit()
+        else:
+            plagiarism_run.state = p.models.PlagiarismState.crashed
+        p.models.db.session.commit()
 
 
 @celery.task

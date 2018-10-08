@@ -90,18 +90,6 @@
                     </span>
                     <c-g-ignore-file :assignment-id="assignmentId"/>
                 </b-card>
-
-                <b-card v-if="permissions.can_manage_plagiarism || permissions.can_view_plagiarism">
-                    <span slot="header">
-                        Plagiarism checking
-                        <description-popover
-                            description="Run a plagiarism checker or view
-                            the results."/>
-                    </span>
-                    <plagiarism-runner :assignment="assignment"
-                                       :can-manage="permissions.can_manage_plagiarism"
-                                       :can-view="permissions.can_view_plagiarism"/>
-                </b-card>
             </div>
 
             <div class="col-lg-6">
@@ -139,6 +127,17 @@
                 </b-card>
             </div>
         </div>
+        <b-card v-if="permissions.can_manage_plagiarism || permissions.can_view_plagiarism">
+            <span slot="header">
+                Plagiarism checking
+                <description-popover
+                    description="Run a plagiarism checker or view
+                                 the results."/>
+            </span>
+            <plagiarism-runner :assignment="assignment"
+                               :can-manage="permissions.can_manage_plagiarism"
+                               :can-view="permissions.can_view_plagiarism"/>
+        </b-card>
 
         <b-card header="Rubric"
                 v-if="permissions.manage_rubrics && UserConfig.features.rubrics">

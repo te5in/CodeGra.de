@@ -265,6 +265,10 @@ def ensure_can_see_plagiarims_case(
     other_assignment = other_work.assignment
     other_course_id = other_work.assignment.course_id
 
+    # You can see virtual data of virtual assignments
+    if other_work.assignment.course.virtual:
+        return
+
     # Different assignment but same course, so no troubles here.
     if other_course_id == case.plagiarism_run.assignment.course_id:
         return
@@ -298,6 +302,7 @@ def ensure_can_see_assignment(assignment: 'psef.models.Assignment') -> None:
         ensure_permission('can_see_hidden_assignments', assignment.course_id)
 
 
+@login_required
 def ensure_can_view_files(
     work: 'psef.models.Work', teacher_files: bool
 ) -> None:
@@ -309,24 +314,50 @@ def ensure_can_view_files(
     :raises PermissionException: If the user should not be able te see these
         files.
     """
+    try:
+        if work.user_id != psef.current_user.id:
+            try:
+                ensure_permission(
+                    'can_see_others_work', work.assignment.course_id
+                )
+            except PermissionException:
+                ensure_permission(
+                    'can_view_plagiarism', work.assignment.course_id
+                )
 
-    if work.user_id != psef.current_user.id:
-        try:
-            ensure_permission('can_see_others_work', work.assignment.course_id)
-        except PermissionException:
-            ensure_permission('can_view_plagiarism', work.assignment.course_id)
+        if teacher_files:
+            if (
+                work.user_id == psef.current_user.id and
+                work.assignment.is_done
+            ):
+                ensure_permission(
+                    'can_view_own_teacher_files', work.assignment.course_id
+                )
+            else:
+                # If the assignment is not done you can only view teacher files
+                # if you can edit somebodies work.
+                ensure_permission(
+                    'can_edit_others_work', work.assignment.course_id
+                )
+    except PermissionException:
+        # A user can also view a file if there is a plagiarism case between
+        # submission {A, B} where submission A is from a virtual course and the
+        # user has the `can_view_plagiarism` permission on the course of
+        # submission B.
+        if not work.assignment.course.virtual:
+            raise
 
-    if teacher_files:
-        if work.user_id == psef.current_user.id and work.assignment.is_done:
-            ensure_permission(
-                'can_view_own_teacher_files', work.assignment.course_id
-            )
-        else:
-            # If the assignment is not done you can only view teacher files if
-            # you can edit somebodies work.
-            ensure_permission(
-                'can_edit_others_work', work.assignment.course_id
-            )
+        for case in psef.models.PlagiarismCase.query.filter(
+            (psef.models.PlagiarismCase.work1_id == work.id)
+            | (psef.models.PlagiarismCase.work2_id == work.id)
+        ):
+            other_work = case.work1 if case.work2_id == work.id else case.work2
+            if psef.current_user.has_permission(
+                'can_view_plagiarism',
+                course_id=other_work.assignment.course_id,
+            ):
+                return
+        raise
 
 
 def ensure_permission(permission_name: str, course_id: int = None) -> None:
