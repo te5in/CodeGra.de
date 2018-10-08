@@ -12,7 +12,7 @@
     <component :is="hugText ? 'sup' : 'span'"
                class="desc-pop-span"
                :id="compId">
-        <icon name="info" scale="0.75"/>
+        <icon :name="icon" scale="0.75"/>
     </component>
 </span>
 </template>
@@ -60,6 +60,11 @@ export default {
         placement: {
             type: String,
             default: 'right',
+        },
+
+        icon: {
+            type: String,
+            default: 'info',
         },
     },
 

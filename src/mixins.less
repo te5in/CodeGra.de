@@ -27,10 +27,12 @@
 @background-color: #fff;
 @footer-color: #f5f5f5;
 
+@color-danger-dark: lighten(#D9534F, 10%);
+
 @color-diff-added-light: #ddffdd;
 @color-diff-added-dark: lighten(#448F65, 10%);
 @color-diff-removed-light: #ffdddd;
-@color-diff-removed-dark: lighten(#D9534F, 10%);
+@color-diff-removed-dark: @color-danger-dark;
 
 @color-border-gray-lighter: lighten(#989898, 25%);
 @color-border-gray: #989898;
@@ -304,10 +306,23 @@
 
 .dark-table-colors {
     background-color: @color-primary;
+
+    tr.table-info,
+    tr.table-success,
+    tr.table-warning,
+    tr.table-danger {
+        color: @color-primary-darkest;
+    }
+
+    tr.table-danger > td {
+        background-color: @color-danger-dark;
+    }
+
     th {
         border-bottom-color: @color-primary-darker;
         border-top-color: @color-primary-darker;
     }
+
     td {
         border-top-color: @color-primary-darker;
     }
@@ -390,11 +405,21 @@
             border: 1px solid @color-secondary-text-lighter;
         }
 
+        & .table-info,
+        & .table-success,
+        & .table-warning,
+        & .table-danger {
+            & .custom-control-input:not(:checked) ~ .custom-control-label::before {
+                border-color: @color-primary;
+            }
+        }
+
         & .custom-control-input:checked ~ .custom-control-label {
             &::before {
                 background-color: @text-color-dark;
                 color: @color-primary-darker;
             }
+
             &::after {
                 background-image: url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3E%3Cpath fill='%232c3e50' d='M6.564.75l-3.59 3.612-1.538-1.55L0 4.26 2.974 7.25 8 2.193z'/%3E%3C/svg%3E");
             }
