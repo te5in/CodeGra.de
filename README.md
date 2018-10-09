@@ -1,6 +1,6 @@
 <p align="center">
   <a href="https://codegra.de">
-    <img src="https://codegra.de/static/img/codegrade-inv.svg" alt="CodeGra.de" title="CodeGra.de" height="130">
+    <img src="static/img/codegrade-inv.svg" alt="CodeGra.de" title="CodeGra.de" height="130">
   </a>
 </p>
 <p align="center">
@@ -21,7 +21,7 @@
       alt="Source Lines of Code" title="Source Lines of Code">
   </a>
   <a href="https://github.com/CodeGra-de/CodeGra.de">
-    <img src="https://mperlet.github.io/pybadge/badges/10.svg"
+    <img src="https://img.shields.io/badge/pylint-10.0-brightgreen.svg"
       alt="10.0" title="Pylint score">
   </a>
   <a href="https://pyup.io/repos/github/CodeGra-de/CodeGra.de/">
@@ -29,8 +29,8 @@
       alt="Python updates" title="Python updates">
   </a>
   <a href="https://pyup.io/repos/github/CodeGra-de/CodeGra.de/">
-    <img src="https://pyup.io/repos/github/CodeGra-de/CodeGra.de/python-3-shield.svg"
-      alt="Python 3 ready" title="Python 3 ready" style="margin-right: -7px;">
+    <img src="https://img.shields.io/badge/python-3.6%2B-blue.svg"
+      alt="Python 3.6+ ready" title="Python 3.6+ ready">
   </a>
   <a href="https://codegra.de">
     <img src="https://img.shields.io/badge/made%20with-%E2%9D%A4%EF%B8%8F%20&%20%F0%9F%8D%BB-ff69b4.svg"
@@ -45,11 +45,11 @@
       alt="Latest git tag" title="Latest git tag">
   </a>
   <a href="https://github.com/CodeGra-de/CodeGra.de/releases">
-    <img src="https://img.shields.io/github/release/CodeGra-de/CodeGra.de.svg"
+    <img src="https://img.shields.io/github/release/CodeGra-de/CodeGra.de/all.svg"
       alt="Latest release" title="Latest release">
   </a>
   <a href="https://github.com/CodeGra-de/CodeGra.de/releases">
-    <img src="https://img.shields.io/badge/semVer-✓-green.svg"
+    <img src="https://img.shields.io/badge/semVer-✓-brightgreen.svg"
       alt="Semantic Version: ✓" title="Semantic Version">
   </a>
   <a href="https://github.com/CodeGra-de/CodeGra.de/issues">
@@ -60,35 +60,21 @@
     <img src="https://img.shields.io/github/issues-closed-raw/CodeGra-de/CodeGra.de.svg"
       alt="Closed GitHub Issues" title="Closed GitHub Issues">
   </a>
-  <a href="https://github.com/CodeGra-de/CodeGra.de/issues">
-    <img src="https://img.shields.io/issuestats/i/github/CodeGra-de/CodeGra.de.svg"
-      alt="Closed GitHub Issues" title="Closed GitHub Issues">
-  </a>
   <a href="https://github.com/CodeGra-de/CodeGra.de/pulls">
     <img src="https://img.shields.io/github/issues-pr-raw/CodeGra-de/CodeGra.de.svg"
       alt="Open GitHub Pull Requests" title="Open GitHub Pull Requests">
   </a>
   <a href="https://github.com/CodeGra-de/CodeGra.de/pulls">
-    <img src="https://img.shields.io/issuestats/p/github/CodeGra-de/CodeGra.de.svg"
-      alt="Open GitHub Pull Requests" title="Open GitHub Pull Requests">
+    <img src="https://img.shields.io/github/issues-pr-closed-raw/CodeGra-de/CodeGra.de.svg"
+      alt="Closed GitHub Pull Requests" title="Open GitHub Pull Requests">
   </a>
   <a href="https://github.com/CodeGra-de/CodeGra.de">
     <img src="https://reposs.herokuapp.com/?path=CodeGra-de/CodeGra.de"
       alt="Repository size" title="Repository size">
   </a>
   <a href="https://github.com/CodeGra-de/CodeGra.de/blob/master/LICENSE">
-    <img src="https://img.shields.io/badge/license-AGPL--3.0-blue.svg"
-      alt="License AGPL-3.0" title="License AGPL-3.0">
-  </a>
-  <a href="https://matrix.to/#/#CodeGra.de:matrix.org">
-    <img src="https://img.shields.io/badge/matrix-user-43ad8d.svg"
-      alt="Chat on Matrix: #CodeGra.de:matrix.org"
-      title="Chat on Matrix: #CodeGra.de:matrix.org">
-  </a>
-  <a href="https://matrix.to/#/#DevCodeGra.de:matrix.org">
-    <img src="https://img.shields.io/badge/matrix-dev-4e42aa.svg"
-      alt="Chat as developer on Matrix #DevCodeGra.de:matrix.org"
-      title="Chat as developer on Matrix #DevCodeGra.de:matrix.org">
+    <img src="https://img.shields.io/badge/license-AGPL--3.0--only-blue.svg"
+      alt="License AGPL-3.0-only" title="License AGPL-3.0-only">
   </a>
 </p>
 <p align="center">
