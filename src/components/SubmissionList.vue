@@ -21,6 +21,14 @@
             </b-input-group-append>
         </b-input-group>
 
+        <b-input-group>
+            <b-button :to="manageAssignmentRoute"
+                      variant="secondary"
+                      v-b-popover.bottom.hover="'Manage assignment'">
+                <icon name="gear"/>
+            </b-button>
+        </b-input-group>
+
         <div slot="extra" class="clearfix">
             <div id="show-rubric-button-wrapper"
                  style="float: right;">
@@ -104,6 +112,9 @@
 
 <script>
 import { mapGetters } from 'vuex';
+import Icon from 'vue-awesome/components/Icon';
+import 'vue-awesome/icons/gear';
+
 import { formatGrade, filterSubmissions, sortSubmissions, parseBool } from '@/utils';
 
 import * as assignmentState from '@/store/assignment-states';
@@ -216,6 +227,16 @@ export default {
                 this.userId,
                 this.filter,
             );
+        },
+
+        manageAssignmentRoute() {
+            return {
+                name: 'manage_assignment',
+                params: {
+                    courseId: this.assignment.course.id,
+                    assignmentId: this.assignment.id,
+                },
+            };
         },
     },
 
@@ -375,6 +396,7 @@ export default {
     },
 
     components: {
+        Icon,
         Loader,
         SubmitButton,
         RubricEditor,
@@ -432,6 +454,8 @@ export default {
 
 .submission-list .search-wrapper {
     flex: 1;
+    margin-right: 1rem;
+
     #app.dark & .input-group-append .input-group-text {
         background-color: @color-primary-darkest !important;
     }
