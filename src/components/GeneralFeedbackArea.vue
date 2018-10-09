@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div class="general-feedback-area">
     <textarea :placeholder="editable ? 'Feedback' : 'No feedback given :('"

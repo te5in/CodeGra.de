@@ -4,6 +4,7 @@ Revision ID: 480d173bf43f
 Revises:
 Create Date: 2017-08-24 14:02:59.767150
 
+SPDX-License-Identifier: AGPL-3.0-only
 """
 import sqlalchemy as sa
 import sqlalchemy_utils

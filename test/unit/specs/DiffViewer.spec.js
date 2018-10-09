@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
 import DiffViewer from '@/components/DiffViewer';
 import * as utils from '@/utils';
 import { shallowMount, createLocalVue } from '@vue/test-utils';

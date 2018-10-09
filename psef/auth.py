@@ -1,6 +1,6 @@
 """This module implements all authorization functions used by :py:mod:`psef`.
 
-:license: AGPLv3, see LICENSE for details.
+SPDX-License-Identifier: AGPL-3.0-only
 """
 import typing as t
 from functools import wraps

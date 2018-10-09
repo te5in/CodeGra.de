@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <loader v-if="loading" page-loader/>
 <div class="permissions-manager" v-else>

@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <loader center v-if="loading"/>
 <div class="submission-list" v-else>

@@ -2,7 +2,7 @@
 
 .. warning:: This API is not yet stable, please proceed with caution!
 
-:license: AGPLv3, see LICENSE for details.
+SPDX-License-Identifier: AGPL-3.0-only
 """
 import typing as t
 

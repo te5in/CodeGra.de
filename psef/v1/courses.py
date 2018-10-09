@@ -2,7 +2,7 @@
 This module defines all API routes with the main directory "courses". The APIs
 are used to create courses and return information about courses.
 
-:license: AGPLv3, see LICENSE for details.
+SPDX-License-Identifier: AGPL-3.0-only
 """
 
 import typing as t

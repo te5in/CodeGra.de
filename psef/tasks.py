@@ -4,7 +4,7 @@ change the way parameters are used or the parameters provided in existing tasks
 as there may tasks left in the old queue. Instead create a new task and change
 the mapping of the variables at the bottom of this file.
 
-:license: AGPLv3, see LICENSE for details.
+SPDX-License-Identifier: AGPL-3.0-only
 """
 import os
 import shutil

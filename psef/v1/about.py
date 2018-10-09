@@ -3,7 +3,7 @@ This module defines all API routes with the main directory "about". Thus
 the APIs in this module are mostly used get information about the instance
 running psef.
 
-:license: AGPLv3, see LICENSE for details.
+SPDX-License-Identifier: AGPL-3.0-only
 """
 import typing as t
 

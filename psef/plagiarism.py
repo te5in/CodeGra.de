@@ -5,7 +5,7 @@ infrastructure.
 The actual providers are located in the :mod:`psef.plagiarism_providers`
 module.
 
-:license: AGPLv3, see LICENSE for details.
+SPDX-License-Identifier: AGPL-3.0-only
 """
 import abc
 import csv

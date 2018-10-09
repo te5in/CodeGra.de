@@ -1,7 +1,7 @@
 """
 This module is used for all mailing related tasks.
 
-:license: AGPLv3, see LICENSE for details.
+SPDX-License-Identifier: AGPL-3.0-only
 """
 import html
 import typing as t

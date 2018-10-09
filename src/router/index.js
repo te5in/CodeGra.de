@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
 import Vue from 'vue';
 import Router from 'vue-router';
 import store from '@/store';

@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div class="userinfo">
     <loader class="col-md-12 text-center" v-if="loading"/>

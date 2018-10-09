@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
     <div class="file-tree" :class="{ collapsed: isCollapsed, }">
         <div class="directory" :class="{ faded: depth > 0 && !dirHasRevision(tree) }" @click="toggle($event)">

@@ -4,7 +4,7 @@ For details for the matching rules, see https://git-scm.com/docs/gitignore.
 
 This code is almost copied verbatim from dulwich.
 
-:license: AGPLv3, see LICENSE for details.
+SPDX-License-Identifier: AGPL-3.0-only
 """
 import re
 import shutil

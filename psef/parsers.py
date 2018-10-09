@@ -1,7 +1,7 @@
 """
 This module implements parsers that raise a `APIException` when they fail.
 
-:license: AGPLv3, see LICENSE for details.
+SPDX-License-Identifier: AGPL-3.0-only
 """
 import enum
 import typing as t

@@ -3,7 +3,7 @@ This module defines all API routes with the main directory "files". These APIs
 serve to upload and download temporary files which are not stored explicitly in
 the database.
 
-:license: AGPLv3, see LICENSE for details.
+SPDX-License-Identifier: AGPL-3.0-only
 """
 import os
 

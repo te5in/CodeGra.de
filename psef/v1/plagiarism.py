@@ -3,7 +3,7 @@ This module defines all API routes with the main directory "assignments". Thus
 the APIs in this module are mostly used to manipulate
 :class:`.models.Assignment` objects and their relations.
 
-:license: AGPLv3, see LICENSE for details.
+SPDX-License-Identifier: AGPL-3.0-only
 """
 import typing as t
 

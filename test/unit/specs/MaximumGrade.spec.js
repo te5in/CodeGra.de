@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
 import MaximumGrade from '@/components/MaximumGrade';
 import BootstrapVue from 'bootstrap-vue';
 import { shallowMount, createLocalVue } from '@vue/test-utils';

@@ -3,6 +3,8 @@ This module contains all the linters that are integrated in the service.
 
 Integrated linters are ran by the :class:`LinterRunner` and thus implement run
 method.
+
+SPDX-License-Identifier: AGPL-3.0-only
 """
 
 import os

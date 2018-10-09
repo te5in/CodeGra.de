@@ -1,7 +1,7 @@
 """
 This module defines all the objects in the database in their relation.
 
-:license: AGPLv3, see LICENSE for details.
+SPDX-License-Identifier: AGPL-3.0-only
 """
 # TODO: Split this file into one file per model.
 

@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <li :class="{ 'light-selected': selected }"
     class="sidebar-list-item assignment-list-item">

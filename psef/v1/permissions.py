@@ -2,7 +2,7 @@
 This module defines all API routes with the main directory "permissions". These
 APIs are used communicate the permissions users.
 
-:license: AGPLv3, see LICENSE for details.
+SPDX-License-Identifier: AGPL-3.0-only
 """
 
 import typing as t

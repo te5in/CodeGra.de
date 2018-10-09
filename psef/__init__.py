@@ -2,7 +2,7 @@
 This package implements the backend for codegrade. Because of historic reasons
 this backend is named ``psef``.
 
-:license: AGPLv3, see LICENSE for details.
+SPDX-License-Identifier: AGPL-3.0-only
 """
 import os
 import sys

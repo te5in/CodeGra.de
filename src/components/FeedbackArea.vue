@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
     <div class="feedback-area-wrapper non-editable" v-if="(done && !editing)">
         <div class="author" v-if="author">{{ author }}</div>

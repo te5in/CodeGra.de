@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
 import { range, last, visualizeWhitespace, nSpaces, nTabs, isDecimalNumber } from '@/utils';
 
 describe('visualizeWhitespace in utils.js', () => {

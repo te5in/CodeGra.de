@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
 import { TextDecoder } from 'text-encoding';
 import URLSearchParams from 'url-search-params';
 

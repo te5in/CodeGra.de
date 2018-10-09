@@ -4,7 +4,7 @@ APIs in this module are mostly used to manipulate :class:`.models.User` objects
 and their relations. However to manipulate the current logged in user the main
 directory "login" should be used.
 
-:license: AGPLv3, see LICENSE for details.
+SPDX-License-Identifier: AGPL-3.0-only
 """
 import typing as t
 

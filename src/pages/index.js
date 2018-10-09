@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
 export { default as Home } from './Home';
 export { default as ManageCourse } from './ManageCourse';
 export { default as ManageAssignment } from './ManageAssignment';

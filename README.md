@@ -146,7 +146,8 @@ As of writing, there are editor plugins for the following editors:
 
 ## Contributing
 By contributing to this product you agree that all code you write will be
-released under the AGPL license, version 3. See `LICENSE` for details.
+released under the AGPL license, version 3 (AGPL-3.0-only). See `LICENSE` for
+details.
 
 Please consult `CONTRIBUTING.md` for further details on contributing to
 CodeGrade.
@@ -185,5 +186,7 @@ The full documentation of CodeGrade can be found on our website:
 <https://docs.codegra.de/>.
 
 ## License
-CodeGrade is licensed under the [GNU Affero General Public License
-v3.0](https://www.gnu.org/licenses/agpl-3.0.html).
+CodeGrade as a whole is licensed under the [GNU Affero General Public License
+v3.0 (AGPL-3.0-only)](https://www.gnu.org/licenses/agpl-3.0.html). For more
+information about copying see `COPYING`. All license identifiers used in this
+product are SPDX license identifiers.

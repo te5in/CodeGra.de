@@ -3,7 +3,7 @@ This module implements all errors and warnings for psef.
 
 This module does not contain any error checking or handling.
 
-:license: AGPLv3, see LICENSE for details.
+SPDX-License-Identifier: AGPL-3.0-only
 """
 import typing as t
 from enum import IntEnum, unique

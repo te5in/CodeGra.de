@@ -1,11 +1,12 @@
 """This module contains the code used for all LTI functionality.
 
-:license: AGPLv3, see LICENSE for details. This does not include code copied
-    from https://github.com/ucfopen/lti-template-flask-oauth-tokens
-"""
-# This file contains large pieces of code from this github repository:
-# https://github.com/ucfopen/lti-template-flask-oauth-tokens
+SPDX-License-Identifier: AGPL-3.0-only AND MIT
 
+This entire file is licensed as AGPL-3.0-only, except for the code copied
+from https://github.com/ucfopen/lti-template-flask-oauth-tokens which is
+MIT licensed. This copied code is located between the ``# START OF MIT LICENSED
+COPIED WORK #`` and the ``# END OF MIT LICENSED COPIED WORK #`` comment blocks.
+"""
 import typing as t
 import datetime
 from urllib.parse import urlparse
@@ -70,7 +71,6 @@ class LTI:  # pylint: disable=too-many-public-methods
         self.key = self.lti_provider.key
         self.secret = self.lti_provider.secret
 
-    # TODO support more than just flask
     @classmethod
     def create_from_request(cls: t.Type['LTI'], req: flask.Request) -> 'LTI':
         """Create an instance from a flask request.
@@ -652,7 +652,35 @@ class CanvasLTI(LTI):
                     ) if default is None else default
 
 
+#####################################
+# START OF MIT LICENSED COPIED WORK #
+#####################################
+
 # This part is largely copied from https://github.com/tophatmonocle/ims_lti_py
+# and MIT licensed, see below for the entire license.
+
+# The MIT License (MIT)
+#
+# Copyright (c) 2017 University of Central Florida - Center for Distributed
+# Learning
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
 
 REPLACE_REQUEST = 'replaceResult'
 DELETE_REQUEST = 'deleteResult'
@@ -1120,3 +1148,7 @@ class OutcomeResponse:  # pragma: no cover
         return '<?xml version="1.0" encoding="UTF-8"?>{}'.format(
             etree.tostring(root)
         )
+
+###################################
+# END OF MIT LICENSED COPIED WORK #
+###################################

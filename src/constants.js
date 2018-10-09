@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
 export const MANAGE_ASSIGNMENT_PERMISSIONS = Object.freeze([
     'can_edit_assignment_info',
     'can_assign_graders',

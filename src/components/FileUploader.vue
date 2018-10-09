@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <b-form-fieldset class="file-uploader" :class="{ disabled }">
     <b-input-group>

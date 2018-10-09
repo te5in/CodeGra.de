@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div class="manage-assignment loading" v-if="loading">
     <local-header title=" ">

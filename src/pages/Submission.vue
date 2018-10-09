@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <loader center v-if="loadingPage"/>
 <div class="page submission outer-container" id="submission-page" v-else>

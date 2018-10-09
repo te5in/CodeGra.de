@@ -3,7 +3,7 @@ This module defines all API routes with the main directory "login". This APIs
 are used to handle starting and closing the user session and update the :class:
 User object of the logged in user.
 
-:license: AGPLv3, see LICENSE for details.
+SPDX-License-Identifier: AGPL-3.0-only
 """
 import typing as t
 

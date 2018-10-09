@@ -4,6 +4,7 @@ Revision ID: 19f00a8b1316
 Revises: 5c3b448fc795
 Create Date: 2018-09-12 15:26:44.477341
 
+SPDX-License-Identifier: AGPL-3.0-only
 """
 from alembic import op
 import sqlalchemy as sa

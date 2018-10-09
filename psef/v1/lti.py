@@ -4,7 +4,7 @@ are not useful for most clients as the ``/lti/launch/1`` route can only be used
 by an approved LTI provider and the ``/lti/launch/2`` route can only be used
 directly after a successful lti launch.
 
-:license: AGPLv3, see LICENSE for details.
+SPDX-License-Identifier: AGPL-3.0-only
 """
 import typing as t
 import urllib

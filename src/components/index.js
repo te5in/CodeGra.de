@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
 export { default as AssignmentState } from './AssignmentState';
 export { default as CGIgnoreFile } from './CGIgnoreFile';
 export { default as CodeViewer } from './CodeViewer';

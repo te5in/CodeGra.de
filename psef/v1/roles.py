@@ -4,7 +4,7 @@ are used to get roles and add permissions to certain roles. Please note that
 all api's work on global roles, not course roles. See the ``course`` routes for
 course roles.
 
-:license: AGPLv3, see LICENSE for details.
+SPDX-License-Identifier: AGPL-3.0-only
 """
 import typing as t
 

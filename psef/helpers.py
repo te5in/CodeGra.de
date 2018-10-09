@@ -1,7 +1,7 @@
 """
 This module implements generic helpers and convenience functions.
 
-:license: AGPLv3, see LICENSE for details.
+SPDX-License-Identifier: AGPL-3.0-only
 """
 import re
 import abc

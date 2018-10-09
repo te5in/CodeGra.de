@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
 export const LOGIN = 'LOGIN';
 export const LOGOUT = 'LOGOUT';
 export const SNIPPETS = 'SNIPPETS';

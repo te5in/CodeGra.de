@@ -3,7 +3,7 @@ This module defines all API routes with the main directory "submissions". The
 APIs allow the retrieving, and patching of :class: Work objects. Furthermore
 functions are defined to get related objects and information.
 
-:license: AGPLv3, see LICENSE for details.
+SPDX-License-Identifier: AGPL-3.0-only
 """
 
 import os

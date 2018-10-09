@@ -2,7 +2,7 @@
 This module is used for file IO and handling and provides functions for
 extracting and abstracting the structures of directories and archives.
 
-:license: AGPLv3, see LICENSE for details.
+SPDX-License-Identifier: AGPL-3.0-only
 """
 
 import io

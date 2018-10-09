@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div class="assignment-state" v-if="editable">
     <b-button-group @click="updateState">

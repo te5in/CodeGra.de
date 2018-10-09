@@ -2,7 +2,7 @@
 This module DOES NOT define any thing. It is only used for type information
 about sqlalchemy.
 
-:license: AGPLv3, see LICENSE for details.
+SPDX-License-Identifier: AGPL-3.0-only
 """
 # pylint: skip-file
 

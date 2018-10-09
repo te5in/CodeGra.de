@@ -2,7 +2,7 @@
 This module defines all API routes with the main directory "code". Thus the
 APIs are used to manipulate student submitted code and the related feedback.
 
-:license: AGPLv3, see LICENSE for details.
+SPDX-License-Identifier: AGPL-3.0-only
 """
 
 import shutil

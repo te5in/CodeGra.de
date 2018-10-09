@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div class="reset-password row justify-content-center">
     <b-form-fieldset class="col-sm-8 text-center"

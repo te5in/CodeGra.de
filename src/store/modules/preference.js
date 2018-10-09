@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
 import * as types from '../mutation-types';
 
 const getters = {

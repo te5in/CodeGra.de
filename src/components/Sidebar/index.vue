@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div class="sidebar" id="global-sidebar" :class="{ floating, inLTI: $inLTI }">
     <div class="main-menu" :class="{ show: mobileVisible }">

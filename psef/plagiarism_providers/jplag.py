@@ -3,7 +3,7 @@
 This provider only works with the codegrade fork of JPlag as other versions do
 not output the needed csv file.
 
-:license: AGPLv3, see LICENSE for details.
+SPDX-License-Identifier: AGPL-3.0-only
 """
 
 import typing as t

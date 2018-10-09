@@ -3,7 +3,7 @@ This module defines all API routes with the main directory "linters" and
 "linter_comments". These APIs are used to directly communicate about the  state
 of linters and their output.
 
-:license: AGPLv3, see LICENSE for details.
+SPDX-License-Identifier: AGPL-3.0-only
 """
 
 import psef.auth as auth

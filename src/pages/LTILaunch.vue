@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
     <b-alert variant="danger" show v-if="error" class="box">
         <p style="text-align: center; font-size: 1.3em;">

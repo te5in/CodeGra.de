@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div id="app" :class="{ dark: hasDarkMode, lti: $inLTI }">
     <sidebar ref="sidebar"

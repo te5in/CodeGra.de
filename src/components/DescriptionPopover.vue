@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <span class="description-popover"
       :style="{ float: hugText ? 'none' : 'right' }">

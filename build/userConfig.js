@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
 const fs = require('fs');
 const ini = require('ini');
 const execFileSync = require('child_process').execFileSync;

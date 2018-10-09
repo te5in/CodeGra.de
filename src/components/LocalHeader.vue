@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div class="local-header">
     <b-button-toolbar class="toolbar" justify>

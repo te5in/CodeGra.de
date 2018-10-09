@@ -3,7 +3,7 @@ This module defines all API routes with the main directory "snippet" or
 "snippets. These APIs can be used to add, modify, delete and retrieve the
 snippets of the current user.
 
-:license: AGPLv3, see LICENSE for details.
+SPDX-License-Identifier: AGPL-3.0-only
 """
 import typing as t
 

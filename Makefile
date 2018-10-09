@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-only
 TEST_FILE?=psef_test/
 SHELL=/bin/bash
 TEST_FLAGS?=

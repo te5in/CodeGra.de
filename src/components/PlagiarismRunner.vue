@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div class="plagiarism-runner">
     <loader :scale="2" v-if="(canView || canManage) && runs == null"/>
