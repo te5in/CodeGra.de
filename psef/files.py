@@ -16,7 +16,6 @@ import tarfile
 import zipfile
 import tempfile
 
-import archive
 import mypy_extensions
 from werkzeug.utils import secure_filename
 from werkzeug.datastructures import FileStorage
@@ -27,7 +26,7 @@ from . import app, helpers, blackboard
 from .errors import APICodes, APIException
 from .ignore import InvalidFile, IgnoreFilterManager
 
-_KNOWN_ARCHIVE_EXTENSIONS = (*archive.extension_map.keys(), '.tar.xz')
+from . import archive
 
 # Gestolen van Erik Kooistra
 _BB_TXT_FORMAT = re.compile(
@@ -355,14 +354,15 @@ def rename_directory_structure(rootdir: str) -> ExtractFileTree:
             parent = parent[folder]
         parent[folders[-1]] = subdir
 
-    def __to_lists(name: str,
-                   dirs: t.Mapping[str, t.Any]) -> t.Sequence[t.Any]:
+    def __to_lists(
+        name: str,
+        dirs: t.Mapping[str, t.Any],
+    ) -> t.Sequence[t.Union[t.Tuple[str, str], ExtractFileTree]]:
         res = [
-        ]  # type: t.List[t.Union[t.Tuple[str, str], t.Mapping[str, t.Any]]]
+        ]  # type: t.List[t.Union[t.Tuple[str, str], t.MutableMapping[str, t.Any]]]
         for key, value in dirs.items():
             if value is None:
                 new_name, filename = random_file_path()
-                # type filename: str
                 shutil.move(os.path.join(name, key), new_name)
                 res.append((key, filename))
             else:
@@ -375,18 +375,8 @@ def rename_directory_structure(rootdir: str) -> ExtractFileTree:
 
     result_lists = __to_lists(rootdir[:start], directory)
     assert len(result_lists) == 1
+    assert isinstance(result_lists[0], dict)
     return result_lists[0]
-
-
-def is_archive(file: FileStorage) -> bool:
-    """Checks whether the file ends with a known archive file extension.
-
-    File extensions are known if they are recognized by the archive module.
-
-    :param file: Some file
-    :returns: True if the file has a known extension
-    """
-    return file.filename.endswith(_KNOWN_ARCHIVE_EXTENSIONS)
 
 
 def extract_to_temp(
@@ -413,14 +403,15 @@ def extract_to_temp(
         tmpdir = tempfile.mkdtemp()
         file.save(tmparchive)
 
+        arch = archive.Archive.create_from_file(tmparchive)
+
         if handle_ignore == IgnoreHandling.error:
-            arch = archive.Archive(tmparchive)
             wrong_files = ignore_filter.get_ignored_files_in_archive(arch)
             if wrong_files:
                 raise IgnoredFilesException(invalid_files=wrong_files)
-            arch.extract(to_path=tmpdir, method='safe')
+            arch.extract(to_path=tmpdir)
         else:
-            archive.extract(tmparchive, to_path=tmpdir, method='safe')
+            arch.extract(to_path=tmpdir)
             if handle_ignore == IgnoreHandling.delete:
                 ignore_filter.delete_from_dir(tmpdir)
     except (
@@ -551,7 +542,7 @@ def process_files(
     """
 
     def consider_archive(f: FileStorage) -> bool:
-        return not force_txt and is_archive(f)
+        return not force_txt and archive.Archive.is_archive(f.filename)
 
     def raise_error() -> t.NoReturn:
         raise APIException(

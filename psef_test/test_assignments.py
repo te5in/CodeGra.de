@@ -2386,7 +2386,8 @@ def test_ignored_upload_files(
 
     with logged_in(named_user):
         res = test_client.req(
-            'post', f'/api/v1/assignments/{assignment.id}/submission?'
+            'post',
+            f'/api/v1/assignments/{assignment.id}/submission?'
             'ignored_files=error',
             400,
             real_data={
@@ -2394,6 +2395,8 @@ def test_ignored_upload_files(
                     (
                         f'{os.path.dirname(__file__)}/../test_data/'
                         f'test_submissions/{name}{ext}', f'{name}'
+                        # Extension is not appended to the name, so the file
+                        # won't get extracted.
                     )
             },
             result={
@@ -2403,7 +2406,28 @@ def test_ignored_upload_files(
                 'invalid_files': list
             }
         )
+        # Make sure it works when not submitting an archive
         assert set([f'{name}']) == set(r[0] for r in res['invalid_files'])
+
+        res = test_client.req(
+            'post',
+            f'/api/v1/assignments/{assignment.id}/submission?'
+            'ignored_files=delete',
+            400,
+            real_data={
+                'file':
+                    (
+                        f'{os.path.dirname(__file__)}/../test_data/'
+                        f'test_submissions/{name}{ext}', f'{name}'
+                        # Test without extension
+                    )
+            },
+            result={
+                'code': 'NO_FILES_SUBMITTED',
+                'message': str,
+                'description': str,
+            }
+        )
 
         res = test_client.req(
             'post', f'/api/v1/assignments/{assignment.id}/submission?'
@@ -2413,7 +2437,7 @@ def test_ignored_upload_files(
                 'file':
                     (
                         f'{os.path.dirname(__file__)}/../test_data/'
-                        f'test_submissions/{name}{ext}', f'{name}'
+                        f'test_submissions/{name}{ext}', f'{name}{ext}'
                     )
             },
             result={
@@ -2434,14 +2458,17 @@ def test_ignored_upload_files(
     with logged_in(named_user):
         res = test_client.req(
             'post',
-            f'/api/v1/assignments/{assignment.id}/submission?'
-            'ignored_files=error',
+            (
+                f'/api/v1/assignments/{assignment.id}/submission?'
+                'ignored_files=error'
+            ),
             201,
             real_data={
                 'file':
                     (
                         f'{os.path.dirname(__file__)}/../test_data/'
                         f'test_submissions/{name}{ext}', f'{name}'
+                        # Test without extension
                     )
             },
         )
@@ -2450,10 +2477,40 @@ def test_ignored_upload_files(
             f'/api/v1/submissions/{res["id"]}/files/',
             200,
             result={
-                'name': 'top',
+                'entries': [{
+                    'name': name,
+                    'id': int
+                }],
                 'id': int,
-                'entries': list
+                'name': 'top',
+            }
+        )
+
+    with logged_in(named_user):
+        res = test_client.req(
+            'post',
+            (
+                f'/api/v1/assignments/{assignment.id}/submission?'
+                'ignored_files=error'
+            ),
+            201,
+            real_data={
+                'file':
+                    (
+                        f'{os.path.dirname(__file__)}/../test_data/'
+                        f'test_submissions/{name}{ext}', f'{name}{ext}'
+                    )
             },
+        )
+        test_client.req(
+            'get',
+            f'/api/v1/submissions/{res["id"]}/files/',
+            200,
+            result={
+                'entries': entries,
+                'id': int,
+                'name': f'{dirname}'
+            }
         )
 
 

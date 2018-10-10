@@ -10,9 +10,8 @@ import re
 import shutil
 import typing as t
 import os.path
-import tarfile
 
-import archive
+from . import archive
 
 
 class InvalidFile(ValueError):
@@ -255,50 +254,19 @@ class IgnoreFilterManager:
 
     def get_ignored_files_in_archive(
         self,
-        arch_wrapper: archive.Archive,
+        arch: archive.Archive,
     ) -> t.List[t.Tuple[str, str]]:
         """Get all ignored files in the given archive.
 
         :param arch: The archive to check for ignored files.
         :returns: All files that should be ignored.
         """
-        arch = arch_wrapper._archive  # pylint: disable=protected-access
-
-        def __get_names() -> t.Iterable[str]:
-            if isinstance(arch, archive.TarArchive):
-                info: tarfile.TarInfo
-                # We need the protected access as this not publicly
-                # exposed. The version is pinned so this should be fine
-                for info in arch._archive.getmembers():  # pylint: disable=protected-access
-                    if info.isdir():
-                        yield info.name + '/'
-                    else:
-                        yield info.name
-            elif isinstance(arch, archive.ZipArchive):
-                seen_dirs = set()
-                for f in arch.filenames():
-                    first = True
-                    while f and f not in seen_dirs:
-                        f, tail = os.path.split(f)
-                        cur_path = (f + '/' if f else '') + tail
-                        # We add p without trailing slash as this is easier to
-                        # search for
-                        seen_dirs.add(cur_path)
-                        if not first:
-                            cur_path += '/'
-                        yield cur_path
-
-                        first = False
-            else:  # pragma: no cover
-                # This else is not possible as our archive package only
-                # supports tar.gz and zip files. However it doesn't hurt to
-                # have it here.
-                yield from arch.filenames()
-
         wrong_files = []
-        for name in __get_names():
-            is_ignored, line = self.is_ignored(name)
+
+        for info in arch.get_members():
+            is_ignored, line = self.is_ignored(info.name)
             if is_ignored:
                 assert line is not None
-                wrong_files.append((name, line))
+                wrong_files.append((info.name, line))
+
         return wrong_files
