@@ -53,8 +53,7 @@
                     <div class="settings-content"
                          id="codeviewer-settings-content"
                          ref="settingsContent">
-                        <preference-manager :file-id="currentFile && currentFile.id"
-                                            :show-loader="false"
+                        <preference-manager :file-id="(currentFile && currentFile.id) || `${submission.id}-OVERVIEW`"
                                             :show-revision="canSeeRevision && !overviewMode"
                                             :show-language="!(diffMode || overviewMode)"
                                             :show-context-amount="overviewMode"
