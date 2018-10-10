@@ -483,10 +483,16 @@ def extended_jsonify(
     response.status_code = status_code
 
     if not isinstance(obj, psef.errors.APIException):
+        if getattr(psef.current_app, 'debug', False) and not getattr(
+            psef.current_app, 'testing', False
+        ):  # pragma: no cover
+            to_log = response.get_json()
+        else:
+            to_log = response.response
         logger.info(
             'Created extended json return response',
             reponse_type=str(type(obj)),
-            response=response.response,
+            response=to_log,
         )
 
     _maybe_add_warning(response, warning)
@@ -509,10 +515,16 @@ def jsonify(
     """
     response = flask.jsonify(obj)
     if not isinstance(obj, psef.errors.APIException):
+        if getattr(psef.current_app, 'debug', False) and not getattr(
+            psef.current_app, 'testing', False
+        ):  # pragma: no cover
+            to_log = response.get_json()
+        else:
+            to_log = response.response
         logger.info(
             'Created json return response',
             reponse_type=str(type(obj)),
-            response=response.response,
+            response=to_log,
         )
     response.status_code = status_code
 

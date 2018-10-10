@@ -15,7 +15,7 @@ from collections import defaultdict
 import structlog
 import sqlalchemy.sql as sql
 from flask import request
-from sqlalchemy.orm import undefer, joinedload
+from sqlalchemy.orm import undefer, joinedload, selectinload
 
 import psef
 import psef.auth as auth
@@ -333,7 +333,17 @@ def get_assignment_rubric(assignment_id: int
     :raises PermissionException: If the user is not allowed to see this is
                                  assignment. (INCORRECT_PERMISSION)
     """
-    assig = helpers.get_or_404(models.Assignment, assignment_id)
+    assig = helpers.get_or_404(
+        models.Assignment,
+        assignment_id,
+        options=[
+            selectinload(
+                models.Assignment.rubric_rows,
+            ).selectinload(
+                models.RubricRow.items,
+            )
+        ]
+    )
 
     auth.ensure_permission('can_see_assignments', assig.course_id)
     if not assig.rubric_rows:
@@ -1080,7 +1090,6 @@ def post_submissions(assignment_id: int) -> EmptyResponse:
     global_role = models.Role.query.filter_by(name='Student').first()
 
     subs = []
-    hists = []
 
     found_users = {
         u.username: u
@@ -1131,11 +1140,7 @@ def post_submissions(assignment_id: int) -> EmptyResponse:
                 missing = recalc_missing(work.assigned_to)
                 sub_lookup[user.id] = work
 
-        hists.append(
-            work.set_grade(
-                submission_info.grade, current_user, add_to_session=False
-            )
-        )
+        work.set_grade(submission_info.grade, current_user)
         work.add_file_tree(submission_tree)
         if work.assigned_to is not None:
             newly_assigned.add(work.assigned_to)
@@ -1147,14 +1152,6 @@ def post_submissions(assignment_id: int) -> EmptyResponse:
     )
 
     db.session.bulk_save_objects(subs)
-    db.session.flush()
-
-    # TODO: This loop should be eliminated.
-    for hist in hists:
-        hist.work_id = hist.work.id
-        hist.user_id = hist.user.id
-
-    db.session.bulk_save_objects(hists)
     db.session.commit()
 
     return make_empty_response()

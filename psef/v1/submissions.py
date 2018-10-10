@@ -14,6 +14,7 @@ import tempfile
 from collections import defaultdict
 
 from flask import request
+from sqlalchemy.orm import selectinload
 from mypy_extensions import TypedDict
 
 import psef.auth as auth
@@ -295,7 +296,20 @@ def get_rubric(submission_id: int) -> JSONResponse[t.Mapping[str, t.Any]]:
     :raises PermissionException: If the user can not see the assignment of the
                                  given submission. (INCORRECT_PERMISSION)
     """
-    work = helpers.get_or_404(models.Work, submission_id)
+    work = helpers.get_or_404(
+        models.Work,
+        submission_id,
+        options=[
+            selectinload(
+                models.Work.assignment,
+            ).selectinload(
+                models.Assignment.rubric_rows,
+            ).selectinload(
+                models.RubricRow.items,
+            ),
+            selectinload(models.Work.selected_items),
+        ]
+    )
     auth.ensure_permission('can_see_assignments', work.assignment.course_id)
     return jsonify(work.__rubric_to_json__())
 
@@ -327,13 +341,13 @@ def select_rubric_items(submission_id: int, ) -> EmptyResponse:
     ensure_keys_in_dict(content, [('items', list)])
     item_ids = t.cast(list, content['items'])
 
-    items = []
-    for item_id in item_ids:
-        items.append(helpers.get_or_404(models.RubricItem, item_id))
+    items = [
+        helpers.get_or_404(models.RubricItem, item_id) for item_id in item_ids
+    ]
 
     if any(
         item.rubricrow.assignment_id != submission.assignment_id
-        for item in items if item.rubricrow is not None
+        for item in items
     ):
         raise APIException(
             'Selected rubric item is not coupled to the given submission',

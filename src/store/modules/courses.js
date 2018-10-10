@@ -24,15 +24,13 @@ const getters = {
     },
 };
 
-let first = true;
-
 const actions = {
     loadCourses({ state, commit }) {
-        if (first || !Object.values(state.courses).length) {
-            return actions.reloadCourses({ commit });
+        if (state.currentCourseLoader == null) {
+            state.currentCourseLoader = actions.reloadCourses({ commit });
         }
 
-        return null;
+        return state.currentCourseLoader;
     },
 
     async reloadCourses({ commit }) {
@@ -95,7 +93,6 @@ const actions = {
 
 const mutations = {
     [types.SET_COURSES](state, [courses, manageCourses, manageAssigs, createAssigs, perms]) {
-        first = false;
         state.courses = courses.reduce((res, course) => {
             course.assignments.forEach((assignment) => {
                 const deadline = moment.utc(assignment.deadline, moment.ISO_8601).local();
@@ -127,8 +124,8 @@ const mutations = {
     },
 
     [types.CLEAR_COURSES](state) {
-        first = true;
         state.courses = {};
+        state.currentCourseLoader = null;
     },
 
     [types.UPDATE_COURSE](state, { courseId, courseProps }) {
@@ -168,7 +165,9 @@ export default {
     namespaced: true,
     state: {
         courses: {},
+        currentCourseLoader: null,
     },
+
     getters,
     actions,
     mutations,

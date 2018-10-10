@@ -1149,6 +1149,7 @@ class OutcomeResponse:  # pragma: no cover
             etree.tostring(root)
         )
 
+
 ###################################
 # END OF MIT LICENSED COPIED WORK #
 ###################################

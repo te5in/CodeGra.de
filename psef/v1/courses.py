@@ -9,6 +9,7 @@ import typing as t
 import datetime
 
 from flask import request
+from sqlalchemy.orm import selectinload
 from mypy_extensions import TypedDict
 
 import psef.auth as auth
@@ -498,8 +499,9 @@ def get_courses() -> JSONResponse[t.Sequence[t.Mapping[str, t.Any]]]:
 
     :returns: A response containing the JSON serialized courses
 
-    :param str extended: If set to `true` all the assignments for each course
-        are also included under the key `assignments`.
+    :param str extended: If set to ``true``, ``1`` or the empty string all the
+        assignments for each course are also included under the key
+        `assignments`.
 
     :>jsonarr str role: The name of the role the current user has in this
         course.
@@ -509,19 +511,44 @@ def get_courses() -> JSONResponse[t.Sequence[t.Mapping[str, t.Any]]]:
     """
 
     def _get_rest(course: models.Course) -> t.Mapping[str, t.Any]:
-        if request.args.get('extended') == 'true':
+        if helpers.extended_requested():
             return {
                 'assignments': course.get_all_visible_assignments(),
                 **course.__to_json__(),
             }
         return course.__to_json__()
 
+    extra_loads = [
+        selectinload(
+            models.User.courses,
+        ).selectinload(
+            models.CourseRole.course,
+        )
+    ]
+    if helpers.extended_requested():
+        extra_loads = [
+            extra_loads[0].selectinload(
+                models.Course.assignments,
+            ),
+            selectinload(
+                models.User.courses,
+            ).selectinload(
+                models.CourseRole._permissions,  # pylint: disable=protected-access
+            )
+        ]
+
+    user = helpers.get_or_404(
+        models.User,
+        current_user.id,
+        options=extra_loads,
+    )
+
     return jsonify(
         [
             {
                 'role': c.name,
                 **_get_rest(c.course),
-            } for c in current_user.courses.values()
+            } for c in user.courses.values()
         ]
     )
 

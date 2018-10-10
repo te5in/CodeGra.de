@@ -1096,7 +1096,11 @@ class GradeHistory(Base):
         db.ForeignKey('User.id', ondelete='CASCADE'),
     )
 
-    work = db.relationship('Work', foreign_keys=work_id)  # type: 'Work'
+    work = db.relationship(
+        'Work',
+        foreign_keys=work_id,
+        backref=db.backref('grade_histories', lazy='select')
+    )  # type: 'Work'
     user = db.relationship('User', foreign_keys=user_id)  # type: User
 
     def __to_json__(self) -> t.Mapping[str, t.Any]:
@@ -1175,6 +1179,8 @@ class Work(Base):
     assignee = db.relationship(
         'User', foreign_keys=assigned_to, lazy='joined'
     )  # type: t.Optional[User]
+
+    grade_histories: t.List['GradeHistory']
 
     # This variable is generated from the backref from all files
     files: 't.List["File"]'
@@ -1263,7 +1269,6 @@ class Work(Base):
         self,
         new_grade: t.Optional[float],
         user: User,
-        add_to_session: bool = True,
         never_passback: bool = False,
     ) -> GradeHistory:
         """Set the grade to the new grade.
@@ -1273,8 +1278,6 @@ class Work(Base):
 
         :param new_grade: The new grade to set
         :param user: The user setting the new grade.
-        :param add_to_session: Add the newly created history file to the
-            current session.
         :param never_passback: Never passback the new grade.
         :returns: Nothing
         """
@@ -1288,8 +1291,8 @@ class Work(Base):
             work=self,
             user=user
         )
-        if add_to_session:
-            db.session.add(history)
+        self.grade_histories.append(history)
+
         if not never_passback and passback:
             psef.helpers.callback_after_this_request(
                 lambda: psef.tasks.passback_grades([self.id])

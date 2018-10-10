@@ -33,6 +33,7 @@
 
 <script>
 import { SubmissionList, Loader, SubmitButton, SubmissionUploader } from '@/components';
+import { mapGetters, mapActions } from 'vuex';
 import moment from 'moment';
 
 import * as assignmentState from '../store/assignment-states';
@@ -48,8 +49,6 @@ export default {
             submissions: [],
             canUpload: false,
             canUploadForOthers: false,
-            assignment: null,
-            course: null,
             canDownload: false,
             rubric: null,
             graders: null,
@@ -60,6 +59,12 @@ export default {
     },
 
     computed: {
+        ...mapGetters('courses', ['assignments']),
+
+        assignment() {
+            return this.assignments[this.assignmentId];
+        },
+
         assignmentId() {
             return Number(this.$route.params.assignmentId);
         },
@@ -110,24 +115,23 @@ export default {
     },
 
     methods: {
+        ...mapActions('courses', ['loadCourses']),
+
         loadData() {
             this.loading = true;
             Promise.all([
-                this.$http.get(`/api/v1/assignments/${this.assignmentId}`),
+                this.loadCourses(),
                 this.$http.get(`/api/v1/assignments/${this.assignmentId}/submissions/`),
                 this.$http.get(`/api/v1/assignments/${this.assignmentId}/rubrics/`).catch(() => ({ data: null })),
-            ]).then(([
-                { data: assignment },
+            ]).then(([,
                 { data: submissions },
                 { data: rubric },
             ]) => {
                 let done = false;
-                this.course = assignment.course;
-                this.assignment = assignment;
                 this.submissions = submissions;
                 this.rubric = rubric;
 
-                setPageTitle(`${assignment.name} ${pageTitleSep} Submissions`);
+                setPageTitle(`${this.assignment.name} ${pageTitleSep} Submissions`);
 
                 this.$hasPermission(
                     [

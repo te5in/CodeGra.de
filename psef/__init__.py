@@ -94,14 +94,6 @@ def create_app(config: t.Mapping = None, skip_celery: bool = False) -> t.Any:  #
         g.queries_max_duration = None
         g.query_start = None
 
-    @resulting_app.before_request
-    @flask_jwt.jwt_optional
-    def __set_current_user() -> None:  # pylint: disable=unused-variable
-        # This code is necessary to make `flask_jwt_extended` understand that
-        # we always want to try to load the given JWT token. The function body
-        # SHOULD be empty here.
-        pass
-
     @resulting_app.teardown_request
     def __teardown_request(exception: t.Type[Exception]) -> None:  # pylint: disable=unused-variable
         if exception:  # pragma: no cover
@@ -126,13 +118,17 @@ def create_app(config: t.Mapping = None, skip_celery: bool = False) -> t.Any:  #
         g.request_id = uuid.uuid4()
         log = logger.new(
             request_id=str(g.request_id),
-            current_user=current_user and current_user.username,
             path=flask.request.path,
             view=getattr(flask.request.url_rule, 'rule', None),
             base_url=resulting_app.config['EXTERNAL_URL'],
         )
+        flask_jwt.verify_jwt_in_request_optional()
+        log.bind(current_user=current_user and current_user.username)
         log.info(
-            "Request started", host=request.host_url, method=request.method
+            "Request started",
+            host=request.host_url,
+            method=request.method,
+            args=dict(flask.request.args),
         )
 
     @event.listens_for(Engine, "before_cursor_execute")
