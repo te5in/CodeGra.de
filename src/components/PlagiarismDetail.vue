@@ -10,19 +10,14 @@
 </div>
 <loader v-else-if="loadingData || assignment == null"/>
 <div class="plagiarism-detail" v-else>
-    <local-header>
-        <b-input-group-prepend slot="prepend"
-                               @click="closeDetailView"
-                               style="cursor: pointer;">
-            <icon name="arrow-left"/>
-        </b-input-group-prepend>
-        <h4 slot="title" class="title">
+    <local-header :back-route="{ name: 'plagiarism_overview' }"
+                  back-popover="Go back to overview">
+        <template slot="title">
             Plagiarism comparison between &quot;{{detail.users[0].name}}&quot; and
             &quot;{{detail.users[1].name}}&quot; for assignment &quot;{{assignment.name}}&quot;
-        </h4>
-        <b-input-group-append>
-            <b-btn v-b-modal.plagiarism-export>Export</b-btn>
-        </b-input-group-append>
+        </template>
+
+        <b-btn v-b-modal.plagiarism-export style="margin-left: 15px;">Export</b-btn>
     </local-header>
 
     <b-modal id="plagiarism-export" title="Export to LaTeX" hide-footer>
@@ -135,8 +130,6 @@
 
 <script>
 import { mapActions, mapGetters } from 'vuex';
-import Icon from 'vue-awesome/components/Icon';
-import 'vue-awesome/icons/arrow-left';
 
 import { Loader, LocalHeader, SubmitButton } from '@/components';
 
@@ -256,13 +249,6 @@ export default {
     methods: {
         ...mapActions('courses', ['loadCourses']),
 
-        closeDetailView() {
-            this.$router.push({
-                name: 'plagiarism_overview',
-                params: this.$route.params,
-            });
-        },
-
         async getTexFile(matches) {
             const header = `\\documentclass{article}
 \\usepackage{listings}
@@ -300,7 +286,6 @@ export default {
 \\section{Plagiarism matches}`;
             const endListingRegex = new RegExp('\\\\end{lstlisting}', 'g');
             const underscore = new RegExp('_', 'g');
-
 
             const contents = Object.keys(matches.reduce((accum, match) => {
                 accum[match.files[0].id] = true;
@@ -535,7 +520,6 @@ ${right.join('\n')}
     },
 
     components: {
-        Icon,
         Loader,
         LocalHeader,
         SubmitButton,
@@ -703,12 +687,6 @@ code {
     #app.dark & {
         color: #839496;
     }
-}
-
-.title {
-    margin-bottom: 0;
-    margin-left: 15px;
-    flex: 1 1 auto;
 }
 
 .plagiarism-detail .input-group-prepend {

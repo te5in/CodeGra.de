@@ -3151,8 +3151,11 @@ class PlagiarismRun(Base):
         'Assignment', foreign_keys=assignment_id, lazy='joined'
     )  # type: 'Assignment'
 
-    # This variable is available through a backref
-    cases: t.List['PlagiarismCase']
+    cases: t.List['PlagiarismCase'] = db.relationship(
+        "PlagiarismCase",
+        backref=db.backref('plagiarism_run'),
+        order_by='desc(PlagiarismCase.match_avg)'
+    )
 
     @property
     def provider_name(self) -> str:
@@ -3180,6 +3183,7 @@ class PlagiarismRun(Base):
                 'config': t.List[t.List[str]], # A sorted association list with
                                                # the config used for this run.
                 'created_at': str, # ISO UTC date.
+                'assignment': Assignment, # The assignment this run belongs to.
             }
 
         :returns: A object as described above.
@@ -3190,6 +3194,7 @@ class PlagiarismRun(Base):
             'provider_name': self.provider_name,
             'config': json.loads(self.json_config),
             'created_at': self.created_at.isoformat(),
+            'assignment': self.assignment,
         }
 
     def __extended_to_json__(self) -> t.Mapping[str, object]:
@@ -3261,11 +3266,7 @@ class PlagiarismCase(Base):
         'Work', foreign_keys=work2_id, lazy='joined'
     )  # type: Work
 
-    plagiarism_run: PlagiarismRun = db.relationship(
-        'PlagiarismRun',
-        foreign_keys=plagiarism_run_id,
-        backref=db.backref('cases', uselist=True),
-    )
+    plagiarism_run: PlagiarismRun
 
     matches = db.relationship(
         "PlagiarismMatch",

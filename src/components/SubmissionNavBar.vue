@@ -2,10 +2,6 @@
 <template>
 <b-input-group class="submission-nav-bar">
     <b-button-group class="nav-wrapper">
-        <b-button class="angle-btn"
-                    @click="backToSubmissions">
-            <icon name="angle-double-left"/>
-        </b-button>
         <b-button :disabled="!hasPrev"
                     @click="selectPrev">
             <icon name="angle-left"/>
@@ -27,7 +23,6 @@
 import moment from 'moment';
 import { formatGrade, sortSubmissions, parseBool } from '@/utils';
 import Icon from 'vue-awesome/components/Icon';
-import 'vue-awesome/icons/angle-double-left';
 import 'vue-awesome/icons/angle-left';
 import 'vue-awesome/icons/angle-right';
 
@@ -97,23 +92,6 @@ export default {
     },
 
     methods: {
-        backToSubmissions() {
-            this.$router.push({
-                name: 'assignment_submissions',
-                params: {
-                    courseId: this.$route.params.courseId,
-                    assignmentId: this.$route.params.assignmentId,
-                },
-                query: {
-                    q: this.$route.query.search || undefined,
-                    mine: this.$route.query.mine || false,
-                    latest: this.$route.query.latest || false,
-                    sortBy: this.$route.query.sortBy,
-                    sortAsc: this.$route.query.sortAsc,
-                },
-            });
-        },
-
         selectPrev() {
             if (this.hasPrev) {
                 this.selected = this.options[this.optionIndex - 1].value;

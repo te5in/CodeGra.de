@@ -6,6 +6,7 @@ import createPersistedState from 'vuex-persistedstate';
 import user from './modules/user';
 import pref from './modules/preference';
 import courses from './modules/courses';
+import plagiarism from './modules/plagiarism';
 
 Vue.use(Vuex);
 
@@ -25,6 +26,7 @@ export default new Vuex.Store({
         user,
         pref,
         courses,
+        plagiarism,
     },
     strict: debug,
     plugins,

@@ -245,3 +245,20 @@ export function visualizeWhitespace(line) {
     }
     return newLine.join('');
 }
+
+
+export function getOtherAssignmentPlagiarismDesc(item, index) {
+    const assig = item.assignments[index];
+    if (assig && assig.course.virtual) {
+        return 'This submission was uploaded during running as part of an archive of old submissions.';
+    }
+
+    let desc = `This assignment was submitted to the assignment "${item.assignments[index].name}" of "${item.assignments[index].course.name}"`;
+
+    if (item.submissions != null) {
+        const date = moment.utc(item.submissions[index].created_at, moment.ISO_8601).local().format('YYYY-MM-DD');
+        desc = `${desc} on ${date}`;
+    }
+
+    return desc;
+}

@@ -21,7 +21,8 @@
         </b-button-toolbar>
     </b-modal>
 
-    <local-header>
+    <local-header :back-route="submissionsRoute"
+                  back-popover="Go back to submissions list">
         <submission-nav-bar v-if="submissions"
                             v-model="submission"
                             :submissions="submissions"
@@ -310,6 +311,23 @@ export default {
 
         selectedRevision() {
             return this.$route.query.revision || 'student';
+        },
+
+        submissionsRoute() {
+            return {
+                name: 'assignment_submissions',
+                params: {
+                    courseId: this.$route.params.courseId,
+                    assignmentId: this.$route.params.assignmentId,
+                },
+                query: {
+                    q: this.$route.query.search || undefined,
+                    mine: this.$route.query.mine || false,
+                    latest: this.$route.query.latest || false,
+                    sortBy: this.$route.query.sortBy,
+                    sortAsc: this.$route.query.sortAsc,
+                },
+            };
         },
     },
 
@@ -830,7 +848,7 @@ export default {
     flex-wrap: nowrap;
     min-height: 0;
 
-    @media @media-small {
+    @media @media-no-large {
         flex-direction: column;
         justify-content: start !important;
     }
@@ -847,7 +865,7 @@ export default {
     flex-direction: column;
     max-height: 100%;
 
-    @media @media-small {
+    @media @media-no-large {
         flex: 0 1 auto;
     }
 }
@@ -856,7 +874,7 @@ export default {
     flex: 1 1 auto;
     min-height: 0;
 
-    @media @media-small {
+    @media @media-no-large {
         flex: 1 1 100vh;
     }
 }
@@ -875,7 +893,7 @@ export default {
     // code viewer isn't repainted anymore.
     will-change: transform;
 
-    @media @media-small {
+    @media @media-no-large {
         flex: 0 1 auto;
         flex: 0 1 -webkit-max-content;
         flex: 0 1 -moz-max-content;
@@ -906,7 +924,7 @@ export default {
 .file-tree-container {
     max-height: 100%;
 
-    @media @media-small {
+    @media @media-no-large {
         flex: 0 0 auto;
     }
 }
@@ -915,7 +933,7 @@ export default {
     max-height: 100%;
     overflow: auto;
 
-    @media @media-small {
+    @media @media-no-large {
         max-height: @small-max-tree-height;
     }
 }

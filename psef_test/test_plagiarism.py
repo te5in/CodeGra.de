@@ -204,6 +204,7 @@ def test_jplag(
                 'provider_name': str,
                 'config': list,
                 'created_at': str,
+                'assignment': dict,
             }
         )
         if code >= 400:
@@ -230,6 +231,7 @@ def test_jplag(
                 'provider_name': str,
                 'config': list,
                 'created_at': str,
+                'assignment': dict,
             }
         )
         test_client.req(
@@ -425,6 +427,7 @@ def test_jplag_old_assignments(
                 'provider_name': str,
                 'config': list,
                 'created_at': str,
+                'assignment': dict,
             }
         )
         plag = test_client.req(
@@ -439,6 +442,7 @@ def test_jplag_old_assignments(
                 'log': str,
                 'cases': list,
                 'created_at': str,
+                'assignment': dict,
             }
         )
         amount_subs = assignment.get_from_latest_submissions(
@@ -701,6 +705,7 @@ def test_jplag_old_submissions(
                 'log': str,
                 'cases': list,
                 'created_at': str,
+                'assignment': dict,
             }
         )
         for jcase in plag['cases']:
@@ -857,6 +862,7 @@ def test_jplag_base_code(
                 'log': 'Done!',
                 'cases': list,
                 'created_at': str,
+                'assignment': dict,
             }
         )
 
@@ -913,6 +919,7 @@ def test_chrased_jplag(
                 'provider_name': str,
                 'config': list,
                 'created_at': str,
+                'assignment': dict,
             }
         )
         plag = test_client.req(
@@ -928,6 +935,7 @@ def test_chrased_jplag(
                 'log': str,
                 'cases': [],
                 'created_at': str,
+                'assignment': dict,
             }
         )
         if subprocess_exception:

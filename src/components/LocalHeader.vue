@@ -2,15 +2,24 @@
 <template>
 <div class="local-header">
     <b-button-toolbar class="toolbar" justify>
+        <b-input-group-prepend v-if="backRoute"
+                               style="cursor: pointer; margin-right: 15px;">
+            <b-btn :to="backRoute"
+                   v-b-popover.bottom.hover="backPopover">
+                <icon name="arrow-left"/>
+            </b-btn>
+        </b-input-group-prepend>
+
         <slot v-show="$slots.title" name="prepend"/>
+
         <div class="sidebar-toggle">
             <img src="/static/img/bars.svg"
                  @click="toggleSidebar()">
         </div>
 
-        <slot v-if="$slots.title" name="title">{{ title }}</slot>
-        <h4 v-else-if="title" class="title">
-            {{ title }}
+        <h4 v-if="title || $slots.title" class="title">
+            <slot v-if="$slots.title" name="title">{{ title }}</slot>
+            <span v-else>{{ title }}</span>
         </h4>
 
         <slot/>
@@ -38,6 +47,7 @@
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/angle-double-down';
 import 'vue-awesome/icons/angle-double-up';
+import 'vue-awesome/icons/arrow-left';
 
 export default {
     name: 'local-header',
@@ -46,6 +56,16 @@ export default {
         title: {
             type: String,
             default: '',
+        },
+
+        backRoute: {
+            type: Object,
+            default: null,
+        },
+
+        backPopover: {
+            type: String,
+            default: 'Go back',
         },
     },
 
@@ -102,15 +122,14 @@ export default {
 }
 
 .title {
-    display: inline-block;
+    flex: 2;
     margin-bottom: 0;
+    text-align: left;
 }
 
 .toolbar {
-    flex: 1 1 auto;
-    flex-shrink: 0;
+    flex: 1 0 auto;
     align-items: center;
-    margin-top: -.25rem;
 }
 
 .separator {
@@ -120,11 +139,5 @@ export default {
     #app.dark & {
         border-color: @color-primary-darkest;
     }
-}
-</style>
-
-<style lang="less">
-.local-header > .toolbar > div {
-        margin-top: .25rem;
 }
 </style>

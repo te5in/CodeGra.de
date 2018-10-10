@@ -8,9 +8,14 @@
         {{ error }}
     </b-alert>
 </div>
-<loader v-else-if="loadingData || assignment == null"/>
+<loader v-else-if="loadingData || assignment == null || run == null"/>
 <div class="plagiarism-overview" v-else>
-    <local-header :title="`Plagiarism overview for assignment &quot;${assignment.name}&quot; of &quot;${assignment.course.name}&quot;`">
+    <local-header :back-route="{ name: 'manage_assignment' }"
+                  back-popover="Go back to manage assignment page">
+        <template slot="title">
+            Plagiarism overview for assignment &quot;{{assignment.name}}&quot; of &quot;{{assignment.course.name}}&quot;
+        </template>
+
         <b-btn v-b-modal.run-log style="margin-left: 15px;">
             Show log
         </b-btn>
@@ -40,33 +45,21 @@
              @mouseleave.native="rowHovered(null)"
              class="overview-table">
         <template slot="user1" slot-scope="row">
-            <span v-if="row.item.assignments[0].id == assignmentId">
-                {{ row.item.users[0].name }}
-            </span>
-            <span v-else>
-                {{ row.item.users[1].name }}
-            </span>
+            {{ row.item.users[0].name }}
         </template>
 
         <template slot="user2" slot-scope="row">
-            <span v-if="row.item.assignments[1].id == assignmentId && row.item.assignments[0].id == assignmentId">
-                {{ row.item.users[1].name }}
-            </span>
-            <span v-else-if="row.item.assignments[1].id != assignmentId">
-                {{ row.item.users[1].name }} <sup v-b-popover.hover.top="getOtherAssignmentDesc(row.item, 1)"
+            <span>
+                {{ row.item.users[1].name }} <sup v-b-popover.hover.top="getOtherAssignmentPlagiarismDesc(row.item, 1)"
                                                   class="description"
-                                                  >*</sup>
-            </span>
-            <span v-else>
-                {{ row.item.users[0].name }} <sup v-b-popover.hover.top="getOtherAssignmentDesc(row.item, 0)"
-                                                  class="description"
+                                                  v-if="row.item.assignments[1].id != run.assignment.id"
                                                   >*</sup>
             </span>
         </template>
 
         <template slot="empty">
             <div style="text-align: center;">
-                <span v-if="overview.length == 0">No plagiarism found</span>
+                <span v-if="run.cases.length == 0">No plagiarism found</span>
                 <span v-else>No results found</span>
             </div>
         </template>
@@ -83,20 +76,18 @@
 </template>
 
 <script>
-import moment from 'moment';
-import 'vue-awesome/icons/asterisk';
-
 import { mapActions, mapGetters } from 'vuex';
 
 import { Loader, LocalHeader, DescriptionPopover } from '@/components';
+
+import { getOtherAssignmentPlagiarismDesc } from '@/utils';
 
 export default {
     name: 'plagiarism-overview',
 
     data() {
         return {
-            overview: null,
-            run: null,
+            getOtherAssignmentPlagiarismDesc,
             filter: '',
             modalDisplayed: false,
             tableFields: [{
@@ -127,9 +118,14 @@ export default {
 
     computed: {
         ...mapGetters('courses', ['assignments']),
+        ...mapGetters('plagiarism', ['runs']),
+
+        run() {
+            return this.runs[this.plagiarismRunId];
+        },
 
         plagiarismRunId() {
-            return this.$route.params.plagiarismRunId;
+            return `${this.$route.params.plagiarismRunId}`;
         },
 
         assignmentId() {
@@ -141,9 +137,13 @@ export default {
         },
 
         filteredEntries() {
+            if (!this.run) {
+                return [];
+            }
+
             const filter = new RegExp(this.filter, 'i');
 
-            return this.overview.filter(
+            return this.run.cases.filter(
                 entry => entry.users[0].name.match(filter) ||
                     entry.users[1].name.match(filter),
             );
@@ -156,16 +156,25 @@ export default {
                 newRoute.params.assignmentId !== oldRoute.params.assignmentId ||
                     newRoute.params.plagiarismRunId !== oldRoute.params.plagiarismRunId
             ) {
-                this.loadOverview();
+                this.loadRun();
+            }
+        },
+
+        run(run) {
+            if (run && run.state === 'crashed') {
+                this.modalDisplayed = true;
             }
         },
     },
 
     methods: {
         ...mapActions('courses', ['loadCourses']),
+        ...mapActions('plagiarism', {
+            loadPlagiarismRun: 'loadRun',
+        }),
 
         rowClicked(item) {
-            if (!this.canViewCase(item)) {
+            if (!item.canView) {
                 return;
             }
 
@@ -180,7 +189,7 @@ export default {
         rowHovered(item, _, event) {
             this.disabledPopoverRowId = '';
 
-            if (item == null || this.canViewCase(item)) {
+            if (item == null || item.canView) {
                 return;
             }
 
@@ -219,61 +228,19 @@ export default {
             }
         },
 
-        loadOverview() {
+        loadRun() {
             this.loadingData = true;
 
-            return Promise.all([this.$http.get(
-                `/api/v1/plagiarism/${this.plagiarismRunId}/cases/`,
-            ), this.$http.get(`/api/v1/plagiarism/${this.plagiarismRunId}?extended`)]).then(
-                ([{ data: cases }, { data: run }]) => {
-                    cases.forEach((curCase) => {
-                        if (this.canViewCase(curCase)) {
-                            // eslint-disable-next-line
-                            curCase._rowVariant = 'info';
-                        } else {
-                            // eslint-disable-next-line
-                            curCase._rowVariant = 'warning';
-                        }
-                    });
-
-                    this.overview = cases;
-                    this.run = run;
-                    this.loadingData = false;
-
-                    if (this.run.state === 'crashed') {
-                        this.modalDisplayed = true;
-                    }
-                }, (err) => {
-                    this.error = err.response.data.message;
-                },
-            );
-        },
-
-        getOtherAssignmentDesc(item, index) {
-            const assig = item.assignments[index];
-            if (assig && assig.course.virtual) {
-                return 'This submission was uploaded during running as part of an archive of old submissions.';
-            }
-
-            let desc = `This assignment was submitted to the assignment "${item.assignments[index].name}" of "${item.assignments[index].course.name}"`;
-
-            if (item.submissions != null) {
-                const date = moment.utc(item.submissions[index].created_at, moment.ISO_8601).local().format('YYYY-MM-DD');
-                desc = `${desc} on ${date}`;
-            }
-
-            return desc;
-        },
-
-        canViewCase(item) {
-            return item.submissions != null &&
-                item.assignments[0].id != null &&
-                item.assignments[1].id != null;
+            this.loadPlagiarismRun(this.plagiarismRunId).then(() => {
+                this.loadingData = false;
+            }, (err) => {
+                this.error = err.response.data.message;
+            });
         },
     },
 
     mounted() {
-        this.loadOverview();
+        this.loadRun();
     },
 
     components: {
@@ -286,7 +253,7 @@ export default {
 
 <style lang="less" scoped>
 .filter-input {
-    flex: 1 1 auto;
+    flex: 1;
     width: auto;
     margin-left: 1rem;
 }
@@ -311,6 +278,9 @@ export default {
 .plagiarism-overview .overview-table {
     .table-info,
     .table-warning {
+        #app.dark & {
+            color: @text-color-dark;
+        }
         background-color: transparent !important;
 
         td {

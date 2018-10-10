@@ -1,17 +1,21 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div class="manage-assignment loading" v-if="loading">
-    <local-header title=" ">
-        <loader :scale="1"/>
+    <local-header>
+        <template slot="title" v-if="assignment">
+            {{ assignment.name }} - <small>{{ assignment.deadline }}</small>
+        </template>
+        <template slot="title" v-else>
+        </template>
+        <loader :scale="1.9"/>
     </local-header>
     <loader page-loader/>
 </div>
 <div class="manage-assignment" v-else>
-    <local-header title="">
-        <h4 slot="title" style="margin-bottom: 0px;">
+    <local-header>
+        <template slot="title">
             {{ assignment.name }} - <small>{{ assignment.deadline }}</small>
-        </h4>
-
+        </template>
         <assignment-state :assignment="assignment"
                           class="assignment-state"
                           :editable="permissions.can_edit_assignment_info"
@@ -226,7 +230,7 @@ export default {
         },
 
         assignment() {
-            return this.assignments[this.assignmentId];
+            return (this.assignments || {})[this.assignmentId];
         },
 
         assignmentUrl() {

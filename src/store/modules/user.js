@@ -76,11 +76,12 @@ const actions = {
     logout({ commit }) {
         return Promise.all([
             commit(`courses/${types.CLEAR_COURSES}`, null, { root: true }),
+            commit(`plagiarism/${types.CLEAR_PLAGIARISM_RUNS}`, null, { root: true }),
             commit(types.LOGOUT),
         ]);
     },
 
-    verifyLogin({ commit, state }) {
+    verifyLogin({ commit, state, dispatch }) {
         return new Promise((resolve, reject) => {
             axios.get('/api/v1/login?type=extended').then((response) => {
                 // We are already logged in. Update state to logged in state
@@ -90,8 +91,7 @@ const actions = {
                 });
                 resolve();
             }).catch(() => {
-                commit(types.LOGOUT);
-                reject();
+                dispatch('logout').then(reject, reject);
             });
         });
     },

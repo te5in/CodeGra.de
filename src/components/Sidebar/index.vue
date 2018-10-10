@@ -1,6 +1,8 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
-<div class="sidebar" id="global-sidebar" :class="{ floating, inLTI: $inLTI }">
+<div class="sidebar"
+     :class="{ floating, inLTI: $inLTI }"
+     id="global-sidebar">
     <div class="main-menu" :class="{ show: mobileVisible }">
         <div class="sidebar-top">
             <router-link class="sidebar-top-item logo"
@@ -13,18 +15,23 @@
 
             <hr class="separator">
 
-            <a v-for="entry in entries"
-               v-if="maybeCall(entry.condition)"
-               @click="openUpperSubMenu(entry, true)"
-               class="sidebar-top-item"
-               :class="{ selected: currentEntry && entry.name === currentEntry.name }">
-                <icon :name="entry.icon"
-                      :scale="mobileVisible ? 1.5 : 3"
-                      :label="maybeCall(entry.title || entry.header)"/>
-                <small class="name">
-                    {{ maybeCall(entry.title || entry.header) }}
-                </small>
-            </a>
+            <transition v-for="entry in entries"
+                        v-if="maybeCall(entry.condition)"
+                        name="pop-in"
+                        :appear="loaded"
+                        :enter-active-class="entry.animate || entry.animateAdd ? 'pop-in-enter-active' : ''"
+                        :leave-active-class="entry.animate || entry.animateRemove ? 'pop-in-leave-active' : ''">
+                <a @click="openUpperSubMenu(entry, true)"
+                   class="sidebar-top-item"
+                   :class="{ selected: currentEntry && entry.name === currentEntry.name }">
+                    <icon :name="entry.icon"
+                        :scale="mobileVisible ? 1.5 : 3"
+                        :label="maybeCall(entry.title || entry.header)"/>
+                    <small class="name">
+                        {{ maybeCall(entry.title || entry.header) }}
+                    </small>
+                </a>
+            </transition>
         </div>
 
         <div v-if="canManageSite">
@@ -125,12 +132,14 @@ import 'vue-awesome/icons/rocket';
 import 'vue-awesome/icons/question';
 import 'vue-awesome/icons/tachometer';
 import 'vue-awesome/icons/refresh';
+import 'vue-awesome/icons/search';
 
 import { Loader } from '@/components';
 
 import UserInfo from './UserInfo';
 import CourseList from './CourseList';
 import AssignmentList from './AssignmentList';
+import PlagiarismCaseList from './PlagiarismCaseList';
 
 import { MANAGE_SITE_PERIMSSIONS } from '../../constants';
 
@@ -158,7 +167,8 @@ export default {
 
     data() {
         return {
-            loading: false,
+            loading: true,
+            loaded: false,
             canManageSite: false,
             entries: [
                 {
@@ -170,6 +180,7 @@ export default {
                     onClick: () => {
                         this.$router.push({ name: 'login' });
                     },
+                    animateAdd: true,
                 },
                 {
                     name: 'register',
@@ -179,6 +190,7 @@ export default {
                     onClick: () => {
                         this.$router.push({ name: 'register' });
                     },
+                    animateAdd: true,
                 },
                 {
                     name: 'user',
@@ -188,6 +200,7 @@ export default {
                     width: '600px',
                     component: 'user-info',
                     condition: () => this.loggedIn,
+                    animateAdd: true,
                 },
                 {
                     name: 'courses',
@@ -196,6 +209,7 @@ export default {
                     component: 'course-list',
                     condition: () => this.loggedIn && !this.$inLTI,
                     reload: true,
+                    animateAdd: true,
                 },
                 {
                     name: 'assignments',
@@ -204,6 +218,7 @@ export default {
                     component: 'assignment-list',
                     condition: () => this.loggedIn && !this.$inLTI,
                     reload: true,
+                    animateAdd: true,
                 },
                 {
                     name: 'ltiAssignments',
@@ -229,6 +244,16 @@ export default {
                         const assig = this.assignments[this.$LTIAssignmentId];
                         return assig ? { course: assig.course } : {};
                     },
+                    animateAdd: true,
+                },
+                {
+                    name: 'cases',
+                    icon: 'search',
+                    header: 'Plagiarism Cases',
+                    component: 'plagiarism-case-list',
+                    condition: () => this.loggedIn && this.$route.name === 'plagiarism_detail',
+                    reload: true,
+                    animate: true,
                 },
             ],
             currentEntry: null,
@@ -290,8 +315,7 @@ export default {
         },
 
         $route(newVal, oldVal) {
-            const newName = newVal.name;
-            if (newName === oldVal.name) {
+            if (newVal.name === oldVal.name) {
                 return;
             }
             if (this.hideInitialEntries) {
@@ -327,6 +351,7 @@ export default {
         });
 
         this.setInitialEntry();
+        this.loaded = true;
     },
 
     methods: {
@@ -473,6 +498,7 @@ export default {
         UserInfo,
         CourseList,
         AssignmentList,
+        PlagiarismCaseList,
     },
 };
 </script>
@@ -662,6 +688,24 @@ export default {
     bottom: 0;
     left: 0;
     z-index: -2;
+}
+
+.pop-in-enter-active,
+.pop-in-leave-active {
+    transition-property: opacity, transform;
+    transition-duration: 250ms;
+}
+
+.pop-in-enter,
+.pop-in-leave-to {
+    transform: scale(0);
+    opacity: 0;
+}
+
+.pop-in-enter-to,
+.pop-in-leave {
+    transform: scale(1);
+    opacity: 1;
 }
 </style>
 

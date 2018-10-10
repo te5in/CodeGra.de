@@ -37,6 +37,7 @@ export default {
             'logout',
             'updateAccessToken',
         ]),
+        ...mapActions('plagiarism', { clearPlagiarismCases: 'clear' }),
 
         secondStep(first) {
             this.$inLTI = true;
@@ -49,6 +50,7 @@ export default {
                 if (data.access_token) {
                     await this.updateAccessToken(data.access_token);
                 } else {
+                    this.clearPlagiarismCases();
                     this.$clearPermissions();
                 }
 
