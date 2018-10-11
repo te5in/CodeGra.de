@@ -1048,19 +1048,25 @@ class Course(Base):
         :param tree: The tree to use to create the submissions.
         :returns: A virtual course with a random name.
         """
-        assert len(tree) == 1
-        name = list(tree.keys())[0]
-        vals = list(tree.values())[0]
-
         self = cls(name=f'VIRTUAL_COURSE__{uuid.uuid4()}', virtual=True)
-        assig = Assignment(name=f'Virtual assignment - {name}', course=self)
+        assig = Assignment(
+            name=f'Virtual assignment - {tree.name}', course=self
+        )
         self.assignments.append(assig)
-        for subdir in vals:
-            assert isinstance(subdir, dict)
-            assert len(subdir) == 1
-            subdir_name = list(subdir.keys())[0]
-            user = User.create_virtual_user(subdir_name)
+        for child in tree.values:
+            # This is done before we wrap single files to get better author
+            # names.
+            user = User.create_virtual_user(child.name)
             work = Work(assignment=assig, user=user)
+
+            subdir: psef.files.ExtractFileTreeBase
+            if isinstance(child, psef.files.ExtractFileTreeFile):
+                subdir = psef.files.ExtractFileTreeDirectory(
+                    name='top', values=[child]
+                )
+            else:
+                assert isinstance(child, psef.files.ExtractFileTreeDirectory)
+                subdir = child
             work.add_file_tree(subdir)
         return self
 
@@ -1523,7 +1529,9 @@ class Work(Base):
                 },
             }
 
-    def add_file_tree(self, tree: 'psef.files.ExtractFileTree') -> None:
+    def add_file_tree(
+        self, tree: 'psef.files.ExtractFileTreeDirectory'
+    ) -> None:
         """Add the given tree to as only files to the current work.
 
         .. warning:: All previous files will be unlinked from this assignment.
@@ -1532,14 +1540,13 @@ class Work(Base):
             :py:func:`psef.files.rename_directory_structure`
         :returns: Nothing
         """
-        res = self._add_file_tree(tree, None)
-        assert len(res) == 1, "There can be only one top directory"
+        self._add_file_tree(tree, None)
 
     def _add_file_tree(
         self,
-        tree: 'psef.files.ExtractFileTree',
+        tree: 'psef.files.ExtractFileTreeDirectory',
         top: t.Optional['File'],
-    ) -> t.List['File']:
+    ) -> 'File':
         """Add the given tree to the session with top as parent.
 
         :param tree: The file tree as described by
@@ -1547,26 +1554,25 @@ class Work(Base):
         :param top: The parent file
         :returns: Nothing
         """
-        res = []
-        for old_top, children in tree.items():
-            new_top = File(
-                work=self, is_directory=True, name=old_top, parent=top
-            )
-            res.append(new_top)
+        new_top = File(
+            work=self, is_directory=True, name=tree.name, parent=top
+        )
 
-            for child in children:
-                if isinstance(child, t.MutableMapping):
-                    self._add_file_tree(child, new_top)
-                    continue
-                name, filename = child
+        for child in tree.values:
+            if isinstance(child, psef.files.ExtractFileTreeDirectory):
+                self._add_file_tree(child, new_top)
+            elif isinstance(child, psef.files.ExtractFileTreeFile):
                 File(
                     work=self,
-                    name=name,
-                    filename=filename,
+                    name=child.name,
+                    filename=child.disk_name,
                     is_directory=False,
                     parent=new_top
                 )
-        return res
+            else:
+                # The above checks are exhaustive, so this cannot happen
+                assert False
+        return new_top
 
     def get_all_feedback(self) -> t.Tuple[t.Iterable[str], t.Iterable[str], ]:
         """Get all feedback for this work.
@@ -1719,9 +1725,11 @@ class File(Base):
     work_id: int = db.Column(
         'Work_id', db.Integer, db.ForeignKey('Work.id', ondelete='CASCADE')
     )
+    # The given name of the file.
     name: str = db.Column('name', db.Unicode, nullable=False)
 
-    # This is the filename for the original file on the disk
+    # This is the filename for the actual file on the disk. This is probably a
+    # randomly generated uuid.
     filename: t.Optional[str]
     filename = db.Column('filename', db.Unicode, nullable=True)
     modification_date = db.Column(

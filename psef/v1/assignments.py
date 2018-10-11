@@ -5,6 +5,7 @@ the APIs in this module are mostly used to manipulate
 
 SPDX-License-Identifier: AGPL-3.0-only
 """
+import os
 import json
 import shutil
 import typing as t
@@ -12,9 +13,10 @@ import numbers
 import datetime
 from collections import defaultdict
 
+import werkzeug
 import structlog
 import sqlalchemy.sql as sql
-from flask import request
+from flask import request, current_app
 from sqlalchemy.orm import undefer, joinedload, selectinload
 
 import psef
@@ -35,7 +37,7 @@ from psef.helpers import (
 )
 
 from . import api
-from .. import plagiarism
+from .. import archive, plagiarism
 
 logger = structlog.get_logger()
 
@@ -1426,23 +1428,27 @@ def start_plagiarism_check(
             check_size=False, keys=['old_submissions']
         )
         tree = psef.files.process_files(old_subs)
+        for i, child in enumerate(tree.values):
+            if isinstance(
+                child,
+                psef.files.ExtractFileTreeFile,
+            ) and archive.Archive.is_archive(child.name):
+                child_path = os.path.join(
+                    current_app.config['UPLOAD_DIR'], child.disk_name
+                )
+                with open(child_path, 'rb') as f:
+                    tree.values[i] = psef.files.process_files(
+                        [
+                            werkzeug.datastructures.FileStorage(
+                                stream=f, filename=child.name
+                            )
+                        ]
+                    )
+                    # This is to create a name for the author that resembles
+                    # the name of the archive.
+                    tree.values[i].name = child.name.split('.')[0]
+                os.unlink(child_path)
 
-        if (
-            len(tree) != 1 or any(
-                not isinstance(entry, dict) for st in tree.values()
-                for entry in st
-            )
-        ):
-            raise APIException(
-                (
-                    'Archive of old assignments is in a wrong format, it '
-                    'should contain a single non empty subdirectory for every '
-                    'old submission'
-                ), (
-                    'A entry in the toplevel directory was a file, not a'
-                    ' directory'
-                ), APICodes.INVALID_ARCHIVE, 400
-            )
         virtual_course = models.Course.create_virtual_course(tree)
         db.session.add(virtual_course)
         old_assigs.append(virtual_course.assignments[0])

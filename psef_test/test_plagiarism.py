@@ -599,13 +599,13 @@ def test_jplag_old_assignments(
 
 @pytest.mark.parametrize('bb_tar_gz', ['correct.tar.gz'])
 @pytest.mark.parametrize(
-    'old_subs_tar_gz',
-    ['correct.tar.gz', http_err(error=400)('wrong.tar.gz')]
+    'old_subs_tar_gz,amount_old_subs',
+    [('correct.tar.gz', 2), ('difficult.tar.gz', 4)]
 )
 def test_jplag_old_submissions(
     bb_tar_gz, logged_in, assignment, test_client, teacher_user,
     error_template, monkeypatch, monkeypatch_celery, session, old_subs_tar_gz,
-    request, student_user
+    request, student_user, amount_old_subs
 ):
     student_user = student_user._get_current_object()
     bb_tar_gz = (
@@ -616,7 +616,6 @@ def test_jplag_old_submissions(
         f'{os.path.dirname(__file__)}/'
         f'../test_data/test_old_sumbissions/{old_subs_tar_gz}'
     )
-    amount_old_subs = 2
 
     marker = request.node.get_marker('http_err')
     code = marker.kwargs['error'] if marker else 200
@@ -721,6 +720,11 @@ def test_jplag_old_submissions(
         assert len(virtual_courses[0].assignments) == 1
         assert len(virtual_courses[0].assignments[0].submissions
                    ) == amount_old_subs
+        assert not any(
+            f.name.endswith('.tar.gz')
+            for sub in virtual_courses[0].assignments[0].submissions
+            for f in sub.files
+        )
         amount_subs = assignment.get_from_latest_submissions(
             func.count(psef.models.Work.id)
         ).scalar()
