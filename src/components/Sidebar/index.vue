@@ -16,6 +16,7 @@
             <hr class="separator">
 
             <transition v-for="entry in entries"
+                        :key="`sidebar-transition-${entry.name}`"
                         v-if="maybeCall(entry.condition)"
                         name="pop-in"
                         :appear="loaded"
