@@ -405,11 +405,12 @@ export default {
                 provider.options.push({
                     name: 'old_submissions',
                     title: 'Old submissions',
-                    description: `Code that should also be checked as
-                                      old assignment(s) that is/are not
-                                      yet in CodeGrade. This should be an
-                                      archive with a subdirectory for
-                                      every old submission.`,
+                    description: `Code that should also be checked as old assignment(s) that is/are
+                                  not yet in CodeGrade. This should be an archive whose top level
+                                  entries are treated as a separate submission. The top level entry
+                                  can either be a directory or archive whose contents count as a
+                                  submission, or a single regular file which counts as the entire
+                                  submission.`,
                     mandatory: false,
                     type: 'file',
                 });
