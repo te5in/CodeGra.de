@@ -55,15 +55,12 @@
                          id="codeviewer-settings-content"
                          ref="settingsContent">
                         <preference-manager :file-id="(currentFile && currentFile.id) || `${submission.id}-OVERVIEW`"
-                                            :show-revision="canSeeRevision && !overviewMode"
                                             :show-language="!(diffMode || overviewMode)"
                                             :show-context-amount="overviewMode"
-                                            :revision="selectedRevision"
                                             @context-amount="contextAmountChanged"
                                             @whitespace="whitespaceChanged"
                                             @language="languageChanged"
-                                            @font-size="fontSizeChanged"
-                                            @revision="revisionChanged"/>
+                                            @font-size="fontSizeChanged"/>
                     </div>
                 </b-popover>
             </b-input-group-append>
@@ -204,7 +201,10 @@
             <file-tree v-else
                        class="form-control"
                        :collapsed="false"
-                       :tree="fileTree"/>
+                       :tree="fileTree"
+                       :can-see-revision="canSeeRevision"
+                       :revision="selectedRevision"
+                       @revision="revisionChanged"/>
         </div>
     </div>
 </div>

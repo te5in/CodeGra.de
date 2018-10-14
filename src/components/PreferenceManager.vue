@@ -67,13 +67,6 @@
                             label-off="Light"/>
                 </td>
             </tr>
-            <tr v-if="showRevision">
-                <td>Revision</td>
-                <td>
-                    <b-form-radio-group v-model="selectedRevision"
-                                        :options="revisionOptions"/>
-                </td>
-            </tr>
         </tbody>
     </table>
 </div>
@@ -115,16 +108,8 @@ export default {
             type: Boolean,
             default: true,
         },
-        showRevision: {
-            type: Boolean,
-            default: true,
-        },
         fileId: {
             type: [Number, String],
-            default: null,
-        },
-
-        revision: {
             default: null,
         },
 
@@ -147,19 +132,6 @@ export default {
             langLoading: false,
             whiteLoading: false,
             selectedLanguage: -1,
-            selectedRevision: this.revision || 'student',
-            revisionOptions: [
-                {
-                    text: 'Student',
-                    value: 'student',
-                }, {
-                    text: 'Teacher',
-                    value: 'teacher',
-                }, {
-                    text: 'Diff',
-                    value: 'diff',
-                },
-            ],
         };
     },
 
@@ -237,12 +209,6 @@ export default {
             }
         },
 
-        revision(newVal) {
-            if (this.selectedRevision !== newVal) {
-                this.selectedRevision = newVal;
-            }
-        },
-
         fileId(newVal, oldVal) {
             if (newVal != null && newVal !== oldVal) {
                 this.loadValues();
@@ -269,10 +235,6 @@ export default {
                 this.whiteLoading = false;
                 this.$emit('whitespace', val);
             });
-        },
-
-        selectedRevision(val) {
-            this.$emit('revision', val);
         },
     },
 };
