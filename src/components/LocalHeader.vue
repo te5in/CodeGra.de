@@ -113,11 +113,14 @@ export default {
     color: @text-color;
 }
 
-.sidebar-toggle {
-    cursor: pointer;
-
-    @media @media-no-small {
+@media @media-no-small {
+    .sidebar-toggle {
         display: none;
+    }
+
+    .back-button {
+        border-top-left-radius: .25rem !important;
+        border-bottom-left-radius: .25rem !important;
     }
 }
 
