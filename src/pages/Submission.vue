@@ -149,7 +149,7 @@
          v-else
          id="submission-page-inner">
         <div class="code-and-grade"
-             :class="overviewMode ?  'overview col-md-12' : 'col-md-9'">
+             :class="overviewMode ?  'overview col-lg-12' : 'col-lg-9'">
 
             <div v-if="!fileTree || !currentFile" class="no-file">
                 <loader/>
@@ -197,7 +197,7 @@
                           @gradeUpdated="gradeUpdated"/>
         </div>
 
-        <div class="col-md-3 file-tree-container" v-if="!overviewMode">
+        <div class="col-lg-3 file-tree-container" v-if="!overviewMode">
             <loader class="text-center"
                     :scale="3"
                     v-if="!fileTree"/>

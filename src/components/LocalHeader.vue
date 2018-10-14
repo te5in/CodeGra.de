@@ -2,20 +2,24 @@
 <template>
 <div class="local-header">
     <b-button-toolbar class="toolbar" justify>
-        <b-input-group-prepend v-if="backRoute"
-                               style="cursor: pointer; margin-right: 15px;">
-            <b-btn :to="backRoute"
-                   v-b-popover.bottom.hover="backPopover">
-                <icon name="arrow-left"/>
-            </b-btn>
+        <b-input-group-prepend style="cursor: pointer; margin-right: 15px;"
+                               v-if="backRoute || $root.$isSmallWindow">
+            <b-button-group>
+                <b-btn variant="primary"
+                       class="sidebar-toggle"
+                       @click="toggleSidebar()">
+                    <icon name="bars"/>
+                </b-btn>
+                <b-btn :to="backRoute"
+                       v-if="backRoute"
+                       class="back-button"
+                       v-b-popover.bottom.hover="backPopover">
+                    <icon name="arrow-left"/>
+                </b-btn>
+            </b-button-group>
         </b-input-group-prepend>
 
         <slot v-show="$slots.title" name="prepend"/>
-
-        <div class="sidebar-toggle">
-            <img src="/static/img/bars.svg"
-                 @click="toggleSidebar()">
-        </div>
 
         <h4 v-if="title || $slots.title" class="title">
             <slot v-if="$slots.title" name="title">{{ title }}</slot>
@@ -48,6 +52,7 @@ import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/angle-double-down';
 import 'vue-awesome/icons/angle-double-up';
 import 'vue-awesome/icons/arrow-left';
+import 'vue-awesome/icons/bars';
 
 export default {
     name: 'local-header',
@@ -110,11 +115,6 @@ export default {
 
 .sidebar-toggle {
     cursor: pointer;
-    margin-right: 1rem;
-
-    img {
-        width: 2rem;
-    }
 
     @media @media-no-small {
         display: none;
