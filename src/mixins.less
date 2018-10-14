@@ -330,7 +330,9 @@
 }
 
 .default-table-colors {
-    #app:not(.lti) #global-sidebar &, #app.dark & {
+    #app:not(.lti) #global-sidebar &,
+    #app.dark &,
+    #app.dark ~.popover & {
         .dark-table-colors;
     }
 }

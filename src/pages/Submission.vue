@@ -120,16 +120,16 @@
                            triggers="click"
                            @show="beforeShowPopover"
                            placement="bottom">
-                    <b-button @click="downloadType('zip')"
-                              variant="primary">
-                        Archive
-                    </b-button>
-
-                    <b-button v-if="canSeeFeedback"
-                              @click="downloadType('feedback')"
-                              variant="primary">
-                        Feedback
-                    </b-button>
+                    <table class="table table-hover">
+                        <tbody>
+                            <tr @click="downloadType('zip')">
+                                <td><b>Archive</b></td>
+                            </tr>
+                            <tr @click="downloadType('feedback')">
+                                <td><b>Feedback</b></td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </b-popover>
             </b-input-group-append>
 
@@ -952,6 +952,12 @@ export default {
         border-top-right-radius: .25rem;
         border-bottom-right-radius: .25rem;
     }
+}
+
+.popover .table {
+    margin: -.5rem -.75rem;
+    min-width: 10rem;
+    text-align: left;
 }
 </style>
 
