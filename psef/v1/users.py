@@ -25,10 +25,12 @@ from psef.helpers import (
 )
 
 from . import api
+from ..permissions import CoursePermission as CPerm
+from ..permissions import GlobalPermission as GPerm
 
 
 @api.route('/users/', methods=['GET'])
-@auth.permission_required('can_search_users')
+@auth.permission_required(GPerm.can_search_users)
 @limiter.limit('1 per second', key_func=lambda: str(current_user.id))
 def search_users() -> JSONResponse[t.Sequence[models.User]]:
     """Search for a user by name and username.
@@ -64,7 +66,7 @@ def search_users() -> JSONResponse[t.Sequence[models.User]]:
                     ' could not parsed as an int'
                 ), APICodes.INVALID_PARAM, 400
             )
-        auth.ensure_permission('can_list_course_users', exclude_course)
+        auth.ensure_permission(CPerm.can_list_course_users, exclude_course)
 
         base = db.session.query(models.User).join(
             models.user_course,

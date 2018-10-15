@@ -24,6 +24,9 @@ from psef.helpers import (
 )
 
 from . import api
+from ..permissions import CoursePermMap
+from ..permissions import CoursePermission as CPerm
+from ..permissions import GlobalPermission as GPerm
 
 _UserCourse = TypedDict(  # pylint: disable=invalid-name
     '_UserCourse', {
@@ -51,7 +54,7 @@ def delete_role(course_id: int, role_id: int) -> EmptyResponse:
     :raises PermissionException: If the user can not manage the course with the
         given id. (INCORRECT_PERMISSION)
     """
-    auth.ensure_permission('can_edit_course_roles', course_id)
+    auth.ensure_permission(CPerm.can_edit_course_roles, course_id)
 
     course = helpers.get_or_404(
         models.Course,
@@ -111,7 +114,7 @@ def add_role(course_id: int) -> EmptyResponse:
     :raises PermissionException: If the user can not manage the course with the
                                  given id. (INCORRECT_PERMISSION)
     """
-    auth.ensure_permission('can_edit_course_roles', course_id)
+    auth.ensure_permission(CPerm.can_edit_course_roles, course_id)
 
     content = ensure_json_dict(request.get_json())
 
@@ -167,26 +170,22 @@ def update_role(course_id: int, role_id: int) -> EmptyResponse:
     """
     content = ensure_json_dict(request.get_json())
 
-    auth.ensure_permission('can_edit_course_roles', course_id)
+    auth.ensure_permission(CPerm.can_edit_course_roles, course_id)
 
     ensure_keys_in_dict(content, [('value', bool), ('permission', str)])
     value = t.cast(bool, content['value'])
-    permission = t.cast(str, content['permission'])
+    permission_name = t.cast(str, content['permission'])
+    permission = CPerm.get_by_name(permission_name)
 
     role = helpers.filter_single_or_404(
         models.CourseRole,
         models.CourseRole.course_id == course_id,
         models.CourseRole.id == role_id,
     )
-    perm = helpers.filter_single_or_404(
-        models.Permission,
-        models.Permission.name == permission,
-        models.Permission.course_permission == True,  # pylint: disable=singleton-comparison
-    )
 
     if (
         current_user.courses[course_id].id == role.id and
-        perm.name == 'can_edit_course_roles'
+        permission == CPerm.can_edit_course_roles
     ):
         raise APIException(
             'You cannot remove this permission from your own role', (
@@ -195,7 +194,7 @@ def update_role(course_id: int, role_id: int) -> EmptyResponse:
             ).format(role.id), APICodes.INCORRECT_PERMISSION, 403
         )
 
-    role.set_permission(perm, value)
+    role.set_permission(permission, value)
 
     db.session.commit()
 
@@ -227,7 +226,7 @@ def get_all_course_roles(
     :raises PermissionException: If the user can not manage the course with the
                                  given id. (INCORRECT_PERMISSION)
     """
-    auth.ensure_permission('can_edit_course_roles', course_id)
+    auth.ensure_permission(CPerm.can_edit_course_roles, course_id)
 
     course_roles: t.Sequence[models.CourseRole]
     course_roles = models.CourseRole.query.filter_by(course_id=course_id
@@ -239,7 +238,9 @@ def get_all_course_roles(
         res = []
         for course_role in course_roles:
             json_course = course_role.__to_json__()
-            json_course['perms'] = course_role.get_all_permissions()
+            json_course['perms'] = CPerm.create_map(
+                course_role.get_all_permissions()
+            )
             json_course['own'] = current_user.courses[course_role.course_id
                                                       ] == course_role
             res.append(json_course)
@@ -277,7 +278,7 @@ def set_course_permission_user(
     .. todo::
         This function should probability be splitted.
     """
-    auth.ensure_permission('can_edit_course_users', course_id)
+    auth.ensure_permission(CPerm.can_edit_course_users, course_id)
 
     content = ensure_json_dict(request.get_json())
     ensure_keys_in_dict(content, [('role_id', int)])
@@ -357,7 +358,7 @@ def get_all_course_users(
     :>jsonarr CourseRole: The role that this user has.
     :>jsonarrtype CourseRole: :py:class:`~.models.CourseRole`
     """
-    auth.ensure_permission('can_list_course_users', course_id)
+    auth.ensure_permission(CPerm.can_list_course_users, course_id)
     course = helpers.get_or_404(models.Course, course_id)
 
     if 'q' in request.args:
@@ -405,7 +406,7 @@ def get_all_course_assignments(
     :raises PermissionException: If the user can not see assignments in the
                                  given course. (INCORRECT_PERMISSION)
     """
-    auth.ensure_permission('can_see_assignments', course_id)
+    auth.ensure_permission(CPerm.can_see_assignments, course_id)
 
     course = helpers.get_or_404(
         models.Course,
@@ -431,7 +432,7 @@ def create_new_assignment(course_id: int) -> JSONResponse[models.Assignment]:
     :raises PermissionException: If the current user does not have the
         ``can_create_assignment`` permission (INCORRECT_PERMISSION).
     """
-    auth.ensure_permission('can_create_assignment', course_id)
+    auth.ensure_permission(CPerm.can_create_assignment, course_id)
 
     content = ensure_json_dict(request.get_json())
     ensure_keys_in_dict(content, [('name', str)])
@@ -460,7 +461,7 @@ def create_new_assignment(course_id: int) -> JSONResponse[models.Assignment]:
 
 
 @api.route('/courses/', methods=['POST'])
-@auth.permission_required('can_create_courses')
+@auth.permission_required(GPerm.can_create_courses)
 def add_course() -> JSONResponse[models.Course]:
     """Add a new :class:`.models.Course`.
 
@@ -593,7 +594,7 @@ def get_course_data(course_id: int) -> JSONResponse[t.Mapping[str, t.Any]]:
 @auth.login_required
 def get_permissions_for_course(
     course_id: int,
-) -> JSONResponse[t.Mapping[str, bool]]:
+) -> JSONResponse[CoursePermMap]:
     """Get all the course :class:`.models.Permission` of the currently logged
     in :class:`.models.User`
 
@@ -609,4 +610,4 @@ def get_permissions_for_course(
         course_id,
         also_error=lambda c: c.virtual,
     )
-    return jsonify(current_user.get_all_permissions(course))
+    return jsonify(CPerm.create_map(current_user.get_all_permissions(course)))

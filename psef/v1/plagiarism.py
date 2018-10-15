@@ -13,6 +13,7 @@ from ..helpers import (
     JSONResponse, EmptyResponse, ExtendedJSONResponse, jsonify,
     extended_jsonify, make_empty_response
 )
+from ..permissions import CoursePermission as CPerm
 
 
 @api.route('/plagiarism/<int:plagiarism_id>', methods=['DELETE'])
@@ -32,7 +33,9 @@ def delete_plagiarism_run(plagiarism_id: int, ) -> EmptyResponse:
         cases for the course associated with the run. (INCORRECT_PERMISSION)
     """
     run = helpers.get_or_404(models.PlagiarismRun, plagiarism_id)
-    auth.ensure_permission('can_manage_plagiarism', run.assignment.course_id)
+    auth.ensure_permission(
+        CPerm.can_manage_plagiarism, run.assignment.course_id
+    )
     models.db.session.delete(run)
     models.db.session.commit()
     return make_empty_response()
@@ -58,7 +61,7 @@ def get_plagiarism_run(
         cases for the course associated with the run. (INCORRECT_PERMISSION)
     """
     run = helpers.get_or_404(models.PlagiarismRun, plagiarism_id)
-    auth.ensure_permission('can_view_plagiarism', run.assignment.course_id)
+    auth.ensure_permission(CPerm.can_view_plagiarism, run.assignment.course_id)
 
     if helpers.extended_requested():
         return extended_jsonify(run, use_extended=models.PlagiarismRun)
@@ -81,7 +84,7 @@ def get_plagiarism_run_cases(
         cases for the course associated with the run. (INCORRECT_PERMISSION)
     """
     run = helpers.get_or_404(models.PlagiarismRun, plagiarism_id)
-    auth.ensure_permission('can_view_plagiarism', run.assignment.course_id)
+    auth.ensure_permission(CPerm.can_view_plagiarism, run.assignment.course_id)
     return jsonify(run.cases)
 
 

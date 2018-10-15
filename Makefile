@@ -73,3 +73,7 @@ shrinkwrap:
 
 lint:
 	pylint psef --rcfile=setup.cfg
+
+.PHONY: create_permission
+create_permission:
+	python ./.scripts/create_permission.py

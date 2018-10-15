@@ -20,6 +20,7 @@ from itertools import cycle
 from collections import defaultdict
 
 import structlog
+from flask import g
 from sqlalchemy import orm, event
 from itsdangerous import BadSignature, URLSafeTimedSerializer
 from werkzeug.utils import cached_property
@@ -30,9 +31,16 @@ from sqlalchemy.sql.expression import and_, func, false
 from sqlalchemy.orm.collections import attribute_mapped_collection
 
 import psef  # pylint: disable=cyclic-import
-from psef import current_app
 
-from .model_types import T, MyDb, DbColumn  # pylint: disable=unused-import
+from . import current_app
+from .cache import cache_within_request
+from .exceptions import APICodes, APIException, PermissionException
+from .model_types import (  # pylint: disable=unused-import
+    T, MyDb, DbColumn, _MyQuery
+)
+from .permissions import (  # pylint: disable=cyclic-import
+    BasePermission, CoursePermission, GlobalPermission
+)
 
 logger = structlog.get_logger()
 
@@ -45,7 +53,7 @@ db = t.cast(  # pylint: disable=invalid-name
 )
 
 
-def init_app(app: t.Any) -> None:
+def init_app(app: 'psef.PsefFlask') -> None:
     """Initialize the database connections and set some listeners.
 
     :param app: The flask app to initialize for.
@@ -54,8 +62,31 @@ def init_app(app: t.Any) -> None:
     db.init_app(app)
     force_auto_coercion()
 
-    if app.config['_USING_SQLITE']:  # pragma: no cover
-        with app.app_context():
+    with app.app_context():
+
+        @event.listens_for(db.engine, "before_cursor_execute")
+        def __before_cursor_execute(*_args: object) -> None:
+            if hasattr(g, 'query_start'):
+                g.query_start = datetime.datetime.utcnow()
+
+        @event.listens_for(db.engine, "after_cursor_execute")
+        def __after_cursor_execute(*_args: object) -> None:
+            if hasattr(g, 'queries_amount'):
+                g.queries_amount += 1
+            if hasattr(g, 'query_start'):
+                delta = (datetime.datetime.utcnow() -
+                         g.query_start).total_seconds()
+                if hasattr(g, 'queries_total_duration'):
+                    g.queries_total_duration += delta
+                if (
+                    hasattr(g, 'queries_max_duration') and (
+                        g.queries_max_duration is None or
+                        delta > g.queries_max_duration
+                    )
+                ):
+                    g.queries_max_duration = delta
+
+        if app.config['_USING_SQLITE']:  # pragma: no cover
 
             @event.listens_for(db.engine, "connect")
             def __do_connect(dbapi_connection: t.Any, _: t.Any) -> None:
@@ -72,10 +103,21 @@ def init_app(app: t.Any) -> None:
 
 UUID_LENGTH = 36
 
-if t.TYPE_CHECKING:  # pragma: no cover:
-    from psef.model_types import _MyQuery, Base
+if t.TYPE_CHECKING and getattr(
+    t, 'SPHINX', False
+) is not True:  # pragma: no cover:
+    hybrid_property = property  # pylint: disable=invalid-name
+    from .model_types import Base, Comparator
 else:
+    from sqlalchemy.ext.hybrid import hybrid_property, Comparator
     Base = db.Model  # pylint: disable=invalid-name
+
+# Sphinx has problems with resolving types when this decorator is used, we
+# simply remove it in the case of Sphinx.
+if getattr(t, 'SPHINX', False) is True:  # pragma: no cover:
+    # pylint: disable=invalid-name
+    cache_within_request = lambda x: x  # type: ignore
+    # pylint: enable=invalid-name
 
 permissions = db.Table(  # pylint: disable=invalid-name
     'roles-permissions',
@@ -229,9 +271,11 @@ class AssignmentResult(Base):
     __table_args__ = (db.PrimaryKeyConstraint(assignment_id, user_id), )
 
 
-class Permission(Base):
-    """This class defines permissions by names that are checked in certain
-    APIs.
+_T = t.TypeVar('_T', bound=BasePermission)  # pylint: disable=invalid-name
+
+
+class Permission(Base, t.Generic[_T]):  # pylint: disable=unsubscriptable-object
+    """This class defines **database** permissions.
 
     A permission can be a global- or a course- permission. Global permissions
     describe the ability to do something general, e.g. create a course or the
@@ -241,7 +285,14 @@ class Permission(Base):
     of a single :class:`Course`. Thus a user can hold different permissions in
     different courses.
 
-    :ivar name: The, unique, name of this permission.
+    .. warning::
+
+      Think twice about using this class directly! You probably want a non
+      database permission (see ``permissions.py``) which are type checked and
+      WAY faster. If you need to check if a user has a certain permission use
+      the :meth:`.User.has_permission` of, even better,
+      :func:`psef.auth.ensure_permission` functions.
+
     :ivar default_value: The default value for this permission.
     :ivar course_permission: Indicates if this permission is for course
         specific actions. If this is the case a user can have this permission
@@ -249,12 +300,12 @@ class Permission(Base):
         this permission is global for the entire site.
     """
     if t.TYPE_CHECKING:  # pragma: no cover
-        query = Base.query  # type: t.ClassVar[_MyQuery['Permission']]
+        query = None
     __tablename__ = 'Permission'
 
     id = db.Column('id', db.Integer, primary_key=True)
 
-    name: str = db.Column('name', db.Unicode, unique=True, index=True)
+    __name: str = db.Column('name', db.Unicode, unique=True, index=True)
 
     default_value: bool  # NOQA
     default_value = db.Column('default_value', db.Boolean, default=False)
@@ -262,17 +313,91 @@ class Permission(Base):
         'course_permission', db.Boolean, index=True
     )
 
+    @classmethod
+    def get_all_permissions(
+        cls: t.Type['Permission[_T]'], perm_type: t.Type[_T]
+    ) -> 't.Sequence[Permission[_T]]':
+        """Get all database permissions of a certain type.
 
-class AbstractRole:
+        :param perm_type: The type of permission to get.
+        :returns: A list of all database permissions of the given type.
+        """
+        assert perm_type in (GlobalPermission, CoursePermission)
+        return db.session.query(cls).filter_by(
+            course_permission=perm_type == CoursePermission
+        ).all()
+
+    @classmethod
+    def get_all_permissions_from_list(
+        cls: t.Type['Permission[_T]'], perms: t.Sequence[_T]
+    ) -> 't.Sequence[Permission[_T]]':
+        """Get database permissions corresponding to a list of permissions.
+
+        :param perms: The permissions to get the database permission of.
+        :returns: A list of all requested database permission.
+        """
+        if not perms:  # pragma: no cover
+            return []
+
+        assert isinstance(perms[0], (GlobalPermission, CoursePermission))
+        assert all(isinstance(perm, type(perms[0])) for perm in perms)
+
+        return psef.helpers.filter_all_or_404(
+            cls,
+            t.cast(DbColumn[str],
+                   Permission.__name).in_(p.name for p in perms),
+            Permission.course_permission == isinstance(
+                perms[0], CoursePermission
+            ),
+        )
+
+    @classmethod
+    @cache_within_request
+    def get_permission(
+        cls: 't.Type[Permission[_T]]', perm: '_T'
+    ) -> 'Permission[_T]':
+        """Get a database permission from a permission.
+
+        :param perm: The permission to get the database permission of.
+        :returns: The correct database permission.
+        """
+        return psef.helpers.filter_single_or_404(
+            cls, cls.value == perm,
+            cls.course_permission == isinstance(perm, CoursePermission)
+        )
+
+    @hybrid_property
+    def value(self) -> '_T':
+        """Get the permission value of the database permission.
+
+        :returns: The permission of this database permission.
+        """
+        # This logic is correct
+        if self.course_permission:
+            return t.cast('_T', CoursePermission[self.__name])
+        else:
+            return t.cast('_T', GlobalPermission[self.__name])
+
+    @value.comparator
+    def value(cls) -> Comparator:  # pylint: disable=no-self-argument,missing-docstring
+        class Comp(Comparator):  # pylint: disable=missing-docstring
+            def __eq__(self, other: object) -> bool:
+                if not isinstance(other, BasePermission):
+                    assert False
+                return self.__clause_element__() == other.name
+
+        return Comp(t.cast(DbColumn[str], cls.__name))
+
+
+class AbstractRole(t.Generic[_T]):
     """An abstract class that implements all functionality a role should have.
     """
 
     def __init__(
         self,
         name: str,
-        _permissions: t.MutableMapping[str, Permission] = None
+        _permissions: t.MutableMapping['_T', Permission['_T']] = None
     ) -> None:
-        self._has_permission_cache: t.MutableMapping[str, bool] = {}
         self.name = name
         if _permissions is not None:
             self._permissions = _permissions
@@ -293,7 +418,7 @@ class AbstractRole:
 
     @property
     @abc.abstractmethod
-    def _permissions(self) -> t.MutableMapping[str, Permission]:
+    def _permissions(self) -> t.MutableMapping['_T', Permission['_T']]:
         """The permissions this role has a connection to.
 
         A connection means this role has the permission if, and only if, the
@@ -308,85 +433,63 @@ class AbstractRole:
         """
         raise NotImplementedError
 
-    @orm.reconstructor
-    def setup_has_permission_cache(self) -> None:
-        """Reset permission cache to an empty object.
-        """
-        self._has_permission_cache = {}
-
-    def set_permission(self, perm: Permission, should_have: bool) -> None:
+    def set_permission(self, perm: '_T', should_have: bool) -> None:
         """Set the given :class:`Permission` to the given value.
 
         :param should_have: If this role should have this permission
         :param perm: The permission this role should (not) have
         """
-        assert perm.course_permission == self.uses_course_permissions
+        if self.uses_course_permissions:
+            assert isinstance(perm, CoursePermission)
+        else:
+            assert isinstance(perm, GlobalPermission)
 
-        if perm.default_value ^ should_have:
-            self._permissions[perm.name] = perm
+        permission = Permission.get_permission(perm)
+
+        if permission.default_value ^ should_have:
+            self._permissions[perm] = permission
         else:
             try:
-                del self._permissions[perm.name]
+                del self._permissions[perm]
             except KeyError:
                 pass
 
-        self._has_permission_cache[perm.name] = should_have
-
-    def has_permission(self, permission: t.Union[str, Permission]) -> bool:
+    def has_permission(self, permission: '_T') -> bool:
         """Check whether this course role has the specified
         :class:`Permission`.
 
         :param permission: The permission or permission name
         :returns: True if the course role has the permission
-
-        :raises KeyError: If the permission parameter is a string and no
-            permission with this name exists.
         """
-        if isinstance(permission, Permission):
-            permission_name = permission.name
+        if self.uses_course_permissions:
+            assert isinstance(permission, CoursePermission)
         else:
-            permission_name = permission
+            assert isinstance(permission, GlobalPermission)
 
-        if permission_name in self._has_permission_cache:
-            return self._has_permission_cache[permission_name]
-
-        if permission_name in self._permissions:
-            perm = self._permissions[permission_name]
-            res = not perm.default_value
+        if permission in self._permissions:
+            return not self._permissions[permission].default_value
         else:
-            if isinstance(permission, str):
-                permission = t.cast(
-                    Permission,
-                    Permission.query.filter_by(
-                        course_permission=self.uses_course_permissions,
-                        name=permission,
-                    ).first()
-                )
+            if current_app.do_sanity_checks:
+                found_perm = Permission.get_permission(permission)
+                assert (
+                    found_perm.default_value == permission.value.default_value
+                ), "Wrong permission in database"
 
-            if permission is None:
-                raise KeyError(
-                    f'The permission "{permission_name}" does not exist'
-                )
+            return permission.value.default_value
 
-            res = permission.default_value and (
-                permission.course_permission == self.uses_course_permissions
-            )
-
-        self._has_permission_cache[permission_name] = res
-        return res
-
-    def get_all_permissions(self) -> t.Mapping[str, bool]:
+    def get_all_permissions(self) -> t.Mapping['_T', bool]:
         """Get all course :class:`permissions` for this course role.
 
         :returns: A name boolean mapping where the name is the name of the
                   permission and the value indicates if this user has this
                   permission.
         """
-        perms = Permission.query.filter_by(
+        perms: t.List[Permission['_T']]
+        perms = db.session.query(Permission).filter_by(
             course_permission=self.uses_course_permissions,
-        )
+        ).all()
         return {
-            p.name: (p.name in self._permissions) ^ p.default_value
+            p.value: (p.value in self._permissions) ^ p.default_value
             for p in perms
         }
 
@@ -410,7 +513,7 @@ class AbstractRole:
         }
 
 
-class CourseRole(AbstractRole, Base):
+class CourseRole(AbstractRole[CoursePermission], Base):
     """
     A course role is used to describe the abilities of a :class:`User` in a
     :class:`Course`.
@@ -426,11 +529,12 @@ class CourseRole(AbstractRole, Base):
     course_id: int = db.Column(
         'Course_id', db.Integer, db.ForeignKey('Course.id')
     )
-    _permissions: t.MutableMapping[str, Permission] = db.relationship(
-        'Permission',
-        collection_class=attribute_mapped_collection('name'),
-        secondary=course_permissions
-    )
+    _permissions: t.MutableMapping[
+        CoursePermission, Permission[CoursePermission]] = db.relationship(
+            'Permission',
+            collection_class=attribute_mapped_collection('value'),
+            secondary=course_permissions
+        )
 
     # Old syntax used to please sphinx
     course = db.relationship(
@@ -445,8 +549,13 @@ class CourseRole(AbstractRole, Base):
         self,
         name: str,
         course: 'Course',
-        _permissions: t.Optional[t.MutableMapping[str, Permission]] = None
+        _permissions: t.Optional[t.MutableMapping[CoursePermission, Permission]
+                                 ] = None,
     ) -> None:
+        if _permissions:
+            assert all(
+                isinstance(p, CoursePermission) for p in _permissions.keys()
+            )
         super().__init__(name=name, _permissions=_permissions)
 
         # Mypy doesn't get the sqlalchemy magic
@@ -474,8 +583,8 @@ class CourseRole(AbstractRole, Base):
         raise ValueError('No initial course role found')
 
     @staticmethod
-    def get_default_course_roles(
-    ) -> t.Mapping[str, t.MutableMapping[str, Permission]]:
+    def get_default_course_roles() -> t.Mapping[
+        str, t.MutableMapping[CoursePermission, Permission[CoursePermission]]]:
         """Get all default course roles as specified in the config and their
         permissions (:class:`Permission`).
 
@@ -496,23 +605,19 @@ class CourseRole(AbstractRole, Base):
         """
         res = {}
         for name, value in current_app.config['_DEFAULT_COURSE_ROLES'].items():
-            perms: t.Sequence[Permission] = (
-                Permission.query.
-                filter_by(  # type: ignore
-                    course_permission=True
-                ).all()
-            )
+            perms = Permission.get_all_permissions(CoursePermission)
             r_perms = {}
             perms_set = set(value['permissions'])
             for perm in perms:
-                if bool(perm.default_value) ^ bool(perm.name in perms_set):
-                    r_perms[perm.name] = perm
+                if bool(perm.default_value
+                        ) ^ bool(perm.value.name in perms_set):
+                    r_perms[perm.value] = perm
 
             res[name] = r_perms
         return res
 
 
-class Role(AbstractRole, Base):
+class Role(AbstractRole[GlobalPermission], Base):
     """A role defines the set of global permissions :class:`Permission` of a
     :class:`User`.
 
@@ -523,12 +628,13 @@ class Role(AbstractRole, Base):
     __tablename__ = 'Role'
     id: int = db.Column('id', db.Integer, primary_key=True)
     name: str = db.Column('name', db.Unicode, unique=True)
-    _permissions: t.MutableMapping[str, Permission] = db.relationship(
-        'Permission',
-        collection_class=attribute_mapped_collection('name'),
-        secondary=permissions,
-        backref=db.backref('roles', lazy='dynamic')
-    )
+    _permissions: t.MutableMapping[
+        GlobalPermission, Permission[GlobalPermission]] = db.relationship(
+            'Permission',
+            collection_class=attribute_mapped_collection('value'),
+            secondary=permissions,
+            backref=db.backref('roles', lazy='dynamic')
+        )
 
     @property
     def uses_course_permissions(self) -> bool:
@@ -642,9 +748,22 @@ class User(Base):
             email=''
         )
 
-    def has_permission(
+    @t.overload
+    def has_permission(  # pylint: disable=function-redefined,missing-docstring,unused-argument,no-self-use
+        self, permission: CoursePermission, course_id: t.Union[int, 'Course']
+    ) -> bool:
+        ...  # pylint: disable=pointless-statement
+
+    @t.overload
+    def has_permission(  # pylint: disable=function-redefined,missing-docstring,unused-argument,no-self-use
         self,
-        permission: t.Union[str, Permission],
+        permission: GlobalPermission,
+    ) -> bool:
+        ...  # pylint: disable=pointless-statement
+
+    def has_permission(  # pylint: disable=function-redefined
+        self,
+        permission: t.Union[GlobalPermission, CoursePermission],
         course_id: t.Union['Course', int, None] = None
     ) -> bool:
         """Check whether this user has the specified global or course
@@ -661,25 +780,24 @@ class User(Base):
         """
         if not self.active or self.virtual:
             return False
+
         if course_id is None:
+            assert isinstance(permission, GlobalPermission)
             return self.role.has_permission(permission)
         else:
+            assert isinstance(permission, CoursePermission)
+
             if isinstance(course_id, Course):
                 course_id = course_id.id
 
             if course_id in self.courses:
                 return self.courses[course_id].has_permission(permission)
-            elif isinstance(permission, str):
-                if Permission.query.filter_by(name=permission).first() is None:
-                    raise KeyError(
-                        f'The permission "{permission}" does not exist'
-                    )
             return False
 
     def get_permissions_in_courses(
         self,
-        wanted_perms: t.Sequence[str],
-    ) -> t.Mapping[int, t.Mapping[str, bool]]:
+        wanted_perms: t.Sequence[CoursePermission],
+    ) -> t.Mapping[int, t.Mapping[CoursePermission, bool]]:
         """Check for specific :class:`Permission`s in all courses
         (:class:`Course`) the user is enrolled in.
 
@@ -700,10 +818,8 @@ class User(Base):
         if not wanted_perms:
             return {}
 
-        perms = psef.helpers.filter_all_or_404(
-            Permission,
-            t.cast(DbColumn[str], Permission.name).in_(wanted_perms)
-        )
+        perms: t.Sequence[Permission[CoursePermission]]
+        perms = Permission.get_all_permissions_from_list(wanted_perms)
 
         course_roles = db.session.query(
             user_course.c.course_id
@@ -732,10 +848,10 @@ class User(Base):
         for course_role_id, permission_id in res:
             lookup[permission_id].add(course_role_id)
 
-        out: t.MutableMapping[int, t.Mapping[str, bool]] = {}
+        out: t.MutableMapping[int, t.Mapping[CoursePermission, bool]] = {}
         for course_id, course_role in self.courses.items():
             out[course_id] = {
-                p.name: (course_role.id in lookup[p.id]) != p.default_value
+                p.value: (course_role.id in lookup[p.id]) != p.default_value
                 for p in perms
             }
 
@@ -745,7 +861,9 @@ class User(Base):
     def can_see_hidden(self) -> bool:
         """Can the user see hidden assignments.
         """
-        return self.has_course_permission_once('can_see_hidden_assignments')
+        return self.has_course_permission_once(
+            CoursePermission.can_see_hidden_assignments
+        )
 
     def __to_json__(self) -> t.Mapping[str, t.Any]:
         """Creates a JSON serializable representation of this object.
@@ -790,8 +908,7 @@ class User(Base):
             **self.__to_json__(),
         }
 
-    def has_course_permission_once(self,
-                                   perm: t.Union[str, Permission]) -> bool:
+    def has_course_permission_once(self, perm: CoursePermission) -> bool:
         """Check whether this user has the specified course :class:`Permission`
         in at least one enrolled :class:`Course`.
 
@@ -800,12 +917,7 @@ class User(Base):
         """
         assert not self.virtual
 
-        permission: Permission
-        if isinstance(perm, Permission):
-            permission = perm
-        else:
-            permission = Permission.query.filter_by(  # type: ignore
-                name=perm).first()
+        permission = Permission.get_permission(perm)
         assert permission.course_permission
 
         course_roles = db.session.query(
@@ -823,9 +935,21 @@ class User(Base):
 
         return (not link) if permission.default_value else link
 
-    def get_all_permissions(
+    @t.overload
+    def get_all_permissions(self) -> t.Mapping[GlobalPermission, bool]:  # pylint: disable=function-redefined,missing-docstring,no-self-use
+        ...  # pylint: disable=pointless-statement
+
+    @t.overload
+    def get_all_permissions(  # pylint: disable=function-redefined,missing-docstring,no-self-use,unused-argument
+        self,
+        course_id: t.Union['Course', int],
+    ) -> t.Mapping[CoursePermission, bool]:
+        ...  # pylint: disable=pointless-statement
+
+    def get_all_permissions(  # pylint: disable=function-redefined
         self, course_id: t.Union['Course', int, None] = None
-    ) -> t.Mapping[str, bool]:
+    ) -> t.Union[t.Mapping[CoursePermission, bool], t.
+                 Mapping[GlobalPermission, bool]]:
         """Get all global permissions (:class:`Permission`) of this user or all
         course permissions of the user in a specific :class:`Course`.
 
@@ -845,10 +969,8 @@ class User(Base):
         elif course_id in self.courses:
             return self.courses[course_id].get_all_permissions()
         else:
-            perms: t.Sequence[Permission]
-            perms = Permission.query.filter_by(  # type: ignore
-                course_permission=True).all()
-            return {perm.name: False for perm in perms}
+            perms = Permission.get_all_permissions(CoursePermission)
+            return {perm.value: False for perm in perms}
 
     def get_reset_token(self) -> str:
         """Get a token which a user can use to reset his password.
@@ -857,7 +979,7 @@ class User(Base):
             reset the password of a user.
         """
         timed_serializer = URLSafeTimedSerializer(
-            psef.current_app.config['SECRET_KEY']
+            current_app.config['SECRET_KEY']
         )
         self.reset_token = str(uuid.uuid4())
         return str(
@@ -873,18 +995,18 @@ class User(Base):
         :param new_password: The new password to set.
         :returns: Nothing.
 
-        :raises psef.auth.PermissionException: If something was wrong with the
+        :raises PermissionException: If something was wrong with the
             given token.
         """
         assert not self.virtual
 
         timed_serializer = URLSafeTimedSerializer(
-            psef.current_app.config['SECRET_KEY']
+            current_app.config['SECRET_KEY']
         )
         try:
             username = timed_serializer.loads(
                 token,
-                max_age=psef.current_app.config['RESET_TOKEN_TIME'],
+                max_age=current_app.config['RESET_TOKEN_TIME'],
                 salt=self.reset_token
             )
         except BadSignature:
@@ -893,20 +1015,20 @@ class User(Base):
                 token=token,
                 exc_info=True,
             )
-            raise psef.auth.PermissionException(
+            raise PermissionException(
                 'The given token is not valid',
                 f'The given token {token} is not valid.',
-                psef.errors.APICodes.INVALID_CREDENTIALS, 403
+                APICodes.INVALID_CREDENTIALS, 403
             )
 
         # This should never happen but better safe than sorry.
         if (
             username != self.username or self.reset_token is None
         ):  # pragma: no cover
-            raise psef.auth.PermissionException(
+            raise PermissionException(
                 'The given token is not valid for this user',
                 f'The given token {token} is not valid for user "{self.id}".',
-                psef.errors.APICodes.INVALID_CREDENTIALS, 403
+                APICodes.INVALID_CREDENTIALS, 403
             )
 
         self.password = new_password
@@ -1009,7 +1131,7 @@ class Course(Base):
         :returns: A list of assignments the currently logged in user may see.
         """
         if psef.current_user.has_permission(
-            'can_see_hidden_assignments', self.id
+            CoursePermission.can_see_hidden_assignments, self.id
         ):
             return sorted(self.assignments, key=lambda item: item.deadline)
         else:
@@ -1422,15 +1544,15 @@ class Work(Base):
 
         try:
             psef.auth.ensure_permission(
-                'can_see_assignee', self.assignment.course_id
+                CoursePermission.can_see_assignee, self.assignment.course_id
             )
             item['assignee'] = self.assignee
-        except psef.auth.PermissionException:
+        except PermissionException:
             item['assignee'] = None
 
         try:
             psef.auth.ensure_can_see_grade(self)
-        except psef.auth.PermissionException:
+        except PermissionException:
             item['grade'] = None
         else:
             item['grade'] = self.grade
@@ -1465,12 +1587,12 @@ class Work(Base):
 
         try:
             psef.auth.ensure_can_see_grade(self)
-        except psef.auth.PermissionException:
+        except PermissionException:
             pass
         else:
             res['comment'] = self.comment
             if psef.current_user.has_permission(
-                'can_see_assignee', self.assignment.course_id
+                CoursePermission.can_see_assignee, self.assignment.course_id
             ):
                 res['comment_author'] = self.comment_author
 
@@ -1521,7 +1643,7 @@ class Work(Base):
                         'selected': self.selected_rubric_points,
                     },
             }
-        except psef.auth.PermissionException:
+        except PermissionException:
             return {
                 'rubrics': self.assignment.rubric_rows,
                 'selected': [],
@@ -1790,7 +1912,7 @@ class File(Base):
             return student
         elif owner == 'auto':
             if psef.current_user.has_permission(
-                'can_edit_others_work', course_id
+                CoursePermission.can_edit_others_work, course_id
             ):
                 return student
             else:
@@ -1889,11 +2011,11 @@ class File(Base):
         if new_parent.children.filter_by(name=new_name).filter(
             File.fileowner != exclude_owner,
         ).first() is not None:
-            raise psef.errors.APIException(
+            raise APIException(
                 'This file already exists within this directory',
                 f'The file "{new_parent.id}" has '
-                f'a child with the name "{new_name}"',
-                psef.errors.APICodes.INVALID_STATE, 400
+                f'a child with the name "{new_name}"', APICodes.INVALID_STATE,
+                400
             )
 
         self.name = new_name
@@ -2006,7 +2128,8 @@ class Comment(Base):
         }
 
         if psef.current_user.has_permission(
-            'can_see_assignee', self.file.work.assignment.course_id
+            CoursePermission.can_see_assignee,
+            self.file.work.assignment.course_id
         ):
             res['author'] = self.user
 
@@ -2665,9 +2788,9 @@ class Assignment(Base):
         try:
             if not self.is_done:
                 psef.auth.ensure_permission(
-                    'can_see_grade_before_open', self.course_id
+                    CoursePermission.can_see_grade_before_open, self.course_id
                 )
-        except psef.auth.PermissionException:
+        except PermissionException:
             return False
         else:
             return self.whitespace_linter_exists
@@ -2736,7 +2859,7 @@ class Assignment(Base):
 
         try:
             psef.auth.ensure_permission(
-                'can_grade_work',
+                CoursePermission.can_grade_work,
                 self.course_id,
             )
             if self.done_email is not None:
@@ -2745,7 +2868,7 @@ class Assignment(Base):
                 res['done_type'] = self.done_type.name
             if self.reminder_email_time is not None:
                 res['reminder_time'] = self.reminder_email_time.isoformat()
-        except psef.auth.PermissionException:
+        except PermissionException:
             pass
 
         return res
@@ -3003,7 +3126,7 @@ class Assignment(Base):
             course_permissions.c.permission_id == Permission.id,
         ).filter(
             CourseRole.course_id == self.course_id,
-            Permission.name == 'can_grade_work',
+            Permission.value == CoursePermission.can_grade_work,
         ).subquery('graders')
 
         res = db.session.query(
@@ -3454,7 +3577,7 @@ class PlagiarismCase(Base):
             psef.auth.ensure_can_see_plagiarims_case(
                 self, assignments=True, submissions=False
             )
-        except psef.auth.PermissionException:
+        except PermissionException:
             other_work_index = (
                 1 if
                 self.work1.assignment_id == self.plagiarism_run.assignment_id
@@ -3473,7 +3596,7 @@ class PlagiarismCase(Base):
             psef.auth.ensure_can_see_plagiarims_case(
                 self, assignments=False, submissions=True
             )
-        except psef.auth.PermissionException:
+        except PermissionException:
             data['submissions'] = None
 
         return data

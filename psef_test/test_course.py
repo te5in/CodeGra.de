@@ -3,6 +3,7 @@ import pytest
 
 import psef.models as m
 from helpers import create_marker
+from psef.permissions import CoursePermission
 
 perm_error = create_marker(pytest.mark.perm_error)
 data_error = create_marker(pytest.mark.data_error)
@@ -535,7 +536,7 @@ def test_add_courseroles(
                     )
                     for perm_n, value in role['perms'].items():
                         perm = session.query(m.Permission).filter_by(
-                            name=perm_n,
+                            value=CoursePermission.get_by_name(perm_n),
                         ).one()
                         assert perm.default_value == value
                         assert perm.course_permission

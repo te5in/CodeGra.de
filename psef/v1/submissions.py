@@ -32,6 +32,7 @@ from psef.helpers import (
 
 from . import api
 from ..model_types import DbColumn
+from ..permissions import CoursePermission as CPerm
 
 Feedback = TypedDict(  # pylint: disable=invalid-name
     'Feedback', {
@@ -84,7 +85,7 @@ def get_submission(
 
     if work.user_id != current_user.id:
         auth.ensure_permission(
-            'can_see_others_work', work.assignment.course_id
+            CPerm.can_see_others_work, work.assignment.course_id
         )
 
     if request.args.get('type') == 'zip':
@@ -198,7 +199,7 @@ def delete_submission(submission_id: int) -> EmptyResponse:
     submission = helpers.get_or_404(models.Work, submission_id)
 
     auth.ensure_permission(
-        'can_delete_submission', submission.assignment.course_id
+        CPerm.can_delete_submission, submission.assignment.course_id
     )
 
     for sub_file in db.session.query(models.File).filter_by(
@@ -236,7 +237,7 @@ def get_feedback_from_submission(submission_id: int) -> JSONResponse[Feedback]:
     work = helpers.get_or_404(models.Work, submission_id)
     auth.ensure_can_see_grade(work)
     can_view_author = current_user.has_permission(
-        'can_see_assignee', work.assignment.course_id
+        CPerm.can_see_assignee, work.assignment.course_id
     )
 
     # The authors dict gets filled if `can_view_authors` is set to `True`. This
@@ -310,7 +311,9 @@ def get_rubric(submission_id: int) -> JSONResponse[t.Mapping[str, t.Any]]:
             selectinload(models.Work.selected_items),
         ]
     )
-    auth.ensure_permission('can_see_assignments', work.assignment.course_id)
+    auth.ensure_permission(
+        CPerm.can_see_assignments, work.assignment.course_id
+    )
     return jsonify(work.__rubric_to_json__())
 
 
@@ -335,7 +338,9 @@ def select_rubric_items(submission_id: int, ) -> EmptyResponse:
     """
     submission = helpers.get_or_404(models.Work, submission_id)
 
-    auth.ensure_permission('can_grade_work', submission.assignment.course_id)
+    auth.ensure_permission(
+        CPerm.can_grade_work, submission.assignment.course_id
+    )
 
     content = ensure_json_dict(request.get_json())
     ensure_keys_in_dict(content, [('items', list)])
@@ -381,7 +386,9 @@ def unselect_rubric_item(
     """
     submission = helpers.get_or_404(models.Work, submission_id)
 
-    auth.ensure_permission('can_grade_work', submission.assignment.course_id)
+    auth.ensure_permission(
+        CPerm.can_grade_work, submission.assignment.course_id
+    )
 
     new_items = [
         item for item in submission.selected_items if item.id != rubric_item_id
@@ -427,7 +434,7 @@ def select_rubric_item(
     work = helpers.get_or_404(models.Work, submission_id)
     rubric_item = helpers.get_or_404(models.RubricItem, rubricitem_id)
 
-    auth.ensure_permission('can_grade_work', work.assignment.course_id)
+    auth.ensure_permission(CPerm.can_grade_work, work.assignment.course_id)
     if rubric_item.rubricrow.assignment_id != work.assignment_id:
         raise APIException(
             'Rubric item selected does not match assignment',
@@ -467,7 +474,7 @@ def patch_submission(submission_id: int) -> JSONResponse[models.Work]:
     work = helpers.get_or_404(models.Work, submission_id)
     content = ensure_json_dict(request.get_json())
 
-    auth.ensure_permission('can_grade_work', work.assignment.course_id)
+    auth.ensure_permission(CPerm.can_grade_work, work.assignment.course_id)
 
     if 'feedback' in content:
         ensure_keys_in_dict(content, [('feedback', str)])
@@ -522,10 +529,12 @@ def update_submission_grader(submission_id: int) -> EmptyResponse:
     ensure_keys_in_dict(content, [('user_id', int)])
     user_id = t.cast(int, content['user_id'])
 
-    auth.ensure_permission('can_assign_graders', work.assignment.course_id)
+    auth.ensure_permission(CPerm.can_assign_graders, work.assignment.course_id)
 
     grader = helpers.get_or_404(models.User, user_id)
-    if not grader.has_permission('can_grade_work', work.assignment.course_id):
+    if not grader.has_permission(
+        CPerm.can_grade_work, work.assignment.course_id
+    ):
         raise APIException(
             f'User "{grader.name}" doesn\'t have the required permission',
             f'User "{grader.name}" doesn\'t have permission "can_grade_work"',
@@ -556,7 +565,7 @@ def delete_submission_grader(submission_id: int) -> EmptyResponse:
     """
     work = helpers.get_or_404(models.Work, submission_id)
 
-    auth.ensure_permission('can_assign_graders', work.assignment.course_id)
+    auth.ensure_permission(CPerm.can_assign_graders, work.assignment.course_id)
 
     work.assignee = None
     db.session.commit()
@@ -578,7 +587,9 @@ def get_grade_history(submission_id: int
     """
     work = helpers.get_or_404(models.Work, submission_id)
 
-    auth.ensure_permission('can_see_grade_history', work.assignment.course_id)
+    auth.ensure_permission(
+        CPerm.can_see_grade_history, work.assignment.course_id
+    )
 
     hist: t.MutableSequence[models.GradeHistory]
     hist = db.session.query(

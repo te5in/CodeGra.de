@@ -25,6 +25,7 @@ from psef.helpers import (
 )
 
 from . import api
+from ..permissions import GlobalPermission as GPerm
 
 
 @api.route("/login", methods=["POST"])
@@ -284,7 +285,7 @@ def user_patch_handle_change_user_data() -> EmptyResponse:
         _ensure_password('', 'The given old password is wrong')
 
     if current_user.name != name:
-        auth.ensure_permission('can_edit_own_info')
+        auth.ensure_permission(GPerm.can_edit_own_info)
         if name == '':
             raise APIException(
                 'Your new name cannot be empty',
@@ -293,7 +294,7 @@ def user_patch_handle_change_user_data() -> EmptyResponse:
         current_user.name = name
 
     if current_user.email != email:
-        auth.ensure_permission('can_edit_own_info')
+        auth.ensure_permission(GPerm.can_edit_own_info)
         if not validate_email(email):
             raise APIException(
                 'The given email is not valid.',
@@ -306,7 +307,7 @@ def user_patch_handle_change_user_data() -> EmptyResponse:
 
     if new_password != '':
         _ensure_password('password')
-        auth.ensure_permission('can_edit_own_password')
+        auth.ensure_permission(GPerm.can_edit_own_password)
         current_user.password = new_password
 
     db.session.commit()

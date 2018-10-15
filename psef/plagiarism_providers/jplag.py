@@ -8,9 +8,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 import typing as t
 
-import psef
 import psef.helpers
-import psef.plagiarism as plag
+
+from .. import app
+from .. import plagiarism as plag
 
 _SUPPORTED_LANGS = {
     "Python 3": "python3",
@@ -114,8 +115,8 @@ class JPlag(plag.PlagiarismProvider):
         :returns: A list as that can be used with
             :func:`subprocess.check_output` to run JPlag.
         """
-        java = psef.app.config['JAVA_PATH']
-        jar = psef.app.config['JPLAG_JAR']
+        java = app.config['JAVA_PATH']
+        jar = app.config['JPLAG_JAR']
         assert self.lang is not None
 
         # yapf: disable

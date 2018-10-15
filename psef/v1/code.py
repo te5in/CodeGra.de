@@ -26,6 +26,7 @@ from psef.helpers import (
 )
 
 from . import api
+from ..permissions import CoursePermission as CPerm
 
 _HumanFeedback = models.Comment
 _LinterFeedback = t.MutableSequence[t.Tuple[str, models.LinterComment]]  # pylint: disable=invalid-name
@@ -61,14 +62,14 @@ def put_comment(code_id: int, line: int) -> EmptyResponse:
 
     if comment:
         auth.ensure_permission(
-            'can_grade_work', comment.file.work.assignment.course_id
+            CPerm.can_grade_work, comment.file.work.assignment.course_id
         )
 
         comment.comment = __get_comment()
     else:
         file = helpers.get_or_404(models.File, code_id)
         auth.ensure_permission(
-            'can_grade_work',
+            CPerm.can_grade_work,
             file.work.assignment.course_id,
         )
 
@@ -109,7 +110,7 @@ def remove_comment(code_id: int, line: int) -> EmptyResponse:
     )
 
     auth.ensure_permission(
-        'can_grade_work', comment.file.work.assignment.course_id
+        CPerm.can_grade_work, comment.file.work.assignment.course_id
     )
     db.session.delete(comment)
     db.session.commit()

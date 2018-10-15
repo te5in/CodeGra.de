@@ -520,8 +520,7 @@ def test_jplag_old_assignments(
         course_id=other_course.id, name='Teacher'
     ).one()
     other_course_teacher_role.set_permission(
-        psef.models.Permission.query.filter_by(name='can_view_plagiarism'
-                                               ).one(), False
+        psef.permissions.CoursePermission.can_view_plagiarism, False
     )
     session.commit()
 
@@ -542,8 +541,7 @@ def test_jplag_old_assignments(
         course_id=other_course.id, name='Teacher'
     ).one()
     other_course_teacher_role.set_permission(
-        psef.models.Permission.query.filter_by(name='can_see_assignments'
-                                               ).one(), False
+        psef.permissions.CoursePermission.can_see_assignments, False
     )
     session.commit()
 
@@ -571,8 +569,7 @@ def test_jplag_old_assignments(
         course_id=other_course.id, name='Teacher'
     ).one()
     other_course_teacher_role.set_permission(
-        psef.models.Permission.query.filter_by(name='can_see_others_work'
-                                               ).one(), False
+        psef.permissions.CoursePermission.can_see_others_work, False
     )
     session.commit()
 

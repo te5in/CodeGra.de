@@ -19,6 +19,17 @@ DbSelf = t.TypeVar('DbSelf', bound='MyDb')
 QuerySelf = t.TypeVar('QuerySelf', bound='_MyQuery')
 
 
+class Comparator:  # pragma: no cover
+    def __init__(self, column: 'DbColumn[T]') -> None:
+        ...
+
+    def __eq__(self, other: object) -> bool:
+        ...
+
+    def __clause_element__(self) -> object:
+        ...
+
+
 class MySession:  # pragma: no cover
     def bulk_save_objects(self, objs: t.Sequence['Base']) -> None:
         ...

@@ -21,10 +21,11 @@ from psef.helpers import (
 )
 
 from . import api
+from ..permissions import GlobalPermission as GPerm
 
 
 @api.route('/snippet', methods=['PUT'])
-@auth.permission_required('can_use_snippets')
+@auth.permission_required(GPerm.can_use_snippets)
 def add_snippet() -> JSONResponse[models.Snippet]:
     """Add or modify a :class:`.models.Snippet` by key.
 
@@ -62,7 +63,7 @@ def add_snippet() -> JSONResponse[models.Snippet]:
 
 
 @api.route('/snippets/', methods=['GET'])
-@auth.permission_required('can_use_snippets')
+@auth.permission_required(GPerm.can_use_snippets)
 def get_snippets() -> JSONResponse[t.Sequence[models.Snippet]]:
     """Get all snippets (:class:`.models.Snippet`) of the curren
     :class:`.models.User`.
@@ -80,7 +81,7 @@ def get_snippets() -> JSONResponse[t.Sequence[models.Snippet]]:
 
 
 @api.route('/snippets/<int:snippet_id>', methods=['PATCH'])
-@auth.permission_required('can_use_snippets')
+@auth.permission_required(GPerm.can_use_snippets)
 def patch_snippet(snippet_id: int) -> EmptyResponse:
     """Modify the :class:`.models.Snippet` with the given id.
 
@@ -124,7 +125,7 @@ def patch_snippet(snippet_id: int) -> EmptyResponse:
 
 
 @api.route('/snippets/<int:snippet_id>', methods=['DELETE'])
-@auth.permission_required('can_use_snippets')
+@auth.permission_required(GPerm.can_use_snippets)
 def delete_snippets(snippet_id: int) -> EmptyResponse:
     """Delete the :class:`.models.Snippet` with the given id.
 

@@ -10,9 +10,14 @@ import flask_jwt_extended as flask_jwt
 from mypy_extensions import NoReturn
 
 import psef
-from psef.errors import APICodes, APIException
+from psef.exceptions import APICodes, APIException, PermissionException
+
+from .permissions import CoursePermission as CPerm
+from .permissions import GlobalPermission as GPerm
 
 jwt = flask_jwt.JWTManager()  # pylint: disable=invalid-name
+
+T = t.TypeVar('T', bound=t.Callable)
 
 
 def init_app(app: t.Any) -> None:
@@ -21,12 +26,6 @@ def init_app(app: t.Any) -> None:
     :param app: The flask app to initialize.
     """
     jwt.init_app(app)
-
-
-class PermissionException(APIException):
-    """The exception used when a permission check fails.
-    """
-    pass
 
 
 def _get_login_exception(
@@ -80,7 +79,7 @@ def _user_active() -> bool:
     return user is not None and user.is_active
 
 
-def login_required(fun: t.Callable) -> t.Callable:
+def login_required(fun: T) -> T:
     """Make sure a valid user is logged in at this moment.
 
     :raises PermissionException: If no user was logged in.
@@ -91,7 +90,7 @@ def login_required(fun: t.Callable) -> t.Callable:
         ensure_logged_in()
         return fun(*args, **kwargs)
 
-    return __wrapper
+    return t.cast(T, __wrapper)
 
 
 def ensure_logged_in() -> None:
@@ -161,12 +160,12 @@ def ensure_can_submit_work(
         )
 
     if submit_self:
-        ensure_permission('can_submit_own_work', assig.course_id)
+        ensure_permission(CPerm.can_submit_own_work, assig.course_id)
     else:
-        ensure_permission('can_submit_others_work', assig.course_id)
+        ensure_permission(CPerm.can_submit_others_work, assig.course_id)
 
     if not assig.is_open:
-        ensure_permission('can_upload_after_deadline', assig.course_id)
+        ensure_permission(CPerm.can_upload_after_deadline, assig.course_id)
 
     if assig.is_lti and assig.id not in author.assignment_results:
         raise APIException(
@@ -198,11 +197,11 @@ def ensure_can_see_grade(work: 'psef.models.Work') -> None:
         (INCORRECT_PERMISSION)
     """
     if work.user_id != psef.current_user.id:
-        ensure_permission('can_see_others_work', work.assignment.course_id)
+        ensure_permission(CPerm.can_see_others_work, work.assignment.course_id)
 
     if not work.assignment.is_done:
         ensure_permission(
-            'can_see_grade_before_open', work.assignment.course_id
+            CPerm.can_see_grade_before_open, work.assignment.course_id
         )
 
 
@@ -217,10 +216,12 @@ def ensure_can_edit_work(work: 'psef.models.Work') -> None:
     """
     if work.user_id == psef.current_user.id:
         if work.assignment.is_open:
-            ensure_permission('can_submit_own_work', work.assignment.course_id)
+            ensure_permission(
+                CPerm.can_submit_own_work, work.assignment.course_id
+            )
         else:
             ensure_permission(
-                'can_upload_after_deadline', work.assignment.course_id
+                CPerm.can_upload_after_deadline, work.assignment.course_id
             )
     else:
         if work.assignment.is_open:
@@ -233,7 +234,9 @@ def ensure_can_edit_work(work: 'psef.models.Work') -> None:
                 APICodes.INCORRECT_PERMISSION,
                 403,
             )
-        ensure_permission('can_edit_others_work', work.assignment.course_id)
+        ensure_permission(
+            CPerm.can_edit_others_work, work.assignment.course_id
+        )
 
 
 @login_required
@@ -251,7 +254,7 @@ def ensure_can_see_plagiarims_case(
     :returns: Nothing
     """
     ensure_permission(
-        'can_view_plagiarism', case.plagiarism_run.assignment.course_id
+        CPerm.can_view_plagiarism, case.plagiarism_run.assignment.course_id
     )
 
     if case.work1.assignment_id == case.work2.assignment_id:
@@ -276,7 +279,7 @@ def ensure_can_see_plagiarims_case(
     # If we have this permission in the external course we may also see al
     # the other information
     if psef.current_user.has_permission(
-        'can_view_plagiarism', other_course_id
+        CPerm.can_view_plagiarism, other_course_id
     ):
         return
 
@@ -286,7 +289,7 @@ def ensure_can_see_plagiarims_case(
         ensure_can_see_assignment(other_assignment)
 
     if submissions and other_work.user_id != psef.current_user.id:
-        ensure_permission('can_see_others_work', other_course_id)
+        ensure_permission(CPerm.can_see_others_work, other_course_id)
 
 
 @login_required
@@ -296,10 +299,12 @@ def ensure_can_see_assignment(assignment: 'psef.models.Assignment') -> None:
     :param assignment: The assignment to check for.
     :returns: Nothing.
     """
-    ensure_permission('can_see_assignments', assignment.course_id)
+    ensure_permission(CPerm.can_see_assignments, assignment.course_id)
 
     if assignment.is_hidden:
-        ensure_permission('can_see_hidden_assignments', assignment.course_id)
+        ensure_permission(
+            CPerm.can_see_hidden_assignments, assignment.course_id
+        )
 
 
 @login_required
@@ -318,11 +323,11 @@ def ensure_can_view_files(
         if work.user_id != psef.current_user.id:
             try:
                 ensure_permission(
-                    'can_see_others_work', work.assignment.course_id
+                    CPerm.can_see_others_work, work.assignment.course_id
                 )
             except PermissionException:
                 ensure_permission(
-                    'can_view_plagiarism', work.assignment.course_id
+                    CPerm.can_view_plagiarism, work.assignment.course_id
                 )
 
         if teacher_files:
@@ -331,13 +336,13 @@ def ensure_can_view_files(
                 work.assignment.is_done
             ):
                 ensure_permission(
-                    'can_view_own_teacher_files', work.assignment.course_id
+                    CPerm.can_view_own_teacher_files, work.assignment.course_id
                 )
             else:
                 # If the assignment is not done you can only view teacher files
                 # if you can edit somebodies work.
                 ensure_permission(
-                    'can_edit_others_work', work.assignment.course_id
+                    CPerm.can_edit_others_work, work.assignment.course_id
                 )
     except PermissionException:
         # A user can also view a file if there is a plagiarism case between
@@ -353,14 +358,26 @@ def ensure_can_view_files(
         ):
             other_work = case.work1 if case.work2_id == work.id else case.work2
             if psef.current_user.has_permission(
-                'can_view_plagiarism',
+                CPerm.can_view_plagiarism,
                 course_id=other_work.assignment.course_id,
             ):
                 return
         raise
 
 
-def ensure_permission(permission_name: str, course_id: int = None) -> None:
+@t.overload
+def ensure_permission(permission: CPerm, course_id: int) -> None:  # pylint: disable=function-redefined,missing-docstring,unused-argument
+    ...  # pylint: disable=pointless-statement
+
+
+@t.overload
+def ensure_permission(permission: GPerm) -> None:  # pylint: disable=function-redefined,missing-docstring,unused-argument
+    ...  # pylint: disable=pointless-statement
+
+
+def ensure_permission(  # pylint: disable=function-redefined
+    permission: t.Union[CPerm, GPerm], course_id: t.Optional[int] = None
+) -> None:
     """Ensure that the current user is logged and has the given permission.
 
     :param permission_name: The name of the permission to check for.
@@ -377,15 +394,23 @@ def ensure_permission(permission_name: str, course_id: int = None) -> None:
                                  current user. (INCORRECT_PERMISSION)
     """
     if _user_active():
-        if psef.current_user.has_permission(
-            permission_name, course_id=course_id
+        if isinstance(
+            permission, CPerm
+        ) and course_id is not None and psef.current_user.has_permission(
+            permission, course_id=course_id
+        ):
+            return
+        elif isinstance(
+            permission, GPerm
+        ) and course_id is None and psef.current_user.has_permission(
+            permission
         ):
             return
         else:
             raise PermissionException(
                 'You do not have permission to do this.',
                 'The permission "{}" is not enabled for user "{}"'.format(
-                    permission_name, psef.current_user.id
+                    permission.name, psef.current_user.id
                 ), APICodes.INCORRECT_PERMISSION, 403
             )
     else:
@@ -393,19 +418,15 @@ def ensure_permission(permission_name: str, course_id: int = None) -> None:
             (
                 'The user was not logged in, ' +
                 'so it did not have the permission "{}"'
-            ).format(permission_name)
+            ).format(permission.name)
         )
 
 
-def permission_required(
-    permission_name: str, course_id: int = None
-) -> t.Callable:
+def permission_required(permission: GPerm) -> t.Callable[[T], T]:
     """A decorator used to make sure the function decorated is only called with
     certain permissions.
 
-    :param permission_name: The name of the permission to check for.
-    :param course_id: The id of the course if the permission is a course
-        permission.
+    :param permission: The global permission to check for.
 
     :returns: The value of the decorated function if the current user has the
         required permission.
@@ -415,13 +436,14 @@ def permission_required(
         :py:func:`ensure_permission` does this.
     """
 
-    def __decorator(f: t.Callable) -> t.Callable:
+    def __decorator(f: T) -> T:
         @wraps(f)
         def __decorated_function(*args: t.Any, **kwargs: t.Any) -> t.Any:
-            ensure_permission(permission_name, course_id=course_id)
+            assert isinstance(permission, GPerm)
+            ensure_permission(permission)
             return f(*args, **kwargs)
 
-        return __decorated_function
+        return t.cast(T, __decorated_function)
 
     return __decorator
 

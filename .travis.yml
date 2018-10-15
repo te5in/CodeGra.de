@@ -31,8 +31,6 @@ matrix:
       env: TO_RUN="lint"
     - python: "3.7-dev"
       env: TO_RUN="js_unit"
-    - python: "3.6-dev" # Older python version
-      env: TO_RUN="tests"
 
 install:
   - pip install -U wheel

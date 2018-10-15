@@ -477,6 +477,24 @@ def _maybe_add_warning(
         response.headers['Warning'] = warning
 
 
+def _maybe_log_response(obj: object, response: t.Any, extended: bool) -> None:
+    if not isinstance(obj, psef.errors.APIException):
+        if getattr(psef.current_app, 'debug', False) and not getattr(
+            psef.current_app, 'testing', False
+        ):  # pragma: no cover
+            to_log = response.get_json()
+            if len(str(to_log)) > 500:
+                to_log = '{:.500} ... [TRUNCATED]'.format(str(to_log))
+        else:
+            to_log = response.response
+        ext = 'extended ' if extended else ''
+        logger.info(
+            f'Created {ext}json return response',
+            reponse_type=str(type(obj)),
+            response=to_log,
+        )
+
+
 def extended_jsonify(
     obj: T,
     status_code: int = 200,
@@ -513,20 +531,9 @@ def extended_jsonify(
         psef.app.json_encoder = json.CustomJSONEncoder
     response.status_code = status_code
 
-    if not isinstance(obj, psef.errors.APIException):
-        if getattr(psef.current_app, 'debug', False) and not getattr(
-            psef.current_app, 'testing', False
-        ):  # pragma: no cover
-            to_log = response.get_json()
-        else:
-            to_log = response.response
-        logger.info(
-            'Created extended json return response',
-            reponse_type=str(type(obj)),
-            response=to_log,
-        )
-
     _maybe_add_warning(response, warning)
+
+    _maybe_log_response(obj, response, True)
 
     return response
 
@@ -545,21 +552,11 @@ def jsonify(
     :returns: The response with the jsonified object as payload
     """
     response = flask.jsonify(obj)
-    if not isinstance(obj, psef.errors.APIException):
-        if getattr(psef.current_app, 'debug', False) and not getattr(
-            psef.current_app, 'testing', False
-        ):  # pragma: no cover
-            to_log = response.get_json()
-        else:
-            to_log = response.response
-        logger.info(
-            'Created json return response',
-            reponse_type=str(type(obj)),
-            response=to_log,
-        )
     response.status_code = status_code
 
     _maybe_add_warning(response, warning)
+
+    _maybe_log_response(obj, response, False)
 
     return response
 

@@ -15,6 +15,7 @@ from psef.helpers import (
 )
 
 from . import api
+from ..permissions import CoursePermission as CPerm
 
 
 @api.route('/linters/<linter_id>', methods=['DELETE'])
@@ -37,7 +38,7 @@ def delete_linter_output(linter_id: str) -> EmptyResponse:
     """
     linter = helpers.get_or_404(models.AssignmentLinter, linter_id)
 
-    auth.ensure_permission('can_use_linter', linter.assignment.course_id)
+    auth.ensure_permission(CPerm.can_use_linter, linter.assignment.course_id)
 
     db.session.delete(linter)
     db.session.commit()
@@ -63,6 +64,6 @@ def get_linter_state(linter_id: str) -> JSONResponse[models.AssignmentLinter]:
     """
     linter = helpers.get_or_404(models.AssignmentLinter, linter_id)
 
-    auth.ensure_permission('can_use_linter', linter.assignment.course_id)
+    auth.ensure_permission(CPerm.can_use_linter, linter.assignment.course_id)
 
     return jsonify(linter)

@@ -7,16 +7,16 @@ import random
 import datetime
 import contextlib
 
+import psef
 import pytest
+import psef.auth as a
+import psef.models as m
 import flask_migrate
 import flask_jwt_extended as flask_jwt
 from flask import _app_ctx_stack as ctx_stack
 from werkzeug.local import LocalProxy
 
-import psef
 import manage
-import psef.auth as a
-import psef.models as m
 
 TESTDB = 'test_project.db'
 TESTDB_PATH = "/tmp/psef/psef-{}-{}".format(TESTDB, random.random())
@@ -68,7 +68,9 @@ def app(request):
         'CELERY_TASK_EAGER_PROPAGATES': True,
     }
 
-    app = psef.create_app(settings_override, skip_celery=True)
+    app = psef.create_app(
+        settings_override, skip_celery=True, skip_perm_check=True
+    )
 
     psef.tasks.celery.conf.update(
         {
@@ -273,6 +275,8 @@ def db(app, request):
     manage.app = app
     manage.seed_force(psef.models.db)
     manage.test_data(psef.models.db)
+
+    psef.permissions.database_permissions_sanity_check(app)
 
     yield psef.models.db
 

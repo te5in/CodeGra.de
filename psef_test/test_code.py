@@ -7,6 +7,7 @@ import pytest
 
 import psef.models as m
 from helpers import create_marker
+from psef.permissions import CoursePermission
 
 perm_error = create_marker(pytest.mark.perm_error)
 data_error = create_marker(pytest.mark.data_error)
@@ -737,10 +738,7 @@ def test_update_code(
     role = m.CourseRole.query.filter_by(
         course_id=assignment.course_id, name='Student'
     ).one()
-    role.set_permission(
-        m.Permission.query.filter_by(name='can_upload_after_deadline').one(),
-        True
-    )
+    role.set_permission(CoursePermission.can_upload_after_deadline, True)
     session.commit()
     # CAN change code after deadline as student if you have the permission for
     # this.
@@ -885,10 +883,7 @@ def test_rename_code(
     role = m.CourseRole.query.filter_by(
         course_id=assignment.course_id, name='Student'
     ).one()
-    role.set_permission(
-        m.Permission.query.filter_by(name='can_upload_after_deadline').one(),
-        True
-    )
+    role.set_permission(CoursePermission.can_upload_after_deadline, True)
     session.commit()
 
     with logged_in(student_user):

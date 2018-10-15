@@ -8,7 +8,7 @@ import typing as t
 import datetime
 import email.utils
 
-import dateutil
+import dateutil.parser
 from validate_email import validate_email
 
 from psef.errors import APICodes, APIException

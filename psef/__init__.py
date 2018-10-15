@@ -13,13 +13,45 @@ import typing as t
 import logging
 import datetime
 
-import flask  # pylint: disable=unused-import
+import flask
 import structlog
 import flask_jwt_extended as flask_jwt
-from flask import Flask, g, jsonify, request, current_app
-from sqlalchemy import event
+from flask import g, jsonify, request, current_app
 from flask_limiter import Limiter, RateLimitExceeded
-from sqlalchemy.engine.base import Engine
+
+if t.TYPE_CHECKING and getattr(
+    t, 'SPHINX', False
+) is not True:  # pragma: no cover:
+
+    class Flask:
+        """A stub for flask.
+        """
+
+        def __init__(self, _: str) -> None:
+            self.before_request: t.Callable
+            self.after_request: t.Callable
+            self.errorhandler: t.Callable
+            self.config: t.MutableMapping[str, t.Any]
+            self.teardown_request: t.Callable
+            self.app_context: t.Callable
+else:
+    from flask import Flask
+
+
+class PsefFlask(Flask):
+    """Our subclass of flask.
+
+    This contains the extra property :meth:`.PsefFlask.do_sanity_checks`.
+    """
+
+    @property
+    def do_sanity_checks(self) -> bool:
+        """Should we do sanity checks for this app.
+
+        :returns: ``True`` if ``debug`` or ``testing`` is enabled.
+        """
+        return getattr(self, 'debug', False) or getattr(self, 'testing', False)
+
 
 logger = structlog.get_logger()
 
@@ -55,7 +87,7 @@ def _seed_lti_lookups() -> None:
 _seed_lti_lookups()
 
 if t.TYPE_CHECKING:  # pragma: no cover
-    import psef.models  # pylint: disable=unused-import
+    import psef.models
     current_user: 'psef.models.User' = t.cast('psef.models.User', None)
 else:
     current_user = flask_jwt.current_user  # pylint: disable=invalid-name
@@ -73,7 +105,11 @@ def limiter_key_func() -> None:  # pragma: no cover
 limiter = Limiter(key_func=limiter_key_func)  # pylint: disable=invalid-name
 
 
-def create_app(config: t.Mapping = None, skip_celery: bool = False) -> t.Any:  # pylint: disable=too-many-statements
+def create_app(  # pylint: disable=too-many-statements
+    config: t.Mapping = None,
+    skip_celery: bool = False,
+    skip_perm_check: bool = True,
+) -> t.Any:
     """Create a new psef app.
 
     :param config: The config mapping that can be used to override config.
@@ -81,7 +117,8 @@ def create_app(config: t.Mapping = None, skip_celery: bool = False) -> t.Any:  #
     :returns: A new psef app object.
     """
     import config as global_config
-    resulting_app = Flask(__name__)
+
+    resulting_app = PsefFlask(__name__)
 
     @resulting_app.before_request
     def __set_request_start_time() -> None:  # pylint: disable=unused-variable
@@ -130,28 +167,6 @@ def create_app(config: t.Mapping = None, skip_celery: bool = False) -> t.Any:  #
             method=request.method,
             args=dict(flask.request.args),
         )
-
-    @event.listens_for(Engine, "before_cursor_execute")
-    def __before_cursor_execute(*_args: object) -> None:
-        if hasattr(g, 'query_start'):
-            g.query_start = datetime.datetime.utcnow()
-
-    @event.listens_for(Engine, "after_cursor_execute")
-    def __after_cursor_execute(*_args: object) -> None:
-        if hasattr(g, 'queries_amount'):
-            g.queries_amount += 1
-        if hasattr(g, 'query_start'):
-            delta = (datetime.datetime.utcnow() -
-                     g.query_start).total_seconds()
-            if hasattr(g, 'queries_total_duration'):
-                g.queries_total_duration += delta
-            if (
-                hasattr(g, 'queries_max_duration') and (
-                    g.queries_max_duration is None or
-                    delta > g.queries_max_duration
-                )
-            ):
-                g.queries_max_duration = delta
 
     processors = [
         structlog.stdlib.filter_by_level,
@@ -204,6 +219,9 @@ def create_app(config: t.Mapping = None, skip_celery: bool = False) -> t.Any:  #
 
     limiter.init_app(resulting_app)
 
+    from . import cache
+    cache.init_app(resulting_app)
+
     from . import auth
     auth.init_app(resulting_app)
 
@@ -237,12 +255,15 @@ def create_app(config: t.Mapping = None, skip_celery: bool = False) -> t.Any:  #
     from . import linters
     linters.init_app(resulting_app)
 
-    # Register blueprint(s)
-    from . import v1 as api_v1
-    api_v1.init_app(resulting_app)
+    from . import permissions
+    permissions.init_app(resulting_app, skip_perm_check)
 
     from . import plagiarism
     plagiarism.init_app(resulting_app)
+
+    # Register blueprint(s)
+    from . import v1 as api_v1
+    api_v1.init_app(resulting_app)
 
     # Make sure celery is working
     if not skip_celery:  # pragma: no cover
@@ -266,6 +287,10 @@ def create_app(config: t.Mapping = None, skip_celery: bool = False) -> t.Any:  #
             logger.info if queries_max_duration < 0.5 and queries_amount < 20
             else logger.warning
         )
+
+        cache_hits = g.cache_hits
+        cache_misses = g.cache_misses
+
         end_time = datetime.datetime.utcnow()
         log_msg(
             'Request finished',
@@ -273,7 +298,9 @@ def create_app(config: t.Mapping = None, skip_celery: bool = False) -> t.Any:  #
             status_code=getattr(res, 'status_code', None),
             queries_amount=queries_amount,
             queries_total_duration=queries_total_duration,
-            queries_max_duration=queries_max_duration
+            queries_max_duration=queries_max_duration,
+            cache_hits=cache_hits,
+            cache_misses=cache_misses,
         )
         return res
 

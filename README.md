@@ -29,8 +29,8 @@
       alt="Python updates" title="Python updates">
   </a>
   <a href="https://pyup.io/repos/github/CodeGra-de/CodeGra.de/">
-    <img src="https://img.shields.io/badge/python-3.6%2B-blue.svg"
-      alt="Python 3.6+ ready" title="Python 3.6+ ready">
+    <img src="https://img.shields.io/badge/python-3.7%2B-blue.svg"
+      alt="Python 3.7+ ready" title="Python 3.7+ ready">
   </a>
   <a href="https://codegra.de">
     <img src="https://img.shields.io/badge/made%20with-%E2%9D%A4%EF%B8%8F%20&%20%F0%9F%8D%BB-ff69b4.svg"

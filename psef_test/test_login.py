@@ -1,11 +1,12 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 import copy
 
-import psef
 import pytest
-import psef.models as m
 
+import psef
+import psef.models as m
 from helpers import create_marker
+from psef.permissions import GlobalPermission
 
 data_error = create_marker(pytest.mark.data_error)
 perm_error = create_marker(pytest.mark.perm_error)
@@ -301,8 +302,8 @@ def test_update_user_info_permissions(
     logged_in, test_client, session, error_template, request
 ):
     new_role = m.Role(name='NEW_ROLE')
-    info_perm = m.Permission.query.filter_by(name='can_edit_own_info').one()
-    pw_perm = m.Permission.query.filter_by(name='can_edit_own_password').one()
+    info_perm = psef.permissions.GlobalPermission.can_edit_own_info
+    pw_perm = psef.permissions.GlobalPermission.can_edit_own_password
     new_role.set_permission(info_perm, False)
     new_role.set_permission(pw_perm, False)
 
@@ -336,8 +337,7 @@ def test_update_user_info_permissions(
             result=error_template,
         )
 
-        pw_perm = m.Permission.query.filter_by(name='can_edit_own_password'
-                                               ).one()
+        pw_perm = GlobalPermission.can_edit_own_password
         m.User.query.get(user_id).role.set_permission(pw_perm, True)
         session.commit()
 
@@ -363,10 +363,8 @@ def test_update_user_info_permissions(
             },
         )
 
-        pw_perm = m.Permission.query.filter_by(name='can_edit_own_password'
-                                               ).one()
-        info_perm = m.Permission.query.filter_by(name='can_edit_own_info'
-                                                 ).one()
+        pw_perm = psef.permissions.GlobalPermission.can_edit_own_password
+        info_perm = psef.permissions.GlobalPermission.can_edit_own_info
         m.User.query.get(user_id).role.set_permission(pw_perm, False)
         m.User.query.get(user_id).role.set_permission(info_perm, True)
         session.commit()
@@ -393,9 +391,9 @@ def test_update_user_info_permissions(
             },
         )
 
-        pw_perm = m.Permission.query.filter_by(name='can_edit_own_password'
-                                               ).one()
-        m.User.query.get(user_id).role.set_permission(pw_perm, True)
+        m.User.query.get(user_id).role.set_permission(
+            GlobalPermission.can_edit_own_password, True
+        )
         session.commit()
 
         # It now has both so this should work.

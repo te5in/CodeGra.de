@@ -14,6 +14,7 @@ import psef.models as m
 from helpers import create_marker
 from psef.errors import APICodes
 from psef.helpers import ensure_keys_in_dict
+from psef.permissions import CoursePermission
 
 # http_err = pytest.mark.http_err
 perm_error = create_marker(pytest.mark.perm_error)
@@ -1056,7 +1057,8 @@ def test_upload_files(
             assert res['message'].startswith('No file in HTTP')
 
             if assignment.is_open or named_user.has_permission(
-                'can_upload_after_deadline', assignment.course_id
+                psef.permissions.CoursePermission.can_upload_after_deadline,
+                assignment.course_id
             ):
                 res = test_client.req(
                     'post',
@@ -1150,9 +1152,7 @@ def test_upload_for_other(
         code = 403
         res = error_template
         named_user.courses[assignment.course_id].set_permission(
-            session.query(
-                m.Permission
-            ).filter_by(name='can_upload_after_deadline').first(), False
+            CoursePermission.can_upload_after_deadline, False
         )
 
     with logged_in(named_user):
@@ -2644,7 +2644,7 @@ def test_cgignore_permission(
     teacher_user, session, test_client, error_template, assignment, logged_in
 ):
     teacher_user.courses[assignment.course_id].set_permission(
-        m.Permission.query.filter_by(name='can_edit_cgignore').one(),
+        psef.permissions.CoursePermission.can_edit_cgignore,
         False,
     )
 
@@ -2894,8 +2894,9 @@ def test_grader_done(
 
     if not err:
         new_user = m.User.query.filter_by(name='Student1').first()
-        perm = m.Permission.query.filter_by(name='can_grade_work').first()
-        new_user.courses[course_id].set_permission(perm, True)
+        new_user.courses[course_id].set_permission(
+            CoursePermission.can_grade_work, True
+        )
         session.commit()
 
         with logged_in(new_user):
@@ -3295,8 +3296,7 @@ def test_notification_permission(
 ):
     assig_id = assignment.id
     teacher_user.courses[assignment.course_id].set_permission(
-        m.Permission.query.filter_by(name='can_update_course_notifications', ).
-        one(),
+        CoursePermission.can_update_course_notifications,
         False,
     )
     with logged_in(teacher_user):

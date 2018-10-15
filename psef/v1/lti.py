@@ -13,8 +13,8 @@ import urllib.parse
 
 import jwt
 import flask
-import structlog
 import werkzeug
+import structlog
 
 import psef.errors as errors
 import psef.models as models

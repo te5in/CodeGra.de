@@ -6,12 +6,11 @@ import sys
 import json
 import datetime
 
+import psef
+import psef.models as m
 from flask_script import Manager
 from flask_migrate import Migrate, MigrateCommand
 from sqlalchemy_utils import PasswordType
-
-import psef
-import psef.models as m
 
 
 def render_item(type_, col, autogen_context):
@@ -22,7 +21,10 @@ def render_item(type_, col, autogen_context):
         return False
 
 
-app = psef.create_app(skip_celery=True)
+app = psef.create_app(
+    skip_celery=True,
+    skip_perm_check=True,
+)
 
 migrate = Migrate(app, psef.models.db, render_item=render_item)
 manager = Manager(app)
@@ -51,17 +53,27 @@ def seed_force(db=None):
         'r'
     ) as perms:
         perms = json.load(perms)
-        for name, perm in perms.items():
-            old_perm = m.Permission.query.filter_by(name=name).first()
+        for name, perm_data in perms.items():
+            if perm_data['course_permission']:
+                perm = psef.permissions.CoursePermission.get_by_name(name)
+            else:
+                perm = psef.permissions.GlobalPermission.get_by_name(name)
+
+            old_perm = m.Permission.query.filter_by(value=perm).first()
+
             if old_perm is not None:
-                old_perm.default_value = perm['default_value']
-                old_perm.course_permission = perm['course_permission']
+                old_perm.default_value = perm.value.default_value
+                assert old_perm.course_permission == isinstance(
+                    perm, psef.permissions.CoursePermission
+                )
             else:
                 db.session.add(
                     m.Permission(
-                        name=name,
-                        default_value=perm['default_value'],
-                        course_permission=perm['course_permission']
+                        _Permission__name=perm.name,
+                        default_value=perm.value.default_value,
+                        course_permission=isinstance(
+                            perm, psef.permissions.CoursePermission
+                        )
                     )
                 )
 
@@ -71,12 +83,14 @@ def seed_force(db=None):
     ) as c:
         cs = json.load(c)
         for name, c in cs.items():
-            perms = m.Permission.query.filter_by(course_permission=False).all()
+            perms = m.Permission.get_all_permissions(
+                psef.permissions.GlobalPermission
+            )
             r_perms = {}
             perms_set = set(c['permissions'])
             for perm in perms:
-                if (perm.default_value ^ (perm.name in perms_set)):
-                    r_perms[perm.name] = perm
+                if (perm.default_value ^ (perm.value.name in perms_set)):
+                    r_perms[perm.value] = perm
 
             r = m.Role.query.filter_by(name=name).first()
             if r is None:

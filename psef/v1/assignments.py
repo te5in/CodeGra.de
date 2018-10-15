@@ -37,6 +37,7 @@ from psef.helpers import (
 
 from . import api
 from .. import archive, plagiarism
+from ..permissions import CoursePermission as CPerm
 
 logger = structlog.get_logger()
 
@@ -53,15 +54,10 @@ def get_all_assignments() -> JSONResponse[t.Sequence[models.Assignment]]:
 
     :raises PermissionException: If there is no logged in user. (NOT_LOGGED_IN)
     """
-    perm_can_see: models.Permission = t.cast(
-        models.Permission,
-        models.Permission.query.filter_by(name='can_see_assignments').first()
-    )
-    assert perm_can_see is not None
     courses = []
 
     for course_role in current_user.courses.values():
-        if course_role.has_permission(perm_can_see):
+        if course_role.has_permission(CPerm.can_see_assignments):
             courses.append(course_role.course_id)
 
     res = []
@@ -85,7 +81,7 @@ def get_all_assignments() -> JSONResponse[t.Sequence[models.Assignment]]:
             isouter=True
         ).all():
             has_perm = current_user.has_permission(
-                'can_see_hidden_assignments', assignment.course_id
+                CPerm.can_see_hidden_assignments, assignment.course_id
             )
             assignment.whitespace_linter_exists = has_linter
             if ((not assignment.is_hidden) or has_perm):
@@ -138,7 +134,7 @@ def get_assignments_feedback(assignment_id: int) -> JSONResponse[
 
     latest_subs = assignment.get_all_latest_submissions()
     try:
-        auth.ensure_permission('can_see_others_work', assignment.course_id)
+        auth.ensure_permission(CPerm.can_see_others_work, assignment.course_id)
     except auth.PermissionException:
         latest_subs = latest_subs.filter_by(user_id=current_user.id)
 
@@ -252,7 +248,7 @@ def update_assignment(assignment_id: int) -> EmptyResponse:
     content = ensure_json_dict(request.get_json())
 
     if 'state' in content:
-        auth.ensure_permission('can_edit_assignment_info', assig.course_id)
+        auth.ensure_permission(CPerm.can_edit_assignment_info, assig.course_id)
         ensure_keys_in_dict(content, [('state', str)])
         state = t.cast(str, content['state'])
 
@@ -266,7 +262,7 @@ def update_assignment(assignment_id: int) -> EmptyResponse:
             )
 
     if 'name' in content:
-        auth.ensure_permission('can_edit_assignment_info', assig.course_id)
+        auth.ensure_permission(CPerm.can_edit_assignment_info, assig.course_id)
         ensure_keys_in_dict(content, [('name', str)])
         name = t.cast(str, content['name'])
 
@@ -281,18 +277,18 @@ def update_assignment(assignment_id: int) -> EmptyResponse:
         assig.name = name
 
     if 'deadline' in content:
-        auth.ensure_permission('can_edit_assignment_info', assig.course_id)
+        auth.ensure_permission(CPerm.can_edit_assignment_info, assig.course_id)
         ensure_keys_in_dict(content, [('deadline', str)])
         deadline = t.cast(str, content['deadline'])
         assig.deadline = parsers.parse_datetime(deadline)
 
     if 'ignore' in content:
-        auth.ensure_permission('can_edit_cgignore', assig.course_id)
+        auth.ensure_permission(CPerm.can_edit_cgignore, assig.course_id)
         ensure_keys_in_dict(content, [('ignore', str)])
         assig.cgignore = t.cast(str, content['ignore'])
 
     if 'max_grade' in content:
-        auth.ensure_permission('can_edit_maximum_grade', assig.course_id)
+        auth.ensure_permission(CPerm.can_edit_maximum_grade, assig.course_id)
         ensure_keys_in_dict(content, [('max_grade', (float, int, type(None)))])
         max_grade = t.cast(t.Union[float, int, None], content['max_grade'])
         if not (max_grade is None or max_grade > 0):
@@ -305,7 +301,7 @@ def update_assignment(assignment_id: int) -> EmptyResponse:
 
     if any(t in content for t in ['done_type', 'reminder_time', 'done_email']):
         auth.ensure_permission(
-            'can_update_course_notifications',
+            CPerm.can_update_course_notifications,
             assig.course_id,
         )
         warning = set_reminder(assig, content) or warning
@@ -344,7 +340,7 @@ def get_assignment_rubric(assignment_id: int
         ]
     )
 
-    auth.ensure_permission('can_see_assignments', assig.course_id)
+    auth.ensure_permission(CPerm.can_see_assignments, assig.course_id)
     if not assig.rubric_rows:
         raise APIException(
             'Assignment has no rubric',
@@ -372,7 +368,7 @@ def delete_rubric(assignment_id: int) -> EmptyResponse:
         (OBJECT_ID_NOT_FOUND)
     """
     assig = helpers.get_or_404(models.Assignment, assignment_id)
-    auth.ensure_permission('manage_rubrics', assig.course_id)
+    auth.ensure_permission(CPerm.manage_rubrics, assig.course_id)
 
     if not assig.rubric_rows:
         raise APIException(
@@ -416,7 +412,7 @@ def add_assignment_rubric(assignment_id: int
     """
     assig = helpers.get_or_404(models.Assignment, assignment_id)
 
-    auth.ensure_permission('manage_rubrics', assig.course_id)
+    auth.ensure_permission(CPerm.manage_rubrics, assig.course_id)
     content = ensure_json_dict(request.get_json())
 
     if 'max_points' in content:
@@ -637,7 +633,7 @@ def divide_assignments(assignment_id: int) -> EmptyResponse:
     """
     assignment = helpers.get_or_404(models.Assignment, assignment_id)
 
-    auth.ensure_permission('can_assign_graders', assignment.course_id)
+    auth.ensure_permission(CPerm.can_assign_graders, assignment.course_id)
 
     content = ensure_json_dict(request.get_json())
     ensure_keys_in_dict(content, [('graders', dict)])
@@ -673,11 +669,8 @@ def divide_assignments(assignment_id: int) -> EmptyResponse:
             APICodes.INVALID_PARAM, 400
         )
 
-    can_grade_work = helpers.filter_single_or_404(
-        models.Permission, models.Permission.name == 'can_grade_work'
-    )
     for user in users:
-        if not user.has_permission(can_grade_work, assignment.course_id):
+        if not user.has_permission(CPerm.can_grade_work, assignment.course_id):
             raise APIException(
                 'Selected grader has no permission to grade',
                 f'The grader {user.id} has no permission to grade',
@@ -715,7 +708,7 @@ def get_all_graders(
                                  this assignment. (INCORRECT_PERMISSION)
     """
     assignment = helpers.get_or_404(models.Assignment, assignment_id)
-    auth.ensure_permission('can_see_assignee', assignment.course_id)
+    auth.ensure_permission(CPerm.can_see_assignee, assignment.course_id)
 
     result = assignment.get_all_graders(sort=True)
 
@@ -768,9 +761,9 @@ def set_grader_to_not_done(
     assig = helpers.get_or_404(models.Assignment, assignment_id)
 
     if current_user.id == grader_id:
-        auth.ensure_permission('can_grade_work', assig.course_id)
+        auth.ensure_permission(CPerm.can_grade_work, assig.course_id)
     else:
-        auth.ensure_permission('can_update_grader_status', assig.course_id)
+        auth.ensure_permission(CPerm.can_update_grader_status, assig.course_id)
 
     try:
         send_mail = grader_id != current_user.id
@@ -818,12 +811,12 @@ def set_grader_to_done(assignment_id: int, grader_id: int) -> EmptyResponse:
     )
 
     if current_user.id == grader_id:
-        auth.ensure_permission('can_grade_work', assig.course_id)
+        auth.ensure_permission(CPerm.can_grade_work, assig.course_id)
     else:
-        auth.ensure_permission('can_update_grader_status', assig.course_id)
+        auth.ensure_permission(CPerm.can_update_grader_status, assig.course_id)
 
     grader = helpers.get_or_404(models.User, grader_id)
-    if not grader.has_permission('can_grade_work', assig.course_id):
+    if not grader.has_permission(CPerm.can_grade_work, assig.course_id):
         raise APIException(
             'The given user is not a grader in this course',
             (
@@ -889,11 +882,11 @@ def get_all_works_for_assignment(
     """
     assignment = helpers.get_or_404(models.Assignment, assignment_id)
 
-    auth.ensure_permission('can_see_assignments', assignment.course_id)
+    auth.ensure_permission(CPerm.can_see_assignments, assignment.course_id)
 
     if assignment.is_hidden:
         auth.ensure_permission(
-            'can_see_hidden_assignments', assignment.course_id
+            CPerm.can_see_hidden_assignments, assignment.course_id
         )
 
     obj = models.Work.query.filter_by(
@@ -903,7 +896,7 @@ def get_all_works_for_assignment(
     )).order_by(t.cast(t.Any, models.Work.created_at).desc())
 
     if not current_user.has_permission(
-        'can_see_others_work', course_id=assignment.course_id
+        CPerm.can_see_others_work, course_id=assignment.course_id
     ):
         obj = obj.filter_by(user_id=current_user.id)
 
@@ -943,7 +936,7 @@ def post_submissions(assignment_id: int) -> EmptyResponse:
         course attached to the assignment. (INCORRECT_PERMISSION)
     """
     assignment = helpers.get_or_404(models.Assignment, assignment_id)
-    auth.ensure_permission('can_upload_bb_zip', assignment.course_id)
+    auth.ensure_permission(CPerm.can_upload_bb_zip, assignment.course_id)
     files = helpers.get_files_from_request(check_size=False, keys=['file'])
 
     try:
@@ -1072,7 +1065,7 @@ def get_linters(assignment_id: int
     """
     assignment = helpers.get_or_404(models.Assignment, assignment_id)
 
-    auth.ensure_permission('can_use_linter', assignment.course_id)
+    auth.ensure_permission(CPerm.can_use_linter, assignment.course_id)
 
     res = []
     for name, opts in linters.get_all_linters().items():
@@ -1134,7 +1127,7 @@ def start_linting(assignment_id: int) -> JSONResponse[models.AssignmentLinter]:
     content = ensure_json_dict(request.get_json())
 
     assig = helpers.get_or_404(models.Assignment, assignment_id)
-    auth.ensure_permission('can_use_linter', assig.course_id)
+    auth.ensure_permission(CPerm.can_use_linter, assig.course_id)
 
     ensure_keys_in_dict(content, [('cfg', str), ('name', str)])
     cfg = t.cast(str, content['cfg'])
@@ -1202,9 +1195,9 @@ def get_plagiarism_runs(
     """
     assig = helpers.get_or_404(models.Assignment, assignment_id)
     try:
-        auth.ensure_permission('can_view_plagiarism', assig.course_id)
+        auth.ensure_permission(CPerm.can_view_plagiarism, assig.course_id)
     except auth.PermissionException:
-        auth.ensure_permission('can_manage_plagiarism', assig.course_id)
+        auth.ensure_permission(CPerm.can_manage_plagiarism, assig.course_id)
 
     return jsonify(
         models.PlagiarismRun.query.filter_by(assignment=assig).order_by(
@@ -1251,7 +1244,7 @@ def start_plagiarism_check(
         cases for this course. (INCORRECT_PERMISSION)
     """
     assig = helpers.get_or_404(models.Assignment, assignment_id)
-    auth.ensure_permission('can_manage_plagiarism', assig.course_id)
+    auth.ensure_permission(CPerm.can_manage_plagiarism, assig.course_id)
 
     content = ensure_json_dict(
         ('json' in request.files and json.loads(request.files['json'].read()))
@@ -1306,7 +1299,7 @@ def start_plagiarism_check(
     )
 
     for old_course_id in set(a.course_id for a in old_assigs):
-        auth.ensure_permission('can_view_plagiarism', old_course_id)
+        auth.ensure_permission(CPerm.can_view_plagiarism, old_course_id)
 
     if has_old_submissions:
         old_subs = helpers.get_files_from_request(

@@ -22,10 +22,11 @@ from psef.helpers import (
 )
 
 from . import api
+from ..permissions import GlobalPermission as GPerm
 
 
 @api.route('/roles/', methods=['GET'])
-@auth.permission_required('can_manage_site_users')
+@auth.permission_required(GPerm.can_manage_site_users)
 def get_all_roles() -> JSONResponse[t.Sequence[t.Mapping[str, t.Any]]]:
     """Get all global roles with their permissions
 
@@ -47,7 +48,7 @@ def get_all_roles() -> JSONResponse[t.Sequence[t.Mapping[str, t.Any]]]:
     res = []
     for role in roles:
         json_role = role.__to_json__()
-        json_role['perms'] = role.get_all_permissions()
+        json_role['perms'] = GPerm.create_map(role.get_all_permissions())
         json_role['own'] = current_user.role_id == role.id
         res.append(json_role)
 
@@ -55,7 +56,7 @@ def get_all_roles() -> JSONResponse[t.Sequence[t.Mapping[str, t.Any]]]:
 
 
 @api.route('/roles/<int:role_id>', methods=['PATCH'])
-@auth.permission_required('can_manage_site_users')
+@auth.permission_required(GPerm.can_manage_site_users)
 def set_role_permission(role_id: int) -> EmptyResponse:
     """Update the :class:`.models.Permission` of a given
     :class:`.models.Role`.
@@ -76,12 +77,11 @@ def set_role_permission(role_id: int) -> EmptyResponse:
 
     ensure_keys_in_dict(content, [('permission', str), ('value', bool)])
 
-    perm_name = t.cast(str, content['permission'])
+    perm = GPerm.get_by_name(t.cast(str, content['permission']))
     value = t.cast(bool, content['value'])
 
     if (
-        current_user.role_id == role_id and
-        perm_name == 'can_manage_site_users'
+        current_user.role_id == role_id and perm == GPerm.can_manage_site_users
     ):
         raise APIException(
             'You cannot remove this permission from your own role', (
@@ -90,13 +90,7 @@ def set_role_permission(role_id: int) -> EmptyResponse:
             ).format(role_id), APICodes.INCORRECT_PERMISSION, 403
         )
 
-    perm = helpers.filter_single_or_404(
-        models.Permission, models.Permission.name == perm_name,
-        ~models.Permission.course_permission
-    )
-
     role = helpers.get_or_404(models.Role, role_id)
-
     role.set_permission(perm, value)
 
     db.session.commit()

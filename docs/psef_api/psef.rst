@@ -123,3 +123,12 @@ psef\.plagiarism module
     :members:
     :undoc-members:
     :show-inheritance:
+
+
+psef\.permissions module
+--------------------------
+
+.. automodule:: psef.permissions
+    :members:
+    :undoc-members:
+    :show-inheritance:
