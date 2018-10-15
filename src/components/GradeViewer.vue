@@ -225,31 +225,28 @@ export default {
 
         putGrade() {
             const grade = parseFloat(this.grade);
-            const overrideGrade = ((this.rubricOverridden || !this.showRubric) &&
-                                   this.externalGrade !== this.grade);
+            const normalGrade = (this.rubricOverridden || !this.showRubric);
 
-            if (!(grade >= 0 && grade <= this.maxAllowedGrade) && overrideGrade) {
+            if (!(grade >= 0 && grade <= this.maxAllowedGrade) && normalGrade) {
                 this.$refs.submitButton.fail(`Grade '${this.grade}' must be between 0 and ${this.maxAllowedGrade}`);
                 return;
             }
 
-            const viewer = this.$refs.rubricViewer;
-            const viewerReq = viewer ? viewer.submitAllItems() : Promise.resolve();
-            const data = { };
-            if (overrideGrade) {
-                data.grade = grade;
-            }
+            let req;
 
-            const req = this.$http.patch(
-                `/api/v1/submissions/${this.submission.id}`,
-                data,
-            ).then(() => {
-                if (overrideGrade) {
+            if (normalGrade) {
+                const data = { grade };
+                req = this.$http.patch(
+                    `/api/v1/submissions/${this.submission.id}`,
+                    data,
+                ).then(() => {
                     this.grade = grade;
-                }
-                this.gradeUpdated();
-            });
-            this.$refs.submitButton.submit(Promise.all([req, viewerReq]).catch((err) => {
+                    this.gradeUpdated();
+                });
+            } else {
+                req = this.$refs.rubricViewer.submitAllItems();
+            }
+            this.$refs.submitButton.submit(req.catch((err) => {
                 throw err.response.data.message;
             }));
         },
