@@ -287,12 +287,8 @@ export default {
     }
 }
 
-.permission-description {
-    text-align: left;
-
-    p:last-child {
-        margin-bottom: 0;
-    }
+.permission-description p:last-child {
+    margin-bottom: 0;
 }
 </style>
 

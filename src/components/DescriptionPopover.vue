@@ -4,11 +4,12 @@
       :style="{ float: hugText ? 'none' : 'right' }">
     <b-popover :placement="placement"
                :triggers="triggers"
-               class="description-popover"
                :show="show"
                :target="compId"
                :title="title">
-        <slot name="description"><span/>{{ description }}</slot>
+        <span class="description-popover-content">
+            <slot name="description">{{ description }}</slot>
+        </span>
     </b-popover>
     <component :is="hugText ? 'sup' : 'span'"
                class="desc-pop-span"
@@ -40,7 +41,7 @@ export default {
 
         triggers: {
             type: [String, Array],
-            default: 'hover',
+            default: 'click',
         },
 
         show: {
@@ -85,5 +86,11 @@ export default {
 .description-popover {
     display: inline;
     cursor: help;
+}
+
+.description-popover-content {
+    display: inline-block;
+    text-align: justify;
+    hyphens: auto;
 }
 </style>
