@@ -1,11 +1,15 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div class="file-tree"
-     :class="{ collapsed: isCollapsed, 'no-top-padding': canSeeRevision }">
-    <div v-if="canSeeRevision && depth === 0"
+     :class="{ collapsed: isCollapsed, 'no-top-padding': showRevisions }">
+    <div v-if="showRevisions"
          class="revision-container">
 
-        <b-tabs :value="selectedRevision" @input="revisionChanged">
+        <b-tabs small
+                :value="selectedRevision"
+                @input="revisionChanged"
+                nav-class="revision-tabs"
+                nav-wrapper-class="revision-tabs-wrapper">
             <b-tab v-for="option in revisionOptions"
                    :key="option.value"
                    :disabled="option.disabled"
@@ -14,7 +18,7 @@
             </b-tab>
         </b-tabs>
 
-        <description-popover>
+        <description-popover placement="bottom">
             <span slot="description">
                 Choose to view either the student's submitted files, the revised files as edited by a
                 teacher or teaching assistant, or a diff between the two versions.
@@ -25,7 +29,8 @@
             </span>
         </description-popover>
     </div>
-    <div class="directory" :class="{ faded: depth > 0 && diffMode && !dirHasRevision(tree) }" @click="toggle($event)">
+
+    <div class="directory" :class="{ faded: depth > 0 && diffMode && !dirHasRevision(tree) }" @click.stop="toggle()">
         <span class="label">
             <icon name="caret-right" class="caret-icon" v-if="isCollapsed"/>
             <icon name="caret-down" class="caret-icon" v-else/>
@@ -151,11 +156,16 @@ export default {
 
             return revision;
         },
+
+        showRevisions() {
+            return this.canSeeRevision &&
+                (!this.tree.isStudent || this.hasRevision(this.tree)) &&
+                this.depth === 0;
+        },
     },
 
     methods: {
-        toggle(event) {
-            event.stopPropagation();
+        toggle() {
             this.isCollapsed = !this.isCollapsed;
         },
 
@@ -247,21 +257,6 @@ export default {
         padding-top: 0;
     }
 
-    .revision-container {
-        position: sticky;
-        top: 0;
-        display: flex;
-        justify-content: space-between;
-        margin: -.5rem -.75rem .875rem;
-        padding: .5rem .75rem 0;
-        border-bottom: 1px solid rgba(0, 0, 0, .15);
-        background-color: @footer-color;
-
-        .tabs {
-            margin-bottom: -1px;
-        }
-    }
-
     a:hover {
         cursor: pointer;
         text-decoration: underline;
@@ -308,13 +303,61 @@ export default {
         cursor: pointer;
     }
 }
+
+.revision-container {
+    position: sticky;
+    top: 0;
+    margin: -.5rem -.75rem .875rem;
+    padding: .5rem .75rem 0;
+    border-bottom: 1px solid rgba(0, 0, 0, .15);
+    background-color: @footer-color;
+
+    #app.dark & {
+        background-color: @color-primary-darker;
+    }
+
+    .tabs {
+        flex: 1 1 auto;
+        overflow: auto;
+        margin: 0  -.75rem -1px -.75rem;
+        padding: 0 .75rem 0 .75rem;
+
+        .revision-tabs-wrapper {
+            width: auto;
+        }
+    }
+
+    .description-popover {
+        position: absolute;
+        top: 0;
+        bottom: .75rem;
+        right: 0;
+        width: 1.5rem;
+        padding-top: .95rem;
+        background-color: inherit;
+    }
+}
 </style>
 
 <style lang="less">
 .file-tree .revision-container {
-    .nav-tabs,
-    .nav-link:hover {
-        border-bottom-color: transparent;
+    .revision-tabs-wrapper {
+        width: max-content;
+        padding-right: 1.75rem;
+    }
+
+    .revision-tabs {
+        width: max-content;
+        flex-wrap: nowrap;
+    }
+
+    .revision-tabs,
+    .nav-link:hover,
+    .nav-link.active {
+        &,
+        #app.dark & {
+            border-bottom-color: transparent !important;
+        }
     }
 
     .nav-link.disabled {
