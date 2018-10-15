@@ -22,7 +22,7 @@
             </b-input-group-append>
         </b-input-group>
 
-        <b-input-group>
+        <b-input-group v-if="assignment.canManage">
             <b-button :to="manageAssignmentRoute"
                       variant="secondary"
                       v-b-popover.bottom.hover="'Manage assignment'">
