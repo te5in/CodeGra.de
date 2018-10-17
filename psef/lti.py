@@ -7,16 +7,21 @@ from https://github.com/ucfopen/lti-template-flask-oauth-tokens which is
 MIT licensed. This copied code is located between the ``# START OF MIT LICENSED
 COPIED WORK #`` and the ``# END OF MIT LICENSED COPIED WORK #`` comment blocks.
 """
+import abc
+import enum
 import typing as t
 import datetime
+import xml.etree.ElementTree
 from urllib.parse import urlparse
 
 import flask
 import oauth2
 import dateutil
+import httplib2
 import structlog
 import flask_jwt_extended as flask_jwt
-from lxml import etree, objectify
+from mypy_extensions import TypedDict
+from defusedxml.ElementTree import fromstring as defused_xml_fromstring
 
 import psef
 import psef.auth as auth
@@ -35,6 +40,16 @@ def init_app(_: t.Any) -> None:
     pass
 
 
+# We do this as defusedxml overrides some of these classes and doing an `import
+# ... as ET` causes different definitions, which means that `ET.ParseError`
+# cannot be excepted.
+ET = xml.etree.ElementTree
+
+LTI_NAMESPACES = {
+    'xmlns': 'http://www.imsglobal.org/services/ltiv1p1/xsd/imsoms_v1p0'
+}
+
+
 @dataclass
 class LTIProperty:
     """An LTI property.
@@ -44,6 +59,9 @@ class LTIProperty:
     """
     internal: str
     external: str
+
+
+T_LTI = t.TypeVar('T_LTI', bound='LTI')  # pylint: disable=invalid-name
 
 
 # TODO: This class has so many public methods as they are properties. A lot of
@@ -165,25 +183,25 @@ class LTI:  # pylint: disable=too-many-public-methods
         return self.launch_params['context_title']
 
     @property
-    def assignment_id(self) -> str:  # pragma: no cover
+    def assignment_id(self) -> str:
         """The id of the current LTI assignment.
         """
         raise NotImplementedError
 
     @property
-    def assignment_name(self) -> str:  # pragma: no cover
+    def assignment_name(self) -> str:
         """The name of the current LTI assignment.
         """
         raise NotImplementedError
 
     @property
-    def outcome_service_url(self) -> str:  # pragma: no cover
+    def outcome_service_url(self) -> str:
         """The url used to passback grades to Canvas.
         """
         raise NotImplementedError
 
     @property
-    def result_sourcedid(self) -> str:  # pragma: no cover
+    def result_sourcedid(self) -> str:
         """The sourcedid of the current user for the current assignment.
         """
         raise NotImplementedError
@@ -192,17 +210,17 @@ class LTI:  # pylint: disable=too-many-public-methods
     def assignment_state(self) -> models._AssignmentStateEnum:  # pylint: disable=protected-access
         """The state of the current LTI assignment.
         """
-        raise NotImplementedError  # pragma: no cover
+        raise NotImplementedError
 
     @property
-    def roles(self) -> t.Iterable[str]:  # pragma: no cover
+    def roles(self) -> t.Iterable[str]:
         """The normalized roles of the current LTI user.
         """
         raise NotImplementedError
 
     def get_assignment_deadline(
         self, default: datetime.datetime = None
-    ) -> datetime.datetime:  # pragma: no cover
+    ) -> datetime.datetime:
         """Get the deadline of the current LTI assignment.
 
         :param default: The value to be returned of the assignment has no
@@ -311,24 +329,33 @@ class LTI:  # pylint: disable=too-many-public-methods
 
         return course
 
-    def get_assignment(self, user: models.User) -> models.Assignment:
+    def get_assignment(
+        self, user: models.User, course: models.Course
+    ) -> models.Assignment:
         """Get the current LTI assignment as a psef assignment.
         """
         assignment = models.Assignment.query.filter_by(
-            lti_assignment_id=self.assignment_id
+            lti_assignment_id=self.assignment_id,
         ).first()
         if assignment is None:
-            course = self.get_course()
             assignment = models.Assignment(
                 name=self.assignment_name,
                 state=self.assignment_state,
-                course_id=course.id,
+                course=course,
                 deadline=self.get_assignment_deadline(),
                 lti_assignment_id=self.assignment_id,
                 description=''
             )
             db.session.add(assignment)
             db.session.flush()
+
+        if assignment.course != course:  # pragma: no cover
+            logger.warning(
+                'Assignment changed course!',
+                assignment=assignment,
+                course=course,
+            )
+            assignment.course = course
 
         if self.has_result_sourcedid():
             if assignment.id in user.assignment_results:
@@ -436,7 +463,7 @@ class LTI:  # pylint: disable=too-many-public-methods
             return new_created
         return False
 
-    def has_result_sourcedid(self) -> bool:  # pragma: no cover
+    def has_result_sourcedid(self) -> bool:
         """Check if the current LTI request has a ``sourcedid`` field.
 
         :returns: A boolean indicating if a ``sourcedid`` field was found.
@@ -451,21 +478,26 @@ class LTI:  # pylint: disable=too-many-public-methods
         raise NotImplementedError
 
     @staticmethod
-    def generate_xml() -> str:  # pragma: no cover
+    def generate_xml() -> str:
         """Generate a config XML for this LTI consumer.
         """
         raise NotImplementedError
 
-    @staticmethod
+    @classmethod
+    @abc.abstractmethod
     def passback_grade(
+        cls: t.Type[T_LTI],
+        *,
         key: str,
         secret: str,
-        grade: t.Union[float, None, bool, int],
+        grade: t.Union[float, None, int],
+        initial: bool,
         service_url: str,
         sourcedid: str,
         lti_points_possible: t.Optional[float],
-        url: str = None,
-    ) -> 'OutcomeResponse':
+        submission: models.Work,
+        url: str,
+    ) -> None:
         """Do a LTI grade passback.
 
         :param key: The oauth key to use.
@@ -482,6 +514,22 @@ class LTI:  # pylint: disable=too-many-public-methods
             probably be clickable.
         :returns: The response of the LTI consumer.
         """
+        raise NotImplementedError
+
+    @staticmethod
+    def _passback_grade(
+        *,
+        key: str,
+        secret: str,
+        grade: t.Union[float, int, None],
+        initial: bool,
+        service_url: str,
+        sourcedid: str,
+        lti_points_possible: t.Optional[float],
+        submission: models.Work,
+        use_submission_details: bool,
+        url: str,
+    ) -> None:
         logger.info(
             'Doing LTI grade passback',
             consumer_key=key,
@@ -489,37 +537,49 @@ class LTI:  # pylint: disable=too-many-public-methods
             lti_outcome_service_url=service_url,
             url=url,
             grade=grade,
+            initial=initial,
+            use_submission_details=use_submission_details,
         )
+        lti_operation: LTIOperation
+        submission_details: SubmissionDetails = {}
+        if use_submission_details:
+            submission_details['submittedAt'] = submission.created_at.replace(
+                tzinfo=datetime.timezone.utc
+            ).isoformat()
 
-        req = OutcomeRequest(
+        if grade is None:
+            lti_operation = LTIDeleteResultOperation()
+        # Canvas, the only supported LMS, doesn't use this option
+        elif initial:  # pragma: no cover
+            lti_operation = LTIInitalReplaceResultOperation(
+                data_type=LTIResultDataType.url,
+                data_value=url,
+                submission_details=submission_details,
+            )
+        elif grade > 10:
+            assert lti_points_possible is not None
+            lti_operation = LTIRawReplaceResultOperation(
+                data_type=LTIResultDataType.url,
+                data_value=url,
+                grade=str((grade / 10) * lti_points_possible),
+                submission_details=submission_details,
+            )
+        else:
+            lti_operation = LTINormalReplaceResultOperation(
+                data_type=LTIResultDataType.url,
+                data_value=url,
+                grade=str((grade / 10)),
+                submission_details=submission_details,
+            )
+
+        OutcomeRequest(
             consumer_key=key,
             consumer_secret=secret,
             lis_outcome_service_url=service_url,
-            lis_result_sourcedid=sourcedid
-        )
-        opts = None
-        if url is not None:
-            opts = {'url': url}
-
-        if grade is None:
-            return req.post_delete_result()
-        else:
-            if isinstance(grade, bool):
-                return req.post_replace_result(None, result_data=opts)
-
-            if grade > 10:
-                assert lti_points_possible is not None
-                return req.post_replace_result(
-                    str((grade / 10) * lti_points_possible),
-                    result_data=opts,
-                    raw=True,
-                )
-
-            return req.post_replace_result(
-                str(grade / 10),
-                result_data=opts,
-                raw=False,
-            )
+            lis_result_sourcedid=sourcedid,
+            lti_operation=lti_operation,
+            message_identifier=str(submission.id),
+        ).post_outcome_request()
 
 
 class CanvasLTI(LTI):
@@ -618,7 +678,7 @@ class CanvasLTI(LTI):
         return 'lis_result_sourcedid' in self.launch_params
 
     @staticmethod
-    def generate_xml() -> str:  # pragma: no cover
+    def generate_xml() -> str:
         """Generate a config XML for this LTI consumer.
 
         .. todo:: Implement this function
@@ -651,6 +711,35 @@ class CanvasLTI(LTI):
             return (datetime.datetime.utcnow() + datetime.timedelta(days=365)
                     ) if default is None else default
 
+    @classmethod
+    def passback_grade(
+        cls: t.Type[T_LTI],
+        *,
+        key: str,
+        secret: str,
+        grade: t.Union[float, None, int],
+        initial: bool,
+        service_url: str,
+        sourcedid: str,
+        lti_points_possible: t.Optional[float],
+        submission: models.Work,
+        url: str,
+    ) -> None:
+        if initial:
+            return
+        super()._passback_grade(
+            key=key,
+            secret=secret,
+            grade=grade,
+            initial=False,
+            service_url=service_url,
+            sourcedid=sourcedid,
+            lti_points_possible=lti_points_possible,
+            submission=submission,
+            use_submission_details=True,
+            url=url,
+        )
+
 
 #####################################
 # START OF MIT LICENSED COPIED WORK #
@@ -682,186 +771,146 @@ class CanvasLTI(LTI):
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-REPLACE_REQUEST = 'replaceResult'
-DELETE_REQUEST = 'deleteResult'
-READ_REQUEST = 'readResult'
+
+@enum.unique
+class LTIResultDataType(enum.Enum):
+    """All possible result data options for an LTI replaceResult request.
+    """
+    text = 'text'
+    url = 'url'
+    launch_url = 'launchUrl'
 
 
-# TODO: Actually cover this in some way using unit tests
-class OutcomeRequest:  # pragma: no cover, pylint: disable=protected-access,invalid-name,too-many-arguments,missing-docstring
-    '''
-    Class for consuming & generating LTI Outcome Requests.
+class LTIOperation(abc.ABC):
+    """Base class representing a LTI operation.
+    """
+
+    @property
+    @abc.abstractmethod
+    def request_type(self) -> str:
+        """Get the name of this operation as required in the LTI xml.
+        """
+        raise NotImplementedError
+
+
+class LTIDeleteResultOperation(LTIOperation):
+    """A delete result LTI operation.
+
+    This operation deletes the result at canvas.
+    """
+    request_type = 'deleteResultRequest'
+
+
+SubmissionDetails = TypedDict(  # pylint: disable=invalid-name
+    'SubmissionDetails', {'submittedAt': str}, total=False
+)
+
+
+@dataclass
+class LTIReplaceResultBaseOperation(LTIOperation, abc.ABC):
+    """The base replaceResult LTI operation.
+    """
+    request_type = 'replaceResultRequest'
+
+    data_type: LTIResultDataType
+    data_value: str
+
+    submission_details: SubmissionDetails
+
+
+@dataclass
+class LTINormalReplaceResultOperation(LTIReplaceResultBaseOperation):
+    """A normal replaceResult with a grade that is in [0, 1]
+    """
+    grade: str
+
+
+@dataclass
+class LTIRawReplaceResultOperation(LTIReplaceResultBaseOperation):
+    """A raw replaceResult with a grade that represents the amount of points a
+    user got for the assignment.
+
+    .. note:: This is currently only supported by Canvas.
+    """
+    grade: str
+
+
+@dataclass
+class LTIInitalReplaceResultOperation(LTIReplaceResultBaseOperation):
+    """An initial replaceResult operation, which doens't provide a grade.
+    """
+    pass
+
+
+class OutcomeRequest:
+    """Class for generating LTI Outcome Requests.
 
     Outcome Request documentation:
         http://www.imsglobal.org/LTI/v1p1/ltiIMGv1p1.html#_Toc319560472
-
-    This class can be used both by Tool Providers and Tool Consumers, though
-    they each use it differently. The TP will use it to POST an OAuth-signed
-    request to the TC. A TC will use it to parse such a request from a TP.
-    '''
+    """
 
     def __init__(
         self,
-        operation: str = None,
-        score: str = None,
-        result_data: t.Mapping[str, str] = None,
-        message_identifier: str = None,
-        lis_outcome_service_url: str = None,
-        lis_result_sourcedid: str = None,
-        consumer_key: str = None,
-        consumer_secret: str = None,
-        post_request: t.Any = None
+        *,
+        lis_outcome_service_url: str,
+        lis_result_sourcedid: str,
+        consumer_key: str,
+        consumer_secret: str,
+        lti_operation: LTIOperation,
+        message_identifier: str,
     ) -> None:
-        self.operation = operation
-        self.score = score
-        self.raw_score: bool = False
-        self.result_data = result_data
-        self.outcome_response = None  # type: t.Optional['OutcomeResponse']
-        self.message_identifier = message_identifier
         self.lis_outcome_service_url = lis_outcome_service_url
         self.lis_result_sourcedid = lis_result_sourcedid
         self.consumer_key = consumer_key
         self.consumer_secret = consumer_secret
-        self.post_request = post_request
-
-    @staticmethod
-    def from_post_request(post_request: t.Any) -> 'OutcomeRequest':
-        '''
-        Convenience method for creating a new OutcomeRequest from a request
-        object.
-
-        post_request is assumed to be a Django HttpRequest object
-        '''
-        request = OutcomeRequest()
-        request.post_request = post_request
-        request.process_xml(post_request.data)
-        return request
-
-    def post_replace_result(
-        self,
-        score: t.Optional[str],
-        result_data: t.Optional[t.Mapping[str, str]] = None,
-        raw: bool = False
-    ) -> 'OutcomeResponse':
-        '''
-        POSTs the given score to the Tool Consumer with a replaceResult.
-
-        OPTIONAL:
-            result_data must be a dictionary
-            Note: ONLY ONE of these values can be in the dict at a time,
-            due to the Canvas specification.
-
-        :param str text: text
-        :param str url: url
-        :param str launchUrl: The lti launch url
-        :param raw: Post the raw amount of points.
-        '''
-        self.operation = REPLACE_REQUEST
-        self.score = score
-        self.raw_score = raw
-        self.result_data = result_data
-        if result_data is not None:
-            if len(result_data) > 1:
-                error_msg = (
-                    'Dictionary result_data can only have one entry. '
-                    '{0} entries were found.'.format(len(result_data))
-                )
-                raise ValueError(error_msg)
-            elif any(a in result_data for a in ['url', 'text', 'launchUrl']):
-                return self.post_outcome_request()
-            else:
-                error_msg = (
-                    'Dictionary result_data can only have the key '
-                    '"text" or the key "url".'
-                )
-                raise ValueError(error_msg)
-        else:
-            return self.post_outcome_request()
-
-    def post_delete_result(self) -> 'OutcomeResponse':
-        '''
-        POSTs a deleteRequest to the Tool Consumer.
-        '''
-        self.operation = DELETE_REQUEST
-        return self.post_outcome_request()
-
-    def post_read_result(self) -> 'OutcomeResponse':
-        '''
-        POSTS a readResult to the Tool Consumer.
-        '''
-        self.operation = READ_REQUEST
-        return self.post_outcome_request()
-
-    def is_replace_request(self) -> bool:
-        '''
-        Check whether this request is a replaceResult request.
-        '''
-        return self.operation == REPLACE_REQUEST
-
-    def is_delete_request(self) -> bool:
-        '''
-        Check whether this request is a deleteResult request.
-        '''
-        return self.operation == DELETE_REQUEST
-
-    def is_read_request(self) -> bool:
-        '''
-        Check whether this request is a readResult request.
-        '''
-        return self.operation == READ_REQUEST
-
-    def was_outcome_post_successful(self) -> bool:
-        return (
-            self.outcome_response is not None and
-            self.outcome_response.is_success()
-        )
+        self.lti_operation = lti_operation
+        self.message_identifier = message_identifier
 
     def post_outcome_request(self) -> 'OutcomeResponse':
-        '''
-        POST an OAuth signed request to the Tool Consumer.
-        '''
-        log = logger.bind(operation=self.operation)
-        log.info('Posting outcome request')
+        """Send this ``OutcomeRequest`` to the LTI provider.
 
-        if not self.has_required_attributes():
-            raise ValueError(
-                'OutcomeRequest does not have all required attributes'
-            )
+        :returns: The parsed response from the provider.
+        """
+        log = logger.bind(
+            operation=self.lti_operation,
+            lti_request_message_identifier=self.message_identifier
+        )
+        log.info('Posting outcome request')
 
         consumer = oauth2.Consumer(
             key=self.consumer_key, secret=self.consumer_secret
         )
 
         client = oauth2.Client(consumer)
-        # monkey_patch_headers ensures that Authorization
-        # header is NOT lower cased
-        monkey_patch_headers = True
-        monkey_patch_function = None
-        if monkey_patch_headers:
-            import httplib2
-            http = httplib2.Http
 
-            normalize = http._normalize_headers
+        # monkeypatch the _normalize function to ensures that the
+        # ``Authorization`` header is NOT lower cased
+        normalize = httplib2.Http._normalize_headers  # pylint: disable=protected-access
 
-            def __my_normalize(self: t.Any, headers: t.Sequence) -> t.Sequence:
-                ret = normalize(self, headers)
-                if 'authorization' in ret:
-                    ret['Authorization'] = ret.pop('authorization')
-                return ret
+        def __my_normalize(
+            self: t.Any, headers: t.Sequence
+        ) -> t.Sequence:  # pragma: no cover
+            ret = normalize(self, headers)
+            if 'authorization' in ret:
+                ret['Authorization'] = ret.pop('authorization')
+            return ret
 
-            http._normalize_headers = __my_normalize
-            monkey_patch_function = normalize
+        httplib2.Http._normalize_headers = __my_normalize  # pylint: disable=protected-access
+        monkey_patch_function = normalize
 
+        response: httplib2.Response
+        content: str
+        passback_body = self.__generate_request_xml()
+        log.info('Doing passback request', body=passback_body)
         response, content = client.request(
-            self.lis_outcome_service_url,
-            'POST',
-            body=self.generate_request_xml(),
-            headers={'Content-Type': 'application/xml'}
+            uri=self.lis_outcome_service_url,
+            method='POST',
+            body=passback_body,
+            headers={'Content-Type': 'application/xml'},
         )
 
-        if monkey_patch_headers and monkey_patch_function:
-            http = httplib2.Http
-            http._normalize_headers = monkey_patch_function
+        # Restore original function
+        httplib2.Http._normalize_headers = monkey_patch_function  # pylint: disable=protected-access
 
         log = log.bind(
             response=response,
@@ -869,131 +918,103 @@ class OutcomeRequest:  # pragma: no cover, pylint: disable=protected-access,inva
         )
         log.info('Posted outcome request')
 
-        self.outcome_response = OutcomeResponse.from_post_response(
-            response, content
+        outcome = OutcomeResponse(content)
+
+        log.bind(
+            lti_response_message_identifier=outcome.message_identifier,
+            lti_response_ref_message_identifier=outcome.message_ref_identifier,
+            lti_code_major=outcome.code_major,
+            lti_severity=outcome.severity,
+            lti_description=outcome.description,
         )
 
-        if not self.was_outcome_post_successful():
-            log.error(
-                'Posting outcome failed',
-                lti_code_major=self.outcome_response.code_major,
-                lti_severity=self.outcome_response.severity,
-            )
-        log.try_unbind('response', 'response_body', 'operation')
+        if outcome.message_ref_identifier != self.message_identifier:
+            log.error('Received wrong "message_ref_identifier" in request')
 
-        return self.outcome_response
+        if outcome.is_failure:  # pragma: no cover
+            log.error('Posting outcome failed')
+        elif outcome.has_warning:  # pragma: no cover
+            log.warning('Posting outcome had a warning')
+        else:
+            log.info('Posting outcome was successful')
 
-    def process_xml(self, xml: str) -> None:
-        '''
-        Parse Outcome Request data from XML.
-        '''
-        root = t.cast(t.Mapping, objectify.fromstring(xml))
-        self.message_identifier = str(
-            root['imsx_POXHeader']['imsx_POXRequestHeaderInfo']
-            ['imsx_messageIdentifier']
-        )
-        try:
-            result = root['imsx_POXBody']['replaceResultRequest']
-            self.operation = REPLACE_REQUEST
-
-            # Get result sourced id from resultRecord
-            record = result.resultRecord
-            self.lis_result_sourcedid = record.sourcedGUID.sourcedId
-
-            self.score = str(result.resultRecord.result.resultScore.textString)
-        except (KeyError, TypeError, AttributeError):
-            pass
-
-        try:
-            result = root['imsx_POXBody']['deleteResultRequest']
-            self.operation = DELETE_REQUEST
-            # Get result sourced id from resultRecord
-            self.lis_result_sourcedid = result['resultRecord']['sourcedGUID'][
-                'sourcedId']
-        except (KeyError, TypeError):
-            pass
-
-        try:
-            result = root['imsx_POXBody']['readResultRequest']
-            self.operation = READ_REQUEST
-            # Get result sourced id from resultRecord
-            self.lis_result_sourcedid = result['resultRecord']['sourcedGUID'][
-                'sourcedId']
-        except (KeyError, TypeError):
-            pass
-
-    def has_required_attributes(self) -> bool:
-        return (
-            self.consumer_key is not None and
-            self.consumer_secret is not None and
-            self.lis_outcome_service_url is not None and
-            self.lis_result_sourcedid is not None and
-            self.operation is not None
+        log.try_unbind(
+            'response', 'response_body', 'operation', 'lti_code_major',
+            'lti_severity', 'lti_description', 'lti_request_message_identifier'
+            'lti_request_message_identifier',
+            'lti_response_ref_message_identifier'
         )
 
-    def generate_request_xml(self) -> t.Union[bytes, str]:
-        root = etree.Element(
-            'imsx_POXEnvelopeRequest',
-            xmlns='http://www.imsglobal.org/services/ltiv1p1/xsd/imsoms_v1p0'
+        return outcome
+
+    def __generate_request_xml(self) -> bytes:
+        """Generate an xml that can be used to perform an outcome request.
+
+        :returns: The xml as a bytestring.
+        """
+        root = ET.Element(
+            'imsx_POXEnvelopeRequest', xmlns=LTI_NAMESPACES['xmlns']
         )
 
-        header = etree.SubElement(root, 'imsx_POXHeader')
-        header_info = etree.SubElement(header, 'imsx_POXRequestHeaderInfo')
-        version = etree.SubElement(header_info, 'imsx_version')
+        header = ET.SubElement(root, 'imsx_POXHeader')
+        header_info = ET.SubElement(header, 'imsx_POXRequestHeaderInfo')
+        version = ET.SubElement(header_info, 'imsx_version')
         version.text = 'V1.0'
-        message_identifier = etree.SubElement(
+        message_identifier = ET.SubElement(
             header_info, 'imsx_messageIdentifier'
         )
         message_identifier.text = self.message_identifier
-        body = etree.SubElement(root, 'imsx_POXBody')
-        request = etree.SubElement(body, f'{self.operation}Request')
-        record = etree.SubElement(request, 'resultRecord')
+        body = ET.SubElement(root, 'imsx_POXBody')
+        request = ET.SubElement(body, self.lti_operation.request_type)
+        record = ET.SubElement(request, 'resultRecord')
 
-        guid = etree.SubElement(record, 'sourcedGUID')
+        guid = ET.SubElement(record, 'sourcedGUID')
 
-        sourcedid = etree.SubElement(guid, 'sourcedId')
+        sourcedid = ET.SubElement(guid, 'sourcedId')
         sourcedid.text = self.lis_result_sourcedid
 
-        if self.score is not None or self.result_data:
-            result = etree.SubElement(record, 'result')
+        if isinstance(self.lti_operation, LTIReplaceResultBaseOperation):
+            result = ET.SubElement(record, 'result')
 
-        if self.score is not None:
-            if self.raw_score:
-                result_score = etree.SubElement(result, 'resultTotalScore')
-            else:
-                result_score = etree.SubElement(result, 'resultScore')
-
-            language = etree.SubElement(result_score, 'language')
-            language.text = 'en'
-            text_string = etree.SubElement(result_score, 'textString')
-            text_string.text = self.score.__str__()
-
-        if self.result_data:
-            resultData = etree.SubElement(result, 'resultData')
-            if 'text' in self.result_data:
-                resultDataText = etree.SubElement(resultData, 'text')
-                resultDataText.text = self.result_data['text']
-            elif 'url' in self.result_data:
-                resultDataURL = etree.SubElement(resultData, 'url')
-                resultDataURL.text = self.result_data['url']
-            elif 'launchUrl' in self.result_data:
-                resultDataLaunchURL = etree.SubElement(
-                    resultData, 'ltiLaunchUrl'
+            if isinstance(
+                self.lti_operation,
+                (
+                    LTINormalReplaceResultOperation,
+                    LTIRawReplaceResultOperation
                 )
-                resultDataLaunchURL.text = self.result_data['launchUrl']
+            ):
+                grade = self.lti_operation.grade
 
-        return etree.tostring(root, xml_declaration=True, encoding='utf-8')
+                if isinstance(
+                    self.lti_operation, LTIRawReplaceResultOperation
+                ):
+                    result_score = ET.SubElement(result, 'resultTotalScore')
+                else:
+                    result_score = ET.SubElement(result, 'resultScore')
+
+                language = ET.SubElement(result_score, 'language')
+                language.text = 'en'
+                text_string = ET.SubElement(result_score, 'textString')
+                text_string.text = grade
+
+            result_data = ET.SubElement(result, 'resultData')
+            result_data_el = ET.SubElement(
+                result_data, self.lti_operation.data_type.value
+            )
+            result_data_el.text = self.lti_operation.data_value
+
+            if self.lti_operation.submission_details:
+                details_el = ET.SubElement(request, 'submissionDetails')
+                for key, value in self.lti_operation.submission_details.items(
+                ):
+                    sub_details_el = ET.SubElement(details_el, key)
+                    sub_details_el.text = value
+
+        return ET.tostring(root, encoding='utf-8')
 
 
-CODE_MAJOR_CODES = ['success', 'processing', 'failure', 'unsupported']
-
-SEVERITY_CODES = ['status', 'warning', 'error']
-
-
-# TODO: Actually cover this in some way using unit tests
-class OutcomeResponse:  # pragma: no cover
-    '''
-    This class consumes & generates LTI Outcome Responses.
+class OutcomeResponse:
+    """This class consumes LTI Outcome Responses.
 
     Response documentation:
         http://www.imsglobal.org/LTI/v1p1/ltiIMGv1p1.html#_Toc319560472
@@ -1001,153 +1022,145 @@ class OutcomeResponse:  # pragma: no cover
     Error code documentation:
         http://www.imsglobal.org/gws/gwsv1p0/imsgws_baseProfv1p0.html#1639667
 
-    This class can be used by both Tool Providers and Tool Consumers, though
-    each will use it differently. TPs will use it to partse the result of an
-    OutcomeRequest to the TC. A TC will use it to generate proper response XML
-    to send back to a TP.
-    '''
+    >>> import doctest
+    >>> import os
+    >>> doctest.ELLIPSIS_MARKER = '-etc-'
+    >>> get_file = lambda name: open(
+    ... os.path.join(
+    ...   os.path.dirname(__file__),
+    ...   '..',
+    ...   'test_data',
+    ...   'example_strings',
+    ...   name,
+    ... )).read()
 
-    def __init__(  # pylint: disable=too-many-arguments
+    >>> res = OutcomeResponse(get_file('invalid_xml.xml'))
+    -etc-
+    >>> res.code_major, res.severity, res.description
+    ('failure', 'error', 'unknown error')
+    >>> res.is_success, res.is_failure, res.has_warning
+    (False, True, False)
+
+    >>> res = OutcomeResponse(get_file('invalid_replace_result.xml'))
+    -etc-
+    >>> res.code_major, res.severity, res.description
+    ('failure', 'error', 'unknown error')
+    >>> res.is_success, res.is_failure, res.has_warning
+    (False, True, False)
+
+    >>> res = OutcomeResponse(get_file('valid_replace_result.xml'))
+    >>> (
+    ...   res.code_major,
+    ...   res.severity,
+    ...   res.description,
+    ...   res.message_identifier,
+    ...   res.message_ref_identifier,
+    ... )
+    ('success', 'status', 'Score for 3124567 is now 0.92', '4560', '999999123')
+    >>> res.is_success, res.is_failure, res.has_warning
+    (True, False, False)
+    """
+
+    def __init__(
         self,
-        request_type: str = None,
-        score: str = None,
-        message_identifier: str = None,
-        response_code: str = None,
-        post_response: str = None,
-        code_major: str = None,
-        severity: str = None,
-        description: str = None,
-        operation: str = None,
-        message_ref_identifier: str = None
+        input_xml: str,
     ) -> None:
-        self.request_type = request_type
-        self.score = score
-        self.message_identifier = message_identifier
-        self.response_code = response_code
+        self.message_identifier: t.Optional[str] = None
 
-        self.post_response = post_response
-        self.code_major = code_major
-        self.severity = severity
-        self.description = description
-        self.operation = operation
+        self.code_major: t.Optional[str] = None
+        self.severity: t.Optional[str] = None
+        self.description: t.Optional[str] = None
+        self.operation: t.Optional[str] = None
+        self.message_ref_identifier: t.Optional[str] = None
 
-        self.message_ref_identifier = message_ref_identifier
+        self.__process_xml(input_xml)
 
-    @staticmethod
-    def from_post_response(
-        post_response: t.Any, content: str
-    ) -> 'OutcomeResponse':
-        '''
-        Convenience method for creating a new OutcomeResponse from a response
-        object.
-        '''
-        response = OutcomeResponse()
-        response.post_response = post_response
-        response.response_code = post_response.status
-        response.process_xml(content)
-        return response
-
+    @property
     def is_success(self) -> bool:
+        """Check if a response indicated a success.
+
+        :returns: ``True`` if the response indicated a success.
+        """
         return self.code_major == 'success'
 
-    def is_processing(self) -> bool:
-        return self.code_major == 'processing'
-
+    @property
     def is_failure(self) -> bool:
+        """Check if a response indicated a failure.
+
+        :returns: ``True`` if the response indicated a failure.
+        """
         return self.code_major == 'failure'
 
-    def is_unsupported(self) -> bool:
-        return self.code_major == 'unsupported'
-
+    @property
     def has_warning(self) -> bool:
+        """Check if a response had a warning
+
+        :returns: ``True`` if the response had a warning
+        """
         return self.severity == 'warning'
 
-    def has_error(self) -> bool:
-        return self.severity == 'error'
+    def __process_xml(self, input_xml: str) -> None:
+        """Parse OutcomeResponse data form XML.
 
-    def process_xml(self, xml: str) -> None:
-        '''
-        Parse OutcomeResponse data form XML.
-        '''
-        try:
-            root = t.cast(t.Mapping, objectify.fromstring(xml))
-            # Get message idenifier from header info
-            self.message_identifier = root['imsx_POXHeader'][
-                'imsx_POXResponseHeaderInfo']['imsx_messageIdentifier']
+        :param xml: The xml to parse.
+        :returns: Nothing
+        """
 
-            status_node = root['imsx_POXHeader']['imsx_POXResponseHeaderInfo'][
-                'imsx_statusInfo']
-
-            # Get status parameters from header info status
-            self.code_major = status_node.imsx_codeMajor
-            self.severity = status_node.imsx_severity
-            self.description = status_node.imsx_description
-            self.message_ref_identifier = str(
-                status_node.imsx_messageRefIdentifier
-            )
-            self.operation = status_node.imsx_operationRefIdentifier
-
-            try:
-                # Try to get the score
-                self.score = str(
-                    root['imsx_POXBody']['readResultResponse']['result']
-                    ['resultScore.textString']
-                )
-            except AttributeError:
-                # Not a readResult, just ignore!
-                pass
-        except Exception:  # pylint: disable=broad-except
+        class WrongValueException(ValueError):
             pass
 
-    def generate_response_xml(self) -> str:
-        '''
-        Generate XML based on the current configuration.
-        '''
-        root = etree.Element(
-            'imsx_POXEnvelopeResponse',
-            xmlns='http://www.imsglobal.org/services/ltiv1p1/xsd/imsoms_v1p0'
-        )
+        def get_node(root: ET.Element, path: str) -> ET.Element:
+            node = root.find(path, namespaces=LTI_NAMESPACES)
+            if node is None:
+                raise WrongValueException(
+                    'Could not find path', root, path.split('/')
+                )
+            return node
 
-        header = etree.SubElement(root, 'imsx_POXHeader')
-        header_info = etree.SubElement(header, 'imsx_POXResponseHeaderInfo')
-        version = etree.SubElement(header_info, 'imsx_version')
-        version.text = 'V1.0'
-        message_identifier = etree.SubElement(
-            header_info, 'imsx_messageIdentifier'
-        )
-        message_identifier.text = str(self.message_identifier)
-        status_info = etree.SubElement(header_info, 'imsx_statusInfo')
-        code_major = etree.SubElement(status_info, 'imsx_codeMajor')
-        code_major.text = str(self.code_major)
-        severity = etree.SubElement(status_info, 'imsx_severity')
-        severity.text = str(self.severity)
-        description = etree.SubElement(status_info, 'imsx_description')
-        description.text = str(self.description)
-        message_ref_identifier = etree.SubElement(
-            status_info, 'imsx_messageRefIdentifier'
-        )
-        message_ref_identifier.text = str(self.message_ref_identifier)
-        operation_ref_identifier = etree.SubElement(
-            status_info, 'imsx_operationRefIdentifier'
-        )
-        operation_ref_identifier.text = str(self.operation)
+        def get_text(root: ET.Element, path: str) -> t.Optional[str]:
+            return get_node(root, path).text
 
-        body = etree.SubElement(root, 'imsx_POXBody')
-        response = etree.SubElement(
-            body, '%s%s' % (self.operation, 'Response')
-        )
+        try:
+            root: ET.Element = defused_xml_fromstring(input_xml)
 
-        if self.score:
-            result = etree.SubElement(response, 'result')
-            result_score = etree.SubElement(result, 'resultScore')
-            language = etree.SubElement(result_score, 'language')
-            language.text = 'en'
-            text_string = etree.SubElement(result_score, 'textString')
-            text_string.text = str(self.score)
+            # Get message idenifier from header info
+            self.message_identifier = get_text(
+                root,
+                (
+                    'xmlns:imsx_POXHeader/'
+                    'xmlns:imsx_POXResponseHeaderInfo/'
+                    'xmlns:imsx_messageIdentifier'
+                ),
+            )
 
-        return '<?xml version="1.0" encoding="UTF-8"?>{}'.format(
-            etree.tostring(root)
-        )
+            status_node = get_node(
+                root,
+                (
+                    'xmlns:imsx_POXHeader/'
+                    'xmlns:imsx_POXResponseHeaderInfo/'
+                    'xmlns:imsx_statusInfo'
+                ),
+            )
+
+            # Get status parameters from header info status
+            self.code_major = get_text(status_node, 'xmlns:imsx_codeMajor')
+            self.severity = get_text(status_node, 'xmlns:imsx_severity')
+            self.description = get_text(status_node, 'xmlns:imsx_description')
+            self.message_ref_identifier = get_text(
+                status_node, 'xmlns:imsx_messageRefIdentifier'
+            )
+            self.operation = get_text(
+                status_node, 'xmlns:imsx_operationRefIdentifier'
+            )
+        except (WrongValueException, ET.ParseError):
+            logger.error(
+                'Broken xml received',
+                xml_received=xml,
+                exc_info=True,
+            )
+            self.code_major = 'failure'
+            self.severity = 'error'
+            self.description = 'unknown error'
 
 
 ###################################

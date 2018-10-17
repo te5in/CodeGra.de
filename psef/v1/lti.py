@@ -133,7 +133,7 @@ def second_phase_lti_launch() -> helpers.JSONResponse[
 
     user, new_token, updated_email = lti.ensure_lti_user()
     course = lti.get_course()
-    assig = lti.get_assignment(user)
+    assig = lti.get_assignment(user, course)
     lti.set_user_role(user)
     new_role_created = lti.set_user_course_role(user, course)
     db.session.commit()

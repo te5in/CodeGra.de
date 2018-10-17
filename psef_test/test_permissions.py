@@ -21,8 +21,9 @@ should_raise = create_marker(pytest.mark.should_raise)
         (CoursePermission.can_submit_own_work, (False, True, False)),
         (CoursePermission.can_see_others_work, (True, False, False)),
         (CoursePermission.can_see_assignments, (True, True, False)),
-        should_raise((GlobalPermission.can_add_users, (False, False, False)),
-                     )  # This is not a real permission
+        should_raise(
+            (GlobalPermission.can_add_users, (False, False, False)),
+        )  # This is not a real permission
     ]
 )
 def test_course_permissions(

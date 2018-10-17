@@ -9,6 +9,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 import os
 import shutil
 import typing as t
+import datetime
 import tempfile
 import itertools
 from operator import itemgetter
@@ -17,17 +18,11 @@ import structlog
 from flask import g
 from celery import Celery as _Celery
 from celery import signals
+from mypy_extensions import NamedArg
 
 import psef as p
 
 logger = structlog.get_logger()
-
-
-@signals.setup_logging.connect
-def __celery_setup_logging(
-    *_: object, **__: object
-) -> None:  # pragma: no cover
-    pass
 
 
 @signals.before_task_publish.connect
@@ -90,12 +85,16 @@ def __celery_rejected(**kwargs: object) -> None:  # pragma: no cover
 
 # pylint: disable=missing-docstring,no-self-use,pointless-statement
 if t.TYPE_CHECKING:  # pragma: no cover
+    T = t.TypeVar('T', bound=t.Callable)
 
-    class CeleryTask:
-        def delay(self, *_args: t.Any, **_kwargs: t.Any) -> t.Any:
-            ...
+    class CeleryTask(t.Generic[T]):  # pylint: disable=unsubscriptable-object
+        @property
+        def delay(self) -> T:
+            # This hax is for sphinx as it can't parse the source otherwise
+            return lambda *args, **kwargs: None  # type: ignore
 
-        def apply_async(self, *_args: t.Any, **_kwargs: t.Any) -> t.Any:
+        @property
+        def apply_async(self) -> t.Any:
             ...
 
     class Celery:
@@ -106,10 +105,24 @@ if t.TYPE_CHECKING:  # pragma: no cover
         def init_app(self, _app: t.Any) -> None:
             ...
 
-        def task(self, _callback: t.Any) -> CeleryTask:
+        @t.overload
+        def task(self, _callback: T) -> CeleryTask[T]:
+            ...
+
+        @t.overload
+        def task(  # pylint: disable=function-redefined,unused-argument
+            self,
+            **kwargs: t.Union[int, bool]
+        ) -> t.Callable[[T], CeleryTask[T]]:
+            ...
+
+        def task(self, *args: object, **kwargs: object) -> t.Any:  # pylint: disable=function-redefined,unused-argument
             # `CeleryTask()` is returned here as this code is also executed
             # when generating the documentation.
-            return CeleryTask()
+            if len(args) == 1:
+                return CeleryTask()
+            else:
+                return self.task
 else:
     Celery = _Celery
 # pylint: enable=missing-docstring,no-self-use,pointless-statement
@@ -204,7 +217,8 @@ def init_app(app: t.Any) -> None:
     celery.conf.update(
         {
             'task_ignore_result': True,
-            'celery_hijack_root_logger': False
+            'celery_hijack_root_logger': False,
+            'worker_log_format': '%(message)s',
         }
     )
     celery.init_flask_app(app)
@@ -214,7 +228,7 @@ def init_app(app: t.Any) -> None:
 def _lint_instances_1(
     linter_name: str,
     cfg: str,
-    linter_instance_ids: t.Sequence[int],
+    linter_instance_ids: t.Sequence[str],
 ) -> None:
     p.linters.LinterRunner(
         p.linters.get_linter_by_name(linter_name),
@@ -222,7 +236,16 @@ def _lint_instances_1(
     ).run(linter_instance_ids)
 
 
-@celery.task
+# This task acks late and retries on exceptions. For the exact meaning of these
+# variables see the celery documentation. But basically ``acks_late`` means
+# that a task will only be removed from the queue AFTER it has finished
+# processing, if the worker dies during processing it will simply restart. The
+# ``max_retry`` parameter means that if the worker throws an exception during
+# processing the task will also be retried, with a maximum of 10. The
+# ``reject_on_worker_lost`` means that if a worker suddenly dies while
+# processing the task (if the machine fails, or if the main process is killed
+# with the ``KILL`` signal) the task will also be retried.
+@celery.task(acks_late=True, max_retries=10, reject_on_worker_lost=True)  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
 def _passback_grades_1(submission_ids: t.Sequence[int]) -> None:
     if not submission_ids:  # pragma: no cover
         return
@@ -308,7 +331,7 @@ def _send_grader_status_mail_1(
 
 @celery.task
 def _run_plagiarism_control_1(
-    plagiarism_run_id: str,
+    plagiarism_run_id: int,
     main_assignment_id: int,
     old_assignment_ids: t.List[int],
     call_args: t.List[str],
@@ -410,7 +433,10 @@ def _add_1(first: int, second: int) -> int:  # pragma: no cover
 passback_grades = _passback_grades_1.delay  # pylint: disable=invalid-name
 lint_instances = _lint_instances_1.delay  # pylint: disable=invalid-name
 add = _add_1.delay  # pylint: disable=invalid-name
-send_reminder_mails = _send_reminder_mails_1.apply_async  # pylint: disable=invalid-name
 send_done_mail = _send_done_mail_1.delay  # pylint: disable=invalid-name
 send_grader_status_mail = _send_grader_status_mail_1.delay  # pylint: disable=invalid-name
 run_plagiarism_control = _run_plagiarism_control_1.delay  # pylint: disable=invalid-name
+
+send_reminder_mails: t.Callable[[
+    t.Tuple[int], NamedArg(t.Optional[datetime.datetime], 'eta')
+], t.Any] = _send_reminder_mails_1.apply_async  # pylint: disable=invalid-name

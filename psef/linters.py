@@ -188,7 +188,7 @@ class LinterRunner():
         """
         self.linter = cls(cfg)  # type: Linter
 
-    def run(self, linter_instance_ids: t.Sequence[int]) -> None:
+    def run(self, linter_instance_ids: t.Sequence[str]) -> None:
         """Run this linter runner on the given works.
 
         .. note:: This method takes a long time to execute, please run it in a

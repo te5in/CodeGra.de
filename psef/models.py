@@ -34,7 +34,9 @@ import psef  # pylint: disable=cyclic-import
 
 from . import current_app
 from .cache import cache_within_request
-from .exceptions import APICodes, APIException, PermissionException
+from .exceptions import (
+    APICodes, APIException, PermissionException, InvalidAssignmentState
+)
 from .model_types import (  # pylint: disable=unused-import
     T, MyDb, DbColumn, _MyQuery
 )
@@ -175,6 +177,45 @@ class LTIProvider(Base):
     __tablename__ = 'LTIProvider'
     id: str = db.Column('id', db.String(UUID_LENGTH), primary_key=True)
     key: str = db.Column('key', db.Unicode, unique=True)
+
+    def passback_grade(self, sub: 'Work', initial: bool) -> None:
+        """Passback the grade for a given submission to this lti provider.
+
+        :param sub: The submission to passback.
+        :param initial: If true no grade will be send, this is to make sure the
+            ``created_at`` date is correct in the LMS. Not all providers
+            actually do a passback when this is set to ``True``.
+        :returns: Nothing.
+        """
+        url = ('{}/'
+               'courses/{}/assignments/{}/submissions?inLTI=true').format(
+                   current_app.config['EXTERNAL_URL'],
+                   sub.assignment.course_id,
+                   sub.assignment_id,
+               )
+
+        self.lti_class.passback_grade(
+            key=self.key,
+            secret=self.secret,
+            grade=sub.grade,
+            initial=initial,
+            service_url=sub.assignment.lti_outcome_service_url,
+            sourcedid=sub.assignment.assignment_results[sub.user_id].sourcedid,
+            lti_points_possible=sub.assignment.lti_points_possible,
+            submission=sub,
+            url=url,
+        )
+
+    @property
+    def lti_class(self) -> t.Type['psef.lti.LTI']:
+        """This is the name of the provider.
+
+        .. note::
+
+            Currently this is hard coded to :class`.psef.lti.CanvasLTI` but
+            could be extended to provide support for more additional LMS'ses
+        """
+        return psef.lti.CanvasLTI
 
     def __init__(self, key: str) -> None:
         super().__init__(key=key)
@@ -1100,6 +1141,11 @@ class Course(Base):
         for role_name, perms in CourseRole.get_default_course_roles().items():
             CourseRole(name=role_name, course=self, _permissions=perms)
 
+    __hash__ = object.__hash__
+
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, Course) and self.id == other.id
+
     def __to_json__(self) -> t.Mapping[str, t.Any]:
         """Creates a JSON serializable representation of this object.
 
@@ -1445,43 +1491,25 @@ class Work(Base):
             result so that the real grade won't show as too late.
         :returns: Nothing
         """
-        if self.assignment.lti_outcome_service_url is not None:
-            lti_provider = self.assignment.course.lti_provider
+        if not self.assignment.is_lti:
+            return
 
-            url: t.Optional[str]
-            if initial:
-                url = (
-                    '{}/'
-                    'courses/{}/assignments/{}/submissions?inLTI=true'
-                ).format(
-                    current_app.config['EXTERNAL_URL'],
-                    self.assignment.course_id,
-                    self.assignment_id,
-                )
-            else:
-                url = None
+        lti_provider = self.assignment.course.lti_provider
 
-            psef.lti.LTI.passback_grade(
-                lti_provider.key,
-                lti_provider.secret,
-                False if initial else self.grade,
-                self.assignment.lti_outcome_service_url,
-                self.assignment.assignment_results[self.user_id].sourcedid,
-                lti_points_possible=self.assignment.lti_points_possible,
-                url=url,
-            )
-            newest_grade_history_id = db.session.query(
-                t.cast(DbColumn[int], GradeHistory.id)
-            ).filter_by(work_id=self.id).order_by(
-                t.cast(DbColumn[datetime.datetime],
-                       GradeHistory.changed_at).desc(),
-            ).limit(1).with_for_update()
+        lti_provider.passback_grade(self, initial)
 
-            db.session.query(GradeHistory).filter(
-                GradeHistory.id == newest_grade_history_id.as_scalar(),
-            ).update({
-                'passed_back': True
-            }, synchronize_session='fetch')
+        newest_grade_history_id = db.session.query(
+            t.cast(DbColumn[int], GradeHistory.id)
+        ).filter_by(work_id=self.id).order_by(
+            t.cast(DbColumn[datetime.datetime],
+                   GradeHistory.changed_at).desc(),
+        ).limit(1).with_for_update()
+
+        db.session.query(GradeHistory).filter(
+            GradeHistory.id == newest_grade_history_id.as_scalar(),
+        ).update({
+            'passed_back': True
+        }, synchronize_session='fetch')
 
     def select_rubric_items(
         self, items: t.List['RubricItem'], user: User, override: bool = False
@@ -2893,7 +2921,7 @@ class Assignment(Base):
             if self.lti_outcome_service_url is not None:
                 self._submit_grades()
         else:
-            raise TypeError
+            raise InvalidAssignmentState(f'{state} is not a valid state')
 
     def get_from_latest_submissions(self, *to_query: T) -> '_MyQuery[T]':
         """Get the given fields from all last submitted submissions.

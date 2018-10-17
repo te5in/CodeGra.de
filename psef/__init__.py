@@ -196,7 +196,7 @@ def create_app(  # pylint: disable=too-many-statements
             ]
         )
     logging.basicConfig(
-        format="%(message)s",
+        format='%(message)s',
         stream=sys.stdout,
     )
     logging.getLogger('psef').setLevel(logging.DEBUG)

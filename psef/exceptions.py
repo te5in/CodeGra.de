@@ -45,6 +45,12 @@ class APICodes(IntEnum):
     ROUTE_NOT_FOUND = 22
 
 
+class InvalidAssignmentState(TypeError):
+    """Exception used to signal the assignment state is invalid.
+    """
+    pass
+
+
 class APIException(Exception):
     """The exception to use if an API call failed.
 

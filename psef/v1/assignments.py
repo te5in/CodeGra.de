@@ -26,13 +26,16 @@ import psef.helpers as helpers
 import psef.linters as linters
 import psef.parsers as parsers
 from psef import current_user
-from psef.errors import APICodes, APIWarnings, APIException, make_warning
+from psef.errors import make_warning
 from psef.ignore import IgnoreFilterManager
 from psef.models import db
 from psef.helpers import (
     JSONType, JSONResponse, EmptyResponse, ExtendedJSONResponse, jsonify,
     ensure_json_dict, extended_jsonify, ensure_keys_in_dict,
     make_empty_response
+)
+from psef.exceptions import (
+    APICodes, APIWarnings, APIException, InvalidAssignmentState
 )
 
 from . import api
@@ -254,7 +257,7 @@ def update_assignment(assignment_id: int) -> EmptyResponse:
 
         try:
             assig.set_state(state)
-        except TypeError:
+        except InvalidAssignmentState:
             raise APIException(
                 'The selected state is not valid',
                 'The state {} is not a valid state'.format(state),
@@ -588,8 +591,8 @@ def upload_work(assignment_id: int) -> JSONResponse[models.Work]:
     db.session.add(work)
     db.session.flush()
 
-    if assig.is_lti:
-        work.passback_grade(initial=True)
+    # This method does nothing if the assignment is not an LTI assignment
+    work.passback_grade(initial=True)
     db.session.commit()
 
     work.run_linter()
