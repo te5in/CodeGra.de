@@ -450,6 +450,10 @@ export default {
                 }
             }
         },
+
+        selectedRevision(revision) {
+            this.revisionChanged(revision);
+        },
     },
 
     mounted() {

@@ -14,8 +14,7 @@
                    :key="option.value"
                    :disabled="option.disabled"
                    v-b-popover.hover.bottom="'No rev'"
-                   :title="option.title">
-            </b-tab>
+                   :title="option.title"/>
         </b-tabs>
 
         <description-popover placement="bottom">
@@ -37,11 +36,11 @@
             <icon name="folder" class="dir-icon" v-if="isCollapsed"/>
             <icon name="folder-open" class="dir-icon" v-else/>
             {{ tree.name }}
-            <span v-if="depth > 0 && dirHasRevision(tree)"
+            <sup v-if="depth > 0 && dirHasRevision(tree)"
                     v-b-popover.hover.top="'This directory has a file with a teacher\'s revision'"
                     class="rev-popover">
-                *
-            </span>
+                modified
+            </sup>
         </span>
     </div>
     <ol v-show="!isCollapsed">
@@ -57,11 +56,16 @@
                             v-else>
                 <icon name="file" class="file-icon"/>{{ f.name }}
             </router-link>
-            <span v-if="fileHasRevision(f)"
-                    v-b-popover.hover.top="'This file has a teacher\'s revision'"
-                    class="rev-popover">
-                *
-            </span>
+            <sup v-if="fileHasRevision(f)"
+                 v-b-popover.hover.top="revisionPopover(f)"
+                 class="rev-popover">
+                <router-link v-if="!diffMode"
+                             :to="revisedFileRoute(f)"
+                             @click="$emit('revision', 'diff')">
+                    diff
+                </router-link>
+                <span v-else>diff</span>
+            </sup>
         </li>
     </ol>
 </div>
@@ -231,6 +235,51 @@ export default {
         revisionChanged(index) {
             this.$emit('revision', this.revisionOptions[index].value);
         },
+
+        revisedFileRoute(f) {
+            let fileId;
+
+            if (f.ids != null) {
+                [, fileId] = f.ids;
+            } else if (f.revision != null) {
+                fileId = f.revision.id;
+            } else if (f.revision === null) {
+                fileId = f.id;
+            } else {
+                throw ReferenceError(`File '${f.name}' doesn't have a revision.`);
+            }
+
+            return {
+                params: { fileId },
+                query: Object.assign({}, this.$route.query, {
+                    revision: 'diff',
+                }),
+            };
+        },
+
+        revisionPopover(f) {
+            let action;
+
+            if (f.ids !== undefined) {
+                if (f.ids[0] == null) {
+                    action = 'added';
+                } else if (f.ids[1] == null) {
+                    action = 'deleted';
+                } else {
+                    action = 'changed';
+                }
+            } else if (f.revision !== undefined) {
+                action = f.revision == null ? 'deleted' : 'changed';
+            }
+
+            const text = `This file was ${action} in the teacher's revision.`;
+
+            if (!this.diffMode) {
+                return `${text} Click here to see the diff.`;
+            } else {
+                return text;
+            }
+        },
     },
 
     components: {
@@ -300,7 +349,6 @@ export default {
 
     .rev-popover {
         display: inline;
-        cursor: pointer;
     }
 }
 
