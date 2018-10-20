@@ -112,7 +112,7 @@ export default {
     position: sticky;
     top: 0;
     z-index: 3;
-    margin: 0 -1rem 1rem;
+    margin: 0 -15px 1rem;
     border: 0;
     padding: 1rem;
     .default-footer-colors;
