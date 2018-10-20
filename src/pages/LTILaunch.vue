@@ -67,6 +67,7 @@ export default {
                         `You do not have any permissions yet, please ask your teacher to enable them for your role "${data.new_role_created}".`,
                         {
                             position: 'bottom-center',
+                            closeOnSwipe: false,
                             action: {
                                 text: '✖',
                                 onClick: (e, toastObject) => {
@@ -81,6 +82,7 @@ export default {
                         `Your email was updated to "${data.updated_email}" which is the email registered with your LMS.`,
                         {
                             position: 'bottom-center',
+                            closeOnSwipe: false,
                             action: {
                                 text: '✖',
                                 onClick: (e, toastObject) => {

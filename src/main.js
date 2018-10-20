@@ -123,6 +123,7 @@ localforage.defineDriver(memoryStorageDriver).then(() => {
                 toastVisible = true;
                 Vue.toasted.error('There was an error connecting to the server... Please try again later', {
                     position: 'bottom-center',
+                    closeOnSwipe: false,
                     duration: 3000,
                     onComplete: () => {
                         toastVisible = false;
