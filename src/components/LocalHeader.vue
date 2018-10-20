@@ -63,6 +63,11 @@ export default {
             default: '',
         },
 
+        forceExtraDrawer: {
+            type: [Boolean, undefined],
+            default: undefined,
+        },
+
         backRoute: {
             type: Object,
             default: null,
@@ -76,6 +81,9 @@ export default {
 
     computed: {
         hasExtraSlot() {
+            if (this.forceExtraDrawer !== undefined) {
+                return this.forceExtraDrawer;
+            }
             return !!this.$slots.extra;
         },
     },

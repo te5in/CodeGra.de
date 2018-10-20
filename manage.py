@@ -4,13 +4,16 @@
 import os
 import sys
 import json
+import uuid
+import shutil
 import datetime
 
-import psef
-import psef.models as m
 from flask_script import Manager
 from flask_migrate import Migrate, MigrateCommand
 from sqlalchemy_utils import PasswordType
+
+import psef
+import psef.models as m
 
 
 def render_item(type_, col, autogen_context):
@@ -107,6 +110,8 @@ def test_data(db=None):
     if not app.config['DEBUG']:
         print('You can not add test data in production mode', file=sys.stderr)
         return 1
+    if not os.path.isdir(app.config['UPLOAD_DIR']):
+        os.mkdir(app.config['UPLOAD_DIR'])
 
     seed()
     db.session.commit()
@@ -183,13 +188,26 @@ def test_data(db=None):
                     if role == 'Student':
                         for assig in course.assignments:
                             work = m.Work(assignment=assig, user=u)
-                            db.session.add(
-                                m.File(
-                                    work=work,
-                                    name='Top stub dir',
-                                    is_directory=True
+                            f = m.File(
+                                work=work,
+                                name='Top stub dir ({})'.format(u.name),
+                                is_directory=True
+                            )
+                            filename = str(uuid.uuid4())
+                            shutil.copyfile(
+                                __file__,
+                                os.path.join(
+                                    app.config['UPLOAD_DIR'], filename
                                 )
                             )
+                            f.children = [
+                                m.File(
+                                    work=work,
+                                    name='manage.py',
+                                    is_directory=False,
+                                    filename=filename
+                                )
+                            ]
                             db.session.add(work)
     db.session.commit()
     with open(

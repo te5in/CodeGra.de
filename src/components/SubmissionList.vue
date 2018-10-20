@@ -22,12 +22,23 @@
             </b-input-group-append>
         </b-input-group>
 
-        <b-input-group v-if="assignment.canManage">
-            <b-button :to="manageAssignmentRoute"
-                      variant="secondary"
-                      v-b-popover.bottom.hover="'Manage assignment'">
-                <icon name="gear"/>
-            </b-button>
+        <b-input-group>
+            <b-button-group>
+                <b-button :to="manageAssignmentRoute"
+                          variant="secondary"
+                          v-if="assignment.canManage"
+                          v-b-popover.bottom.hover="'Manage assignment'">
+                    <icon name="gear"/>
+                </b-button>
+                <submit-button @click="submitForceLoadSubmissions"
+                               variant="secondary"
+                               ref="refreshButton"
+                               :label="false"
+                               v-b-popover.bottom.hover="'Reload submissions'">
+                    <icon name="refresh"/>
+                    <icon name="refresh" spin slot="pending"/>
+                </submit-button>
+            </b-button-group>
         </b-input-group>
 
         <div slot="extra" class="clearfix">
@@ -112,11 +123,13 @@
 </template>
 
 <script>
-import { mapGetters } from 'vuex';
+import { mapGetters, mapActions } from 'vuex';
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/gear';
+import 'vue-awesome/icons/refresh';
 
-import { formatGrade, filterSubmissions, sortSubmissions, parseBool } from '@/utils';
+import { formatGrade, parseBool, waitAtLeast } from '@/utils';
+import { filterSubmissions, sortSubmissions } from '@/utils/FilterSubmissionsManager';
 
 import * as assignmentState from '@/store/assignment-states';
 import SubmissionsExporter from './SubmissionsExporter';
@@ -261,6 +274,17 @@ export default {
     },
 
     methods: {
+        ...mapActions('courses', ['forceLoadSubmissions']),
+
+        submitForceLoadSubmissions() {
+            const req = waitAtLeast(500, this.forceLoadSubmissions(this.assignment.id).catch(
+                (err) => {
+                    throw err.response.data.message;
+                },
+            ));
+            this.$refs.refreshButton.submit(req);
+        },
+
         updateAssigneeFilter() {
             this.assigneeFilter = this.submissions.some(
                 s => s.assignee && s.assignee.id === this.userId,
@@ -307,7 +331,8 @@ export default {
                     // Fuck you bootstrapVue (sortDesc should've been sortAsc)
                     sortBy: this.$refs.table.sortBy,
                     sortAsc: !this.$refs.table.sortDesc,
-                    overview: this.assignment.state === assignmentState.DONE,
+                    overview: this.assignment.state === assignmentState.DONE &&
+                        submission.grade != null,
                 },
             });
         },
@@ -323,7 +348,9 @@ export default {
             }, 200);
         },
 
-        submit() {
+        async submit() {
+            await this.$nextTick();
+
             this.$router.replace({
                 query: Object.assign({}, this.$route.query, {
                     latest: this.latestOnly,
@@ -331,30 +358,6 @@ export default {
                     q: this.filter || undefined,
                 }),
             });
-        },
-
-        isEmptyObject(obj) {
-            return Object.keys(obj).length === 0 && obj.constructor === Object;
-        },
-
-        filterItems(item) {
-            if ((this.latestOnly && this.latest[item.user.id] !== item.id) ||
-                (this.assigneeFilter && this.mineOnly &&
-                 (item.assignee == null || item.assignee.id !== this.userId))) {
-                return false;
-            } else if (!this.filter) {
-                return true;
-            }
-
-            const terms = {
-                user_name: item.user.name.toLowerCase(),
-                grade: (item.grade || 0).toString(),
-                created_at: item.created_at,
-                assignee: item.assignee ? item.assignee.name.toLowerCase() : '-',
-            };
-            return this.filter.toLowerCase().split(' ').every(word =>
-                Object.keys(terms).some(key =>
-                    terms[key].indexOf(word) >= 0));
         },
 
         updateAssignee(newId, { item: submission }) {

@@ -3,7 +3,7 @@ import Vue from 'vue';
 import axios from 'axios';
 import moment from 'moment';
 
-import { formatDate } from '@/utils';
+import * as utils from '@/utils';
 import * as types from '../mutation-types';
 import { MANAGE_ASSIGNMENT_PERMISSIONS, MANAGE_GENERAL_COURSE_PERMISSIONS } from '../../constants';
 
@@ -24,13 +24,123 @@ const getters = {
     },
 };
 
+function getAssignment(state, assignmentId) {
+    const assignment = getters.assignments(state)[assignmentId];
+
+    if (assignment == null) {
+        throw ReferenceError(`Could not find assignment: ${assignmentId}`);
+    }
+
+    return assignment;
+}
+
 const actions = {
-    loadCourses({ state, commit }) {
+    async loadCourses({ state, commit, dispatch }) {
         if (state.currentCourseLoader == null) {
-            state.currentCourseLoader = actions.reloadCourses({ commit });
+            commit(types.SET_COURSES_PROMISE, dispatch('reloadCourses'));
         }
 
         return state.currentCourseLoader;
+    },
+
+
+    deleteSubmission({ commit }, { assignmentId, submissionId }) {
+        commit(types.DELETE_SUBMISSION, { assignmentId, submissionId });
+    },
+
+    addSubmission({ commit }, { assignmentId, submission }) {
+        submission.created_at = moment.utc(submission.created_at, moment.ISO_8601).local().format('YYYY-MM-DD HH:mm');
+        submission.grade = utils.formatGrade(submission.grade);
+        commit(types.ADD_SUBMISSION, { assignmentId, submission });
+    },
+
+    setRubric({ commit }, { assignmentId, rubric, maxPoints }) {
+        commit(types.UPDATE_ASSIGNMENT, {
+            assignmentId,
+            assignmentProps: { rubric, fixed_max_rubric_points: maxPoints },
+        });
+    },
+
+    async forceLoadRubric({ commit }, assignmentId) {
+        const rubric = await axios.get(
+            `/api/v1/assignments/${assignmentId}/rubrics/`,
+        ).then(
+            ({ data }) => data,
+            () => null,
+        );
+        commit(types.UPDATE_ASSIGNMENT, {
+            assignmentId,
+            assignmentProps: { rubric },
+        });
+    },
+
+    forceLoadSubmissions(context, assignmentId) {
+        // This needs to be in one promise to make sure that two very quick
+        // calls to `loadSubmissions` still only does one request (for the
+        // same arguments of course).
+        const promiseFun = async () => {
+            await context.dispatch('loadCourses');
+
+            if (context.getters.assignments[assignmentId] == null) {
+                return;
+            }
+
+            await Promise.all([
+                axios.get(
+                    `/api/v1/assignments/${assignmentId}/submissions/?extended`,
+                ).then(({ data: submissions }) => {
+                    submissions.forEach((sub) => {
+                        sub.created_at = moment.utc(sub.created_at, moment.ISO_8601).local().format('YYYY-MM-DD HH:mm');
+                        sub.grade = utils.formatGrade(sub.grade);
+                    });
+                    return submissions;
+                }),
+                axios.get(
+                    `/api/v1/assignments/${assignmentId}/rubrics/`,
+                ).then(
+                    ({ data }) => data,
+                    () => null,
+                ),
+                axios.get(
+                    `/api/v1/assignments/${assignmentId}/graders/`,
+                ).then(
+                    ({ data }) => data,
+                    () => null,
+                ),
+            ]).then(([submissions, rubric, graders]) => {
+                context.commit(types.UPDATE_ASSIGNMENT, {
+                    assignmentId,
+                    assignmentProps: { submissions, rubric, graders },
+                });
+            });
+
+            // It is possible that in the mean time these promises were
+            // cleared. Simply store them again to prevent double loading.
+            context.commit(types.SET_SUBMISSIONS_PROMISE, {
+                assignmentId,
+                promise: Promise.resolve(),
+            });
+        };
+
+        const promise = promiseFun();
+        context.commit(types.SET_SUBMISSIONS_PROMISE, {
+            assignmentId,
+            promise,
+        });
+
+        return promise;
+    },
+
+    async loadSubmissions(context, assignmentId) {
+        if (context.state.submissionsLoaders[assignmentId] == null) {
+            await context.dispatch('forceLoadSubmissions', assignmentId);
+        }
+
+        return context.state.submissionsLoaders[assignmentId];
+    },
+
+    updateSubmission({ commit }, { assignmentId, submissionId, submissionProps }) {
+        commit(types.UPDATE_SUBMISSION, { assignmentId, submissionId, submissionProps });
     },
 
     async reloadCourses({ commit }) {
@@ -93,6 +203,8 @@ const actions = {
 
 const mutations = {
     [types.SET_COURSES](state, [courses, manageCourses, manageAssigs, createAssigs, perms]) {
+        state.submissionsLoaders = {};
+
         state.courses = courses.reduce((res, course) => {
             course.assignments.forEach((assignment) => {
                 const deadline = moment.utc(assignment.deadline, moment.ISO_8601).local();
@@ -103,8 +215,8 @@ const mutations = {
                 }
 
                 assignment.course = course;
-                assignment.deadline = formatDate(assignment.deadline);
-                assignment.created_at = formatDate(assignment.created_at);
+                assignment.deadline = utils.formatDate(assignment.deadline);
+                assignment.created_at = utils.formatDate(assignment.created_at);
                 assignment.canManage = manageAssigs[course.id];
                 assignment.has_reminder_time = reminderTime.isValid();
                 assignment.reminder_time = (
@@ -126,6 +238,7 @@ const mutations = {
     [types.CLEAR_COURSES](state) {
         state.courses = {};
         state.currentCourseLoader = null;
+        state.submissionsLoaders = {};
     },
 
     [types.UPDATE_COURSE](state, { courseId, courseProps }) {
@@ -144,20 +257,55 @@ const mutations = {
         });
     },
 
-    [types.UPDATE_ASSIGNMENT](state, { assignmentId, assignmentProps }) {
-        const assignment = getters.assignments(state)[assignmentId];
+    [types.SET_COURSES_PROMISE](state, promise) {
+        state.currentCourseLoader = promise;
+    },
 
-        if (assignment == null) {
-            throw ReferenceError(`Could not find assignment: ${assignmentId}`);
-        }
+    [types.SET_SUBMISSIONS_PROMISE](state, { promise, assignmentId }) {
+        Vue.set(state.submissionsLoaders, assignmentId, promise);
+    },
+
+    [types.UPDATE_ASSIGNMENT](state, { assignmentId, assignmentProps }) {
+        const assignment = getAssignment(state, assignmentId);
 
         Object.keys(assignmentProps).forEach((key) => {
-            if (!{}.hasOwnProperty.call(assignment, key) || key === 'id') {
+            if (key !== 'submissions' && key !== 'rubric' && key !== 'graders' &&
+                (!{}.hasOwnProperty.call(assignment, key) || key === 'id')) {
                 throw TypeError(`Cannot set assignment property: ${key}`);
             }
 
             Vue.set(assignment, key, assignmentProps[key]);
         });
+    },
+
+    [types.ADD_SUBMISSION](state, { assignmentId, submission }) {
+        const assignment = getAssignment(state, assignmentId);
+
+        Vue.set(assignment, 'submissions', [submission, ...assignment.submissions]);
+    },
+
+    [types.DELETE_SUBMISSION](state, { assignmentId, submissionId }) {
+        const assignment = getAssignment(state, assignmentId);
+
+        Vue.set(assignment, 'submissions', assignment.submissions.filter(sub => sub.id !== submissionId));
+    },
+
+    [types.UPDATE_SUBMISSION](state, { assignmentId, submissionId, submissionProps }) {
+        const assignment = getAssignment(state, assignmentId);
+
+        for (let i = 0; i < assignment.submissions.length; i++) {
+            if (assignment.submissions[i].id === submissionId) {
+                Object.entries(submissionProps).forEach(([key, val]) => {
+                    if (key === 'id') {
+                        throw TypeError(`Cannot set submission property: ${key}`);
+                    }
+                    Vue.set(assignment.submissions[i], key, key === 'grade' ? utils.formatGrade(val) : val);
+                });
+                return;
+            }
+        }
+
+        throw ReferenceError('Submission not found');
     },
 };
 
@@ -166,6 +314,7 @@ export default {
     state: {
         courses: {},
         currentCourseLoader: null,
+        submissionsLoaders: { },
     },
 
     getters,

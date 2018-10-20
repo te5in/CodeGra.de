@@ -2,6 +2,7 @@
 <template>
 <div class="submission-uploader">
     <b-modal id="wrong-files-modal"
+             v-if="showModal"
              hide-footer
              title="Probably superfluous files found!">
         <p>
@@ -50,7 +51,7 @@
                    :before-upload="checkUpload"
                    @error="uploadError"
                    @clear="author = null"
-                   @response="data => $emit('created', data)">
+                   @response="response">
         <user-selector v-model="author"
                        select-label=""
                        :disabled="disabled"
@@ -63,7 +64,7 @@
 </template>
 
 <script>
-import { mapGetters } from 'vuex';
+import { mapGetters, mapActions } from 'vuex';
 
 import Loader from './Loader';
 import FileUploader from './FileUploader';
@@ -124,6 +125,15 @@ export default {
             showWarn: false,
             rejectWarn: null,
             acceptWarn: null,
+            // This variable is a haxxxy optimization: Rendering a modal is SLOW
+            // (!!) as it forces an entire reflow even when it is still
+            // hidden. I most cases the modal on this page is never shown (it is
+            // only shown when a user tries to hand in files that match the
+            // ignore filters), so by default we don't render it (there is a
+            // `v-if="showModal"`) at all. When the modal is needed we set this
+            // variable to `true`. We never reset this value back to `false` as
+            // doing so f*cks the entire animation.
+            showModal: false,
             uploaderId: `submission-uploader-${i++}`,
         };
     },
@@ -135,19 +145,21 @@ export default {
     },
 
     methods: {
-        uploadError(err) {
+        ...mapActions('courses', ['addSubmission']),
+
+        async uploadError(err) {
             if (err.data.code !== 'INVALID_FILE_IN_ARCHIVE') return;
 
             this.wrongFiles = err.data.invalid_files;
+            this.showModal = true;
+            await this.$nextTick();
             this.$root.$emit('bv::show::modal', 'wrong-files-modal');
 
             // We need the double next ticks as next ticks are executed before
             // data updates of the next tick.
-            this.$nextTick(() => {
-                this.$nextTick(() => {
-                    this.$refs.uploader.$refs.submitButton.reset();
-                });
-            });
+            await this.$nextTick();
+            await this.$nextTick();
+            this.$refs.uploader.$refs.submitButton.reset();
         },
 
         checkUpload() {
@@ -199,6 +211,11 @@ export default {
                 this.$emit('error', response);
                 throw response.data.message;
             }));
+        },
+
+        response({ data: submission }) {
+            this.addSubmission({ assignmentId: this.assignment.id, submission });
+            this.$emit('created', submission);
         },
     },
 

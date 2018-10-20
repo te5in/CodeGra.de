@@ -184,6 +184,8 @@
 </template>
 
 <script>
+import { mapActions } from 'vuex';
+
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/plus';
 import 'vue-awesome/icons/times';
@@ -266,6 +268,8 @@ export default {
     },
 
     methods: {
+        ...mapActions('courses', ['forceLoadRubric', 'setRubric']),
+
         getEmptyItem() {
             return {
                 points: '',
@@ -309,16 +313,15 @@ export default {
             });
         },
 
-        getAndSetRubrics() {
-            if (!this.assignmentId) return Promise.resolve();
+        async getAndSetRubrics() {
+            if (!this.assignmentId) return;
 
-            return this.$http.get(
-                `/api/v1/assignments/${this.assignmentId}/rubrics/`,
-            ).then(({ data: rubrics }) => {
-                this.setRubricData(rubrics);
-            }, () => {
+            await this.forceLoadRubric(this.assignmentId);
+            if (this.assignment && this.assignment.rubric) {
+                this.setRubricData(this.assignment.rubric);
+            } else {
                 this.rubrics = [];
-            });
+            }
         },
 
         createRow() {
@@ -331,6 +334,7 @@ export default {
                 setTimeout(() => {
                     this.$root.$emit('bv::hide::modal', 'modal_delete_rubric');
                 }, 1000);
+                this.setRubric({ assignmentId: this.assignmentId, rubric: null, maxPoints: null });
             };
 
             const req = this.$http.delete(`/api/v1/assignments/${this.assignmentId}/rubrics/`).then(() => {
@@ -438,7 +442,13 @@ ${arrayToSentence(wrongCategories)}.`);
                 {
                     max_points: this.internalFixedMaxPoints,
                 },
-            );
+            ).then(({ data: rubric }) => {
+                this.setRubric({
+                    assignmentId: this.assignmentId,
+                    rubric,
+                    maxPoints: this.internalFixedMaxPoints,
+                });
+            });
 
             this.$refs.maxPointsButton.submit(waitAtLeast(500, req).catch(({ response }) => {
                 throw response.data.message;
@@ -464,8 +474,13 @@ ${arrayToSentence(wrongCategories)}.`);
                     rows,
                     max_points: this.internalFixedMaxPoints,
                 },
-            ).then(({ data }) => {
-                this.setRubricData(data);
+            ).then(({ data: rubric }) => {
+                this.setRubricData(rubric);
+                this.setRubric({
+                    assignmentId: this.assignmentId,
+                    rubric,
+                    maxPoints: this.internalFixedMaxPoints,
+                });
             });
             this.$refs.submitButton.submit(req.catch(({ response }) => {
                 throw response.data.message;

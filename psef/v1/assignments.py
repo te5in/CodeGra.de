@@ -523,7 +523,7 @@ def process_rubric_row(
 
 
 @api.route("/assignments/<int:assignment_id>/submission", methods=['POST'])
-def upload_work(assignment_id: int) -> JSONResponse[models.Work]:
+def upload_work(assignment_id: int) -> ExtendedJSONResponse[models.Work]:
     """Upload one or more files as :class:`.models.Work` to the given
     :class:`.models.Assignment`.
 
@@ -597,7 +597,7 @@ def upload_work(assignment_id: int) -> JSONResponse[models.Work]:
 
     work.run_linter()
 
-    return jsonify(work, status_code=201)
+    return extended_jsonify(work, status_code=201, use_extended=models.Work)
 
 
 @api.route('/assignments/<int:assignment_id>/divide', methods=['PATCH'])
@@ -907,7 +907,7 @@ def get_all_works_for_assignment(
         obj = obj.options(undefer(models.Work.comment))
         return extended_jsonify(
             obj.all(),
-            use_extended=lambda obj: isinstance(obj, models.Work),
+            use_extended=models.Work,
         )
     else:
         return jsonify(obj.all())

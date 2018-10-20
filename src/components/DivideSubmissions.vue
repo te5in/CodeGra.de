@@ -44,6 +44,8 @@
 </template>
 
 <script>
+import { mapActions } from 'vuex';
+
 import Loader from './Loader';
 import SubmitButton from './SubmitButton';
 
@@ -73,6 +75,8 @@ export default {
     },
 
     methods: {
+        ...mapActions('courses', ['forceLoadSubmissions']),
+
         graderChanged(i) {
             this.graders[i].weight = this.graders[i].weight ? 0 : 1;
             const field = this.$refs[`inputField${i}`][0];
@@ -89,6 +93,7 @@ export default {
                     }, {}),
             });
             this.$refs.submitButton.submit(req.then(() => {
+                this.forceLoadSubmissions(this.assignment.id);
                 this.$emit('divided');
             }, (err) => {
                 throw err.response.data.message;

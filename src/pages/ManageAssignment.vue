@@ -176,6 +176,7 @@
             </b-popover>
             <file-uploader :url="`/api/v1/assignments/${assignment.id}/submissions/`"
                            :disabled="assignment.is_lti"
+                           @response="forceLoadSubmissions(assignment.id)"
                            :id="`file-uploader-assignment-${assignment.id}`"/>
         </b-card>
     </div>
@@ -252,7 +253,7 @@ export default {
     },
 
     methods: {
-        ...mapActions('courses', ['updateAssignment', 'loadCourses']),
+        ...mapActions('courses', ['updateAssignment', 'loadCourses', 'forceLoadSubmissions']),
 
         async loadData() {
             this.loading = true;

@@ -154,8 +154,13 @@ export default {
     },
 
     watch: {
-        file(f) {
-            if (f) this.loadCodeWithSettings();
+        file(f, oldF) {
+            if (!f) {
+                return;
+            }
+            if (!oldF || f.id !== oldF.id) {
+                this.loadCodeWithSettings();
+            }
         },
 
         language(lang) {
@@ -205,7 +210,7 @@ export default {
 
                     this.highlightCode(this.selectedLanguage);
                 }, ({ response: { data: { message } } }) => {
-                    error.push(message);
+                    error.push(this.$htmlEscape(message));
                 }),
 
                 Promise.all([
@@ -217,7 +222,7 @@ export default {
                     this.linterFeedback = linterFeedback.data;
                     this.feedback = feedback.data;
                 }, ({ response: { data: { message } } }) => {
-                    error.push(message);
+                    error.push(this.$htmlEscape(message));
                 }),
             ]).then(() => {
                 this.error = error.join('<br>');

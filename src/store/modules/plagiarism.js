@@ -11,10 +11,10 @@ const getters = {
 const actions = {
     loadRun({ state, commit }, runId) {
         if (state.curPromises[runId] == null) {
-            state.curPromises[runId] = Promise.all([
+            const promise = Promise.all([
                 axios.get(`/api/v1/plagiarism/${runId}/cases/`),
                 axios.get(`/api/v1/plagiarism/${runId}?extended`),
-            ]).then(async ([{ data: serverCases }, { data: run }]) => {
+            ]).then(([{ data: serverCases }, { data: run }]) => {
                 run.cases = (serverCases || []).map((serverCase) => {
                     if (serverCase.assignments[0].id !== run.assignment.id) {
                         serverCase.assignments.reverse();
@@ -33,9 +33,10 @@ const actions = {
                     }
                     return serverCase;
                 });
-                await commit(types.SET_PLAGIARISM_RUN, run);
+                commit(types.SET_PLAGIARISM_RUN, run);
                 return run;
             });
+            commit(types.SET_PLAGIARISM_PROMISE, { runId, promise });
         }
         return state.curPromises[runId];
     },
@@ -65,6 +66,10 @@ const mutations = {
 
         delete state.runs[runId];
         delete state.curPromises[runId];
+    },
+
+    [types.SET_PLAGIARISM_PROMISE](state, { runId, promise }) {
+        Vue.set(state.curPromises, runId, promise);
     },
 
     [types.CLEAR_PLAGIARISM_RUNS](state) {

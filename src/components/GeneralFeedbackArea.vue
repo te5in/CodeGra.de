@@ -19,6 +19,8 @@
 </template>
 
 <script>
+import { mapActions, mapGetters } from 'vuex';
+
 import SubmitButton from './SubmitButton';
 
 export default {
@@ -29,10 +31,21 @@ export default {
             type: Boolean,
             default: false,
         },
+        assignment: {
+            type: Object,
+            default: null,
+        },
         submission: {
             type: Object,
             default: null,
         },
+    },
+
+    computed: {
+        ...mapGetters('user', {
+            nameCurrentUser: 'name',
+            userId: 'id',
+        }),
     },
 
     data() {
@@ -48,17 +61,31 @@ export default {
     },
 
     methods: {
+        ...mapActions('courses', ['updateSubmission']),
+
         putFeedback() {
             const data = { feedback: this.feedback || '' };
 
             const req = this.$http.patch(
                 `/api/v1/submissions/${this.submission.id}`,
                 data,
-            ).then(() => {
-                this.$emit('updated', data.feedback);
-            }, (err) => {
-                throw err.response.data.message;
-            });
+            ).then(
+                () => this.updateSubmission({
+                    assignmentId: this.assignment.id,
+                    submissionId: this.submission.id,
+                    submissionProps: {
+                        comment: data.feedback,
+                        comment_author: {
+                            name: this.nameCurrentUser,
+                            id: this.userId,
+                        },
+                    },
+                }),
+                (err) => {
+                    throw err.response.data.message;
+                },
+            );
+
             this.$refs.submitButton.submit(req);
         },
 

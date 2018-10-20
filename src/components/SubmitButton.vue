@@ -8,7 +8,11 @@
           :tabindex="tabindex"
           style="height: 100%;"
           @click="onClick">
-    <loader :scale="1" center v-if="pending"/>
+    <span v-if="pending">
+        <slot name="pending">
+            <loader :scale="1" center/>
+        </slot>
+    </span>
     <span v-else-if="label">{{ label }}</span>
     <slot v-else/>
 
@@ -155,7 +159,7 @@ export default {
                     if (this.cancelled) {
                         throw SubmitButtonCancelled;
                     } else {
-                        return this.fail(err);
+                        return this.fail(err || 'Something unknown went wrong');
                     }
                 },
             );

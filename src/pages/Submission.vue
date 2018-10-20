@@ -2,7 +2,7 @@
 <template>
 <loader center v-if="loadingPage"/>
 <div class="page submission outer-container" id="submission-page" v-else>
-    <b-modal id="modal_delete" title="Are you sure?" :hide-footer="true">
+    <b-modal id="modal_delete" title="Are you sure?" :hide-footer="true" v-if="canDeleteSubmission">
         <p style="text-align: center;">
             By deleting all information about this submission,
             including files, will be lost forever! So are you
@@ -22,123 +22,124 @@
     </b-modal>
 
     <local-header :back-route="submissionsRoute"
-                  back-popover="Go back to submissions list">
-        <submission-nav-bar v-if="submissions"
-                            v-model="submission"
-                            :submissions="submissions"
-                            :filter="filterSubmissions"/>
+                  back-popover="Go back to submissions list"
+                  :force-extra-drawer="!$root.$isLargeWindow">
+        <submission-nav-bar/>
 
-        <b-input-group class="submission-header-buttons">
-            <b-input-group-append v-if="canSeeFeedback">
-                <b-button class="overview-btn"
-                          :variant="overviewMode ? 'primary' : 'secondary'"
-                          @click="toggleOverviewMode(false)"
-                          v-b-popover.bottom.hover="'Toggle overview mode'"
-                          id="codeviewer-overview-toggle">
-                    <icon name="binoculars"/>
-                </b-button>
-            </b-input-group-append>
+        <component :is="!$root.$isLargeWindow ? 'template' : 'div'"
+                   :slot="!$root.$isLargeWindow ? 'extra' : undefined">
+            <b-input-group class="submission-header-buttons">
+                <b-input-group-append v-if="canSeeFeedback">
+                    <b-button class="overview-btn"
+                              :variant="overviewMode ? 'primary' : 'secondary'"
+                              @click="toggleOverviewMode(false)"
+                              v-b-popover.bottom.hover="'Toggle overview mode'"
+                              id="codeviewer-overview-toggle">
+                        <icon name="binoculars"/>
+                    </b-button>
+                </b-input-group-append>
 
-            <b-input-group-append>
-                <b-button class="settings-toggle"
-                          v-b-popover.hover.top="'Edit settings'"
-                          id="codeviewer-settings-toggle">
-                    <icon name="cog"/>
-                </b-button>
-                <b-popover triggers="click"
-                           class="settings-popover"
-                           target="codeviewer-settings-toggle"
-                           @show="beforeShowPopover"
-                           container="#submission-page"
-                           placement="bottom">
-                    <div class="settings-content"
-                         id="codeviewer-settings-content"
-                         ref="settingsContent">
-                        <preference-manager :file-id="(currentFile && currentFile.id) || `${submission.id}-OVERVIEW`"
-                                            :show-language="!(diffMode || overviewMode)"
-                                            :show-context-amount="overviewMode"
-                                            @context-amount="contextAmountChanged"
-                                            @whitespace="whitespaceChanged"
-                                            @language="languageChanged"
-                                            @font-size="fontSizeChanged"/>
-                    </div>
-                </b-popover>
-            </b-input-group-append>
+                <b-input-group-append>
+                    <b-button class="settings-toggle"
+                              v-b-popover.hover.top="'Edit settings'"
+                              id="codeviewer-settings-toggle">
+                        <icon name="cog"/>
+                    </b-button>
+                    <b-popover triggers="click"
+                               class="settings-popover"
+                               target="codeviewer-settings-toggle"
+                               @show="beforeShowPopover"
+                               container="#submission-page"
+                               placement="bottom">
+                        <div class="settings-content"
+                             id="codeviewer-settings-content"
+                             ref="settingsContent">
+                            <preference-manager :file-id="(currentFile && currentFile.id) || `${submission && submission.id}-OVERVIEW`"
+                                                :show-language="!(diffMode || overviewMode)"
+                                                :show-context-amount="overviewMode"
+                                                @context-amount="contextAmountChanged"
+                                                @whitespace="whitespaceChanged"
+                                                @language="languageChanged"
+                                                @font-size="fontSizeChanged"/>
+                        </div>
+                    </b-popover>
+                </b-input-group-append>
 
-            <b-input-group-append v-if="editable || assignment.state === assignmentState.DONE">
-                <b-button id="codeviewer-general-feedback"
-                          :variant="warnComment ? 'warning' : undefined"
-                          v-b-popover.hover.top="`${editable ? 'Edit' : 'Show'} general feedback`">
-                    <icon name="edit"/>
-                </b-button>
-                <b-popover target="codeviewer-general-feedback"
-                           :title="`General feedback${submission.comment_author ? ' by ' + submission.comment_author.name : ''}`"
-                           triggers="click"
-                           container="#submission-page"
-                           @show="beforeShowPopover"
-                           placement="bottom">
-                    <general-feedback-area style="width: 35em;"
-                                           @updated="generalFeedbackUpdated"
-                                           :submission="submission"
-                                           :editable="editable"/>
-                </b-popover>
-            </b-input-group-append>
+                <b-input-group-append v-if="editable || assignment.state === assignmentState.DONE">
+                    <b-button id="codeviewer-general-feedback"
+                              :variant="warnComment ? 'warning' : undefined"
+                              v-b-popover.hover.top="`${editable ? 'Edit' : 'Show'} general feedback`">
+                        <icon name="edit"/>
+                    </b-button>
+                    <b-popover target="codeviewer-general-feedback"
+                               triggers="click"
+                               container="#submission-page"
+                               @show="beforeShowPopover"
+                               placement="bottom">
+                        <template slot="title">
+                            <span v-if="submission && submission.comment_author">
+                                General feedback by {{ submission.comment_author.name }}
+                            </span>
+                            <span v-else>
+                                General feedback
+                            </span>
+                        </template>
+                        <general-feedback-area style="width: 35em;"
+                                               :assignment="assignment"
+                                               :submission="submission"
+                                               :editable="editable"/>
+                    </b-popover>
+                </b-input-group-append>
 
-            <b-input-group-append v-if="gradeHistory">
-                <b-button id="codeviewer-grade-history"
-                          v-b-popover.hover.top="'Grade history'">
-                    <icon name="history"/>
-                </b-button>
-                <!--
-                    We need `overflow-x: hidden` to make sure the popover is
-                    displayed correctly, however this breaks the `sticky` header
-                    so we simply display it differently if we need this
-                    sticky header.
-                    TODO: make the `isLargeWindow` reactive.
-                  -->
-                <b-popover target="codeviewer-grade-history"
-                           title="Grade history"
-                           triggers="click"
-                           container="#submission-page"
-                           @show="beforeShowPopover(); $refs.gradeHistory.updateHistory()"
-                           :placement="$root.$isLargeWindow || $root.$isSmallWindow ? 'bottom' : 'left'">
-                    <grade-history ref="gradeHistory"
-                                   :submissionId="submission.id"
-                                   :isLTI="assignment.course.is_lti"/>
-                </b-popover>
-            </b-input-group-append>
+                <b-input-group-append v-if="gradeHistory">
+                    <b-button id="codeviewer-grade-history"
+                              v-b-popover.hover.top="'Grade history'">
+                        <icon name="history"/>
+                    </b-button>
+                    <b-popover target="codeviewer-grade-history"
+                               title="Grade history"
+                               triggers="click"
+                               container="#submission-page"
+                               @show="beforeShowPopover(); $refs.gradeHistory.updateHistory()"
+                               :placement="$root.$isLargeWindow || $root.$isSmallWindow ? 'bottom' : 'left'">
+                        <grade-history ref="gradeHistory"
+                                       :submissionId="submission && submission.id"
+                                       :isLTI="assignment && assignment.course.is_lti"/>
+                    </b-popover>
+                </b-input-group-append>
 
-            <b-input-group-append>
-                <b-button v-b-popover.hover.top="'Download assignment or feedback'"
-                          id="codeviewer-download-toggle">
-                    <icon name="download"/>
-                </b-button>
-                <b-popover target="codeviewer-download-toggle"
-                           triggers="click"
-                           @show="beforeShowPopover"
-                           placement="bottom">
-                    <table class="table table-hover">
-                        <tbody>
-                            <tr @click="downloadType('zip')">
-                                <td><b>Archive</b></td>
-                            </tr>
-                            <tr @click="downloadType('feedback')">
-                                <td><b>Feedback</b></td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </b-popover>
-            </b-input-group-append>
+                <b-input-group-append>
+                    <b-button v-b-popover.hover.top="'Download assignment or feedback'"
+                              id="codeviewer-download-toggle">
+                        <icon name="download"/>
+                    </b-button>
+                    <b-popover target="codeviewer-download-toggle"
+                               triggers="click"
+                               @show="beforeShowPopover"
+                               placement="bottom">
+                        <table class="table table-hover">
+                            <tbody>
+                                <tr @click="downloadType('zip')">
+                                    <td><b>Archive</b></td>
+                                </tr>
+                                <tr @click="downloadType('feedback')">
+                                    <td><b>Feedback</b></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </b-popover>
+                </b-input-group-append>
 
-            <b-input-group-append v-if="canDeleteSubmission">
-                <b-btn class="text-center"
-                       variant="danger"
-                       v-b-popover.hover.top="'Delete submission'"
-                       @click="$root.$emit('bv::show::modal',`modal_delete`)">
-                    <icon name="times"/>
-                </b-btn>
-            </b-input-group-append>
-        </b-input-group>
+                <b-input-group-append v-if="canDeleteSubmission">
+                    <b-btn class="text-center"
+                           variant="danger"
+                           v-b-popover.hover.top="'Delete submission'"
+                           @click="$root.$emit('bv::show::modal',`modal_delete`)">
+                        <icon name="times"/>
+                    </b-btn>
+                </b-input-group-append>
+            </b-input-group>
+        </component>
     </local-header>
 
     <loader center v-if="loadingInner"/>
@@ -160,13 +161,14 @@
             <overview-mode v-else-if="overviewMode"
                            :assignment="assignment"
                            :submission="submission"
-                           :tree="fileTree"
+                           :tree="diffTree"
                            :context="contextAmount"
                            :teacher-tree="teacherTree"
                            :can-see-revision="canSeeRevision"
                            :font-size="fontSize"
                            :show-whitespace="showWhitespace"/>
             <pdf-viewer :id="currentFile.id"
+                        :is-diff="diffMode"
                         v-else-if="currentFile.extension === 'pdf'"/>
             <image-viewer :id="currentFile.id"
                           :name="currentFile.name"
@@ -219,9 +221,9 @@ import 'vue-awesome/icons/exclamation-triangle';
 import 'vue-awesome/icons/history';
 import 'vue-awesome/icons/binoculars';
 
-import { mapGetters } from 'vuex';
+import { mapGetters, mapActions } from 'vuex';
 
-import { filterSubmissions, cmpNoCase, formatGrade, parseBool } from '@/utils';
+import { cmpNoCase, parseBool } from '@/utils';
 
 import {
     CodeViewer,
@@ -250,29 +252,13 @@ export default {
     name: 'submission-page',
 
     data() {
-        let forceInclude = new Set();
-        try {
-            forceInclude = new Set(JSON.parse(this.$route.query.forceInclude));
-        } catch (e) {
-            // NOT EMPTY
-        }
-
         return {
-            courseId: Number(this.$route.params.courseId),
-            assignmentId: Number(this.$route.params.assignmentId),
-            assignment: null,
-            submissionId: Number(this.$route.params.submissionId),
-            submission: null,
-            fileTree: null,
             studentTree: null,
             teacherTree: null,
-            currentFile: null,
-            submissions: null,
             rubric: null,
             loadingPage: true,
             loadingInner: true,
             canDeleteSubmission: false,
-            initialLoad: true,
             assignmentState,
             canSeeFeedback: false,
             canSeeRevision: false,
@@ -281,22 +267,47 @@ export default {
             contextAmount: 3,
             selectedLanguage: 'Default',
             gradeHistory: true,
-            forceInclude,
-            submissionChangedByRoute: false,
         };
     },
 
     computed: {
-        ...mapGetters({
-            nameCurrentUser: 'user/name',
-        }),
+        ...mapGetters('user', { userId: 'id' }),
+        ...mapGetters('courses', ['assignments', 'submissions']),
 
         studentMode() {
             return this.$route.query.revision === 'student';
         },
 
+        courseId() {
+            return Number(this.$route.params.courseId);
+        },
+
+        fileId() {
+            return Number(this.$route.params.fileId);
+        },
+
+        submissionId() {
+            return Number(this.$route.params.submissionId);
+        },
+
+        assignmentId() {
+            return Number(this.$route.params.assignmentId);
+        },
+
+        assignment() {
+            return this.assignments[this.assignmentId] || null;
+        },
+
+        submissions() {
+            return (this.assignment && this.assignment.submissions) || [];
+        },
+
+        submission() {
+            return this.submissions.find(sub => sub.id === this.submissionId) || null;
+        },
+
         diffMode() {
-            return this.$route.query.revision === 'diff';
+            return this.selectedRevision === 'diff';
         },
 
         warnComment() {
@@ -329,15 +340,46 @@ export default {
                 },
             };
         },
+
+        fileTree() {
+            if (this.overviewMode) {
+                return this.diffTree;
+            }
+
+            switch (this.selectedRevision) {
+            case 'teacher':
+                return this.teacherTree;
+            case 'diff':
+                return this.diffTree;
+            case 'student':
+            default:
+                return this.studentTree;
+            }
+        },
+
+        currentFile() {
+            if (this.fileId == null || this.fileTree == null) return null;
+
+            const file = this.searchTree(this.fileTree, this.fileId);
+
+            if (file != null && file.extension == null) {
+                file.extension = '';
+                const nameparts = file.name.split('.');
+                if (nameparts.length > 1) {
+                    file.extension = nameparts[nameparts.length - 1];
+                }
+            }
+
+            return file;
+        },
     },
 
     watch: {
-        overviewMode() {
-            this.selectFileTree();
-        },
-
-        assignment() {
-            if (this.submission) {
+        assignment(newVal, oldVal) {
+            if (newVal == null) {
+                return;
+            }
+            if (oldVal == null || oldVal.id !== newVal.id) {
                 this.$nextTick(this.updateTitle);
             }
             if (this.assignment.state === assignmentState.DONE &&
@@ -346,73 +388,32 @@ export default {
             }
         },
 
-        submission(submission) {
-            if (submission.id === this.submissionId) {
-                this.initialLoad = false;
+        currentFile() {
+            this.$nextTick(this.updateTitle);
+        },
+
+        async submission(newVal, oldVal) {
+            if (oldVal == null || (newVal && oldVal.id === newVal.id)) {
                 return;
             }
 
-            this.submissionId = submission.id;
-            if (!this.initialLoad) {
-                this.fileTree = null;
-                this.currentFile = null;
-                this.setRevision('student');
-            }
-
-            if (this.assignment) {
-                this.$nextTick(this.updateTitle);
-            }
-
             this.loadingInner = true;
-            this.getSubmissionData().then(() => {
-                this.loadingInner = false;
-            });
 
-            if (!this.initialLoad && !this.submissionChangedByRoute) {
-                this.$router.push({
-                    name: 'submission',
-                    params: {
-                        courseId: this.courseId,
-                        assignmentId: this.assignmentId,
-                        submissionId: submission.id,
-                    },
-                    query: Object.assign({}, this.$route.query, {
-                        overview: this.assignment.state === assignmentState.DONE,
-                    }),
-                });
-            }
+            this.setRevision('student');
+            await this.getSubmissionData();
 
-            this.submissionChangedByRoute = false;
-            this.initialLoad = false;
-        },
-
-        $route(to) {
-            const fileId = Number(to.params.fileId);
-            const submissionId = Number(to.params.submissionId);
-
-            if (this.submissionId.toString() !== submissionId.toString()) {
-                this.submissionChangedByRoute = true;
-                this.submission = this.submissions.find(
-                    sub => sub.id === submissionId,
-                );
-            }
-
-            if (this.fileTree && (this.currentFile == null || fileId !== this.currentFile.id)) {
-                this.currentFile = this.searchTree(this.fileTree, fileId);
-            }
-
-            this.$nextTick(this.updateTitle);
+            this.loadingInner = false;
         },
 
         fileTree(treeTo) {
             if (treeTo == null) {
                 return;
             }
-            let fileId = Number(this.$route.params.fileId);
 
-            let file;
-            if (fileId) {
-                file = this.searchTree(treeTo, fileId);
+            let file = null;
+
+            if (this.fileId) {
+                file = this.searchTree(treeTo, this.fileId);
                 if (file == null && this.currentFile != null && this.currentFile.revision != null) {
                     file = this.searchTree(treeTo, this.currentFile.revision.id);
                 }
@@ -422,12 +423,8 @@ export default {
                 file = this.getFirstFile(treeTo);
             }
 
-            if (file != null) {
-                if (this.currentFile == null || this.currentFile.id !== file.id) {
-                    this.currentFile = file;
-                }
-
-                fileId = file.id || (file.ids && (file.ids[0] || file.ids[1]));
+            if (file != null && file.id !== this.fileId) {
+                const fileId = file.id || (file.ids && (file.ids[0] || file.ids[1]));
                 this.$router.replace({
                     name: 'submission_file',
                     params: { fileId },
@@ -437,17 +434,6 @@ export default {
                         { revision: this.selectedRevision },
                     ),
                 });
-                this.$nextTick(this.updateTitle);
-            }
-        },
-
-        currentFile(file) {
-            if (file != null) {
-                file.extension = '';
-                const nameparts = file.name.split('.');
-                if (nameparts.length > 1) {
-                    file.extension = nameparts[nameparts.length - 1];
-                }
             }
         },
 
@@ -469,8 +455,7 @@ export default {
                 ],
                 this.courseId,
             ),
-            this.getAssignment(),
-            this.getAllSubmissions(),
+            this.loadSubmissions(this.assignmentId),
             this.getSubmissionData(),
         ]).then(([[
             canGrade,
@@ -486,7 +471,8 @@ export default {
             this.canDeleteSubmission = canDeleteSubmission;
             this.gradeHistory = canSeeGradeHistory;
 
-            if (this.$store.getters['user/id'] === this.submission.user.id &&
+            if (this.submission &&
+                this.userId === this.submission.user.id &&
                 this.assignment.state === assignmentState.DONE) {
                 this.canSeeRevision = ownTeacher;
             } else {
@@ -499,10 +485,8 @@ export default {
     },
 
     methods: {
-        generalFeedbackUpdated(val) {
-            this.submission.comment = val;
-            this.submission.comment_author = { name: this.nameCurrentUser };
-        },
+        ...mapActions('courses', ['loadSubmissions', 'updateSubmission']),
+        ...mapActions('courses', { storeDeleteSubmission: 'deleteSubmission' }),
 
         setRevision(val) {
             this.$router.push({
@@ -525,7 +509,7 @@ export default {
             if (this.submission) {
                 title += ` by ${this.submission.user.name}`;
                 if (this.submission.grade) {
-                    title += ` (${formatGrade(this.submission.grade)})`;
+                    title += ` (${this.submission.grade})`;
                 }
             }
             setPageTitle(title);
@@ -533,20 +517,6 @@ export default {
 
         beforeShowPopover() {
             this.$root.$emit('bv::hide::popover');
-        },
-
-        getAssignment() {
-            return this.$http.get(`/api/v1/assignments/${this.assignmentId}`).then(({ data: assignment }) => {
-                this.assignment = assignment;
-            });
-        },
-
-        getAllSubmissions() {
-            return this.$http.get(`/api/v1/assignments/${this.assignmentId}/submissions/?extended`).then(({ data: submissions }) => {
-                this.submissions = submissions;
-                this.submission = submissions.find(sub =>
-                    sub.id === this.submissionId);
-            });
         },
 
         toggleOverviewMode(forceOn = false) {
@@ -565,6 +535,10 @@ export default {
             this.$refs.deleteButton.submit(req.catch((err) => {
                 throw err.response.data.message;
             })).then(() => {
+                this.storeDeleteSubmission({
+                    assignmentId: this.assignmentId,
+                    submissionId: this.submissionId,
+                });
                 this.$router.push({
                     name: 'assignment_submissions',
                     params: {
@@ -585,8 +559,11 @@ export default {
         getFileTrees() {
             return Promise.all([
                 this.$http.get(`/api/v1/submissions/${this.submissionId}/files/`),
-                this.$http.get(`/api/v1/submissions/${this.submissionId}/files/?owner=teacher`)
-                    .catch(() => null),
+                this.$http.get(`/api/v1/submissions/${this.submissionId}/files/`, {
+                    params: {
+                        owner: 'teacher',
+                    },
+                }).catch(() => null),
             ]).then(([student, teacher]) => {
                 this.studentTree = student.data;
                 this.studentTree.isStudent = true;
@@ -598,7 +575,6 @@ export default {
                 } else {
                     this.diffTree = this.matchFiles(this.studentTree, this.studentTree);
                 }
-                this.selectFileTree();
             });
         },
 
@@ -688,6 +664,7 @@ export default {
         getFirstFile(fileTree) {
             const queue = [fileTree];
             let candidate = null;
+            let firstFound = null;
 
             while (queue.length > 0) {
                 candidate = queue.shift();
@@ -695,11 +672,15 @@ export default {
                 if (candidate.entries) {
                     queue.push(...candidate.entries);
                 } else {
-                    return candidate;
+                    firstFound = firstFound || candidate;
+                    if (!candidate.name.startsWith('.')) {
+                        return candidate;
+                    }
                 }
             }
 
-            return null;
+            // Well fuck it, lets simply return a broken file.
+            return firstFound;
         },
 
         // Search the tree for the file with the givven id.
@@ -719,41 +700,6 @@ export default {
             return null;
         },
 
-        filterSubmissions(submissions) {
-            const userId = this.$store.state.user.id;
-            const filterLatest = parseBool(this.$route.query.latest, true);
-            const filterAssignee = parseBool(this.$route.query.mine, true);
-
-            const checkReally = (sub) => {
-                if (this.forceInclude.has(sub.id)) {
-                    return true;
-                }
-
-                if (this.submissionId === sub.id) {
-                    this.forceInclude.add(sub.id);
-                    this.$router.replace({
-                        query: Object.assign(
-                            {},
-                            this.$route.query,
-                            { forceInclude: JSON.stringify([...this.forceInclude]) },
-                        ),
-                    });
-                    this.$nextTick(this.updateTitle);
-                    return true;
-                }
-                return false;
-            };
-
-            return filterSubmissions(
-                submissions,
-                filterLatest,
-                filterAssignee,
-                userId,
-                this.$route.query.search,
-                checkReally,
-            );
-        },
-
         downloadType(type) {
             this.$http.get(`/api/v1/submissions/${this.submissionId}?type=${type}`).then(({ data }) => {
                 const params = new URLSearchParams();
@@ -762,14 +708,13 @@ export default {
             });
         },
 
-        gradeUpdated(grade) {
-            this.$set(this.submission, 'grade', grade);
-            if (this.submissions) {
-                this.$set(
-                    this.submissions, this.submissions.indexOf(this.submission),
-                    this.submission,
-                );
-            }
+        async gradeUpdated(grade) {
+            await this.updateSubmission({
+                assignmentId: this.assignmentId,
+                submissionId: this.submission.id,
+                submissionProps: { grade },
+            });
+            this.updateTitle();
         },
 
         whitespaceChanged(val) {
@@ -790,27 +735,6 @@ export default {
 
         revisionChanged(val) {
             this.setRevision(val);
-            this.selectFileTree();
-        },
-
-        selectFileTree() {
-            if (this.overviewMode) {
-                this.fileTree = this.diffTree;
-                return;
-            }
-
-            switch (this.selectedRevision) {
-            case 'teacher':
-                this.fileTree = this.teacherTree;
-                break;
-            case 'diff':
-                this.fileTree = this.diffTree;
-                break;
-            case 'student':
-            default:
-                this.fileTree = this.studentTree;
-                break;
-            }
         },
     },
 

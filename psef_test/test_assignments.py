@@ -1062,7 +1062,7 @@ def test_upload_files(
             ):
                 res = test_client.req(
                     'post',
-                    f'/api/v1/assignments/{assignment.id}/submission?extended',
+                    f'/api/v1/assignments/{assignment.id}/submission',
                     201,
                     real_data={
                         'file':
@@ -1077,6 +1077,8 @@ def test_upload_files(
                         'created_at': str,
                         'assignee': None,
                         'grade': None,
+                        'comment': None,
+                        'comment_author': None,
                     }
                 )
 

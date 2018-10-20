@@ -114,10 +114,10 @@ export default {
     data() {
         return {
             UserConfig,
-            grade: formatGrade(this.submission.grade),
+            grade: this.submission.grade,
             rubricPoints: {},
             rubricHasSelectedItems: false,
-            externalGrade: formatGrade(this.submission.grade),
+            externalGrade: this.submission.grade,
         };
     },
 
@@ -227,7 +227,8 @@ export default {
             const grade = parseFloat(this.grade);
             const normalGrade = (this.rubricOverridden || !this.showRubric);
 
-            if (!(grade >= 0 && grade <= this.maxAllowedGrade) && normalGrade) {
+            if (!(grade >= 0 && grade <= this.maxAllowedGrade) && normalGrade &&
+                !Number.isNaN(grade)) {
                 this.$refs.submitButton.fail(`Grade '${this.grade}' must be between 0 and ${this.maxAllowedGrade}`);
                 return;
             }
@@ -240,7 +241,7 @@ export default {
                     `/api/v1/submissions/${this.submission.id}`,
                     data,
                 ).then(() => {
-                    this.grade = grade;
+                    this.grade = formatGrade(grade);
                     this.gradeUpdated();
                 });
             } else {
@@ -290,7 +291,7 @@ textarea {
 }
 
 .out-of-sync-alert {
-    max-height: 3em;
+    max-height: 3.2em;
     overflow-x: hidden;
 
     transition-property: all;

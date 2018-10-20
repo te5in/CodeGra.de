@@ -134,6 +134,7 @@ import 'vue-awesome/icons/question';
 import 'vue-awesome/icons/tachometer';
 import 'vue-awesome/icons/refresh';
 import 'vue-awesome/icons/search';
+import 'vue-awesome/icons/files-o';
 
 import { Loader } from '@/components';
 
@@ -141,6 +142,7 @@ import UserInfo from './UserInfo';
 import CourseList from './CourseList';
 import AssignmentList from './AssignmentList';
 import PlagiarismCaseList from './PlagiarismCaseList';
+import SubmissionsSidebarList from './SubmissionsSidebarList';
 
 import { MANAGE_SITE_PERIMSSIONS } from '../../constants';
 
@@ -251,6 +253,15 @@ export default {
                     header: 'Plagiarism Cases',
                     component: 'plagiarism-case-list',
                     condition: () => this.loggedIn && this.$route.name === 'plagiarism_detail',
+                    reload: true,
+                    animate: true,
+                },
+                {
+                    name: 'submissions',
+                    icon: 'files-o',
+                    header: 'Submissions',
+                    component: 'submissions-sidebar-list',
+                    condition: () => this.loggedIn && (this.$route.name === 'submission_file' || this.$route.name === 'submission'),
                     reload: true,
                     animate: true,
                 },
@@ -498,6 +509,7 @@ export default {
         CourseList,
         AssignmentList,
         PlagiarismCaseList,
+        SubmissionsSidebarList,
     },
 };
 </script>
@@ -857,6 +869,11 @@ export default {
     .submenu hr.separator {
         position: relative;
         z-index: 100;
+    }
+
+    small {
+        display: block;
+        line-height: 1.3;
     }
 }
 </style>
