@@ -48,12 +48,12 @@
             class="file"
             :class="{ faded: diffMode && !fileHasRevision(f), active: fileIsSelected(f) }">
             <file-tree :tree="f"
-                        :collapsed="!fileInTree($route.params.fileId, f)"
-                        :depth="depth + 1"
+                       :collapsed="!fileInTree($route.params.fileId, f)"
+                       :depth="depth + 1"
                         v-if="f.entries"/>
             <router-link :to="getFileRoute(f)"
-                            class="label"
-                            v-else>
+                         class="label"
+                         v-else>
                 <icon name="file" class="file-icon"/>{{ f.name }}
             </router-link>
             <sup v-if="fileHasRevision(f)"
@@ -110,6 +110,18 @@ export default {
     data() {
         return {
             isCollapsed: this.collapsed,
+            revisionOptions: [
+                {
+                    title: 'Student',
+                    value: 'student',
+                }, {
+                    title: 'Teacher',
+                    value: 'teacher',
+                }, {
+                    title: 'Diff',
+                    value: 'diff',
+                },
+            ],
         };
     },
 
@@ -130,25 +142,6 @@ export default {
             return this.$route.query.revision === 'diff';
         },
 
-        revisionOptions() {
-            const otherEnabled = !this.tree.isStudent || this.hasRevision(this.tree);
-            return [
-                {
-                    title: 'Student',
-                    value: 'student',
-                    disabled: false,
-                }, {
-                    title: 'Teacher',
-                    value: 'teacher',
-                    disabled: !otherEnabled,
-                }, {
-                    title: 'Diff',
-                    value: 'diff',
-                    disabled: !otherEnabled,
-                },
-            ];
-        },
-
         selectedRevision() {
             let revision = this.revisionOptions.findIndex(
                 opt => opt.value === this.revision,
@@ -162,9 +155,8 @@ export default {
         },
 
         showRevisions() {
-            return this.canSeeRevision &&
-                (!this.tree.isStudent || this.hasRevision(this.tree)) &&
-                this.depth === 0;
+            return this.depth === 0 && this.canSeeRevision &&
+                (!this.tree.isStudent || this.hasRevision(this.tree));
         },
     },
 
