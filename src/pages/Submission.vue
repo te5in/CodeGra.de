@@ -784,7 +784,6 @@ export default {
 
 .submission-nav-bar {
     flex: 1 1 auto;
-    margin-right: 15px;
 }
 
 .code-and-grade {

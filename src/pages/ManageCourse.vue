@@ -131,7 +131,6 @@ export default {
 
 .filter-input {
     flex: 1 1 auto;
-    margin-right: 1rem;
     margin-bottom: 0;
 }
 

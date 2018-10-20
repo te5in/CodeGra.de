@@ -458,7 +458,6 @@ export default {
 
 .submission-list .search-wrapper {
     flex: 1;
-    margin-right: 1rem;
 
     #app.dark & .input-group-append .input-group-text {
         background-color: @color-primary-darkest !important;

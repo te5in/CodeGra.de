@@ -2,7 +2,7 @@
 <template>
 <div class="local-header">
     <b-button-toolbar class="toolbar" justify>
-        <b-input-group-prepend style="cursor: pointer; margin-right: 15px;"
+        <b-input-group-prepend style="cursor: pointer;"
                                v-if="backRoute || $root.$isSmallWindow">
             <b-button-group>
                 <b-btn variant="primary"
@@ -32,7 +32,6 @@
                               class="extra-button"
                               v-b-popover.bottom.hover="`${showExtra ? 'Hide' : 'Show'} more options`">
             <b-button v-b-toggle.local-header-extra
-                      style="margin-left: 15px;"
                       @click="showExtra = !showExtra">
                 <icon name="angle-double-up" v-if="showExtra"/>
                 <icon name="angle-double-down" v-else/>
@@ -113,7 +112,7 @@ export default {
     position: sticky;
     top: 0;
     z-index: 3;
-    margin: 0 -15px 15px;
+    margin: 0 -1rem 1rem;
     border: 0;
     padding: 1rem;
     .default-footer-colors;
@@ -149,6 +148,17 @@ export default {
 
     #app.dark & {
         border-color: @color-primary-darkest;
+    }
+}
+</style>
+
+<style lang="less">
+.local-header > .toolbar {
+    & > * {
+        margin-right: 1rem;
+    }
+    & > *:last-child {
+        margin-right: 0;
     }
 }
 </style>
