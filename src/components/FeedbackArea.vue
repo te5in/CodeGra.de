@@ -332,10 +332,11 @@ export default {
 @import '~mixins.less';
 
 .author {
-    flex: 0;
-    padding-right: 10px;
-    padding-left: 10px;
-    padding-top: 0.5rem;
+    flex: 0 1 auto;
+    padding: 0.5rem 10px;
+    max-width: 20%;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .feedback-area-wrapper {
@@ -353,7 +354,7 @@ export default {
     &.non-editable {
         margin-top: 0;
         background-color: @footer-color;
-        flex: 1;
+        flex: 1 1 auto;
         &.has-author {
             border-top: 0;
             border-right: 0;
