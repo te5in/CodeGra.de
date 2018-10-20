@@ -123,7 +123,7 @@
                         No files were deleted
                     </span>
                     <ul v-else>
-                        <li  v-for="f in deletedFiles"  :key="`file-deleted-${f.ids[1]}`">
+                        <li  v-for="f in deletedFiles"  :key="`file-deleted-${f.ids[0]}`">
                             <router-link :to="getFileLink(f.ids[0], 'student')">
                                 <code>{{ f.fullName }}</code>
                             </router-link>
