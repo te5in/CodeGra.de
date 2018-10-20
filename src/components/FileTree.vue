@@ -59,12 +59,10 @@
             <sup v-if="fileHasRevision(f)"
                  v-b-popover.hover.top="revisionPopover(f)"
                  class="rev-popover">
-                <router-link v-if="!diffMode"
-                             :to="revisedFileRoute(f)"
+                <router-link :to="revisedFileRoute(f)"
                              @click="$emit('revision', 'diff')">
-                    diff
+                    diff <code><small>(</small>{{ diffLabels[diffAction(f)] }}<small>)</small></code>
                 </router-link>
-                <span v-else>diff</span>
             </sup>
         </li>
     </ol>
@@ -122,6 +120,11 @@ export default {
                     value: 'diff',
                 },
             ],
+            diffLabels: {
+                added: '+',
+                changed: '~',
+                deleted: '-',
+            },
         };
     },
 
@@ -232,7 +235,7 @@ export default {
             let fileId;
 
             if (f.ids != null) {
-                [, fileId] = f.ids;
+                fileId = f.ids[1] == null ? f.ids[0] : f.ids[1];
             } else if (f.revision != null) {
                 fileId = f.revision.id;
             } else if (f.revision === null) {
@@ -249,28 +252,29 @@ export default {
             };
         },
 
-        revisionPopover(f) {
-            let action;
-
+        diffAction(f) {
             if (f.ids !== undefined) {
                 if (f.ids[0] == null) {
-                    action = 'added';
+                    return 'added';
                 } else if (f.ids[1] == null) {
-                    action = 'deleted';
+                    return 'deleted';
                 } else {
-                    action = 'changed';
+                    return 'changed';
                 }
             } else if (f.revision !== undefined) {
-                action = f.revision == null ? 'deleted' : 'changed';
-            }
-
-            const text = `This file was ${action} in the teacher's revision.`;
-
-            if (!this.diffMode) {
-                return `${text} Click here to see the diff.`;
+                if (f.revision == null) {
+                    return 'deleted';
+                } else {
+                    return 'changed';
+                }
             } else {
-                return text;
+                throw ReferenceError(`File '${f.name} doesn't have a revision.`);
             }
+        },
+
+        revisionPopover(f) {
+            const action = this.diffAction(f);
+            return `This file was ${action} in the teacher's revision. Click here to see the diff`;
         },
     },
 
