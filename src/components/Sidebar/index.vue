@@ -575,7 +575,7 @@ export default {
     .sidebar-top-item {
         display: flex;
         flex-direction: column;
-        padding: .75rem;
+        padding: .75rem .5rem;
 
         @media @media-small {
             flex-direction: row;
@@ -603,6 +603,8 @@ export default {
 
         .name {
             text-align: center;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
     }
 
