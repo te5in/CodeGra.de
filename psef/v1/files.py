@@ -80,7 +80,8 @@ def get_file(
 
     @callback_after_this_request
     def __delete_file() -> None:
-        if not error:
+        # Make sure we don't delete when receiving HEAD requests
+        if request.method == 'GET' and not error:
             filename = safe_join(directory, file_name)
             os.unlink(filename)
 
