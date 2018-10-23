@@ -760,3 +760,15 @@ def split_path(path: str) -> t.Tuple[t.Sequence[str], bool]:
     patharr = [item for item in path.split('/') if item]
 
     return patharr, is_dir
+
+
+def check_dir(path: str) -> bool:
+    '''Check if the path is a directory that is readable, writable, and
+    executable for the current user.
+
+    :param path: Path to check.
+    :returns: ``True`` if path has the properties described above, ``False``
+        otherwise.
+    '''
+    mode = os.R_OK | os.W_OK | os.X_OK
+    return os.access(path, mode) and os.path.isdir(path)

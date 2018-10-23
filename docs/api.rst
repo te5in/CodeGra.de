@@ -132,9 +132,9 @@ working.
 API documentation of PSEF
 -----------------------------
 
-.. qrefflask:: psef:create_app()
+.. qrefflask:: psef:create_app(skip_secret_key_check=True)
    :undoc-static:
 
-.. autoflask:: psef:create_app()
+.. autoflask:: psef:create_app(skip_secret_key_check=True)
   :endpoints:
   :order: path

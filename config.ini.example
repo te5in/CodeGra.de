@@ -170,6 +170,11 @@
 # used.
 # lti_secret_key =
 
+# The key a user needs to provide when requesting health status. When left empty
+# the health route will be disabled. Keep this key private as getting health
+# information is a slow and expensive route.
+# health_key =
+
 # The amount of days until a login token should expire in days. Can be a float
 # jwt_access_token_expires = 30
 

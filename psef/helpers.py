@@ -674,15 +674,25 @@ def get_class_by_name(superclass: T_Type, name: str) -> T_Type:
     raise ValueError('No class with name {} found.'.format(name))
 
 
+def request_arg_true(arg_name: str) -> bool:
+    """Check if a request arg was set to a 'truthy' value.
+
+    :param arg_name: The name of the argument to check.
+    :returns: ``True`` if and only iff the requested get parameter ``arg_name``
+        is present and it value equals (case insensitive) ``'true'``, ``'1'``,
+        or ``''`` (empty string).
+    """
+    return flask.request.args.get(arg_name,
+                                  'false').lower() in {'true', '1', ''}
+
+
 def extended_requested() -> bool:
     """Check if a extended JSON serialization was requested.
 
-    :returns: ``True`` if and only iff the ``extended`` get parameter was
-        present and it value equals (case insensitive) ``'true'``, ``'1'``, or
-        ``''`` (empty string).
+    :returns: The return value of :func:`.request_arg_true` called with
+        ``'extended'`` as argument.
     """
-    return flask.request.args.get('extended',
-                                  'false').lower() in {'true', '1', ''}
+    return request_arg_true('extended')
 
 
 @contextlib.contextmanager

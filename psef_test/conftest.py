@@ -7,16 +7,16 @@ import random
 import datetime
 import contextlib
 
-import psef
 import pytest
-import psef.auth as a
-import psef.models as m
 import flask_migrate
 import flask_jwt_extended as flask_jwt
 from flask import _app_ctx_stack as ctx_stack
 from werkzeug.local import LocalProxy
 
+import psef
 import manage
+import psef.auth as a
+import psef.models as m
 
 TESTDB = 'test_project.db'
 TESTDB_PATH = "/tmp/psef/psef-{}-{}".format(TESTDB, random.random())
@@ -53,6 +53,7 @@ def app(request):
         },
         'LTI_SECRET_KEY': 'hunter123',
         'SECRET_KEY': 'hunter321',
+        'HEALTH_KEY': 'uuyahdsdsdiufhaiwueyrriu2h3',
     }
     if request.config.getoption('--postgresql'):
         print('Running with postgres!')

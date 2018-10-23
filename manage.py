@@ -27,6 +27,7 @@ def render_item(type_, col, autogen_context):
 app = psef.create_app(
     skip_celery=True,
     skip_perm_check=True,
+    skip_secret_key_check=True,
 )
 
 migrate = Migrate(app, psef.models.db, render_item=render_item)

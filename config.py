@@ -49,10 +49,10 @@ def set_int(
 
 def set_str(
     out: t.MutableMapping[str, t.Any], parser: t.Any, item: str,
-    default: t.Optional[str]
+    default: object,
 ) -> None:
     val = parser.get(item)
-    out[item] = str(default if val is None else val)
+    out[item] = default if val is None else str(val)
 
 
 set_bool(CONFIG, backend_ops, 'DEBUG', False)
@@ -90,6 +90,10 @@ set_str(
         if CONFIG['DEBUG'] else os.environ.get('CODEGRADE_LTI_SECRET_KEY')
     ),
 )
+
+set_str(CONFIG, backend_ops, 'HEALTH_KEY', None)
+if CONFIG['HEALTH_KEY'] is None:
+    warnings.warn('No "health_key" provided, disabling health route.')
 
 CONFIG['JWT_ALGORITHM'] = 'HS512'
 
@@ -156,10 +160,10 @@ set_str(CONFIG, backend_ops, 'MAIL_SERVER', 'localhost')
 set_int(CONFIG, backend_ops, 'MAIL_PORT', 25)
 set_bool(CONFIG, backend_ops, 'MAIL_USE_TLS', False)
 set_bool(CONFIG, backend_ops, 'MAIL_USE_SSL', False)
-set_str(CONFIG, backend_ops, 'MAIL_USERNAME', None)
-set_str(CONFIG, backend_ops, 'MAIL_PASSWORD', None)
-set_str(CONFIG, backend_ops, 'MAIL_DEFAULT_SENDER', None)
-set_str(CONFIG, backend_ops, 'MAIL_MAX_EMAILS', None)
+set_str(CONFIG, backend_ops, 'MAIL_USERNAME', 'noreply')
+set_str(CONFIG, backend_ops, 'MAIL_PASSWORD', 'nopasswd')
+set_str(CONFIG, backend_ops, 'MAIL_DEFAULT_SENDER', 'noreply')
+set_int(CONFIG, backend_ops, 'MAIL_MAX_EMAILS', 100)
 set_int(CONFIG, backend_ops, 'RESET_TOKEN_TIME', 86400)
 set_str(
     CONFIG,

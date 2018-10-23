@@ -109,6 +109,7 @@ def create_app(  # pylint: disable=too-many-statements
     config: t.Mapping = None,
     skip_celery: bool = False,
     skip_perm_check: bool = True,
+    skip_secret_key_check: bool = False,
 ) -> t.Any:
     """Create a new psef app.
 
@@ -145,8 +146,10 @@ def create_app(  # pylint: disable=too-many-statements
         resulting_app.config.update(config)
 
     if (
-        resulting_app.config['SECRET_KEY'] is None or
-        resulting_app.config['LTI_SECRET_KEY'] is None
+        not skip_secret_key_check and (
+            resulting_app.config['SECRET_KEY'] is None or
+            resulting_app.config['LTI_SECRET_KEY'] is None
+        )
     ):  # pragma: no cover
         raise ValueError('The option to generate keys has been removed')
 
