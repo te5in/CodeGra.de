@@ -43,7 +43,7 @@
             </sup>
         </span>
     </div>
-    <ol v-show="!isCollapsed">
+    <ol v-show="!isCollapsed" v-if="!isCollapsed || depth < 2">
         <li v-for="f in tree.entries"
             class="file"
             :class="{ faded: diffMode && !fileHasRevision(f), active: fileIsSelected(f) }">

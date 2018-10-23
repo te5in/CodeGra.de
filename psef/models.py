@@ -1838,6 +1838,36 @@ class Work(Base):
             *self.search_file_filters(pathname, exclude),
         )
 
+    def get_file_children_mapping(self, exclude: 'FileOwner'
+                                  ) -> t.Mapping[int, t.Sequence['File']]:
+        """Get a mapping that maps a file id to all its children.
+
+        This implementation does a single query to the database and runs in
+        O(n*log(n)), so it will be quite a bit quicker than using the
+        `children` attribute on files if you are going to need all children or
+        all files.
+
+        The list of children is sorted on filename.
+
+        :param exclude: The file owners to exclude
+        :returns: A mapping from file id to list of all its children for this
+            submission.
+        """
+        cache: t.Mapping[int, t.List[File]] = defaultdict(list)
+        files = File.query.filter(
+            File.work == self, File.fileowner != exclude
+        ).all()
+        # We sort in Python as this increases consistency between different
+        # server platforms, Python also has better defaults.
+        # TODO: Investigate if sorting in the database first and sorting in
+        # Python after is faster, as sorting in the database should be faster
+        # overal and sorting an already sorted list in Python is really fast.
+        files.sort(key=lambda el: el.name.lower())
+        for f in files:
+            cache[f.parent_id].append(f)
+
+        return cache
+
 
 @enum.unique
 class FileOwner(enum.IntEnum):
@@ -1966,7 +1996,10 @@ class File(Base):
         if not self.is_directory:
             os.remove(self.get_diskname())
 
-    def list_contents(self, exclude: FileOwner) -> 'psef.files.FileTree':
+    def list_contents(
+        self,
+        exclude: FileOwner,
+    ) -> 'psef.files.FileTree':
         """List the basic file info and the info of its children.
 
         If the file is a directory it will return a tree like this:
@@ -2000,24 +2033,26 @@ class File(Base):
 
         :returns: A tree as described above.
         """
+        cache = self.work.get_file_children_mapping(exclude)
+        return self._list_contents(exclude, cache)
+
+    def _list_contents(
+        self,
+        exclude: FileOwner,
+        cache: t.Mapping[int, t.Sequence['File']],
+    ) -> 'psef.files.FileTree':
         if not self.is_directory:
             return {"name": self.name, "id": self.id}
         else:
             children = [
-                child.list_contents(exclude)
-                for child in self.get_sorted_children(exclude)
+                c._list_contents(exclude, cache)  # pylint: disable=protected-access
+                for c in cache[self.id]
             ]
             return {
                 "name": self.name,
                 "id": self.id,
                 "entries": children,
             }
-
-    def get_sorted_children(self, exclude: FileOwner) -> t.List['File']:
-        return sorted(
-            self.children.filter(File.fileowner != exclude),
-            key=lambda el: el.name.lower(),
-        )
 
     def rename_code(
         self,

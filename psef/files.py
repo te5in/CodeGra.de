@@ -359,28 +359,28 @@ def restore_directory_structure(
         t.cast(models.DbColumn[int], models.File.parent_id).is_(None),
         models.File.fileowner != exclude,
     )
-    return _restore_directory_structure(code, parent, exclude)
+    cache = work.get_file_children_mapping(exclude)
+    return _restore_directory_structure(code, parent, cache)
 
 
 def _restore_directory_structure(
     code: models.File,
     parent: str,
-    exclude: models.FileOwner = models.FileOwner.teacher
+    cache: t.Mapping[int, t.Sequence[models.File]],
 ) -> FileTree:
     """Worker function for :py:func:`.restore_directory_structure`
 
     :param code: A file
     :param parent: Path to parent directory
-    :param exclude: The file owner to exclude.
+    :param cache: The cache to use to get file children.
     :returns: A tree as described in :py:func:`.restore_directory_structure`
     """
     out = os.path.join(parent, code.name)
     if code.is_directory:
         os.mkdir(out)
-        children = code.children.filter(models.File.fileowner != exclude).all()
         subtree: t.List[FileTree] = [
-            _restore_directory_structure(child, out, exclude)
-            for child in children
+            _restore_directory_structure(child, out, cache)
+            for child in cache[code.id]
         ]
         return {
             "name": code.name,
