@@ -26,7 +26,7 @@
                         <b class="course-name">{{ course.name }}</b>
                         <router-link v-if="course.canManage"
                                      :to="manageCourseRoute(course)"
-                                     v-b-popover.bottom.hover="'Manage course'"
+                                     v-b-popover.window.top.hover="'Manage course'"
                                      class="course-manage">
                             <icon name="gear"/>
                         </router-link>
@@ -50,12 +50,12 @@
                                     </td>
                                     <td>
                                         <assignment-state :assignment="assig"
-                                                        :editable="false"
-                                                        size="sm"/>
+                                                          :editable="false"
+                                                          size="sm"/>
                                     </td>
                                     <td v-if="assig.canManage">
                                         <router-link :to="manageAssignmentRoute(assig)"
-                                                     v-b-popover.bottom.hover="'Manage assignment'">
+                                                     v-b-popover.window.top.hover="'Manage assignment'">
                                             <icon name="gear" class="gear-icon"/>
                                         </router-link>
                                     </td>

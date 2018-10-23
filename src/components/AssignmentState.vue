@@ -7,7 +7,7 @@
                   :size="size"
                   value="open"
                   :variant="ltiHiddenOpenVariant"
-                  v-b-popover.bottom.hover="'Hidden or open, managed by LTI'">
+                  v-b-popover.window.top.hover="'Hidden or open, managed by LTI'">
             <loader v-if="isLoadingLTIHiddenOpen" :scale="0.75"/>
             <span v-else>
                 <icon :name="icons[states.HIDDEN]" :scale="0.75"/>
@@ -20,7 +20,7 @@
                       :size="size"
                       value="hidden"
                       :variant="hiddenVariant"
-                      v-b-popover.bottom.hover="labels[states.HIDDEN]">
+                      v-b-popover.window.top.hover="labels[states.HIDDEN]">
                 <loader v-if="isLoadingHidden" :scale="0.75"/>
                 <icon :name="icons[states.HIDDEN]" :scale="0.75" v-else/>
             </b-button>
@@ -29,7 +29,7 @@
                       :size="size"
                       value="open"
                       :variant="openVariant"
-                      v-b-popover.bottom.hover="labels[states.OPEN]">
+                      v-b-popover.window.top.hover="labels[states.OPEN]">
                 <loader v-if="isLoadingOpen" :scale="0.75"/>
                 <icon :name="icons[states.OPEN]" :scale="0.75" v-else/>
             </b-button>
@@ -39,7 +39,7 @@
                   :size="size"
                   value="done"
                   :variant="doneVariant"
-                  v-b-popover.bottom.hover="labels[states.DONE]">
+                  v-b-popover.window.top.hover="labels[states.DONE]">
             <loader v-if="isLoadingDone" :scale="0.75"/>
             <icon :name="icons[states.DONE]" :scale="0.75" v-else/>
         </b-button>
@@ -47,7 +47,7 @@
 </div>
 <icon :name="icons[assignment.state]"
       class="assignment-state state-icon"
-      v-b-popover.bottom.hover="labels[assignment.state]"
+      v-b-popover.window.top.hover="labels[assignment.state]"
       v-else/>
 </template>
 
