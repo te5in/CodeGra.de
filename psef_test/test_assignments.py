@@ -1209,6 +1209,24 @@ def test_upload_too_large_file(
         assert res['message'].startswith('Uploaded files are too big')
 
 
+def test_upload_empty_archive(
+    student_user, test_client, error_template, logged_in, assignment
+):
+    filename = (
+        f'{os.path.dirname(__file__)}/'
+        f'../test_data/test_submissions/empty_submission.tar.gz'
+    )
+    with logged_in(student_user):
+        res = test_client.req(
+            'post',
+            f'/api/v1/assignments/{assignment.id}/submission',
+            400,
+            real_data={'file': (filename, 'ar.tar.gz')},
+            result=error_template
+        )
+        assert res['message'].startswith('No files found')
+
+
 @pytest.mark.parametrize('named_user', ['Robin'], indirect=True)
 @pytest.mark.parametrize(
     'graders', [

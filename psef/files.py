@@ -120,6 +120,20 @@ class ExtractFileTree(ExtractFileTreeDirectory):
     This is simply a directory with some utility methods.
     """
 
+    @property
+    def contains_file(self) -> bool:
+        """Check if archive contains something other than directories.
+
+        :returns: If the file tree contains actual files
+        """
+        stack: t.List[ExtractFileTreeDirectory] = [self]
+        while stack:
+            cur = stack.pop().values
+            if any(not isinstance(el, ExtractFileTreeDirectory) for el in cur):
+                return True
+            stack.extend(t.cast(t.List[ExtractFileTreeDirectory], cur))
+        return False
+
     def dehead(self) -> 'ExtractFileTree':
         """Dehead (or deneck) a file tree.
 
@@ -534,13 +548,18 @@ def extract(
     file: FileStorage,
     ignore_filter: t.Optional[IgnoreFilterManager] = None,
     handle_ignore: IgnoreHandling = IgnoreHandling.keep
-) -> t.Optional[ExtractFileTree]:
+) -> ExtractFileTree:
     """Extracts all files in archive with random name to uploads folder.
 
     >>> extract(object(), ignore_filter=None, handle_ignore=IgnoreHandling.error)
     Traceback (most recent call last):
     ...
     ValueError: Invalid combination of `ignore_filter` and `ignore_handler`
+
+    .. warning::
+
+        The returned ExtractFileTree may be empty, i.e. contain only
+        directories and no files.
 
     :param werkzeug.datastructures.FileStorage file: The file to extract.
     :param ignore_filter: What files should be ignored in the given archive.
@@ -565,11 +584,12 @@ def extract(
 
     try:
         res = rename_directory_structure(tmpdir).values
-        assert isinstance(res, list)
 
-        if not res:
-            return None
-        elif len(res) == 1 and isinstance(res[0], ExtractFileTreeDirectory):
+        # Take directory name if archive contained one single top level
+        # directory. Otherwise we take the name of the archive as top directory
+        # name.
+
+        if len(res) == 1 and isinstance(res[0], ExtractFileTreeDirectory):
             return ExtractFileTree(name=res[0].name, values=res[0].values)
         else:
             filename: str = file.filename.split('.')[0]
@@ -618,23 +638,31 @@ def process_files(
 
     T = t.TypeVar('T')
 
-    def unwrap(val: t.Optional[T]) -> T:
-        if val is not None:
-            return val
-        raise APIException(
+    def no_files_error() -> APIException:
+        if handle_ignore == IgnoreHandling.keep:
+            return APIException(
+                'No files found in archive',
+                'No files were in the given archive.',
+                APICodes.NO_FILES_SUBMITTED,
+                400,
+            )
+        return APIException(
             "All files are ignored by a rule in the assignment's ignore file",
             'No files were in the given archive after filtering.',
             APICodes.NO_FILES_SUBMITTED,
             400,
         )
 
+    def unwrap(val: t.Optional[T]) -> T:
+        if val is not None:
+            return val
+        raise no_files_error()
+
     if len(files) > 1 or not consider_archive(files[0]):
         res: t.List[ExtractFileTreeBase] = []
         for file in files:
             if consider_archive(file):
-                new = extract(file, ignore_filter, handle_ignore)
-                if new:
-                    res.append(new)
+                res.append(extract(file, ignore_filter, handle_ignore))
             else:
                 if handle_ignore != IgnoreHandling.keep:
                     assert ignore_filter is not None
@@ -649,7 +677,7 @@ def process_files(
                             invalid_files=[
                                 (
                                     t.cast(str, file.filename),
-                                    t.cast(str, line)
+                                    t.cast(str, line),
                                 )
                             ]
                         )
@@ -662,10 +690,14 @@ def process_files(
                     )
                 )
 
+        # `res` can be the empty list if all single files were ignored.
         res = unwrap(res or None)
         tree = ExtractFileTree(name='top', values=res)
     else:
         tree = unwrap(extract(files[0], ignore_filter, handle_ignore))
+
+    if not tree.contains_file:
+        raise no_files_error()
 
     return tree.dehead()
 
