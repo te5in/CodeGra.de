@@ -100,8 +100,9 @@
                                title="Grade history"
                                triggers="click"
                                container="#submission-page"
+                               boundary="viewport"
                                @show="beforeShowPopover(); $refs.gradeHistory.updateHistory()"
-                               :placement="$root.$isLargeWindow || $root.$isSmallWindow ? 'bottom' : 'left'">
+                               placement="bottom">
                         <grade-history ref="gradeHistory"
                                        :submissionId="submission && submission.id"
                                        :isLTI="assignment && assignment.course.is_lti"/>
