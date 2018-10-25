@@ -26,7 +26,7 @@ def make_warning(warning_text: str, code: APIWarnings) -> HttpWarning:
     :returns: A warning with the given text and code.
     """
     return HttpWarning(
-        '{:03d} CodeGrad.de "{}"'.format(
+        '{:03d} CodeGra.de "{}"'.format(
             code.value,
             warning_text.replace('"', '\\"'),
         )

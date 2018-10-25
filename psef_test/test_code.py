@@ -92,12 +92,6 @@ def test_get_code_metadata(
 @pytest.mark.parametrize(
     'filename,content', [
         ('test_flake8.tar.gz', 'def a(b):\n\tprint ( 5 )\n'),
-        data_error(error=410)(
-            (
-                '../test_submissions/single_symlink_archive.tar.gz',
-                'SHOULD ERROR!'
-            )
-        ),
         data_error(error=400)(
             ('../test_submissions/nested_dir_archive.tar.gz', 'SHOULD_ERROR')
         ),

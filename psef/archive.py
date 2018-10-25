@@ -34,9 +34,15 @@ import typing as t
 import tarfile
 import zipfile
 
+import structlog
 import dataclasses
 
+from .helpers import add_warning
+from .exceptions import APIWarnings
+
 T = t.TypeVar('T', bound='_BaseArchive')
+
+logger = structlog.get_logger()
 
 
 @dataclasses.dataclass(order=True, repr=True)
@@ -156,6 +162,57 @@ class Archive:
 
         self.check_files(to_path)
         self.__archive.extract(to_path)
+        self._replace_symlinks(to_path)
+
+    def _replace_symlinks(self, to_path: str) -> None:
+        """Replace symlinks in the given directory with regular files
+        containing a notice that the symlink was replaced.
+
+        :param to_path: Directory to scan for symlinks.
+        :returns: Nothing
+        """
+        symlinks = []
+
+        for parent, _, files in os.walk(to_path):
+            for f in files:
+                file_path = os.path.join(parent, f)
+
+                if not os.path.islink(file_path):
+                    continue
+
+                rel_path = os.path.relpath(file_path, to_path)
+                link_target = os.readlink(file_path)
+
+                symlinks.append(rel_path)
+                os.remove(file_path)
+                with open(file_path, 'w') as new_file:
+                    new_file.write(
+                        (
+                            'This file was a symbolic link to "{}" when it '
+                            'was submitted, but CodeGrade does not support '
+                            'symbolic links.'
+                        ).format(link_target),
+                    )
+
+                logger.warning(
+                    'Symlink detected in archive',
+                    archive=self.__archive.filename,
+                    filename=rel_path,
+                    link_target=link_target,
+                )
+
+        if symlinks:
+            add_warning(
+                (
+                    'The archive contained symbolic links which are not '
+                    'supported by CodeGrade: {}. The links have been replaced '
+                    'with a regular file explaining that these files were '
+                    'symbolic links, and the path they pointed to. Note: '
+                    'This may break your submission when viewed by the '
+                    'teacher.'
+                ).format(', '.join(symlinks)),
+                APIWarnings.SYMLINK_IN_ARCHIVE,
+            )
 
     def get_members(self) -> t.Iterable[ArchiveMemberInfo]:
         return self.__archive.get_members()

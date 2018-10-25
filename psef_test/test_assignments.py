@@ -12,7 +12,7 @@ import pytest
 import psef
 import psef.models as m
 from helpers import create_marker
-from psef.errors import APICodes
+from psef.errors import APICodes, APIWarnings
 from psef.helpers import ensure_keys_in_dict
 from psef.permissions import CoursePermission
 
@@ -1107,6 +1107,52 @@ def test_upload_files(
                     },
                     result=error_template
                 )
+
+
+@pytest.mark.parametrize(
+    'name,warning', [
+        (
+            'single_symlink_archive.tar.gz',
+            APIWarnings.SYMLINK_IN_ARCHIVE.value
+        ),
+    ]
+)
+def test_archive_with_symlinks(
+    student_user, test_client, logged_in, assignment, name, error_template,
+    warning, session, app
+):
+    with logged_in(student_user):
+        sub, res = test_client.req(
+            'post',
+            f'/api/v1/assignments/{assignment.id}/submission',
+            201,
+            real_data={
+                'file':
+                    (
+                        f'{os.path.dirname(__file__)}/../test_data/'
+                        f'test_submissions/{name}', f'{name}'
+                    )
+            },
+            result=dict,
+            include_response=True
+        )
+
+        assert 'Warning' in res.headers
+        assert res.headers['Warning'].startswith(f'{warning:03d}')
+
+        tree = test_client.req(
+            'get', f'/api/v1/submissions/{sub["id"]}/files/', 200, result=dict
+        )
+
+        file = tree['entries'][0]
+        file = session.query(
+            m.File
+        ).filter(m.File.id == tree['entries'][0]['id']).first()
+        file = os.path.join(app.config['UPLOAD_DIR'], file.filename)
+
+        assert os.path.exists(file)
+        assert not os.path.islink(file)
+        assert open(file).read() != ''
 
 
 @pytest.mark.parametrize('name', ['single_file_archive'])

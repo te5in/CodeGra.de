@@ -17,6 +17,7 @@ import tarfile
 import zipfile
 import tempfile
 
+import structlog
 import mypy_extensions
 from werkzeug.utils import secure_filename
 from werkzeug.datastructures import FileStorage
@@ -27,6 +28,8 @@ from dataclasses import dataclass
 from . import app, archive, helpers, blackboard
 from .errors import APICodes, APIException
 from .ignore import InvalidFile, IgnoreFilterManager
+
+logger = structlog.get_logger()
 
 # Gestolen van Erik Kooistra
 _BB_TXT_FORMAT = re.compile(
@@ -259,7 +262,13 @@ def get_file_contents(code: models.File) -> bytes:
         )
 
     filename = code.get_diskname()
-    if os.path.islink(filename):
+    if os.path.islink(filename):  # pragma: no cover
+        # This should not be possible as we replace symlinks with regular
+        # files on submission.
+        logger.error(
+            'Symlink found in uploads directory',
+            filename=filename,
+        )
         raise APIException(
             f'This file is a symlink to `{os.readlink(filename)}`.',
             'The file {} is a symlink'.format(code.id), APICodes.INVALID_STATE,

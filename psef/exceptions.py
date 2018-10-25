@@ -14,6 +14,7 @@ class APIWarnings(IntEnum):
     DEPRECATED = 0
     GRADER_NOT_DONE = 1
     CONDITION_ALREADY_MET = 2
+    SYMLINK_IN_ARCHIVE = 3
 
 
 @unique

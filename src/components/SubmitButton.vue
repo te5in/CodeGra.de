@@ -66,7 +66,6 @@ export default {
             state: 'default',
             cancelled: true,
             btnId: this.id || `submitButton-i-${i++}`,
-            mult: 1,
             timeout: null,
             showConfirm: false,
             confirmEvent: null,
@@ -187,16 +186,16 @@ export default {
             this.cancelled = true;
         },
 
-        warn(err) {
+        warn(err, mult = 3) {
             this.pending = false;
             this.err = err;
-            return this.update('warning', 3);
+            return this.update('warning', mult);
         },
 
-        fail(err) {
+        fail(err, mult = 3) {
             this.pending = false;
             this.err = err;
-            return this.update('failure', 3)
+            return this.update('failure', mult)
                 .then(() => { throw err; });
         },
 
@@ -206,14 +205,14 @@ export default {
                 if (this.timeout != null) {
                     clearTimeout(this.timeout);
                 }
-                if (this.mult * mult === 0) {
+                if (mult === 0) {
                     resolve();
                     return;
                 }
                 this.timeout = setTimeout(() => {
                     this.reset();
                     resolve();
-                }, this.delay * mult * this.mult);
+                }, this.delay * mult);
             });
         },
 

@@ -26,12 +26,11 @@ import psef.helpers as helpers
 import psef.linters as linters
 import psef.parsers as parsers
 from psef import current_user
-from psef.errors import make_warning
 from psef.ignore import IgnoreFilterManager
 from psef.models import db
 from psef.helpers import (
     JSONType, JSONResponse, EmptyResponse, ExtendedJSONResponse, jsonify,
-    ensure_json_dict, extended_jsonify, ensure_keys_in_dict,
+    add_warning, ensure_json_dict, extended_jsonify, ensure_keys_in_dict,
     make_empty_response
 )
 from psef.exceptions import (
@@ -164,7 +163,7 @@ def get_assignments_feedback(assignment_id: int) -> JSONResponse[
 def set_reminder(
     assig: models.Assignment,
     content: t.Dict[str, helpers.JSONType],
-) -> t.Optional[psef.errors.HttpWarning]:
+) -> None:
     """Set the reminder of an assignment from a JSON dict.
 
     :param assig: The assignment to set the reminder for.
@@ -204,12 +203,10 @@ def set_reminder(
 
     assig.change_notifications(done_type, reminder_time, done_email)
     if done_email is not None and assig.graders_are_done():
-        return make_warning(
+        add_warning(
             'Grading is already done, no email will be sent!',
             APIWarnings.CONDITION_ALREADY_MET
         )
-
-    return None
 
 
 @api.route('/assignments/<int:assignment_id>', methods=['PATCH'])
@@ -246,7 +243,6 @@ def update_assignment(assignment_id: int) -> EmptyResponse:
     :returns: An empty response with return code 204
     :raises APIException: If an invalid value is submitted. (INVALID_PARAM)
     """
-    warning = None
     assig = helpers.get_or_404(models.Assignment, assignment_id)
     content = ensure_json_dict(request.get_json())
 
@@ -307,11 +303,11 @@ def update_assignment(assignment_id: int) -> EmptyResponse:
             CPerm.can_update_course_notifications,
             assig.course_id,
         )
-        warning = set_reminder(assig, content) or warning
+        set_reminder(assig, content)
 
     db.session.commit()
 
-    return make_empty_response(warning=warning)
+    return make_empty_response()
 
 
 @api.route('/assignments/<int:assignment_id>/rubrics/', methods=['GET'])
@@ -850,11 +846,9 @@ def set_grader_to_done(assignment_id: int, grader_id: int) -> EmptyResponse:
         psef.tasks.send_done_mail(assig.id)
 
     if assig.has_non_graded_submissions(grader_id):
-        return make_empty_response(
-            make_warning(
-                'You have non graded work!',
-                APIWarnings.GRADER_NOT_DONE,
-            )
+        add_warning(
+            'You have non graded work!',
+            APIWarnings.GRADER_NOT_DONE,
         )
 
     return make_empty_response()

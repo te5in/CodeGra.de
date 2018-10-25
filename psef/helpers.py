@@ -14,6 +14,7 @@ from functools import wraps
 import flask
 import structlog
 import mypy_extensions
+from flask import g
 from typing_extensions import Protocol
 from werkzeug.datastructures import FileStorage
 from sqlalchemy.sql.expression import or_
@@ -43,8 +44,26 @@ T_TypedDict = t.TypeVar(  # pylint: disable=invalid-name
 IsInstanceType = t.Union[t.Type, t.Tuple[t.Type, ...]]  # pylint: disable=invalid-name
 
 
-def init_app(_: t.Any) -> None:
-    pass
+def init_app(app: t.Any) -> None:
+    """Initialize the app.
+
+    :param app: The flask app to initialize.
+    """
+
+    @app.before_request
+    def __set_warnings() -> None:
+        g.request_warnings = []
+
+    @app.after_request
+    def __maybe_add_warning(res: flask.Response) -> flask.Response:
+        for warning in g.request_warnings:
+            logger.info('Added warning to response', warning=warning)
+            res.headers.add('Warning', warning)
+        return res
+
+
+def add_warning(warning: str, code: psef.exceptions.APIWarnings) -> None:
+    g.request_warnings.append(psef.errors.make_warning(warning, code))
 
 
 class Comparable(Protocol):  # pragma: no cover
@@ -468,15 +487,6 @@ def ensure_json_dict(
     )
 
 
-def _maybe_add_warning(
-    response: flask.Response,
-    warning: t.Optional[psef.errors.HttpWarning],
-) -> None:
-    if warning is not None:
-        logger.info('Added warning to response', warning=warning)
-        response.headers['Warning'] = warning
-
-
 def _maybe_log_response(obj: object, response: t.Any, extended: bool) -> None:
     if not isinstance(obj, psef.errors.APIException):
         if getattr(psef.current_app, 'debug', False) and not getattr(
@@ -498,7 +508,6 @@ def _maybe_log_response(obj: object, response: t.Any, extended: bool) -> None:
 def extended_jsonify(
     obj: T,
     status_code: int = 200,
-    warning: t.Optional[psef.errors.HttpWarning] = None,
     use_extended: t.Union[t.Callable[[object], bool],
                           type,
                           t.Tuple[type, ...],
@@ -512,7 +521,6 @@ def extended_jsonify(
     :param obj: The object that will be jsonified using
         :py:class:`~.psef.json.CustomExtendedJSONEncoder`
     :param statuscode: The status code of the response
-    :param warning: The warning that should be added to the response
     :param use_extended: The ``__extended_to_json__`` method is only used if
         this function returns something that equals to ``True``. This method is
         called with object that is currently being encoded. You can also pass a
@@ -531,8 +539,6 @@ def extended_jsonify(
         psef.app.json_encoder = json.CustomJSONEncoder
     response.status_code = status_code
 
-    _maybe_add_warning(response, warning)
-
     _maybe_log_response(obj, response, True)
 
     return response
@@ -541,38 +547,29 @@ def extended_jsonify(
 def jsonify(
     obj: T,
     status_code: int = 200,
-    warning: t.Optional[psef.errors.HttpWarning] = None,
 ) -> JSONResponse[T]:
     """Create a response with the given object ``obj`` as json payload.
 
     :param obj: The object that will be jsonified using
         :py:class:`~.psef.json.CustomJSONEncoder`
     :param statuscode: The status code of the response
-    :param warning: The warning that should be added to the response
     :returns: The response with the jsonified object as payload
     """
     response = flask.jsonify(obj)
     response.status_code = status_code
-
-    _maybe_add_warning(response, warning)
 
     _maybe_log_response(obj, response, False)
 
     return response
 
 
-def make_empty_response(
-    warning: t.Optional[psef.errors.HttpWarning] = None,
-) -> EmptyResponse:
+def make_empty_response() -> EmptyResponse:
     """Create an empty response.
 
-    :param warning: The warning that should be added to the response
     :returns: A empty response with status code 204
     """
     response = flask.make_response('')
     response.status_code = 204
-
-    _maybe_add_warning(response, warning)
 
     return response
 

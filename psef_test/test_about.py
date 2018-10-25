@@ -52,13 +52,14 @@ def test_about_health_status(test_client, app, monkeypatch):
         result={
             'version': object,
             'features': dict,
-            'health': {
-                'application': True,
-                'database': True,
-                'celery': True,
-                'uploads': True,
-                'mirror_uploads': True,
-            },
+            'health':
+                {
+                    'application': True,
+                    'database': True,
+                    'celery': True,
+                    'uploads': True,
+                    'mirror_uploads': True,
+                },
         }
     )
 
@@ -72,13 +73,14 @@ def test_about_health_status(test_client, app, monkeypatch):
         result={
             'version': object,
             'features': dict,
-            'health': {
-                'application': True,
-                'database': True,
-                'celery': False,
-                'uploads': True,
-                'mirror_uploads': True,
-            },
+            'health':
+                {
+                    'application': True,
+                    'database': True,
+                    'celery': False,
+                    'uploads': True,
+                    'mirror_uploads': True,
+                },
         },
     )
 
@@ -92,12 +94,13 @@ def test_about_health_status(test_client, app, monkeypatch):
         result={
             'version': object,
             'features': dict,
-            'health': {
-                'application': True,
-                'database': False,
-                'celery': False,
-                'uploads': True,
-                'mirror_uploads': True,
-            },
+            'health':
+                {
+                    'application': True,
+                    'database': False,
+                    'celery': False,
+                    'uploads': True,
+                    'mirror_uploads': True,
+                },
         },
     )
