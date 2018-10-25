@@ -297,7 +297,7 @@ def create_app(  # pylint: disable=too-many-statements
         end_time = datetime.datetime.utcnow()
         log_msg(
             'Request finished',
-            request_time=str(end_time - g.request_start_time),
+            request_time=(end_time - g.request_start_time).total_seconds(),
             status_code=getattr(res, 'status_code', None),
             queries_amount=queries_amount,
             queries_total_duration=queries_total_duration,
