@@ -11,7 +11,7 @@
             means the following files are probably not necessary to hand
             in:
         </p>
-        <ul style="list-style-type: none">
+        <ul class="wrong-files-list">
             <li style="margin-right: 2px; padding: 0.5em;" v-for="file in wrongFiles">
                 <code style="margin-right: 0.25rem">{{ file[0] }}</code> is ignored by <code>{{ file[1] }}</code>
             </li>
@@ -205,8 +205,9 @@ export default {
             const { requestData } = this.$refs.uploader;
             const url = this.getUploadUrl(type);
 
-            btn.submit(this.$http.post(url, requestData).then((res) => {
-                this.$emit('created', res);
+            btn.submit(this.$http.post(url, requestData).then(({ data: submission }) => {
+                this.addSubmission({ assignmentId: this.assignment.id, submission });
+                this.$emit('created', submission);
             }, ({ response }) => {
                 this.$emit('error', response);
                 throw response.data.message;
@@ -232,15 +233,54 @@ export default {
 .form-group {
     margin-bottom: 0;
 }
+
+.wrong-files-list {
+    flex: 1 1 auto;
+    list-style: none;
+    margin-right: -.95rem;
+    overflow: auto;
+}
+
+.btn-toolbar {
+    flex: 0 0 auto;
+}
 </style>
 
 <style lang="less">
+@import "~mixins.less";
+
 .submission-uploader .multiselect {
     min-height: 0px;
     margin: 0 1px;
     .multiselect__tags {
         border-radius: 0;
         min-height: 0px;
+    }
+}
+
+.submission-uploader {
+    .modal-dialog {
+        display: flex;
+        flex-direction: column;
+        height: auto;
+        max-height: 75vh;
+        min-width: 75vw;
+        margin: 12.5vh auto;
+
+        @media @media-small {
+            max-height: ~"calc(100vh - 2rem)";
+            margin: 1rem auto;
+        }
+    }
+
+    .modal-content {
+        min-height: 0;
+    }
+
+    .modal-body {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
     }
 }
 </style>
