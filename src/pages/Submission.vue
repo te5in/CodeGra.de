@@ -57,10 +57,8 @@
                             <preference-manager :file-id="(currentFile && currentFile.id) || `${submission && submission.id}-OVERVIEW`"
                                                 :show-language="!(diffMode || overviewMode)"
                                                 :show-context-amount="overviewMode"
-                                                @context-amount="contextAmountChanged"
                                                 @whitespace="whitespaceChanged"
-                                                @language="languageChanged"
-                                                @font-size="fontSizeChanged"/>
+                                                @language="languageChanged"/>
                         </div>
                     </b-popover>
                 </b-input-group-append>
@@ -264,14 +262,13 @@ export default {
             canSeeFeedback: false,
             canSeeRevision: false,
             showWhitespace: true,
-            fontSize: 12,
-            contextAmount: 3,
             selectedLanguage: 'Default',
             gradeHistory: true,
         };
     },
 
     computed: {
+        ...mapGetters('pref', ['contextAmount', 'fontSize']),
         ...mapGetters('user', { userId: 'id' }),
         ...mapGetters('courses', ['assignments', 'submissions']),
 
@@ -724,14 +721,6 @@ export default {
 
         languageChanged(val) {
             this.selectedLanguage = val;
-        },
-
-        contextAmountChanged(val) {
-            this.contextAmount = val;
-        },
-
-        fontSizeChanged(val) {
-            this.fontSize = val;
         },
 
         revisionChanged(val) {
