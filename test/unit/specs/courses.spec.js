@@ -218,6 +218,17 @@ describe('mutations', () => {
             expect(state.courses[1].assignments[0].submissions[1]).toBe(obj1);
             expect(state.courses[1].assignments[0].submissions[2]).toBe(obj2);
         });
+
+        it('should work when assignment has no submissions', () => {
+            const obj = {a: 1};
+            delete state.courses[1].assignments[0].submissions;
+
+            store.mutations[types.ADD_SUBMISSION](state, { assignmentId: 2, submission: obj });
+            expect(state.courses[1].assignments[0].submissions).toEqual([
+                obj,
+            ]);
+            expect(state.courses[1].assignments[0].submissions[0]).toBe(obj);
+        });
     });
 
     describe('delete submission', () => {

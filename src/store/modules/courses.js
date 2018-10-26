@@ -281,19 +281,22 @@ const mutations = {
     [types.ADD_SUBMISSION](state, { assignmentId, submission }) {
         const assignment = getAssignment(state, assignmentId);
 
-        Vue.set(assignment, 'submissions', [submission, ...assignment.submissions]);
+        Vue.set(assignment, 'submissions', [submission, ...(assignment.submissions || [])]);
     },
 
     [types.DELETE_SUBMISSION](state, { assignmentId, submissionId }) {
         const assignment = getAssignment(state, assignmentId);
 
-        Vue.set(assignment, 'submissions', assignment.submissions.filter(sub => sub.id !== submissionId));
+        if (assignment.submissions != null) {
+            Vue.set(assignment, 'submissions', assignment.submissions.filter(sub => sub.id !== submissionId));
+        }
     },
 
     [types.UPDATE_SUBMISSION](state, { assignmentId, submissionId, submissionProps }) {
         const assignment = getAssignment(state, assignmentId);
+        const l = assignment.submissions ? assignment.submissions.length : 0;
 
-        for (let i = 0; i < assignment.submissions.length; i++) {
+        for (let i = 0; i < l; i++) {
             if (assignment.submissions[i].id === submissionId) {
                 Object.entries(submissionProps).forEach(([key, val]) => {
                     if (key === 'id') {
