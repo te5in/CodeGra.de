@@ -301,10 +301,10 @@ export default {
             let i = 0;
             const middle = await Promise.all(matches.map(async (match) => {
                 const left = (await contents[match.files[0].id]).slice(
-                    match.lines[0][0], match.lines[0][1],
+                    match.lines[0][0], match.lines[0][1] + 1,
                 );
                 const right = (await contents[match.files[1].id]).slice(
-                    match.lines[1][0], match.lines[1][1],
+                    match.lines[1][0], match.lines[1][1] + 1,
                 );
                 i += 1;
                 return `\\subsection*{Match ${i}}
