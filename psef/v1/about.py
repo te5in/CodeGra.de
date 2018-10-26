@@ -11,7 +11,7 @@ import structlog
 from flask import request, current_app
 
 from . import api
-from .. import tasks, models
+from .. import models, permissions
 from ..files import check_dir
 from ..helpers import JSONResponse, jsonify
 
@@ -46,20 +46,14 @@ def about(
 
     if request.args.get('health', _no_val) == current_app.config['HEALTH_KEY']:
         try:
-            database = models.User.query.first() is not None
+            database = len(
+                models.Permission.get_all_permissions(
+                    permissions.CoursePermission
+                )
+            ) == len(models.CoursePermission)
         except:  # pylint: disable=bare-except
             logger.error('Database not working', exc_info=True)
             database = False
-
-        try:
-            celery = tasks.celery.control.inspect().ping() or False
-        except:  # pylint: disable=bare-except
-            logger.bind(exc_info=True)
-            celery = False
-
-        if not celery:
-            logger.error('Celery not working')
-            logger.try_unbind('exc_info')
 
         uploads = check_dir(current_app.config['UPLOAD_DIR'])
         mirror_uploads = check_dir(current_app.config['MIRROR_UPLOAD_DIR'])
@@ -67,7 +61,6 @@ def about(
         res['health'] = {
             'application': True,
             'database': database,
-            'celery': celery,
             'uploads': uploads,
             'mirror_uploads': mirror_uploads,
         }

@@ -31,18 +31,13 @@ def test_about_health_status(test_client, app, monkeypatch):
     raise_error = False
 
     class Inspect:
-        def __call__(self):
+        def __call__(self, *args, **kwargs):
             if raise_error:
                 raise Exception('ERR!')
             return True
 
-        def ping(self):
+        def ping(self, *args, **kwargs):
             return self()
-
-        def first(self):
-            return self()
-
-    monkeypatch.setattr(tasks.celery.control, 'inspect', Inspect)
 
     test_client.req(
         'get',
@@ -56,7 +51,6 @@ def test_about_health_status(test_client, app, monkeypatch):
                 {
                     'application': True,
                     'database': True,
-                    'celery': True,
                     'uploads': True,
                     'mirror_uploads': True,
                 },
@@ -65,26 +59,7 @@ def test_about_health_status(test_client, app, monkeypatch):
 
     raise_error = True
 
-    test_client.req(
-        'get',
-        '/api/v1/about',
-        500,
-        query={'health': 'good key'},
-        result={
-            'version': object,
-            'features': dict,
-            'health':
-                {
-                    'application': True,
-                    'database': True,
-                    'celery': False,
-                    'uploads': True,
-                    'mirror_uploads': True,
-                },
-        },
-    )
-
-    monkeypatch.setattr(models.User, 'query', Inspect())
+    monkeypatch.setattr(models.Permission, 'get_all_permissions', Inspect())
 
     test_client.req(
         'get',
@@ -98,7 +73,6 @@ def test_about_health_status(test_client, app, monkeypatch):
                 {
                     'application': True,
                     'database': False,
-                    'celery': False,
                     'uploads': True,
                     'mirror_uploads': True,
                 },
