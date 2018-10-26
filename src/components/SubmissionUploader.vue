@@ -208,6 +208,7 @@ export default {
             btn.submit(this.$http.post(url, requestData).then(({ data: submission }) => {
                 this.addSubmission({ assignmentId: this.assignment.id, submission });
                 this.$emit('created', submission);
+                this.$root.$emit('bv::hide::modal', 'wrong-files-modal');
             }, ({ response }) => {
                 this.$emit('error', response);
                 throw response.data.message;
