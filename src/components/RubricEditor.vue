@@ -268,7 +268,7 @@ export default {
     },
 
     methods: {
-        ...mapActions('courses', ['forceLoadRubric', 'setRubric']),
+        ...mapActions('courses', ['forceLoadSubmissions', 'forceLoadRubric', 'setRubric']),
 
         getEmptyItem() {
             return {
@@ -484,7 +484,9 @@ ${arrayToSentence(wrongCategories)}.`);
             });
             this.$refs.submitButton.submit(req.catch(({ response }) => {
                 throw response.data.message;
-            }));
+            })).then(() => {
+                this.forceLoadSubmissions(this.assignmentId);
+            });
         },
 
         addRubricRow() {
