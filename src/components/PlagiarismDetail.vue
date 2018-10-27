@@ -90,9 +90,6 @@
         <loader :scale="3"/>
     </div>
     <div class="code-viewer form-control" v-else>
-        <pre>
-            {{ getTexFile(detail.matches) }}
-        </pre>
         <div class="student-files"
                 v-for="key in ['self', 'other']"
                 :ref="`file-comparison-${key}`">
@@ -298,16 +295,14 @@ export default {
                 return accum;
             }, {});
 
-            let i = 0;
-            const middle = await Promise.all(matches.map(async (match) => {
+            const middle = await Promise.all(matches.map(async (match, i) => {
                 const left = (await contents[match.files[0].id]).slice(
                     match.lines[0][0], match.lines[0][1] + 1,
                 );
                 const right = (await contents[match.files[1].id]).slice(
                     match.lines[1][0], match.lines[1][1] + 1,
                 );
-                i += 1;
-                return `\\subsection*{Match ${i}}
+                return `\\subsection*{Match ${i + 1}}
     \\begin{lstlisting}[firstnumber=${match.lines[0][0] + 1}, caption={File \\texttt{${this.getFromFileTree(this.tree1, match.files[0]).replace(underscore, '\\_')}} of ${this.detail.users[0].name}}]
 ${left.join('\n')}
     \\end{lstlisting}
@@ -498,7 +493,7 @@ ${right.join('\n')}
 
         exportToLatex() {
             const btn = this.$refs.submitExport;
-            const matches = this.detail.matches.filter(a => this.exportMatches[a.id]);
+            const matches = this.matchesSortedByRange.filter(a => this.exportMatches[a.id]);
             if (matches.length === 0) {
                 btn.fail('Select at least one case.');
                 return;
