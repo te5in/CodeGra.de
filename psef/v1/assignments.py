@@ -433,10 +433,10 @@ def add_assignment_rubric(assignment_id: int
         with db.session.begin_nested():
             helpers.ensure_keys_in_dict(content, [('rows', list)])
             rows = t.cast(t.List[JSONType], content['rows'])
-            assig.rubric_rows = [process_rubric_row(assig, r) for r in rows]
+            new_rubric_rows = [process_rubric_row(r) for r in rows]
 
-            if any(not row.is_valid for row in assig.rubric_rows):
-                wrong_rows = [r for r in assig.rubric_rows if not r.is_valid]
+            if any(not row.is_valid for row in new_rubric_rows):
+                wrong_rows = [r for r in new_rubric_rows if not r.is_valid]
                 single = len(wrong_rows) == 1
                 raise APIException(
                     (
@@ -451,6 +451,7 @@ def add_assignment_rubric(assignment_id: int
                     400
                 )
 
+            assig.rubric_rows = new_rubric_rows
             db.session.flush()
             max_points = assig.max_rubric_points
 
@@ -466,21 +467,14 @@ def add_assignment_rubric(assignment_id: int
     return jsonify(assig.rubric_rows)
 
 
-def process_rubric_row(
-    assig: models.Assignment,
-    row: JSONType,
-) -> models.RubricRow:
-    """Process a single rubric row updating or adding it.
+def process_rubric_row(row: JSONType) -> models.RubricRow:
+    """Process a single rubric row updating or creating it.
 
     This function works on the input json data. It makes sure that the input
     has the correct format and dispatches it to the necessary functions.
 
-    :param assig: The assignment this rubric row should be added to.
     :param row: The row to process.
-    :returns: A tuple with as the first element the id of the rubric row that
-        has been processed (this is ``None`` for a new row) and as second item
-        a string that describes were an error occurred if such an error did
-        occur.
+    :returns: The updated or created row.
     """
     row = ensure_json_dict(row)
     ensure_keys_in_dict(
@@ -515,7 +509,7 @@ def process_rubric_row(
         rubric_row.update_from_json(header, desc, items)
         return rubric_row
     else:
-        return models.RubricRow.create_from_json(assig, header, desc, items)
+        return models.RubricRow.create_from_json(header, desc, items)
 
 
 @api.route("/assignments/<int:assignment_id>/submission", methods=['POST'])

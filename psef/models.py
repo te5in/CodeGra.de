@@ -3422,12 +3422,11 @@ class RubricRow(Base):
 
     @classmethod
     def create_from_json(
-        cls: t.Type['RubricRow'], assig: Assignment, header: str,
-        description: str, items: t.List[RubricItem.JSONBaseSerialization]
+        cls: t.Type['RubricRow'], header: str, description: str,
+        items: t.List[RubricItem.JSONBaseSerialization]
     ) -> 'RubricRow':
         """Create a new rubric row for an assignment.
 
-        :param assig: The assignment to add the rubric row to
         :param header: The name of the new rubric row.
         :param description: The description of the new rubric row.
         :param items: The items that should be added to this row. The format is
@@ -3435,7 +3434,7 @@ class RubricRow(Base):
             :meth:`.RubricRow.update_items_from_json`.
         :returns: The newly created row.
         """
-        self = cls(assignment=assig, header=header, description=description)
+        self = cls(header=header, description=description)
         self.update_items_from_json(items)
 
         return self

@@ -217,6 +217,9 @@ export default {
         },
 
         onClick(event) {
+            if (this.pending) {
+                return;
+            }
             if (this.confirm && !this.showConfirm) {
                 this.$refs.confirmPopover.$emit('open');
                 this.showConfirm = true;
