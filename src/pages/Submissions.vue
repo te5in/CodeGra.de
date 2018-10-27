@@ -9,6 +9,7 @@
         :rubric="rubric"
         :graders="graders"
         :can-see-assignee="canSeeAssignee"
+        :can-assign-grader="canAssignGrader"
         @assigneeUpdated="updateAssignee"/>
 
     <div v-if="canUpload">
@@ -50,6 +51,7 @@ export default {
             canDownload: false,
             canListUsers: null,
             canSeeAssignee: false,
+            canAssignGrader: false,
             wrongFiles: [],
         };
     },
@@ -143,6 +145,7 @@ export default {
                 this.$hasPermission(
                     [
                         'can_see_assignee',
+                        'can_assign_graders',
                         'can_submit_own_work',
                         'can_submit_others_work',
                         'can_see_others_work',
@@ -153,11 +156,12 @@ export default {
                     this.courseId,
                 ),
             ]).then(([, [
-                seeAssignee, submitOwn, submitOthers, others, before,
+                seeAssignee, assignGrader, submitOwn, submitOthers, others, before,
                 afterDeadline, canList,
             ]]) => {
                 setPageTitle(`${this.assignment.name} ${pageTitleSep} Submissions`);
                 this.canSeeAssignee = seeAssignee;
+                this.canAssignGrader = assignGrader;
                 this.canUploadForOthers = submitOthers;
                 this.canListUsers = canList;
                 this.canUpload = (

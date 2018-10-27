@@ -106,17 +106,16 @@
             {{item.value ? item.value : '-'}}
         </template>
         <template slot="assignee" slot-scope="item">
-            <span v-if="!canChangeAssignee">
+            <span v-if="!canAssignGrader || graders == null">
                 {{ item.value ? item.value.name : '-' }}
             </span>
             <loader :scale="1" v-else-if="assigneeUpdating[item.item.id]"/>
-            <b-form-select
-                :options="assignees"
-                :value="item.value ? item.value.id : null"
-                @input="updateAssignee($event, item)"
-                @click.native.stop
-                style="max-width: 20em;"
-                v-else/>
+            <b-form-select :options="assignees"
+                           :value="item.value ? item.value.id : null"
+                           @input="updateAssignee($event, item)"
+                           @click.native.stop
+                           style="max-width: 20em; margin: -.35rem 0;"
+                           v-else/>
         </template>
     </b-table>
 </div>
@@ -165,6 +164,10 @@ export default {
             type: Boolean,
             required: true,
         },
+        canAssignGrader: {
+            type: Boolean,
+            required: false,
+        },
     },
 
     data() {
@@ -187,10 +190,6 @@ export default {
             userId: 'id',
             userName: 'name',
         }),
-
-        canChangeAssignee() {
-            return this.graders != null;
-        },
 
         fields() {
             const fields = [
@@ -432,11 +431,6 @@ export default {
             white-space: nowrap;
         }
     }
-}
-
-.submissions-table td:last-child {
-    padding-top: 0.3rem;
-    padding-bottom: 0.3rem;
 }
 
 .submissions-table td .loader {
