@@ -23,6 +23,7 @@
                         </b-input-group-prepend>
                         <input class="form-control"
                                placeholder="Category name"
+                               @keydown.ctrl.enter="submit"
                                v-model="rubric.header"/>
                         <b-input-group-append>
                             <b-btn size="sm" variant="danger" class="float-right" @click="(e)=>deleteRow(i, e)">
@@ -34,6 +35,7 @@
                               placeholder="Category description"
                               :tabindex="currentCategory === i ? null: -1"
                               v-model="rubric.description"
+                              @keydown.ctrl.enter.prevent="submit"
                               v-if="editable"/>
                     <p v-else>{{ rubric.description }}</p>
                 </div>
@@ -49,8 +51,8 @@
                                    :tabindex="currentCategory === i ? null: -1"
                                    placeholder="Points"
                                    @change="item.points = parseFloat(item.points)"
-                                   @keydown.native="editable && addItem(i, j)"
-                                   @keydown.native.ctrl.enter="editable && submit()"
+                                   @keydown="addItem(i, j)"
+                                   @keydown.ctrl.enter="submit"
                                    v-model="item.points"/>
                             <span v-else
                                   class="item-points input disabled">
@@ -61,8 +63,8 @@
                                    class="form-control item-header"
                                    placeholder="Header"
                                    :tabindex="currentCategory === i ? null: -1"
-                                   @keydown="editable && addItem(i, j)"
-                                   @keydown.ctrl.enter="editable && submit()"
+                                   @keydown="addItem(i, j)"
+                                   @keydown.ctrl.enter="submit"
                                    v-model="item.header"/>
                             <span v-else class="input item-header disabled">
                                 {{ item.header }}
@@ -74,7 +76,7 @@
                             </div>
                             <div class="item-delete-button"
                                  v-else-if="editable"
-                                 @click="editable && deleteItem(i, j)">
+                                 @click="deleteItem(i, j)">
                                 <icon name="times"/>
                             </div>
                         </b-input-group>
@@ -83,8 +85,8 @@
                                   v-if="editable"
                                   :rows="8"
                                   :tabindex="currentCategory === i ? null: -1"
-                                  @keydown="editable && addItem(i, j)"
-                                  @keydown.ctrl.enter="editable && submit()"
+                                  @keydown="addItem(i, j)"
+                                  @keydown.ctrl.enter.prevent="submit"
                                   placeholder="Description"/>
                         <p v-else
                            class="form-control input item-description disabled">
@@ -456,6 +458,10 @@ ${arrayToSentence(wrongCategories)}.`);
         },
 
         submit() {
+            if (!this.editable) {
+                throw Error('This rubric editor is not editable.');
+            }
+
             const rows = this.getCheckedRubricRows();
 
             const err = this.checkFixedMaxPoints();
@@ -490,6 +496,10 @@ ${arrayToSentence(wrongCategories)}.`);
         },
 
         addRubricRow() {
+            if (!this.editable) {
+                throw Error('This rubric editor is not editable.');
+            }
+
             this.$set(this.rubrics, this.rubrics.length, {
                 header: '',
                 description: '',
@@ -498,16 +508,28 @@ ${arrayToSentence(wrongCategories)}.`);
         },
 
         addItem(i, j) {
+            if (!this.editable) {
+                throw Error('This rubric editor is not editable.');
+            }
+
             if (this.rubrics[i].items.length - 1 === j) {
                 this.$set(this.rubrics[i].items, j + 1, this.getEmptyItem());
             }
         },
 
         deleteItem(i, j) {
+            if (!this.editable) {
+                throw Error('This rubric editor is not editable.');
+            }
+
             this.rubrics[i].items.splice(j, 1);
         },
 
         appendRow() {
+            if (!this.editable) {
+                throw Error('This rubric editor is not editable.');
+            }
+
             this.rubrics.push(this.getEmptyRow());
             this.$nextTick(() => {
                 this.currentCategory = this.rubrics.length - 1;
@@ -515,6 +537,10 @@ ${arrayToSentence(wrongCategories)}.`);
         },
 
         deleteRow(i, e) {
+            if (!this.editable) {
+                throw Error('This rubric editor is not editable.');
+            }
+
             this.rubrics.splice(i, 1);
             e.preventDefault();
             e.stopPropagation();

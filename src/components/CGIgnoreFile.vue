@@ -4,7 +4,7 @@
         <textarea class="form-control"
                   rows="6"
                   v-model="content"
-                  @keyup.ctrl.enter="updateIgnore"/>
+                  @keyup.ctrl.enter.prevent="updateIgnore"/>
         <submit-button label="Update"
                        ref="submitBtn"
                        @click="updateIgnore"/>

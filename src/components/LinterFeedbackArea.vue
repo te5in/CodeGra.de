@@ -41,8 +41,11 @@ export default {
 };
 </script>
 
-<style lang="less">
-table.linter-feedback tr td:nth-child(2) {
-    padding-left: 15px;
+<style lang="less" scoped>
+.linter-feedback-inner {
+    display: inline;
+    table.linter-feedback tr td:nth-child(2) {
+        padding-left: 15px;
+    }
 }
 </style>

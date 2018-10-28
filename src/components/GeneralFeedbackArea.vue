@@ -6,7 +6,7 @@
               :rows="10"
               ref="field"
               v-model="feedback"
-              @keydown.ctrl.enter="putFeedback"
+              @keydown.ctrl.enter.prevent="putFeedback"
               @keydown.native.tab.capture="expandSnippet"
               v-if="editable"/>
     <pre class="feedback-field"

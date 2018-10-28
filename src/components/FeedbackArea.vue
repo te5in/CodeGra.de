@@ -38,7 +38,7 @@
                       class="form-control"
                       style="font-size: 1em;"
                       @keydown.tab="expandSnippet"
-                      @keydown.ctrl.enter="submitFeedback"
+                      @keydown.ctrl.enter.prevent="submitFeedback"
                       @keydown.esc="revertFeedback"/>
             <div class="minor-buttons btn-group-vertical">
                 <b-btn v-b-toggle="`collapse${line}`"
