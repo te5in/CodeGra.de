@@ -334,9 +334,15 @@ export default {
                 this.setInitialEntry();
             }
         },
+
+        subMenus() {
+            this.$nextTick(this.fixAppMargin);
+        },
     },
 
     async mounted() {
+        this.fixAppMargin();
+
         if (this.loggedIn) {
             const [, perms] = await Promise.all([
                 this.loadCourses(),
@@ -370,6 +376,15 @@ export default {
         ...mapActions('user', {
             logoutUser: 'logout',
         }),
+
+        fixAppMargin() {
+            if (this.$root.isEdge || (this.$el && getComputedStyle(this.$el).position === 'fixed')) {
+                const app = document.querySelector('#app');
+                app.style.marginLeft = `${this.$el.clientWidth}px`;
+                this.$el.style.position = 'fixed';
+                this.$el.style.left = 0;
+            }
+        },
 
         logout() {
             this.logoutUser();
@@ -518,7 +533,7 @@ export default {
 @import "~mixins.less";
 
 .sidebar {
-    position: relative;
+    position: fixed;
     position: sticky;
     z-index: 10;
     top: 0;

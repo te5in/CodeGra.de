@@ -6,7 +6,7 @@
     <div class="container-fluid">
         <main class="row justify-content-center">
             <b-alert class="ie-banner"
-                     :show="isIE"
+                     :show="$root.isIE"
                      variant="warning"
                      dismissible>
                 It seems the browser you are using is Internet Explorer which
@@ -39,22 +39,6 @@ export default {
             return this.$route.name !== 'submission' &&
                 this.$route.name !== 'submission_file' &&
                 this.$route.name !== 'plagiarism_detail';
-        },
-
-        // Detect if browser is Internet Explorer,
-        // source: https://s.codepen.io/boomerang/iFrameKey-82faba85-1442-af7e-7e36-bd4e4cc10796/index.html
-        isIE() {
-            const ua = window.navigator.userAgent;
-
-            // Test values; Uncomment to check result …
-
-            // IE 10
-            // ua = 'Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.2; Trident/6.0)';
-
-            // IE 11
-            // ua = 'Mozilla/5.0 (Windows NT 6.3; Trident/7.0; rv:11.0) like Gecko';
-
-            return ua.indexOf('MSIE ') > 0 || ua.indexOf('Trident/') > 0;
         },
     },
 
@@ -106,6 +90,7 @@ export default {
 #app {
     display: flex;
     flex-direction: row;
+    min-height: 100vh;
 }
 
 .container-fluid {

@@ -176,6 +176,26 @@ localforage.defineDriver(memoryStorageDriver).then(() => {
             $isLargeWindow() {
                 return this.screenWidth >= this.largeWidth;
             },
+
+            isEdge() {
+                return window.navigator.userAgent.indexOf('Edge') > -1;
+            },
+
+            // Detect if browser is Internet Explorer,
+            // source: https://s.codepen.io/boomerang/iFrameKey-82faba85-1442-af7e-7e36-bd4e4cc10796/index.html
+            isIE() {
+                const ua = window.navigator.userAgent;
+
+                // Test values; Uncomment to check result …
+
+                // IE 10
+                // ua = 'Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.2; Trident/6.0)';
+
+                // IE 11
+                // ua = 'Mozilla/5.0 (Windows NT 6.3; Trident/7.0; rv:11.0) like Gecko';
+
+                return ua.indexOf('MSIE ') > -1 || ua.indexOf('Trident/') > -1;
+            },
         },
 
         methods: {

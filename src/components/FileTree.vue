@@ -349,6 +349,7 @@ export default {
 }
 
 .revision-container {
+    position: relative;
     position: sticky;
     top: 0;
     margin: -.5rem -.75rem .875rem;
