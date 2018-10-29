@@ -11,7 +11,7 @@ import typing as t
 import numbers
 import zipfile
 import tempfile
-from collections import defaultdict
+from collections import Counter, defaultdict
 
 from flask import request
 from sqlalchemy.orm import selectinload
@@ -346,9 +346,10 @@ def select_rubric_items(submission_id: int, ) -> EmptyResponse:
     ensure_keys_in_dict(content, [('items', list)])
     item_ids = t.cast(list, content['items'])
 
-    items = [
-        helpers.get_or_404(models.RubricItem, item_id) for item_id in item_ids
-    ]
+    items = helpers.get_in_or_error(
+        models.RubricItem, t.cast(models.DbColumn[int], models.RubricItem.id),
+        item_ids
+    )
 
     if any(
         item.rubricrow.assignment_id != submission.assignment_id
@@ -359,6 +360,16 @@ def select_rubric_items(submission_id: int, ) -> EmptyResponse:
             f'A given item of "{", ".join(str(i) for i in item_ids)}"'
             f' does not belong to assignment "{submission.assignment_id}"',
             APICodes.INVALID_PARAM, 400
+        )
+
+    row_ids = [item.rubricrow_id for item in items]
+    if len(row_ids) != len(set(row_ids)):
+        duplicates = [k for k, v in Counter(row_ids).items() if v > 1]
+        raise APIException(
+            'Duplicate rows in selected items',
+            'The rows "{}" had duplicate items'.format(
+                ','.join(map(str, duplicates))
+            ), APICodes.INVALID_PARAM, 400
         )
 
     submission.select_rubric_items(items, current_user, True)

@@ -1520,10 +1520,23 @@ class Work(Base):
 
         .. note:: This also sets the actual grade field to `None`.
 
+        .. warning::
+
+            You should do all input sanitation before calling this
+            function. Like checking for duplicate items and correct assignment.
+
         :param item: The item to add.
         :param user: The user selecting the item.
         :returns: Nothing
         """
+        # Sanity checks
+        assert all(
+            item.rubricrow.assignment_id == self.assignment_id
+            for item in items
+        )
+        row_ids = [item.rubricrow_id for item in items]
+        assert len(row_ids) == len(set(row_ids))
+
         if override:
             self.selected_items = []
 

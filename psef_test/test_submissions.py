@@ -566,6 +566,74 @@ def test_selecting_rubric(
 
 
 @pytest.mark.parametrize('filename', ['test_flake8.tar.gz'], indirect=True)
+def test_selecting_rubric_same_row_twice(
+    test_client, logged_in, error_template, assignment_real_works, teacher_user
+):
+    assignment, work = assignment_real_works
+    work_id = work['id']
+
+    rubric = {
+        'rows': [{
+            'header': 'My header',
+            'description': 'My description',
+            'items': [{
+                'description': '5points',
+                'header': 'bladie',
+                'points': 5
+            }, {
+                'description': '10points',
+                'header': 'bladie',
+                'points': 10,
+            }]
+        }, {
+            'header': 'My header2',
+            'description': 'My description2',
+            'items': [{
+                'description': '1points',
+                'header': 'bladie',
+                'points': 1
+            }, {
+                'description': '2points',
+                'header': 'bladie',
+                'points': 2,
+            }]
+        }]
+    }  # yapf: disable
+    max_points = 12
+
+    with logged_in(teacher_user):
+        rubric = test_client.req(
+            'put',
+            f'/api/v1/assignments/{assignment.id}/rubrics/',
+            200,
+            data=rubric
+        )
+        rubric = test_client.req(
+            'get',
+            f'/api/v1/submissions/{work_id}/rubrics/',
+            200,
+            result={
+                'rubrics': list,
+                'selected': [],
+                'points': {
+                    'max': max_points,
+                    'selected': 0
+                }
+            }
+        )['rubrics']
+
+    with logged_in(teacher_user):
+        to_select = [rubric[0]['items'][0]['id'], rubric[0]['items'][1]['id']]
+        test_client.req(
+            'patch',
+            f'/api/v1/submissions/{work_id}/rubricitems/',
+            400,
+            data={'items': to_select},
+            result=error_template,
+        )
+
+
+@pytest.mark.parametrize('filename', ['test_flake8.tar.gz'], indirect=True)
 @pytest.mark.parametrize(
     'named_user', [
         'Robin',
