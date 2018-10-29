@@ -48,3 +48,8 @@ Element.prototype.closest = Element.prototype.closest || function closest(s) {
     }
     return null;
 };
+
+// eslint-disable-next-line
+String.prototype.startsWith = String.prototype.startsWith || function(search, pos) {
+    return this.substr(!pos || pos < 0 ? 0 : +pos, search.length) === search;
+};
