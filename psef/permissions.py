@@ -160,7 +160,7 @@ class CoursePermission(BasePermission):
     :ivar can_update_grader_status: Users with this permission can change the status of graders for this course, whether they are done grading their assigned submissions or not.
     :ivar can_update_course_notifications: Users with this permission can change the all notifications that are configured for this course. This includes when to send them and who to send them to.
     :ivar can_edit_maximum_grade: Users with this permission can edit the maximum grade possible, and therefore also determine if getting a 'bonus' for an assignment is also possible.
-    :ivar can_view_plagiarism: Users with this permission can view the summary of a plagiarism check and see details of a plagiarism case. To view a plagiarism case between this and another course, the user must also have either this permission, or both "See assignments" ("can_see_assignment") and "See other's work" ("can_see_others_work") in the other course.
+    :ivar can_view_plagiarism: Users with this permission can view the summary of a plagiarism check and see details of a plagiarism case. To view a plagiarism case between this and another course, the user must also have either this permission, or both "See assignments" and "See other's work" in the other course.
     :ivar can_manage_plagiarism: Users with this permission can add and delete plagiarism runs.
     :ivar can_list_course_users: Users with this permission can see all users of this course including the name of their role.
     """

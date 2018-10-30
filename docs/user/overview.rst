@@ -1,0 +1,82 @@
+Overview of CodeGrade
+======================
+
+CodeGrade can be used both as a stand-alone web application and as a module in
+your LMS. The following chapters apply to both situations. Please consult the
+`LMS Integration <lms.html>`__ chapter for detailed information of integrating
+CodeGrade into your Learning Management System.
+
+Brief Overview
+---------------
+
+CodeGra.de is a blended learning application designed especially for programming education.
+It makes grading and handing in programming exercises more insightful and effective for students and more efficient for teachers.
+This chapter provides a brief overview of the components and navigation in CodeGrade. The following chapters will provide more
+in-depth documentation on all individual components and their uses.
+
+.. note:: CodeGrade uses an extensive `permissions <permissions.html>`__ system that may allow certain features to be disabled on your CodeGrade account.
+
+General Site
+~~~~~~~~~~~~~
+CodeGrade allows for the `creation of courses and assignments <management.html>`__.
+
+.. note:: CodeGrade assignments can also be created in co-operative Learning Management Systems.
+
+Each assignment is
+part of a course and each course can have multiple assignments linked to it. All
+courses and assignments have individual settings pages. With the right `permissions <permissions.html>`__
+these pages allow for adding users to the course, changing the details of an
+assignment, dividing submissions over teachers, running linters over assignments,
+adding a CGIgnore file, sending notifications to students and teachers and adding
+or customising rubrics.
+
+Assignments handed in via CodeGrade can be viewed using the `Codeviewer <codeviewer.html>`__. The
+Codeviewer allows for a convenient way to review and grade submissions
+online. The features include line for line feedback and a file browser.
+
+New courses can be created by the site administrators. They can also add students,
+teachers and teaching assistants to these courses. New roles can be created and `permissions <permissions.html>`__ of
+existing roles can be altered by site administrators too. All users on CodeGrade
+can set `personal site preferences and edit account information <preferences.html>`__.
+
+Filesystem
+~~~~~~~~~~~
+The `CodeGrade Filesystem <https://fs-docs.codegra.de>`__ (or CodeGra.fs) can be used in combination with the web application.
+It can  mount a local
+CodeGrade instance on your computer to browse the assignments and files on the
+server. The filesystem can be used for students to locally work on the
+CodeGrade mount and thus automatically hand in the assignment with each save.
+For teachers the filesystem can be used to locally grade work without any overhead
+using a preferred editor.
+
+All features of the online `Codeviewer <codeviewer.html>`__
+(e.g. line for line feedback, filling in rubrics and adding general grades and feedback) can
+also be done locally using the filesystem. Editor plugins can be installed and used for most popular editors to enable this.
+
+Account Management
+-------------------
+
+Creating a new account
+~~~~~~~~~~~~~~~~~~~~~~~
+A CodeGrade account has to be created in order to use CodeGrade and follow
+courses. This can be done by navigating to your institute's CodeGrade site
+(e.g. uva.codegra.de) and clicking the 'Register' button.
+Here you can register a new account by entering your full name,
+valid e-mail address and a password. Also a unique username has to be chosen to
+finish registration, please keep in mind that this username cannot be changed
+after your registration is complete.
+
+You are now registered and logged in to CodeGrade!
+
+Logging in to an existing account
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+If you already have a CodeGrade account, you can use this to log in to the online
+environment.  After clicking the 'Login' button, enter your username and password
+and click 'Login'. You are now logged in to CodeGrade!
+
+Use the 'Forgot password' button in the case you have forgotten your password.
+After entering your username, a temporary link will be e-mailed which allows you
+to reset your password. Please consult your institute in the case of a forgotten
+username or wrong e-mail address.
+
+.. note:: Please check your spam filter if no e-mail is received shortly after the request.

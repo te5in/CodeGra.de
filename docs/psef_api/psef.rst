@@ -1,66 +1,64 @@
-psef package
-============
+Source code documentation of ``psef``
+=====================================
 
-Module contents
----------------
+``psef``
+------------------
 
 .. automodule:: psef
     :members:
     :undoc-members:
     :show-inheritance:
 
-Submodules
-----------
 
-psef\.auth module
------------------
+``psef.auth``
+------------------------
 
 .. automodule:: psef.auth
     :members:
     :undoc-members:
     :show-inheritance:
 
-psef\.blackboard module
------------------------
+``psef.blackboard``
+------------------------------
 
 .. automodule:: psef.blackboard
     :members:
     :undoc-members:
     :show-inheritance:
 
-psef\.errors module
--------------------
+``psef.errors``
+--------------------------
 
 .. automodule:: psef.errors
     :members:
     :undoc-members:
     :show-inheritance:
 
-psef\.files module
-------------------
+``psef.files``
+-------------------------
 
 .. automodule:: psef.files
     :members:
     :undoc-members:
     :show-inheritance:
 
-psef\.helpers module
---------------------
+``psef.helpers``
+---------------------------
 
 .. automodule:: psef.helpers
     :members:
     :undoc-members:
     :show-inheritance:
 
-psef\.ignore module
---------------------
+``psef.ignore``
+--------------------------
 
 .. automodule:: psef.ignore
     :members:
     :undoc-members:
     :show-inheritance:
 
-psef\.json_encoders module
+``psef.json_encoders``
 --------------------------
 
 .. automodule:: psef.json_encoders
@@ -68,55 +66,55 @@ psef\.json_encoders module
     :undoc-members:
     :show-inheritance:
 
-psef\.linters module
---------------------
+``psef.linters``
+---------------------------
 
 .. automodule:: psef.linters
     :members:
     :undoc-members:
     :show-inheritance:
 
-psef\.lti module
-----------------
+``psef.lti``
+-----------------------
 
 .. automodule:: psef.lti
     :members:
     :undoc-members:
     :show-inheritance:
 
-psef\.mail module
------------------
+``psef.mail``
+------------------------
 
 .. automodule:: psef.mail
     :members:
     :show-inheritance:
     :special-members:
 
-psef\.models module
--------------------
+``psef.models``
+--------------------------
 
 .. automodule:: psef.models
     :members:
     :show-inheritance:
     :special-members:
 
-psef\.parsers module
---------------------
+``psef.parsers``
+---------------------------
 
 .. automodule:: psef.parsers
     :members:
     :show-inheritance:
     :special-members:
 
-psef\.tasks module
--------------------
+``psef.tasks``
+--------------------------
 
 .. automodule:: psef.tasks
     :members:
     :show-inheritance:
     :special-members:
 
-psef\.plagiarism module
+``psef.plagiarism``
 --------------------------
 
 .. automodule:: psef.plagiarism
@@ -125,10 +123,22 @@ psef\.plagiarism module
     :show-inheritance:
 
 
-psef\.permissions module
+``psef.permissions``
 --------------------------
 
 .. automodule:: psef.permissions
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+
+``psef.plagiarism_providers``
+------------------------------
+
+Module contents
+~~~~~~~~~~~~~~~
+
+.. automodule:: psef.plagiarism_providers.jplag
     :members:
     :undoc-members:
     :show-inheritance:
