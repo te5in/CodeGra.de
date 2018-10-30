@@ -565,6 +565,10 @@ ${right.join('\n')}
         padding-top: 0rem;
         padding-bottom: 0rem;
     }
+
+    #plagiarism-export & {
+        word-break: break-all;
+    }
 }
 
 .code-viewer {
@@ -688,7 +692,6 @@ code {
 .plagiarism-detail .input-group-prepend {
     margin-top: 0;
 }
-
 </style>
 
 <style lang="less">
