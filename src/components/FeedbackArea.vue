@@ -1,11 +1,15 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
-    <b-card class="feedback-area non-editable" v-if="(done && !editing)">
-        <div @click="changeFeedback($event)" :style="{'min-height': '1em'}">
-            <div v-html="newlines($htmlEscape(serverFeedback))"></div>
-        </div>
-    </b-card>
+    <div class="feedback-area-wrapper non-editable" v-if="(done && !editing)">
+        <div class="author" v-if="author">{{ author }}</div>
+        <b-card class="feedback-area non-editable" :class="{'has-author': author != null}">
+            <div @click="changeFeedback($event)" :style="{'min-height': '1em'}">
+                <div v-html="newlines($htmlEscape(serverFeedback))"></div>
+            </div>
+        </b-card>
+    </div>
     <div class="feedback-area edit" v-else
-         @click="$event.stopPropagation()">
+         @click.stop>
         <b-collapse class="collapsep"
                     v-if="canUseSnippets"
                     ref="snippetDialog"
@@ -18,22 +22,23 @@
                            @keydown.ctrl.enter="addSnippet"/>
                     <b-input-group-append>
                         <submit-button ref="addSnippetButton"
-                                    class="add-snippet-btn"
-                                    label=""
-                                    @click="addSnippet">
+                                       class="add-snippet-btn"
+                                       label=""
+                                       @click="addSnippet">
                             <icon :scale="1" name="check"/>
                         </submit-button>
                     </b-input-group-append>
                 </b-input-group>
             </div>
         </b-collapse>
+
         <b-input-group class="editable-area">
             <textarea ref="field"
                       v-model="internalFeedback"
                       class="form-control"
                       style="font-size: 1em;"
                       @keydown.tab="expandSnippet"
-                      @keydown.ctrl.enter="submitFeedback"
+                      @keydown.ctrl.enter.prevent="submitFeedback"
                       @keydown.esc="revertFeedback"/>
             <div class="minor-buttons btn-group-vertical">
                 <b-btn v-b-toggle="`collapse${line}`"
@@ -46,7 +51,6 @@
                 <submit-button @click="cancelFeedback"
                                ref="deleteFeedbackButton"
                                default="danger"
-                               show-inline
                                :label="false">
                     <icon name="times" aria-hidden="true"/>
                 </submit-button>
@@ -75,7 +79,44 @@ import SubmitButton from './SubmitButton';
 
 export default {
     name: 'feedback-area',
-    props: ['line', 'editing', 'feedback', 'editable', 'fileId', 'canUseSnippets'],
+
+    props: {
+        line: {
+            type: Number,
+            required: true,
+        },
+
+        feedback: {
+            type: String,
+            required: true,
+        },
+
+        author: {
+            type: [String, Object],
+            required: false,
+            default: undefined,
+        },
+
+        fileId: {
+            type: Number,
+            required: true,
+        },
+
+        editable: {
+            type: Boolean,
+            default: false,
+        },
+
+        editing: {
+            type: Boolean,
+            default: false,
+        },
+
+        canUseSnippets: {
+            type: Boolean,
+            default: false,
+        },
+    },
 
     data() {
         return {
@@ -86,7 +127,11 @@ export default {
         };
     },
 
-    mounted() {
+    async mounted() {
+        if (this.editing) {
+            await this.maybeRefreshSnippets();
+        }
+
         this.$nextTick(() => {
             if (!this.done || this.editing) {
                 this.$refs.field.focus();
@@ -94,7 +139,26 @@ export default {
         });
     },
 
+    watch: {
+        editing() {
+            this.maybeRefreshSnippets();
+        },
+    },
+
+    computed: {
+        ...mapGetters({
+            snippets: 'user/snippets',
+            nameCurrentUser: 'user/name',
+        }),
+    },
+
     methods: {
+        ...mapActions({
+            maybeRefreshSnippets: 'user/maybeRefreshSnippets',
+            addSnippetToStore: 'user/addSnippet',
+            updateSnippetInStore: 'user/updateSnippet',
+        }),
+
         changeFeedback(e) {
             if (this.editable) {
                 this.done = false;
@@ -128,38 +192,46 @@ export default {
                 this.serverFeedback = submitted;
                 this.snippetKey = '';
                 this.done = true;
-                this.$emit('feedbackChange', submitted);
+                this.$emit('feedbackChange', {
+                    line: this.line,
+                    msg: submitted,
+                    author: { name: this.nameCurrentUser },
+                });
             }, (err) => {
                 throw err.response.data.message;
             });
 
             this.$refs.addFeedbackButton.submit(req);
         },
+
         newlines(value) {
             return value.replace(/\n/g, '<br>');
         },
+
         revertFeedback() {
             if (this.serverFeedback === '') {
                 this.cancelFeedback(false);
             } else {
-                this.$emit('feedbackChange', this.serverFeedback, true);
+                this.$emit('feedbackChange', {
+                    line: this.line,
+                    msg: this.serverFeedback,
+                }, true);
                 this.done = true;
             }
         },
-        cancelFeedback(val) {
+
+        cancelFeedback() {
             this.snippetKey = '';
+
             if (this.feedback !== '') {
-                const done = () => {
-                    this.$emit('cancel', this.line, val);
-                };
                 const req = this.$http.delete(
                     `/api/v1/code/${this.fileId}/comments/${this.line}`,
                 ).then(
-                    done,
+                    () => this.$emit('cancel', this.line),
                     (err) => {
                         // Don't error for a 404 as the comment was deleted.
                         if (err.response.status === 404) {
-                            done();
+                            this.$emit('cancel', this.line);
                         } else {
                             throw err.response.data.message;
                         }
@@ -168,9 +240,10 @@ export default {
 
                 this.$refs.deleteFeedbackButton.submit(req);
             } else {
-                this.$emit('cancel', this.line, val);
+                this.$emit('cancel', this.line);
             }
         },
+
         expandSnippet(event) {
             event.preventDefault();
 
@@ -180,69 +253,74 @@ export default {
 
             const { selectionStart, selectionEnd } = this.$refs.field;
 
-            if (selectionStart === selectionEnd) {
-                const val = this.internalFeedback.slice(0, selectionEnd);
-                const start = Math.max(val.lastIndexOf(' '), val.lastIndexOf('\n')) + 1;
-                const res = this.snippets()[val.slice(start, selectionEnd)];
-                if (res !== undefined) {
-                    this.snippetKey = val.slice(start, selectionEnd);
-                    this.internalFeedback = val.slice(0, start) + res.value +
-                        this.internalFeedback.slice(selectionEnd);
-                }
-                this.refreshSnippets();
-            }
-        },
-        addSnippet() {
-            const val = {
-                key: this.snippetKey,
-                value: this.internalFeedback,
-            };
-            if (val.key.match(/\s/)) {
-                this.$refs.addSnippetButton.fail('No spaces allowed!');
-                return;
-            } else if (val.key.length === 0) {
-                this.$refs.addSnippetButton.fail('Snippet key cannot be empty');
-                return;
-            } else if (!val.value) {
-                this.$refs.addSnippetButton.fail('Snippet value cannot be empty');
+            if (selectionStart !== selectionEnd) {
                 return;
             }
 
-            const req = this.$http.put('/api/v1/snippet', val).then(({ data }) => {
-                val.id = data.id;
-                this.addSnippetToStore(val);
-            }, (err) => {
-                throw err.response.data.message;
-            });
-            this.$refs.addSnippetButton.submit(req).then((success) => {
+            const val = this.internalFeedback.slice(0, selectionEnd);
+            const start = Math.max(val.lastIndexOf(' '), val.lastIndexOf('\n')) + 1;
+            const key = val.slice(start, selectionEnd);
+
+            if (key in this.snippets) {
+                const { value } = this.snippets[key];
+                this.internalFeedback = val.slice(0, start) + value +
+                    this.internalFeedback.slice(selectionEnd);
+            }
+        },
+
+        addSnippet() {
+            const key = this.snippetKey;
+            const value = this.internalFeedback;
+
+            if (key.match(/\s/)) {
+                this.$refs.addSnippetButton.fail('No spaces allowed!');
+                return null;
+            } else if (!key) {
+                this.$refs.addSnippetButton.fail('Snippet key cannot be empty');
+                return null;
+            } else if (!value) {
+                this.$refs.addSnippetButton.fail('Snippet value cannot be empty');
+                return null;
+            }
+
+            let req;
+            if (key in this.snippets) {
+                const { id } = this.snippets[key];
+                req = this.$http.patch(`/api/v1/snippets/${id}`, { key, value }).then(
+                    () => { this.updateSnippetInStore({ id, key, value }); },
+                );
+            } else {
+                req = this.$http.put('/api/v1/snippet', { key, value }).then(
+                    ({ data: newSnippet }) => {
+                        this.addSnippetToStore(newSnippet);
+                    },
+                );
+            }
+
+            return this.$refs.addSnippetButton.submit(
+                req.catch((err) => { throw err.response.data.message; }),
+            ).then((success) => {
                 if (success) {
                     this.$root.$emit('collapse::toggle', `collapse${this.line}`);
                 }
             });
         },
+
         findSnippet() {
             if (this.snippetKey !== '' || this.$refs.snippetDialog.show) {
                 return;
             }
 
-            const snips = this.snippets();
-            const keys = Object.keys(snips);
-
+            const keys = Object.keys(this.snippets);
             for (let i = 0, len = keys.length; i < len; i += 1) {
-                if (this.internalFeedback === snips[keys[i]].value) {
+                if (this.internalFeedback === this.snippets[keys[i]].value) {
                     this.snippetKey = keys[i];
                     return;
                 }
             }
         },
-        ...mapActions({
-            refreshSnippets: 'user/refreshSnippets',
-            addSnippetToStore: 'user/addSnippet',
-        }),
-        ...mapGetters({
-            snippets: 'user/snippets',
-        }),
     },
+
     components: {
         Icon,
         SubmitButton,
@@ -253,8 +331,49 @@ export default {
 <style lang="less" scoped>
 @import '~mixins.less';
 
+.author {
+    flex: 0 1 auto;
+    padding: 0.5rem 10px;
+    max-width: 20%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.feedback-area-wrapper {
+    &.non-editable {
+        display: flex;
+        align-items: top;
+        border: 1px solid rgba(0, 0, 0, 0.125);
+        border-radius: 0.25rem;
+    }
+}
+
 .feedback-area {
     .default-text-colors;
+
+    &.non-editable {
+        margin-top: 0;
+        background-color: @footer-color;
+        flex: 1 1 auto;
+        &.has-author {
+            border-top: 0;
+            border-right: 0;
+            border-bottom: 0;
+            border-top-left-radius: 0;
+            border-bottom-left-radius: 0;
+        }
+        &:not(.has-author) {
+            border: 0;
+        }
+
+        #app.dark & {
+            background-color: @color-primary;
+            border-color: @color-primary-darkest;
+        }
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+
     &.edit {
         padding-top: @line-spacing;
     }
@@ -262,11 +381,6 @@ export default {
 
 .card-body {
     padding: 0.5rem;
-}
-
-.non-editable {
-    white-space: pre-wrap;
-    word-break: break-word;
 }
 
 button {

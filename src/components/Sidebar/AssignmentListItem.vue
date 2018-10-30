@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <li :class="{ 'light-selected': selected }"
     class="sidebar-list-item assignment-list-item">
@@ -135,25 +136,22 @@ a {
     color: inherit;
 }
 
-.deadline {
-    display: block;
-    margin-bottom: -5px;
-}
-
 .assignment-wrapper {
     display: flex;
     max-width: 100%;
     text-overflow: ellipsis;
     align-items: baseline;
+    margin-bottom: 2px;
+
     .deadline {
         padding-left: 2px;
     }
+
     .assignment {
         line-height: 1.1;
         overflow: hidden;
         text-overflow: ellipsis;
         flex: 1 1 auto;
     }
-    margin-bottom: 2px;
 }
 </style>

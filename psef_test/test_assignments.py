@@ -1,23 +1,24 @@
+# SPDX-License-Identifier: AGPL-3.0-only
 import io
 import os
-import sys
 import copy
-import json
 import uuid
 import random
 import datetime
-from functools import reduce
 from collections import defaultdict
 
 import pytest
 
 import psef
 import psef.models as m
-from psef.errors import APICodes
+from helpers import create_marker
+from psef.errors import APICodes, APIWarnings
 from psef.helpers import ensure_keys_in_dict
+from psef.permissions import CoursePermission
 
-http_err = pytest.mark.http_err
-perm_error = pytest.mark.perm_error
+# http_err = pytest.mark.http_err
+perm_error = create_marker(pytest.mark.perm_error)
+http_err = create_marker(pytest.mark.http_err)
 
 
 @pytest.fixture
@@ -35,11 +36,12 @@ def original_rubric_data():
                             {
                                 'description': 'item description',
                                 'header': 'header',
-                                'points': 5,
-                            }, {
+                                'points': 4,
+                            },
+                            {
                                 'description': 'item description',
                                 'header': 'header',
-                                'points': 4,
+                                'points': 5,
                             }
                         ]
                 }
@@ -81,7 +83,7 @@ def rubric(
 def test_get_all_assignments(
     named_user, hidden, test_client, logged_in, request, error_template
 ):
-    perm_err = request.node.get_marker('perm_error')
+    perm_err = request.node.get_closest_marker('perm_error')
     if perm_err:
         error = perm_err.kwargs['error']
     else:
@@ -145,6 +147,7 @@ def test_get_assignment(
                 'reminder_time': None,
                 'done_email': None,
                 'fixed_max_rubric_points': None,
+                'max_grade': None,
             }
         else:
             res = error_template
@@ -276,7 +279,7 @@ def test_update_assignment_wrong_permissions(
     error_template,
     request,
 ):
-    marker = request.node.get_marker('http_err')
+    marker = request.node.get_closest_marker('http_err')
     with logged_in(named_user):
         is_logged_in = not isinstance(named_user, str)
         res = test_client.req(
@@ -297,6 +300,7 @@ def test_update_assignment_wrong_permissions(
 
 
 err400 = http_err(error=400)
+err404 = http_err(error=404)
 
 
 @pytest.mark.parametrize(
@@ -304,14 +308,19 @@ err400 = http_err(error=400)
     [err400(None), 'new idesc', err400(5)]
 )
 @pytest.mark.parametrize('item_header', [err400(None), 'new ihead', err400(5)])
-@pytest.mark.parametrize('item_points', [err400(None), 5.3, 11, err400('Wow')])
+@pytest.mark.parametrize(
+    'item_points',
+    [err400(None), 5.3, 11, err400(-2),
+     err400('Wow')]
+)
 @pytest.mark.parametrize(
     'row_description',
     [err400(None), 'new rdesc', err400(5)]
 )
 @pytest.mark.parametrize(
     'row_header',
-    [err400(None), 'new rheader', err400(5)]
+    [err400(None), 'new rheader',
+     err400(5), err400('')]
 )
 def test_add_rubric_row(
     item_description, item_points, row_description, row_header, assignment,
@@ -334,7 +343,7 @@ def test_add_rubric_row(
 
     row['items'] = [item, item]
 
-    marker = request.node.get_marker('http_err')
+    marker = request.node.get_closest_marker('http_err')
     code = 200 if marker is None else marker.kwargs['error']
 
     with logged_in(teacher_user):
@@ -390,7 +399,7 @@ def test_update_rubric_row(
 
     row['items'] = [item, item]
 
-    marker = request.node.get_marker('http_err')
+    marker = request.node.get_closest_marker('http_err')
     code = 200 if marker is None else marker.kwargs['error']
 
     with logged_in(teacher_user):
@@ -407,10 +416,63 @@ def test_update_rubric_row(
         if marker is None:
             assert len(data) == len(rubric)
             assert data[0]['header'] == row_header or rubric[0]['header']
-            assert data[0]['description'
-                           ] == row_description or rubric[0]['description']
+            assert data[0]['description'] == row_description or rubric[0][
+                'description']
             assert len(data[0]['items']) == 2
             assert data[0]['items'][0]['id'] > 0
+            assert data[0]['items'][0]['points'] == item_points
+            assert data[0]['items'][0]['header'] == item_header
+            assert data[0]['items'][0]['description'] == item_description
+        else:
+            test_client.req(
+                'get',
+                f'/api/v1/assignments/{assignment.id}/rubrics/',
+                status_code=200,
+                result=rubric,
+            )
+
+
+@pytest.mark.parametrize('item_id', [err404(-1), None, err404(1000)])
+@pytest.mark.parametrize('item_description', [err400(None), 'new idesc'])
+@pytest.mark.parametrize('item_header', [err400(None), 'new ihead'])
+@pytest.mark.parametrize('item_points', [err400(None), 2])
+def test_update_rubric_item(
+    item_description, item_points, assignment, teacher_user, logged_in,
+    test_client, error_template, request, rubric, item_id, item_header
+):
+    new_rubric = copy.deepcopy(rubric)
+    old_rubric = copy.deepcopy(rubric)
+
+    row = new_rubric[0]
+
+    item = {}
+    if item_header is not None:
+        item['header'] = item_header
+    if item_description is not None:
+        item['description'] = item_description
+    if item_points is not None:
+        item['points'] = item_points
+    if item_id is not None:
+        item['id'] = item_id
+    else:
+        item['id'] = row['items'][0]['id']
+
+    row['items'][0] = item
+
+    marker = request.node.get_closest_marker('http_err')
+    code = 200 if marker is None else marker.kwargs['error']
+
+    with logged_in(teacher_user):
+        data = test_client.req(
+            'put',
+            f'/api/v1/assignments/{assignment.id}/rubrics/',
+            status_code=code,
+            data={'rows': new_rubric},
+            result=error_template if marker else [dict],
+        )
+        if marker is None:
+            assert len(data) == len(rubric)
+            assert data[0]['items'][0]['id'] == old_rubric[0]['items'][0]['id']
             assert data[0]['items'][0]['points'] == item_points
             assert data[0]['items'][0]['header'] == item_header
             assert data[0]['items'][0]['description'] == item_description
@@ -462,7 +524,7 @@ def test_get_and_add_rubric_row(
     for item in [item] if item else [item, None]:
         if item is not None:
             row['items'] = [item]
-        marker = request.node.get_marker('http_err')
+        marker = request.node.get_closest_marker('http_err')
         code = 200 if marker is None else marker.kwargs['error']
         res = [
             {
@@ -514,7 +576,7 @@ def test_delete_rubric(
     assignment, named_user, logged_in, test_client, error_template, request,
     teacher_user, rubric
 ):
-    marker = request.node.get_marker('http_err')
+    marker = request.node.get_closest_marker('http_err')
     code = 204 if marker is None else marker.kwargs['error']
 
     with logged_in(named_user):
@@ -563,7 +625,7 @@ def test_update_add_rubric_wrong_permissions(
     request,
     teacher_user,
 ):
-    marker = request.node.get_marker('http_err')
+    marker = request.node.get_closest_marker('http_err')
     rubric = {
         'header':
             f'My header',
@@ -646,11 +708,11 @@ def test_creating_wrong_rubric(
                 'header': 'My header2',
                 'description': 'My description',
                 'items': [{
-                    'description': '5points',
-                    'points': -15
-                }, {
                     'description': '10points',
                     'points': -10,
+                }, {
+                    'description': '5points',
+                    'points': -15
                 }],
             }]
         }  # yapf: disable
@@ -793,15 +855,15 @@ def test_updating_wrong_rubric(
 
 
 @pytest.mark.parametrize(
+    'max_points', [http_err(error=400)('err'),
+                   http_err(error=400)(-1), 10, 2]
+)
+@pytest.mark.parametrize(
     'named_user', [
         http_err(error=403)('Student1'),
         http_err(error=401)('NOT_LOGGED_IN'), 'Robin'
     ],
     indirect=True
-)
-@pytest.mark.parametrize(
-    'max_points', [http_err(error=400)('err'),
-                   http_err(error=400)(-1), 10, 2]
 )
 @pytest.mark.parametrize('filename', ['test_flake8.tar.gz'], indirect=True)
 def test_set_fixed_max_points(
@@ -812,7 +874,7 @@ def test_set_fixed_max_points(
     work_id = work['id']
     assignment_id = assignment.id
 
-    marker = request.node.get_marker('http_err')
+    marker = request.node.get_closest_marker('http_err')
     code = 200 if marker is None else marker.kwargs['error']
     res = list if marker is None else error_template
 
@@ -882,7 +944,7 @@ def test_set_fixed_max_points(
             'single_file_archive', [{
                 'id': int,
                 'name': 'single_file_work'
-            }], 'single_file_archive', ['.tar.gz', '.zip']
+            }], 'single_file_archive', ['.tar.gz', '.tar.xz', '.zip']
         ), (
             'multiple_file_archive', [
                 {
@@ -977,7 +1039,7 @@ def test_upload_files(
                 real_data={'err': (io.BytesIO(b'my file content'), 'ror')},
                 result=error_template
             )
-            assert res['message'].startswith('The parameter name should')
+            assert res['message'].startswith('Request did not contain')
 
             res = test_client.req(
                 'post',
@@ -992,18 +1054,15 @@ def test_upload_files(
                 },
                 result=error_template
             )
-            assert res['message'].startswith(
-                'The filename should not be empty'
-                # This second part is to maintain compatibility with werkzeug
-                # >=0.14
-            ) or res['message'].startswith('No file in HTTP')
+            assert res['message'].startswith('No file in HTTP')
 
             if assignment.is_open or named_user.has_permission(
-                'can_upload_after_deadline', assignment.course_id
+                psef.permissions.CoursePermission.can_upload_after_deadline,
+                assignment.course_id
             ):
                 res = test_client.req(
                     'post',
-                    f'/api/v1/assignments/{assignment.id}/submission?extended',
+                    f'/api/v1/assignments/{assignment.id}/submission',
                     201,
                     real_data={
                         'file':
@@ -1018,6 +1077,8 @@ def test_upload_files(
                         'created_at': str,
                         'assignee': None,
                         'grade': None,
+                        'comment': None,
+                        'comment_author': None,
                     }
                 )
 
@@ -1048,15 +1109,55 @@ def test_upload_files(
                 )
 
 
+@pytest.mark.parametrize(
+    'name,warning', [
+        (
+            'single_symlink_archive.tar.gz',
+            APIWarnings.SYMLINK_IN_ARCHIVE.value
+        ),
+    ]
+)
+def test_archive_with_symlinks(
+    student_user, test_client, logged_in, assignment, name, error_template,
+    warning, session, app
+):
+    with logged_in(student_user):
+        sub, res = test_client.req(
+            'post',
+            f'/api/v1/assignments/{assignment.id}/submission',
+            201,
+            real_data={
+                'file':
+                    (
+                        f'{os.path.dirname(__file__)}/../test_data/'
+                        f'test_submissions/{name}', f'{name}'
+                    )
+            },
+            result=dict,
+            include_response=True
+        )
+
+        assert 'Warning' in res.headers
+        assert res.headers['Warning'].startswith(f'{warning:03d}')
+
+        tree = test_client.req(
+            'get', f'/api/v1/submissions/{sub["id"]}/files/', 200, result=dict
+        )
+
+        file = tree['entries'][0]
+        file = session.query(
+            m.File
+        ).filter(m.File.id == tree['entries'][0]['id']).first()
+        file = os.path.join(app.config['UPLOAD_DIR'], file.filename)
+
+        assert os.path.exists(file)
+        assert not os.path.islink(file)
+        assert open(file).read() != ''
+
+
 @pytest.mark.parametrize('name', ['single_file_archive'])
 @pytest.mark.parametrize('assignment', ['new', 'old'], indirect=True)
 @pytest.mark.parametrize('after_deadline', [True, False])
-@pytest.mark.parametrize(
-    'author',
-    ['student1',
-     http_err(error=404)(-1),
-     http_err(error=400)('admin')]
-)
 @pytest.mark.parametrize(
     'named_user',
     [
@@ -1066,6 +1167,12 @@ def test_upload_files(
     ],
     indirect=True,
 )
+@pytest.mark.parametrize(
+    'author',
+    ['student1',
+     http_err(error=404)(-1),
+     http_err(error=400)('admin')]
+)
 def test_upload_for_other(
     named_user, test_client, logged_in, assignment, name, error_template,
     teacher_user, after_deadline, author, session, request
@@ -1073,7 +1180,7 @@ def test_upload_for_other(
     if isinstance(author, int):
         author = 'DOES_NOT_EXIST'
 
-    marker = request.node.get_marker('http_err')
+    marker = request.node.get_closest_marker('http_err')
     code = 201 if marker is None else marker.kwargs['error']
     res = None if marker is None else error_template
 
@@ -1093,10 +1200,7 @@ def test_upload_for_other(
         code = 403
         res = error_template
         named_user.courses[assignment.course_id].set_permission(
-            session.query(
-                m.Permission
-            ).filter_by(name='can_upload_after_deadline').first(),
-            False
+            CoursePermission.can_upload_after_deadline, False
         )
 
     with logged_in(named_user):
@@ -1151,6 +1255,24 @@ def test_upload_too_large_file(
         assert res['message'].startswith('Uploaded files are too big')
 
 
+def test_upload_empty_archive(
+    student_user, test_client, error_template, logged_in, assignment
+):
+    filename = (
+        f'{os.path.dirname(__file__)}/'
+        f'../test_data/test_submissions/empty_submission.tar.gz'
+    )
+    with logged_in(student_user):
+        res = test_client.req(
+            'post',
+            f'/api/v1/assignments/{assignment.id}/submission',
+            400,
+            real_data={'file': (filename, 'ar.tar.gz')},
+            result=error_template
+        )
+        assert res['message'].startswith('No files found')
+
+
 @pytest.mark.parametrize('named_user', ['Robin'], indirect=True)
 @pytest.mark.parametrize(
     'graders', [
@@ -1168,7 +1290,7 @@ def test_divide_assignments(
     assignment, graders, named_user, logged_in, test_client, error_template,
     request, with_works
 ):
-    marker = request.node.get_marker('http_err')
+    marker = request.node.get_closest_marker('http_err')
     code = 204 if marker is None else marker.kwargs['error']
     res = None if marker is None else error_template
 
@@ -1452,7 +1574,7 @@ def test_get_all_graders(
         )
 
     with logged_in(named_user):
-        marker = request.node.get_marker('http_err')
+        marker = request.node.get_closest_marker('http_err')
         code = 200 if marker is None else marker.kwargs['error']
         test_client.req(
             'get',
@@ -1512,9 +1634,9 @@ def test_get_all_submissions(
     error_template,
     extended,
 ):
-    marker = request.node.get_marker('http_err')
-    no_hide = request.node.get_marker('no_hidden')
-    no_grade = request.node.get_marker('no_grade')
+    marker = request.node.get_closest_marker('http_err')
+    no_hide = request.node.get_closest_marker('no_hidden')
+    no_grade = request.node.get_closest_marker('no_grade')
 
     with logged_in(named_user):
         if no_hide and state_is_hidden:
@@ -1522,7 +1644,7 @@ def test_get_all_submissions(
         elif marker is None:
             code = 200
             works = m.Work.query.filter_by(assignment_id=assignment.id)
-            if request.node.get_marker('no_others') is not None:
+            if request.node.get_closest_marker('no_others') is not None:
                 works = works.filter_by(user_id=named_user.id)
 
             res = []
@@ -1540,6 +1662,9 @@ def test_get_all_submissions(
                 )
                 if extended:
                     res[-1]['comment'] = None if no_grade else work.comment
+                    res[-1]['comment_author'] = (
+                        None if no_grade or not work.comment else dict
+                    )
         else:
             code = marker.kwargs['error']
 
@@ -1664,6 +1789,7 @@ def test_get_all_submissions(
         ),
         ('incorrect_date.tar.gz', False),
         ('incorrect_filename.tar.gz', False),
+        ('incorrect_info_file.tar.gz', False),
         ('incorrect_missing_files.tar.gz', False),
         ('incorrect_missing_index_files.tar.gz', False),
         ('incorrect_no_archive', False),
@@ -1685,7 +1811,7 @@ def test_upload_blackboard_zip(
             if u['CourseRole']['name'] == 'Student'
         )
 
-    marker = request.node.get_marker('http_err')
+    marker = request.node.get_closest_marker('http_err')
     with logged_in(named_user):
         if marker is not None:
             code = marker.kwargs['error']
@@ -1726,8 +1852,6 @@ def test_upload_blackboard_zip(
             real_data={'err': (io.BytesIO(b'my file content'), 'ror')},
             result=error_template
         )
-        if marker is None:
-            assert res['message'].startswith('The parameter name should')
 
         filename = (
             f'{os.path.dirname(__file__)}/'
@@ -2254,8 +2378,7 @@ def test_ignored_upload_files(
     for ext in exts:
         with logged_in(named_user):
             res = test_client.req(
-                'post',
-                f'/api/v1/assignments/{assignment.id}/submission?'
+                'post', f'/api/v1/assignments/{assignment.id}/submission?'
                 'ignored_files=error',
                 400,
                 real_data={
@@ -2393,6 +2516,8 @@ def test_ignored_upload_files(
                     (
                         f'{os.path.dirname(__file__)}/../test_data/'
                         f'test_submissions/{name}{ext}', f'{name}'
+                        # Extension is not appended to the name, so the file
+                        # won't get extracted.
                     )
             },
             result={
@@ -2402,6 +2527,7 @@ def test_ignored_upload_files(
                 'invalid_files': list
             }
         )
+        # Make sure it works when not submitting an archive
         assert set([f'{name}']) == set(r[0] for r in res['invalid_files'])
 
         res = test_client.req(
@@ -2414,6 +2540,25 @@ def test_ignored_upload_files(
                     (
                         f'{os.path.dirname(__file__)}/../test_data/'
                         f'test_submissions/{name}{ext}', f'{name}'
+                        # Test without extension
+                    )
+            },
+            result={
+                'code': 'NO_FILES_SUBMITTED',
+                'message': str,
+                'description': str,
+            }
+        )
+
+        res = test_client.req(
+            'post', f'/api/v1/assignments/{assignment.id}/submission?'
+            'ignored_files=delete',
+            400,
+            real_data={
+                'file':
+                    (
+                        f'{os.path.dirname(__file__)}/../test_data/'
+                        f'test_submissions/{name}{ext}', f'{name}{ext}'
                     )
             },
             result={
@@ -2434,14 +2579,17 @@ def test_ignored_upload_files(
     with logged_in(named_user):
         res = test_client.req(
             'post',
-            f'/api/v1/assignments/{assignment.id}/submission?'
-            'ignored_files=error',
+            (
+                f'/api/v1/assignments/{assignment.id}/submission?'
+                'ignored_files=error'
+            ),
             201,
             real_data={
                 'file':
                     (
                         f'{os.path.dirname(__file__)}/../test_data/'
                         f'test_submissions/{name}{ext}', f'{name}'
+                        # Test without extension
                     )
             },
         )
@@ -2450,10 +2598,40 @@ def test_ignored_upload_files(
             f'/api/v1/submissions/{res["id"]}/files/',
             200,
             result={
-                'name': 'top',
+                'entries': [{
+                    'name': name,
+                    'id': int
+                }],
                 'id': int,
-                'entries': list
+                'name': 'top',
+            }
+        )
+
+    with logged_in(named_user):
+        res = test_client.req(
+            'post',
+            (
+                f'/api/v1/assignments/{assignment.id}/submission?'
+                'ignored_files=error'
+            ),
+            201,
+            real_data={
+                'file':
+                    (
+                        f'{os.path.dirname(__file__)}/../test_data/'
+                        f'test_submissions/{name}{ext}', f'{name}{ext}'
+                    )
             },
+        )
+        test_client.req(
+            'get',
+            f'/api/v1/submissions/{res["id"]}/files/',
+            200,
+            result={
+                'entries': entries,
+                'id': int,
+                'name': f'{dirname}'
+            }
         )
 
 
@@ -2477,8 +2655,7 @@ def test_ignoring_dirs_tar_archives(
 
     with logged_in(student_user):
         res = test_client.req(
-            'post',
-            f'/api/v1/assignments/{assignment.id}/submission?'
+            'post', f'/api/v1/assignments/{assignment.id}/submission?'
             'ignored_files=error',
             400,
             real_data={
@@ -2533,7 +2710,7 @@ def test_cgignore_permission(
     teacher_user, session, test_client, error_template, assignment, logged_in
 ):
     teacher_user.courses[assignment.course_id].set_permission(
-        m.Permission.query.filter_by(name='can_edit_cgignore').one(),
+        psef.permissions.CoursePermission.can_edit_cgignore,
         False,
     )
 
@@ -2676,7 +2853,7 @@ def test_grader_done(
     course_id = assignment.course_id
 
     code = 204
-    marker = request.node.get_marker('http_err')
+    marker = request.node.get_closest_marker('http_err')
     if marker is not None:
         code = marker.kwargs['error']
 
@@ -2773,9 +2950,9 @@ def test_grader_done(
     with logged_in(teacher_user):
         test_client.req(
             'post', (
-                f'/api/v1/assignments/{assig_id}/graders/' +
-                str(m.User.query.filter_by(name='Student1').first().id) +
-                '/done'
+                f'/api/v1/assignments/{assig_id}/graders/' + str(
+                    m.User.query.filter_by(name='Student1').first().id
+                ) + '/done'
             ),
             400,
             result=error_template
@@ -2783,8 +2960,9 @@ def test_grader_done(
 
     if not err:
         new_user = m.User.query.filter_by(name='Student1').first()
-        perm = m.Permission.query.filter_by(name='can_grade_work').first()
-        new_user.courses[course_id].set_permission(perm, True)
+        new_user.courses[course_id].set_permission(
+            CoursePermission.can_grade_work, True
+        )
         session.commit()
 
         with logged_in(new_user):
@@ -2940,7 +3118,7 @@ def test_reminder_email(
         data['done_email'] = 'not_a_email'
         code = 400
 
-    marker = request.node.get_marker('http_err')
+    marker = request.node.get_closest_marker('http_err')
     if marker is not None:
         code = marker.kwargs['error']
 
@@ -2992,8 +3170,7 @@ def test_reminder_email(
                 'get', f'/api/v1/assignments/{assig_id}', 200, result=dict
             )
             assert assig['done_type'] == data[
-                'done_type'
-            ], 'Make sure state is the same as in the data sent'
+                'done_type'], 'Make sure state is the same as in the data sent'
 
             if assig['done_type'] is None:
                 assert assig['reminder_time'] is None, """
@@ -3007,8 +3184,7 @@ def test_reminder_email(
                     'reminder_time'
                 ], 'Make sure time is the same as in the data sent'
                 assert assig['done_email'] == data[
-                    'done_email'
-                ], 'Make sure email is correct'
+                    'done_email'], 'Make sure email is correct'
 
     with logged_in(named_user):
         test_client.req(
@@ -3186,8 +3362,7 @@ def test_notification_permission(
 ):
     assig_id = assignment.id
     teacher_user.courses[assignment.course_id].set_permission(
-        m.Permission.query.filter_by(name='can_update_course_notifications',
-                                     ).one(),
+        CoursePermission.can_update_course_notifications,
         False,
     )
     with logged_in(teacher_user):

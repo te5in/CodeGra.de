@@ -2,7 +2,7 @@
 This module DOES NOT define any thing. It is only used for type information
 about sqlalchemy.
 
-:license: AGPLv3, see LICENSE for details.
+SPDX-License-Identifier: AGPL-3.0-only
 """
 # pylint: skip-file
 
@@ -17,6 +17,17 @@ U = t.TypeVar('U')
 E = t.TypeVar('E', bound=enum.Enum)
 DbSelf = t.TypeVar('DbSelf', bound='MyDb')
 QuerySelf = t.TypeVar('QuerySelf', bound='_MyQuery')
+
+
+class Comparator:  # pragma: no cover
+    def __init__(self, column: 'DbColumn[T]') -> None:
+        ...
+
+    def __eq__(self, other: object) -> bool:
+        ...
+
+    def __clause_element__(self) -> object:
+        ...
 
 
 class MySession:  # pragma: no cover
@@ -201,8 +212,13 @@ class _MyQuery(t.Generic[T], t.Iterable):  # pragma: no cover
     one: t.Callable[[QuerySelf], T]
     one_or_none: t.Callable[[QuerySelf], t.Optional[T]]
     distinct: t.Callable[[QuerySelf], '_MyQuery[T]']
-    all: t.Callable[[QuerySelf], t.List[T]]
     __iter__: t.Callable[[QuerySelf], t.Iterator[T]]
+
+    def all(self) -> t.List[T]:
+        ...
+
+    def select_from(self, other: t.Type[Base]) -> '_MyQuery[T]':
+        ...
 
     def get(self, arg: t.Any) -> t.Optional[T]:
         ...
@@ -212,6 +228,9 @@ class _MyQuery(t.Generic[T], t.Iterable):  # pragma: no cover
         vals: t.Mapping[str, t.Any],
         synchronize_session: str = '__NOT_REAL__'
     ) -> None:
+        ...
+
+    def from_self(self, *args: t.Type[Z]) -> '_MyQuery[Z]':
         ...
 
     def join(self, *args: t.Any, **kwargs: t.Any) -> '_MyQuery[T]':

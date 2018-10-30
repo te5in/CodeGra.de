@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div class="general-feedback-area">
     <textarea :placeholder="editable ? 'Feedback' : 'No feedback given :('"
@@ -5,7 +6,7 @@
               :rows="10"
               ref="field"
               v-model="feedback"
-              @keydown.ctrl.enter="putFeedback"
+              @keydown.ctrl.enter.prevent="putFeedback"
               @keydown.native.tab.capture="expandSnippet"
               v-if="editable"/>
     <pre class="feedback-field"
@@ -18,6 +19,8 @@
 </template>
 
 <script>
+import { mapActions, mapGetters } from 'vuex';
+
 import SubmitButton from './SubmitButton';
 
 export default {
@@ -28,10 +31,21 @@ export default {
             type: Boolean,
             default: false,
         },
+        assignment: {
+            type: Object,
+            default: null,
+        },
         submission: {
             type: Object,
             default: null,
         },
+    },
+
+    computed: {
+        ...mapGetters('user', {
+            nameCurrentUser: 'name',
+            userId: 'id',
+        }),
     },
 
     data() {
@@ -47,17 +61,31 @@ export default {
     },
 
     methods: {
+        ...mapActions('courses', ['updateSubmission']),
+
         putFeedback() {
             const data = { feedback: this.feedback || '' };
 
             const req = this.$http.patch(
                 `/api/v1/submissions/${this.submission.id}`,
                 data,
-            ).then(() => {
-                this.$emit('updated', data.feedback);
-            }, (err) => {
-                throw err.response.data.message;
-            });
+            ).then(
+                () => this.updateSubmission({
+                    assignmentId: this.assignment.id,
+                    submissionId: this.submission.id,
+                    submissionProps: {
+                        comment: data.feedback,
+                        comment_author: {
+                            name: this.nameCurrentUser,
+                            id: this.userId,
+                        },
+                    },
+                }),
+                (err) => {
+                    throw err.response.data.message;
+                },
+            );
+
             this.$refs.submitButton.submit(req);
         },
 

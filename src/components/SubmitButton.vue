@@ -1,43 +1,51 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <b-button :disabled="pending || disabled"
+          class="submit-button"
           :id="btnId"
           :variant="variants[state]"
           :size="size"
           :tabindex="tabindex"
           style="height: 100%;"
-          class="submit-button"
-          v-if="showInline"
-          @click="$emit('click', $event)">
-    <b-popover :show="shouldShowMessage"
-               class="warning-popover"
-               triggers=""
-               :target="btnId"
-               :placement="popoverPlacement">
-        <span>{{ err }}</span>
-    </b-popover>
-    <loader :scale="1" center v-if="pending"/>
+          @click="onClick">
+    <span v-if="pending">
+        <slot name="pending">
+            <loader :scale="1" center/>
+        </slot>
+    </span>
     <span v-else-if="label">{{ label }}</span>
     <slot v-else/>
-</b-button>
-<div class="submit-button" v-else>
-    <b-button :disabled="pending || disabled"
-              :id="btnId"
-              :variant="variants[state]"
-              :size="size"
-              :tabindex="tabindex"
-              style="height: 100%;"
-              @click="$emit('click', $event)">
-        <loader :scale="1" center v-if="pending"/>
-        <span v-else-if="label">{{ label }}</span>
-        <slot v-else/>
-    </b-button>
+
     <b-popover :show="shouldShowMessage"
                triggers=""
                :target="btnId"
                :placement="popoverPlacement">
         <span>{{ err }}</span>
     </b-popover>
-</div>
+
+    <b-popover v-if="confirm"
+               :show="showConfirm"
+               @hide="resetConfirm"
+               triggers=""
+               :target="btnId"
+               :placement="popoverPlacement"
+               ref="confirmPopover">
+        <p>{{ confirm }}</p>
+
+        <b-button-toolbar justify>
+            <b-button variant="danger"
+                      size="sm"
+                      @click="onClick">
+                Yes
+            </b-button>
+            <b-button variant="success"
+                      size="sm"
+                      @click="resetConfirm">
+                No
+            </b-button>
+        </b-button-toolbar>
+    </b-popover>
+</b-button>
 </template>
 
 <script>
@@ -57,15 +65,10 @@ export default {
             pending: false,
             state: 'default',
             cancelled: true,
-            btnId: `submitButton-i-${i++}`,
-            variants: {
-                default: this.default,
-                success: this.success,
-                failure: this.failure,
-                warning: this.warning,
-            },
-            mult: 1,
+            btnId: this.id || `submitButton-i-${i++}`,
             timeout: null,
+            showConfirm: false,
+            confirmEvent: null,
         };
     },
 
@@ -75,16 +78,24 @@ export default {
                     (this.state === 'failure' || this.state === 'warning') &&
                     (Boolean(this.err) || this.showEmpty));
         },
+
+        variants() {
+            return {
+                default: this.default,
+                success: this.success,
+                failure: this.failure,
+                warning: this.warning,
+            };
+        },
     },
 
     props: {
+        id: {
+            type: String,
+            default: null,
+        },
         tabindex: {
             default: '0',
-        },
-
-        showInline: {
-            default: false,
-            type: Boolean,
         },
 
         popoverPlacement: {
@@ -131,6 +142,10 @@ export default {
             type: Boolean,
             default: true,
         },
+        confirm: {
+            type: String,
+            default: '',
+        },
     },
 
     methods: {
@@ -143,7 +158,7 @@ export default {
                     if (this.cancelled) {
                         throw SubmitButtonCancelled;
                     } else {
-                        return this.fail(err);
+                        return this.fail(err || 'Something unknown went wrong');
                     }
                 },
             );
@@ -171,16 +186,16 @@ export default {
             this.cancelled = true;
         },
 
-        warn(err) {
+        warn(err, mult = 3) {
             this.pending = false;
             this.err = err;
-            return this.update('warning', 3);
+            return this.update('warning', mult);
         },
 
-        fail(err) {
+        fail(err, mult = 3) {
             this.pending = false;
             this.err = err;
-            return this.update('failure', 3)
+            return this.update('failure', mult)
                 .then(() => { throw err; });
         },
 
@@ -190,15 +205,34 @@ export default {
                 if (this.timeout != null) {
                     clearTimeout(this.timeout);
                 }
-                if (this.mult * mult === 0) {
+                if (mult === 0) {
                     resolve();
                     return;
                 }
                 this.timeout = setTimeout(() => {
                     this.reset();
                     resolve();
-                }, this.delay * mult * this.mult);
+                }, this.delay * mult);
             });
+        },
+
+        onClick(event) {
+            if (this.pending) {
+                return;
+            }
+            if (this.confirm && !this.showConfirm) {
+                this.$refs.confirmPopover.$emit('open');
+                this.showConfirm = true;
+                this.confirmEvent = event;
+            } else {
+                this.$emit('click', this.confirmEvent || event);
+                this.resetConfirm();
+            }
+        },
+
+        resetConfirm() {
+            this.showConfirm = false;
+            this.confirmEvent = null;
         },
     },
 
@@ -208,13 +242,16 @@ export default {
 };
 </script>
 
-<style lang="less">
-.submit-button .warning-popover + .fa-icon {
-    margin-left: 0;
-}
-</style>
-
 <style lang="less" scoped>
+.btn-toolbar {
+    width: 60%;
+    margin: 0 auto;
+}
+
+.btn .fa-icon {
+    margin-right: 0 !important;
+}
+
 .loader {
     padding: 0.25em 0;
 }

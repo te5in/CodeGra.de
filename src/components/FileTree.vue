@@ -1,40 +1,72 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
-    <div class="file-tree" :class="{ collapsed: isCollapsed, }">
-        <div class="directory" :class="{ faded: depth > 0 && !dirHasRevision(tree) }" @click="toggle($event)">
-            <span class="label">
-                <icon name="caret-right" class="caret-icon" v-if="isCollapsed"/>
-                <icon name="caret-down" class="caret-icon" v-else/>
-                <icon name="folder" class="dir-icon" v-if="isCollapsed"/>
-                <icon name="folder-open" class="dir-icon" v-else/>
-                {{ tree.name }}
-                <span v-if="depth > 0 && dirHasRevision(tree)"
-                      v-b-popover.hover.top="'This directory has a file with a teacher\'s revision'"
-                      class="rev-popover">
-                    *
-                </span>
+<div class="file-tree"
+     :class="{ collapsed: isCollapsed, 'no-top-padding': showRevisions }">
+    <div v-if="showRevisions"
+         class="revision-container">
+
+        <b-tabs small
+                :value="selectedRevision"
+                @input="revisionChanged"
+                nav-class="revision-tabs"
+                nav-wrapper-class="revision-tabs-wrapper">
+            <b-tab v-for="option in revisionOptions"
+                   :key="option.value"
+                   :disabled="option.disabled"
+                   v-b-popover.hover.bottom="'No rev'"
+                   :title="option.title"/>
+        </b-tabs>
+
+        <description-popover placement="bottom">
+            <span slot="description">
+                Choose to view either the student's submitted files, the revised files as edited by a
+                teacher or teaching assistant, or a diff between the two versions.
+
+                <p v-if="!dirHasRevision(tree)" style="margin: 1rem 0 0;">
+                    This submission has no revisions.
+                </p>
             </span>
-        </div>
-        <ol v-show="!isCollapsed">
-            <li v-for="f in tree.entries"
-                class="file"
-                :class="{ faded: diffMode && !fileHasRevision(f), active: fileIsSelected(f) }">
-                <file-tree :tree="f"
-                           :collapsed="!fileInTree($route.params.fileId, f)"
-                           :depth="depth + 1"
-                           v-if="f.entries"/>
-                <router-link :to="getFileRoute(f)"
-                             class="label"
-                             v-else>
-                    <icon name="file" class="file-icon"/>{{ f.name }}
-                </router-link>
-                <span v-if="fileHasRevision(f)"
-                      v-b-popover.hover.top="'This file has a teacher\'s revision'"
-                      class="rev-popover">
-                    *
-                </span>
-            </li>
-        </ol>
+        </description-popover>
     </div>
+
+    <div class="directory" :class="{ faded: depth > 0 && diffMode && !dirHasRevision(tree) }" @click.stop="toggle()">
+        <span class="label">
+            <icon name="caret-right" class="caret-icon" v-if="isCollapsed"/>
+            <icon name="caret-down" class="caret-icon" v-else/>
+            <icon name="folder" class="dir-icon" v-if="isCollapsed"/>
+            <icon name="folder-open" class="dir-icon" v-else/>
+            {{ tree.name }}
+            <sup v-if="depth > 0 && dirHasRevision(tree)"
+                    v-b-popover.hover.top="'This directory has a file with a teacher\'s revision'"
+                    class="rev-popover">
+                modified
+            </sup>
+        </span>
+    </div>
+    <ol v-show="!isCollapsed" v-if="!isCollapsed || depth < 2">
+        <li v-for="f in tree.entries"
+            class="file"
+            :class="{ faded: diffMode && !fileHasRevision(f), active: fileIsSelected(f) }">
+            <file-tree :tree="f"
+                       :collapsed="!fileInTree($route.params.fileId, f)"
+                       :depth="depth + 1"
+                        v-if="f.entries"/>
+            <router-link :to="getFileRoute(f)"
+                         class="label"
+                         v-else>
+                <icon name="file" class="file-icon"/>{{ f.name }}
+            </router-link>
+            <sup v-if="fileHasRevision(f)"
+                 v-b-popover.hover.top="revisionPopover(f)"
+                 class="rev-popover">
+                <router-link :to="revisedFileRoute(f)"
+                             @click="$emit('revision', 'diff')">
+                    diff <code><small>(</small>{{ diffLabels[diffAction(f)] }}<small>)</small></code>
+                </router-link>
+            </sup>
+        </li>
+    </ol>
+</div>
 </template>
 
 <script>
@@ -45,6 +77,7 @@ import 'vue-awesome/icons/file';
 import 'vue-awesome/icons/caret-right';
 import 'vue-awesome/icons/caret-down';
 
+import { DescriptionPopover } from '@/components';
 
 export default {
     name: 'file-tree',
@@ -62,26 +95,76 @@ export default {
             type: Number,
             default: 0,
         },
+        canSeeRevision: {
+            type: Boolean,
+            default: false,
+        },
+        revision: {
+            type: String,
+            default: 'student',
+        },
     },
 
     data() {
         return {
             isCollapsed: this.collapsed,
-            courseId: this.$route.params.courseId,
-            assignmentId: this.$route.params.assignmentId,
-            submissionId: this.$route.params.submissionId,
+            revisionOptions: [
+                {
+                    title: 'Student',
+                    value: 'student',
+                }, {
+                    title: 'Teacher',
+                    value: 'teacher',
+                }, {
+                    title: 'Diff',
+                    value: 'diff',
+                },
+            ],
+            diffLabels: {
+                added: '+',
+                changed: '~',
+                deleted: '-',
+            },
         };
     },
 
     computed: {
+        courseId() {
+            return this.$route.params.courseId;
+        },
+
+        assignmentId() {
+            return this.$route.params.assignmentId;
+        },
+
+        submissionId() {
+            return this.$route.params.submissionId;
+        },
+
         diffMode() {
             return this.$route.query.revision === 'diff';
+        },
+
+        selectedRevision() {
+            let revision = this.revisionOptions.findIndex(
+                opt => opt.value === this.revision,
+            );
+
+            if (revision < 0 || this.revisionOptions[revision].disabled) {
+                revision = 0;
+            }
+
+            return revision;
+        },
+
+        showRevisions() {
+            return this.depth === 0 && this.canSeeRevision &&
+                (!this.tree.isStudent || this.hasRevision(this.tree));
         },
     },
 
     methods: {
-        toggle(event) {
-            event.stopPropagation();
+        toggle() {
             this.isCollapsed = !this.isCollapsed;
         },
 
@@ -126,11 +209,16 @@ export default {
         },
 
         fileHasRevision(f) {
+            if (f.entries) return false;
+
             return f.revision !== undefined ||
                 (f.ids && f.ids[0] !== f.ids[1]);
         },
 
         dirHasRevision(d) {
+            if (d.revision !== undefined) {
+                return true;
+            }
             for (let i = 0; i < d.entries.length; i += 1) {
                 if (this.hasRevision(d.entries[i])) {
                     return true;
@@ -138,9 +226,60 @@ export default {
             }
             return false;
         },
+
+        revisionChanged(index) {
+            this.$emit('revision', this.revisionOptions[index].value);
+        },
+
+        revisedFileRoute(f) {
+            let fileId;
+
+            if (f.ids != null) {
+                fileId = f.ids[1] == null ? f.ids[0] : f.ids[1];
+            } else if (f.revision != null) {
+                fileId = f.revision.id;
+            } else if (f.revision === null) {
+                fileId = f.id;
+            } else {
+                throw ReferenceError(`File '${f.name}' doesn't have a revision.`);
+            }
+
+            return {
+                params: { fileId },
+                query: Object.assign({}, this.$route.query, {
+                    revision: 'diff',
+                }),
+            };
+        },
+
+        diffAction(f) {
+            if (f.ids !== undefined) {
+                if (f.ids[0] == null) {
+                    return 'added';
+                } else if (f.ids[1] == null) {
+                    return 'deleted';
+                } else {
+                    return 'changed';
+                }
+            } else if (f.revision !== undefined) {
+                if (f.revision == null) {
+                    return 'deleted';
+                } else {
+                    return 'changed';
+                }
+            } else {
+                throw ReferenceError(`File '${f.name} doesn't have a revision.`);
+            }
+        },
+
+        revisionPopover(f) {
+            const action = this.diffAction(f);
+            return `This file was ${action} in the teacher's revision. Click here to see the diff`;
+        },
     },
 
     components: {
+        DescriptionPopover,
         Icon,
     },
 };
@@ -159,12 +298,13 @@ export default {
         color: @text-color-dark;
     }
 
+    &.no-top-padding {
+        padding-top: 0;
+    }
+
     a:hover {
         cursor: pointer;
         text-decoration: underline;
-    }
-
-    .active-file {
     }
 
     .directory .label:hover {
@@ -205,7 +345,68 @@ export default {
 
     .rev-popover {
         display: inline;
-        cursor: pointer;
+    }
+}
+
+.revision-container {
+    position: relative;
+    position: sticky;
+    top: 0;
+    margin: -.5rem -.75rem .875rem;
+    padding: .5rem .75rem 0;
+    border-bottom: 1px solid rgba(0, 0, 0, .15);
+    background-color: @footer-color;
+
+    #app.dark & {
+        background-color: @color-primary-darker;
+    }
+
+    .tabs {
+        flex: 1 1 auto;
+        overflow: auto;
+        margin: 0  -.75rem -1px -.75rem;
+        padding: 0 .75rem 0 .75rem;
+
+        .revision-tabs-wrapper {
+            width: auto;
+        }
+    }
+
+    .description-popover {
+        position: absolute;
+        top: 0;
+        bottom: .75rem;
+        right: 0;
+        width: 1.5rem;
+        padding-top: .95rem;
+        background-color: inherit;
+    }
+}
+</style>
+
+<style lang="less">
+.file-tree .revision-container {
+    .revision-tabs-wrapper {
+        width: max-content;
+        padding-right: 1.75rem;
+    }
+
+    .revision-tabs {
+        width: max-content;
+        flex-wrap: nowrap;
+    }
+
+    .revision-tabs,
+    .nav-link:hover,
+    .nav-link.active {
+        &,
+        #app.dark & {
+            border-bottom-color: transparent !important;
+        }
+    }
+
+    .nav-link.disabled {
+        cursor: not-allowed;
     }
 }
 </style>

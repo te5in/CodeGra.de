@@ -1,0 +1,18 @@
+CodeGrade, front-, back-end and all accompanying code in this repository, is
+provided under:
+
+    SPDX-License-Identifier: AGPL-3.0-only
+
+This license can be found in the LICENSE file.
+
+All files individually are also provided under this license, if not stated
+otherwise in this file. Following is a possibly non-exhaustive list of files
+which are, partly, provided under a different license:
+
+- psef/archive.py: This file is provided under the MIT license, a complete copy
+  of this license can be found in the file itself.
+
+- psef/lti.py: A part of this file is provided under the MIT license. All code
+  between `# START OF MIT LICENSED COPIED WORK #` and `# END OF MIT LICENSED
+  COPIED WORK #` are provided under the MIT license, of which a copy can be
+  found in this part of psef/lti.py.

@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div class="linter-feedback-inner">
     <b-popover placement="top"
@@ -40,8 +41,11 @@ export default {
 };
 </script>
 
-<style lang="less">
-table.linter-feedback tr td:nth-child(2) {
-    padding-left: 15px;
+<style lang="less" scoped>
+.linter-feedback-inner {
+    display: inline;
+    table.linter-feedback tr td:nth-child(2) {
+        padding-left: 15px;
+    }
 }
 </style>

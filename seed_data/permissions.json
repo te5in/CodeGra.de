@@ -105,7 +105,8 @@
     "default_value": false,
     "course_permission": true,
     "short_description": "Edit course roles",
-    "long_description": "Users with this permission can assign or remove permissions from course roles and add new course roles."
+    "long_description": "Users with this permission can assign or remove permissions from course roles and add new course roles.",
+    "warning": "With this permission a user can change all permissions for everyone in this course. Users can not remove this permission from themselves."
   },
   "can_edit_course_users": {
     "default_value": false,
@@ -184,5 +185,30 @@
     "course_permission": false,
     "short_description": "Search users",
     "long_description": "Users with this permission can search for users on the side, this means they can see all other users on the site."
+  },
+  "can_edit_maximum_grade": {
+    "default_value": false,
+    "course_permission": true,
+    "short_description": "Edit the maximum grade possible",
+    "long_description": "Users with this permission can edit the maximum grade possible, and therefore also determine if getting a 'bonus' for an assignment is also possible."
+  },
+  "can_view_plagiarism": {
+      "default_value": false,
+      "course_permission": true,
+      "short_description": "View plagiarism",
+      "long_description": "Users with this permission can view the summary of a plagiarism check and see details of a plagiarism case. To view a plagiarism case between this and another course, the user must also have either this permission, or both \"See assignments\" and \"See other's work\" in the other course.",
+      "warning": "This permission also implies the \"See assignments\" and \"See other's work\" permissions in this course."
+  },
+  "can_manage_plagiarism": {
+      "default_value": false,
+      "course_permission": true,
+      "short_description": "Manage plagiarism",
+      "long_description": "Users with this permission can add and delete plagiarism runs."
+  },
+  "can_list_course_users": {
+    "default_value": true,
+    "course_permission": true,
+    "short_description": "List course users",
+    "long_description": "Users with this permission can see all users of this course including the name of their role."
   }
 }

@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div class="center loader" :class="{ 'page-loader': pageLoader }" v-if="center">
     <icon name="circle-o-notch" :scale="scale" spin></icon>

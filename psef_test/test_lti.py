@@ -1,18 +1,29 @@
+# SPDX-License-Identifier: AGPL-3.0-only
 import os
 import urllib
 import datetime
+import xml.etree.ElementTree as ET
 
-import jwt
-import pytz
+import oauth2
 import pytest
 import dateutil.parser
 
-import psef.lti as lti
 import psef.auth as auth
 import psef.models as m
+from helpers import create_marker
 
-perm_error = pytest.mark.perm_error
-data_error = pytest.mark.data_error
+perm_error = create_marker(pytest.mark.perm_error)
+data_error = create_marker(pytest.mark.data_error)
+
+SUCCESS_XML = open(
+    os.path.join(
+        os.path.dirname(__file__),
+        '..',
+        'test_data',
+        'example_strings',
+        'valid_replace_result.xml',
+    )
+).read()
 
 
 @pytest.fixture(autouse=True)
@@ -21,6 +32,17 @@ def monkeypatch_oauth_check(monkeypatch):
         return
 
     monkeypatch.setattr(auth, 'ensure_valid_oauth', valid_oauth)
+
+
+def test_lti_config(test_client, error_template):
+    test_client.req('get', '/api/v1/lti/', 400, result=error_template)
+    test_client.req(
+        'get', '/api/v1/lti/?lms=unkown', 400, result=error_template
+    )
+    res = test_client.get('/api/v1/lti/?lms=Canvas')
+    assert res.status_code == 200
+    assert res.content_type.startswith('application/xml')
+    assert '$Canvas' in res.get_data(as_text=True)
 
 
 def test_lti_new_user_new_course(test_client, app, logged_in, ta_user):
@@ -64,10 +86,10 @@ def test_lti_new_user_new_course(test_client, app, logged_in, ta_user):
             url = urllib.parse.urlparse(res.headers['Location'])
             jwt = urllib.parse.parse_qs(url.query)['jwt'][0]
             lti_res = test_client.req(
-                'get',
+                'post',
                 '/api/v1/lti/launch/2',
                 200,
-                headers={'Jwt': jwt},
+                data={'jwt_token': jwt},
             )
             if published == 'false':
                 assert lti_res['assignment']['state'] == 'hidden'
@@ -145,10 +167,9 @@ def test_lti_new_user_new_course(test_client, app, logged_in, ta_user):
         assert ta_user.assignment_results[assig['id']].sourcedid == 'WOW2'
 
 
-def test_lti_no_course_roles(
-    test_client, app, logged_in, ta_user, monkeypatch
-):
+def test_lti_no_roles_found(test_client, app, logged_in, ta_user, monkeypatch):
     due_at = datetime.datetime.utcnow() + datetime.timedelta(days=1)
+    no_course_role = True
 
     def do_lti_launch(
         username='A the A-er',
@@ -159,12 +180,13 @@ def test_lti_no_course_roles(
         code=200
     ):
         with app.app_context():
+            other_role = 'administrator' if no_course_role else 'instructor'
             data = {
                 'custom_canvas_course_name': 'NEW_COURSE',
                 'custom_canvas_course_id': 'MY_COURSE_ID',
                 'custom_canvas_assignment_id': 'MY_ASSIG_ID',
                 'custom_canvas_assignment_title': 'MY_ASSIG_TITLE',
-                'roles': 'administrator,non_existing',
+                'roles': '{},non_existing'.format(other_role),
                 'custom_canvas_user_login_id': username,
                 'custom_canvas_course_title': 'Common Lisp',
                 'custom_canvas_due_at': due_at.isoformat(),
@@ -184,10 +206,10 @@ def test_lti_no_course_roles(
             url = urllib.parse.urlparse(res.headers['Location'])
             jwt = urllib.parse.parse_qs(url.query)['jwt'][0]
             lti_res = test_client.req(
-                'get',
+                'post',
                 '/api/v1/lti/launch/2',
                 code,
-                headers={'Jwt': jwt},
+                data={'jwt_token': jwt},
             )
             if not parse:
                 return lti_res
@@ -236,6 +258,14 @@ def test_lti_no_course_roles(
     res = do_lti_launch(username='NEW_USER', lti_id='5', code=400, parse=False)
     assert res['message'].startswith('The given LTI role was not')
 
+    no_course_role = False
+    _, token, __ = do_lti_launch(
+        username='NEW_USER1233', lti_id='6', code=200, parse=True
+    )
+    out = get_user_info(token)
+    assert out['username'] == 'NEW_USER1233'
+    assert m.User.query.get(out['id']).role is not None
+
 
 @pytest.mark.parametrize('patch', [True, False])
 @pytest.mark.parametrize('filename', [
@@ -246,30 +276,103 @@ def test_lti_grade_passback(
     monkeypatch_celery, error_template, session
 ):
     due_at = datetime.datetime.utcnow() + datetime.timedelta(days=1)
+    assig_max_points = 8
+    lti_max_points = assig_max_points / 2
+    last_xml = None
+
+    def _get_parsed(xml):
+        assert xml is not None
+
+        # Normal parsing should work
+        out = ET.fromstring(xml)
+        assert out
+        ns = 'http://www.imsglobal.org/services/ltiv1p1/xsd/imsoms_v1p0'
+        # Make sure the namespace is set correctly
+        assert out.tag.split('}')[0].strip('{') == ns
+
+        # Parse it without namespace for ease of testing
+        xml_no_ns = xml.replace(f' xmlns="{ns}"', '', 1)
+        res = ET.fromstring(xml_no_ns)
+        assert res
+        assert res.tag == 'imsx_POXEnvelopeRequest'
+        print(ET.tostring(res))
+        return res
+
+    def assert_grade_deleted():
+        nonlocal last_xml
+
+        el = _get_parsed(last_xml)
+        req_el = el.find('imsx_POXBody/deleteResultRequest')
+        assert req_el
+        assert el.find(
+            'imsx_POXHeader/imsx_POXRequestHeaderInfo/imsx_messageIdentifier'
+        ) is not None
+        assert req_el.find(
+            'resultRecord/sourcedGUID/sourcedId'
+        ).text == patch_request.source_id
+        last_xml = None
+
+    def assert_grade_set_to(grade, raw, created_at):
+        nonlocal last_xml
+        assert isinstance(grade, (int, float))
+
+        el = _get_parsed(last_xml)
+        req_el = el.find('imsx_POXBody/replaceResultRequest/resultRecord')
+
+        assert req_el.find(
+            'sourcedGUID/sourcedId'
+        ).text == patch_request.source_id
+
+        assert req_el
+        assert el.find(
+            'imsx_POXHeader/imsx_POXRequestHeaderInfo/imsx_messageIdentifier'
+        ) is not None
+        if raw:
+            score = req_el.find('result/resultTotalScore')
+            assert score is not None
+            assert score.find('language').text == 'en'
+            assert score.find('textString').text == str(
+                grade / 10 * lti_max_points
+            )
+            assert req_el.find('result/resultScore') is None
+        else:
+            score = req_el.find('result/resultScore')
+            assert score is not None
+            assert score.find('language').text == 'en'
+            assert score.find('textString').text == str(grade / 10)
+            assert req_el.find('result/resultTotalScore') is None
+
+        assert el.find(
+            'imsx_POXBody/replaceResultRequest/submissionDetails/submittedAt'
+        ).text.startswith(created_at)
+
+        last_xml = None
 
     class Patch:
         def __init__(self):
-            self.called = False
-            self.args = []
-            self.kwargs = {}
-            self.dirty = None
+            self._called = False
 
-        def __call__(self, *args, **kwargs):
-            self.called = True
-            self.args = args
-            self.kwargs = kwargs
-            self.dirty = session.dirty
+        @property
+        def called(self):
+            old = self._called
+            self._called = False
+            return old
 
-    patch_delete = Patch()
-    patch_replace = Patch()
+        def __call__(self, uri, method, body, headers):
+            nonlocal last_xml
+            self._called = True
+            assert method == 'POST'
+            assert isinstance(headers, dict)
+            assert headers['Content-Type'] == 'application/xml'
+            assert isinstance(body, bytes)
+            last_xml = body.decode('utf-8')
+            return '', SUCCESS_XML
 
     if patch:
         monkeypatch.setitem(app.config, '_USING_SQLITE', True)
 
-    monkeypatch.setattr(lti.OutcomeRequest, 'post_delete_result', patch_delete)
-    monkeypatch.setattr(
-        lti.OutcomeRequest, 'post_replace_result', patch_replace
-    )
+    patch_request = Patch()
+    monkeypatch.setattr(oauth2.Client, 'request', patch_request)
 
     def do_lti_launch(
         username='A the A-er',
@@ -296,18 +399,20 @@ def test_lti_grade_passback(
                 'context_title': 'WRONG_TITLE!!',
                 'oauth_consumer_key': 'my_lti',
                 'lis_outcome_service_url': source_id,
+                'custom_canvas_points_possible': lti_max_points,
             }
             if source_id:
                 data['lis_result_sourcedid'] = source_id
+            patch_request.source_id = source_id
             res = test_client.post('/api/v1/lti/launch/1', data=data)
 
             url = urllib.parse.urlparse(res.headers['Location'])
             jwt = urllib.parse.parse_qs(url.query)['jwt'][0]
             lti_res = test_client.req(
-                'get',
+                'post',
                 '/api/v1/lti/launch/2',
                 200,
-                headers={'Jwt': jwt},
+                data={'jwt_token': jwt},
             )
             if published == 'false':
                 assert lti_res['assignment']['state'] == 'hidden'
@@ -349,22 +454,14 @@ def test_lti_grade_passback(
             headers={'Authorization': f'Bearer {token}'},
         )
 
+    # As we only support canvas it SHOULD NOT do a initial passback
     assig, token = do_lti_launch()
     work = get_upload_file(token, assig['id'])
+    assert not patch_request.called
 
-    assert patch_replace.called
-    assert not patch_delete.called
-    assert patch_replace.args[0] is None
-    assert 'url' in patch_replace.kwargs['result_data']
-    patch_delete.called = False
-    patch_replace.called = False
-
+    # Assignment is not open so it should not passback the grade
     set_grade(token, 5.0, work['id'])
-
-    assert not patch_delete.called
-    assert not patch_replace.called
-    patch_delete.called = False
-    patch_replace.called = False
+    assert not patch_request.called
 
     test_client.req(
         'patch',
@@ -376,12 +473,9 @@ def test_lti_grade_passback(
         headers={'Authorization': f'Bearer {token}'},
     )
 
-    assert patch_replace.called
-    assert not patch_delete.called
-    assert patch_replace.args[0] == '0.5'
-    assert patch_replace.kwargs['result_data'] is None
-    patch_delete.called = False
-    patch_replace.called = False
+    # After setting assignment open it should passback the grades.
+    assert patch_request.called
+    assert_grade_set_to(5.0, raw=False, created_at=work['created_at'])
 
     if patch:
         test_client.req(
@@ -400,22 +494,37 @@ def test_lti_grade_passback(
             headers={'Authorization': f'Bearer {token}'},
         )
 
+    # Updating while open shoudl passback straight away
     set_grade(token, 6, work['id'])
-    assert patch_replace.called
-    assert not patch_delete.called
-    assert not patch_replace.dirty
-    assert patch_replace.args[0] == '0.6'
-    assert patch_replace.kwargs['result_data'] is None
-    patch_delete.called = False
-    patch_replace.called = False
-    patch_replace.dirty = None
+    assert patch_request.called
+    assert_grade_set_to(6, raw=False, created_at=work['created_at'])
 
+    # Setting grade to ``None`` should do a delete request
     set_grade(token, None, work['id'])
+    assert patch_request.called
+    assert_grade_deleted()
 
-    assert not patch_replace.called
-    assert patch_delete.called
-    patch_delete.called = False
-    patch_replace.called = False
+    with app.app_context():
+        test_client.req(
+            'patch',
+            f'/api/v1/assignments/{assig["id"]}',
+            204,
+            data={
+                'max_grade': 11,
+            },
+            headers={'Authorization': f'Bearer {token}'},
+        )
+
+    # When ``max_grade`` is set it should start to do raw passbacks, but only
+    # if the grade passeback is in fact > 10
+    set_grade(token, 6, work['id'])
+    assert patch_request.called
+    assert_grade_set_to(6.0, raw=False, created_at=work['created_at'])
+
+    # As this grade is >11 the ``raw`` option should be used
+    set_grade(token, 11, work['id'])
+    assert patch_request.called
+    assert_grade_set_to(11.0, raw=True, created_at=work['created_at'])
 
     assig, token = do_lti_launch(
         username='NEW_USERNAME',
@@ -437,8 +546,8 @@ def test_lti_grade_passback(
             result=error_template
         )
 
-    assert not patch_replace.called
-    assert not patch_delete.called
+    # When submitting fails no grades should be passed back
+    assert not patch_request.called
 
 
 def test_lti_assignment_create(
@@ -475,10 +584,10 @@ def test_lti_assignment_create(
             url = urllib.parse.urlparse(res.headers['Location'])
             jwt = urllib.parse.parse_qs(url.query)['jwt'][0]
             lti_res = test_client.req(
-                'get',
+                'post',
                 '/api/v1/lti/launch/2',
                 200,
-                headers={'Jwt': jwt},
+                data={'jwt_token': jwt},
             )
             if published == 'false':
                 assert lti_res['assignment']['state'] == 'hidden'
@@ -546,10 +655,10 @@ def test_reset_lti_email(test_client, app, logged_in, ta_user, session):
             url = urllib.parse.urlparse(res.headers['Location'])
             jwt = urllib.parse.parse_qs(url.query)['jwt'][0]
             lti_res = test_client.req(
-                'get',
+                'post',
                 '/api/v1/lti/launch/2',
                 200,
-                headers={'Jwt': jwt},
+                data={'jwt_token': jwt},
             )
             if published == 'false':
                 assert lti_res['assignment']['state'] == 'hidden'
@@ -638,11 +747,11 @@ def test_invalid_jwt(
         res = test_client.post('/api/v1/lti/launch/1', data=data)
 
         url = urllib.parse.urlparse(res.headers['Location'])
-        jwt = urllib.parse.parse_qs(url.query)['jwt'][0]
-        lti_res = test_client.req(
-            'get',
+        urllib.parse.parse_qs(url.query)['jwt'][0]
+        test_client.req(
+            'post',
             '/api/v1/lti/launch/2',
             400,
-            headers={'Jwt': 'INVALID_JWT'},
+            data={'jwt_token': 'INVALID_JWT'},
             result=error_template
         )

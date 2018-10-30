@@ -1,13 +1,29 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div class="local-header">
     <b-button-toolbar class="toolbar" justify>
-        <div class="sidebar-toggle">
-            <img src="/static/img/bars.svg"
-                 @click="toggleSidebar()">
-        </div>
+        <b-input-group-prepend style="cursor: pointer;"
+                               v-if="backRoute || $root.$isSmallWindow">
+            <b-button-group>
+                <b-btn variant="primary"
+                       class="sidebar-toggle"
+                       @click="toggleSidebar()">
+                    <icon name="bars"/>
+                </b-btn>
+                <b-btn :to="backRoute"
+                       v-if="backRoute"
+                       class="back-button"
+                       v-b-popover.bottom.hover="backPopover">
+                    <icon name="arrow-left"/>
+                </b-btn>
+            </b-button-group>
+        </b-input-group-prepend>
+
+        <slot v-show="$slots.title" name="prepend"/>
 
         <h4 v-if="title || $slots.title" class="title">
-            <slot name="title">{{ title }}</slot>
+            <slot v-if="$slots.title" name="title">{{ title }}</slot>
+            <span v-else>{{ title }}</span>
         </h4>
 
         <slot/>
@@ -16,7 +32,6 @@
                               class="extra-button"
                               v-b-popover.bottom.hover="`${showExtra ? 'Hide' : 'Show'} more options`">
             <b-button v-b-toggle.local-header-extra
-                      style="margin-left: 15px;"
                       @click="showExtra = !showExtra">
                 <icon name="angle-double-up" v-if="showExtra"/>
                 <icon name="angle-double-down" v-else/>
@@ -35,6 +50,8 @@
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/angle-double-down';
 import 'vue-awesome/icons/angle-double-up';
+import 'vue-awesome/icons/arrow-left';
+import 'vue-awesome/icons/bars';
 
 export default {
     name: 'local-header',
@@ -44,10 +61,28 @@ export default {
             type: String,
             default: '',
         },
+
+        forceExtraDrawer: {
+            type: [Boolean, undefined],
+            default: undefined,
+        },
+
+        backRoute: {
+            type: Object,
+            default: null,
+        },
+
+        backPopover: {
+            type: String,
+            default: 'Go back',
+        },
     },
 
     computed: {
         hasExtraSlot() {
+            if (this.forceExtraDrawer !== undefined) {
+                return this.forceExtraDrawer;
+            }
             return !!this.$slots.extra;
         },
     },
@@ -74,10 +109,11 @@ export default {
 @import "~mixins.less";
 
 .local-header {
+    position: relative;
     position: sticky;
     top: 0;
     z-index: 3;
-    margin: 0 -15px 15px;
+    margin: 0 -15px 1rem;
     border: 0;
     padding: 1rem;
     .default-footer-colors;
@@ -85,29 +121,26 @@ export default {
     color: @text-color;
 }
 
-.sidebar-toggle {
-    cursor: pointer;
-    margin-right: 1rem;
-
-    img {
-        width: 2rem;
+@media @media-no-small {
+    .sidebar-toggle {
+        display: none;
     }
 
-    @media @media-no-small {
-        display: none;
+    .back-button {
+        border-top-left-radius: .25rem !important;
+        border-bottom-left-radius: .25rem !important;
     }
 }
 
 .title {
-    display: inline-block;
+    flex: 2;
     margin-bottom: 0;
+    text-align: left;
 }
 
 .toolbar {
-    flex: 1 1 auto;
-    flex-shrink: 0;
+    flex: 1 0 auto;
     align-items: center;
-    margin-top: -.25rem;
 }
 
 .separator {
@@ -121,7 +154,12 @@ export default {
 </style>
 
 <style lang="less">
-.local-header > .toolbar > div {
-        margin-top: .25rem;
+.local-header > .toolbar {
+    & > * {
+        margin-right: 1rem;
+    }
+    & > *:last-child {
+        margin-right: 0;
+    }
 }
 </style>

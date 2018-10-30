@@ -1,11 +1,14 @@
-import psef as p
+# SPDX-License-Identifier: AGPL-3.0-only
 import pytest
+
+import psef as p
 import psef.errors as e
 import psef.models as m
+from helpers import create_marker
 
-perm_error = pytest.mark.perm_error
-http_error = pytest.mark.http_error
-data_error = pytest.mark.data_error
+perm_error = create_marker(pytest.mark.perm_error)
+http_error = create_marker(pytest.mark.http_error)
+data_error = create_marker(pytest.mark.data_error)
 
 
 @pytest.mark.parametrize(
@@ -29,8 +32,8 @@ data_error = pytest.mark.data_error
 def test_searching_users(
     named_user, error_template, logged_in, test_client, q, users, request
 ):
-    perm_marker = request.node.get_marker('perm_error')
-    http_marker = request.node.get_marker('http_error')
+    perm_marker = request.node.get_closest_marker('perm_error')
+    http_marker = request.node.get_closest_marker('http_error')
 
     code = 200 if http_marker is None else http_marker.kwargs['error']
     code = code if perm_marker is None else perm_marker.kwargs['error']
@@ -43,7 +46,58 @@ def test_searching_users(
             result=error_template if code >= 400 else list
         )
         if code < 400:
-            assert sorted(i['username'] for i in res) == sorted(users)
+            assert [i['username'] for i in res] == sorted(users)
+
+
+@pytest.mark.parametrize(
+    'named_user', [
+        'Robin',
+        perm_error(error=403)('admin'),
+    ], indirect=True
+)
+@pytest.mark.parametrize(
+    'q,course_id,users', [
+        ('UdeNt', True, []),
+        ('UdeNt', 'Other', ['student{}'.format(i) for i in range(1, 5)]),
+        ('admin', True, ['admin']),
+        perm_error(error=400)(('admin', 'notanint', 'NOT IMPORTANT')),
+    ]
+)
+def test_searching_user_excluding_course(
+    named_user, error_template, logged_in, test_client, q, users, request,
+    course_id, assignment, session, teacher_user
+):
+    perm_marker = request.node.get_closest_marker('perm_error')
+    http_marker = request.node.get_closest_marker('http_error')
+    teacher_user = teacher_user._get_current_object()
+
+    code = 200 if http_marker is None else http_marker.kwargs['error']
+    code = code if perm_marker is None else perm_marker.kwargs['error']
+
+    if course_id is True:
+        c_id = assignment.course_id
+    elif course_id == 'Other':
+        other_course = m.Course(name='Other course')
+        session.add(other_course)
+        session.flush()
+        other_course_teacher_role = m.CourseRole.query.filter_by(
+            course_id=other_course.id, name='Teacher'
+        ).one()
+        teacher_user.courses[other_course.id] = other_course_teacher_role
+        session.commit()
+        c_id = other_course.id
+    else:
+        c_id = course_id
+
+    with logged_in(named_user):
+        res = test_client.req(
+            'get',
+            f'/api/v1/users/?q={q}&exclude_course={c_id}',
+            code,
+            result=error_template if code >= 400 else list
+        )
+        if code < 400:
+            assert [i['username'] for i in res] == sorted(users)
 
 
 def test_searching_users_rate_limit(
@@ -102,7 +156,7 @@ def test_register_user(
     username, test_client, error_template, name, password, email, request, app,
     session
 ):
-    data_err = request.node.get_marker('data_error')
+    data_err = request.node.get_closest_marker('data_error')
     code = 200 if data_err is None else data_err.kwargs['error']
 
     data = {}
@@ -149,10 +203,10 @@ def test_register_user(
         )
 
     elif username != 'thomas':
-        assert session.query(m.User).filter_by(username=username).first(
-        ) is None, ('The new user should not have been created')
+        assert session.query(m.User).filter_by(
+            username=username
+        ).first() is None, ('The new user should not have been created')
     else:
-        assert session.query(
-            m.User
-        ).filter_by(username=username
-                    ).one().name != name, ('The old user should be preserved')
+        assert session.query(m.User).filter_by(
+            username=username
+        ).one().name != name, ('The old user should be preserved')

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
 export const MANAGE_ASSIGNMENT_PERMISSIONS = Object.freeze([
     'can_edit_assignment_info',
     'can_assign_graders',
@@ -9,6 +10,9 @@ export const MANAGE_ASSIGNMENT_PERMISSIONS = Object.freeze([
     'manage_rubrics',
     'can_upload_bb_zip',
     'can_submit_others_work',
+    'can_edit_maximum_grade',
+    'can_view_plagiarism',
+    'can_manage_plagiarism',
 ]);
 
 export const MANAGE_GENERAL_COURSE_PERMISSIONS = Object.freeze([

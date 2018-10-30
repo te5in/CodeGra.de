@@ -3,7 +3,7 @@ This module defines all API routes with the main directory "snippet" or
 "snippets. These APIs can be used to add, modify, delete and retrieve the
 snippets of the current user.
 
-:license: AGPLv3, see LICENSE for details.
+SPDX-License-Identifier: AGPL-3.0-only
 """
 import typing as t
 
@@ -21,10 +21,11 @@ from psef.helpers import (
 )
 
 from . import api
+from ..permissions import GlobalPermission as GPerm
 
 
 @api.route('/snippet', methods=['PUT'])
-@auth.permission_required('can_use_snippets')
+@auth.permission_required(GPerm.can_use_snippets)
 def add_snippet() -> JSONResponse[models.Snippet]:
     """Add or modify a :class:`.models.Snippet` by key.
 
@@ -45,7 +46,7 @@ def add_snippet() -> JSONResponse[models.Snippet]:
     ensure_keys_in_dict(content, [('value', str), ('key', str)])
     value = t.cast(str, content['value'])
 
-    snippet: models.Snippet = models.Snippet.query.filter_by(
+    snippet: t.Optional[models.Snippet] = models.Snippet.query.filter_by(
         user_id=current_user.id, key=content['key']
     ).first()
     if snippet is None:
@@ -62,7 +63,7 @@ def add_snippet() -> JSONResponse[models.Snippet]:
 
 
 @api.route('/snippets/', methods=['GET'])
-@auth.permission_required('can_use_snippets')
+@auth.permission_required(GPerm.can_use_snippets)
 def get_snippets() -> JSONResponse[t.Sequence[models.Snippet]]:
     """Get all snippets (:class:`.models.Snippet`) of the curren
     :class:`.models.User`.
@@ -80,7 +81,7 @@ def get_snippets() -> JSONResponse[t.Sequence[models.Snippet]]:
 
 
 @api.route('/snippets/<int:snippet_id>', methods=['PATCH'])
-@auth.permission_required('can_use_snippets')
+@auth.permission_required(GPerm.can_use_snippets)
 def patch_snippet(snippet_id: int) -> EmptyResponse:
     """Modify the :class:`.models.Snippet` with the given id.
 
@@ -124,7 +125,7 @@ def patch_snippet(snippet_id: int) -> EmptyResponse:
 
 
 @api.route('/snippets/<int:snippet_id>', methods=['DELETE'])
-@auth.permission_required('can_use_snippets')
+@auth.permission_required(GPerm.can_use_snippets)
 def delete_snippets(snippet_id: int) -> EmptyResponse:
     """Delete the :class:`.models.Snippet` with the given id.
 
@@ -141,8 +142,10 @@ def delete_snippets(snippet_id: int) -> EmptyResponse:
     :raises PermissionException: If the user can not use snippets.
                                  (INCORRECT_PERMISSION)
     """
+    snip: t.Optional[models.Snippet]
     snip = helpers.get_or_404(models.Snippet, snippet_id)
     snip = models.Snippet.query.get(snippet_id)
+    assert snip is not None
 
     if snip.user_id != current_user.id:
         raise APIException(

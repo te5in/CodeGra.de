@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-only
 import os
 import uuid
 import datetime
@@ -5,10 +6,12 @@ import datetime
 import pytest
 
 import psef.models as m
+from helpers import create_marker
+from psef.permissions import CoursePermission
 
-perm_error = pytest.mark.perm_error
-data_error = pytest.mark.data_error
-late_error = pytest.mark.late_error
+perm_error = create_marker(pytest.mark.perm_error)
+data_error = create_marker(pytest.mark.data_error)
+late_error = create_marker(pytest.mark.late_error)
 
 
 @pytest.mark.parametrize(
@@ -29,7 +32,7 @@ def test_get_code_metadata(
     assignment, work = assignment_real_works
     work_id = work['id']
 
-    perm_err = request.node.get_marker('perm_error')
+    perm_err = request.node.get_closest_marker('perm_error')
     if perm_err:
         error = perm_err.kwargs['error']
     else:
@@ -89,12 +92,6 @@ def test_get_code_metadata(
 @pytest.mark.parametrize(
     'filename,content', [
         ('test_flake8.tar.gz', 'def a(b):\n\tprint ( 5 )\n'),
-        data_error(error=410)(
-            (
-                '../test_submissions/single_symlink_archive.tar.gz',
-                'SHOULD ERROR!'
-            )
-        ),
         data_error(error=400)(
             ('../test_submissions/nested_dir_archive.tar.gz', 'SHOULD_ERROR')
         ),
@@ -109,8 +106,8 @@ def test_get_code_plaintext(
     assignment, work = assignment_real_works
     work_id = work['id']
 
-    perm_err = request.node.get_marker('perm_error')
-    data_err = request.node.get_marker('data_error')
+    perm_err = request.node.get_closest_marker('perm_error')
+    data_err = request.node.get_closest_marker('data_error')
     if perm_err:
         error = perm_err.kwargs['error']
     elif data_err:
@@ -186,10 +183,10 @@ def test_get_code_plaintext_revisions(
         assert teacher_file_id != student_file_id
 
     with logged_in(student_user):
-        res = test_client.get(f'/api/v1/code/{student_file_id}', )
+        res = test_client.get(f'/api/v1/code/{student_file_id}')
         assert res.status_code == 200
 
-        res = test_client.get(f'/api/v1/code/{teacher_file_id}', )
+        res = test_client.get(f'/api/v1/code/{teacher_file_id}')
         assert res.status_code == 200
 
     with logged_in(teacher_user):
@@ -233,7 +230,7 @@ def test_get_file_url(
     assignment, work = assignment_real_works
     work_id = work['id']
 
-    perm_err = request.node.get_marker('perm_error')
+    perm_err = request.node.get_closest_marker('perm_error')
     if perm_err:
         error = perm_err.kwargs['error']
     else:
@@ -308,8 +305,9 @@ def test_delete_code_as_ta(
             result=error_template,
         )
 
-        assignment.deadline = datetime.datetime.utcnow(
-        ) - datetime.timedelta(days=1)
+        assignment.deadline = datetime.datetime.utcnow() - datetime.timedelta(
+            days=1
+        )
         session.commit()
 
         ents = test_client.req(
@@ -473,8 +471,9 @@ def test_delete_code_twice(
         )
         assert len(res['entries']) == 2
 
-        assignment.deadline = datetime.datetime.utcnow(
-        ) - datetime.timedelta(days=1)
+        assignment.deadline = datetime.datetime.utcnow() - datetime.timedelta(
+            days=1
+        )
         session.commit()
 
         test_client.req(
@@ -514,12 +513,17 @@ def test_delete_code_twice(
     'filename', ['../test_submissions/multiple_dir_archive.zip'],
     indirect=True
 )
-def test_delete_code_with_comment(
+def test_invalid_delete_code(
     assignment_real_works, test_client, request, error_template, ta_user,
     logged_in, session
 ):
     assignment, work = assignment_real_works
     work_id = work['id']
+    other_work = m.Work.query.filter_by(assignment=assignment
+                                        ).filter(m.Work.id != work_id).first()
+    other_code = m.File.query.filter_by(
+        work_id=other_work.id, is_directory=False
+    ).first()
 
     with logged_in(ta_user):
         res = test_client.req(
@@ -538,7 +542,6 @@ def test_delete_code_with_comment(
         session.commit()
 
         f = res['entries'][0]['entries'][0]
-        print(f)
         new_f = test_client.req(
             'patch',
             f'/api/v1/code/{f["id"]}',
@@ -572,6 +575,55 @@ def test_delete_code_with_comment(
             f'/api/v1/code/{new_f["id"]}',
             400,
             result=error_template,
+        )
+
+        # Delete comment
+        test_client.req(
+            'delete',
+            f'/api/v1/code/{new_f["id"]}/comments/0',
+            204,
+        )
+
+        p_run = m.PlagiarismRun(assignment=assignment, json_config='')
+        p_case = m.PlagiarismCase(
+            work1_id=work_id,
+            work2_id=other_work.id,
+            match_avg=50,
+            match_max=50
+        )
+        p_match = m.PlagiarismMatch(
+            file1_id=new_f['id'],
+            file2=other_code,
+            file1_start=0,
+            file1_end=1,
+            file2_start=0,
+            file2_end=1
+        )
+        p_case.matches.append(p_match)
+        p_run.cases.append(p_case)
+        session.add(p_run)
+        session.commit()
+        p_case_id = p_case.id
+        p_run_id = p_run.id
+        assert p_case_id
+        assert p_run_id
+
+        # Still not possible
+        test_client.req(
+            'delete',
+            f'/api/v1/code/{new_f["id"]}',
+            400,
+            result=error_template,
+        )
+
+        session.delete(p_case)
+        session.commit()
+
+        # Not it should work as there is no comment and not plagiarism case
+        test_client.req(
+            'delete',
+            f'/api/v1/code/{new_f["id"]}',
+            204,
         )
 
 
@@ -680,10 +732,7 @@ def test_update_code(
     role = m.CourseRole.query.filter_by(
         course_id=assignment.course_id, name='Student'
     ).one()
-    role.set_permission(
-        m.Permission.query.filter_by(name='can_upload_after_deadline').one(),
-        True
-    )
+    role.set_permission(CoursePermission.can_upload_after_deadline, True)
     session.commit()
     # CAN change code after deadline as student if you have the permission for
     # this.
@@ -796,8 +845,8 @@ def test_rename_code(
             code_id, '/multiple_dir_archive/dir///NEW_NAME///', 200
         ) == code_id
         assert 'new_data\n' == get_code_data(code_id)
-        assert get_file_tree()['entries'][0]['entries'][0]['name'
-                                                           ] == 'NEW_NAME'
+        assert get_file_tree(
+        )['entries'][0]['entries'][0]['name'] == 'NEW_NAME'
 
         assert rename(
             files['entries'][0]['id'], '/multiple_dir_archive/dir3/', 200
@@ -828,10 +877,7 @@ def test_rename_code(
     role = m.CourseRole.query.filter_by(
         course_id=assignment.course_id, name='Student'
     ).one()
-    role.set_permission(
-        m.Permission.query.filter_by(name='can_upload_after_deadline').one(),
-        True
-    )
+    role.set_permission(CoursePermission.can_upload_after_deadline, True)
     session.commit()
 
     with logged_in(student_user):

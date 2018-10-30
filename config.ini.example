@@ -1,3 +1,19 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# This file is part of CodeGrade
+
+# CodeGrade is free software: you can redistribute it and/or modify it under the
+# terms of the GNU Affero General Public License as published by the Free
+# Software Foundation, either version 3 of the License, or (at your option) any
+# later version.
+
+# CodeGrade is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+# A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more
+# details.
+
+# You should have received a copy of the GNU Affero General Public License along
+# with CodeGrade.  If not, see <https://www.gnu.org/licenses/>.
+
 # This section describes to uwsgi how to run the back-end.
 [uwsgi]
 # The user to run the backend as, change this option.
@@ -140,21 +156,24 @@
 # `postgresql://dbusername:dbpassword@dbhost/dbname`
 # sqlalchemy_database_uri = postgresql:///codegrade_dev
 
-# The amount of bytes that should be used for randomly generation JWT keys.
-# You should probably not change this.
-# bytes_random = 64
-
 # Secret key for signing session JWT tokens.
-# By default a random string is used if debug mode is off. This is secure but
-# means users have to login again after restarting the server
-# secret_key = Wowsers
+# The option to automatically generate keys has been removed as this was error
+# prone, especially in combination with processes and uwsgi. You can leave this
+# empty in which case the enviroment variable `CODEGRADE_JWT_SECRET_KEY` is
+# used.
+# secret_key =
 
-# Secret key for signing LTI tokens. This should be a strong random key that is
-# not public. By default a random strings of %(bytes_random)s amount of bytes is
-# generated during startup. It might be best to not change this. These tokens
-# have a very short lifetime so restarting the server will always mean a LTI
-# launch will never work if you restart the server while launching.
+# Secret key for signing LTI tokens.
+# The option to automatically generate keys has been removed as this was error
+# prone, especially in combination with processes and uwsgi. You can leave this
+# empty in which case the enviroment variable `CODEGRADE_LTI_SECRET_KEY` is
+# used.
 # lti_secret_key =
+
+# The key a user needs to provide when requesting health status. When left empty
+# the health route will be disabled. Keep this key private as getting health
+# information is a slow and expensive route.
+# health_key =
 
 # The amount of days until a login token should expire in days. Can be a float
 # jwt_access_token_expires = 30
@@ -163,6 +182,14 @@
 # WARNING: Make sure these directories exist.
 # upload_dir = %(BASE_DIR)s/uploads
 # mirror_upload_dir = %(BASE_DIR)s/mirror_uploads
+
+# The directory used by CodeGrade to temporarily share files between different
+# layers which can be located on multiple machines. When you set this to another
+# path this DOES NOT mean that CodeGrade will store all its temporary files in
+# this directory. This directory is ONLY used for temporary files (neither
+# submissions or upload mirrors) that need to be used in multiple requests, such
+# as files that need to be shared by the web workers and celery.
+# shared_temp_dir =
 
 # Maximum size in bytes for single upload request in bytes, defaults to 64 * 2
 # ** 20 = 64 megabytes.
@@ -174,6 +201,14 @@
 
 # The external URL the server runs on.
 # external_url = http://localhost:8080
+
+# Path to the java runtime executable. May also be just the name of the
+# executable, if it is in a directory in the PATH environment variable.
+# java_path = java
+
+# Path to jplag.jar. The path must be absolute or relative to the working
+# directory of the celery instance.
+# jplag_jar = jplag.jar
 
 # This section enables you to disable certain features. If you change this
 # config you need to rebuild/restart the front-end and restart the backend

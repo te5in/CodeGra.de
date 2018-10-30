@@ -1,21 +1,18 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <b-input-group class="submission-nav-bar">
     <b-button-group class="nav-wrapper">
-        <b-button class="angle-btn"
-                    @click="backToSubmissions">
-            <icon name="angle-double-left"/>
-        </b-button>
-        <b-button :disabled="!hasPrev"
-                    @click="selectPrev">
+        <b-button :disabled="prevSub == null"
+                  v-b-popover.hover.bottom="generatePopoverTitle(prevSub)"
+                  @click="selectSub(prevSub)">
             <icon name="angle-left"/>
         </b-button>
-        <b-form-select :options="options"
-                        class="select"
-                        style=""
-                        v-model="selected"
-                        id="student-selector"/>
-        <b-button :disabled="!hasNext"
-                    @click="selectNext">
+        <div class="title">
+            {{ curSub ? `Submission by ${curSub.user.name}` : '' }}
+        </div>
+        <b-button :disabled="nextSub == null"
+                  v-b-popover.hover.bottom="generatePopoverTitle(nextSub)"
+                  @click="selectSub(nextSub)">
             <icon name="angle-right"/>
         </b-button>
     </b-button-group>
@@ -23,141 +20,120 @@
 </template>
 
 <script>
-import moment from 'moment';
-import { formatGrade, sortSubmissions, parseBool } from '@/utils';
+import { parseBool } from '@/utils';
+import FilterSubmissionsManager from '@/utils/FilterSubmissionsManager';
+import { mapGetters } from 'vuex';
 import Icon from 'vue-awesome/components/Icon';
-import 'vue-awesome/icons/angle-double-left';
 import 'vue-awesome/icons/angle-left';
 import 'vue-awesome/icons/angle-right';
-
-import LocalHeader from './LocalHeader';
 
 export default {
     name: 'submission-nav-bar',
 
-    props: {
-        value: {
-            type: Object,
-            default: null,
-        },
-        submissions: {
-            type: Array,
-            default: [],
-        },
-        filter: {
-            type: Function,
-            default: x => x,
-        },
-    },
-
-    data() {
-        return {
-            selected: this.value,
-        };
-    },
-
     computed: {
-        options() {
-            const res = this.filter(this.submissions);
+        ...mapGetters('courses', ['assignments']),
+        ...mapGetters({
+            userId: 'user/id',
+        }),
 
-            res.sort((a, b) => sortSubmissions(a, b, this.$route.query.sortBy || 'user'));
+        assignmentId() {
+            return Number(this.$route.params.assignmentId);
+        },
 
-            if (!parseBool(this.$route.query.sortAsc)) {
-                res.reverse();
-            }
+        assignment() {
+            return this.assignments[this.assignmentId];
+        },
 
-            return res.map(sub => ({
-                text: this.getItemText(sub),
-                value: sub,
-            }));
+        submissionId() {
+            return Number(this.$route.params.submissionId);
+        },
+
+        submissions() {
+            return (this.assignment && this.assignment.submissions) || [];
+        },
+
+        latestOnly() {
+            return parseBool(this.$route.query.latest, true);
+        },
+
+        filterAssignee() {
+            return parseBool(this.$route.query.mine, true);
+        },
+
+        sortBy() {
+            return this.$route.query.sortBy || 'user';
+        },
+
+
+        filter() {
+            return this.$route.query.search;
+        },
+
+        filterSubmissionsManager() {
+            return new FilterSubmissionsManager(
+                this.submissionId,
+                this.$route.query.forceInclude,
+                this.$route,
+                this.$router,
+            );
+        },
+
+        filteredSubmissions() {
+            return this.filterSubmissionsManager.filter(
+                this.submissions,
+                this.latestOnly,
+                this.filterAssignee,
+                this.userId,
+                this.filter,
+                this.sortBy,
+            );
         },
 
         optionIndex() {
-            return this.options.findIndex(opt => opt.value === this.value);
+            return this.filteredSubmissions.findIndex(sub => sub.id === this.submissionId);
         },
 
-        hasPrev() {
-            return this.optionIndex > 0 && this.optionIndex < this.options.length;
+        curSub() {
+            return (this.submissions && this.filteredSubmissions[this.optionIndex]) || null;
         },
 
-        hasNext() {
-            return this.optionIndex >= 0 && this.optionIndex < this.options.length - 1;
-        },
-    },
-
-    watch: {
-        value(newVal) {
-            this.selected = newVal;
+        prevSub() {
+            if (this.optionIndex > 0 && this.optionIndex < this.filteredSubmissions.length) {
+                return this.filteredSubmissions[this.optionIndex - 1];
+            }
+            return null;
         },
 
-        selected(submission) {
-            this.$emit('input', submission);
+        nextSub() {
+            if (this.optionIndex >= 0 && this.optionIndex < this.filteredSubmissions.length - 1) {
+                return this.filteredSubmissions[this.optionIndex + 1];
+            }
+            return null;
         },
     },
 
     methods: {
-        backToSubmissions() {
+        selectSub(sub) {
+            if (sub == null) {
+                return;
+            }
             this.$router.push({
-                name: 'assignment_submissions',
-                params: {
-                    courseId: this.$route.params.courseId,
-                    assignmentId: this.$route.params.assignmentId,
-                },
-                query: {
-                    q: this.$route.query.search || undefined,
-                    mine: this.$route.query.mine || false,
-                    latest: this.$route.query.latest || false,
-                    sortBy: this.$route.query.sortBy,
-                    sortAsc: this.$route.query.sortAsc,
-                },
+                params: Object.assign(
+                    {},
+                    this.$route.params,
+                    { submissionId: sub.id },
+                ),
+                query: this.$route.query,
             });
         },
 
-        selectPrev() {
-            if (this.hasPrev) {
-                this.selected = this.options[this.optionIndex - 1].value;
-            }
-        },
-
-        selectNext() {
-            if (this.hasNext) {
-                this.selected = this.options[this.optionIndex + 1].value;
-            }
-        },
-
-        getItemText(submission) {
-            const date = moment.utc(
-                submission.created_at,
-                moment.ISO_8601,
-            ).local().format('DD-MM-YYYY HH:mm');
-
-            const grade = formatGrade(submission.grade);
-            let text = `${submission.user.name} - ${date}`;
-
-            if (grade != null) {
-                text += ` [${grade}]`;
-            }
-            if (submission.assignee) {
-                text += ` (${submission.assignee.name})`;
-            }
-
-            return text;
-        },
-
-        scrollToItem() {
-            this.$nextTick(() => {
-                let el = document.getElementById('selectedItem').parentNode;
-                for (let i = 0, end = 6; i < end; i += 1) {
-                    el = el.previousSibling || el;
-                }
-                el.scrollIntoView(true);
-            });
+        generatePopoverTitle(sub) {
+            return `Go to ${this.$htmlEscape(sub && sub.user.name)}'s submission`;
         },
     },
 
     components: {
         Icon,
-        LocalHeader,
     },
 };
 </script>
@@ -178,7 +154,6 @@ export default {
 
 .nav-wrapper {
     flex: 1 1 auto;
-    margin-right: 15px;
 }
 </style>
 
@@ -197,5 +172,13 @@ export default {
     border-radius: 0;
     width: 100%;
     padding-top: .625rem;
+}
+
+.nav-wrapper .title {
+    flex: 1;
+    background: white;
+    border: 1px solid #ccc;
+    text-align: center;
+    padding: 0.375rem 0.75rem
 }
 </style>

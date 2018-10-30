@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <!-- TODO: Fix issues with iterations by relying on order !-->
 <div class="row justify-content-md-center linters" v-if="loading">

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-only
 import io
 import os
 import zipfile
@@ -7,10 +8,12 @@ import pytest
 from pytest import approx
 
 import psef.models as m
+from helpers import create_marker
 
-http_error = pytest.mark.http_error
-perm_error = pytest.mark.perm_error
-data_error = pytest.mark.data_error
+http_error = create_marker(pytest.mark.http_error)
+perm_error = create_marker(pytest.mark.perm_error)
+data_error = create_marker(pytest.mark.data_error)
+list_error = create_marker(pytest.mark.list_error)
 
 
 @pytest.mark.parametrize('filename', ['test_flake8.tar.gz'], indirect=True)
@@ -74,7 +77,8 @@ def test_get_grade_history(
                     'grade': grade + 1,
                     'passed_back': False,
                     'user': dict,
-                }, {
+                },
+                {
                     'changed_at': str,
                     'is_rubric': False,
                     'grade': grade,
@@ -103,13 +107,15 @@ def test_get_grade_history(
                     'grade': -1,
                     'passed_back': False,
                     'user': dict,
-                }, {
+                },
+                {
                     'changed_at': str,
                     'is_rubric': False,
                     'grade': grade + 1,
                     'passed_back': False,
                     'user': dict,
-                }, {
+                },
+                {
                     'changed_at': str,
                     'is_rubric': False,
                     'grade': grade,
@@ -155,8 +161,8 @@ def test_patch_submission(
     assignment, work = assignment_real_works
     work_id = work['id']
 
-    perm_err = request.node.get_marker('perm_error')
-    data_err = request.node.get_marker('data_error')
+    perm_err = request.node.get_closest_marker('perm_error')
+    data_err = request.node.get_closest_marker('data_error')
     if perm_err:
         error = perm_err.kwargs['error']
     elif data_err:
@@ -185,12 +191,20 @@ def test_patch_submission(
             f'/api/v1/submissions/{work_id}',
             200,
             result={
-                'id': work_id,
-                'assignee': None,
-                'user': dict,
-                'created_at': str,
-                'grade': None if error else grade,
-                'comment': None if error else feedback,
+                'id':
+                    work_id,
+                'assignee':
+                    None,
+                'user':
+                    dict,
+                'created_at':
+                    str,
+                'grade':
+                    None if error else grade,
+                'comment':
+                    None if error else feedback,
+                'comment_author':
+                    (None if error or 'feedback' not in data else dict),
             }
         )
 
@@ -236,8 +250,10 @@ def test_delete_grade_submission(
                 'created_at': str,
                 'grade': None,
                 'comment': 'ww',
+                'comment_author': dict,
             }
         )
+        assert res['comment_author']['id'] == ta_user.id
 
 
 def test_patch_non_existing_submission(
@@ -284,10 +300,14 @@ def test_negative_points(
                 'description': 'BLA',
                 'header': 'Negative',
                 'points': -1,
+            }, {
+                'description': 'BLA+',
+                'header': 'Positive',
+                'points': 0,
             }],
         }]
     }  # yapf: disable
-    max_points = 9
+    max_points = 10
 
     with logged_in(teacher_user):
         rubric = test_client.req(
@@ -367,7 +387,7 @@ def test_selecting_rubric(
     assignment, work = assignment_real_works
     work_id = work['id']
 
-    perm_err = request.node.get_marker('perm_error')
+    perm_err = request.node.get_closest_marker('perm_error')
     if perm_err:
         error = perm_err.kwargs['error']
         can_get_rubric = perm_err.kwargs.get('can_get', False)
@@ -407,10 +427,14 @@ def test_selecting_rubric(
                 'description': 'BLA',
                 'header': 'Never selected',
                 'points': -1,
+            }, {
+                'description': 'BLA+',
+                'header': 'Never selected 2',
+                'points': 0,
             }],
         }]
     }  # yapf: disable
-    max_points = 11
+    max_points = 12
 
     with logged_in(teacher_user):
         rubric = test_client.req(
@@ -542,6 +566,74 @@ def test_selecting_rubric(
 
 
 @pytest.mark.parametrize('filename', ['test_flake8.tar.gz'], indirect=True)
+def test_selecting_rubric_same_row_twice(
+    test_client, logged_in, error_template, assignment_real_works, teacher_user
+):
+    assignment, work = assignment_real_works
+    work_id = work['id']
+
+    rubric = {
+        'rows': [{
+            'header': 'My header',
+            'description': 'My description',
+            'items': [{
+                'description': '5points',
+                'header': 'bladie',
+                'points': 5
+            }, {
+                'description': '10points',
+                'header': 'bladie',
+                'points': 10,
+            }]
+        }, {
+            'header': 'My header2',
+            'description': 'My description2',
+            'items': [{
+                'description': '1points',
+                'header': 'bladie',
+                'points': 1
+            }, {
+                'description': '2points',
+                'header': 'bladie',
+                'points': 2,
+            }]
+        }]
+    }  # yapf: disable
+    max_points = 12
+
+    with logged_in(teacher_user):
+        rubric = test_client.req(
+            'put',
+            f'/api/v1/assignments/{assignment.id}/rubrics/',
+            200,
+            data=rubric
+        )
+        rubric = test_client.req(
+            'get',
+            f'/api/v1/submissions/{work_id}/rubrics/',
+            200,
+            result={
+                'rubrics': list,
+                'selected': [],
+                'points': {
+                    'max': max_points,
+                    'selected': 0
+                }
+            }
+        )['rubrics']
+
+    with logged_in(teacher_user):
+        to_select = [rubric[0]['items'][0]['id'], rubric[0]['items'][1]['id']]
+        test_client.req(
+            'patch',
+            f'/api/v1/submissions/{work_id}/rubricitems/',
+            400,
+            data={'items': to_select},
+            result=error_template,
+        )
+
+
+@pytest.mark.parametrize('filename', ['test_flake8.tar.gz'], indirect=True)
 @pytest.mark.parametrize(
     'named_user', [
         'Robin',
@@ -558,7 +650,7 @@ def test_clearing_rubric(
     assignment, work = assignment_real_works
     work_id = work['id']
 
-    perm_err = request.node.get_marker('perm_error')
+    perm_err = request.node.get_closest_marker('perm_error')
     if perm_err:
         error = perm_err.kwargs['error']
     else:
@@ -750,8 +842,7 @@ def test_selecting_wrong_rubric(
 
     with logged_in(ta_user):
         test_client.req(
-            'patch',
-            f'/api/v1/submissions/{other_work_id}/'
+            'patch', f'/api/v1/submissions/{other_work_id}/'
             f'rubricitems/{rubric[0]["items"][0]["id"]}',
             400,
             result=error_template
@@ -775,7 +866,7 @@ def test_get_dir_contents(
     assignment, work = assignment_real_works
     work_id = work['id']
 
-    perm_err = request.node.get_marker('perm_error')
+    perm_err = request.node.get_closest_marker('perm_error')
     if perm_err:
         error = perm_err.kwargs['error']
     else:
@@ -849,7 +940,7 @@ def test_get_zip_file(
     else:
         work_id = work['id']
 
-    perm_err = request.node.get_marker('perm_error')
+    perm_err = request.node.get_closest_marker('perm_error')
     if perm_err:
         error = perm_err.kwargs['error']
     else:
@@ -1017,8 +1108,8 @@ def test_search_file(
     assignment, work = assignment_real_works
     work_id = work['id']
 
-    perm_err = request.node.get_marker('perm_error')
-    data_err = request.node.get_marker('data_error')
+    perm_err = request.node.get_closest_marker('perm_error')
+    data_err = request.node.get_closest_marker('data_error')
     if perm_err:
         error = perm_err.kwargs['error']
     elif data_err:
@@ -1238,7 +1329,8 @@ def test_add_file(
                                     }, {
                                         'name': 'file2',
                                         'id': int,
-                                    }, {
+                                    },
+                                    {
                                         'name':
                                             'wow',
                                         'id':
@@ -1299,7 +1391,8 @@ def test_add_file(
                                     }, {
                                         'name': 'file2',
                                         'id': int,
-                                    }, {
+                                    },
+                                    {
                                         'name':
                                             'wow',
                                         'id':
@@ -1430,7 +1523,7 @@ def test_change_grader(
     graders, named_user, logged_in, test_client, error_template, request,
     assignment_real_works, ta_user
 ):
-    marker = request.node.get_marker('http_error')
+    marker = request.node.get_closest_marker('http_error')
     code = 204 if marker is None else marker.kwargs['error']
     res = None if marker is None else error_template
 
@@ -1540,8 +1633,11 @@ def test_delete_submission(
 ):
     assignment, work = assignment_real_works
     work_id = work['id']
+    other_work = m.Work.query.filter_by(assignment=assignment
+                                        ).filter(m.Work.id != work_id).first()
+    assert other_work, "Other work should exist"
 
-    perm_err = request.node.get_marker('perm_error')
+    perm_err = request.node.get_closest_marker('perm_error')
     if perm_err:
         error = perm_err.kwargs['error']
     else:
@@ -1549,11 +1645,36 @@ def test_delete_submission(
 
     files = [f.id for f in m.File.query.filter_by(work_id=work_id).all()]
     assert files
-    diskname = m.File.query.filter_by(
-        work_id=work_id, is_directory=False
-    ).first().get_diskname()
+    code = m.File.query.filter_by(work_id=work_id, is_directory=False).first()
 
+    diskname = code.get_diskname()
     assert os.path.isfile(diskname)
+
+    other_code = m.File.query.filter_by(
+        work_id=other_work.id, is_directory=False
+    ).first()
+
+    p_run = m.PlagiarismRun(assignment=assignment, json_config='')
+    p_case = m.PlagiarismCase(
+        work1_id=work_id, work2_id=other_work.id, match_avg=50, match_max=50
+    )
+    p_match = m.PlagiarismMatch(
+        file1=code,
+        file2=other_code,
+        file1_start=0,
+        file1_end=1,
+        file2_start=0,
+        file2_end=1
+    )
+    p_case.matches.append(p_match)
+    p_run.cases.append(p_case)
+    session.add(p_run)
+    session.commit()
+    p_case_id = p_case.id
+    p_run_id = p_run.id
+
+    assert p_case_id
+    assert p_run_id
 
     with logged_in(teacher_user):
         test_client.req(
@@ -1580,11 +1701,15 @@ def test_delete_submission(
         for f in files:
             assert m.File.query.get(f)
         assert m.Work.query.get(work_id)
+        assert m.PlagiarismCase.query.get(p_case_id)
+        assert m.PlagiarismRun.query.get(p_run_id)
     else:
         assert not os.path.isfile(diskname)
         assert m.Work.query.get(work_id) is None
         for f in files:
             assert m.File.query.get(f) is None
+        assert m.PlagiarismCase.query.get(p_case_id) is None
+        assert m.PlagiarismRun.query.get(p_run_id)
 
 
 @pytest.mark.parametrize('filename', ['test_flake8.tar.gz'], indirect=True)
@@ -1604,7 +1729,7 @@ def test_selecting_multiple_rubric_items(
     assignment, work = assignment_real_works
     work_id = work['id']
 
-    perm_err = request.node.get_marker('perm_error')
+    perm_err = request.node.get_closest_marker('perm_error')
     if perm_err:
         error = perm_err.kwargs['error']
         can_get_rubric = perm_err.kwargs.get('can_get', False)
@@ -1805,4 +1930,123 @@ def test_uploading_invalid_file(
                     )
             },
             result=error_template,
+        )
+
+
+@pytest.mark.parametrize(
+    'named_user', [
+        'Robin',
+        http_error(error=403)('Student2'),
+        http_error(error=403)('Thomas Schaper'),
+    ],
+    indirect=True
+)
+@pytest.mark.parametrize(
+    'max_grade', [
+        10,
+        4,
+        15,
+        http_error(error=400)('Hello'),
+        http_error(error=400)(-2),
+    ]
+)
+@pytest.mark.parametrize('filename', ['test_flake8.tar.gz'], indirect=True)
+def test_maximum_grade(
+    logged_in, named_user, ta_user, assignment_real_works, error_template,
+    max_grade, test_client, request
+):
+    assignment, work = assignment_real_works
+    work_id = work['id']
+
+    marker = request.node.get_marker('http_error')
+    code = 204 if marker is None else marker.kwargs['error']
+
+    data = {'grade': 11}
+
+    with logged_in(ta_user):
+        test_client.req(
+            'patch',
+            f'/api/v1/submissions/{work_id}',
+            400,
+            data=data,
+            result=error_template,
+        )
+
+    with logged_in(named_user):
+        test_client.req(
+            'patch',
+            f'/api/v1/assignments/{assignment.id}',
+            code,
+            data={'max_grade': max_grade},
+            result=error_template if code >= 400 else None
+        )
+
+    if code >= 400:
+        with logged_in(ta_user):
+            test_client.req(
+                'patch',
+                f'/api/v1/submissions/{work_id}',
+                400,
+                data=data,
+                result=error_template,
+            )
+        return
+
+    with logged_in(ta_user):
+        test_client.req(
+            'patch',
+            f'/api/v1/submissions/{work_id}',
+            200,
+            data={'grade': max_grade},
+        )
+
+        assert test_client.req(
+            'get', f'/api/v1/assignments/{assignment.id}', 200
+        )['max_grade'] == max_grade
+
+        test_client.req(
+            'patch',
+            f'/api/v1/submissions/{work_id}',
+            400,
+            data={'grade': max_grade + 0.5},
+            result=error_template
+        )
+
+        test_client.req(
+            'patch',
+            f'/api/v1/submissions/{work_id}',
+            400,
+            data={'grade': -0.5},
+        )
+
+        test_client.req(
+            'patch',
+            f'/api/v1/submissions/{work_id}',
+            200,
+            data={'grade': max_grade},
+        )
+
+    with logged_in(named_user):
+        test_client.req(
+            'patch',
+            f'/api/v1/assignments/{assignment.id}',
+            204,
+            data={'max_grade': None},
+        )
+        assert test_client.req(
+            'get', f'/api/v1/assignments/{assignment.id}', 200
+        )['max_grade'] is None
+
+    with logged_in(ta_user):
+        test_client.req(
+            'patch',
+            f'/api/v1/submissions/{work_id}',
+            400,
+            data={'grade': 10.5},
+        )
+        test_client.req(
+            'patch',
+            f'/api/v1/submissions/{work_id}',
+            200,
+            data={'grade': 10},
         )

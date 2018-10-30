@@ -1,15 +1,18 @@
 """
 This module implements the parsing of blackboard gradebook info files.
 
-:license: AGPLv3, see LICENSE for details.
+SPDX-License-Identifier: AGPL-3.0-only
 """
 import re
 import mmap
 import typing as t
 import datetime
 
+import structlog
 from dateutil import parser as dateparser
 from dateutil.tz import gettz
+
+logger = structlog.get_logger()
 
 _TXT_FMT = re.compile(
     r"Name: (?P<name>.+) \((?P<id>[^\n]*)\)\n"
@@ -81,12 +84,18 @@ def parse_info_file(file: str) -> SubmissionInfo:
     :returns: The parsed information
     :rtype: SubmissionInfo
     """
+
+    grade: t.Optional[float]
+
     # _TXT_FMT is a object gotten from `re.compile`
     with open(file, 'r+') as f:
         with mmap.mmap(f.fileno(), 0) as data:
             # casting here is wrong, however see
             # https://github.com/python/typeshed/issues/1467
             match = _TXT_FMT.match(t.cast(bytes, data))
+
+            if match is None:
+                raise ValueError('Invalid format')
 
             try:
                 grade = float(match.group('grade'))
@@ -98,10 +107,14 @@ def parse_info_file(file: str) -> SubmissionInfo:
 
             if bb_files:
                 files = [
-                    FileInfo(org, cur) for org, cur in
-                    _TXT_FILES_FMT.findall(bb_files.decode('utf-8'))
+                    FileInfo(org, cur) for org, cur in _TXT_FILES_FMT.
+                    findall(bb_files.decode('utf-8'))
                 ]
             else:
+                logger.debug(
+                    'Processed blackboard without files submission',
+                    match=str(data.read()),
+                )
                 content = (
                     b'No files were uploaded! The'
                     b'comments for this submission were:\n"""\n' +
@@ -114,13 +127,15 @@ def parse_info_file(file: str) -> SubmissionInfo:
                 student_id=match.group('id').decode('utf-8'),
                 assignment_name=match.group('assignment').decode('utf-8'),
                 created_at=dateparser.parse(
-                    match.group('datetime').decode('utf-8')
-                    .replace(" o'clock", ""),
+                    match.group('datetime').decode('utf-8').replace(
+                        " o'clock", ""
+                    ),
                     tzinfos={'CET': gettz('Europe/Amsterdam')}
                 ),
                 grade=grade,
                 text=match.group('text').decode('utf-8').rstrip(),
                 comment=match.group('comment').decode('utf-8').rstrip(),
-                files=files
+                files=files,
             )
+
             return info

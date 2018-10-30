@@ -1,5 +1,8 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
-<div class="sidebar" id="global-sidebar" :class="{ floating, inLTI: $inLTI }">
+<div class="sidebar"
+     :class="{ floating, inLTI: $inLTI }"
+     id="global-sidebar">
     <div class="main-menu" :class="{ show: mobileVisible }">
         <div class="sidebar-top">
             <router-link class="sidebar-top-item logo"
@@ -12,18 +15,24 @@
 
             <hr class="separator">
 
-            <a v-for="entry in entries"
-               v-if="maybeCall(entry.condition)"
-               @click="openUpperSubMenu(entry, true)"
-               class="sidebar-top-item"
-               :class="{ selected: currentEntry && entry.name === currentEntry.name }">
-                <icon :name="entry.icon"
-                      :scale="mobileVisible ? 1.5 : 3"
-                      :label="maybeCall(entry.title || entry.header)"/>
-                <small class="name">
-                    {{ maybeCall(entry.title || entry.header) }}
-                </small>
-            </a>
+            <transition v-for="entry in entries"
+                        :key="`sidebar-transition-${entry.name}`"
+                        v-if="maybeCall(entry.condition)"
+                        name="pop-in"
+                        :appear="loaded"
+                        :enter-active-class="entry.animate || entry.animateAdd ? 'pop-in-enter-active' : ''"
+                        :leave-active-class="entry.animate || entry.animateRemove ? 'pop-in-leave-active' : ''">
+                <a @click="openUpperSubMenu(entry, true)"
+                   class="sidebar-top-item"
+                   :class="{ selected: currentEntry && entry.name === currentEntry.name }">
+                    <icon :name="entry.icon"
+                        :scale="mobileVisible ? 1.5 : 3"
+                        :label="maybeCall(entry.title || entry.header)"/>
+                    <small class="name">
+                        {{ maybeCall(entry.title || entry.header) }}
+                    </small>
+                </a>
+            </transition>
         </div>
 
         <div v-if="canManageSite">
@@ -124,22 +133,27 @@ import 'vue-awesome/icons/rocket';
 import 'vue-awesome/icons/question';
 import 'vue-awesome/icons/tachometer';
 import 'vue-awesome/icons/refresh';
+import 'vue-awesome/icons/search';
+import 'vue-awesome/icons/files-o';
 
 import { Loader } from '@/components';
 
-import Login from './Login';
 import UserInfo from './UserInfo';
 import CourseList from './CourseList';
 import AssignmentList from './AssignmentList';
-import Register from './Register';
+import PlagiarismCaseList from './PlagiarismCaseList';
+import SubmissionsSidebarList from './SubmissionsSidebarList';
 
 import { MANAGE_SITE_PERIMSSIONS } from '../../constants';
 
 
 const floatingRoutes = new Set([
     'home',
+    'forgot',
     'submission',
     'submission_file',
+    'plagiarism_overview',
+    'plagiarism_detail',
 ]);
 const hideRoutes = floatingRoutes;
 
@@ -156,7 +170,8 @@ export default {
 
     data() {
         return {
-            loading: false,
+            loading: true,
+            loaded: false,
             canManageSite: false,
             entries: [
                 {
@@ -164,24 +179,19 @@ export default {
                     icon: 'bolt-o',
                     iconStyle: 'border: 3px solid; border-radius: 50%;',
                     title: 'Login',
-                    header: () => {
-                        if (this.$route.hash === '#forgot') {
-                            return 'Reset password';
-                        } else {
-                            return 'Login';
-                        }
-                    },
-                    width: '600px',
-                    component: 'login',
                     condition: () => !this.loggedIn,
+                    onClick: () => {
+                        this.$router.push({ name: 'login' });
+                    },
                 },
                 {
                     name: 'register',
                     icon: 'rocket',
                     header: 'Register',
-                    width: '600px',
-                    component: 'register',
                     condition: () => !this.loggedIn,
+                    onClick: () => {
+                        this.$router.push({ name: 'register' });
+                    },
                 },
                 {
                     name: 'user',
@@ -191,6 +201,7 @@ export default {
                     width: '600px',
                     component: 'user-info',
                     condition: () => this.loggedIn,
+                    animateAdd: true,
                 },
                 {
                     name: 'courses',
@@ -199,6 +210,7 @@ export default {
                     component: 'course-list',
                     condition: () => this.loggedIn && !this.$inLTI,
                     reload: true,
+                    animateAdd: true,
                 },
                 {
                     name: 'assignments',
@@ -207,30 +219,51 @@ export default {
                     component: 'assignment-list',
                     condition: () => this.loggedIn && !this.$inLTI,
                     reload: true,
+                    animateAdd: true,
                 },
                 {
                     name: 'ltiAssignments',
                     icon: 'edit',
                     title: 'Assignments',
                     header: () => {
-                        const { course } = this.assignments[this.$LTIAssignmentId];
-                        return course ? course.name : 'Assignments';
+                        const assig = this.assignments[this.$LTIAssignmentId];
+                        return assig ? assig.course.name : 'Assignments';
                     },
                     component: 'assignment-list',
                     condition: () => {
                         if (this.loggedIn && this.$inLTI && this.$LTIAssignmentId) {
-                            const { course } = this.assignments[this.$LTIAssignmentId];
-                            if (course) {
-                                return course.canManage ||
-                                    course.assignments.some(a => a.canManage);
+                            const assig = this.assignments[this.$LTIAssignmentId];
+                            if (assig) {
+                                return assig.course.canManage ||
+                                    assig.course.assignments.some(a => a.canManage);
                             }
                         }
                         return false;
                     },
                     reload: true,
-                    data: () => ({
-                        course: this.assignments[this.$LTIAssignmentId].course,
-                    }),
+                    data: () => {
+                        const assig = this.assignments[this.$LTIAssignmentId];
+                        return assig ? { course: assig.course } : {};
+                    },
+                    animateAdd: true,
+                },
+                {
+                    name: 'cases',
+                    icon: 'search',
+                    header: 'Plagiarism Cases',
+                    component: 'plagiarism-case-list',
+                    condition: () => this.loggedIn && this.$route.name === 'plagiarism_detail',
+                    reload: true,
+                    animate: true,
+                },
+                {
+                    name: 'submissions',
+                    icon: 'files-o',
+                    header: 'Submissions',
+                    component: 'submissions-sidebar-list',
+                    condition: () => this.loggedIn && (this.$route.name === 'submission_file' || this.$route.name === 'submission'),
+                    reload: true,
+                    animate: true,
                 },
             ],
             currentEntry: null,
@@ -242,7 +275,7 @@ export default {
     },
 
     computed: {
-        ...mapGetters('courses', ['assignments']),
+        ...mapGetters('courses', ['courses', 'assignments']),
 
         ...mapGetters('user', ['loggedIn', 'name']),
 
@@ -264,7 +297,11 @@ export default {
 
         hideInitialEntries() {
             const route = this.$route.name;
-            return this.$inLTI || !this.$root.$isMediumWindow || hideRoutes.has(route);
+            return (
+                this.$inLTI ||
+                !this.$root.$isMediumWindow ||
+                hideRoutes.has(route)
+            );
         },
 
         showRegularLogo() {
@@ -297,18 +334,30 @@ export default {
                 this.setInitialEntry();
             }
         },
+
+        subMenus() {
+            this.$nextTick(this.fixAppMargin);
+        },
     },
 
     async mounted() {
-        const [, perms] = await Promise.all([
-            this.loadCourses(),
-            this.$hasPermission(MANAGE_SITE_PERIMSSIONS),
-        ]);
+        this.fixAppMargin();
 
-        this.canManageSite = perms.every(x => x);
+        if (this.loggedIn) {
+            const [, perms] = await Promise.all([
+                this.loadCourses(),
+                this.$hasPermission(MANAGE_SITE_PERIMSSIONS),
+            ]);
 
-        this.$root.$on('sidebar::show', () => {
-            this.toggleMobileSidebar();
+            this.canManageSite = perms.every(x => x);
+        }
+
+        this.$root.$on('sidebar::show', (submenu) => {
+            if (submenu === undefined) {
+                this.toggleMobileSidebar();
+            } else {
+                this.openUpperSubMenu(this.findEntry(submenu), false);
+            }
         });
 
         this.$on('sidebar::close', () => {
@@ -318,6 +367,7 @@ export default {
         });
 
         this.setInitialEntry();
+        this.loaded = true;
     },
 
     methods: {
@@ -327,10 +377,19 @@ export default {
             logoutUser: 'logout',
         }),
 
+        fixAppMargin() {
+            if (this.$root.isEdge || (this.$el && getComputedStyle(this.$el).position === 'fixed')) {
+                const app = document.querySelector('#app');
+                app.style.marginLeft = `${this.$el.clientWidth}px`;
+                this.$el.style.position = 'fixed';
+                this.$el.style.left = 0;
+            }
+        },
+
         logout() {
             this.logoutUser();
             this.closeSubMenu(true);
-            this.$router.push({ name: 'home' });
+            this.$router.push({ name: 'login' });
         },
 
         refreshItems() {
@@ -343,24 +402,24 @@ export default {
         },
 
         setInitialEntry() {
-            if (this.$route.query.sbloc === 'm') {
-                this.openMenuStack([this.findEntry('user')]);
-            } else if (this.$route.query.sbloc === 'l' && !this.loggedIn) {
-                this.openMenuStack([this.findEntry('login')]);
-            } else if (this.$route.query.sbloc === 'r' && !this.loggedIn) {
-                this.openMenuStack([this.findEntry('register')]);
-            } else if (this.hideInitialEntries) {
+            if (this.$route.name === 'login' || this.$route.name === 'register') {
+                this.currentEntry = this.findEntry(this.$route.name);
+            } else if (this.$route.name == null || !this.loggedIn || this.hideInitialEntries) {
                 // NOOP
+            } else if (this.$route.query.sbloc === 'm') {
+                this.openMenuStack([this.findEntry('user')]);
             } else if (this.$route.query.sbloc === 'a') {
                 this.openMenuStack([this.findEntry('assignments')]);
+            } else if (this.$route.query.sbloc === 'c') {
+                this.openMenuStack([this.findEntry('courses')]);
             } else {
-                const assignment = this.assignments[this.$route.params.assignmentId];
+                const course = this.courses[this.$route.params.courseId];
                 const menuStack = [this.findEntry('courses')];
-                if (assignment != null) {
+                if (course != null) {
                     menuStack.push({
-                        header: assignment.course.name,
+                        header: course.name,
                         component: 'assignment-list',
-                        data: assignment,
+                        data: { course },
                         reload: true,
                     });
                 }
@@ -382,8 +441,10 @@ export default {
         },
 
         openUpperSubMenu(entry, toggle = false) {
-            if (toggle && this.currentEntry &&
-                entry.name === this.currentEntry.name) {
+            if (entry.onClick != null) {
+                this.currentEntry = entry;
+                entry.onClick();
+            } else if (toggle && this.currentEntry && entry.name === this.currentEntry.name) {
                 this.closeSubMenu(true);
             } else {
                 const hadSubMenuOpen = this.subMenus.length > 0;
@@ -407,14 +468,14 @@ export default {
             this.$root.$emit('sidebar::submenu-closed');
 
             if (closeAll) {
-                this.currentEntry = null;
                 this.subMenus = [];
+                this.currentEntry = null;
             } else {
                 this.subMenus.pop();
-            }
 
-            if (this.subMenus.length === 0) {
-                this.currentEntry = null;
+                if (this.subMenus.length === 0) {
+                    this.currentEntry = null;
+                }
             }
 
             if ((closeAll || this.subMenus.length === 0) && this.mobileVisible) {
@@ -459,11 +520,11 @@ export default {
     components: {
         Icon,
         Loader,
-        Login,
         UserInfo,
         CourseList,
         AssignmentList,
-        Register,
+        PlagiarismCaseList,
+        SubmissionsSidebarList,
     },
 };
 </script>
@@ -472,7 +533,7 @@ export default {
 @import "~mixins.less";
 
 .sidebar {
-    position: relative;
+    position: fixed;
     position: sticky;
     z-index: 10;
     top: 0;
@@ -529,7 +590,7 @@ export default {
     .sidebar-top-item {
         display: flex;
         flex-direction: column;
-        padding: .75rem;
+        padding: .75rem .5rem;
 
         @media @media-small {
             flex-direction: row;
@@ -557,6 +618,8 @@ export default {
 
         .name {
             text-align: center;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
     }
 
@@ -653,6 +716,24 @@ export default {
     bottom: 0;
     left: 0;
     z-index: -2;
+}
+
+.pop-in-enter-active,
+.pop-in-leave-active {
+    transition-property: opacity, transform;
+    transition-duration: 250ms;
+}
+
+.pop-in-enter,
+.pop-in-leave-to {
+    transform: scale(0);
+    opacity: 0;
+}
+
+.pop-in-enter-to,
+.pop-in-leave {
+    transform: scale(1);
+    opacity: 1;
 }
 </style>
 
@@ -805,6 +886,11 @@ export default {
     .submenu hr.separator {
         position: relative;
         z-index: 100;
+    }
+
+    small {
+        display: block;
+        line-height: 1.3;
     }
 }
 </style>

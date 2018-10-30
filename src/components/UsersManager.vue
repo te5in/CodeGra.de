@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <loader v-if="loading" page-loader/>
 <div class="users-manager" v-else>
@@ -9,19 +10,22 @@
              :filter="filter"
              :sort-compare="sortTable"
              sort-by="User"
-             :response="true">
+             :response="true"
+             v-if="canListUsers">
 
         <template slot="User" slot-scope="item">
             <span class="username">{{item.value.name}} ({{item.value.username}})</span>
         </template>
 
         <template slot="CourseRole" slot-scope="item">
-            <loader :scale="1" v-if="updating[item.item.User.id]"/>
+            <loader :scale="2" v-if="updating[item.item.User.id]"/>
             <b-dropdown :text="item.value.name"
                         disabled
+                        class="role-dropdown"
                         v-b-popover.top.hover="'You cannot change your own role'"
                         v-else-if="item.item.User.name == userName"/>
             <b-dropdown :text="item.value.name"
+                        class="role-dropdown"
                         :disabled="item.item.User.name == userName"
                         v-else>
                 <b-dropdown-header>Select the new role</b-dropdown-header>
@@ -33,6 +37,10 @@
             </b-dropdown>
         </template>
     </b-table>
+    <b-alert show variant="danger" v-else>
+        You can only acutally manage users when you also have the 'list course
+        users' ('can_list_course_users') permission
+    </b-alert>
 
     <b-popover class="new-user-popover"
                :triggers="course.is_lti ? 'hover' : ''"
@@ -44,6 +52,8 @@
         <b-input-group>
             <user-selector v-model="newStudentUsername"
                            placeholder="New student"
+                           :use-selector="canListUsers && canSearchUsers"
+                           :extra-params="{ exclude_course: course.id }"
                            :disabled="course.is_lti"/>
 
             <template slot="append">
@@ -75,7 +85,7 @@ import 'vue-awesome/icons/pencil';
 import 'vue-awesome/icons/floppy-o';
 import 'vue-awesome/icons/ban';
 
-import { cmpNoCase, cmpOneNull } from '@/utils';
+import { cmpNoCase, cmpOneNull, waitAtLeast } from '@/utils';
 import Loader from './Loader';
 import SubmitButton from './SubmitButton';
 import UserSelector from './UserSelector';
@@ -101,6 +111,8 @@ export default {
             loading: true,
             updating: {},
             newStudentUsername: null,
+            canListUsers: false,
+            canSearchUsers: false,
             newRole: '',
             error: '',
             fields: {
@@ -127,8 +139,10 @@ export default {
     },
 
     watch: {
-        course() {
-            this.loadData();
+        course(newVal, oldVal) {
+            if (newVal.id !== oldVal.id) {
+                this.loadData();
+            }
         },
     },
 
@@ -140,9 +154,11 @@ export default {
         async loadData() {
             this.loading = true;
 
-            await Promise.all([
+            [, , this.canListUsers, this.canSearchUsers] = await Promise.all([
                 this.getAllUsers(),
                 this.getAllRoles(),
+                this.$hasPermission('can_list_course_users', this.courseId),
+                this.$hasPermission('can_search_users'),
             ]);
 
             this.loading = false;
@@ -175,7 +191,7 @@ export default {
         getAllUsers() {
             return this.$http.get(`/api/v1/courses/${this.courseId}/users/`).then(({ data }) => {
                 this.users = data;
-            });
+            }, () => []);
         },
 
         getAllRoles() {
@@ -193,13 +209,16 @@ export default {
                 }
             }
             this.$set(this.updating, user.User.id, true);
-            this.$http.put(`/api/v1/courses/${this.courseId}/users/`, {
+            const req = this.$http.put(`/api/v1/courses/${this.courseId}/users/`, {
                 user_id: user.User.id,
                 role_id: role.id,
-            }).then(() => {
+            });
+
+            waitAtLeast(250, req).then(() => {
                 this.$set(this.updating, user.User.id, false);
                 delete this.updating[user.User.id];
             }).catch((err) => {
+                // TODO: visual feedback
                 // eslint-disable-next-line
                 console.dir(err)
             });
@@ -274,6 +293,12 @@ export default {
     -moz-hyphens: auto;
     -ms-hyphens: auto;
     hyphens: auto;
+}
+
+
+.role-dropdown .dropdown-toggle {
+    padding-top: 3px;
+    padding-bottom: 4px;
 }
 </style>
 

@@ -1,6 +1,8 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div class="submission-uploader">
     <b-modal id="wrong-files-modal"
+             v-if="showModal"
              hide-footer
              title="Probably superfluous files found!">
         <p>
@@ -9,7 +11,7 @@
             means the following files are probably not necessary to hand
             in:
         </p>
-        <ul style="list-style-type: none">
+        <ul class="wrong-files-list">
             <li style="margin-right: 2px; padding: 0.5em;" v-for="file in wrongFiles">
                 <code style="margin-right: 0.25rem">{{ file[0] }}</code> is ignored by <code>{{ file[1] }}</code>
             </li>
@@ -49,10 +51,12 @@
                    :before-upload="checkUpload"
                    @error="uploadError"
                    @clear="author = null"
-                   @response="data => $emit('created', data)">
+                   @response="response">
         <user-selector v-model="author"
                        select-label=""
                        :disabled="disabled"
+                       :base-url="`/api/v1/courses/${assignment.course.id}/users/`"
+                       :use-selector="canListUsers"
                        v-if="forOthers"
                        :placeholder="`${defaultAuthor.name} (${defaultAuthor.username})`"/>
     </file-uploader>
@@ -60,7 +64,7 @@
 </template>
 
 <script>
-import { mapGetters } from 'vuex';
+import { mapGetters, mapActions } from 'vuex';
 
 import Loader from './Loader';
 import FileUploader from './FileUploader';
@@ -84,6 +88,11 @@ export default {
         },
 
         forOthers: {
+            type: Boolean,
+            required: true,
+        },
+
+        canListUsers: {
             type: Boolean,
             required: true,
         },
@@ -116,6 +125,15 @@ export default {
             showWarn: false,
             rejectWarn: null,
             acceptWarn: null,
+            // This variable is a haxxxy optimization: Rendering a modal is SLOW
+            // (!!) as it forces an entire reflow even when it is still
+            // hidden. I most cases the modal on this page is never shown (it is
+            // only shown when a user tries to hand in files that match the
+            // ignore filters), so by default we don't render it (there is a
+            // `v-if="showModal"`) at all. When the modal is needed we set this
+            // variable to `true`. We never reset this value back to `false` as
+            // doing so f*cks the entire animation.
+            showModal: false,
             uploaderId: `submission-uploader-${i++}`,
         };
     },
@@ -127,19 +145,21 @@ export default {
     },
 
     methods: {
-        uploadError(err) {
+        ...mapActions('courses', ['addSubmission']),
+
+        async uploadError(err) {
             if (err.data.code !== 'INVALID_FILE_IN_ARCHIVE') return;
 
             this.wrongFiles = err.data.invalid_files;
+            this.showModal = true;
+            await this.$nextTick();
             this.$root.$emit('bv::show::modal', 'wrong-files-modal');
 
             // We need the double next ticks as next ticks are executed before
             // data updates of the next tick.
-            this.$nextTick(() => {
-                this.$nextTick(() => {
-                    this.$refs.uploader.$refs.submitButton.reset();
-                });
-            });
+            await this.$nextTick();
+            await this.$nextTick();
+            this.$refs.uploader.$refs.submitButton.reset();
         },
 
         checkUpload() {
@@ -185,12 +205,19 @@ export default {
             const { requestData } = this.$refs.uploader;
             const url = this.getUploadUrl(type);
 
-            btn.submit(this.$http.post(url, requestData).then((res) => {
-                this.$emit('created', res);
+            btn.submit(this.$http.post(url, requestData).then(({ data: submission }) => {
+                this.addSubmission({ assignmentId: this.assignment.id, submission });
+                this.$emit('created', submission);
+                this.$root.$emit('bv::hide::modal', 'wrong-files-modal');
             }, ({ response }) => {
                 this.$emit('error', response);
                 throw response.data.message;
             }));
+        },
+
+        response({ data: submission }) {
+            this.addSubmission({ assignmentId: this.assignment.id, submission });
+            this.$emit('created', submission);
         },
     },
 
@@ -207,15 +234,54 @@ export default {
 .form-group {
     margin-bottom: 0;
 }
+
+.wrong-files-list {
+    flex: 1 1 auto;
+    list-style: none;
+    margin-right: -.95rem;
+    overflow: auto;
+}
+
+.btn-toolbar {
+    flex: 0 0 auto;
+}
 </style>
 
 <style lang="less">
+@import "~mixins.less";
+
 .submission-uploader .multiselect {
     min-height: 0px;
     margin: 0 1px;
     .multiselect__tags {
         border-radius: 0;
         min-height: 0px;
+    }
+}
+
+.submission-uploader {
+    .modal-dialog {
+        display: flex;
+        flex-direction: column;
+        height: auto;
+        max-height: 75vh;
+        min-width: 75vw;
+        margin: 12.5vh auto;
+
+        @media @media-small {
+            max-height: ~"calc(100vh - 2rem)";
+            margin: 1rem auto;
+        }
+    }
+
+    .modal-content {
+        min-height: 0;
+    }
+
+    .modal-body {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
     }
 }
 </style>

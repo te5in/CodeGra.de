@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-only
 import os
 import sys
 import copy
@@ -50,6 +51,9 @@ def app(request):
         'LTI_CONSUMER_KEY_SECRETS': {
             'my_lti': '12345678'
         },
+        'LTI_SECRET_KEY': 'hunter123',
+        'SECRET_KEY': 'hunter321',
+        'HEALTH_KEY': 'uuyahdsdsdiufhaiwueyrriu2h3',
     }
     if request.config.getoption('--postgresql'):
         print('Running with postgres!')
@@ -65,7 +69,9 @@ def app(request):
         'CELERY_TASK_EAGER_PROPAGATES': True,
     }
 
-    app = psef.create_app(settings_override, skip_celery=True)
+    app = psef.create_app(
+        settings_override, skip_celery=True, skip_perm_check=True
+    )
 
     psef.tasks.celery.conf.update(
         {
@@ -121,7 +127,6 @@ def test_client(app):
             **kwargs,
         )
 
-        print(rv.get_data(as_text=True))
         assert rv.status_code == status_code
 
         if status_code == 204:
@@ -271,6 +276,8 @@ def db(app, request):
     manage.app = app
     manage.seed_force(psef.models.db)
     manage.test_data(psef.models.db)
+
+    psef.permissions.database_permissions_sanity_check(app)
 
     yield psef.models.db
 

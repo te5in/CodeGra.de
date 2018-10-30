@@ -1,9 +1,10 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
     <div class="cgignore-file">
         <textarea class="form-control"
                   rows="6"
                   v-model="content"
-                  @keyup.ctrl.enter="updateIgnore"/>
+                  @keyup.ctrl.enter.prevent="updateIgnore"/>
         <submit-button label="Update"
                        ref="submitBtn"
                        @click="updateIgnore"/>
@@ -72,8 +73,7 @@ export default {
 
 <style lang="less" scoped>
 .submit-button {
-    display: flex;
-    margin-top: 15px;
-    justify-content: flex-end;
+    float: right;
+    margin-top: 1rem;
 }
 </style>

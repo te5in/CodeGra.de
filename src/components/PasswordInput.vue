@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <b-form-fieldset class="password-input">
     <b-input-group>

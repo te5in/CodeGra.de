@@ -2,21 +2,58 @@
 This package implements the backend for codegrade. Because of historic reasons
 this backend is named ``psef``.
 
-:license: AGPLv3, see LICENSE for details.
+SPDX-License-Identifier: AGPL-3.0-only
 """
 import os
 import sys
 import json as system_json
+import uuid
 import types
 import typing as t
+import logging
 import datetime
 
-import flask  # pylint: disable=unused-import
+import flask
+import structlog
 import flask_jwt_extended as flask_jwt
-from flask import Flask, g, jsonify, current_app
+from flask import g, jsonify, request, current_app
 from flask_limiter import Limiter, RateLimitExceeded
 
-import config as global_config
+if t.TYPE_CHECKING and getattr(
+    t, 'SPHINX', False
+) is not True:  # pragma: no cover:
+
+    class Flask:
+        """A stub for flask.
+        """
+
+        def __init__(self, _: str) -> None:
+            self.before_request: t.Callable
+            self.after_request: t.Callable
+            self.errorhandler: t.Callable
+            self.config: t.MutableMapping[str, t.Any]
+            self.teardown_request: t.Callable
+            self.app_context: t.Callable
+else:
+    from flask import Flask
+
+
+class PsefFlask(Flask):
+    """Our subclass of flask.
+
+    This contains the extra property :meth:`.PsefFlask.do_sanity_checks`.
+    """
+
+    @property
+    def do_sanity_checks(self) -> bool:
+        """Should we do sanity checks for this app.
+
+        :returns: ``True`` if ``debug`` or ``testing`` is enabled.
+        """
+        return getattr(self, 'debug', False) or getattr(self, 'testing', False)
+
+
+logger = structlog.get_logger()
 
 app = current_app  # pylint: disable=invalid-name
 
@@ -50,8 +87,8 @@ def _seed_lti_lookups() -> None:
 _seed_lti_lookups()
 
 if t.TYPE_CHECKING:  # pragma: no cover
-    import psef.models  # pylint: disable=unused-import
-    current_user: 'psef.models.User' = None
+    import psef.models
+    current_user: 'psef.models.User' = t.cast('psef.models.User', None)
 else:
     current_user = flask_jwt.current_user  # pylint: disable=invalid-name
 
@@ -68,26 +105,32 @@ def limiter_key_func() -> None:  # pragma: no cover
 limiter = Limiter(key_func=limiter_key_func)  # pylint: disable=invalid-name
 
 
-def create_app(config: t.Mapping = None, skip_celery: bool = False) -> t.Any:
+def create_app(  # pylint: disable=too-many-statements
+    config: t.Mapping = None,
+    skip_celery: bool = False,
+    skip_perm_check: bool = True,
+    skip_secret_key_check: bool = False,
+) -> t.Any:
     """Create a new psef app.
 
     :param config: The config mapping that can be used to override config.
     :param skip_celery: Set to true to disable sanity checks for celery.
     :returns: A new psef app object.
     """
-    resulting_app = Flask(__name__)
+    import config as global_config
+
+    resulting_app = PsefFlask(__name__)
 
     @resulting_app.before_request
     def __set_request_start_time() -> None:  # pylint: disable=unused-variable
         g.request_start_time = datetime.datetime.utcnow()
 
     @resulting_app.before_request
-    @flask_jwt.jwt_optional
-    def __set_current_user() -> None:  # pylint: disable=unused-variable
-        # This code is necessary to make `flask_jwt_extended` understand that
-        # we always want to try to load the given JWT token. The function body
-        # SHOULD be empty here.
-        pass
+    def __set_query_durations() -> None:
+        g.queries_amount = 0
+        g.queries_total_duration = 0
+        g.queries_max_duration = None
+        g.query_start = None
 
     @resulting_app.teardown_request
     def __teardown_request(exception: t.Type[Exception]) -> None:  # pylint: disable=unused-variable
@@ -101,6 +144,68 @@ def create_app(config: t.Mapping = None, skip_celery: bool = False) -> t.Any:
 
     if config is not None:  # pragma: no cover
         resulting_app.config.update(config)
+
+    if (
+        not skip_secret_key_check and (
+            resulting_app.config['SECRET_KEY'] is None or
+            resulting_app.config['LTI_SECRET_KEY'] is None
+        )
+    ):  # pragma: no cover
+        raise ValueError('The option to generate keys has been removed')
+
+    @resulting_app.before_request
+    def __create_logger() -> None:  # pylint: disable=unused-variable
+        g.request_id = uuid.uuid4()
+        log = logger.new(
+            request_id=str(g.request_id),
+            path=flask.request.path,
+            view=getattr(flask.request.url_rule, 'rule', None),
+            base_url=resulting_app.config['EXTERNAL_URL'],
+        )
+        flask_jwt.verify_jwt_in_request_optional()
+        log.bind(current_user=current_user and current_user.username)
+        log.info(
+            "Request started",
+            host=request.host_url,
+            method=request.method,
+            args=dict(flask.request.args),
+        )
+
+    processors = [
+        structlog.stdlib.filter_by_level,
+        structlog.stdlib.add_logger_name,
+        structlog.stdlib.add_log_level,
+        structlog.stdlib.PositionalArgumentsFormatter(),
+        structlog.processors.format_exc_info,
+        structlog.processors.TimeStamper(fmt="iso"),
+        structlog.processors.StackInfoRenderer(),
+        structlog.processors.format_exc_info,
+        structlog.processors.UnicodeDecoder(),
+        structlog.processors.JSONRenderer(),
+    ]
+    structlog.configure(
+        processors=processors,
+        context_class=structlog.threadlocal.wrap_dict(dict),
+        logger_factory=structlog.stdlib.LoggerFactory(),
+        wrapper_class=structlog.stdlib.BoundLogger,
+        cache_logger_on_first_use=True,
+    )
+    if getattr(resulting_app, 'debug', False):
+        structlog.configure(
+            processors=processors[:-2] + [
+                structlog.dev.ConsoleRenderer(
+                    colors=not getattr(resulting_app, 'testing', False)
+                )
+            ]
+        )
+    logging.basicConfig(
+        format='%(message)s',
+        stream=sys.stdout,
+    )
+    logging.getLogger('psef').setLevel(logging.DEBUG)
+    logging.getLogger('werkzeug').setLevel(logging.ERROR)
+    # Let the celery logger shut up
+    logging.getLogger('celery').propagate = False
 
     @resulting_app.errorhandler(RateLimitExceeded)
     def __handle_error(_: RateLimitExceeded) -> 'flask.Response':  # pylint: disable=unused-variable
@@ -116,6 +221,9 @@ def create_app(config: t.Mapping = None, skip_celery: bool = False) -> t.Any:
         return res
 
     limiter.init_app(resulting_app)
+
+    from . import cache
+    cache.init_app(resulting_app)
 
     from . import auth
     auth.init_app(resulting_app)
@@ -135,8 +243,8 @@ def create_app(config: t.Mapping = None, skip_celery: bool = False) -> t.Any:
     from . import tasks
     tasks.init_app(resulting_app)
 
-    from . import json  # pylint: disable=reimported
-    json.init_app(resulting_app)
+    from . import json_encoders
+    json_encoders.init_app(resulting_app)
 
     from . import files
     files.init_app(resulting_app)
@@ -149,6 +257,12 @@ def create_app(config: t.Mapping = None, skip_celery: bool = False) -> t.Any:
 
     from . import linters
     linters.init_app(resulting_app)
+
+    from . import permissions
+    permissions.init_app(resulting_app, skip_perm_check)
+
+    from . import plagiarism
+    plagiarism.init_app(resulting_app)
 
     # Register blueprint(s)
     from . import v1 as api_v1
@@ -165,26 +279,32 @@ def create_app(config: t.Mapping = None, skip_celery: bool = False) -> t.Any:
             )
             raise
 
-    if hasattr(
-        resulting_app, 'debug'
-    ) and resulting_app.debug:  # pragma: no cover
-        import flask_sqlalchemy
-        typ = t.TypeVar('typ')
+    typ = t.TypeVar('typ')
 
-        @resulting_app.after_request
-        def __print_queries(res: typ) -> typ:  # pylint: disable=unused-variable
-            queries = flask_sqlalchemy.get_debug_queries()
-            print(  # pylint: disable=bad-builtin
-                (
-                    '\n{} - - made {} amount of queries totaling '
-                    '{:.4f} seconds. The longest took {:.4f} seconds.'
-                ).format(
-                    flask.request.path,
-                    len(queries),
-                    sum(q.duration for q in queries) if queries else 0,
-                    max(q.duration for q in queries) if queries else 0,
-                )
-            )
-            return res
+    @resulting_app.after_request
+    def __after_request(res: typ) -> typ:  # pylint: disable=unused-variable
+        queries_amount = g.queries_amount
+        queries_total_duration = g.queries_total_duration
+        queries_max_duration = g.queries_max_duration or 0
+        log_msg = (
+            logger.info if queries_max_duration < 0.5 and queries_amount < 20
+            else logger.warning
+        )
+
+        cache_hits = g.cache_hits
+        cache_misses = g.cache_misses
+
+        end_time = datetime.datetime.utcnow()
+        log_msg(
+            'Request finished',
+            request_time=(end_time - g.request_start_time).total_seconds(),
+            status_code=getattr(res, 'status_code', None),
+            queries_amount=queries_amount,
+            queries_total_duration=queries_total_duration,
+            queries_max_duration=queries_max_duration,
+            cache_hits=cache_hits,
+            cache_misses=cache_misses,
+        )
+        return res
 
     return resulting_app

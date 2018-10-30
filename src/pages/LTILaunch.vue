@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
     <b-alert variant="danger" show v-if="error" class="box">
         <p style="text-align: center; font-size: 1.3em;">
@@ -36,20 +37,20 @@ export default {
             'logout',
             'updateAccessToken',
         ]),
+        ...mapActions('plagiarism', { clearPlagiarismCases: 'clear' }),
 
         secondStep(first) {
             this.$inLTI = true;
 
             setPageTitle('LTI is launching, please wait');
 
-            this.$http.get('/api/v1/lti/launch/2', {
-                headers: {
-                    Jwt: this.$route.query.jwt,
-                },
+            this.$http.post('/api/v1/lti/launch/2', {
+                jwt_token: this.$route.query.jwt,
             }).then(async ({ data }) => {
                 if (data.access_token) {
                     await this.updateAccessToken(data.access_token);
                 } else {
+                    this.clearPlagiarismCases();
                     this.$clearPermissions();
                 }
 
@@ -66,6 +67,7 @@ export default {
                         `You do not have any permissions yet, please ask your teacher to enable them for your role "${data.new_role_created}".`,
                         {
                             position: 'bottom-center',
+                            closeOnSwipe: false,
                             action: {
                                 text: '✖',
                                 onClick: (e, toastObject) => {
@@ -80,6 +82,7 @@ export default {
                         `Your email was updated to "${data.updated_email}" which is the email registered with your LMS.`,
                         {
                             position: 'bottom-center',
+                            closeOnSwipe: false,
                             action: {
                                 text: '✖',
                                 onClick: (e, toastObject) => {

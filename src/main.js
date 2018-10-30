@@ -1,9 +1,8 @@
-// The Vue build version to load with the `import` command
-// (runtime-only or standalone) has been set in webpack.base.conf with an alias.
-
+/* SPDX-License-Identifier: AGPL-3.0-only */
 import 'bootstrap/dist/css/bootstrap.css';
 import 'bootstrap-vue/dist/bootstrap-vue.css';
 import 'highlightjs/styles/solarized-dark.css';
+import 'vue-multiselect/dist/vue-multiselect.min.css';
 import '@/style.less';
 
 import Vue from 'vue';
@@ -13,6 +12,7 @@ import axios from 'axios';
 import Toasted from 'vue-toasted';
 import localforage from 'localforage';
 import memoryStorageDriver from 'localforage-memoryStorageDriver';
+import VueMasonry from 'vue-masonry-css';
 
 import '@/polyfills';
 import App from '@/App';
@@ -23,6 +23,7 @@ import PermissionStore from './permissions';
 
 Vue.use(BootstrapVue);
 Vue.use(Toasted);
+Vue.use(VueMasonry);
 
 Vue.config.productionTip = false;
 
@@ -122,6 +123,7 @@ localforage.defineDriver(memoryStorageDriver).then(() => {
                 toastVisible = true;
                 Vue.toasted.error('There was an error connecting to the server... Please try again later', {
                     position: 'bottom-center',
+                    closeOnSwipe: false,
                     duration: 3000,
                     onComplete: () => {
                         toastVisible = false;
@@ -148,6 +150,9 @@ localforage.defineDriver(memoryStorageDriver).then(() => {
         data() {
             return {
                 screenWidth: window.innerWidth,
+                smallWidth: 628,
+                mediumWidth: 768,
+                largeWidth: 992,
             };
         },
 
@@ -161,15 +166,35 @@ localforage.defineDriver(memoryStorageDriver).then(() => {
 
         computed: {
             $isSmallWindow() {
-                return this.screenWidth <= 628;
+                return this.screenWidth <= this.smallWidth;
             },
 
             $isMediumWindow() {
-                return this.screenWidth >= 768;
+                return this.screenWidth >= this.mediumWidth;
             },
 
             $isLargeWindow() {
-                return this.screenWidth >= 992;
+                return this.screenWidth >= this.largeWidth;
+            },
+
+            isEdge() {
+                return window.navigator.userAgent.indexOf('Edge') > -1;
+            },
+
+            // Detect if browser is Internet Explorer,
+            // source: https://s.codepen.io/boomerang/iFrameKey-82faba85-1442-af7e-7e36-bd4e4cc10796/index.html
+            isIE() {
+                const ua = window.navigator.userAgent;
+
+                // Test values; Uncomment to check result …
+
+                // IE 10
+                // ua = 'Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.2; Trident/6.0)';
+
+                // IE 11
+                // ua = 'Mozilla/5.0 (Windows NT 6.3; Trident/7.0; rv:11.0) like Gecko';
+
+                return ua.indexOf('MSIE ') > -1 || ua.indexOf('Trident/') > -1;
             },
         },
 

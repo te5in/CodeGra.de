@@ -1,14 +1,14 @@
 """
 This module implements parsers that raise a `APIException` when they fail.
 
-:license: AGPLv3, see LICENSE for details.
+SPDX-License-Identifier: AGPL-3.0-only
 """
 import enum
 import typing as t
 import datetime
 import email.utils
 
-import dateutil
+import dateutil.parser
 from validate_email import validate_email
 
 from psef.errors import APICodes, APIException
@@ -55,7 +55,7 @@ def parse_enum(
     parse_into_enum: t.Type[T],
     allow_none: bool = False,
     option_name: t.Optional[str] = None,
-) -> T:
+) -> t.Optional[T]:
     """Parse the given string to the given parse_into_enum.
 
     :param to_parse: The object to parse. If this value is not a string or

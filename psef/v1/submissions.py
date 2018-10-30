@@ -3,7 +3,7 @@ This module defines all API routes with the main directory "submissions". The
 APIs allow the retrieving, and patching of :class: Work objects. Furthermore
 functions are defined to get related objects and information.
 
-:license: AGPLv3, see LICENSE for details.
+SPDX-License-Identifier: AGPL-3.0-only
 """
 
 import os
@@ -11,9 +11,10 @@ import typing as t
 import numbers
 import zipfile
 import tempfile
-from collections import defaultdict
+from collections import Counter, defaultdict
 
 from flask import request
+from sqlalchemy.orm import selectinload
 from mypy_extensions import TypedDict
 
 import psef.auth as auth
@@ -31,6 +32,7 @@ from psef.helpers import (
 
 from . import api
 from ..model_types import DbColumn
+from ..permissions import CoursePermission as CPerm
 
 Feedback = TypedDict(  # pylint: disable=invalid-name
     'Feedback', {
@@ -39,7 +41,11 @@ Feedback = TypedDict(  # pylint: disable=invalid-name
             int,
             t.MutableMapping[int, t.List[t.Tuple[str, models.LinterComment]]],
         ],
-        'general': str
+        'general': str,
+        'authors': t.Optional[t.MutableMapping[
+            int,
+            t.MutableMapping[int, models.User]
+        ]],
     }
 )
 
@@ -79,7 +85,7 @@ def get_submission(
 
     if work.user_id != current_user.id:
         auth.ensure_permission(
-            'can_see_others_work', work.assignment.course_id
+            CPerm.can_see_others_work, work.assignment.course_id
         )
 
     if request.args.get('type') == 'zip':
@@ -147,12 +153,6 @@ def get_zip(work: models.Work,
     """
     auth.ensure_can_view_files(work, exclude_owner == FileOwner.student)
 
-    code = helpers.filter_single_or_404(
-        models.File,
-        models.File.work_id == work.id,
-        t.cast(DbColumn[int], models.File.parent_id).is_(None),
-    )
-
     path, name = psef.files.random_file_path('MIRROR_UPLOAD_DIR')
 
     with open(
@@ -166,9 +166,11 @@ def get_zip(work: models.Work,
         compression=zipfile.ZIP_DEFLATED,
     ) as zipf:
         # Restore the files to tmpdir
-        psef.files.restore_directory_structure(code, tmpdir, exclude_owner)
+        tree_root = psef.files.restore_directory_structure(
+            work, tmpdir, exclude_owner
+        )
 
-        zipf.write(tmpdir, code.name)
+        zipf.write(tmpdir, tree_root['name'])
 
         for root, _dirs, files in os.walk(tmpdir):
             for file in files:
@@ -197,7 +199,7 @@ def delete_submission(submission_id: int) -> EmptyResponse:
     submission = helpers.get_or_404(models.Work, submission_id)
 
     auth.ensure_permission(
-        'can_delete_submission', submission.assignment.course_id
+        CPerm.can_delete_submission, submission.assignment.course_id
     )
 
     for sub_file in db.session.query(models.File).filter_by(
@@ -215,6 +217,7 @@ def delete_submission(submission_id: int) -> EmptyResponse:
 
 
 @api.route('/submissions/<int:submission_id>/feedbacks/', methods=['GET'])
+@auth.login_required
 def get_feedback_from_submission(submission_id: int) -> JSONResponse[Feedback]:
     """Get all feedback for a submission
 
@@ -228,14 +231,24 @@ def get_feedback_from_submission(submission_id: int) -> JSONResponse[Feedback]:
         only the final key is not a string but a list of tuples where the first
         item is the linter code and the second item is a
         :class:`.models.LinterComment`.
+    :>json authors: The authors of the user feedback. In the example above the
+        author of the feedback 'Nice job!' would be at ``{5: {0: $USER}}``.
     """
     work = helpers.get_or_404(models.Work, submission_id)
     auth.ensure_can_see_grade(work)
+    can_view_author = current_user.has_permission(
+        CPerm.can_see_assignee, work.assignment.course_id
+    )
 
+    # The authors dict gets filled if `can_view_authors` is set to `True`. This
+    # value is used so that `mypy` wont complain about indexing null values.
+    authors: t.MutableMapping[int, t.MutableMapping[int, models.
+                                                    User]] = defaultdict(dict)
     res: Feedback = {
         'general': work.comment or '',
         'user': defaultdict(dict),
         'linter': defaultdict(lambda: defaultdict(list)),
+        'authors': authors if can_view_author else None,
     }
 
     comments = models.Comment.query.filter(
@@ -247,10 +260,12 @@ def get_feedback_from_submission(submission_id: int) -> JSONResponse[Feedback]:
 
     for comment in comments:
         res['user'][comment.file_id][comment.line] = comment.comment
+        if can_view_author:
+            authors[comment.file_id][comment.line] = comment.user
 
     linter_comments = models.LinterComment.query.filter(
-        t.cast(DbColumn[models.File], models.LinterComment.file)
-        .has(work=work)
+        t.cast(DbColumn[models.File],
+               models.LinterComment.file).has(work=work)
     ).order_by(
         t.cast(DbColumn[int], models.LinterComment.file_id).asc(),
         t.cast(DbColumn[int], models.LinterComment.line).asc(),
@@ -282,8 +297,23 @@ def get_rubric(submission_id: int) -> JSONResponse[t.Mapping[str, t.Any]]:
     :raises PermissionException: If the user can not see the assignment of the
                                  given submission. (INCORRECT_PERMISSION)
     """
-    work = helpers.get_or_404(models.Work, submission_id)
-    auth.ensure_permission('can_see_assignments', work.assignment.course_id)
+    work = helpers.get_or_404(
+        models.Work,
+        submission_id,
+        options=[
+            selectinload(
+                models.Work.assignment,
+            ).selectinload(
+                models.Assignment.rubric_rows,
+            ).selectinload(
+                models.RubricRow.items,
+            ),
+            selectinload(models.Work.selected_items),
+        ]
+    )
+    auth.ensure_permission(
+        CPerm.can_see_assignments, work.assignment.course_id
+    )
     return jsonify(work.__rubric_to_json__())
 
 
@@ -308,15 +338,18 @@ def select_rubric_items(submission_id: int, ) -> EmptyResponse:
     """
     submission = helpers.get_or_404(models.Work, submission_id)
 
-    auth.ensure_permission('can_grade_work', submission.assignment.course_id)
+    auth.ensure_permission(
+        CPerm.can_grade_work, submission.assignment.course_id
+    )
 
     content = ensure_json_dict(request.get_json())
     ensure_keys_in_dict(content, [('items', list)])
     item_ids = t.cast(list, content['items'])
 
-    items = []
-    for item_id in item_ids:
-        items.append(helpers.get_or_404(models.RubricItem, item_id))
+    items = helpers.get_in_or_error(
+        models.RubricItem, t.cast(models.DbColumn[int], models.RubricItem.id),
+        item_ids
+    )
 
     if any(
         item.rubricrow.assignment_id != submission.assignment_id
@@ -327,6 +360,16 @@ def select_rubric_items(submission_id: int, ) -> EmptyResponse:
             f'A given item of "{", ".join(str(i) for i in item_ids)}"'
             f' does not belong to assignment "{submission.assignment_id}"',
             APICodes.INVALID_PARAM, 400
+        )
+
+    row_ids = [item.rubricrow_id for item in items]
+    if len(row_ids) != len(set(row_ids)):
+        duplicates = [k for k, v in Counter(row_ids).items() if v > 1]
+        raise APIException(
+            'Duplicate rows in selected items',
+            'The rows "{}" had duplicate items'.format(
+                ','.join(map(str, duplicates))
+            ), APICodes.INVALID_PARAM, 400
         )
 
     submission.select_rubric_items(items, current_user, True)
@@ -354,7 +397,9 @@ def unselect_rubric_item(
     """
     submission = helpers.get_or_404(models.Work, submission_id)
 
-    auth.ensure_permission('can_grade_work', submission.assignment.course_id)
+    auth.ensure_permission(
+        CPerm.can_grade_work, submission.assignment.course_id
+    )
 
     new_items = [
         item for item in submission.selected_items if item.id != rubric_item_id
@@ -400,7 +445,7 @@ def select_rubric_item(
     work = helpers.get_or_404(models.Work, submission_id)
     rubric_item = helpers.get_or_404(models.RubricItem, rubricitem_id)
 
-    auth.ensure_permission('can_grade_work', work.assignment.course_id)
+    auth.ensure_permission(CPerm.can_grade_work, work.assignment.course_id)
     if rubric_item.rubricrow.assignment_id != work.assignment_id:
         raise APIException(
             'Rubric item selected does not match assignment',
@@ -440,24 +485,33 @@ def patch_submission(submission_id: int) -> JSONResponse[models.Work]:
     work = helpers.get_or_404(models.Work, submission_id)
     content = ensure_json_dict(request.get_json())
 
-    auth.ensure_permission('can_grade_work', work.assignment.course_id)
+    auth.ensure_permission(CPerm.can_grade_work, work.assignment.course_id)
 
     if 'feedback' in content:
         ensure_keys_in_dict(content, [('feedback', str)])
         feedback = t.cast(str, content['feedback'])
 
         work.comment = feedback
+        work.comment_author = current_user
 
     if 'grade' in content:
         ensure_keys_in_dict(content, [('grade', (numbers.Real, type(None)))])
         grade = t.cast(t.Optional[float], content['grade'])
+        assig = work.assignment
 
-        if not (grade is None or (0 <= float(grade) <= 10)):
+        if not (
+            grade is None or
+            (assig.min_grade <= float(grade) <= assig.max_grade)
+        ):
             raise APIException(
-                'Grade submitted not between 0 and 10',
-                f'Grade for work with id {submission_id} '
-                f'is {content["grade"]} which is not between 0 and 10',
-                APICodes.INVALID_PARAM, 400
+                (
+                    f'Grade submitted not between {assig.min_grade} and'
+                    f' {assig.max_grade}'
+                ), (
+                    f'Grade for work with id {submission_id} '
+                    f'is {content["grade"]} which is not between '
+                    f'{assig.min_grade} and {assig.max_grade}'
+                ), APICodes.INVALID_PARAM, 400
             )
 
         work.set_grade(grade, current_user)
@@ -486,10 +540,12 @@ def update_submission_grader(submission_id: int) -> EmptyResponse:
     ensure_keys_in_dict(content, [('user_id', int)])
     user_id = t.cast(int, content['user_id'])
 
-    auth.ensure_permission('can_assign_graders', work.assignment.course_id)
+    auth.ensure_permission(CPerm.can_assign_graders, work.assignment.course_id)
 
     grader = helpers.get_or_404(models.User, user_id)
-    if not grader.has_permission('can_grade_work', work.assignment.course_id):
+    if not grader.has_permission(
+        CPerm.can_grade_work, work.assignment.course_id
+    ):
         raise APIException(
             f'User "{grader.name}" doesn\'t have the required permission',
             f'User "{grader.name}" doesn\'t have permission "can_grade_work"',
@@ -520,7 +576,7 @@ def delete_submission_grader(submission_id: int) -> EmptyResponse:
     """
     work = helpers.get_or_404(models.Work, submission_id)
 
-    auth.ensure_permission('can_assign_graders', work.assignment.course_id)
+    auth.ensure_permission(CPerm.can_assign_graders, work.assignment.course_id)
 
     work.assignee = None
     db.session.commit()
@@ -542,7 +598,9 @@ def get_grade_history(submission_id: int
     """
     work = helpers.get_or_404(models.Work, submission_id)
 
-    auth.ensure_permission('can_see_grade_history', work.assignment.course_id)
+    auth.ensure_permission(
+        CPerm.can_see_grade_history, work.assignment.course_id
+    )
 
     hist: t.MutableSequence[models.GradeHistory]
     hist = db.session.query(
@@ -635,6 +693,8 @@ def create_new_file(submission_id: int) -> JSONResponse[t.Mapping[str, t.Any]]:
             400,
         )
 
+    filename: t.Optional[str]
+
     for idx, part in enumerate(patharr[end_idx:]):
         if _is_last(idx) and not create_dir:
             is_dir = False
@@ -655,14 +715,16 @@ def create_new_file(submission_id: int) -> JSONResponse[t.Mapping[str, t.Any]]:
         parent = code
     db.session.commit()
 
+    assert code is not None
     return jsonify(psef.files.get_stat_information(code))
 
 
 @api.route("/submissions/<int:submission_id>/files/", methods=['GET'])
 @auth.login_required
-def get_dir_contents(submission_id: int
-                     ) -> t.Union[JSONResponse[psef.files.FileTree],
-                                  JSONResponse[t.Mapping[str, t.Any]]]:
+def get_dir_contents(
+    submission_id: int
+) -> t.Union[JSONResponse[psef.files.FileTree], JSONResponse[t.Mapping[str, t.
+                                                                       Any]]]:
     """Return the file directory info of a file of the given submission
     (:class:`.models.Work`).
 

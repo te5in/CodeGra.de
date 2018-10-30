@@ -1,13 +1,15 @@
+# SPDX-License-Identifier: AGPL-3.0-only
 import re
 
 import pytest
 
 import psef.models as m
+from helpers import create_marker
 
-perm_error = pytest.mark.perm_error
-data_error = pytest.mark.data_error
-late_error = pytest.mark.late_error
-only_own = pytest.mark.only_own
+perm_error = create_marker(pytest.mark.perm_error)
+data_error = create_marker(pytest.mark.data_error)
+late_error = create_marker(pytest.mark.late_error)
+only_own = create_marker(pytest.mark.only_own)
 
 
 @pytest.mark.parametrize('filename', ['test_flake8.tar.gz'], indirect=True)
@@ -40,8 +42,8 @@ def test_add_feedback(
     session, data, error_template, ta_user
 ):
     assignment, work = assignment_real_works
-    perm_err = request.node.get_marker('perm_error')
-    data_err = request.node.get_marker('data_error') is not None
+    perm_err = request.node.get_closest_marker('perm_error')
+    data_err = request.node.get_closest_marker('data_error') is not None
 
     code_id = session.query(m.File.id).filter(
         m.File.work_id == work['id'],
@@ -59,7 +61,7 @@ def test_add_feedback(
     def get_result():
         if data_err or perm_err:
             return {}
-        return {'0': {'line': 0, 'msg': data['comment']}}
+        return {'0': {'line': 0, 'msg': data['comment'], 'author': dict}}
 
     with logged_in(named_user):
         test_client.req(
@@ -71,13 +73,15 @@ def test_add_feedback(
         )
 
     with logged_in(ta_user):
-        test_client.req(
+        res = test_client.req(
             'get',
             f'/api/v1/code/{code_id}',
             200,
             query={'type': 'feedback'},
             result=get_result()
         )
+        if not (data_error or perm_error):
+            assert res['author']['id'] == named_user.id
 
     with logged_in(named_user):
         if not data_err:
@@ -105,7 +109,13 @@ def test_add_feedback(
     'named_user', [
         'Thomas Schaper',
         perm_error(error=403)('admin'),
-        late_error(('Student1')),
+        pytest.param(
+            'Student1',
+            marks=[
+                pytest.mark.late_error,
+                pytest.mark.list_error,
+            ]
+        ),
         perm_error(error=401)('NOT_LOGGED_IN'),
     ],
     indirect=True
@@ -116,8 +126,9 @@ def test_get_feedback(
 ):
     assignment, work = assignment_real_works
     assig_id = assignment.id
-    perm_err = request.node.get_marker('perm_error')
-    late_err = request.node.get_marker('late_error')
+    perm_err = request.node.get_closest_marker('perm_error')
+    late_err = request.node.get_closest_marker('late_error')
+    list_err = request.node.get_closest_marker('list_error')
 
     code_id = session.query(m.File.id).filter(
         m.File.work_id == work['id'],
@@ -150,13 +161,18 @@ def test_get_feedback(
             res = {
                 '0': {
                     'line': 0,
-                    'msg': 'for line 0'
+                    'msg': 'for line 0',
+                    'author': dict,
                 },
                 '1': {
                     'line': 1,
-                    'msg': 'for line - 1'
+                    'msg': 'for line - 1',
+                    'author': dict,
                 }
             }
+            if list_err:
+                del res['0']['author']
+                del res['1']['author']
 
         test_client.req(
             'get',
@@ -179,13 +195,18 @@ def test_get_feedback(
             res = {
                 '0': {
                     'line': 0,
-                    'msg': 'for line 0'
+                    'msg': 'for line 0',
+                    'author': dict,
                 },
                 '1': {
                     'line': 1,
-                    'msg': 'for line - 1'
+                    'msg': 'for line - 1',
+                    'author': dict,
                 }
             }
+            if list_err:
+                del res['0']['author']
+                del res['1']['author']
 
         test_client.req(
             'get',
@@ -211,7 +232,7 @@ def test_delete_feedback(
     session, error_template, ta_user
 ):
     assignment, work = assignment_real_works
-    perm_err = request.node.get_marker('perm_error')
+    perm_err = request.node.get_closest_marker('perm_error')
 
     code_id = session.query(m.File.id).filter(
         m.File.work_id == work['id'],
@@ -222,11 +243,13 @@ def test_delete_feedback(
     result = {
         '0': {
             'line': 0,
-            'msg': 'for line 0'
+            'msg': 'for line 0',
+            'author': dict,
         },
         '1': {
             'line': 1,
-            'msg': 'line1'
+            'msg': 'line1',
+            'author': dict,
         }
     }
 
@@ -277,8 +300,13 @@ def test_delete_feedback(
     'named_user', [
         'Thomas Schaper',
         perm_error(error=403)('admin'),
-        late_error(('Student1')),
-        perm_error(error=401)('NOT_LOGGED_IN'),
+        pytest.param(
+            'Student1',
+            marks=[
+                pytest.mark.late_error,
+                pytest.mark.list_error,
+            ]
+        ),
     ],
     indirect=True
 )
@@ -288,8 +316,9 @@ def test_get_all_feedback(
 ):
     assignment, work = assignment_real_works
     assig_id = assignment.id
-    perm_err = request.node.get_marker('perm_error')
-    late_err = request.node.get_marker('late_error')
+    perm_err = request.node.get_closest_marker('perm_error')
+    late_err = request.node.get_closest_marker('late_error')
+    list_err = request.node.get_closest_marker('list_error')
 
     code_id = session.query(m.File.id).filter(
         m.File.work_id == work['id'],
@@ -391,15 +420,15 @@ def test_get_all_feedback(
             assert expected.match(res.data.decode('utf8'))
 
     with logged_in(named_user):
+        out = {'user': dict, 'general': str, 'linter': dict, 'authors': None}
+        if not list_err:
+            out['authors'] = dict
+
         res = test_client.req(
             'get',
             f'/api/v1/submissions/{work["id"]}/feedbacks/',
             perm_err.kwargs['error'] if perm_err else 200,
-            result=error_template if perm_err else {
-                'user': dict,
-                'general': str,
-                'linter': dict,
-            },
+            result=error_template if perm_err else out,
         )
 
         if not perm_err:
@@ -432,8 +461,8 @@ def test_get_assignment_all_feedback(
 ):
     assignment, work = assignment_real_works
     assig_id = assignment.id
-    perm_err = request.node.get_marker('perm_error')
-    only_own_subs = request.node.get_marker('only_own')
+    perm_err = request.node.get_closest_marker('perm_error')
+    only_own_subs = request.node.get_closest_marker('only_own')
 
     code_id = session.query(m.File.id).filter(
         m.File.work_id == work['id'],

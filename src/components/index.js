@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
 export { default as AssignmentState } from './AssignmentState';
 export { default as CGIgnoreFile } from './CGIgnoreFile';
 export { default as CodeViewer } from './CodeViewer';
@@ -18,6 +19,8 @@ export { default as Linters } from './Linters';
 export { default as Loader } from './Loader';
 export { default as LocalHeader } from './LocalHeader';
 export { default as Login } from './Login';
+export { default as ForgotPassword } from './ForgotPassword';
+export { default as Register } from './Register';
 export { default as Notifications } from './Notifications';
 export { default as PasswordInput } from './PasswordInput';
 export { default as PdfViewer } from './PdfViewer';
@@ -37,3 +40,8 @@ export { default as UsersManager } from './UsersManager';
 export { default as FileUploader } from './FileUploader';
 export { default as OverviewMode } from './OverviewMode';
 export { default as SubmissionUploader } from './SubmissionUploader';
+export { default as MaximumGrade } from './MaximumGrade';
+export { default as PlagiarismOverview } from './PlagiarismOverview';
+export { default as PlagiarismDetail } from './PlagiarismDetail';
+export { default as PlagiarismRunner } from './PlagiarismRunner';
+export { default as HomeGrid } from './HomeGrid';

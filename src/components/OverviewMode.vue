@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <b-alert class="error" variant="danger" show v-if="error">
     <div v-html="error"></div>
@@ -50,7 +51,8 @@
                                 <feedback-area :feedback="feedback.user[id][line]"
                                                :editable="false"
                                                :line="line"
-                                               :fileId="id"
+                                               :fileId="Number(id)"
+                                               :author="feedback.authors && feedback.authors[id][line].name"
                                                :can-use-snippets="false"
                                                v-if="feedback.user[id][line] != null"/>
                             </li>
@@ -59,7 +61,19 @@
                 </b-card>
             </div>
         </b-tab>
-        <b-tab title="Changed files" class="code">
+        <b-tab title="General feedback">
+            <b-card class="file-card">
+                <span v-if="!!submission.comment_author" slot="header">
+                    {{ submission.comment_author.name }} wrote:
+                </span>
+                <pre class="general-feedback"
+                     v-if="submission.comment">{{ submission.comment }}</pre>
+                <span v-else>
+                    No general feedback given :(
+                </span>
+            </b-card>
+        </b-tab>
+        <b-tab title="Changed files" class="code" v-if="canSeeRevision">
             <b-card v-if="changedFiles.length === 0" class="file-card">
                 <span>
                     No files were changed
@@ -81,7 +95,7 @@
                              :context="context"/>
             </b-card>
         </b-tab>
-        <b-tab title="Added or deleted files">
+        <b-tab title="Added or deleted files" v-if="canSeeRevision">
             <b-card v-if="newFiles.length + deletedFiles.length === 0" class="file-card">
                 No files were added or deleted.
             </b-card>
@@ -109,7 +123,7 @@
                         No files were deleted
                     </span>
                     <ul v-else>
-                        <li  v-for="f in deletedFiles"  :key="`file-deleted-${f.ids[1]}`">
+                        <li  v-for="f in deletedFiles"  :key="`file-deleted-${f.ids[0]}`">
                             <router-link :to="getFileLink(f.ids[0], 'student')">
                                 <code>{{ f.fullName }}</code>
                             </router-link>
@@ -128,7 +142,6 @@ import { getLanguage, highlight } from 'highlightjs';
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/plus';
 import 'vue-awesome/icons/cog';
-import 'vue-multiselect/dist/vue-multiselect.min.css';
 
 import { visualizeWhitespace, last, getExtension, range } from '@/utils';
 
@@ -144,6 +157,10 @@ export default {
     name: 'overview-mode',
 
     props: {
+        canSeeRevision: {
+            type: Boolean,
+            default: false,
+        },
         assignment: {
             type: Object,
             default: null,
@@ -435,6 +452,15 @@ export default {
 
     .code .card {
         margin-top: 0;
+    }
+
+    .general-feedback {
+        margin-bottom: 0;
+        font-size: 100%;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        word-break: break-word;
+        hyphens: auto;
     }
 }
 

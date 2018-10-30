@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div class="divide-submissions">
     <table class="table table-striped grader-list">
@@ -43,6 +44,8 @@
 </template>
 
 <script>
+import { mapActions } from 'vuex';
+
 import Loader from './Loader';
 import SubmitButton from './SubmitButton';
 
@@ -72,6 +75,8 @@ export default {
     },
 
     methods: {
+        ...mapActions('courses', ['forceLoadSubmissions']),
+
         graderChanged(i) {
             this.graders[i].weight = this.graders[i].weight ? 0 : 1;
             const field = this.$refs[`inputField${i}`][0];
@@ -88,6 +93,7 @@ export default {
                     }, {}),
             });
             this.$refs.submitButton.submit(req.then(() => {
+                this.forceLoadSubmissions(this.assignment.id);
                 this.$emit('divided');
             }, (err) => {
                 throw err.response.data.message;
@@ -153,8 +159,7 @@ tbody .weight {
 }
 
 .submit-button {
-    display: flex;
-    justify-content: flex-end;
+    float: right;
     margin-right: 1rem;
 }
 </style>

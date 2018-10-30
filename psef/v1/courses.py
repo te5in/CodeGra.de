@@ -2,20 +2,20 @@
 This module defines all API routes with the main directory "courses". The APIs
 are used to create courses and return information about courses.
 
-:license: AGPLv3, see LICENSE for details.
+SPDX-License-Identifier: AGPL-3.0-only
 """
 
 import typing as t
 import datetime
 
-import sqlalchemy
 from flask import request
+from sqlalchemy.orm import selectinload
 from mypy_extensions import TypedDict
 
 import psef.auth as auth
 import psef.models as models
 import psef.helpers as helpers
-from psef import LTI_ROLE_LOOKUPS, current_user
+from psef import LTI_ROLE_LOOKUPS, limiter, current_user
 from psef.errors import APICodes, APIException
 from psef.models import db
 from psef.helpers import (
@@ -24,6 +24,9 @@ from psef.helpers import (
 )
 
 from . import api
+from ..permissions import CoursePermMap
+from ..permissions import CoursePermission as CPerm
+from ..permissions import GlobalPermission as GPerm
 
 _UserCourse = TypedDict(  # pylint: disable=invalid-name
     '_UserCourse', {
@@ -51,9 +54,13 @@ def delete_role(course_id: int, role_id: int) -> EmptyResponse:
     :raises PermissionException: If the user can not manage the course with the
         given id. (INCORRECT_PERMISSION)
     """
-    auth.ensure_permission('can_edit_course_roles', course_id)
+    auth.ensure_permission(CPerm.can_edit_course_roles, course_id)
 
-    course = helpers.get_or_404(models.Course, course_id)
+    course = helpers.get_or_404(
+        models.Course,
+        course_id,
+        also_error=lambda c: c.virtual,
+    )
     role = helpers.filter_single_or_404(
         models.CourseRole, models.CourseRole.course_id == course_id,
         models.CourseRole.id == role_id
@@ -107,14 +114,18 @@ def add_role(course_id: int) -> EmptyResponse:
     :raises PermissionException: If the user can not manage the course with the
                                  given id. (INCORRECT_PERMISSION)
     """
-    auth.ensure_permission('can_edit_course_roles', course_id)
+    auth.ensure_permission(CPerm.can_edit_course_roles, course_id)
 
     content = ensure_json_dict(request.get_json())
 
     ensure_keys_in_dict(content, [('name', str)])
     name = t.cast(str, content['name'])
 
-    course = helpers.get_or_404(models.Course, course_id)
+    course = helpers.get_or_404(
+        models.Course,
+        course_id,
+        also_error=lambda c: c.virtual,
+    )
 
     if models.CourseRole.query.filter_by(
         name=name, course_id=course_id
@@ -159,26 +170,22 @@ def update_role(course_id: int, role_id: int) -> EmptyResponse:
     """
     content = ensure_json_dict(request.get_json())
 
-    auth.ensure_permission('can_edit_course_roles', course_id)
+    auth.ensure_permission(CPerm.can_edit_course_roles, course_id)
 
     ensure_keys_in_dict(content, [('value', bool), ('permission', str)])
     value = t.cast(bool, content['value'])
-    permission = t.cast(str, content['permission'])
+    permission_name = t.cast(str, content['permission'])
+    permission = CPerm.get_by_name(permission_name)
 
     role = helpers.filter_single_or_404(
         models.CourseRole,
         models.CourseRole.course_id == course_id,
         models.CourseRole.id == role_id,
     )
-    perm = helpers.filter_single_or_404(
-        models.Permission,
-        models.Permission.name == permission,
-        models.Permission.course_permission == True,  # pylint: disable=singleton-comparison
-    )
 
     if (
         current_user.courses[course_id].id == role.id and
-        perm.name == 'can_edit_course_roles'
+        permission == CPerm.can_edit_course_roles
     ):
         raise APIException(
             'You cannot remove this permission from your own role', (
@@ -187,7 +194,7 @@ def update_role(course_id: int, role_id: int) -> EmptyResponse:
             ).format(role.id), APICodes.INCORRECT_PERMISSION, 403
         )
 
-    role.set_permission(perm, value)
+    role.set_permission(permission, value)
 
     db.session.commit()
 
@@ -195,9 +202,10 @@ def update_role(course_id: int, role_id: int) -> EmptyResponse:
 
 
 @api.route('/courses/<int:course_id>/roles/', methods=['GET'])
-def get_all_course_roles(course_id: int) -> JSONResponse[t.Union[t.Sequence[
-    models.CourseRole
-], t.Sequence[t.MutableMapping[str, t.Union[t.Mapping[str, bool], bool]]]]]:
+def get_all_course_roles(
+    course_id: int
+) -> JSONResponse[t.Union[t.Sequence[models.CourseRole], t.Sequence[
+    t.MutableMapping[str, t.Union[t.Mapping[str, bool], bool]]]]]:
     """Get a list of all :class:`.models.CourseRole` objects of a given
     :class:`.models.Course`.
 
@@ -218,7 +226,7 @@ def get_all_course_roles(course_id: int) -> JSONResponse[t.Union[t.Sequence[
     :raises PermissionException: If the user can not manage the course with the
                                  given id. (INCORRECT_PERMISSION)
     """
-    auth.ensure_permission('can_edit_course_roles', course_id)
+    auth.ensure_permission(CPerm.can_edit_course_roles, course_id)
 
     course_roles: t.Sequence[models.CourseRole]
     course_roles = models.CourseRole.query.filter_by(course_id=course_id
@@ -230,7 +238,9 @@ def get_all_course_roles(course_id: int) -> JSONResponse[t.Union[t.Sequence[
         res = []
         for course_role in course_roles:
             json_course = course_role.__to_json__()
-            json_course['perms'] = course_role.get_all_permissions()
+            json_course['perms'] = CPerm.create_map(
+                course_role.get_all_permissions()
+            )
             json_course['own'] = current_user.courses[course_role.course_id
                                                       ] == course_role
             res.append(json_course)
@@ -268,7 +278,7 @@ def set_course_permission_user(
     .. todo::
         This function should probability be splitted.
     """
-    auth.ensure_permission('can_edit_course_users', course_id)
+    auth.ensure_permission(CPerm.can_edit_course_users, course_id)
 
     content = ensure_json_dict(request.get_json())
     ensure_keys_in_dict(content, [('role_id', int)])
@@ -309,12 +319,10 @@ def set_course_permission_user(
                 APICodes.INVALID_PARAM, 400
             )
 
-        res = jsonify(
-            {
-                'User': user,
-                'CourseRole': role,
-            }, status_code=201
-        )
+        res = jsonify({
+            'User': user,
+            'CourseRole': role,
+        }, status_code=201)
     else:
         raise APIException(
             'None of the keys "user_id" or "role_id" were found', (
@@ -329,37 +337,41 @@ def set_course_permission_user(
 
 
 @api.route('/courses/<int:course_id>/users/', methods=['GET'])
-def get_all_course_users(course_id: int
-                         ) -> JSONResponse[t.Sequence[_UserCourse]]:
+@auth.login_required
+def get_all_course_users(
+    course_id: int
+) -> JSONResponse[t.Union[t.List[_UserCourse], t.List[models.User]]]:
     """Return a list of all :class:`.models.User` objects and their
     :class:`.models.CourseRole` in the given :class:`.models.Course`.
 
     .. :quickref: Course; Get all users for a single course.
 
     :param int course_id: The id of the course
+
+    :query string q: Search for users matching this query string. This will
+        change the output to a list of users.
+
     :returns: A response containing the JSON serialized users and course roles
 
     :>jsonarr User:  A member of the given course.
     :>jsonarrtype User: :py:class:`~.models.User`
     :>jsonarr CourseRole: The role that this user has.
     :>jsonarrtype CourseRole: :py:class:`~.models.CourseRole`
-
-    :raises APIException: If there is no course with the given id.
-                          (OBJECT_ID_NOT_FOUND)
-    :raises PermissionException: If there is no logged in user. (NOT_LOGGED_IN)
-    :raises PermissionException: If the user can not manage the course with the
-                                 given id. (INCORRECT_PERMISSION)
     """
-    auth.ensure_permission('can_edit_course_users', course_id)
+    auth.ensure_permission(CPerm.can_list_course_users, course_id)
+    course = helpers.get_or_404(models.Course, course_id)
 
-    users: t.Sequence[sqlalchemy.util.KeyedTuple]
-    users = db.session.query(models.User, models.CourseRole).join(
-        models.user_course,
-        models.user_course.c.user_id == models.User.id,
-    ).join(
-        models.CourseRole,
-        models.CourseRole.id == models.user_course.c.course_id
-    ).filter(models.CourseRole.course_id == course_id).all()
+    if 'q' in request.args:
+
+        @limiter.limit('1 per second', key_func=lambda: str(current_user.id))
+        def get_users_in_course() -> t.List[models.User]:
+            query = request.args.get('q')
+            base = course.get_all_users_in_course().from_self(models.User)
+            return helpers.filter_users_by_name(query, base).all()
+
+        return jsonify(get_users_in_course())
+
+    users = course.get_all_users_in_course()
 
     user_course: t.List[_UserCourse]
     user_course = [
@@ -394,9 +406,13 @@ def get_all_course_assignments(
     :raises PermissionException: If the user can not see assignments in the
                                  given course. (INCORRECT_PERMISSION)
     """
-    auth.ensure_permission('can_see_assignments', course_id)
+    auth.ensure_permission(CPerm.can_see_assignments, course_id)
 
-    course = helpers.get_or_404(models.Course, course_id)
+    course = helpers.get_or_404(
+        models.Course,
+        course_id,
+        also_error=lambda c: c.virtual,
+    )
 
     return jsonify(course.get_all_visible_assignments())
 
@@ -416,13 +432,17 @@ def create_new_assignment(course_id: int) -> JSONResponse[models.Assignment]:
     :raises PermissionException: If the current user does not have the
         ``can_create_assignment`` permission (INCORRECT_PERMISSION).
     """
-    auth.ensure_permission('can_create_assignment', course_id)
+    auth.ensure_permission(CPerm.can_create_assignment, course_id)
 
     content = ensure_json_dict(request.get_json())
     ensure_keys_in_dict(content, [('name', str)])
     name = t.cast(str, content['name'])
 
-    course = helpers.get_or_404(models.Course, course_id)
+    course = helpers.get_or_404(
+        models.Course,
+        course_id,
+        also_error=lambda c: c.virtual,
+    )
 
     if course.lti_course_id is not None:
         raise APIException(
@@ -441,7 +461,7 @@ def create_new_assignment(course_id: int) -> JSONResponse[models.Assignment]:
 
 
 @api.route('/courses/', methods=['POST'])
-@auth.permission_required('can_create_courses')
+@auth.permission_required(GPerm.can_create_courses)
 def add_course() -> JSONResponse[models.Course]:
     """Add a new :class:`.models.Course`.
 
@@ -480,8 +500,9 @@ def get_courses() -> JSONResponse[t.Sequence[t.Mapping[str, t.Any]]]:
 
     :returns: A response containing the JSON serialized courses
 
-    :param str extended: If set to `true` all the assignments for each course
-        are also included under the key `assignments`.
+    :param str extended: If set to ``true``, ``1`` or the empty string all the
+        assignments for each course are also included under the key
+        `assignments`.
 
     :>jsonarr str role: The name of the role the current user has in this
         course.
@@ -491,19 +512,44 @@ def get_courses() -> JSONResponse[t.Sequence[t.Mapping[str, t.Any]]]:
     """
 
     def _get_rest(course: models.Course) -> t.Mapping[str, t.Any]:
-        if request.args.get('extended') == 'true':
+        if helpers.extended_requested():
             return {
                 'assignments': course.get_all_visible_assignments(),
                 **course.__to_json__(),
             }
         return course.__to_json__()
 
+    extra_loads = [
+        selectinload(
+            models.User.courses,
+        ).selectinload(
+            models.CourseRole.course,
+        )
+    ]
+    if helpers.extended_requested():
+        extra_loads = [
+            extra_loads[0].selectinload(
+                models.Course.assignments,
+            ),
+            selectinload(
+                models.User.courses,
+            ).selectinload(
+                models.CourseRole._permissions,  # pylint: disable=protected-access
+            )
+        ]
+
+    user = helpers.get_or_404(
+        models.User,
+        current_user.id,
+        options=extra_loads,
+    )
+
     return jsonify(
         [
             {
                 'role': c.name,
                 **_get_rest(c.course),
-            } for c in current_user.courses.values()
+            } for c in user.courses.values()
         ]
     )
 
@@ -529,7 +575,7 @@ def get_course_data(course_id: int) -> JSONResponse[t.Mapping[str, t.Any]]:
     """
     # TODO: Optimize this loop to a single query
     for course_role in current_user.courses.values():
-        if course_role.course.id == course_id:
+        if course_role.course_id == course_id:
             return jsonify(
                 {
                     'role': course_role.name,
@@ -548,7 +594,7 @@ def get_course_data(course_id: int) -> JSONResponse[t.Mapping[str, t.Any]]:
 @auth.login_required
 def get_permissions_for_course(
     course_id: int,
-) -> JSONResponse[t.Mapping[str, bool]]:
+) -> JSONResponse[CoursePermMap]:
     """Get all the course :class:`.models.Permission` of the currently logged
     in :class:`.models.User`
 
@@ -559,5 +605,9 @@ def get_permissions_for_course(
     :returns: A mapping between the permission name and a boolean indicating if
         the currently logged in user has this permission.
     """
-    course = helpers.get_or_404(models.Course, course_id)
-    return jsonify(current_user.get_all_permissions(course))
+    course = helpers.get_or_404(
+        models.Course,
+        course_id,
+        also_error=lambda c: c.virtual,
+    )
+    return jsonify(CPerm.create_map(current_user.get_all_permissions(course)))

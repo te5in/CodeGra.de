@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <b-form-fieldset class="file-uploader" :class="{ disabled }">
     <b-input-group>
@@ -23,6 +24,7 @@
 </template>
 
 <script>
+import { parseWarningHeader } from '@/utils';
 import SubmitButton, { SubmitButtonCancelled } from './SubmitButton';
 
 export default {
@@ -78,7 +80,14 @@ export default {
                     return null;
                 }
                 return this.$http.post(this.url, this.requestData).then((res) => {
+                    if (res.headers.warning) {
+                        const { text } = parseWarningHeader(res.headers.warning);
+                        return this.$refs.submitButton.warn(text, 20).then(() => {
+                            this.$emit('response', res);
+                        });
+                    }
                     this.$emit('response', res);
+                    return null;
                 }, ({ response }) => {
                     this.$emit('error', response);
                     throw response.data.message;

@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div class="userinfo">
     <loader class="col-md-12 text-center" v-if="loading"/>
@@ -47,10 +48,8 @@
                         (Canvas, blackboard or another) it can happen
                         that you don't know this password. In this case
                         you should use the
-                        <router-link :to="{
-                                          name: 'login',
-                                          hash: '#forgot'
-                                          }">
+                        <router-link :to="{ name: 'forgot' }"
+                                     target="_blank">
                             reset password</router-link> page.<br><br>
 
                         However this does require

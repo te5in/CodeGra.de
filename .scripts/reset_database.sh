@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-only
+
 fix_perms() {
     psql -d "codegrade_dev" -c 'GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA  public TO "www-data"'
     psql -d "codegrade_dev" -c 'GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO "www-data"'

@@ -2,7 +2,7 @@
 
 .. warning:: This API is not yet stable, please proceed with caution!
 
-:license: AGPLv3, see LICENSE for details.
+SPDX-License-Identifier: AGPL-3.0-only
 """
 import typing as t
 
@@ -21,6 +21,6 @@ def init_app(app: t.Any) -> None:
     # are NOT unused.
     from . import (  # pylint: disable=unused-variable
         code, login, courses, linters, snippets, assignments, permissions,
-        submissions, files, about, roles, lti, users
+        submissions, files, about, roles, lti, users, plagiarism
     )
     app.register_blueprint(api, url_prefix='/api/v1')

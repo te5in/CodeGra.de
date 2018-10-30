@@ -3,20 +3,25 @@ This module contains all the linters that are integrated in the service.
 
 Integrated linters are ran by the :class:`LinterRunner` and thus implement run
 method.
+
+SPDX-License-Identifier: AGPL-3.0-only
 """
 
 import os
 import uuid
 import typing as t
 import tempfile
-import traceback
 import subprocess
+
+import structlog
 
 import psef
 import psef.files
 import psef.models as models
 from psef.models import db
-from psef.helpers import get_all_subclasses
+from psef.helpers import get_class_by_name, get_all_subclasses
+
+logger = structlog.get_logger()
 
 
 def init_app(_: t.Any) -> None:
@@ -183,7 +188,7 @@ class LinterRunner():
         """
         self.linter = cls(cfg)  # type: Linter
 
-    def run(self, linter_instance_ids: t.Sequence[int]) -> None:
+    def run(self, linter_instance_ids: t.Sequence[str]) -> None:
         """Run this linter runner on the given works.
 
         .. note:: This method takes a long time to execute, please run it in a
@@ -208,7 +213,11 @@ class LinterRunner():
             # We want to catch all exceptions here as need to set our linter to
             # the crashed state.
             except Exception:  # pylint: disable=broad-except
-                traceback.print_exc()
+                logger.warning(
+                    'The linter crashed',
+                    linter_instance_id=linter_instance.id,
+                    exc_info=True,
+                )
                 linter_instance.state = models.LinterState.crashed
                 db.session.commit()
 
@@ -226,11 +235,6 @@ class LinterRunner():
         res: t.Dict[int, t.Mapping[int, t.Sequence[t.Tuple[str, str]]]]
         res = {}
 
-        code = db.session.query(models.File).filter_by(
-            work_id=linter_instance.work_id,
-            parent=None,
-        ).one()
-
         with tempfile.TemporaryDirectory() as tmpdir:
 
             def __emit(f: str, line: int, code: str, msg: str) -> None:
@@ -243,14 +247,14 @@ class LinterRunner():
                     temp_res[f][line] = []
                 temp_res[f][line].append((code, msg))
 
-            files = psef.files.restore_directory_structure(
-                code,
+            tree_root = psef.files.restore_directory_structure(
+                linter_instance.work,
                 tmpdir,
             )
 
-            self.linter.run(os.path.join(tmpdir, code.name), __emit)
+            self.linter.run(os.path.join(tmpdir, tree_root['name']), __emit)
 
-        tmpdir = None
+        del tmpdir
 
         def __do(tree: psef.files.FileTree, parent: str) -> None:
             parent = os.path.join(parent, tree['name'])
@@ -261,7 +265,7 @@ class LinterRunner():
                 res[tree['id']] = temp_res[parent]
                 del temp_res[parent]
 
-        __do(files, '')
+        __do(tree_root, '')
 
         models.LinterComment.query.filter_by(linter_id=linter_instance.id
                                              ).delete()
@@ -303,7 +307,7 @@ def get_all_linters(
     for cls in get_all_subclasses(Linter):
         item: t.Dict[str, t.Union[str, t.Mapping[str, str]]]
         item = {
-            'desc': cls.__doc__,
+            'desc': cls.__doc__ or 'No linter documentation',
             'opts': cls.DEFAULT_OPTIONS,
         }
         res[cls.__name__] = item
@@ -319,7 +323,4 @@ def get_linter_by_name(name: str) -> t.Type[Linter]:
         one of these linters.
     :raises ValueError: If the linter with the specified name is not found.
     """
-    for linter in get_all_subclasses(Linter):
-        if linter.__name__ == name:
-            return linter
-    raise ValueError('No linter with name {} found.'.format(name))
+    return get_class_by_name(Linter, name)

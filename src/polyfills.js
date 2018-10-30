@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
 import { TextDecoder } from 'text-encoding';
 import URLSearchParams from 'url-search-params';
 
@@ -46,4 +47,9 @@ Element.prototype.closest = Element.prototype.closest || function closest(s) {
         }
     }
     return null;
+};
+
+// eslint-disable-next-line
+String.prototype.startsWith = String.prototype.startsWith || function(search, pos) {
+    return this.substr(!pos || pos < 0 ? 0 : +pos, search.length) === search;
 };

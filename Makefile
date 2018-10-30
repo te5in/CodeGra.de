@@ -1,7 +1,8 @@
+# SPDX-License-Identifier: AGPL-3.0-only
 TEST_FILE?=psef_test/
 SHELL=/bin/bash
 TEST_FLAGS?=
-PYTHON?=env/bin/python3.6
+PYTHON?=env/bin/python3
 export PYTHONPATH=$(CURDIR)
 
 .PHONY: test_setup
@@ -39,7 +40,7 @@ test_data:
 
 .PHONY: start_dev_celery
 start_dev_celery:
-	DEBUG=on env/bin/celery worker --app=runcelery:celery -E -l info
+	DEBUG=on env/bin/celery worker --app=runcelery:celery -E
 
 .PHONY: start_dev_server
 start_dev_server:
@@ -72,3 +73,7 @@ shrinkwrap:
 
 lint:
 	pylint psef --rcfile=setup.cfg
+
+.PHONY: create_permission
+create_permission:
+	python ./.scripts/create_permission.py

@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div class="notifications">
     <div>
@@ -200,7 +201,6 @@ label {
 }
 
 .submit-button {
-    display: flex;
-    justify-content: flex-end;
+    float: right;
 }
 </style>

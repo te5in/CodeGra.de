@@ -1,34 +1,50 @@
 """
 This module defines all the objects in the database in their relation.
 
-:license: AGPLv3, see LICENSE for details.
+SPDX-License-Identifier: AGPL-3.0-only
 """
 # TODO: Split this file into one file per model.
 
 import os
 import abc
 import enum
+import json
 import math
 import uuid
 import typing as t
+import numbers
 import datetime
 from random import shuffle
 from operator import itemgetter
 from itertools import cycle
 from collections import defaultdict
 
+import structlog
+from flask import g
 from sqlalchemy import orm, event
 from itsdangerous import BadSignature, URLSafeTimedSerializer
 from werkzeug.utils import cached_property
+from mypy_extensions import TypedDict
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy_utils import PasswordType, force_auto_coercion
 from sqlalchemy.sql.expression import and_, func, false
 from sqlalchemy.orm.collections import attribute_mapped_collection
 
 import psef  # pylint: disable=cyclic-import
-from psef import current_app
 
-from .model_types import T, MyDb, DbColumn  # pylint: disable=unused-import
+from . import current_app
+from .cache import cache_within_request
+from .exceptions import (
+    APICodes, APIException, PermissionException, InvalidAssignmentState
+)
+from .model_types import (  # pylint: disable=unused-import
+    T, MyDb, DbColumn, _MyQuery
+)
+from .permissions import (  # pylint: disable=cyclic-import
+    BasePermission, CoursePermission, GlobalPermission
+)
+
+logger = structlog.get_logger()
 
 db = t.cast(  # pylint: disable=invalid-name
     'MyDb',
@@ -39,7 +55,7 @@ db = t.cast(  # pylint: disable=invalid-name
 )
 
 
-def init_app(app: t.Any) -> None:
+def init_app(app: 'psef.PsefFlask') -> None:
     """Initialize the database connections and set some listeners.
 
     :param app: The flask app to initialize for.
@@ -48,8 +64,31 @@ def init_app(app: t.Any) -> None:
     db.init_app(app)
     force_auto_coercion()
 
-    if app.config['_USING_SQLITE']:  # pragma: no cover
-        with app.app_context():
+    with app.app_context():
+
+        @event.listens_for(db.engine, "before_cursor_execute")
+        def __before_cursor_execute(*_args: object) -> None:
+            if hasattr(g, 'query_start'):
+                g.query_start = datetime.datetime.utcnow()
+
+        @event.listens_for(db.engine, "after_cursor_execute")
+        def __after_cursor_execute(*_args: object) -> None:
+            if hasattr(g, 'queries_amount'):
+                g.queries_amount += 1
+            if hasattr(g, 'query_start'):
+                delta = (datetime.datetime.utcnow() -
+                         g.query_start).total_seconds()
+                if hasattr(g, 'queries_total_duration'):
+                    g.queries_total_duration += delta
+                if (
+                    hasattr(g, 'queries_max_duration') and (
+                        g.queries_max_duration is None or
+                        delta > g.queries_max_duration
+                    )
+                ):
+                    g.queries_max_duration = delta
+
+        if app.config['_USING_SQLITE']:  # pragma: no cover
 
             @event.listens_for(db.engine, "connect")
             def __do_connect(dbapi_connection: t.Any, _: t.Any) -> None:
@@ -66,10 +105,21 @@ def init_app(app: t.Any) -> None:
 
 UUID_LENGTH = 36
 
-if t.TYPE_CHECKING:  # pragma: no cover:
-    from psef.model_types import _MyQuery, Base
+if t.TYPE_CHECKING and getattr(
+    t, 'SPHINX', False
+) is not True:  # pragma: no cover:
+    hybrid_property = property  # pylint: disable=invalid-name
+    from .model_types import Base, Comparator
 else:
+    from sqlalchemy.ext.hybrid import hybrid_property, Comparator
     Base = db.Model  # pylint: disable=invalid-name
+
+# Sphinx has problems with resolving types when this decorator is used, we
+# simply remove it in the case of Sphinx.
+if getattr(t, 'SPHINX', False) is True:  # pragma: no cover:
+    # pylint: disable=invalid-name
+    cache_within_request = lambda x: x  # type: ignore
+    # pylint: enable=invalid-name
 
 permissions = db.Table(  # pylint: disable=invalid-name
     'roles-permissions',
@@ -127,6 +177,45 @@ class LTIProvider(Base):
     __tablename__ = 'LTIProvider'
     id: str = db.Column('id', db.String(UUID_LENGTH), primary_key=True)
     key: str = db.Column('key', db.Unicode, unique=True)
+
+    def passback_grade(self, sub: 'Work', initial: bool) -> None:
+        """Passback the grade for a given submission to this lti provider.
+
+        :param sub: The submission to passback.
+        :param initial: If true no grade will be send, this is to make sure the
+            ``created_at`` date is correct in the LMS. Not all providers
+            actually do a passback when this is set to ``True``.
+        :returns: Nothing.
+        """
+        url = ('{}/'
+               'courses/{}/assignments/{}/submissions?inLTI=true').format(
+                   current_app.config['EXTERNAL_URL'],
+                   sub.assignment.course_id,
+                   sub.assignment_id,
+               )
+
+        self.lti_class.passback_grade(
+            key=self.key,
+            secret=self.secret,
+            grade=sub.grade,
+            initial=initial,
+            service_url=sub.assignment.lti_outcome_service_url,
+            sourcedid=sub.assignment.assignment_results[sub.user_id].sourcedid,
+            lti_points_possible=sub.assignment.lti_points_possible,
+            submission=sub,
+            url=url,
+        )
+
+    @property
+    def lti_class(self) -> t.Type['psef.lti.LTI']:
+        """This is the name of the provider.
+
+        .. note::
+
+            Currently this is hard coded to :class`.psef.lti.CanvasLTI` but
+            could be extended to provide support for more additional LMS'ses
+        """
+        return psef.lti.CanvasLTI
 
     def __init__(self, key: str) -> None:
         super().__init__(key=key)
@@ -223,9 +312,11 @@ class AssignmentResult(Base):
     __table_args__ = (db.PrimaryKeyConstraint(assignment_id, user_id), )
 
 
-class Permission(Base):
-    """This class defines permissions by names that are checked in certain
-    APIs.
+_T = t.TypeVar('_T', bound=BasePermission)  # pylint: disable=invalid-name
+
+
+class Permission(Base, t.Generic[_T]):  # pylint: disable=unsubscriptable-object
+    """This class defines **database** permissions.
 
     A permission can be a global- or a course- permission. Global permissions
     describe the ability to do something general, e.g. create a course or the
@@ -235,7 +326,14 @@ class Permission(Base):
     of a single :class:`Course`. Thus a user can hold different permissions in
     different courses.
 
-    :ivar name: The, unique, name of this permission.
+    .. warning::
+
+      Think twice about using this class directly! You probably want a non
+      database permission (see ``permissions.py``) which are type checked and
+      WAY faster. If you need to check if a user has a certain permission use
+      the :meth:`.User.has_permission` of, even better,
+      :func:`psef.auth.ensure_permission` functions.
+
     :ivar default_value: The default value for this permission.
     :ivar course_permission: Indicates if this permission is for course
         specific actions. If this is the case a user can have this permission
@@ -243,12 +341,12 @@ class Permission(Base):
         this permission is global for the entire site.
     """
     if t.TYPE_CHECKING:  # pragma: no cover
-        query = Base.query  # type: t.ClassVar[_MyQuery['Permission']]
+        query = None
     __tablename__ = 'Permission'
 
     id = db.Column('id', db.Integer, primary_key=True)
 
-    name: str = db.Column('name', db.Unicode, unique=True, index=True)
+    __name: str = db.Column('name', db.Unicode, unique=True, index=True)
 
     default_value: bool  # NOQA
     default_value = db.Column('default_value', db.Boolean, default=False)
@@ -256,17 +354,91 @@ class Permission(Base):
         'course_permission', db.Boolean, index=True
     )
 
+    @classmethod
+    def get_all_permissions(
+        cls: t.Type['Permission[_T]'], perm_type: t.Type[_T]
+    ) -> 't.Sequence[Permission[_T]]':
+        """Get all database permissions of a certain type.
 
-class AbstractRole:
+        :param perm_type: The type of permission to get.
+        :returns: A list of all database permissions of the given type.
+        """
+        assert perm_type in (GlobalPermission, CoursePermission)
+        return db.session.query(cls).filter_by(
+            course_permission=perm_type == CoursePermission
+        ).all()
+
+    @classmethod
+    def get_all_permissions_from_list(
+        cls: t.Type['Permission[_T]'], perms: t.Sequence[_T]
+    ) -> 't.Sequence[Permission[_T]]':
+        """Get database permissions corresponding to a list of permissions.
+
+        :param perms: The permissions to get the database permission of.
+        :returns: A list of all requested database permission.
+        """
+        if not perms:  # pragma: no cover
+            return []
+
+        assert isinstance(perms[0], (GlobalPermission, CoursePermission))
+        assert all(isinstance(perm, type(perms[0])) for perm in perms)
+
+        return psef.helpers.filter_all_or_404(
+            cls,
+            t.cast(DbColumn[str],
+                   Permission.__name).in_(p.name for p in perms),
+            Permission.course_permission == isinstance(
+                perms[0], CoursePermission
+            ),
+        )
+
+    @classmethod
+    @cache_within_request
+    def get_permission(
+        cls: 't.Type[Permission[_T]]', perm: '_T'
+    ) -> 'Permission[_T]':
+        """Get a database permission from a permission.
+
+        :param perm: The permission to get the database permission of.
+        :returns: The correct database permission.
+        """
+        return psef.helpers.filter_single_or_404(
+            cls, cls.value == perm,
+            cls.course_permission == isinstance(perm, CoursePermission)
+        )
+
+    @hybrid_property
+    def value(self) -> '_T':
+        """Get the permission value of the database permission.
+
+        :returns: The permission of this database permission.
+        """
+        # This logic is correct
+        if self.course_permission:
+            return t.cast('_T', CoursePermission[self.__name])
+        else:
+            return t.cast('_T', GlobalPermission[self.__name])
+
+    @value.comparator
+    def value(cls) -> Comparator:  # pylint: disable=no-self-argument,missing-docstring
+        class Comp(Comparator):  # pylint: disable=missing-docstring
+            def __eq__(self, other: object) -> bool:
+                if not isinstance(other, BasePermission):
+                    assert False
+                return self.__clause_element__() == other.name
+
+        return Comp(t.cast(DbColumn[str], cls.__name))
+
+
+class AbstractRole(t.Generic[_T]):
     """An abstract class that implements all functionality a role should have.
     """
 
     def __init__(
         self,
         name: str,
-        _permissions: t.MutableMapping[str, Permission] = None
+        _permissions: t.MutableMapping['_T', Permission['_T']] = None
     ) -> None:
-        self._has_permission_cache: t.MutableMapping[str, bool] = {}
         self.name = name
         if _permissions is not None:
             self._permissions = _permissions
@@ -287,7 +459,7 @@ class AbstractRole:
 
     @property
     @abc.abstractmethod
-    def _permissions(self) -> t.MutableMapping[str, Permission]:
+    def _permissions(self) -> t.MutableMapping['_T', Permission['_T']]:
         """The permissions this role has a connection to.
 
         A connection means this role has the permission if, and only if, the
@@ -302,82 +474,63 @@ class AbstractRole:
         """
         raise NotImplementedError
 
-    @orm.reconstructor
-    def setup_has_permission_cache(self) -> None:
-        """Reset permission cache to an empty object.
-        """
-        self._has_permission_cache = {}
-
-    def set_permission(self, perm: Permission, should_have: bool) -> None:
+    def set_permission(self, perm: '_T', should_have: bool) -> None:
         """Set the given :class:`Permission` to the given value.
 
         :param should_have: If this role should have this permission
         :param perm: The permission this role should (not) have
         """
-        assert perm.course_permission == self.uses_course_permissions
+        if self.uses_course_permissions:
+            assert isinstance(perm, CoursePermission)
+        else:
+            assert isinstance(perm, GlobalPermission)
 
-        if perm.default_value ^ should_have:
-            self._permissions[perm.name] = perm
+        permission = Permission.get_permission(perm)
+
+        if permission.default_value ^ should_have:
+            self._permissions[perm] = permission
         else:
             try:
-                del self._permissions[perm.name]
+                del self._permissions[perm]
             except KeyError:
                 pass
 
-        self._has_permission_cache[perm.name] = should_have
-
-    def has_permission(self, permission: t.Union[str, Permission]) -> bool:
+    def has_permission(self, permission: '_T') -> bool:
         """Check whether this course role has the specified
         :class:`Permission`.
 
         :param permission: The permission or permission name
         :returns: True if the course role has the permission
-
-        :raises KeyError: If the permission parameter is a string and no
-            permission with this name exists.
         """
-        if isinstance(permission, Permission):
-            permission_name = permission.name
+        if self.uses_course_permissions:
+            assert isinstance(permission, CoursePermission)
         else:
-            permission_name = permission
+            assert isinstance(permission, GlobalPermission)
 
-        if permission_name in self._has_permission_cache:
-            return self._has_permission_cache[permission_name]
-
-        if permission_name in self._permissions:
-            perm = self._permissions[permission_name]
-            res = not perm.default_value
+        if permission in self._permissions:
+            return not self._permissions[permission].default_value
         else:
-            if isinstance(permission, str):
-                permission = Permission.query.filter_by(
-                    course_permission=self.uses_course_permissions,
-                    name=permission,
-                ).first()
+            if current_app.do_sanity_checks:
+                found_perm = Permission.get_permission(permission)
+                assert (
+                    found_perm.default_value == permission.value.default_value
+                ), "Wrong permission in database"
 
-            if permission is None:
-                raise KeyError(
-                    f'The permission "{permission_name}" does not exist'
-                )
+            return permission.value.default_value
 
-            res = permission.default_value and (
-                permission.course_permission == self.uses_course_permissions
-            )
-
-        self._has_permission_cache[permission_name] = res
-        return res
-
-    def get_all_permissions(self) -> t.Mapping[str, bool]:
+    def get_all_permissions(self) -> t.Mapping['_T', bool]:
         """Get all course :class:`permissions` for this course role.
 
         :returns: A name boolean mapping where the name is the name of the
                   permission and the value indicates if this user has this
                   permission.
         """
-        perms = Permission.query.filter_by(
+        perms: t.List[Permission['_T']]
+        perms = db.session.query(Permission).filter_by(
             course_permission=self.uses_course_permissions,
-        )
+        ).all()
         return {
-            p.name: (p.name in self._permissions) ^ p.default_value
+            p.value: (p.value in self._permissions) ^ p.default_value
             for p in perms
         }
 
@@ -401,7 +554,7 @@ class AbstractRole:
         }
 
 
-class CourseRole(AbstractRole, Base):
+class CourseRole(AbstractRole[CoursePermission], Base):
     """
     A course role is used to describe the abilities of a :class:`User` in a
     :class:`Course`.
@@ -417,11 +570,12 @@ class CourseRole(AbstractRole, Base):
     course_id: int = db.Column(
         'Course_id', db.Integer, db.ForeignKey('Course.id')
     )
-    _permissions: t.MutableMapping[str, Permission] = db.relationship(
-        'Permission',
-        collection_class=attribute_mapped_collection('name'),
-        secondary=course_permissions
-    )
+    _permissions: t.MutableMapping[
+        CoursePermission, Permission[CoursePermission]] = db.relationship(
+            'Permission',
+            collection_class=attribute_mapped_collection('value'),
+            secondary=course_permissions
+        )
 
     # Old syntax used to please sphinx
     course = db.relationship(
@@ -436,8 +590,13 @@ class CourseRole(AbstractRole, Base):
         self,
         name: str,
         course: 'Course',
-        _permissions: t.Optional[t.MutableMapping[str, Permission]] = None
+        _permissions: t.Optional[t.MutableMapping[CoursePermission, Permission]
+                                 ] = None,
     ) -> None:
+        if _permissions:
+            assert all(
+                isinstance(p, CoursePermission) for p in _permissions.keys()
+            )
         super().__init__(name=name, _permissions=_permissions)
 
         # Mypy doesn't get the sqlalchemy magic
@@ -465,8 +624,8 @@ class CourseRole(AbstractRole, Base):
         raise ValueError('No initial course role found')
 
     @staticmethod
-    def get_default_course_roles(
-    ) -> t.Mapping[str, t.MutableMapping[str, Permission]]:
+    def get_default_course_roles() -> t.Mapping[
+        str, t.MutableMapping[CoursePermission, Permission[CoursePermission]]]:
         """Get all default course roles as specified in the config and their
         permissions (:class:`Permission`).
 
@@ -487,23 +646,19 @@ class CourseRole(AbstractRole, Base):
         """
         res = {}
         for name, value in current_app.config['_DEFAULT_COURSE_ROLES'].items():
-            perms: t.Sequence[Permission] = (
-                Permission.query.
-                filter_by(  # type: ignore
-                    course_permission=True
-                ).all()
-            )
+            perms = Permission.get_all_permissions(CoursePermission)
             r_perms = {}
             perms_set = set(value['permissions'])
             for perm in perms:
-                if bool(perm.default_value) ^ bool(perm.name in perms_set):
-                    r_perms[perm.name] = perm
+                if bool(perm.default_value
+                        ) ^ bool(perm.value.name in perms_set):
+                    r_perms[perm.value] = perm
 
             res[name] = r_perms
         return res
 
 
-class Role(AbstractRole, Base):
+class Role(AbstractRole[GlobalPermission], Base):
     """A role defines the set of global permissions :class:`Permission` of a
     :class:`User`.
 
@@ -514,12 +669,13 @@ class Role(AbstractRole, Base):
     __tablename__ = 'Role'
     id: int = db.Column('id', db.Integer, primary_key=True)
     name: str = db.Column('name', db.Unicode, unique=True)
-    _permissions: t.MutableMapping[str, Permission] = db.relationship(
-        'Permission',
-        collection_class=attribute_mapped_collection('name'),
-        secondary=permissions,
-        backref=db.backref('roles', lazy='dynamic')
-    )
+    _permissions: t.MutableMapping[
+        GlobalPermission, Permission[GlobalPermission]] = db.relationship(
+            'Permission',
+            collection_class=attribute_mapped_collection('value'),
+            secondary=permissions,
+            backref=db.backref('roles', lazy='dynamic')
+        )
 
     @property
     def uses_course_permissions(self) -> bool:
@@ -535,6 +691,8 @@ class User(Base):
     :ivar courses: A mapping between course_id and course-role for all courses
         this user is currently enrolled.
     :ivar email: The e-mail of this user.
+    :ivar virtual: Is this user an actual user of the site, or is it a virtual
+        user.
     :ivar password: The password of this user, it is automatically hashed.
     :ivar assignment_results: The way this user can do LTI grade passback.
     :ivar assignments_assigned: A mapping between assignment_ids and
@@ -542,6 +700,9 @@ class User(Base):
     :ivar reset_email_on_lti: Determines if the email should be reset on the
         next LTI launch.
     """
+    if t.TYPE_CHECKING:  # pragma: no cover
+        query = Base.query  # type: t.ClassVar[_MyQuery['User']]
+
     # Python 3 implicitly set __hash__ to None if we override __eq__
     # We set it back to its default implementation
     __hash__ = object.__hash__
@@ -554,6 +715,9 @@ class User(Base):
 
     name: str = db.Column('name', db.Unicode)
     active: bool = db.Column('active', db.Boolean, default=True)
+    virtual = db.Column(
+        'virtual', db.Boolean, default=False, nullable=False, index=True
+    )
     role_id: int = db.Column('Role_id', db.Integer, db.ForeignKey('Role.id'))
     courses: t.MutableMapping[int, CourseRole] = db.relationship(
         'CourseRole',
@@ -569,7 +733,7 @@ class User(Base):
         index=True,
     )
 
-    reset_token: str = db.Column(
+    reset_token: t.Optional[str] = db.Column(
         'reset_token', db.String(UUID_LENGTH), nullable=True
     )
     reset_email_on_lti = db.Column(
@@ -590,20 +754,18 @@ class User(Base):
     )
 
     assignments_assigned: t.MutableMapping[
-        int, AssignmentAssignedGrader
-    ] = db.relationship(
-        'AssignmentAssignedGrader',
-        collection_class=attribute_mapped_collection('assignment_id'),
-        backref=db.backref('user', lazy='select')
-    )
+        int, AssignmentAssignedGrader] = db.relationship(
+            'AssignmentAssignedGrader',
+            collection_class=attribute_mapped_collection('assignment_id'),
+            backref=db.backref('user', lazy='select')
+        )
 
     assignment_results: t.MutableMapping[
-        int, AssignmentResult
-    ] = db.relationship(
-        'AssignmentResult',
-        collection_class=attribute_mapped_collection('assignment_id'),
-        backref=db.backref('user', lazy='select')
-    )
+        int, AssignmentResult] = db.relationship(
+            'AssignmentResult',
+            collection_class=attribute_mapped_collection('assignment_id'),
+            backref=db.backref('user', lazy='select')
+        )
 
     role: Role = db.relationship('Role', foreign_keys=role_id, lazy='select')
 
@@ -613,9 +775,36 @@ class User(Base):
     def __ne__(self, other: t.Any) -> bool:  # pragma: no cover
         return not self.__eq__(other)
 
-    def has_permission(
+    @classmethod
+    def create_virtual_user(cls: t.Type['User'], name: str) -> 'User':
+        """Create a virtual user with the given name.
+
+        :return: A newly created virtual user with the given name prepended
+            with 'Virtual - ' and a random username.
+        """
+        return cls(
+            name=f'Virtual - {name}',
+            username=f'VIRTUAL_USER__{uuid.uuid4()}',
+            virtual=True,
+            email=''
+        )
+
+    @t.overload
+    def has_permission(  # pylint: disable=function-redefined,missing-docstring,unused-argument,no-self-use
+        self, permission: CoursePermission, course_id: t.Union[int, 'Course']
+    ) -> bool:
+        ...  # pylint: disable=pointless-statement
+
+    @t.overload
+    def has_permission(  # pylint: disable=function-redefined,missing-docstring,unused-argument,no-self-use
         self,
-        permission: t.Union[str, Permission],
+        permission: GlobalPermission,
+    ) -> bool:
+        ...  # pylint: disable=pointless-statement
+
+    def has_permission(  # pylint: disable=function-redefined
+        self,
+        permission: t.Union[GlobalPermission, CoursePermission],
         course_id: t.Union['Course', int, None] = None
     ) -> bool:
         """Check whether this user has the specified global or course
@@ -630,27 +819,26 @@ class User(Base):
         :raises KeyError: If the permission parameter is a string and no
                          permission with this name exists.
         """
-        if not self.active:
+        if not self.active or self.virtual:
             return False
+
         if course_id is None:
+            assert isinstance(permission, GlobalPermission)
             return self.role.has_permission(permission)
         else:
+            assert isinstance(permission, CoursePermission)
+
             if isinstance(course_id, Course):
                 course_id = course_id.id
 
             if course_id in self.courses:
                 return self.courses[course_id].has_permission(permission)
-            elif isinstance(permission, str):
-                if Permission.query.filter_by(name=permission).first() is None:
-                    raise KeyError(
-                        f'The permission "{permission}" does not exist'
-                    )
             return False
 
     def get_permissions_in_courses(
         self,
-        wanted_perms: t.Sequence[str],
-    ) -> t.Mapping[int, t.Mapping[str, bool]]:
+        wanted_perms: t.Sequence[CoursePermission],
+    ) -> t.Mapping[int, t.Mapping[CoursePermission, bool]]:
         """Check for specific :class:`Permission`s in all courses
         (:class:`Course`) the user is enrolled in.
 
@@ -666,17 +854,19 @@ class User(Base):
             and a boolean indicating if the current user has this permission
             for the course with this course id.
         """
+        assert not self.virtual
+
         if not wanted_perms:
             return {}
 
-        perms = psef.helpers.filter_all_or_404(
-            Permission,
-            t.cast(DbColumn[str], Permission.name).in_(wanted_perms)
-        )
+        perms: t.Sequence[Permission[CoursePermission]]
+        perms = Permission.get_all_permissions_from_list(wanted_perms)
 
-        course_roles = db.session.query(user_course.c.course_id).join(
-            User, User.id == user_course.c.user_id
-        ).filter(User.id == self.id).subquery('course_roles')
+        course_roles = db.session.query(
+            user_course.c.course_id
+        ).join(User, User.id == user_course.c.user_id).filter(
+            User.id == self.id
+        ).subquery('course_roles')
 
         crp = db.session.query(
             course_permissions.c.course_role_id,
@@ -699,10 +889,10 @@ class User(Base):
         for course_role_id, permission_id in res:
             lookup[permission_id].add(course_role_id)
 
-        out: t.MutableMapping[int, t.Mapping[str, bool]] = {}
+        out: t.MutableMapping[int, t.Mapping[CoursePermission, bool]] = {}
         for course_id, course_role in self.courses.items():
             out[course_id] = {
-                p.name: (course_role.id in lookup[p.id]) != p.default_value
+                p.value: (course_role.id in lookup[p.id]) != p.default_value
                 for p in perms
             }
 
@@ -712,7 +902,9 @@ class User(Base):
     def can_see_hidden(self) -> bool:
         """Can the user see hidden assignments.
         """
-        return self.has_course_permission_once('can_see_hidden_assignments')
+        return self.has_course_permission_once(
+            CoursePermission.can_see_hidden_assignments
+        )
 
     def __to_json__(self) -> t.Mapping[str, t.Any]:
         """Creates a JSON serializable representation of this object.
@@ -757,39 +949,48 @@ class User(Base):
             **self.__to_json__(),
         }
 
-    def has_course_permission_once(self,
-                                   perm: t.Union[str, Permission]) -> bool:
+    def has_course_permission_once(self, perm: CoursePermission) -> bool:
         """Check whether this user has the specified course :class:`Permission`
         in at least one enrolled :class:`Course`.
 
         :param perm: The permission or permission name
         :returns: True if the user has the permission once
         """
+        assert not self.virtual
 
-        permission: Permission
-        if isinstance(perm, Permission):
-            permission = perm
-        else:
-            permission = Permission.query.filter_by(  # type: ignore
-                name=perm).first()
+        permission = Permission.get_permission(perm)
         assert permission.course_permission
 
-        course_roles = db.session.query(user_course.c.course_id).join(
-            User, User.id == user_course.c.user_id
-        ).filter(User.id == self.id).subquery('course_roles')
+        course_roles = db.session.query(
+            user_course.c.course_id
+        ).join(User, User.id == user_course.c.user_id).filter(
+            User.id == self.id
+        ).subquery('course_roles')
         crp = db.session.query(course_permissions.c.course_role_id).join(
             Permission, course_permissions.c.permission_id == Permission.id
         ).filter(Permission.id == permission.id).subquery('crp')
-        res = db.session.query(course_roles.c.course_id).join(
-            crp, course_roles.c.course_id == crp.c.course_role_id
-        )
+        res = db.session.query(
+            course_roles.c.course_id
+        ).join(crp, course_roles.c.course_id == crp.c.course_role_id)
         link: bool = db.session.query(res.exists()).scalar()
 
         return (not link) if permission.default_value else link
 
-    def get_all_permissions(
+    @t.overload
+    def get_all_permissions(self) -> t.Mapping[GlobalPermission, bool]:  # pylint: disable=function-redefined,missing-docstring,no-self-use
+        ...  # pylint: disable=pointless-statement
+
+    @t.overload
+    def get_all_permissions(  # pylint: disable=function-redefined,missing-docstring,no-self-use,unused-argument
+        self,
+        course_id: t.Union['Course', int],
+    ) -> t.Mapping[CoursePermission, bool]:
+        ...  # pylint: disable=pointless-statement
+
+    def get_all_permissions(  # pylint: disable=function-redefined
         self, course_id: t.Union['Course', int, None] = None
-    ) -> t.Mapping[str, bool]:
+    ) -> t.Union[t.Mapping[CoursePermission, bool], t.
+                 Mapping[GlobalPermission, bool]]:
         """Get all global permissions (:class:`Permission`) of this user or all
         course permissions of the user in a specific :class:`Course`.
 
@@ -799,6 +1000,8 @@ class User(Base):
                   permission and the value indicates if this user has this
                   permission.
         """
+        assert not self.virtual
+
         if isinstance(course_id, Course):
             course_id = course_id.id
 
@@ -807,10 +1010,8 @@ class User(Base):
         elif course_id in self.courses:
             return self.courses[course_id].get_all_permissions()
         else:
-            perms: t.Sequence[Permission]
-            perms = Permission.query.filter_by(  # type: ignore
-                course_permission=True).all()
-            return {perm.name: False for perm in perms}
+            perms = Permission.get_all_permissions(CoursePermission)
+            return {perm.value: False for perm in perms}
 
     def get_reset_token(self) -> str:
         """Get a token which a user can use to reset his password.
@@ -819,7 +1020,7 @@ class User(Base):
             reset the password of a user.
         """
         timed_serializer = URLSafeTimedSerializer(
-            psef.current_app.config['SECRET_KEY']
+            current_app.config['SECRET_KEY']
         )
         self.reset_token = str(uuid.uuid4())
         return str(
@@ -835,35 +1036,40 @@ class User(Base):
         :param new_password: The new password to set.
         :returns: Nothing.
 
-        :raises psef.auth.PermissionException: If something was wrong with the
+        :raises PermissionException: If something was wrong with the
             given token.
         """
+        assert not self.virtual
+
         timed_serializer = URLSafeTimedSerializer(
-            psef.current_app.config['SECRET_KEY']
+            current_app.config['SECRET_KEY']
         )
         try:
             username = timed_serializer.loads(
                 token,
-                max_age=psef.current_app.config['RESET_TOKEN_TIME'],
+                max_age=current_app.config['RESET_TOKEN_TIME'],
                 salt=self.reset_token
             )
         except BadSignature:
-            import traceback
-            traceback.print_exc()
-            raise psef.auth.PermissionException(
+            logger.warning(
+                'Invalid password reset token encountered',
+                token=token,
+                exc_info=True,
+            )
+            raise PermissionException(
                 'The given token is not valid',
                 f'The given token {token} is not valid.',
-                psef.errors.APICodes.INVALID_CREDENTIALS, 403
+                APICodes.INVALID_CREDENTIALS, 403
             )
 
         # This should never happen but better safe than sorry.
         if (
             username != self.username or self.reset_token is None
         ):  # pragma: no cover
-            raise psef.auth.PermissionException(
+            raise PermissionException(
                 'The given token is not valid for this user',
                 f'The given token {token} is not valid for user "{self.id}".',
-                psef.errors.APICodes.INVALID_CREDENTIALS, 403
+                APICodes.INVALID_CREDENTIALS, 403
             )
 
         self.password = new_password
@@ -909,6 +1115,10 @@ class Course(Base):
     )
     lti_provider: LTIProvider = db.relationship("LTIProvider")
 
+    virtual: bool = db.Column(
+        'virtual', db.Boolean, default=False, nullable=False
+    )
+
     assignments = db.relationship(
         "Assignment", back_populates="course", cascade='all,delete'
     )  # type: t.MutableSequence[Assignment]
@@ -917,15 +1127,24 @@ class Course(Base):
         self,
         name: str = None,
         lti_course_id: str = None,
-        lti_provider: LTIProvider = None
+        lti_provider: LTIProvider = None,
+        virtual: bool = False,
     ) -> None:
         super().__init__(
             name=name,
             lti_course_id=lti_course_id,
             lti_provider=lti_provider,
+            virtual=virtual,
         )
+        if virtual:
+            return
         for role_name, perms in CourseRole.get_default_course_roles().items():
             CourseRole(name=role_name, course=self, _permissions=perms)
+
+    __hash__ = object.__hash__
+
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, Course) and self.id == other.id
 
     def __to_json__(self) -> t.Mapping[str, t.Any]:
         """Creates a JSON serializable representation of this object.
@@ -939,6 +1158,7 @@ class Course(Base):
                 'id': int, # The id of this course.
                 'created_at': str, # ISO UTC date.
                 'is_lti': bool, # Is the this course a LTI course,
+                'virtual': bool, # Is this a virtual course,
             }
 
         :returns: A object as described above.
@@ -948,6 +1168,7 @@ class Course(Base):
             'name': self.name,
             'created_at': self.created_at.isoformat(),
             'is_lti': self.lti_course_id is not None,
+            'virtual': self.virtual,
         }
 
     def get_all_visible_assignments(self) -> t.Sequence['Assignment']:
@@ -956,7 +1177,7 @@ class Course(Base):
         :returns: A list of assignments the currently logged in user may see.
         """
         if psef.current_user.has_permission(
-            'can_see_hidden_assignments', self.id
+            CoursePermission.can_see_hidden_assignments, self.id
         ):
             return sorted(self.assignments, key=lambda item: item.deadline)
         else:
@@ -964,6 +1185,60 @@ class Course(Base):
                 (a for a in self.assignments if not a.is_hidden),
                 key=lambda item: item.deadline
             )
+
+    def get_all_users_in_course(self) -> '_MyQuery[t.Tuple[User, CourseRole]]':
+        """Get a query that returns all users in the current course and their
+            role.
+
+        :returns: A query that contains all users in the current course and
+            their role.
+        """
+        return db.session.query(User, CourseRole).join(
+            user_course,
+            user_course.c.user_id == User.id,
+        ).join(
+            CourseRole,
+            CourseRole.id == user_course.c.course_id,
+        ).filter(
+            CourseRole.course_id == self.id,
+            t.cast(DbColumn[bool], User.virtual).isnot(True)
+        )
+
+    @classmethod
+    def create_virtual_course(
+        cls: t.Type['Course'], tree: 'psef.files.ExtractFileTree'
+    ) -> 'Course':
+        """Create a virtual course.
+
+        The course will contain a single assignment. The tree should be a
+        single directory with multiple directories under it. For each directory
+        a user will be created and a submission will be created using the files
+        of this directory.
+
+        :param tree: The tree to use to create the submissions.
+        :returns: A virtual course with a random name.
+        """
+        self = cls(name=f'VIRTUAL_COURSE__{uuid.uuid4()}', virtual=True)
+        assig = Assignment(
+            name=f'Virtual assignment - {tree.name}', course=self
+        )
+        self.assignments.append(assig)
+        for child in tree.values:
+            # This is done before we wrap single files to get better author
+            # names.
+            user = User.create_virtual_user(child.name)
+            work = Work(assignment=assig, user=user)
+
+            subdir: psef.files.ExtractFileTreeBase
+            if isinstance(child, psef.files.ExtractFileTreeFile):
+                subdir = psef.files.ExtractFileTreeDirectory(
+                    name='top', values=[child]
+                )
+            else:
+                assert isinstance(child, psef.files.ExtractFileTreeDirectory)
+                subdir = child
+            work.add_file_tree(subdir)
+        return self
 
 
 class GradeHistory(Base):
@@ -997,7 +1272,11 @@ class GradeHistory(Base):
         db.ForeignKey('User.id', ondelete='CASCADE'),
     )
 
-    work = db.relationship('Work', foreign_keys=work_id)  # type: 'Work'
+    work = db.relationship(
+        'Work',
+        foreign_keys=work_id,
+        backref=db.backref('grade_histories', lazy='select')
+    )  # type: 'Work'
     user = db.relationship('User', foreign_keys=user_id)  # type: User
 
     def __to_json__(self) -> t.Mapping[str, t.Any]:
@@ -1041,12 +1320,20 @@ class Work(Base):
     user_id: int = db.Column(
         'User_id', db.Integer, db.ForeignKey('User.id', ondelete='CASCADE')
     )
-    _grade: float = db.Column('grade', db.Float, default=None)
+    _grade: t.Optional[float] = db.Column('grade', db.Float, default=None)
     comment: str = orm.deferred(db.Column('comment', db.Unicode, default=None))
+    comment_author_id: t.Optional[int] = db.Column(
+        'comment_author_id',
+        db.Integer,
+        db.ForeignKey('User.id', ondelete='SET NULL'),
+        nullable=True,
+    )
+
+    orm.deferred(db.Column('comment', db.Unicode, default=None))
     created_at: datetime.datetime = db.Column(
         db.DateTime, default=datetime.datetime.utcnow
     )
-    assigned_to: int = db.Column(
+    assigned_to: t.Optional[int] = db.Column(
         'assigned_to', db.Integer, db.ForeignKey('User.id')
     )
     selected_items = db.relationship(
@@ -1054,14 +1341,25 @@ class Work(Base):
     )  # type: t.MutableSequence['RubricItem']
 
     assignment = db.relationship(
-        'Assignment', foreign_keys=assignment_id, lazy='joined'
+        'Assignment',
+        foreign_keys=assignment_id,
+        lazy='joined',
+        backref=db.backref('submissions', lazy='select', uselist=True)
     )  # type: 'Assignment'
+    comment_author = db.relationship(
+        'User', foreign_keys=comment_author_id, lazy='select'
+    )  # type: t.Optional[User]
     user = db.relationship(
         'User', foreign_keys=user_id, lazy='joined'
     )  # type: User
     assignee = db.relationship(
         'User', foreign_keys=assigned_to, lazy='joined'
-    )  # type: User
+    )  # type: t.Optional[User]
+
+    grade_histories: t.List['GradeHistory']
+
+    # This variable is generated from the backref from all files
+    files: 't.List["File"]'
 
     def divide_new_work(self) -> None:
         """Divide a freshly created work.
@@ -1120,7 +1418,7 @@ class Work(Base):
             )
 
     @property
-    def grade(self) -> float:
+    def grade(self) -> t.Optional[float]:
         """Get the actual current grade for this work.
 
         This is done by not only checking the ``grade`` field but also checking
@@ -1131,16 +1429,22 @@ class Work(Base):
         if self._grade is None:
             if not self.selected_items:
                 return None
-            max_points = self.assignment.max_rubric_points
+
+            max_rubric_points = self.assignment.max_rubric_points
+            assert max_rubric_points is not None
+
             selected = sum(item.points for item in self.selected_items)
-            return psef.helpers.between(0, selected / max_points * 10, 10)
+            return psef.helpers.between(
+                self.assignment.min_grade,
+                selected / max_rubric_points * 10,
+                self.assignment.max_grade,
+            )
         return self._grade
 
     def set_grade(
         self,
-        new_grade: float,
+        new_grade: t.Optional[float],
         user: User,
-        add_to_session: bool = True,
         never_passback: bool = False,
     ) -> GradeHistory:
         """Set the grade to the new grade.
@@ -1150,8 +1454,6 @@ class Work(Base):
 
         :param new_grade: The new grade to set
         :param user: The user setting the new grade.
-        :param add_to_session: Add the newly created history file to the
-            current session.
         :param never_passback: Never passback the new grade.
         :returns: Nothing
         """
@@ -1165,8 +1467,8 @@ class Work(Base):
             work=self,
             user=user
         )
-        if add_to_session:
-            db.session.add(history)
+        self.grade_histories.append(history)
+
         if not never_passback and passback:
             psef.helpers.callback_after_this_request(
                 lambda: psef.tasks.passback_grades([self.id])
@@ -1189,42 +1491,25 @@ class Work(Base):
             result so that the real grade won't show as too late.
         :returns: Nothing
         """
-        if self.assignment.lti_outcome_service_url is not None:
-            lti_provider = self.assignment.course.lti_provider
-            if initial:
-                url = (
-                    '{}/'
-                    'courses/{}/assignments/{}/submissions?inLTI=true'
-                ).format(
-                    current_app.config['EXTERNAL_URL'],
-                    self.assignment.course_id,
-                    self.assignment_id,
-                )
-            else:
-                url = None
+        if not self.assignment.is_lti:
+            return
 
-            psef.lti.LTI.passback_grade(
-                lti_provider.key,
-                lti_provider.secret,
-                False if initial else self.grade,
-                self.assignment.lti_outcome_service_url,
-                self.assignment.assignment_results[self.user_id].sourcedid,
-                url=url,
-            )
-            newest_grade_history_id = db.session.query(
-                t.cast(DbColumn[int], GradeHistory.id)
-            ).filter_by(work_id=self.id).order_by(
-                t.cast(DbColumn[datetime.datetime],
-                       GradeHistory.changed_at).desc(),
-            ).limit(1).with_for_update()
+        lti_provider = self.assignment.course.lti_provider
 
-            db.session.query(GradeHistory).filter(
-                GradeHistory.id == newest_grade_history_id.as_scalar(),
-            ).update(
-                {
-                    'passed_back': True
-                }, synchronize_session='fetch'
-            )
+        lti_provider.passback_grade(self, initial)
+
+        newest_grade_history_id = db.session.query(
+            t.cast(DbColumn[int], GradeHistory.id)
+        ).filter_by(work_id=self.id).order_by(
+            t.cast(DbColumn[datetime.datetime],
+                   GradeHistory.changed_at).desc(),
+        ).limit(1).with_for_update()
+
+        db.session.query(GradeHistory).filter(
+            GradeHistory.id == newest_grade_history_id.as_scalar(),
+        ).update({
+            'passed_back': True
+        }, synchronize_session='fetch')
 
     def select_rubric_items(
         self, items: t.List['RubricItem'], user: User, override: bool = False
@@ -1235,10 +1520,23 @@ class Work(Base):
 
         .. note:: This also sets the actual grade field to `None`.
 
+        .. warning::
+
+            You should do all input sanitation before calling this
+            function. Like checking for duplicate items and correct assignment.
+
         :param item: The item to add.
         :param user: The user selecting the item.
         :returns: Nothing
         """
+        # Sanity checks
+        assert all(
+            item.rubricrow.assignment_id == self.assignment_id
+            for item in items
+        )
+        row_ids = [item.rubricrow_id for item in items]
+        assert len(row_ids) == len(set(row_ids))
+
         if override:
             self.selected_items = []
 
@@ -1287,15 +1585,15 @@ class Work(Base):
 
         try:
             psef.auth.ensure_permission(
-                'can_see_assignee', self.assignment.course_id
+                CoursePermission.can_see_assignee, self.assignment.course_id
             )
             item['assignee'] = self.assignee
-        except psef.auth.PermissionException:
+        except PermissionException:
             item['assignee'] = None
 
         try:
             psef.auth.ensure_can_see_grade(self)
-        except psef.auth.PermissionException:
+        except PermissionException:
             item['grade'] = None
         else:
             item['grade'] = self.grade
@@ -1312,19 +1610,32 @@ class Work(Base):
                 'comment': t.Optional[str] # General feedback comment for
                                            # this submission, or None in
                                            # the same cases as the grade.
+                'comment_author': t.Optional[User] # The author of the comment
+                                                   # field submission, or None
+                                                   # if the logged in user
+                                                   # doesn't have permission to
+                                                   # see the assignee.
                 **self.__to_json__()
             }
 
         :returns: A object as described above.
         """
-        res = self.__to_json__()
+        res: t.Dict[str, object] = {
+            'comment': None,
+            'comment_author': None,
+            **self.__to_json__()
+        }
 
         try:
             psef.auth.ensure_can_see_grade(self)
-        except psef.auth.PermissionException:
-            res['comment'] = None
+        except PermissionException:
+            pass
         else:
             res['comment'] = self.comment
+            if psef.current_user.has_permission(
+                CoursePermission.can_see_assignee, self.assignment.course_id
+            ):
+                res['comment_author'] = self.comment_author
 
         return res
 
@@ -1373,7 +1684,7 @@ class Work(Base):
                         'selected': self.selected_rubric_points,
                     },
             }
-        except psef.auth.PermissionException:
+        except PermissionException:
             return {
                 'rubrics': self.assignment.rubric_rows,
                 'selected': [],
@@ -1384,54 +1695,49 @@ class Work(Base):
             }
 
     def add_file_tree(
-        self, session: 'orm.scoped_session', tree: 'psef.files.ExtractFileTree'
+        self, tree: 'psef.files.ExtractFileTreeDirectory'
     ) -> None:
-        """Add the given tree to given session.
+        """Add the given tree to as only files to the current work.
 
-        .. warning::
+        .. warning:: All previous files will be unlinked from this assignment.
 
-            The db session is not commited!
-
-        :param session: The db session
         :param tree: The file tree as described by
             :py:func:`psef.files.rename_directory_structure`
         :returns: Nothing
         """
-        return self._add_file_tree(session, tree, None)
+        self._add_file_tree(tree, None)
 
     def _add_file_tree(
         self,
-        session: 'orm.scoped_session',
-        tree: 'psef.files.ExtractFileTree',
+        tree: 'psef.files.ExtractFileTreeDirectory',
         top: t.Optional['File'],
-    ) -> None:
+    ) -> 'File':
         """Add the given tree to the session with top as parent.
 
-        :param session: The db session
         :param tree: The file tree as described by
                           :py:func:`psef.files.rename_directory_structure`
         :param top: The parent file
         :returns: Nothing
         """
-        for old_top, children in tree.items():
-            new_top = File(
-                work=self, is_directory=True, name=old_top, parent=top
-            )
-            session.add(new_top)
-            for child in children:
-                if isinstance(child, t.MutableMapping):
-                    self._add_file_tree(session, child, new_top)
-                    continue
-                name, filename = child
-                session.add(
-                    File(
-                        work=self,
-                        name=name,
-                        filename=filename,
-                        is_directory=False,
-                        parent=new_top
-                    )
+        new_top = File(
+            work=self, is_directory=True, name=tree.name, parent=top
+        )
+
+        for child in tree.values:
+            if isinstance(child, psef.files.ExtractFileTreeDirectory):
+                self._add_file_tree(child, new_top)
+            elif isinstance(child, psef.files.ExtractFileTreeFile):
+                File(
+                    work=self,
+                    name=child.name,
+                    filename=child.disk_name,
+                    is_directory=False,
+                    parent=new_top
                 )
+            else:
+                # The above checks are exhaustive, so this cannot happen
+                assert False
+        return new_top
 
     def get_all_feedback(self) -> t.Tuple[t.Iterable[str], t.Iterable[str], ]:
         """Get all feedback for this work.
@@ -1487,18 +1793,19 @@ class Work(Base):
         if rubricitem is not None:
             self.selected_items.remove(rubricitem)
 
-    def search_file(
+    def search_file_filters(
         self,
         pathname: str,
         exclude: 'FileOwner',
-    ) -> 'File':
-        """Search for a file in the this directory with the given name.
+    ) -> t.List[t.Any]:
+        """Get the filters needed to search for a file in the this directory
+        with a given name.
 
         :param pathname: The path of the file to search for, this may contain
             leading and trailing slashes which do not have any meaning.
         :param exclude: The fileowner to exclude from search, like described in
             :func:`get_zip`.
-        :returns: The found file.
+        :returns: The criteria needed to find the file with the given pathname.
         """
         patharr, is_dir = psef.files.split_path(pathname)
 
@@ -1517,14 +1824,62 @@ class Work(Base):
         if parent is not None:
             parent = parent.c.id
 
-        return psef.helpers.filter_single_or_404(
-            File,
+        return [
             File.work_id == self.id,
             File.name == patharr[-1],
             File.parent_id == parent,
             File.fileowner != exclude,
             File.is_directory == is_dir,
+        ]
+
+    def search_file(
+        self,
+        pathname: str,
+        exclude: 'FileOwner',
+    ) -> 'File':
+        """Search for a file in the this directory with the given name.
+
+        :param pathname: The path of the file to search for, this may contain
+            leading and trailing slashes which do not have any meaning.
+        :param exclude: The fileowner to exclude from search, like described in
+            :func:`get_zip`.
+        :returns: The found file.
+        """
+
+        return psef.helpers.filter_single_or_404(
+            File,
+            *self.search_file_filters(pathname, exclude),
         )
+
+    def get_file_children_mapping(self, exclude: 'FileOwner'
+                                  ) -> t.Mapping[int, t.Sequence['File']]:
+        """Get a mapping that maps a file id to all its children.
+
+        This implementation does a single query to the database and runs in
+        O(n*log(n)), so it will be quite a bit quicker than using the
+        `children` attribute on files if you are going to need all children or
+        all files.
+
+        The list of children is sorted on filename.
+
+        :param exclude: The file owners to exclude
+        :returns: A mapping from file id to list of all its children for this
+            submission.
+        """
+        cache: t.Mapping[int, t.List[File]] = defaultdict(list)
+        files = File.query.filter(
+            File.work == self, File.fileowner != exclude
+        ).all()
+        # We sort in Python as this increases consistency between different
+        # server platforms, Python also has better defaults.
+        # TODO: Investigate if sorting in the database first and sorting in
+        # Python after is faster, as sorting in the database should be faster
+        # overal and sorting an already sorted list in Python is really fast.
+        files.sort(key=lambda el: el.name.lower())
+        for f in files:
+            cache[f.parent_id].append(f)
+
+        return cache
 
 
 @enum.unique
@@ -1565,9 +1920,11 @@ class File(Base):
     work_id: int = db.Column(
         'Work_id', db.Integer, db.ForeignKey('Work.id', ondelete='CASCADE')
     )
+    # The given name of the file.
     name: str = db.Column('name', db.Unicode, nullable=False)
 
-    # This is the filename for the original file on the disk
+    # This is the filename for the actual file on the disk. This is probably a
+    # randomly generated uuid.
     filename: t.Optional[str]
     filename = db.Column('filename', db.Unicode, nullable=True)
     modification_date = db.Column(
@@ -1593,7 +1950,13 @@ class File(Base):
         backref=db.backref('children', lazy='dynamic')
     )  # type: 'File'
 
-    work = db.relationship('Work', foreign_keys=work_id)  # type: 'Work'
+    work = db.relationship(
+        'Work',
+        foreign_keys=work_id,
+        backref=db.backref(
+            'files', lazy='select', uselist=True, cascade='all,delete'
+        )
+    )  # type: 'Work'
 
     @staticmethod
     def get_exclude_owner(owner: t.Optional[str], course_id: int) -> FileOwner:
@@ -1620,7 +1983,7 @@ class File(Base):
             return student
         elif owner == 'auto':
             if psef.current_user.has_permission(
-                'can_edit_others_work', course_id
+                CoursePermission.can_edit_others_work, course_id
             ):
                 return student
             else:
@@ -1634,7 +1997,9 @@ class File(Base):
         :returns: The absolute path.
         """
         assert not self.is_directory
-        return os.path.join(current_app.config['UPLOAD_DIR'], self.filename)
+        return os.path.join(
+            current_app.config['UPLOAD_DIR'], t.cast(str, self.filename)
+        )
 
     def delete_from_disk(self) -> None:
         """Delete the file from disk if it is not a directory.
@@ -1644,7 +2009,10 @@ class File(Base):
         if not self.is_directory:
             os.remove(self.get_diskname())
 
-    def list_contents(self, exclude: FileOwner) -> 'psef.files.FileTree':
+    def list_contents(
+        self,
+        exclude: FileOwner,
+    ) -> 'psef.files.FileTree':
         """List the basic file info and the info of its children.
 
         If the file is a directory it will return a tree like this:
@@ -1678,24 +2046,26 @@ class File(Base):
 
         :returns: A tree as described above.
         """
+        cache = self.work.get_file_children_mapping(exclude)
+        return self._list_contents(exclude, cache)
+
+    def _list_contents(
+        self,
+        exclude: FileOwner,
+        cache: t.Mapping[int, t.Sequence['File']],
+    ) -> 'psef.files.FileTree':
         if not self.is_directory:
             return {"name": self.name, "id": self.id}
         else:
             children = [
-                child.list_contents(exclude)
-                for child in self.get_sorted_children(exclude)
+                c._list_contents(exclude, cache)  # pylint: disable=protected-access
+                for c in cache[self.id]
             ]
             return {
                 "name": self.name,
                 "id": self.id,
                 "entries": children,
             }
-
-    def get_sorted_children(self, exclude: FileOwner) -> t.List['File']:
-        return sorted(
-            self.children.filter(File.fileowner != exclude),
-            key=lambda el: el.name.lower(),
-        )
 
     def rename_code(
         self,
@@ -1717,11 +2087,11 @@ class File(Base):
         if new_parent.children.filter_by(name=new_name).filter(
             File.fileowner != exclude_owner,
         ).first() is not None:
-            raise psef.errors.APIException(
+            raise APIException(
                 'This file already exists within this directory',
                 f'The file "{new_parent.id}" has '
-                f'a child with the name "{new_name}"',
-                psef.errors.APICodes.INVALID_STATE, 400
+                f'a child with the name "{new_name}"', APICodes.INVALID_STATE,
+                400
             )
 
         self.name = new_name
@@ -1812,11 +2182,34 @@ class Comment(Base):
 
     def __to_json__(self) -> t.Mapping[str, t.Any]:
         """Creates a JSON serializable representation of this object.
+
+
+        This object will look like this:
+
+        .. code:: python
+
+            {
+                'line': int, # The line of this comment.
+                'msg': str,  # The message of this comment.
+                'author': t.Optional[User], # The author of this comment. This
+                                            # is ``None`` if the user does not
+                                            # have permission to see it.
+            }
+
+        :returns: A object as described above.
         """
-        return {
+        res = {
             'line': self.line,
             'msg': self.comment,
         }
+
+        if psef.current_user.has_permission(
+            CoursePermission.can_see_assignee,
+            self.file.work.assignment.course_id
+        ):
+            res['author'] = self.user
+
+        return res
 
 
 @enum.unique
@@ -1826,6 +2219,19 @@ class LinterState(enum.IntEnum):
     :param running: The linter is currently running.
     :param done: The linter has finished without crashing.
     :param crashed: The linter has crashed in some way.
+    """
+    running: int = 1
+    done: int = 2
+    crashed: int = 3
+
+
+@enum.unique
+class PlagiarismState(enum.IntEnum):
+    """Describes in what state a :class:`PlagiarismRun` is.
+
+    :param running: The provider is currently running.
+    :param done: The provider has finished without crashing.
+    :param crashed: The provider has crashed in some way.
     """
     running: int = 1
     done: int = 2
@@ -1946,9 +2352,11 @@ class AssignmentLinter(Base):
         self.config = config
 
         self.tests = []
-        for work in Assignment.query.get(assignment_id
-                                         ).get_all_latest_submissions():
-            self.tests.append(LinterInstance(work, self))
+        assig = Assignment.query.get(assignment_id)
+
+        if assig is not None:
+            for work in assig.get_all_latest_submissions():
+                self.tests.append(LinterInstance(work, self))
 
         return self
 
@@ -1999,8 +2407,8 @@ class LinterInstance(Base):
 
     def add_comments(
         self,
-        feedbacks: t.Mapping[int, t.Mapping[int, t.Sequence[t.Tuple[str, str]]]
-                             ],
+        feedbacks: t.Mapping[int, t.Mapping[int, t.Sequence[t.
+                                                            Tuple[str, str]]]],
     ) -> t.Iterable[LinterComment]:
         """Add comments written by this instance.
 
@@ -2078,7 +2486,7 @@ class Assignment(Base):
     __tablename__ = "Assignment"
     id: int = db.Column('id', db.Integer, primary_key=True)
     name: str = db.Column('name', db.Unicode)
-    cgignore: str = db.Column('cgignore', db.Unicode)
+    cgignore: t.Optional[str] = db.Column('cgignore', db.Unicode)
     state: _AssignmentStateEnum = db.Column(
         'state',
         db.Enum(_AssignmentStateEnum),
@@ -2092,7 +2500,8 @@ class Assignment(Base):
     created_at: datetime.datetime = db.Column(
         db.DateTime, default=datetime.datetime.utcnow
     )
-    deadline: datetime.datetime = db.Column('deadline', db.DateTime)
+    deadline: t.Optional[datetime.datetime
+                         ] = db.Column('deadline', db.DateTime)
 
     _mail_task_id: t.Optional[str] = db.Column(
         'mail_task_id',
@@ -2100,21 +2509,30 @@ class Assignment(Base):
         nullable=True,
         default=None,
     )
-    reminder_email_time: datetime.datetime = db.Column(
+    reminder_email_time: t.Optional[datetime.datetime] = db.Column(
         'reminder_email_time',
         db.DateTime,
         default=None,
         nullable=True,
     )
-    done_email = db.Column(
+    done_email: t.Optional[str] = db.Column(
         'done_email',
         db.Unicode,
         default=None,
         nullable=True,
     )
-    done_type: AssignmentDoneType = db.Column(
+    done_type: t.Optional[AssignmentDoneType] = db.Column(
         'done_type',
         db.Enum(AssignmentDoneType),
+        nullable=True,
+        default=None,
+    )
+    _max_grade: t.Optional[float] = db.Column(
+        'max_grade', db.Float, nullable=True, default=None
+    )
+    lti_points_possible: t.Optional[float] = db.Column(
+        'lti_points_possible',
+        db.Float,
         nullable=True,
         default=None,
     )
@@ -2124,13 +2542,12 @@ class Assignment(Base):
     lti_outcome_service_url: str = db.Column(db.Unicode)
 
     assigned_graders: t.MutableMapping[
-        int, AssignmentAssignedGrader
-    ] = db.relationship(
-        'AssignmentAssignedGrader',
-        cascade='delete-orphan, delete',
-        collection_class=attribute_mapped_collection('user_id'),
-        backref=db.backref('assignment', lazy='select')
-    )
+        int, AssignmentAssignedGrader] = db.relationship(
+            'AssignmentAssignedGrader',
+            cascade='delete-orphan, delete',
+            collection_class=attribute_mapped_collection('user_id'),
+            backref=db.backref('assignment', lazy='select')
+        )
 
     finished_graders = db.relationship(
         'AssignmentGraderDone',
@@ -2139,12 +2556,11 @@ class Assignment(Base):
     )  # type: t.MutableSequence['AssignmentGraderDone']
 
     assignment_results: t.MutableMapping[
-        int, AssignmentResult
-    ] = db.relationship(
-        'AssignmentResult',
-        collection_class=attribute_mapped_collection('user_id'),
-        backref=db.backref('assignment', lazy='select')
-    )
+        int, AssignmentResult] = db.relationship(
+            'AssignmentResult',
+            collection_class=attribute_mapped_collection('user_id'),
+            backref=db.backref('assignment', lazy='select')
+        )
 
     course: Course = db.relationship(
         'Course',
@@ -2153,7 +2569,7 @@ class Assignment(Base):
         lazy='joined'
     )
 
-    fixed_max_rubric_points = db.Column(
+    fixed_max_rubric_points: t.Optional[float] = db.Column(
         'fixed_max_rubric_points',
         db.Float,
         nullable=True,
@@ -2161,12 +2577,36 @@ class Assignment(Base):
     rubric_rows = db.relationship(
         'RubricRow',
         backref=db.backref('assignment'),
-        cascade='delete-orphan, delete',
+        cascade='delete-orphan, delete, save-update',
         order_by="RubricRow.created_at"
     )  # type: t.MutableSequence['RubricRow']
 
     # This variable is available through a backref
     linters: t.Iterable['AssignmentLinter']
+
+    # This variable is available through a backref
+    submissions: t.Iterable['Work']
+
+    @property
+    def max_grade(self) -> float:
+        """Get the maximum grade possible for this assignment.
+
+        :returns: The maximum a grade for a submission.
+        """
+        return 10 if self._max_grade is None else self._max_grade
+
+    # We don't use property.setter because in that case `new_val` could only be
+    # a `float` because of https://github.com/python/mypy/issues/220
+    def set_max_grade(self, new_val: t.Union[None, float, int]) -> None:
+        """Set or unset the maximum grade for this assignment.
+
+        :param new_val: The new value for ``_max_grade``.
+        :return: Nothing.
+        """
+        self._max_grade = new_val
+
+    min_grade = 0
+    """The minimum grade for a submission in this assignment."""
 
     def _submit_grades(self) -> None:
         subs = t.cast(
@@ -2336,10 +2776,9 @@ class Assignment(Base):
     def _dynamic_max_points(self) -> t.Optional[float]:
         sub = db.session.query(
             func.max(RubricItem.points).label('max_val')
-        ).join(RubricRow, RubricRow.id == RubricItem.rubricrow_id
-               ).filter(RubricRow.assignment_id == self.id).group_by(
-                   RubricRow.id
-               ).subquery('sub')
+        ).join(RubricRow, RubricRow.id == RubricItem.rubricrow_id).filter(
+            RubricRow.assignment_id == self.id
+        ).group_by(RubricRow.id).subquery('sub')
         return db.session.query(func.sum(sub.c.max_val)).scalar()
 
     @property
@@ -2347,12 +2786,11 @@ class Assignment(Base):
         """Is the current assignment open, which means the assignment is in the
         state students submit work.
         """
-        if (
+        return bool(
+            self.deadline is not None and
             self.state == _AssignmentStateEnum.open and
             self.deadline >= psef.helpers.get_request_start_time()
-        ):
-            return True
-        return False
+        )
 
     @property
     def is_hidden(self) -> bool:
@@ -2426,9 +2864,9 @@ class Assignment(Base):
         try:
             if not self.is_done:
                 psef.auth.ensure_permission(
-                    'can_see_grade_before_open', self.course_id
+                    CoursePermission.can_see_grade_before_open, self.course_id
                 )
-        except psef.auth.PermissionException:
+        except PermissionException:
             return False
         else:
             return self.whitespace_linter_exists
@@ -2465,6 +2903,12 @@ class Assignment(Base):
                                                   # can be higher and lower
                                                   # than the actual max. Will
                                                   # be `null` if unset.
+                'max_grade': float, # The maximum grade you can get for this
+                                    # assignment. This is based around the idea
+                                    # that a 10 is a 'perfect' score. So if
+                                    # this value is 12 a user can score 2
+                                    # additional bonus points. If this value is
+                                    # `null` it is unset and regarded as a 10.
             }
 
         :returns: An object as described above.
@@ -2475,8 +2919,8 @@ class Assignment(Base):
             'id': self.id,
             'state': self.state_name,
             'description': self.description,
-            'created_at': self.created_at.isoformat(),
-            'deadline': self.deadline.isoformat(),
+            'created_at': self.created_at and self.created_at.isoformat(),
+            'deadline': self.deadline and self.deadline.isoformat(),
             'name': self.name,
             'is_lti': self.is_lti,
             'course': self.course,
@@ -2486,11 +2930,12 @@ class Assignment(Base):
             'done_email': None,
             'reminder_time': None,
             'fixed_max_rubric_points': self.fixed_max_rubric_points,
+            'max_grade': self._max_grade,
         }
 
         try:
             psef.auth.ensure_permission(
-                'can_grade_work',
+                CoursePermission.can_grade_work,
                 self.course_id,
             )
             if self.done_email is not None:
@@ -2499,7 +2944,7 @@ class Assignment(Base):
                 res['done_type'] = self.done_type.name
             if self.reminder_email_time is not None:
                 res['reminder_time'] = self.reminder_email_time.isoformat()
-        except psef.auth.PermissionException:
+        except PermissionException:
             pass
 
         return res
@@ -2524,7 +2969,7 @@ class Assignment(Base):
             if self.lti_outcome_service_url is not None:
                 self._submit_grades()
         else:
-            raise TypeError
+            raise InvalidAssignmentState(f'{state} is not a valid state')
 
     def get_from_latest_submissions(self, *to_query: T) -> '_MyQuery[T]':
         """Get the given fields from all last submitted submissions.
@@ -2538,7 +2983,7 @@ class Assignment(Base):
             func.max(Work.created_at).label('max_date')
         ).filter_by(assignment_id=self.id).group_by(Work.user_id
                                                     ).subquery('sub')
-        return db.session.query(*to_query).select_from(Work).join(
+        return db.session.query(*to_query).select_from(Work).join(  # type: ignore
             sub,
             and_(
                 sub.c.user_id == Work.user_id,
@@ -2558,8 +3003,8 @@ class Assignment(Base):
 
     def get_divided_amount_missing(
         self
-    ) -> t.Tuple[t.Mapping[int, float], t.Callable[[int], t.Mapping[int, float]
-                                                   ]]:
+    ) -> t.Tuple[t.Mapping[int, float], t.Callable[[int], t.
+                                                   Mapping[int, float]]]:
         """Get a mapping between user and the amount of submissions that they
         should be assigned but are not.
 
@@ -2608,9 +3053,9 @@ class Assignment(Base):
             missing = {}
 
             for assigned_user_id, assigned in self.assigned_graders.items():
-                missing[assigned_user_id
-                        ] = (assigned.weight / total_weight *
-                             amount_subs) - divided_amount[assigned_user_id]
+                missing[assigned_user_id] = (
+                    assigned.weight / total_weight * amount_subs
+                ) - divided_amount[assigned_user_id]
 
             return missing
 
@@ -2757,7 +3202,7 @@ class Assignment(Base):
             course_permissions.c.permission_id == Permission.id,
         ).filter(
             CourseRole.course_id == self.course_id,
-            Permission.name == 'can_grade_work',
+            Permission.value == CoursePermission.can_grade_work,
         ).subquery('graders')
 
         res = db.session.query(
@@ -2806,6 +3251,50 @@ class Snippet(Base):
         }
 
 
+class RubricItem(Base):
+    """This class holds the information about a single option/item in a
+    :class:`RubricRow`.
+    """
+    if t.TYPE_CHECKING:  # pragma: no cover
+        query = Base.query  # type: t.ClassVar[_MyQuery['RubricItem']]
+
+    __tablename__ = 'RubricItem'
+
+    id: int = db.Column('id', db.Integer, primary_key=True)
+    rubricrow_id: int = db.Column(
+        'Rubricrow_id', db.Integer,
+        db.ForeignKey('RubricRow.id', ondelete='CASCADE')
+    )
+    header: str = db.Column('header', db.Unicode, default='')
+    description: str = db.Column('description', db.Unicode, default='')
+    points: float = db.Column('points', db.Float)
+
+    # This variable is generated from the backref from RubricRow
+    rubricrow: 'RubricRow'
+
+    class JSONBaseSerialization(TypedDict, total=True):
+        """The base serialization of a rubric item.
+        """
+        description: str
+        header: str
+        points: numbers.Real
+
+    class JSONSerialization(JSONBaseSerialization, total=True):
+        id: int
+
+    def __to_json__(self) -> 'RubricItem.JSONSerialization':
+        """Creates a JSON serializable representation of this object.
+        """
+        return {
+            'id': self.id,
+            'description': self.description,
+            'header': self.header,
+            # A float is a ``Real``, mypy issue:
+            # https://github.com/python/mypy/issues/2636
+            'points': t.cast(numbers.Real, self.points),
+        }
+
+
 class RubricRow(Base):
     """Describes a row of some rubric.
 
@@ -2828,11 +3317,25 @@ class RubricRow(Base):
         'created_at', db.DateTime, default=datetime.datetime.utcnow
     )
     items = db.relationship(
-        "RubricItem", backref="rubricrow", cascade='delete-orphan, delete'
+        "RubricItem",
+        backref="rubricrow",
+        cascade='delete-orphan, delete, save-update',
+        order_by='asc(RubricItem.points)',
     )  # type: t.MutableSequence[RubricItem]
 
     # This is for the type checker and is available because of a backref.
     assignment: Assignment
+
+    @property
+    def is_valid(self) -> bool:
+        """Check if the current row is valid.
+
+        :returns: ``False`` if the row has no items or if the max points of the
+            items is not > 0.
+        """
+        if not self.items:
+            return False
+        return max(it.points for it in self.items) >= 0
 
     def __to_json__(self) -> t.Mapping[str, t.Any]:
         """Creates a JSON serializable representation of this object.
@@ -2844,34 +3347,434 @@ class RubricRow(Base):
             'items': self.items,
         }
 
+    def _get_item(self, item_id: int) -> t.Optional['RubricItem']:
+        """Get a rubric item from this row by id.
 
-class RubricItem(Base):
-    """This class holds the information about a single option/item in a
-    :class:`RubricRow`.
+        :param item_id: The id of the item to get.
+        :returns: The item found or ``None`` if the row didn't contain any item
+            with the given id.
+        """
+        for item in self.items:
+            if item.id == item_id:
+                return item
+        return None
+
+    def update_items_from_json(
+        self, items: t.List[RubricItem.JSONBaseSerialization]
+    ) -> None:
+        """Update the items of this row in place.
+
+        .. warning::
+
+            All items not present in the given ``items`` list will be deleted
+            from the rubric row.
+
+        :param items: The items (:class:`.RubricItem`) that should be added or
+            updated. If ``id`` is in an item it should be an ``int`` and the
+            rubric item with the corresponding ``id`` will be updated instead
+            of added.
+        :returns: Nothing.
+        """
+        # We store all new items in this list and not `self.items` as we need
+        # to search for items in `self.items` if a rubric item needs to be
+        # updated (instead of added).
+        new_items: t.List[RubricItem] = []
+
+        for item in items:
+            item_description: str = item['description']
+            item_header: str = item['header']
+            points: numbers.Real = item['points']
+
+            if 'id' in item:
+                psef.helpers.ensure_keys_in_dict(item, [('id', int)])
+                item_id = t.cast(int, item['id'])  # type: ignore
+                rubric_item = self._get_item(item_id)
+                if rubric_item is None:
+                    raise psef.errors.APIException(
+                        "The requested rubric item is not present in this row",
+                        f'The row "{self.id}" doesn\'t contain "{item_id}"',
+                        psef.errors.APICodes.OBJECT_NOT_FOUND, 404
+                    )
+
+                rubric_item.header = item_header
+                rubric_item.description = item_description
+                rubric_item.points = float(points)
+            else:
+                rubric_item = RubricItem(
+                    rubricrow=self,
+                    description=item_description,
+                    header=item_header,
+                    points=points
+                )
+
+            new_items.append(rubric_item)
+
+        self.items = new_items
+
+    def update_from_json(
+        self, header: str, description: str,
+        items: t.List[RubricItem.JSONBaseSerialization]
+    ) -> None:
+        """Update this rubric in place.
+
+        .. warning::
+
+            All items not present in the given ``items`` list will be deleted
+            from the rubric row.
+
+        :param header: The new header of the row.
+        :param description: The new description of the row.
+        :param items: The items that should be in this row (see warning). The
+            format is the same as the items passed to
+            :meth:`.RubricRow.update_items_from_json`.
+        :returns: Nothing.
+        """
+        self.header = header
+        self.description = description
+        self.update_items_from_json(items)
+
+    @classmethod
+    def create_from_json(
+        cls: t.Type['RubricRow'], header: str, description: str,
+        items: t.List[RubricItem.JSONBaseSerialization]
+    ) -> 'RubricRow':
+        """Create a new rubric row for an assignment.
+
+        :param header: The name of the new rubric row.
+        :param description: The description of the new rubric row.
+        :param items: The items that should be added to this row. The format is
+            the same as the items passed to
+            :meth:`.RubricRow.update_items_from_json`.
+        :returns: The newly created row.
+        """
+        self = cls(header=header, description=description)
+        self.update_items_from_json(items)
+
+        return self
+
+
+class PlagiarismRun(Base):
+    """Describes a run for a plagiarism provider.
+
+    :ivar ~.PlagiarismRun.state: The state this run is in.
+    :ivar ~.PlagiarismRun.log: The log on ``stdout`` and ``stderr`` we got from
+        running the plagiarism provider. This is only available if the
+        ``state`` is ``done`` or ``crashed``.
+    :ivar ~.PlagiarismRun.json_config: The config used for this run saved in a
+        sorted association list.
+    :ivar ~.PlagiarismRun.assignment_id: The id of the assignment this
+        belongs to.
     """
     if t.TYPE_CHECKING:  # pragma: no cover
-        query = Base.query  # type: t.ClassVar[_MyQuery['RubricItem']]
+        query = Base.query  # type: t.ClassVar[_MyQuery['PlagiarismRun']]
+    __tablename__ = 'PlagiarismRun'
 
-    __tablename__ = 'RubricItem'
-
-    id: int = db.Column('id', db.Integer, primary_key=True)
-    rubricrow_id: int = db.Column(
-        'Rubricrow_id', db.Integer,
-        db.ForeignKey('RubricRow.id', ondelete='CASCADE')
+    id = db.Column('id', db.Integer, primary_key=True)
+    state: PlagiarismState = db.Column(
+        'state',
+        db.Enum(PlagiarismState),
+        default=PlagiarismState.running,
+        nullable=False
     )
-    header: str = db.Column('header', db.Unicode, default='')
-    description: str = db.Column('description', db.Unicode, default='')
-    points: float = db.Column('points', db.Float)
+    log: t.Optional[str] = orm.deferred(
+        db.Column('log', db.Unicode, nullable=True)
+    )
+    json_config = db.Column('json_config', db.Unicode, nullable=False)
+    assignment_id: int = db.Column(
+        'assignment_id', db.Integer, db.ForeignKey('Assignment.id')
+    )
+    created_at: datetime.datetime = db.Column(
+        db.DateTime, default=datetime.datetime.utcnow
+    )
 
-    # This variable is generated from the backref from RubricRow
-    rubricrow: RubricRow = None
+    assignment = db.relationship(
+        'Assignment', foreign_keys=assignment_id, lazy='joined'
+    )  # type: 'Assignment'
 
-    def __to_json__(self) -> t.Mapping[str, t.Any]:
+    cases: t.List['PlagiarismCase'] = db.relationship(
+        "PlagiarismCase",
+        backref=db.backref('plagiarism_run'),
+        order_by='desc(PlagiarismCase.match_avg)'
+    )
+
+    @property
+    def provider_name(self) -> str:
+        """
+        :returns: The provider name of this plagiarism run.
+        """
+        for key, val in json.loads(self.json_config):
+            if key == 'provider':
+                return val
+        # This can never happen
+        raise KeyError  # pragma: no cover
+
+    def __to_json__(self) -> t.Mapping[str, object]:
         """Creates a JSON serializable representation of this object.
+
+        This object will look like this:
+
+        .. code:: python
+
+            {
+                'id': int, # The id of this run.
+                'state': str, # The name of the current state this run is in.
+                'provider_name': str, # The name of the provider used in this
+                                      # run.
+                'config': t.List[t.List[str]], # A sorted association list with
+                                               # the config used for this run.
+                'created_at': str, # ISO UTC date.
+                'assignment': Assignment, # The assignment this run belongs to.
+            }
+
+        :returns: A object as described above.
         """
         return {
             'id': self.id,
-            'description': self.description,
-            'header': self.header,
-            'points': self.points,
+            'state': self.state.name,
+            'provider_name': self.provider_name,
+            'config': json.loads(self.json_config),
+            'created_at': self.created_at.isoformat(),
+            'assignment': self.assignment,
+        }
+
+    def __extended_to_json__(self) -> t.Mapping[str, object]:
+        """Create a extended JSON serializable representation of this object.
+
+        This object will look like this:
+
+        .. code:: python
+
+            {
+                'cases': t.List[PlagiarismCase], # The cases of possible
+                                                 # plagiarism found during this
+                                                 # run.
+                'log': str, # The log on stderr and stdout of this run.
+                **self.__to_json__(),
+            }
+
+        :returns: A object as described above.
+        """
+        return {
+            'cases': self.cases,
+            'log': self.log,
+            **self.__to_json__(),
+        }
+
+
+class PlagiarismCase(Base):
+    """Describe a case of possible plagiarism.
+
+    :ivar ~.PlagiarismCase.work1_id: The id of the first work to be associated
+        with this possible case of plagiarism.
+    :ivar ~.PlagiarismCase.work2_id: The id of the second work to be associated
+        with this possible case of plagiarism.
+    :ivar ~.PlagiarismCase.created_at: When was this case created.
+    :ivar ~.PlagiarismCase.plagiarism_run_id: The :class:`.PlagiarismRun` in
+        which this case was discovered.
+    :ivar ~.PlagiarismCase.match_avg: The average similarity between the two
+        matches. What the value exactly means differs per provider.
+    :ivar ~.PlagiarismCase.match_max: The maximum similarity between the two
+        matches. What the value exactly means differs per provider.
+    """
+    if t.TYPE_CHECKING:  # pragma: no cover
+        query = Base.query  # type: t.ClassVar[_MyQuery['PlagiarismCase']]
+
+    __tablename__ = 'PlagiarismCase'
+    id = db.Column('id', db.Integer, primary_key=True)
+
+    work1_id: int = db.Column(
+        'work1_id', db.Integer, db.ForeignKey('Work.id', ondelete='CASCADE')
+    )
+    work2_id: int = db.Column(
+        'work2_id', db.Integer, db.ForeignKey('Work.id', ondelete='CASCADE')
+    )
+    created_at: datetime.datetime = db.Column(
+        db.DateTime, default=datetime.datetime.utcnow
+    )
+    plagiarism_run_id = db.Column(
+        'plagiarism_run_id', db.Integer,
+        db.ForeignKey('PlagiarismRun.id', ondelete='CASCADE')
+    )
+
+    match_avg = db.Column('match_avg', db.Float, nullable=False)
+    match_max = db.Column('match_max', db.Float, nullable=False)
+
+    work1 = db.relationship(
+        'Work', foreign_keys=work1_id, lazy='joined'
+    )  # type: Work
+    work2 = db.relationship(
+        'Work', foreign_keys=work2_id, lazy='joined'
+    )  # type: Work
+
+    plagiarism_run: PlagiarismRun
+
+    matches = db.relationship(
+        "PlagiarismMatch",
+        back_populates="plagiarism_case",
+        cascade='all,delete',
+        order_by='PlagiarismMatch.file1_id'
+    )  # type: t.List['PlagiarismMatch']
+
+    def __to_json__(self) -> t.Mapping[str, object]:
+        """Creates a JSON serializable representation of this object.
+
+
+        This object will look like this:
+
+        The ``submissions`` field may be ``None`` and the assignments field may
+        contain only partial information because of permissions issues.
+
+        .. code:: python
+
+            {
+                'id': int, # The id of this case.
+                'users': t.List[User], # The users of this plagiarism case.
+                'match_avg': float, # The average similarity of this case.
+                'match_max': float, # The maximum similarity of this case.
+                'assignments': t.List[Assignment], # The two assignments of
+                                                   # this case. These can
+                                                   # differ!
+                'submissions': t.List[Work], # The two submissions of this
+                                             # case.
+            }
+
+        :returns: A object as described above.
+        """
+        data: t.MutableMapping[str, t.Any] = {
+            'id': self.id,
+            'users': [self.work1.user, self.work2.user],
+            'match_avg': self.match_avg,
+            'match_max': self.match_max,
+            'assignments': [self.work1.assignment, self.work2.assignment],
+            'submissions': [self.work1, self.work2],
+        }
+        try:
+            psef.auth.ensure_can_see_plagiarims_case(
+                self, assignments=True, submissions=False
+            )
+        except PermissionException:
+            other_work_index = (
+                1 if
+                self.work1.assignment_id == self.plagiarism_run.assignment_id
+                else 0
+            )
+            assig = data['assignments'][other_work_index]
+            data['assignments'][other_work_index] = {
+                'name': assig.name,
+                'course': {
+                    'name': assig.course.name
+                }
+            }
+
+        # Make sure we may actually see this file.
+        try:
+            psef.auth.ensure_can_see_plagiarims_case(
+                self, assignments=False, submissions=True
+            )
+        except PermissionException:
+            data['submissions'] = None
+
+        return data
+
+    def __extended_to_json__(self) -> t.Mapping[str, object]:
+        """Create a extended JSON serializable representation of this object.
+
+        This object will look like this:
+
+        .. code:: python
+
+            {
+                'matches': t.List[PlagiarismMatch], # The list of matches that
+                                                    # are part of this case.
+                **self.__to_json__(),
+            }
+
+        :returns: A object as described above.
+        """
+        return {
+            'matches': self.matches,
+            **self.__to_json__(),
+        }
+
+
+class PlagiarismMatch(Base):
+    """Describes a possible plagiarism match between two files.
+
+    :ivar ~.PlagiarismMatch.file1_id: The id of the first file associated with
+        this match.
+    :ivar ~.PlagiarismMatch.file1_start: The start position of the first file
+        associated with this match. This position can be (and probably is) a
+        line but it could also be a byte offset.
+    :ivar ~.PlagiarismMatch.file1_end: The end position of the first file
+        associated with this match. This position can be (and probably is) a
+        line but it could also be a byte offset.
+    :ivar ~.PlagiarismMatch.file2_id: Same as ``file1_id`` but of the second
+        file.
+    :ivar ~.PlagiarismMatch.file2_start: Same as ``file1_start`` but for the
+        second file.
+    :ivar ~.PlagiarismMatch.file2_end: Same as ``file1_end`` but for the second
+        file.
+    """
+    if t.TYPE_CHECKING:  # pragma: no cover
+        query = Base.query  # type: t.ClassVar[_MyQuery['PlagiarismMatch']]
+
+    __tablename__ = 'PlagiarismMatch'
+    id = db.Column('id', db.Integer, primary_key=True)  # type: int
+
+    file1_id = db.Column(
+        'file1_id', db.Integer, db.ForeignKey('File.id', ondelete='CASCADE')
+    )
+    file2_id = db.Column(
+        'file2_id', db.Integer, db.ForeignKey('File.id', ondelete='CASCADE')
+    )
+
+    file1_start = db.Column('file1_start', db.Integer, nullable=False)
+    file1_end = db.Column('file1_end', db.Integer, nullable=False)
+    file2_start = db.Column('file2_start', db.Integer, nullable=False)
+    file2_end = db.Column('file2_end', db.Integer, nullable=False)
+
+    plagiarism_case_id = db.Column(
+        'plagiarism_case_id',
+        db.Integer,
+        db.ForeignKey('PlagiarismCase.id', ondelete='CASCADE'),
+    )
+
+    plagiarism_case: PlagiarismCase = db.relationship(
+        "PlagiarismCase", back_populates="matches"
+    )
+
+    file1 = db.relationship(
+        'File', foreign_keys=file1_id, lazy='joined'
+    )  # type: File
+    file2 = db.relationship(
+        'File', foreign_keys=file2_id, lazy='joined'
+    )  # type: File
+
+    def __to_json__(self) -> t.Mapping[str, object]:
+        """Creates a JSON serializable representation of this object.
+
+
+        This object will look like this:
+
+        .. code:: python
+
+            {
+                'id': int, # The id of this match.
+                'files': t.List[File], # The files of this match
+                'lines': t.List[t.Tuple[int]], # The tuple of ``(start, end)``
+                                               # for both files that are
+                                               # present this match.
+            }
+
+        :returns: A object as described above.
+        """
+        return {
+            'id':
+                self.id,
+            'files': [self.file1, self.file2],
+            'lines':
+                [
+                    (self.file1_start, self.file1_end),
+                    (self.file2_start, self.file2_end)
+                ],
         }

@@ -4,15 +4,17 @@ import json
 import typing as t
 import secrets
 import datetime
+import tempfile
+import warnings
 import subprocess
-from configparser import SafeConfigParser
+from configparser import ConfigParser
 
 CONFIG: t.Dict[str, t.Any] = dict()
 CONFIG['BASE_DIR'] = os.path.dirname(os.path.abspath(__file__))
 
 os.environ['BASE_DIR'] = str(CONFIG['BASE_DIR'])
 
-parser = SafeConfigParser(os.environ)
+parser = ConfigParser(os.environ)
 parser.read('config.ini')
 
 if 'Back-end' not in parser:
@@ -46,10 +48,11 @@ def set_int(
 
 
 def set_str(
-    out: t.MutableMapping[str, t.Any], parser: t.Any, item: str, default: str
+    out: t.MutableMapping[str, t.Any], parser: t.Any, item: str,
+    default: object,
 ) -> None:
     val = parser.get(item)
-    out[item] = str(default if val is None else val)
+    out[item] = default if val is None else str(val)
 
 
 set_bool(CONFIG, backend_ops, 'DEBUG', False)
@@ -61,29 +64,36 @@ set_str(
     CONFIG, backend_ops, 'SQLALCHEMY_DATABASE_URI',
     os.getenv('SQLALCHEMY_DATABASE_URI', 'postgresql:///codegrade_dev')
 )
-CONFIG['_USING_SQLITE'] = CONFIG['SQLALCHEMY_DATABASE_URI'
-                                 ].startswith('sqlite')
+CONFIG['_USING_SQLITE'] = CONFIG['SQLALCHEMY_DATABASE_URI'].startswith(
+    'sqlite'
+)
 CONFIG['DATABASE_CONNECT_OPTIONS'] = {}
 
-# The amount of bytes that should be used for randomly generation JWT keys.
-set_int(CONFIG, backend_ops, 'BYTES_RANDOM', 64)
-
 # Secret key for signing JWT tokens.
-#
-# If a enviroment variable `SECRET_KEY` is available this key is used, except
-# when it is `GENERATE` which means it will geneate a random key. If the
-# enviroment variable is not set the key will be set to `secret`
 set_str(
-    CONFIG, backend_ops, 'SECRET_KEY', 'secret'
-    if CONFIG['DEBUG'] else secrets.token_hex(CONFIG['BYTES_RANDOM'])
+    CONFIG,
+    backend_ops,
+    'SECRET_KEY',
+    (
+        'secret'
+        if CONFIG['DEBUG'] else os.environ.get('CODEGRADE_JWT_SECRET_KEY')
+    ),
 )
 
-# This should be a strong random key that is not public. Generating random
-# bytes works perfectly. It is probably useless to change this option.
+# This should be a strong random key that is not public.
 set_str(
-    CONFIG, backend_ops, 'LTI_SECRET_KEY',
-    secrets.token_hex(CONFIG['BYTES_RANDOM'])
+    CONFIG,
+    backend_ops,
+    'LTI_SECRET_KEY',
+    (
+        'hunter123'
+        if CONFIG['DEBUG'] else os.environ.get('CODEGRADE_LTI_SECRET_KEY')
+    ),
 )
+
+set_str(CONFIG, backend_ops, 'HEALTH_KEY', None)
+if CONFIG['HEALTH_KEY'] is None:
+    warnings.warn('No "health_key" provided, disabling health route.')
 
 CONFIG['JWT_ALGORITHM'] = 'HS512'
 
@@ -99,9 +109,8 @@ set_str(
     os.path.join(CONFIG['BASE_DIR'], 'uploads')
 )
 if not os.path.isdir(CONFIG['UPLOAD_DIR']):
-    print(
+    warnings.warn(
         f'The given uploads directory "{CONFIG["UPLOAD_DIR"]}" does not exist',
-        file=sys.stderr
     )
 
 set_str(
@@ -109,10 +118,16 @@ set_str(
     os.path.join(CONFIG['BASE_DIR'], 'mirror_uploads')
 )
 if not os.path.isdir(CONFIG['MIRROR_UPLOAD_DIR']):
-    print(
+    warnings.warn(
         f'The given uploads directory "{CONFIG["MIRROR_UPLOAD_DIR"]}"'
         ' does not exist',
-        file=sys.stderr
+    )
+
+set_str(CONFIG, backend_ops, 'SHARED_TEMP_DIR', tempfile.gettempdir())
+if not os.path.isdir(CONFIG['SHARED_TEMP_DIR']):
+    warnings.warn(
+        f'The given shared temp dir "{CONFIG["SHARED_TEMP_DIR"]}"'
+        ' does not exist'
     )
 
 # Maximum size in bytes for single upload request
@@ -132,6 +147,10 @@ set_str(CONFIG, backend_ops, 'DEFAULT_ROLE', 'Student')
 # The external URL the server runs on.
 set_str(CONFIG, backend_ops, 'EXTERNAL_URL', 'http://localhost:8080')
 
+set_str(CONFIG, backend_ops, 'JAVA_PATH', 'java')
+
+set_str(CONFIG, backend_ops, 'JPLAG_JAR', 'jplag.jar')
+
 CONFIG['_VERSION'] = subprocess.check_output(
     ['git', 'describe', '--abbrev=0', '--tags']
 ).decode('utf-8').strip()
@@ -141,10 +160,10 @@ set_str(CONFIG, backend_ops, 'MAIL_SERVER', 'localhost')
 set_int(CONFIG, backend_ops, 'MAIL_PORT', 25)
 set_bool(CONFIG, backend_ops, 'MAIL_USE_TLS', False)
 set_bool(CONFIG, backend_ops, 'MAIL_USE_SSL', False)
-set_str(CONFIG, backend_ops, 'MAIL_USERNAME', None)
-set_str(CONFIG, backend_ops, 'MAIL_PASSWORD', None)
-set_str(CONFIG, backend_ops, 'MAIL_DEFAULT_SENDER', None)
-set_str(CONFIG, backend_ops, 'MAIL_MAX_EMAILS', None)
+set_str(CONFIG, backend_ops, 'MAIL_USERNAME', 'noreply')
+set_str(CONFIG, backend_ops, 'MAIL_PASSWORD', 'nopasswd')
+set_str(CONFIG, backend_ops, 'MAIL_DEFAULT_SENDER', 'noreply')
+set_int(CONFIG, backend_ops, 'MAIL_MAX_EMAILS', 100)
 set_int(CONFIG, backend_ops, 'RESET_TOKEN_TIME', 86400)
 set_str(
     CONFIG,
@@ -196,10 +215,8 @@ admin has reset your status or that you have been assigned new
 submission(s).</p>
     """.strip(),
 )
-set_str(CONFIG,
-        backend_ops,
-        'DONE_TEMPLATE',
-        """
+set_str(
+    CONFIG, backend_ops, 'DONE_TEMPLATE', """
 <p>Dear,
 
 This email has been sent to let you know that all work has been graded on the
@@ -210,7 +227,8 @@ the assignment to 'done' so that the students can see their grade!
 This email was automatically sent because of reminder that was set for this
 assignment. You can change these settings <a
 href="{site_url}/courses/{course_id}">here</a>.</p>
-        """.strip())
+        """.strip()
+)
 
 ############
 # FEATURES #
@@ -252,7 +270,7 @@ set_bool(CONFIG['FEATURES'], feature_ops, 'REGISTER', True)
 # LTI keys #
 ############
 # All LTI consumer keys mapped to secret keys. Please add your own.
-parser = SafeConfigParser()
+parser = ConfigParser()
 parser.optionxform = str  # type: ignore
 if parser.read('config.ini') and 'LTI Consumer keys' in parser:
     CONFIG['LTI_CONSUMER_KEY_SECRETS'] = dict(parser['LTI Consumer keys'])
@@ -262,7 +280,7 @@ else:
 ##########
 # CELERY #
 ##########
-parser = SafeConfigParser()
+parser = ConfigParser()
 parser.optionxform = str  # type: ignore
 if parser.read('config.ini') and 'Celery' in parser:
     CONFIG['CELERY_CONFIG'] = dict(parser['Celery'])

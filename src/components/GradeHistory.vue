@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <loader v-if="loading"/>
 <div class="grade-history" v-else>

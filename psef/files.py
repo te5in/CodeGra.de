@@ -2,12 +2,13 @@
 This module is used for file IO and handling and provides functions for
 extracting and abstracting the structures of directories and archives.
 
-:license: AGPLv3, see LICENSE for details.
+SPDX-License-Identifier: AGPL-3.0-only
 """
 
 import io
 import os
 import re
+import copy
 import enum
 import uuid
 import shutil
@@ -15,19 +16,20 @@ import typing as t
 import tarfile
 import zipfile
 import tempfile
-from functools import reduce
 
-import archive
+import structlog
 import mypy_extensions
 from werkzeug.utils import secure_filename
 from werkzeug.datastructures import FileStorage
 
 import psef.models as models
-from psef import app, blackboard
-from psef.errors import APICodes, APIException
-from psef.ignore import InvalidFile, IgnoreFilterManager
+from dataclasses import dataclass
 
-_KNOWN_ARCHIVE_EXTENSIONS = tuple(archive.extension_map.keys())
+from . import app, archive, helpers, blackboard
+from .errors import APICodes, APIException
+from .ignore import InvalidFile, IgnoreFilterManager
+
+logger = structlog.get_logger()
 
 # Gestolen van Erik Kooistra
 _BB_TXT_FORMAT = re.compile(
@@ -52,35 +54,129 @@ class FileTree(  # pylint: disable=inherit-non-class,missing-docstring
     FileTreeBase,
     total=False,
 ):
+    """A file tree with.
+
+    This file tree has structure like this:
+
+    .. code-block:: python
+
+        {
+            "id": 1,
+            "name": "rootdir",
+            "entries": [
+                {
+                    "id": 2,
+                    "name": "file1.txt"
+                },
+                {
+                    "id": 3,
+                    "name": "subdir",
+                    "entries": [
+                        {
+                            "id": 4,
+                            "name": "file2.txt"
+                        },
+                        {
+                            "id": 5,
+                            "name": "file3.txt"
+                        }
+                    ],
+                },
+            ],
+        }
+    """
     entries: t.MutableSequence[t.Any]
 
 
-# PEP 484 does not support recursive types (because why design a new type
-# system that has remotely advanced features, see Go why you should never do
-# such a thing) we can't actually define a tree in types, however with enough
-# nesting we should come close enough (tm).
-if t.TYPE_CHECKING and not hasattr(t, 'SPHINX'):  # pragma: no cover
-    # pylint: disable=invalid-name
-    _ExtractFileTreeValue0 = t.MutableSequence[
-        t.Union[t.Tuple[str, str], t.MutableMapping[str, t.Any]]
-    ]
-    _ExtractFileTreeValue1 = t.MutableSequence[t.Union[
-        t.Tuple[str, str], t.MutableMapping[str, _ExtractFileTreeValue0]
-    ]]
-    _ExtractFileTreeValue2 = t.MutableSequence[t.Union[
-        t.Tuple[str, str], t.MutableMapping[str, _ExtractFileTreeValue1]
-    ]]
-    _ExtractFileTreeValueN = t.MutableSequence[t.Union[
-        t.Tuple[str, str], t.MutableMapping[str, _ExtractFileTreeValue2]
-    ]]
-    ExtractFileTreeValue = t.MutableSequence[t.Union[
-        t.Tuple[str, str], t.MutableMapping[str, _ExtractFileTreeValueN]
-    ]]
-else:
-    ExtractFileTreeValue = t.MutableSequence[  # pylint: disable=invalid-name
-        t.Union[t.Tuple[str, str], t.MutableMapping[str, t.Any]]
-    ]
-ExtractFileTree = t.MutableMapping[str, ExtractFileTreeValue]  # pylint: disable=invalid-name
+@dataclass
+class ExtractFileTreeBase:
+    """Base type for an entry in an extracted file tree.
+
+    :ivar name: The original name of this file in the archive that was
+        extracted.
+    """
+    name: str
+
+
+@dataclass
+class ExtractFileTreeFile(ExtractFileTreeBase):
+    """Type used to represent a file in an extracted file tree.
+
+    :ivar diskname: The name of the file saved in the uploads directory.
+    """
+    disk_name: str
+
+
+@dataclass
+class ExtractFileTreeDirectory(ExtractFileTreeBase):
+    """Type used to represent a directory of an extracted file tree.
+
+    :ivar values: The items present in this directory.
+    """
+    values: t.List[ExtractFileTreeBase]
+
+
+@dataclass
+class ExtractFileTree(ExtractFileTreeDirectory):
+    """Type used to represent the top of an extracted file tree.
+
+    This is simply a directory with some utility methods.
+    """
+
+    @property
+    def contains_file(self) -> bool:
+        """Check if archive contains something other than directories.
+
+        :returns: If the file tree contains actual files
+        """
+        stack: t.List[ExtractFileTreeDirectory] = [self]
+        while stack:
+            cur = stack.pop().values
+            if any(not isinstance(el, ExtractFileTreeDirectory) for el in cur):
+                return True
+            stack.extend(t.cast(t.List[ExtractFileTreeDirectory], cur))
+        return False
+
+    def dehead(self) -> 'ExtractFileTree':
+        """Dehead (or deneck) a file tree.
+
+        As long as the root directory contains a single subdirectory, move the
+        contents of that subdirectory to the root directory. This process
+        simplifies tree structures like /dir1/dir2/dir3 where dir3 contains the
+        actual submission files so that the actual submission files are in the
+        top level directory.
+
+        >>> f1 = object()
+        >>> f2 = object()
+        >>> res = ExtractFileTree(
+        ...   name=1,
+        ...   values=[
+        ...     ExtractFileTreeDirectory(
+        ...       name=2,
+        ...       values=[
+        ...         ExtractFileTreeDirectory(name=3, values=[f1, f2])
+        ...       ]
+        ...     )
+        ...   ]
+        ... ).dehead()
+        ...
+        >>> res
+        ExtractFileTree(name=1, values=[<object object at 0x...>, <object object at 0x...>])
+        >>> res.values[0] != res.values[1]
+        True
+
+        :param dict tree: The file tree as generated by :py:func:`extract`.
+        :returns: The same tree but deheaded as described.
+        """
+        deheaded = copy.deepcopy(self)
+
+        while (
+            len(deheaded.values) == 1 and
+            isinstance(deheaded.values[0], ExtractFileTreeDirectory)
+        ):
+            deheaded.values = deheaded.values[0].values
+
+        return deheaded
 
 
 class IgnoredFilesException(APIException):
@@ -137,8 +233,12 @@ def get_stat_information(file: models.File) -> t.Mapping[str, t.Any]:
     :returns: The information as described above.
     """
     mod_date = file.modification_date
-    filename = None if file.is_directory else file.get_diskname()
-    size = 0 if file.is_directory else os.stat(filename).st_size
+
+    if file.is_directory:
+        size = 0
+    else:
+        filename = file.get_diskname()
+        size = os.stat(filename).st_size
 
     return {
         'is_directory': file.is_directory,
@@ -162,7 +262,13 @@ def get_file_contents(code: models.File) -> bytes:
         )
 
     filename = code.get_diskname()
-    if os.path.islink(filename):
+    if os.path.islink(filename):  # pragma: no cover
+        # This should not be possible as we replace symlinks with regular
+        # files on submission.
+        logger.error(
+            'Symlink found in uploads directory',
+            filename=filename,
+        )
         raise APIException(
             f'This file is a symlink to `{os.readlink(filename)}`.',
             'The file {} is a symlink'.format(code.id), APICodes.INVALID_STATE,
@@ -172,13 +278,69 @@ def get_file_contents(code: models.File) -> bytes:
         return codefile.read()
 
 
+def search_path_in_filetree(filetree: FileTree, path: str) -> int:
+    """Search for a path in a filetree.
+
+    >>> filetree = {
+    ...    "id": 1,
+    ...    "name": "rootdir",
+    ...    "entries": [
+    ...        {
+    ...            "id": 2,
+    ...            "name": "file1.txt"
+    ...        },
+    ...        {
+    ...            "id": 3,
+    ...            "name": "subdir",
+    ...            "entries": [
+    ...                {
+    ...                    "id": 4,
+    ...                    "name": "file2.txt"
+    ...                },
+    ...                {
+    ...                    "id": 5,
+    ...                    "name": "file3.txt"
+    ...                }
+    ...            ],
+    ...        },
+    ...    ],
+    ... }
+    ...
+    >>> search_path_in_filetree(filetree, "file1.txt")
+    2
+    >>> search_path_in_filetree(filetree, "/subdir/")
+    3
+    >>> search_path_in_filetree(filetree, "/subdir//file2.txt")
+    4
+    >>> search_path_in_filetree(filetree, "Non existing/path")
+    Traceback (most recent call last):
+    ...
+    KeyError: 'Path (Non existing/path) not in tree'
+
+    :param filetree: The filetree to search.
+    :param path: The path the search for.
+    :returns: The id of the file associated with the path in the filetree.
+    """
+    cur = filetree
+    for part in path.split('/'):
+        if not part:
+            continue
+        for entry in cur['entries']:
+            if entry['name'] == part:
+                cur = entry
+                break
+        else:
+            raise KeyError(f'Path ({path}) not in tree')
+    return cur['id']
+
+
 def restore_directory_structure(
-    code: models.File,
+    work: models.Work,
     parent: str,
     exclude: models.FileOwner = models.FileOwner.teacher
 ) -> FileTree:
-    """Restores the directory structure recursively for a code submission (a
-    :class:`.models.Work`).
+    """Restores the directory structure recursively for a submission
+    (a :class:`.models.Work`).
 
     The directory structure is returned like this:
 
@@ -209,18 +371,39 @@ def restore_directory_structure(
            ],
        }
 
+    :param work: A submissions.
+    :param parent: Path to parent directory.
+    :param exclude: The file owner to exclude.
+    :returns: A tree as described.
+    """
+    code = helpers.filter_single_or_404(
+        models.File,
+        models.File.work_id == work.id,
+        t.cast(models.DbColumn[int], models.File.parent_id).is_(None),
+        models.File.fileowner != exclude,
+    )
+    cache = work.get_file_children_mapping(exclude)
+    return _restore_directory_structure(code, parent, cache)
+
+
+def _restore_directory_structure(
+    code: models.File,
+    parent: str,
+    cache: t.Mapping[int, t.Sequence[models.File]],
+) -> FileTree:
+    """Worker function for :py:func:`.restore_directory_structure`
+
     :param code: A file
     :param parent: Path to parent directory
-    :param exclude: The file owner to exclude.
-    :returns: A tree as described
+    :param cache: The cache to use to get file children.
+    :returns: A tree as described in :py:func:`.restore_directory_structure`
     """
     out = os.path.join(parent, code.name)
     if code.is_directory:
         os.mkdir(out)
-        children = code.children.filter(models.File.fileowner != exclude).all()
         subtree: t.List[FileTree] = [
-            restore_directory_structure(child, out, exclude)
-            for child in children
+            _restore_directory_structure(child, out, cache)
+            for child in cache[code.id]
         ]
         return {
             "name": code.name,
@@ -232,7 +415,7 @@ def restore_directory_structure(
         return {"name": code.name, "id": code.id}
 
 
-def rename_directory_structure(rootdir: str) -> ExtractFileTree:
+def rename_directory_structure(rootdir: str) -> ExtractFileTreeDirectory:
     """Creates a nested dictionary that represents the folder structure of
     rootdir.
 
@@ -268,94 +451,97 @@ def rename_directory_structure(rootdir: str) -> ExtractFileTree:
     :returns: The tree as described above
     :rtype: dict[str, dict[str, list[dict or tuple[str, str,]]]]
     """
-    directory = {}  # type: t.MutableMapping[str, t.Any]
+    directory: t.MutableMapping[str, t.Any] = {}
+
     rootdir = rootdir.rstrip(os.sep)
     start = rootdir.rfind(os.sep) + 1
+
     for path, _, files in os.walk(rootdir):
         folders = path[start:].split(os.sep)
         subdir = dict.fromkeys(files)
 
-        # `reduce` returns a reference within `directory` so `directory` will
-        # change on the next two lines.
-        parent = reduce(dict.get, folders[:-1], directory)
+        parent: t.MutableMapping[str, t.Any] = directory
+        for folder in folders[:-1]:
+            parent = parent[folder]
         parent[folders[-1]] = subdir
 
-    def __to_lists(name: str,
-                   dirs: t.Mapping[str, t.Any]) -> t.Sequence[t.Any]:
-        res = [
-        ]  # type: t.List[t.Union[t.Tuple[str, str], t.Mapping[str, t.Any]]]
+    def __to_lists(
+        name: str,
+        dirs: t.Mapping[str, t.Any],
+    ) -> t.List[ExtractFileTreeBase]:
+        res: t.List[ExtractFileTreeBase] = []
+
         for key, value in dirs.items():
             if value is None:
                 new_name, filename = random_file_path()
-                # type filename: str
                 shutil.move(os.path.join(name, key), new_name)
-                res.append((key, filename))
+                res.append(ExtractFileTreeFile(name=key, disk_name=filename))
             else:
                 res.append(
-                    {
-                        key: __to_lists(os.path.join(name, key), value),
-                    }
+                    ExtractFileTreeDirectory(
+                        name=key,
+                        values=__to_lists(os.path.join(name, key), value)
+                    )
                 )
         return res
 
     result_lists = __to_lists(rootdir[:start], directory)
     assert len(result_lists) == 1
+    assert isinstance(result_lists[0], ExtractFileTreeDirectory)
     return result_lists[0]
-
-
-def is_archive(file: FileStorage) -> bool:
-    """Checks whether the file ends with a known archive file extension.
-
-    File extensions are known if they are recognized by the archive module.
-
-    :param file: Some file
-    :returns: True if the file has a known extension
-    """
-    return file.filename.endswith(_KNOWN_ARCHIVE_EXTENSIONS)
 
 
 def extract_to_temp(
     file: FileStorage,
     ignore_filter: IgnoreFilterManager,
-    handle_ignore: IgnoreHandling = IgnoreHandling.keep
+    handle_ignore: IgnoreHandling = IgnoreHandling.keep,
+    archive_name: str = 'archive',
+    parent_result_dir: t.Optional[str] = None,
 ) -> str:
     """Extracts the contents of file into a temporary directory.
 
     :param file: The archive to extract.
     :param ignore_filter: The files and directories that should be ignored.
     :param handle_ignore: Determines how ignored files should be handled.
+    :param archive_name: The name used for the archive in error messages.
+    :param parent_result_dir: The location the resulting directory should be
+        placed in.
     :returns: The pathname of the new temporary directory.
     """
     tmpfd, tmparchive = tempfile.mkstemp()
 
     try:
         os.remove(tmparchive)
-        tmparchive += os.path.basename(
-            secure_filename('archive_' + file.filename)
+        tmparchive += '_archive_{}'.format(
+            os.path.basename(secure_filename(file.filename))
         )
-        tmpdir = tempfile.mkdtemp()
+        tmpdir = tempfile.mkdtemp(dir=parent_result_dir)
         file.save(tmparchive)
 
+        arch = archive.Archive.create_from_file(tmparchive)
+
         if handle_ignore == IgnoreHandling.error:
-            arch = archive.Archive(tmparchive)
             wrong_files = ignore_filter.get_ignored_files_in_archive(arch)
             if wrong_files:
                 raise IgnoredFilesException(invalid_files=wrong_files)
-            arch.extract(to_path=tmpdir, method='safe')
+            arch.extract(to_path=tmpdir)
         else:
-            archive.extract(tmparchive, to_path=tmpdir, method='safe')
+            arch.extract(to_path=tmpdir)
             if handle_ignore == IgnoreHandling.delete:
                 ignore_filter.delete_from_dir(tmpdir)
-    except (tarfile.ReadError, zipfile.BadZipFile):
+    except (
+        tarfile.ReadError, zipfile.BadZipFile,
+        archive.UnrecognizedArchiveFormat
+    ):
         raise APIException(
-            'The given archive could not be extracted',
+            f'The given {archive_name} could not be extracted',
             "The given archive doesn't seem to be an archive",
             APICodes.INVALID_ARCHIVE,
             400,
         )
     except (InvalidFile, archive.UnsafeArchive) as e:
         raise APIException(
-            'The given archive contains invalid files',
+            f'The given {archive_name} contains invalid files',
             str(e),
             APICodes.INVALID_FILE_IN_ARCHIVE,
             400,
@@ -369,42 +555,54 @@ def extract_to_temp(
 
 def extract(
     file: FileStorage,
-    ignore_filter: IgnoreFilterManager = None,
+    ignore_filter: t.Optional[IgnoreFilterManager] = None,
     handle_ignore: IgnoreHandling = IgnoreHandling.keep
-) -> t.Optional[ExtractFileTree]:
+) -> ExtractFileTree:
     """Extracts all files in archive with random name to uploads folder.
+
+    >>> extract(object(), ignore_filter=None, handle_ignore=IgnoreHandling.error)
+    Traceback (most recent call last):
+    ...
+    ValueError: Invalid combination of `ignore_filter` and `ignore_handler`
+
+    .. warning::
+
+        The returned ExtractFileTree may be empty, i.e. contain only
+        directories and no files.
 
     :param werkzeug.datastructures.FileStorage file: The file to extract.
     :param ignore_filter: What files should be ignored in the given archive.
         This can only be None when ``handle_ignore`` is
-        ``IgnoreHandling.keep``.
+        ``IgnoreHandling.keep``, as can be seen in the above example.
     :param handle_ignore: How should ignored file be handled.
     :returns: A file tree as generated by
         :py:func:`rename_directory_structure`.
     """
     if handle_ignore == IgnoreHandling.keep and ignore_filter is None:
-        ignore_filter = IgnoreFilterManager([])
-    elif ignore_filter is None:  # pragma: no cover
-        raise ValueError
+        ignore_filter = IgnoreFilterManager(None)
+    elif ignore_filter is None:
+        raise ValueError(
+            'Invalid combination of `ignore_filter` and `ignore_handler`'
+        )
 
     tmpdir = extract_to_temp(
         file,
         ignore_filter,
         handle_ignore,
     )
-    rootdir = tmpdir.rstrip(os.sep)
-    start = rootdir.rfind(os.sep) + 1
+
     try:
-        res = rename_directory_structure(tmpdir)[tmpdir[start:]]
-        filename: str = file.filename.split('.')[0]
-        if not res:
-            return None
-        elif len(res) > 1:
-            return {filename: res if isinstance(res, list) else [res]}
-        elif isinstance(res[0], t.MutableMapping):
-            return res[0]
+        res = rename_directory_structure(tmpdir).values
+
+        # Take directory name if archive contained one single top level
+        # directory. Otherwise we take the name of the archive as top directory
+        # name.
+
+        if len(res) == 1 and isinstance(res[0], ExtractFileTreeDirectory):
+            return ExtractFileTree(name=res[0].name, values=res[0].values)
         else:
-            return {filename: res}
+            filename: str = file.filename.split('.')[0]
+            return ExtractFileTree(name=filename, values=res)
     finally:
         shutil.rmtree(tmpdir)
 
@@ -426,32 +624,6 @@ def random_file_path(config_key: str = 'UPLOAD_DIR') -> t.Tuple[str, str]:
     return candidate, name
 
 
-def dehead_filetree(tree: ExtractFileTree) -> ExtractFileTree:
-    """Remove the head of the given filetree while preserving the old head
-    name.
-
-    So a tree ``{1: [2: [3: [4: [f1, f2]]]}`` will be converted to
-    ``{1: [f1, f2]}``.
-
-    :param dict tree: The file tree as generated by :py:func:`extract`.
-    :returns: The same tree but deheaded as described.
-    :rtype: dict
-    """
-    assert len(tree) == 1
-    head_node = list(tree.keys())[0]
-    head = tree[head_node]
-
-    while (
-        isinstance(head, t.MutableSequence) and len(head) == 1 and
-        isinstance(head[0], t.MutableMapping) and len(head[0]) == 1
-    ):
-        head = list(head[0].values())[0]
-
-    tree[head_node] = head
-
-    return tree
-
-
 def process_files(
     files: t.MutableSequence[FileStorage],
     force_txt: bool = False,
@@ -467,30 +639,42 @@ def process_files(
     :param ignore_filter: The files and directories that should be ignored.
     :param handle_ignore: Determines how ignored files should be handled.
     :returns: The tree of the files as is described by
-              :py:func:`rename_directory_structure`
+        :py:func:`rename_directory_structure`
     """
 
     def consider_archive(f: FileStorage) -> bool:
-        return not force_txt and is_archive(f)
+        return not force_txt and archive.Archive.is_archive(f.filename)
 
-    def raise_error() -> None:
-        raise APIException(
+    T = t.TypeVar('T')
+
+    def no_files_error() -> APIException:
+        if handle_ignore == IgnoreHandling.keep:
+            return APIException(
+                'No files found in archive',
+                'No files were in the given archive.',
+                APICodes.NO_FILES_SUBMITTED,
+                400,
+            )
+        return APIException(
             "All files are ignored by a rule in the assignment's ignore file",
             'No files were in the given archive after filtering.',
             APICodes.NO_FILES_SUBMITTED,
             400,
         )
 
-    tree = {}  # type: ExtractFileTree
+    def unwrap(val: t.Optional[T]) -> T:
+        if val is not None:
+            return val
+        raise no_files_error()
+
     if len(files) > 1 or not consider_archive(files[0]):
-        res = []  # type: t.List[t.Union[ExtractFileTree, t.Tuple[str, str]]]
+        res: t.List[ExtractFileTreeBase] = []
         for file in files:
             if consider_archive(file):
-                new = extract(file, ignore_filter, handle_ignore)
-                if new:
-                    res.append(new)
+                res.append(extract(file, ignore_filter, handle_ignore))
             else:
                 if handle_ignore != IgnoreHandling.keep:
+                    assert ignore_filter is not None
                     is_ignored, line = ignore_filter.is_ignored(file.name)
 
                     if not is_ignored:
@@ -499,21 +683,32 @@ def process_files(
                         continue
                     elif handle_ignore == IgnoreHandling.error:
                         raise IgnoredFilesException(
-                            invalid_files=[(file.filename, line)]
+                            invalid_files=[
+                                (
+                                    t.cast(str, file.filename),
+                                    t.cast(str, line),
+                                )
+                            ]
                         )
 
                 new_file_name, filename = random_file_path()
-                res.append((file.filename, filename))
                 file.save(new_file_name)
-        if not res:
-            raise_error()
-        tree = {'top': res}
-    else:
-        tree = extract(files[0], ignore_filter, handle_ignore)
-        if not tree:
-            raise_error()
+                res.append(
+                    ExtractFileTreeFile(
+                        name=file.filename, disk_name=filename
+                    )
+                )
 
-    return dehead_filetree(tree)
+        # `res` can be the empty list if all single files were ignored.
+        res = unwrap(res or None)
+        tree = ExtractFileTree(name='top', values=res)
+    else:
+        tree = unwrap(extract(files[0], ignore_filter, handle_ignore))
+
+    if not tree.contains_file:
+        raise no_files_error()
+
+    return tree.dehead()
 
 
 def process_blackboard_zip(
@@ -606,3 +801,15 @@ def split_path(path: str) -> t.Tuple[t.Sequence[str], bool]:
     patharr = [item for item in path.split('/') if item]
 
     return patharr, is_dir
+
+
+def check_dir(path: str) -> bool:
+    '''Check if the path is a directory that is readable, writable, and
+    executable for the current user.
+
+    :param path: Path to check.
+    :returns: ``True`` if path has the properties described above, ``False``
+        otherwise.
+    '''
+    mode = os.R_OK | os.W_OK | os.X_OK
+    return os.access(path, mode) and os.path.isdir(path)

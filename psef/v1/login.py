@@ -3,7 +3,7 @@ This module defines all API routes with the main directory "login". This APIs
 are used to handle starting and closing the user session and update the :class:
 User object of the logged in user.
 
-:license: AGPLv3, see LICENSE for details.
+SPDX-License-Identifier: AGPL-3.0-only
 """
 import typing as t
 
@@ -25,6 +25,7 @@ from psef.helpers import (
 )
 
 from . import api
+from ..permissions import GlobalPermission as GPerm
 
 
 @api.route("/login", methods=["POST"])
@@ -35,22 +36,23 @@ def login() -> ExtendedJSONResponse[t.Mapping[str, t.Union[models.User, str]]]:
 
     :returns: A response containing the JSON serialized user
 
-    :<json str email: The email of the user to log in.
-    :<json str username: The password of the user to log in.
+    :<json str username: The username of the user to log in.
+    :<json str password: The password of the user to log in.
 
     :>json user: The user that was logged in.
     :>jsonobj user: :py:class:`~.models.User`
     :>json str access_token: A JWT token that can be used to send requests to
         the server logged in as the given user.
 
-    :raises APIException: If the request does not contain email and/or password
-        parameter. (MISSING_REQUIRED_PARAM)
-    :raises APIException: If no user with email exists or the password is
+    :raises APIException: If no user with username exists or the password is
         wrong. (LOGIN_FAILURE)
-    :raises APIException: If the user with the given email and password is
+    :raises APIException: If the user with the given username and password is
         inactive. (INACTIVE_USER)
     """
-    data = ensure_json_dict(request.get_json())
+    data = ensure_json_dict(
+        request.get_json(),
+        replace_log=lambda k, v: '<PASSWORD>' if k == 'password' else v
+    )
     ensure_keys_in_dict(data, [('username', str), ('password', str)])
     username = t.cast(str, data['username'])
     password = t.cast(str, data['password'])
@@ -67,10 +69,10 @@ def login() -> ExtendedJSONResponse[t.Mapping[str, t.Union[models.User, str]]]:
 
     if user is None or user.password != password:
         raise APIException(
-            'The supplied email or password is wrong.', (
-                'The user with username "{}" does not exist ' +
+            'The supplied username or password is wrong.', (
+                f'The user with username "{username}" does not exist '
                 'or has a different password'
-            ).format(username), APICodes.LOGIN_FAILURE, 400
+            ), APICodes.LOGIN_FAILURE, 400
         )
 
     if not user.is_active:
@@ -200,7 +202,10 @@ def user_patch_handle_reset_password() -> JSONResponse[t.Mapping[str, str]]:
     :returns: A response with a jsonified mapping between ``access_token`` and
         a token which can be used to login. This is only key available.
     """
-    data = ensure_json_dict(request.get_json())
+    data = ensure_json_dict(
+        request.get_json(),
+        replace_log=lambda k, v: '<PASSWORD>' if 'password' in k else v
+    )
     ensure_keys_in_dict(
         data, [('new_password', str),
                ('token', str),
@@ -248,7 +253,10 @@ def user_patch_handle_change_user_data() -> EmptyResponse:
 
     :returns: An empty response.
     """
-    data = ensure_json_dict(request.get_json())
+    data = ensure_json_dict(
+        request.get_json(),
+        replace_log=lambda k, v: f'<PASSWORD "{k}">' if 'password' in k else v
+    )
 
     ensure_keys_in_dict(
         data, [
@@ -277,7 +285,7 @@ def user_patch_handle_change_user_data() -> EmptyResponse:
         _ensure_password('', 'The given old password is wrong')
 
     if current_user.name != name:
-        auth.ensure_permission('can_edit_own_info')
+        auth.ensure_permission(GPerm.can_edit_own_info)
         if name == '':
             raise APIException(
                 'Your new name cannot be empty',
@@ -286,7 +294,7 @@ def user_patch_handle_change_user_data() -> EmptyResponse:
         current_user.name = name
 
     if current_user.email != email:
-        auth.ensure_permission('can_edit_own_info')
+        auth.ensure_permission(GPerm.can_edit_own_info)
         if not validate_email(email):
             raise APIException(
                 'The given email is not valid.',
@@ -299,7 +307,7 @@ def user_patch_handle_change_user_data() -> EmptyResponse:
 
     if new_password != '':
         _ensure_password('password')
-        auth.ensure_permission('can_edit_own_password')
+        auth.ensure_permission(GPerm.can_edit_own_password)
         current_user.password = new_password
 
     db.session.commit()

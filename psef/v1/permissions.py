@@ -2,7 +2,7 @@
 This module defines all API routes with the main directory "permissions". These
 APIs are used communicate the permissions users.
 
-:license: AGPLv3, see LICENSE for details.
+SPDX-License-Identifier: AGPL-3.0-only
 """
 
 import typing as t
@@ -15,14 +15,15 @@ from psef.errors import APICodes, APIException
 from psef.helpers import JSONResponse, jsonify, ensure_keys_in_dict
 
 from . import api
-
-_PermMap = t.Mapping[str, bool]  # pylint: disable=invalid-name
+from ..permissions import CoursePermMap, GlobalPermMap
+from ..permissions import CoursePermission as CPerm
+from ..permissions import GlobalPermission as GPerm
 
 
 @api.route('/permissions/', methods=['GET'])
 @auth.login_required
-def get_course_permissions(
-) -> JSONResponse[t.Union[_PermMap, t.Mapping[int, _PermMap]]]:
+def get_course_or_global_permissions(
+) -> JSONResponse[t.Union[GlobalPermMap, t.Mapping[int, CoursePermMap]]]:
     """Get all the global :class:`.psef.models.Permission` or the value of a
     permission in all courses of the currently logged in
     :class:`.psef.models.User`
@@ -49,12 +50,19 @@ def get_course_permissions(
     permission_type = t.cast(str, request.args['type']).lower()
 
     if permission_type == 'global':
-        return jsonify(current_user.get_all_permissions())
+        return jsonify(GPerm.create_map(current_user.get_all_permissions()))
     elif permission_type == 'course':
         # Make sure at least one permission is present
         ensure_keys_in_dict(request.args, [('permission', str)])
-        perms = t.cast(t.List[str], request.args.getlist('permission'))
-        return jsonify(current_user.get_permissions_in_courses(perms))
+        perm_names = t.cast(t.List[str], request.args.getlist('permission'))
+        return jsonify(
+            {
+                course_id: CPerm.create_map(v)
+                for course_id, v in current_user.get_permissions_in_courses(
+                    [CPerm.get_by_name(p) for p in perm_names]
+                ).items()
+            }
+        )
     else:
         raise APIException(
             'Invalid permission type given',

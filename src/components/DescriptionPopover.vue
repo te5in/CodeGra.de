@@ -1,18 +1,20 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <span class="description-popover"
       :style="{ float: hugText ? 'none' : 'right' }">
     <b-popover :placement="placement"
                :triggers="triggers"
-               class="description-popover"
                :show="show"
                :target="compId"
                :title="title">
-        <slot name="description"><span/>{{ description }}</slot>
+        <span class="description-popover-content">
+            <slot name="description">{{ description }}</slot>
+        </span>
     </b-popover>
     <component :is="hugText ? 'sup' : 'span'"
                class="desc-pop-span"
                :id="compId">
-        <icon name="info" scale="0.75"/>
+        <icon :name="icon" scale="0.75"/>
     </component>
 </span>
 </template>
@@ -39,7 +41,7 @@ export default {
 
         triggers: {
             type: [String, Array],
-            default: 'hover',
+            default: 'click',
         },
 
         show: {
@@ -61,6 +63,11 @@ export default {
             type: String,
             default: 'right',
         },
+
+        icon: {
+            type: String,
+            default: 'info',
+        },
     },
 
     components: {
@@ -79,5 +86,11 @@ export default {
 .description-popover {
     display: inline;
     cursor: help;
+}
+
+.description-popover-content {
+    display: inline-block;
+    text-align: justify;
+    hyphens: auto;
 }
 </style>

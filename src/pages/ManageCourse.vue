@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div v-else class="manage-course">
     <local-header>
@@ -68,7 +69,8 @@ export default {
 
     watch: {
         tabIndex(newVal) {
-            this.filter = '';
+            if (this.filter !== '') this.filter = '';
+
             this.$router.replace(Object.assign({}, this.$route, {
                 hash: newVal === 1 ? '#roles' : '#users',
             }));
@@ -129,7 +131,6 @@ export default {
 
 .filter-input {
     flex: 1 1 auto;
-    margin-right: 1rem;
     margin-bottom: 0;
 }
 

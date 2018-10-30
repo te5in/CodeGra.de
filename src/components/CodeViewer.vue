@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
     <b-alert class="error" variant="danger" show v-if="error">
         <div v-html="error"></div>
@@ -32,6 +33,7 @@
 
                     <feedback-area :editing="editing[i] === true"
                                    :feedback="feedback[i].msg"
+                                   :author="feedback[i].author && feedback[i].author.name"
                                    :editable="editable"
                                    :line="i"
                                    :fileId="file.id"
@@ -52,9 +54,9 @@ import Vue from 'vue';
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/plus';
 import 'vue-awesome/icons/cog';
-import 'vue-multiselect/dist/vue-multiselect.min.css';
 
 import { visualizeWhitespace, cmpNoCase } from '@/utils';
+import '@/polyfills';
 
 import FeedbackArea from './FeedbackArea';
 import LinterFeedbackArea from './LinterFeedbackArea';
@@ -135,6 +137,7 @@ export default {
             selectedLanguage: 'Default',
             languages,
             canUseSnippets: false,
+            canSeeAssignee: false,
         };
     },
 
@@ -142,15 +145,22 @@ export default {
         Promise.all([
             this.loadCodeWithSettings(false),
             this.$hasPermission('can_use_snippets'),
-        ]).then(([, snips]) => {
+            this.$hasPermission('can_see_assignee', this.assignment.course.id),
+        ]).then(([, snips, assignee]) => {
             this.canUseSnippets = snips;
             this.loading = false;
+            this.canSeeAssignee = assignee;
         });
     },
 
     watch: {
-        file(f) {
-            if (f) this.loadCodeWithSettings();
+        file(f, oldF) {
+            if (!f) {
+                return;
+            }
+            if (!oldF || f.id !== oldF.id) {
+                this.loadCodeWithSettings();
+            }
         },
 
         language(lang) {
@@ -200,7 +210,7 @@ export default {
 
                     this.highlightCode(this.selectedLanguage);
                 }, ({ response: { data: { message } } }) => {
-                    error.push(message);
+                    error.push(this.$htmlEscape(message));
                 }),
 
                 Promise.all([
@@ -212,7 +222,7 @@ export default {
                     this.linterFeedback = linterFeedback.data;
                     this.feedback = feedback.data;
                 }, ({ response: { data: { message } } }) => {
-                    error.push(message);
+                    error.push(this.$htmlEscape(message));
                 }),
             ]).then(() => {
                 this.error = error.join('<br>');
@@ -288,13 +298,16 @@ export default {
             const el = $event.target.closest('li.line');
             if (!el) return;
 
-            const line = el.getAttribute('data-line');
+            const line = Number(el.getAttribute('data-line'));
             Vue.set(this.editing, line, true);
-            Vue.set(this.feedback, line, '');
 
-            const feedbackArea = el.querySelector('.feedback-area');
+            if (this.feedback[line] == null) {
+                Vue.set(this.feedback, line, { line, msg: '' });
+            }
+
+            const feedbackArea = el.querySelector('.feedback-area textarea');
             if (feedbackArea) {
-                feedbackArea.querySelector('textarea').focus();
+                feedbackArea.focus();
             }
         },
 
@@ -302,6 +315,9 @@ export default {
             if (this.editable) {
                 this.editing[line] = false;
                 this.feedback[line] = feedback;
+                if (!this.canSeeAssignee) {
+                    delete this.feedback[line].author;
+                }
             }
         },
     },

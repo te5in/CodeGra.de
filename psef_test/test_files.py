@@ -1,7 +1,9 @@
+# SPDX-License-Identifier: AGPL-3.0-only
 import pytest
+from helpers import create_marker
 
-perm_error = pytest.mark.perm_error
-data_error = pytest.mark.data_error
+perm_error = create_marker(pytest.mark.perm_error)
+data_error = create_marker(pytest.mark.data_error)
 
 
 @pytest.mark.parametrize(
@@ -18,8 +20,8 @@ def test_get_code_metadata(
 ):
     filestr = 'a' * size
 
-    perm_err = request.node.get_marker('perm_error')
-    data_err = request.node.get_marker('data_error')
+    perm_err = request.node.get_closest_marker('perm_error')
+    data_err = request.node.get_closest_marker('data_error')
     if perm_err:
         error = perm_err.kwargs['error']
     elif data_err:
@@ -53,3 +55,26 @@ def test_get_code_metadata(
 
                 res = test_client.get(f'/api/v1/files/{fname}')
                 assert res.status_code == 404
+
+
+def test_get_code_with_head(student_user, test_client, request, logged_in):
+    filestr = 'a' * 10
+
+    with logged_in(student_user):
+        fname = test_client.req(
+            'post',
+            '/api/v1/files/',
+            201,
+            real_data=filestr,
+            result=str,
+        )
+
+        head = test_client.head(f'/api/v1/files/{fname}')
+        assert head.status_code == 200
+
+        res = test_client.get(f'/api/v1/files/{fname}')
+        assert res.status_code == 200
+        assert res.get_data(as_text=True) == filestr
+
+        res = test_client.get(f'/api/v1/files/{fname}')
+        assert res.status_code == 404

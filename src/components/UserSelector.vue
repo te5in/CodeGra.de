@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <multiselect :value="value"
              @input="onInput"
@@ -16,7 +17,7 @@
              :disabled="disabled"
              label="name"
              track-by="username"
-             v-if="canSearchUsers">
+             v-if="useSelector">
     <span slot="noResult" v-if="searchQuery && searchQuery.length < 3">
         Please give a larger search string.
     </span>
@@ -48,6 +49,11 @@ export default {
             required: true,
         },
 
+        useSelector: {
+            type: Boolean,
+            default: true,
+        },
+
         filterStudents: {
             type: Function,
             default: () => true,
@@ -61,23 +67,26 @@ export default {
         value: {
             required: true,
         },
+
+        extraParams: {
+            type: Object,
+            default: () => {},
+        },
+
+        baseUrl: {
+            type: String,
+            default: '/api/v1/users/',
+        },
     },
 
     data() {
         return {
             students: [],
             username: '',
-            canSearchUsers: false,
             loadingStudents: false,
             stopLoadingStudents: () => {},
             searchQuery: null,
         };
-    },
-
-    mounted() {
-        this.$hasPermission('can_search_users').then((val) => {
-            this.canSearchUsers = val;
-        });
     },
 
     methods: {
@@ -117,8 +126,9 @@ export default {
                 this.loadingStudents = true;
                 let stop = false;
                 let id;
+                const params = Object.assign({ q: query }, this.extraParams);
                 id = setTimeout(() => {
-                    this.$http.get('/api/v1/users/', { params: { q: query } }).then(({ data }) => {
+                    this.$http.get(this.baseUrl, { params }).then(({ data }) => {
                         if (stop) {
                             return;
                         }
@@ -156,10 +166,6 @@ export default {
 <style lang="less">
 @import '~mixins.less';
 
-#app.dark .user-selector {
-    .dark-selects-colors;
-}
-
 .user-selector.multiselect {
     .multiselect__tags {
         border-top-right-radius: 0;
@@ -179,6 +185,7 @@ export default {
 
         &.multiselect__option--selected {
             background: #d9534f !important;
+
             &::after {
                 background: #d9534f !important;
             }

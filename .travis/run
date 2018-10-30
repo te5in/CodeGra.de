@@ -1,4 +1,5 @@
 #!/bin/bash
+# SPDX-License-Identifier: AGPL-3.0-only
 
 res="127"
 
@@ -40,34 +41,41 @@ case "$TO_RUN" in
         fi
         set +o xtrace
         ;;
-    "mypy")
+    "lint")
+        pylint "$(pwd)/psef/" --rcfile=setup.cfg
+        res1="$?"
+
+        make privacy_statement
+        [[ -z "$NO_INSTALL" ]] && npm install
+        npm run lint
+        res2="$?"
+
         mypy --ignore-missing-imports \
              --disallow-untyped-defs \
              --check-untyped-defs \
              --disallow-subclassing-any \
              "$(pwd)/psef/"
-        res="$?"
-        set +o xtrace
-        ;;
-    "lint")
-        pylint "$(pwd)/psef/" --rcfile=setup.cfg
-        res="$?"
-        make privacy_statement
-        [[ -z "$NO_INSTALL" ]] && npm install
-        if ! npm run lint; then
-            res="1"
-        fi
-        set +x xtrace
-        ;;
-    "yapf")
+        res3="$?"
+
         out="$(yapf -rdp "$(pwd)/psef" "$(pwd)/psef_test")"
         set +o xtrace
         if [[ "$out" ]]; then
             echo "$out"
-            res=1
+            res4=1
         else
-            res=0
+            res4=0
         fi
+
+        [[ "$(bc <<< "$res1 + $res2 + $res3 + $res4")" -eq 0 ]]
+        res="$?"
+        set +x xtrace
+        ;;
+    "js_unit")
+        make privacy_statement
+        [[ -z "$NO_INSTALL" ]] && npm install
+        npm run unit
+        res="$?"
+        set +x xtrace
         ;;
 
 esac

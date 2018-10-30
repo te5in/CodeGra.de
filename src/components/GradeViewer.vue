@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div class="grade-viewer">
     <b-collapse id="rubric-collapse"
@@ -6,6 +7,7 @@
             v-model="rubricPoints"
             style="margin-bottom: 15px;"
             :editable="editable"
+            :assignment="assignment"
             :submission="submission"
             :rubric="rubric"
             ref="rubricViewer"/>
@@ -13,7 +15,7 @@
     <b-alert :class="{closed: $refs.rubricViewer.outOfSync.size === 0,
                      'out-of-sync-alert': true,}"
              show
-             v-if="showRubric && $refs.rubricViewer"
+             v-if="showRubric && $refs.rubricViewer && !UserConfig.features.incremental_rubric_submission"
              variant="warning">
         <b>The rubric is not yet saved!</b>
     </b-alert>
@@ -27,7 +29,7 @@
                    class="form-control"
                    step="any"
                    min="0"
-                   max="10"
+                   :max="maxAllowedGrade"
                    :disabled="!editable"
                    placeholder="Grade"
                    @keydown.enter="putGrade"
@@ -111,14 +113,19 @@ export default {
 
     data() {
         return {
-            grade: formatGrade(this.submission.grade),
+            UserConfig,
+            grade: this.submission.grade,
             rubricPoints: {},
             rubricHasSelectedItems: false,
-            externalGrade: formatGrade(this.submission.grade),
+            externalGrade: this.submission.grade,
         };
     },
 
     computed: {
+        maxAllowedGrade() {
+            return this.assignment.max_grade == null ? 10 : this.assignment.max_grade;
+        },
+
         deleteButtonText() {
             if (this.showRubric) {
                 if (this.rubricOverridden) {
@@ -150,11 +157,7 @@ export default {
             if (!this.rubricHasSelectedItems) {
                 return true;
             }
-            const rubricGrade = Math.max(
-                0,
-                (this.rubricPoints.selected / this.rubricPoints.max) * 10,
-            );
-            return this.grade !== formatGrade(rubricGrade);
+            return this.grade !== formatGrade(this.$refs.rubricViewer.grade);
         },
 
         rubricScore() {
@@ -222,31 +225,29 @@ export default {
 
         putGrade() {
             const grade = parseFloat(this.grade);
-            const overrideGrade = ((this.rubricOverridden || !this.showRubric) &&
-                                   this.externalGrade !== this.grade);
+            const normalGrade = (this.rubricOverridden || !this.showRubric);
 
-            if (!(grade >= 0 && grade <= 10) && overrideGrade) {
-                this.$refs.submitButton.fail(`Grade '${this.grade}' must be between 0 and 10`);
+            if (!(grade >= 0 && grade <= this.maxAllowedGrade) && normalGrade &&
+                !Number.isNaN(grade)) {
+                this.$refs.submitButton.fail(`Grade '${this.grade}' must be between 0 and ${this.maxAllowedGrade}`);
                 return;
             }
 
-            const viewer = this.$refs.rubricViewer;
-            const viewerReq = viewer ? viewer.submitAllItems() : Promise.resolve();
-            const data = { };
-            if (overrideGrade) {
-                data.grade = grade;
-            }
+            let req;
 
-            const req = this.$http.patch(
-                `/api/v1/submissions/${this.submission.id}`,
-                data,
-            ).then(() => {
-                if (overrideGrade) {
-                    this.grade = grade;
-                }
-                this.gradeUpdated();
-            });
-            this.$refs.submitButton.submit(Promise.all([req, viewerReq]).catch((err) => {
+            if (normalGrade) {
+                const data = { grade };
+                req = this.$http.patch(
+                    `/api/v1/submissions/${this.submission.id}`,
+                    data,
+                ).then(() => {
+                    this.grade = formatGrade(grade);
+                    this.gradeUpdated();
+                });
+            } else {
+                req = this.$refs.rubricViewer.submitAllItems();
+            }
+            this.$refs.submitButton.submit(req.catch((err) => {
                 throw err.response.data.message;
             }));
         },
@@ -290,7 +291,7 @@ textarea {
 }
 
 .out-of-sync-alert {
-    max-height: 3em;
+    max-height: 3.2em;
     overflow-x: hidden;
 
     transition-property: all;

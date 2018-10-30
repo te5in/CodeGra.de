@@ -1,12 +1,13 @@
 """
 This module is used for all mailing related tasks.
 
-:license: AGPLv3, see LICENSE for details.
+SPDX-License-Identifier: AGPL-3.0-only
 """
 import html
 import typing as t
 
 import html2text
+import structlog
 from flask import current_app
 from flask_mail import Mail, Message
 
@@ -15,28 +16,36 @@ import psef.models as models
 from psef.errors import APICodes, APIException
 
 mail = Mail()  # pylint: disable=invalid-name
+logger = structlog.get_logger()
 
 
 def _send_mail(
     html_body: str,
     subject: str,
-    recipients: t.Sequence[t.Union[str, t.Tuple[str, str]]],
+    recipients: t.Optional[t.Sequence[t.Union[str, t.Tuple[str, str]]]],
     mailer: t.Optional[Mail] = None,
 ) -> None:
-    if mailer is None:
-        mailer = mail
-
-    text_maker = html2text.HTML2Text(bodywidth=78)
-    text_maker.inline_links = False
-    text_maker.wrap_links = False
-
-    message = Message(
+    logger.info(
+        'Sending email',
         subject=subject,
-        body=text_maker.handle(html_body),
-        html=html_body,
+        html_body=html_body,
         recipients=recipients,
     )
-    mailer.send(message)
+    if recipients:
+        if mailer is None:
+            mailer = mail
+
+        text_maker = html2text.HTML2Text(bodywidth=78)
+        text_maker.inline_links = False
+        text_maker.wrap_links = False
+
+        message = Message(
+            subject=subject,
+            body=text_maker.handle(html_body),
+            html=html_body,
+            recipients=recipients,
+        )
+        mailer.send(message)
 
 
 def send_whopie_done_email(assig: models.Assignment) -> None:
@@ -54,13 +63,15 @@ def send_whopie_done_email(assig: models.Assignment) -> None:
         assig_name=html.escape(assig.name),
         course_id=assig.course_id,
     )
+
+    recipients = psef.parsers.parse_email_list(assig.done_email)
     _send_mail(
         html_body,
         (
             f'Grading has finished for {assig.name} on '
             f'{current_app.config["EXTERNAL_URL"]}'
         ),
-        psef.parsers.parse_email_list(assig.done_email),
+        recipients,
     )
 
 
@@ -153,6 +164,7 @@ def send_reset_password_email(user: models.User) -> None:
             [user.email]
         )
     except Exception:
+        logger.bind(exc_info=True)
         raise APIException(
             'Something went wrong sending the email, '
             'please contact your site admin',

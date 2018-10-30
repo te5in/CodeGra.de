@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div class="assignment-list sidebar-list-wrapper">
     <div class="sidebar-filter">

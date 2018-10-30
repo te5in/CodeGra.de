@@ -3,19 +3,24 @@ This module defines all API routes with the main directory "about". Thus
 the APIs in this module are mostly used get information about the instance
 running psef.
 
-:license: AGPLv3, see LICENSE for details.
+SPDX-License-Identifier: AGPL-3.0-only
 """
 import typing as t
 
-import psef
-from psef.helpers import JSONResponse, jsonify
+import structlog
+from flask import request, current_app
 
 from . import api
+from .. import models, permissions
+from ..files import check_dir
+from ..helpers import JSONResponse, jsonify
+
+logger = structlog.get_logger()
 
 
 @api.route('/about', methods=['GET'])
 def about(
-) -> JSONResponse[t.Mapping[str, t.Union[str, t.Mapping[str, bool]]]]:
+) -> JSONResponse[t.Mapping[str, t.Union[str, object, t.Mapping[str, bool]]]]:
     """Get the version and features of the currently running instance.
 
     .. :quickref: About; Get the version and features.
@@ -26,13 +31,41 @@ def about(
 
     :returns: The mapping as described above.
     """
+    _no_val = object()
+    status_code = 200
+
     features = {
         key: bool(value)
-        for key, value in psef.app.config['FEATURES'].items()
+        for key, value in current_app.config['FEATURES'].items()
     }
-    return jsonify(
-        {
-            'version': psef.app.config['_VERSION'],
-            'features': features,
-        },
-    )
+
+    res = {
+        'version': current_app.config['_VERSION'],
+        'features': features,
+    }
+
+    if request.args.get('health', _no_val) == current_app.config['HEALTH_KEY']:
+        try:
+            database = len(
+                models.Permission.get_all_permissions(
+                    permissions.CoursePermission
+                )
+            ) == len(models.CoursePermission)
+        except:  # pylint: disable=bare-except
+            logger.error('Database not working', exc_info=True)
+            database = False
+
+        uploads = check_dir(current_app.config['UPLOAD_DIR'])
+        mirror_uploads = check_dir(current_app.config['MIRROR_UPLOAD_DIR'])
+
+        res['health'] = {
+            'application': True,
+            'database': database,
+            'uploads': uploads,
+            'mirror_uploads': mirror_uploads,
+        }
+
+        if not all(res['health'].values()):
+            status_code = 500
+
+    return jsonify(res, status_code=status_code)

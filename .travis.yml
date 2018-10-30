@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+---
 language: python
 sudo: false
 notifications:
@@ -15,27 +17,20 @@ cache:
   directories:
     - node_modules
 
+env:
+  global:
+    - CC_TEST_REPORTER_ID=36e83e8985d55acaf2101aa2eb2b70fcfb33e3718e2c822478f678246f3c79c3
+
 matrix:
   include:
-    - python: "3.6-dev" # 3.6 development branch
+    - python: "3.7-dev"
       env: TO_RUN="coverage"
-    - python: "3.6-dev" # 3.7 development branch
+    - python: "3.7-dev"
       env: TO_RUN="postgres-test"
-    - python: "3.6-dev"
+    - python: "3.7-dev"
       env: TO_RUN="lint"
-    - python: "3.6-dev"
-      env: TO_RUN="mypy"
-    - python: "3.6-dev"
-      env: TO_RUN="yapf"
-    - python: "3.7-dev" # 3.7 development branch
-      env: TO_RUN="tests"
-    - python: "nightly" # currently points to 3.7-dev
-      env: TO_RUN="tests"
-  allow_failures:
-    # These are allowed to fail because Python 3.7+ chose to change its syntax
-    # and doesn't allow `async` as a property anymore.
-    - python: "3.7-dev" # 3.7 development branch
-    - python: "nightly" # currently points to 3.7-dev
+    - python: "3.7-dev"
+      env: TO_RUN="js_unit"
 
 install:
   - pip install -U wheel
@@ -52,10 +47,15 @@ before_script:
   - export DEBUG_ON=True
   - psql -c 'create database travis_ci_test;' -U postgres
   - pip install travis-sphinx
+  - python -c "import fcntl; fcntl.fcntl(1, fcntl.F_SETFL, 0)"
+  - curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > ./cc-test-reporter
+  - chmod +x ./cc-test-reporter
+  - ./cc-test-reporter before-build
 
 script:
   - bash ./.travis/run
   - "[[ $TO_RUN = 'coverage' ]] && travis-sphinx build --source=docs/ || true"
 
 after_success:
-  "[[ $TO_RUN = 'coverage' ]] && ( coveralls; codecov; travis-sphinx deploy -c docs.codegra.de; )"
+  - "[[ $TO_RUN = 'coverage' ]] && ( coveralls; codecov; travis-sphinx deploy -c docs.codegra.de; )"
+  - "[[ $TO_RUN = 'js_unit' ]] && ./cc-test-reporter after-build -t lcov --exit-code $TRAVIS_TEST_RESULT"

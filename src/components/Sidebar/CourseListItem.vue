@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <li :class="{
             'selected': selected && !manageSelected,
@@ -50,6 +51,9 @@ export default {
                 name: 'manage_course',
                 params: {
                     courseId: this.course.id,
+                },
+                query: {
+                    sbloc: 'c',
                 },
             };
         },

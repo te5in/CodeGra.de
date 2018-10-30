@@ -1,16 +1,21 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div class="manage-assignment loading" v-if="loading">
-    <local-header title=" ">
-        <loader :scale="1"/>
+    <local-header>
+        <template slot="title" v-if="assignment">
+            {{ assignment.name }} - <small>{{ assignment.deadline }}</small>
+        </template>
+        <template slot="title" v-else>
+        </template>
+        <loader :scale="1.9"/>
     </local-header>
     <loader page-loader/>
 </div>
 <div class="manage-assignment" v-else>
-    <local-header title="">
-        <span slot="title">
+    <local-header>
+        <template slot="title">
             {{ assignment.name }} - <small>{{ assignment.deadline }}</small>
-        </span>
-
+        </template>
         <assignment-state :assignment="assignment"
                           class="assignment-state"
                           :editable="permissions.can_edit_assignment_info"
@@ -26,8 +31,8 @@
             Succesfully created assignment!
         </b-alert>
 
-        <div v-if="!assignment.is_lti && permissions.can_edit_assignment_info">
-            <b-form-fieldset>
+        <div v-if="permissions.can_edit_assignment_info || permissions.can_edit_maximum_grade">
+            <b-form-fieldset v-if="!assignment.is_lti && permissions.can_edit_assignment_info">
                 <b-input-group prepend="Name">
                     <input type="text"
                            class="form-control"
@@ -40,7 +45,7 @@
                 </b-input-group>
             </b-form-fieldset>
 
-            <b-form-fieldset>
+            <b-form-fieldset v-if="!assignment.is_lti && permissions.can_edit_assignment_info">
                 <b-input-group prepend="Deadline">
                     <input type="datetime-local"
                            class="form-control"
@@ -51,6 +56,9 @@
                                        ref="updateDeadline"/>
                     </b-input-group-append>
                 </b-input-group>
+            </b-form-fieldset>
+            <b-form-fieldset v-if="permissions.can_edit_maximum_grade">
+                <maximum-grade :assignment-id="assignmentId"/>
             </b-form-fieldset>
         </div>
 
@@ -124,6 +132,17 @@
                 </b-card>
             </div>
         </div>
+        <b-card v-if="permissions.can_manage_plagiarism || permissions.can_view_plagiarism">
+            <span slot="header">
+                Plagiarism checking
+                <description-popover
+                    description="Run a plagiarism checker or view
+                                 the results."/>
+            </span>
+            <plagiarism-runner :assignment="assignment"
+                               :can-manage="permissions.can_manage_plagiarism"
+                               :can-view="permissions.can_view_plagiarism"/>
+        </b-card>
 
         <b-card header="Rubric"
                 v-if="permissions.manage_rubrics && UserConfig.features.rubrics">
@@ -142,7 +161,8 @@
                     author field you can select who should be the author. This
                     function can be used to submit work for a student."/>
             </span>
-            <submission-uploader :assignment="assignment" for-others/>
+            <submission-uploader :assignment="assignment" for-others
+                                 :can-list-users="permissions.can_list_course_users"/>
         </b-card>
 
         <b-card header="Blackboard zip"
@@ -156,6 +176,7 @@
             </b-popover>
             <file-uploader :url="`/api/v1/assignments/${assignment.id}/submissions/`"
                            :disabled="assignment.is_lti"
+                           @response="forceLoadSubmissions(assignment.id)"
                            :id="`file-uploader-assignment-${assignment.id}`"/>
         </b-card>
     </div>
@@ -182,6 +203,8 @@ import {
     FinishedGraderToggles,
     LocalHeader,
     SubmissionUploader,
+    MaximumGrade,
+    PlagiarismRunner,
 } from '@/components';
 
 export default {
@@ -208,7 +231,7 @@ export default {
         },
 
         assignment() {
-            return this.assignments[this.assignmentId];
+            return (this.assignments || {})[this.assignmentId];
         },
 
         assignmentUrl() {
@@ -230,7 +253,7 @@ export default {
     },
 
     methods: {
-        ...mapActions('courses', ['updateAssignment', 'loadCourses']),
+        ...mapActions('courses', ['updateAssignment', 'loadCourses', 'forceLoadSubmissions']),
 
         async loadData() {
             this.loading = true;
@@ -247,7 +270,7 @@ export default {
         async loadPermissions() {
             this.permissions = null;
             this.permissions = await this.$hasPermission(
-                MANAGE_COURSE_PERMISSIONS,
+                ['can_list_course_users', ...MANAGE_COURSE_PERMISSIONS],
                 this.assignment.course.id,
                 true,
             );
@@ -324,6 +347,8 @@ export default {
         FinishedGraderToggles,
         LocalHeader,
         SubmissionUploader,
+        MaximumGrade,
+        PlagiarismRunner,
     },
 };
 </script>
@@ -355,6 +380,10 @@ export default {
 }
 
 .finished-grader-toggles {
+    margin: -1.25rem;
+}
+
+.plagiarism-runner {
     margin: -1.25rem;
 }
 </style>

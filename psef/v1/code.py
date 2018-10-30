@@ -2,7 +2,7 @@
 This module defines all API routes with the main directory "code". Thus the
 APIs are used to manipulate student submitted code and the related feedback.
 
-:license: AGPLv3, see LICENSE for details.
+SPDX-License-Identifier: AGPL-3.0-only
 """
 
 import shutil
@@ -26,6 +26,7 @@ from psef.helpers import (
 )
 
 from . import api
+from ..permissions import CoursePermission as CPerm
 
 _HumanFeedback = models.Comment
 _LinterFeedback = t.MutableSequence[t.Tuple[str, models.LinterComment]]  # pylint: disable=invalid-name
@@ -49,9 +50,10 @@ def put_comment(code_id: int, line: int) -> EmptyResponse:
     :raises PermissionException: If the user can not can grade work in the
                                  attached course. (INCORRECT_PERMISSION)
     """
-    comment = db.session.query(models.Comment).filter(
-        models.Comment.file_id == code_id, models.Comment.line == line
-    ).one_or_none()
+    comment = db.session.query(
+        models.Comment
+    ).filter(models.Comment.file_id == code_id,
+             models.Comment.line == line).one_or_none()
 
     def __get_comment() -> str:
         content = ensure_json_dict(request.get_json())
@@ -60,14 +62,14 @@ def put_comment(code_id: int, line: int) -> EmptyResponse:
 
     if comment:
         auth.ensure_permission(
-            'can_grade_work', comment.file.work.assignment.course_id
+            CPerm.can_grade_work, comment.file.work.assignment.course_id
         )
 
         comment.comment = __get_comment()
     else:
         file = helpers.get_or_404(models.File, code_id)
         auth.ensure_permission(
-            'can_grade_work',
+            CPerm.can_grade_work,
             file.work.assignment.course_id,
         )
 
@@ -108,7 +110,7 @@ def remove_comment(code_id: int, line: int) -> EmptyResponse:
     )
 
     auth.ensure_permission(
-        'can_grade_work', comment.file.work.assignment.course_id
+        CPerm.can_grade_work, comment.file.work.assignment.course_id
     )
     db.session.delete(comment)
     db.session.commit()
@@ -119,8 +121,7 @@ def remove_comment(code_id: int, line: int) -> EmptyResponse:
 @api.route("/code/<int:file_id>", methods=['GET'])
 @auth.login_required
 def get_code(file_id: int) -> t.Union[werkzeug.wrappers.Response, JSONResponse[
-    t.Union[t.Mapping[str, str], models.File, _FeedbackMapping]
-]]:
+    t.Union[t.Mapping[str, str], models.File, _FeedbackMapping]]]:
     """Get data from the :class:`.models.File` with the given id.
 
     .. :quickref: Code; Get code or its metadata.
@@ -157,7 +158,7 @@ def get_code(file_id: int) -> t.Union[werkzeug.wrappers.Response, JSONResponse[
         return jsonify(file)
     elif get_type == 'feedback':
         return jsonify(get_feedback(file, linter=False))
-    elif get_type == 'pdf' or get_type == 'file-url':
+    elif get_type in ('pdf', 'file-url'):
         return jsonify({'name': get_file_url(file)})
     elif get_type == 'linter-feedback':
         return jsonify(get_feedback(file, linter=True))
@@ -291,6 +292,27 @@ def delete_code(file_id: int) -> EmptyResponse:
                 APICodes.INVALID_STATE,
                 400,
             )
+        if db.session.query(
+            models.PlagiarismMatch.query.filter(
+                (models.PlagiarismMatch.file1_id == code.id)
+                | (models.PlagiarismMatch.file2_id == code.id)
+            ).exists()
+        ).scalar():
+            # TODO: This leaks information. The question is if this is really
+            # a big issue. To stop leaking information all the other error
+            # messages also need to be adjusted, and even then: the other
+            # properties can probably be checked (if it has comments of
+            # children) so we would still leak some information. Another better
+            # option would be to only mark the file as deleted.
+            raise APIException(
+                (
+                    'You cannot delete this code as it is implicated in'
+                    ' plagiarism'
+                ),
+                f'The file "{file_id}" is implicated in a plagiarism match.',
+                APICodes.INVALID_STATE, 400
+            )
+
         code.delete_from_disk()
         db.session.delete(code)
     elif code.fileowner == models.FileOwner.both:
@@ -323,20 +345,24 @@ def split_code(
     old_id = code.id
     old_diskname = None if code.is_directory else code.get_diskname()
     db.session.flush()
-    code = db.session.query(models.File).get(code.id)
+    code = t.cast(models.File, db.session.query(models.File).get(code.id))
+    assert code is not None
 
     db.session.expunge(code)
     make_transient(code)
-    code.id = None
+    code.id = None  # type: ignore
     db.session.add(code)
     db.session.flush()
 
     code.fileowner = new_owner
     if not code.is_directory:
+        assert old_diskname is not None
         _, code.filename = psef.files.random_file_path()
         shutil.copyfile(old_diskname, code.get_diskname())
     else:
-        redistribute_directory(code, models.File.query.get(old_id))
+        redistribute_directory(
+            code, t.cast(models.File, models.File.query.get(old_id))
+        )
 
     return code
 

@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <loader center v-if="loading"/>
 <div class="submission-list" v-else>
@@ -7,6 +8,8 @@
         :canDownload="canDownload"
         :rubric="rubric"
         :graders="graders"
+        :can-see-assignee="canSeeAssignee"
+        :can-assign-grader="canAssignGrader"
         @assigneeUpdated="updateAssignee"/>
 
     <div v-if="canUpload">
@@ -21,6 +24,7 @@
         <span id="submission-file-uploader-wrapper">
             <submission-uploader :assignment="assignment"
                                  :for-others="canUploadForOthers"
+                                 :can-list-users="canListUsers"
                                  :disabled="fileUploaderDisabled"
                                  @created="goToSubmission"/>
         </span>
@@ -30,7 +34,7 @@
 
 <script>
 import { SubmissionList, Loader, SubmitButton, SubmissionUploader } from '@/components';
-import moment from 'moment';
+import { mapGetters, mapActions } from 'vuex';
 
 import * as assignmentState from '../store/assignment-states';
 
@@ -42,19 +46,35 @@ export default {
     data() {
         return {
             loading: true,
-            submissions: [],
             canUpload: false,
             canUploadForOthers: false,
-            assignment: null,
-            course: null,
             canDownload: false,
-            rubric: null,
-            graders: null,
+            canListUsers: null,
+            canSeeAssignee: false,
+            canAssignGrader: false,
             wrongFiles: [],
         };
     },
 
     computed: {
+        ...mapGetters('courses', ['assignments']),
+
+        assignment() {
+            return this.assignments[this.assignmentId];
+        },
+
+        submissions() {
+            return (this.assignment && this.assignment.submissions) || [];
+        },
+
+        rubric() {
+            return (this.assignment && this.assignment.rubric) || null;
+        },
+
+        graders() {
+            return (this.assignment && this.assignment.graders) || null;
+        },
+
         assignmentId() {
             return Number(this.$route.params.assignmentId);
         },
@@ -91,12 +111,19 @@ export default {
     },
 
     watch: {
-        assignmentId(newVal, oldVal) {
-            // If the assignmentId has not changed we do not need to reload the data.
-            if (newVal.toString() === oldVal.toString()) {
-                return;
+        submissions(newVal) {
+            if (newVal.length === 0) {
+                this.loadData();
             }
-            this.loadData();
+        },
+
+        assignment(newVal, oldVal) {
+            if (oldVal != null &&
+                    newVal.id !== oldVal.id &&
+                    !this.loading
+            ) {
+                this.loadData();
+            }
         },
     },
 
@@ -105,80 +132,61 @@ export default {
     },
 
     methods: {
+        ...mapActions('courses', {
+            loadCourses: 'loadCourses',
+            loadSubmissions: 'loadSubmissions',
+            updateSubmission: 'updateSubmission',
+        }),
+
         loadData() {
             this.loading = true;
             Promise.all([
-                this.$http.get(`/api/v1/assignments/${this.assignmentId}`),
-                this.$http.get(`/api/v1/assignments/${this.assignmentId}/submissions/`),
-                this.$http.get(`/api/v1/assignments/${this.assignmentId}/rubrics/`).catch(() => ({ data: null })),
-            ]).then(([
-                { data: assignment },
-                { data: submissions },
-                { data: rubric },
-            ]) => {
-                let done = false;
-                this.course = assignment.course;
-                this.assignment = assignment;
-                this.submissions = submissions;
-                this.rubric = rubric;
-
-                setPageTitle(`${assignment.name} ${pageTitleSep} Submissions`);
-
+                this.loadSubmissions(this.assignmentId),
                 this.$hasPermission(
                     [
+                        'can_see_assignee',
+                        'can_assign_graders',
                         'can_submit_own_work',
                         'can_submit_others_work',
                         'can_see_others_work',
                         'can_see_grade_before_open',
                         'can_upload_after_deadline',
+                        'can_list_course_users',
                     ],
                     this.courseId,
-                ).then(([submitOwn, submitOthers, others, before, afterDeadline]) => {
-                    this.canUploadForOthers = submitOthers;
-                    this.canUpload = (
-                        (submitOwn || submitOthers) &&
-                            (this.assignment.state === assignmentState.SUBMITTING ||
-                             (afterDeadline && this.assignment.state !== assignmentState.HIDDEN))
-                    );
+                ),
+            ]).then(([, [
+                seeAssignee, assignGrader, submitOwn, submitOthers, others, before,
+                afterDeadline, canList,
+            ]]) => {
+                setPageTitle(`${this.assignment.name} ${pageTitleSep} Submissions`);
+                this.canSeeAssignee = seeAssignee;
+                this.canAssignGrader = assignGrader;
+                this.canUploadForOthers = submitOthers;
+                this.canListUsers = canList;
+                this.canUpload = (
+                    (submitOwn || submitOthers) &&
+                        (this.assignment.state === assignmentState.SUBMITTING ||
+                            (afterDeadline && this.assignment.state !== assignmentState.HIDDEN))
+                );
 
-                    if (others) {
-                        if (this.assignment.state === assignmentState.DONE) {
-                            this.canDownload = true;
-                        } else {
-                            this.canDownload = before;
-                        }
+                if (others) {
+                    if (this.assignment.state === assignmentState.DONE) {
+                        this.canDownload = true;
+                    } else {
+                        this.canDownload = before;
                     }
+                }
 
-                    if (done) this.loading = false;
-                    done = true;
-                });
-
-                submissions.forEach((sub) => {
-                    sub.created_at = moment.utc(sub.created_at, moment.ISO_8601).local().format('YYYY-MM-DD HH:mm');
-                });
-
-                if (done) this.loading = false;
-                done = true;
+                this.loading = false;
             }, (err) => {
+                // TODO: visual feedback
                 // eslint-disable-next-line
                 console.dir(err);
             });
-
-            this.$hasPermission([
-                'can_assign_graders',
-                'can_see_assignee',
-            ], this.courseId).then(([assign, see]) => {
-                if (assign && see) {
-                    this.$http.get(`/api/v1/assignments/${this.assignmentId}/graders/`).then(({ data }) => {
-                        this.graders = data;
-                    }).catch(() => {
-                        this.graders = null;
-                    });
-                }
-            });
         },
 
-        goToSubmission({ data: submission }) {
+        goToSubmission(submission) {
             this.$router.push({
                 name: 'submission',
                 params: { submissionId: submission.id },
@@ -186,11 +194,10 @@ export default {
         },
 
         updateAssignee(submission, assignee) {
-            this.submissions = this.submissions.map((sub) => {
-                if (sub.id === submission.id) {
-                    sub.assignee = assignee;
-                }
-                return sub;
+            this.updateSubmission({
+                assignmentId: this.assignmentId,
+                submissionId: submission.id,
+                submissionProps: { assignee },
             });
         },
     },

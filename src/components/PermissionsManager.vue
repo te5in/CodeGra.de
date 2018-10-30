@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <loader v-if="loading" page-loader/>
 <div class="permissions-manager" v-else>
@@ -11,10 +12,19 @@
         <template slot="name" slot-scope="item">
             <span v-if="item.value !== 'Remove'">
                 {{ item.item.title }}
-                <description-popover
-                    hug-text
-                    :description="item.item.description"
-                    placement="right"/>
+                <description-popover hug-text
+                                     :icon="item.item._rowVariant === 'danger' ? 'exclamation-triangle' : undefined"
+                                     placement="right">
+                    <div slot="description"
+                         class="permission-description">
+                        <p>
+                            {{ item.item.description }}
+                        </p>
+                        <p v-if="item.item.warning" >
+                             <b class="text-danger">Warning:</b> {{ item.item.warning }}
+                        </p>
+                    </div>
+                </description-popover>
             </span>
             <b v-else-if="showDeleteRole">{{ item.value }}</b>
         </template>
@@ -58,12 +68,9 @@
 </template>
 
 <script>
-import Icon from 'vue-awesome/components/Icon';
-import 'vue-awesome/icons/times';
-import 'vue-awesome/icons/pencil';
-import 'vue-awesome/icons/floppy-o';
-import 'vue-awesome/icons/ban';
-import 'vue-awesome/icons/info';
+import 'vue-awesome/icons/exclamation-triangle';
+
+import { waitAtLeast } from '@/utils';
 
 import DescriptionPopover from './DescriptionPopover';
 import Loader from './Loader';
@@ -159,6 +166,8 @@ export default {
                                 name,
                                 title: Permissions[name].short_description,
                                 description: Permissions[name].long_description,
+                                warning: Permissions[name].warning,
+                                _rowVariant: Permissions[name].warning ? 'danger' : '',
                             };
                         }
                         this.items[i][item.name] = value;
@@ -185,10 +194,11 @@ export default {
             const newValue = !item[field.key];
             item[field.key] = 'loading';
             this.$set(this.items, i, item);
-            this.$http.patch(this.getChangePermUrl(this.courseId, field.id), {
+            const req = this.$http.patch(this.getChangePermUrl(this.courseId, field.id), {
                 value: newValue,
                 permission: item.name,
-            }).then(() => {
+            });
+            waitAtLeast(500, req).then(() => {
                 item[field.key] = newValue;
                 this.$set(this.items, i, item);
             });
@@ -237,7 +247,6 @@ export default {
     },
 
     components: {
-        Icon,
         Loader,
         SubmitButton,
         DescriptionPopover,
@@ -277,18 +286,13 @@ export default {
         }
     }
 }
+
+.permission-description p:last-child {
+    margin-bottom: 0;
+}
 </style>
 
 <style lang="less" scoped>
-.info-popover {
-    cursor: pointer;
-    display: inline-block;
-
-    sup {
-        padding: 0 .25em;
-    }
-}
-
 .add-role {
     margin-top: 1rem;
 }

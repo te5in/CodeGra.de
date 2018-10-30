@@ -3,7 +3,7 @@ This module defines all API routes with the main directory "files". These APIs
 serve to upload and download temporary files which are not stored explicitly in
 the database.
 
-:license: AGPLv3, see LICENSE for details.
+SPDX-License-Identifier: AGPL-3.0-only
 """
 import os
 
@@ -80,7 +80,8 @@ def get_file(
 
     @callback_after_this_request
     def __delete_file() -> None:
-        if not error:
+        # Make sure we don't delete when receiving HEAD requests
+        if request.method == 'GET' and not error:
             filename = safe_join(directory, file_name)
             os.unlink(filename)
 

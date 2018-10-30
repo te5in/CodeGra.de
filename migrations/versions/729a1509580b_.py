@@ -4,6 +4,7 @@ Revision ID: 729a1509580b
 Revises: 9924e6dccf52
 Create Date: 2018-03-30 23:45:51.781723
 
+SPDX-License-Identifier: AGPL-3.0-only
 """
 import os
 import json

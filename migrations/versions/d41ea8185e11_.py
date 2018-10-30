@@ -5,6 +5,7 @@ Revision ID: d41ea8185e11
 Revises: ddb38c4abccc
 Create Date: 2017-12-10 12:43:02.266000
 
+SPDX-License-Identifier: AGPL-3.0-only
 """
 import os
 import json

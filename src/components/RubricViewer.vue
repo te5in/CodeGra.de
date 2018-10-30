@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div class="rubric-viewer"
      :class="{ editable }">
@@ -70,6 +71,10 @@ export default {
             type: Object,
             default: null,
         },
+        assignment: {
+            type: Object,
+            default: null,
+        },
         rubric: {
             type: Object,
             default: null,
@@ -120,6 +125,10 @@ export default {
             let grade = Math.max(0, (this.selectedPoints / this.maxPoints) * 10);
             if (Object.keys(this.selected).length === 0) {
                 grade = null;
+            }
+            const maxGrade = (this.assignment && this.assignment.max_grade) || 10;
+            if (grade > maxGrade) {
+                grade = maxGrade;
             }
             return grade;
         },
@@ -234,8 +243,7 @@ export default {
             const doRequest = UserConfig.features.incremental_rubric_submission;
 
             if (!doRequest) {
-                req = Promise.resolve().then(() => {
-                });
+                req = Promise.resolve();
             } else if (selectItem) {
                 req = this.$http.patch(`/api/v1/submissions/${this.submission.id}/rubricitems/${item.id}`);
             } else {
