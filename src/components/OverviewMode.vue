@@ -144,13 +144,14 @@ import 'vue-awesome/icons/plus';
 import 'vue-awesome/icons/cog';
 
 import { visualizeWhitespace, last, getExtension, range } from '@/utils';
-import decodeBuffer from '@/utils/decode';
 
 import FeedbackArea from './FeedbackArea';
 import LinterFeedbackArea from './LinterFeedbackArea';
 import Loader from './Loader';
 import Toggle from './Toggle';
 import DiffViewer from './DiffViewer';
+
+const decoder = new TextDecoder('utf-8', { fatal: true });
 
 export default {
     name: 'overview-mode',
@@ -302,7 +303,7 @@ export default {
             }).then((rawCode) => {
                 let code;
                 try {
-                    code = decodeBuffer(rawCode.data);
+                    code = decoder.decode(rawCode.data);
                 } catch (e) {
                     return [];
                 }

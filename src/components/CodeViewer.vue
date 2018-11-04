@@ -57,12 +57,13 @@ import 'vue-awesome/icons/cog';
 
 import { visualizeWhitespace, cmpNoCase } from '@/utils';
 import '@/polyfills';
-import decodeBuffer from '@/utils/decode';
 
 import FeedbackArea from './FeedbackArea';
 import LinterFeedbackArea from './LinterFeedbackArea';
 import Loader from './Loader';
 import Toggle from './Toggle';
+
+const decoder = new TextDecoder('utf-8', { fatal: true });
 
 export default {
     name: 'code-viewer',
@@ -200,7 +201,7 @@ export default {
                     responseType: 'arraybuffer',
                 }).then((code) => {
                     try {
-                        this.code = decodeBuffer(code.data);
+                        this.code = decoder.decode(code.data);
                     } catch (e) {
                         error.push('This file cannot be displayed');
                         return;
