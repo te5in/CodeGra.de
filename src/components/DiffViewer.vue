@@ -47,12 +47,12 @@ import DiffMatchPatch from 'diff-match-patch';
 
 import { visualizeWhitespace, last, range } from '@/utils';
 
+import decodeBuffer from '@/utils/decode';
+
 import FeedbackArea from './FeedbackArea';
 import LinterFeedbackArea from './LinterFeedbackArea';
 import Loader from './Loader';
 import Toggle from './Toggle';
-
-const decoder = new TextDecoder('utf-8', { fatal: true });
 
 export default {
     name: 'diff-viewer',
@@ -114,8 +114,8 @@ export default {
                 let origCode;
                 let revCode;
                 try {
-                    origCode = decoder.decode(orig);
-                    revCode = decoder.decode(rev);
+                    origCode = decodeBuffer(orig);
+                    revCode = decodeBuffer(rev);
                 } catch (e) {
                     this.error = 'This file cannot be displayed';
                     return;
