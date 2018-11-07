@@ -75,6 +75,7 @@ import 'vue-awesome/icons/plus';
 
 import { mapActions, mapGetters } from 'vuex';
 
+import { waitAtLeast } from '@/utils';
 import SubmitButton from './SubmitButton';
 
 export default {
@@ -298,7 +299,7 @@ export default {
             }
 
             return this.$refs.addSnippetButton.submit(
-                req.catch((err) => { throw err.response.data.message; }),
+                waitAtLeast(500, req.catch((err) => { throw err.response.data.message; })),
             ).then((success) => {
                 if (success) {
                     this.$root.$emit('collapse::toggle', `collapse${this.line}`);
