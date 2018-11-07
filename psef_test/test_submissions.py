@@ -1165,6 +1165,14 @@ def test_add_file(
             query={'path': '/too_short/'}
         )
 
+        # Special files cannot be added anywhere
+        test_client.req(
+            'post',
+            f'/api/v1/submissions/{work_id}/files/',
+            400,
+            result=error_template,
+            query={'path': '/dir/dir2/.cg-grade'}
+        )
         res = test_client.req(
             'post',
             f'/api/v1/submissions/{work_id}/files/',
