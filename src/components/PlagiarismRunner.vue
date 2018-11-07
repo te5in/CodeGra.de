@@ -529,8 +529,8 @@ export default {
         await Promise.all([this.loadProviders(), this.loadRuns()]);
 
         this.addOldAssignmentsOption();
-        this.addBaseCodeOption();
         this.addOldSubmissionsOption();
+        this.addBaseCodeOption();
 
         this.pollRuns();
     },
