@@ -44,8 +44,9 @@ export default {
 <style lang="less" scoped>
 .linter-feedback-inner {
     display: inline;
-    table.linter-feedback tr td:nth-child(2) {
-        padding-left: 15px;
-    }
+}
+
+table.linter-feedback tr td:not(:last-child) {
+    padding-right: 1rem;
 }
 </style>
