@@ -92,7 +92,6 @@ export default {
 <style lang="less" scoped>
 @import '~mixins.less';
 
-@transition-duration: 300ms;
 @unchecked-opacity: .5;
 
 .toggle-container {

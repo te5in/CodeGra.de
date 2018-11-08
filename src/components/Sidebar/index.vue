@@ -721,7 +721,7 @@ export default {
 .pop-in-enter-active,
 .pop-in-leave-active {
     transition-property: opacity, transform;
-    transition-duration: 250ms;
+    transition-duration: @transition-duration;
 }
 
 .pop-in-enter,
