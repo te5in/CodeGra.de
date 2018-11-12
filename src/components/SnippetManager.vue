@@ -89,7 +89,7 @@ import 'vue-awesome/icons/times';
 import 'vue-awesome/icons/floppy-o';
 import 'vue-awesome/icons/reply';
 
-import { cmpNoCase } from '@/utils';
+import { cmpNoCase, waitAtLeast } from '@/utils';
 
 import Loader from './Loader';
 import SubmitButton from './SubmitButton';
@@ -256,7 +256,7 @@ export default {
             }
 
             req = this.$refs[`snippetSaveButton-${index}`].submit(
-                req.catch((err) => { throw err.response.data.message; }),
+                waitAtLeast(500, req.catch((err) => { throw err.response.data.message; })),
             );
 
             if (snippet.id == null) {

@@ -13,6 +13,7 @@ import zipfile
 import tempfile
 from collections import Counter, defaultdict
 
+import structlog
 from flask import request
 from sqlalchemy.orm import selectinload
 from mypy_extensions import TypedDict
@@ -33,6 +34,8 @@ from psef.helpers import (
 from . import api
 from ..model_types import DbColumn
 from ..permissions import CoursePermission as CPerm
+
+logger = structlog.get_logger()
 
 Feedback = TypedDict(  # pylint: disable=invalid-name
     'Feedback', {
@@ -694,13 +697,24 @@ def create_new_file(submission_id: int) -> JSONResponse[t.Mapping[str, t.Any]]:
         )
 
     filename: t.Optional[str]
+    parts = patharr[end_idx:]
 
-    for idx, part in enumerate(patharr[end_idx:]):
+    if set(parts) & psef.files.SPECIAL_FILENAMES:
+        logger.warning('Invalid filename uploaded using API', filenames=parts)
+
+        raise APIException(
+            'Invalid filenames',
+            f'Some requested names are reserved',
+            APICodes.INVALID_PARAM,
+            400,
+        )
+
+    for idx, part in enumerate(parts):
         if _is_last(idx) and not create_dir:
             is_dir = False
             d_filename, filename = psef.files.random_file_path()
-            with open(d_filename, 'w') as f:
-                f.write(request.get_data(as_text=True))
+            with open(d_filename, 'wb') as f:
+                f.write(request.get_data(as_text=False))
         else:
             is_dir, filename = True, None
         code = models.File(

@@ -976,7 +976,22 @@ def test_set_fixed_max_points(
                     'name': 'single_file_work_copy'
                 }
             ], 'dir', ['.tar.gz', '.zip']
-        ), (
+        ),
+        (
+            'rename_file_archive', [
+                {
+                    'id': int,
+                    'name': '.cg-assignment-id-USER_PROVIDED'
+                }, {
+                    'id': int,
+                    'name': 'single_file_work'
+                }, {
+                    'id': int,
+                    'name': 'single_file_work_copy'
+                }
+            ], 'dir', ['.tar.gz']
+        ),
+        (
             'multiple_dir_archive', [
                 {
                     'id': int,

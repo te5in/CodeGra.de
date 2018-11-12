@@ -15,6 +15,7 @@ class APIWarnings(IntEnum):
     GRADER_NOT_DONE = 1
     CONDITION_ALREADY_MET = 2
     SYMLINK_IN_ARCHIVE = 3
+    INVALID_FILENAME = 4
 
 
 @unique

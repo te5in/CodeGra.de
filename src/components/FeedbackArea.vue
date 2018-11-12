@@ -12,7 +12,7 @@
          @click.stop>
         <b-collapse class="collapsep"
                     v-if="canUseSnippets"
-                    ref="snippetDialog"
+                    v-model="showSnippetDialog"
                     :id="`collapse${line}`"
                     style="margin: 0">
             <div>
@@ -24,7 +24,8 @@
                         <submit-button ref="addSnippetButton"
                                        class="add-snippet-btn"
                                        label=""
-                                       @click="addSnippet">
+                                       @click="addSnippet"
+                                       v-b-popover.hover.top="'Save snippet'">
                             <icon :scale="1" name="check"/>
                         </submit-button>
                     </b-input-group-append>
@@ -41,24 +42,28 @@
                       @keydown.ctrl.enter.prevent="submitFeedback"
                       @keydown.esc="revertFeedback"/>
             <div class="minor-buttons btn-group-vertical">
-                <b-btn v-b-toggle="`collapse${line}`"
-                       class="snippet-btn"
+                <b-btn class="snippet-btn"
                        variant="secondary"
                        v-if="canUseSnippets"
-                       @click="findSnippet">
-                    <icon name="plus" aria-hidden="true"></icon>
+                       @click="findSnippet(); showSnippetDialog = !showSnippetDialog"
+                       v-b-popover.top.hover="showSnippetDialog ? 'Hide snippet name' : 'Save as snippet'">
+                    <icon name="plus"
+                          aria-hidden="true"
+                          :class="{ rotated: showSnippetDialog }"/>
                 </b-btn>
                 <submit-button @click="cancelFeedback"
                                ref="deleteFeedbackButton"
                                default="danger"
-                               :label="false">
+                               :label="false"
+                               v-b-popover.top.hover="'Delete feedback'">
                     <icon name="times" aria-hidden="true"/>
                 </submit-button>
             </div>
             <b-input-group-append class="submit-feedback">
                 <submit-button @click="submitFeedback"
                                ref="addFeedbackButton"
-                               :label="false">
+                               :label="false"
+                               v-b-popover.top.hover="'Save feedback'">
                     <icon name="check" aria-hidden="true"/>
                 </submit-button>
             </b-input-group-append>
@@ -75,6 +80,7 @@ import 'vue-awesome/icons/plus';
 
 import { mapActions, mapGetters } from 'vuex';
 
+import { waitAtLeast } from '@/utils';
 import SubmitButton from './SubmitButton';
 
 export default {
@@ -124,6 +130,7 @@ export default {
             serverFeedback: this.feedback,
             done: true,
             snippetKey: '',
+            showSnippetDialog: false,
         };
     },
 
@@ -298,7 +305,7 @@ export default {
             }
 
             return this.$refs.addSnippetButton.submit(
-                req.catch((err) => { throw err.response.data.message; }),
+                waitAtLeast(500, req.catch((err) => { throw err.response.data.message; })),
             ).then((success) => {
                 if (success) {
                     this.$root.$emit('collapse::toggle', `collapse${this.line}`);
@@ -307,7 +314,7 @@ export default {
         },
 
         findSnippet() {
-            if (this.snippetKey !== '' || this.$refs.snippetDialog.show) {
+            if (this.snippetKey !== '' || this.showSnippetDialog) {
                 return;
             }
 
@@ -418,6 +425,15 @@ textarea {
 #app:not(.dark) .snippet-btn {
     border-top-width: 1px;
     border-top-style: solid;
+}
+
+.snippet-btn .fa-icon {
+    transform: rotate(0);
+    transition: transform @transition-duration;
+
+    &.rotated {
+        transform: rotate(45deg);
+    }
 }
 
 .editable-area {

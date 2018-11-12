@@ -26,8 +26,8 @@ import psef.models as models
 from dataclasses import dataclass
 
 from . import app, archive, helpers, blackboard
-from .errors import APICodes, APIException
 from .ignore import InvalidFile, IgnoreFilterManager
+from .exceptions import APICodes, APIWarnings, APIException
 
 logger = structlog.get_logger()
 
@@ -44,9 +44,70 @@ FileTreeBase = mypy_extensions.TypedDict(  # pylint: disable=invalid-name
     }
 )
 
+SPECIAL_FILES = {
+    '.cg-grade',
+    '.cg-rubric.md',
+    '.cg-feedback',
+    '.cg-submission-id',
+    '.cg-edit-rubric.md',
+    '.cg-edit-rubric.help',
+    '.cg-assignment-settings.ini',
+    '.cg-assignment-id',
+    '.api-socket',
+    '.cg-mode',
+}
+
+SPECIAL_FILENAMES = {
+    '..',
+    '.',
+    *SPECIAL_FILES,
+}
+
 
 def init_app(_: t.Any) -> None:
     pass
+
+
+def escape_logical_filename(name: str) -> str:
+    """Escape a logical filename
+
+    If the name is a special file or the literal string '.' or '..' the string
+    '-USER_PROVIDED' is appended to the name.
+
+    .. note::
+
+        A logical filename is the filename as stored in the database and
+        displayed to the users, called ``name`` in the database. This is
+        different from physical filenames which are the names of the files as
+        stored on disk, called ``filename`` in the database.
+
+    >>> logger.warning = lambda *_, **__: True
+    >>> helpers.add_warning = lambda *_, **__: True
+    >>> escape_logical_filename('.')
+    '.-USER_PROVIDED'
+    >>> escape_logical_filename('.cg-grade')
+    '.cg-grade-USER_PROVIDED'
+    >>> escape_logical_filename('.cg-grade-USER_PROVIDED')
+    '.cg-grade-USER_PROVIDED-USER_PROVIDED'
+    >>> escape_logical_filename('normal file')
+    'normal file'
+    >>> escape_logical_filename('.bashrc')
+    '.bashrc'
+
+    :param name: The original logical filename.
+    :returns: An escaped logical filename.
+    """
+    # Use `startswith` to make sure no collisions can occur.
+    if name.startswith(tuple(SPECIAL_FILES)) or name in SPECIAL_FILENAMES:
+        new_name = name + '-USER_PROVIDED'
+        logger.warning('Invalid filename found', original_filename=name)
+        helpers.add_warning(
+            f'Invalid filename "{name}" was renamed to "{new_name}"',
+            APIWarnings.INVALID_FILENAME
+        )
+        return new_name
+    else:
+        return name
 
 
 # This is valid, see https://github.com/PyCQA/pylint/issues/1927

@@ -214,7 +214,7 @@ describe('FeedbackArea.vue', () => {
         });
 
         it('should do nothing if the snippet dialog is visible', () => {
-            comp.$refs.snippetDialog.show = true;
+            comp.showSnippetDialog = true;
             comp.snippetKey = '';
             comp.internalFeedback = Object.values(snippets)[0].value;
             comp.findSnippet();

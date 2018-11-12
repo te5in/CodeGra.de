@@ -127,6 +127,7 @@
 
 <script>
 import { mapActions, mapGetters } from 'vuex';
+import decodeBuffer from '@/utils/decode';
 
 import { Loader, LocalHeader, SubmitButton } from '@/components';
 
@@ -153,8 +154,7 @@ export default {
         },
 
         $route(newRoute, oldRoute) {
-            if (
-                newRoute.params.assignmentId !== oldRoute.params.assignmentId ||
+            if (newRoute.params.assignmentId !== oldRoute.params.assignmentId ||
                 newRoute.params.plagiarismRunId !== oldRoute.params.plagiarismRunId ||
                 newRoute.params.plagiarismCaseId !== oldRoute.params.plagiarismCaseId
             ) {
@@ -231,11 +231,11 @@ export default {
                 (a, b) => {
                     const lenA = (
                         (a.lines[0][1] - a.lines[0][0]) +
-                        (a.lines[1][1] - a.lines[1][0])
+                            (a.lines[1][1] - a.lines[1][0])
                     ) / 2;
                     const lenB = (
                         (b.lines[0][1] - b.lines[0][0]) +
-                        (b.lines[1][1] - b.lines[1][0])
+                            (b.lines[1][1] - b.lines[1][0])
                     ) / 2;
                     return lenB - lenA;
                 },
@@ -289,8 +289,11 @@ export default {
                 accum[match.files[1].id] = true;
                 return accum;
             }, {})).reduce((accum, fileId) => {
-                accum[fileId] = this.$http.get(`/api/v1/code/${fileId}`).then(
-                    a => a.data.split('\n').map(l => l.replace(endListingRegex, '\\end {lstlisting}')),
+                accum[fileId] = this.$http.get(`/api/v1/code/${fileId}`, { responseType: 'arraybuffer' }).then(
+                    ({ data }) => {
+                        const content = decodeBuffer(data, true);
+                        return content.split('\n').map(l => l.replace(endListingRegex, '\\end {lstlisting}'));
+                    },
                 );
                 return accum;
             }, {});
@@ -357,8 +360,8 @@ ${right.join('\n')}
             this.updateSortedFiles();
 
             await Promise.all(this.sortedFiles.map(async (file) => {
-                const content = (await this.$http.get(`/api/v1/code/${file.id}`)).data;
-
+                const { data } = (await this.$http.get(`/api/v1/code/${file.id}`), { responseType: 'arraybuffer' });
+                const content = decodeBuffer(data, true);
                 file.content = content.split('\n').map(this.$htmlEscape);
             }));
 
