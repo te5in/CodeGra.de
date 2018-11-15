@@ -1,6 +1,25 @@
 Changelog
 ==========
 
+Version 1.0.7 (HereBeMonsters.1)
+--------------------------------
+
+**Released**: November 12th, 2018
+
+Features
+~~~~~~~~
+
+- Support files encoded as ISO-8859-1 (latin1) in the frontend.
+  (#666)
+
+Fixes
+~~~~~
+
+- Make it impossible to override the special files of the CodeGrade
+  filesystem. (#673)
+- Various frontend fixes. (#664) (#669) (671) (674)
+- Improve documentation. (#672)
+
 Version 1.0.0 (HereBeMonsters)
 ------------------------------
 
