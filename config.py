@@ -264,7 +264,7 @@ set_bool(
 )
 
 # Should it be possible to register
-set_bool(CONFIG['FEATURES'], feature_ops, 'REGISTER', True)
+set_bool(CONFIG['FEATURES'], feature_ops, 'REGISTER', False)
 
 ############
 # LTI keys #

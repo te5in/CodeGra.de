@@ -188,7 +188,7 @@ export default {
                     name: 'register',
                     icon: 'rocket',
                     header: 'Register',
-                    condition: () => !this.loggedIn,
+                    condition: () => UserConfig.features.register && !this.loggedIn,
                     onClick: () => {
                         this.$router.push({ name: 'register' });
                     },

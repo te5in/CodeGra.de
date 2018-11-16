@@ -30,7 +30,7 @@ config.features = Object.assign({}, {
     LTI: true,
     linters: true,
     incremental_rubric_submission: true,
-    register: true,
+    register: false,
 }, userConfig.Features);
 
 module.exports = config;
