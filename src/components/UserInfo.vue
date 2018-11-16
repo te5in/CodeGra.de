@@ -54,7 +54,7 @@
 
                         However this does require
                         that your email is correct. If this is not the
-                        case you can force CodeGra.de to copy the email
+                        case you can force CodeGrade to copy the email
                         that your LMS gives us the next time you use
                         CodeGra.de within your LMS. To do this please
                         press <submit-button

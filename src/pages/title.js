@@ -6,7 +6,7 @@ export function setPageTitle(title = '') {
     changed = true;
     let s = title;
     if (s) s += ` ${pageTitleSep} `;
-    document.title = `${s}CodeGra.de`;
+    document.title = `${s}CodeGrade`;
 }
 
 export function resetPageTitle() {

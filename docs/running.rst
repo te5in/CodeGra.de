@@ -1,14 +1,21 @@
 Running CodeGrade
 ==========================
 
-This document describes the process of running CodeGrade. CodeGrade consists of two
-elements, its front-end and its backend. The front-end is build using `Vue.js <https://github.com/vuejs/vue>`_ and
-the back-end makes use of the `Flask <https://github.com/pallets/flask>`_  framework. This means that the two components have their
-own build and deploy steps for running in the development and production mode.
+This document describes the process of running CodeGrade. CodeGrade consists of
+two elements, its front-end and its backend. The front-end is build using
+`Vue.js <https://github.com/vuejs/vue>`_ and the back-end makes use of the
+`Flask <https://github.com/pallets/flask>`_ framework. This means that the two
+components have their own build and deploy steps for running in the development
+and production mode.
 
-Please consult the instructions on `building <building.html>`_ CodeGrade before attempting the steps below.
+Please consult the instructions on `building <building.html>`_ CodeGrade before
+attempting the steps below.
 
-.. warning:: Building, hosting, and running CodeGrade is at your own risk. We provide CodeGrade as a service. More information on getting started with CodeGrade at your institute can be found on `CodeGra.de <https://codegra.de>`_.
+.. warning::
+
+    Building, hosting, and running CodeGrade is at your own risk. We provide
+    CodeGrade as a service. More information on getting started with CodeGrade
+    at your institute can be found on `our website <https://codegra.de>`_.
 
 Development Mode
 ------------------

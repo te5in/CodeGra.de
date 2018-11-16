@@ -1,12 +1,18 @@
 Building CodeGrade
 ==========================
 
-This document describes the process of building CodeGrade and installing requirements. The steps below are
-required for both a development build and a production build of CodeGrade. Please
-consult the `running <running.html>`_ instructions for more information on running CodeGrade after
-building is finished.
+This document describes the process of building CodeGrade and installing
+requirements. The steps below are required for both a development build and a
+production build of CodeGrade. Please consult the `running <running.html>`_
+instructions for more information on running CodeGrade after building is
+finished.
 
-.. warning:: Building, hosting, and running CodeGrade is at your own risk and has many pitfalls including e.g. correct handling of celery tasks. We provide CodeGrade as a service. More information on getting started with CodeGrade at your institute can be found on `CodeGra.de <https://codegra.de>`_.
+.. warning::
+
+    Building, hosting, and running CodeGrade is at your own risk and has many
+    pitfalls including e.g. correct handling of celery tasks. We provide
+    CodeGrade as a service. More information on getting started with CodeGrade
+    at your institute can be found on `our website <https://codegra.de>`_.
 
 Prerequisites
 ---------------
