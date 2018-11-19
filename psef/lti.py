@@ -324,6 +324,14 @@ class LTI:  # pylint: disable=too-many-public-methods
             )
             db.session.add(course)
 
+        if course.name != self.course_name:
+            logger.info(
+                'Course changed name',
+                old_name=course.name,
+                new_name=self.course_name
+            )
+            course.name = self.course_name
+
         course.lti_provider = self.lti_provider
         db.session.flush()
 
@@ -376,6 +384,15 @@ class LTI:  # pylint: disable=too-many-public-methods
 
         if not assignment.is_done:
             assignment.state = self.assignment_state
+
+
+        if assignment.name != self.assignment_name:
+            logger.info(
+                'Assignment changed name',
+                old_name=assignment.name,
+                new_name=self.assignment_name
+            )
+            assignment.name = self.assignment_name
 
         assignment.deadline = self.get_assignment_deadline(
             default=assignment.deadline

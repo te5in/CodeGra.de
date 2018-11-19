@@ -557,14 +557,16 @@ def test_lti_assignment_create(
         username='A the A-er',
         lti_id='USER_ID',
         source_id='NON_EXISTING2!',
-        published='false'
+        published='false',
+        course_name='NEW_COURSE',
+        assig_name='MY_ASSIG_TITLE',
     ):
         with app.app_context():
             data = {
-                'custom_canvas_course_name': 'NEW_COURSE',
+                'custom_canvas_course_name': course_name,
                 'custom_canvas_course_id': 'MY_COURSE_ID_100',
                 'custom_canvas_assignment_id': 'MY_ASSIG_ID_100',
-                'custom_canvas_assignment_title': 'MY_ASSIG_TITLE',
+                'custom_canvas_assignment_title': assig_name,
                 'roles': 'administrator,instructor',
                 'custom_canvas_user_login_id': username,
                 'custom_canvas_course_title': 'Common Lisp',
@@ -595,7 +597,7 @@ def test_lti_assignment_create(
                 assert m.Assignment.query.get(
                     lti_res['assignment']['id']
                 ).state == m._AssignmentStateEnum.open
-            assert lti_res['assignment']['course']['name'] == 'NEW_COURSE'
+            assert lti_res['assignment']['course']['name'] == course_name
             return lti_res['assignment'], lti_res.get('access_token', None)
 
     with app.app_context():
@@ -611,6 +613,15 @@ def test_lti_assignment_create(
             headers={'Authorization': f'Bearer {token}'},
             result=error_template,
         )
+
+        # Make sure name of course and assignment is updated with new launches
+        course_name = 'NEW_NAME!!!!'
+        assig_name = 'NEW_ASSIG_NAME!!!!'
+        assig, _ = do_lti_launch(
+            course_name=course_name, assig_name=assig_name
+        )
+        assert assig['name'] == assig_name
+        assert assig['course']['name'] == course_name
 
 
 def test_reset_lti_email(test_client, app, logged_in, ta_user, session):
