@@ -360,7 +360,7 @@ ${right.join('\n')}
             this.updateSortedFiles();
 
             await Promise.all(this.sortedFiles.map(async (file) => {
-                const { data } = (await this.$http.get(`/api/v1/code/${file.id}`), { responseType: 'arraybuffer' });
+                const { data } = (await this.$http.get(`/api/v1/code/${file.id}`, { responseType: 'arraybuffer' }));
                 const content = decodeBuffer(data, true);
                 file.content = content.split('\n').map(this.$htmlEscape);
             }));
