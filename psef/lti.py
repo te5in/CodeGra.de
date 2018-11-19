@@ -585,15 +585,14 @@ class LTI:  # pylint: disable=too-many-public-methods
             if cls.supports_lti_launch_as_result() else LTIResultDataType.url
         )
 
-        if grade is None:
-            lti_operation = LTIDeleteResultOperation()
-        # Canvas, the only supported LMS, doesn't use this option
-        elif initial:  # pragma: no cover
+        if initial:
             lti_operation = LTIInitalReplaceResultOperation(
                 data_type=data_type,
                 data_value=url,
                 submission_details=submission_details,
             )
+        elif grade is None:
+            lti_operation = LTIDeleteResultOperation()
         elif grade > 10:
             assert lti_points_possible is not None
             lti_operation = LTIRawReplaceResultOperation(
@@ -770,9 +769,6 @@ class CanvasLTI(LTI):
         submission: models.Work,
         host: str,
     ) -> None:
-        if initial:
-            return
-
         redirect = (
             '/courses/{course_id}'
             '/assignments/{assig_id}'
@@ -791,7 +787,7 @@ class CanvasLTI(LTI):
             key=key,
             secret=secret,
             grade=grade,
-            initial=False,
+            initial=initial,
             service_url=service_url,
             sourcedid=sourcedid,
             lti_points_possible=lti_points_possible,

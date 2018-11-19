@@ -38,7 +38,7 @@ from psef.exceptions import (
 )
 
 from . import api
-from .. import archive, plagiarism
+from .. import tasks, archive, plagiarism
 from ..permissions import CoursePermission as CPerm
 
 logger = structlog.get_logger()
@@ -581,8 +581,12 @@ def upload_work(assignment_id: int) -> ExtendedJSONResponse[models.Work]:
     db.session.add(work)
     db.session.flush()
 
-    # This method does nothing if the assignment is not an LTI assignment
-    work.passback_grade(initial=True)
+    if work.assignment.is_lti:
+        # TODO: Doing this for a LMS other than Canvas is probably not a good
+        # idea as it will result in a wrong submission date.
+        helpers.callback_after_this_request(
+            lambda: tasks.passback_grades([work.id], initial=True)
+        )
     db.session.commit()
 
     work.run_linter()

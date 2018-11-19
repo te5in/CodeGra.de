@@ -318,12 +318,12 @@ def test_lti_grade_passback(
 
         el = _get_parsed(last_xml)
         req_el = el.find('imsx_POXBody/replaceResultRequest/resultRecord')
+        assert req_el
 
         assert req_el.find(
             'sourcedGUID/sourcedId'
         ).text == patch_request.source_id
 
-        assert req_el
         assert el.find(
             'imsx_POXHeader/imsx_POXRequestHeaderInfo/imsx_messageIdentifier'
         ) is not None
@@ -345,6 +345,29 @@ def test_lti_grade_passback(
         assert el.find(
             'imsx_POXBody/replaceResultRequest/submissionDetails/submittedAt'
         ).text.startswith(created_at)
+
+        last_xml = None
+
+    def assert_initial_passback():
+        nonlocal last_xml
+
+        el = _get_parsed(last_xml)
+        req_el = el.find('imsx_POXBody/replaceResultRequest/resultRecord')
+        assert req_el
+
+        assert req_el.find(
+            'sourcedGUID/sourcedId'
+        ).text == patch_request.source_id
+        assert el.find(
+            'imsx_POXHeader/imsx_POXRequestHeaderInfo/imsx_messageIdentifier'
+        ) is not None
+
+        # No grade should be passed back
+        assert req_el.find('result/resultTotalScore') is None
+        assert req_el.find('result/resultScore') is None
+
+        # Result data should be passed back
+        assert req_el.find('result/resultData') is not None
 
         last_xml = None
 
@@ -454,10 +477,10 @@ def test_lti_grade_passback(
             headers={'Authorization': f'Bearer {token}'},
         )
 
-    # As we only support canvas it SHOULD NOT do a initial passback
     assig, token = do_lti_launch()
     work = get_upload_file(token, assig['id'])
-    assert not patch_request.called
+    assert patch_request.called
+    assert_initial_passback()
 
     # Assignment is not open so it should not passback the grade
     set_grade(token, 5.0, work['id'])

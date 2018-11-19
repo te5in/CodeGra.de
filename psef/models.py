@@ -1484,25 +1484,23 @@ class Work(Base):
             result so that the real grade won't show as too late.
         :returns: Nothing
         """
-        if not self.assignment.is_lti:
-            return
-
         lti_provider = self.assignment.course.lti_provider
 
         lti_provider.passback_grade(self, initial)
 
-        newest_grade_history_id = db.session.query(
-            t.cast(DbColumn[int], GradeHistory.id)
-        ).filter_by(work_id=self.id).order_by(
-            t.cast(DbColumn[datetime.datetime],
-                   GradeHistory.changed_at).desc(),
-        ).limit(1).with_for_update()
+        if not initial:
+            newest_grade_history_id = db.session.query(
+                t.cast(DbColumn[int], GradeHistory.id)
+            ).filter_by(work_id=self.id).order_by(
+                t.cast(DbColumn[datetime.datetime],
+                       GradeHistory.changed_at).desc(),
+            ).limit(1).with_for_update()
 
-        db.session.query(GradeHistory).filter(
-            GradeHistory.id == newest_grade_history_id.as_scalar(),
-        ).update({
-            'passed_back': True
-        }, synchronize_session='fetch')
+            db.session.query(GradeHistory).filter(
+                GradeHistory.id == newest_grade_history_id.as_scalar(),
+            ).update({
+                'passed_back': True
+            }, synchronize_session='fetch')
 
     def select_rubric_items(
         self, items: t.List['RubricItem'], user: User, override: bool = False
