@@ -1,3 +1,5 @@
+.. _codeviewer-chapter:
+
 Codeviewer
 ===============
 The CodeGrade Codeviewer is the online grading and reviewing environment especially
@@ -8,6 +10,8 @@ intuitive environment to receive feedback in.
 
 The Codeviewer is displayed after navigating to an individual submission. These can be
 found via the 'Assignments' menu and selecting the assignment to review.
+
+.. _codeviewer-teachers:
 
 Codeviewer for Teachers
 -------------------------
@@ -38,6 +42,8 @@ Feedback on a specific line can be given by clicking on this line of code in the
 written in the appeared dialog and saved with the :fa:`check` button. Clicking on previously placed line
 for line feedback displays this same dialog and clicking the :fa:`times` button will remove the comment.
 
+.. _codeviewer-snippets:
+
 Snippets
 ^^^^^^^^^
 It is not unusual that identical line feedback comments apply to multiple cases or students. Snippets can be used
@@ -45,10 +51,12 @@ to efficiently but thoroughly cover all these reoccurring comments. Snippets are
 
 .. note:: Snippets are saved to your personal profile and are not limited to courses or assignments.
 
-New snippets can be added through the `profile
-page <preferences.html>`__ and via the :fa:`plus` button in the line of line feedback dialog. The latter makes it possible to save existing line for line
-feedback comments. After clicking this button the snippet can be named and saved for future use. To use your saved snippet, simply type
-in the given name and press the TAB keyboard key to autocomplete it to the saved comment.
+New snippets can be added through the :ref:`profile page <preferences-chapter>`
+and via the :fa:`plus` button in the line of line feedback dialog. The latter
+makes it possible to save existing line for line feedback comments. After
+clicking this button the snippet can be named and saved for future use. To use
+your saved snippet, simply type in the given name and press the TAB keyboard key
+to autocomplete it to the saved comment.
 
 .. note:: It is in most cases recommended to use a short keyword for the snippet.
 
@@ -100,6 +108,7 @@ CodeGrade offers the functionality to remove submissions, this can be done using
 
 .. warning:: Deleting a submission will result in effectively removing all information about the submission (including plagiarism results) and is irreversible!
 
+.. _codeviewer-students:
 
 Codeviewer for Students
 -------------------------
@@ -116,6 +125,8 @@ If a rubric is available for the assignment it can be found under the :fa:`th` b
 Further general feedback can be displayed using the :fa:`pencil-square-o` button. An overview of all feedback,
 including line feedback, linter comments and general grade and feedback can be download as
 plain text file under the :fa:`download` button.
+
+.. _codeviewer-settings:
 
 Settings Tab
 --------------------

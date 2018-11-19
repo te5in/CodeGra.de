@@ -1,8 +1,10 @@
+.. _plagiarism-chapter:
+
 Plagiarism Detection
 =====================
-CodeGrade's code plagiarism detection feature can be found on the `assignment
-management <management.html>`__ page. Here, new plagiarism runs can be done
-and previous runs can be examined for plagiarism.
+CodeGrade's code plagiarism detection feature can be found on the
+:ref:`assignment management <management-chapter>` page. Here, new plagiarism
+runs can be done and previous runs can be examined for plagiarism.
 
 .. warning:: Individual plagiarism cases should always be manually reviewed.
 
@@ -54,9 +56,9 @@ Taken from `JPlag <https://jplag.ipd.kit.edu/>`__, please consult for more infor
 Reviewing Plagiarism
 ---------------------
 After the plagiarism checker is done running, its results can be found under the
-*Previous Runs* tab. The run can be deleted by pressing the
-:fa:`multiply` button or reviewed by clicking on the entry itself to find
-an overview page with all the potential plagiarism cases.
+*Previous Runs* tab. The run can be deleted by pressing the :fa:`times` button
+or reviewed by clicking on the entry itself to find an overview page with all
+the potential plagiarism cases.
 
 This overview page displays potential plagiarism cases between students, with
 the maximum score and the average score. The cases can be filtered on student

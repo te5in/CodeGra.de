@@ -1,3 +1,5 @@
+.. _running-chapter:
+
 Running CodeGrade
 ==========================
 
@@ -8,8 +10,8 @@ two elements, its front-end and its backend. The front-end is build using
 components have their own build and deploy steps for running in the development
 and production mode.
 
-Please consult the instructions on `building <building.html>`_ CodeGrade before
-attempting the steps below.
+Please consult the instructions on :ref:`building <building-chapter>` CodeGrade
+before attempting the steps below.
 
 .. warning::
 

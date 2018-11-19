@@ -1,3 +1,5 @@
+.. _permissions-chapter:
+
 Permissions
 =============
 CodeGrade works with an extensive permission system to allow different types of
@@ -7,6 +9,8 @@ The permissions are divided into site-wide permissions and course
 permissions. Site-wide permissions are administered by the site administrators
 and apply to all courses. Course permissions only apply to one course and
 CodeGrade users can have different roles and permissions for different courses.
+
+.. _site-permissions:
 
 Site Permissions
 ------------------
@@ -23,17 +27,19 @@ The available global permissions can be found in the
    :widths: 20, 70
    :header-rows: 1
 
+.. _course-permissions:
+
 Course Permissions
 -------------------
 
-Permissions and roles can be specified per course, this can be done in `course
-management <management.html#course-management>`__ under the *roles* tab. The
-five default roles are: designer, observer, student, TA (teaching assistant) and
+Permissions and roles can be specified per course, this can be done in
+:ref:`course management <course-management>` under the *roles* tab. The five
+default roles are: designer, observer, student, TA (teaching assistant) and
 teacher. Default roles can be removed, their permissions can be altered and new
 roles can be added to the course.
 
 The available course permissions can be found in the
-`table below <CoursePermissions_>`_.
+:ref:`table below <CoursePermissions>`.
 
 .. note::
 

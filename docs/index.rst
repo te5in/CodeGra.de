@@ -17,19 +17,20 @@ information on getting started with CodeGrade at your institute can be found on
 The documentation of CodeGrade consists of a developer documentation and a user
 documentation:
 
-.. _about:
 
-.. toctree::
-    :maxdepth: 1
-    :caption: About CodeGrade
+.. only:: not latex
 
-    about/whatis
-    about/changelog
-    about/history
-    about/authors
-    about/technologies
-    about/contributing
-    about/contact
+    .. toctree::
+        :maxdepth: 1
+        :caption: About CodeGrade
+
+        about/whatis
+        about/changelog
+        about/history
+        about/authors
+        about/technologies
+        about/contributing
+        about/contact
 
 .. _user-docs:
 
@@ -47,13 +48,37 @@ documentation:
    Filesystem <https://fs-docs.codegra.de>
    user/lms.rst
 
-.. _dev-docs:
 
-.. toctree::
-  :maxdepth: 1
-  :caption: Developer Documentation
+.. only:: latex
 
-  building
-  running
-  api
-  code
+    .. toctree::
+        :maxdepth: 1
+        :caption: About CodeGrade
+
+        about/whatis
+        about/changelog
+        about/history
+        about/authors
+        about/technologies
+        about/contributing
+        about/contact
+
+.. only:: latex
+
+    .. toctree::
+        :maxdepth: 1
+        :caption: Developer Documentation
+
+        building
+        running
+
+.. only:: not latex
+
+    .. toctree::
+        :maxdepth: 1
+        :caption: Developer Documentation
+
+        building
+        running
+        api
+        code

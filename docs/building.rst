@@ -1,11 +1,13 @@
+.. _building-chapter:
+
 Building CodeGrade
 ==========================
 
 This document describes the process of building CodeGrade and installing
 requirements. The steps below are required for both a development build and a
-production build of CodeGrade. Please consult the `running <running.html>`_
-instructions for more information on running CodeGrade after building is
-finished.
+production build of CodeGrade. Please consult the :ref:`running
+<running-chapter>` instructions for more information on running CodeGrade after
+building has finished.
 
 .. warning::
 
