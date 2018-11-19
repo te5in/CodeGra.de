@@ -491,7 +491,10 @@ class RequestValidatorMixin:
             )
 
             oauth_request = oauth2.Request.from_request(
-                method, url, headers=headers, parameters=parameters
+                method,
+                url,
+                headers=headers,
+                parameters=parameters,
             )
 
             self.oauth_server.verify_request(
@@ -539,7 +542,9 @@ class _FlaskOAuthValidator(RequestValidatorMixin):
         '''
         Parse Flask request
         '''
-        return (req.method, req.url, dict(req.headers), req.form.copy())
+        # base_url is used because of:
+        # https://github.com/instructure/canvas-lms/issues/600
+        return (req.method, req.base_url, dict(req.headers), req.form.copy())
 
 
 def ensure_valid_oauth(

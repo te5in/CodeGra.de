@@ -70,6 +70,12 @@ class LTI:  # pylint: disable=too-many-public-methods
     """The base LTI class.
     """
 
+    @staticmethod
+    def supports_lti_launch_as_result() -> bool:  # pragma: no cover
+        """Does this LTI consumer support the ``ltiLaunchUrl`` as result field.
+        """
+        return False
+
     def __init__(
         self,
         params: t.Mapping[str, str],
@@ -197,6 +203,15 @@ class LTI:  # pylint: disable=too-many-public-methods
     @property
     def outcome_service_url(self) -> str:
         """The url used to passback grades to Canvas.
+        """
+        raise NotImplementedError
+
+    def has_outcome_service_url(self) -> bool:
+        """Check if the current LTI request has ``outcome_service_url`` field.
+
+        This is not the case when launch LTI occurs for viewing a result.
+
+        :returns: A boolean indicating if a ``sourcedid`` field was found.
         """
         raise NotImplementedError
 
@@ -380,7 +395,8 @@ class LTI:  # pylint: disable=too-many-public-methods
         if self.has_assigment_points_possible():
             assignment.lti_points_possible = self.assigment_points_possible
 
-        assignment.lti_outcome_service_url = self.outcome_service_url
+        if self.has_outcome_service_url():
+            assignment.lti_outcome_service_url = self.outcome_service_url
 
         if not assignment.is_done:
             assignment.state = self.assignment_state
@@ -513,7 +529,7 @@ class LTI:  # pylint: disable=too-many-public-methods
         sourcedid: str,
         lti_points_possible: t.Optional[float],
         submission: models.Work,
-        url: str,
+        host: str,
     ) -> None:
         """Do a LTI grade passback.
 
@@ -527,14 +543,14 @@ class LTI:  # pylint: disable=too-many-public-methods
         :param lti_points_possible: The maximum amount of points possible for
             the assignment we are passing back as reported by the LMS during
             launch.
-        :param url: The url used as general feedback to the student which will
-            probably be clickable.
+        :param host: The host of this CodeGrade instance.
         :returns: The response of the LTI consumer.
         """
         raise NotImplementedError
 
-    @staticmethod
+    @classmethod
     def _passback_grade(
+        cls: t.Type[T_LTI],
         *,
         key: str,
         secret: str,
@@ -564,26 +580,31 @@ class LTI:  # pylint: disable=too-many-public-methods
                 tzinfo=datetime.timezone.utc
             ).isoformat()
 
+        data_type = (
+            LTIResultDataType.lti_launch_url
+            if cls.supports_lti_launch_as_result() else LTIResultDataType.url
+        )
+
         if grade is None:
             lti_operation = LTIDeleteResultOperation()
         # Canvas, the only supported LMS, doesn't use this option
         elif initial:  # pragma: no cover
             lti_operation = LTIInitalReplaceResultOperation(
-                data_type=LTIResultDataType.url,
+                data_type=data_type,
                 data_value=url,
                 submission_details=submission_details,
             )
         elif grade > 10:
             assert lti_points_possible is not None
             lti_operation = LTIRawReplaceResultOperation(
-                data_type=LTIResultDataType.url,
+                data_type=data_type,
                 data_value=url,
                 grade=str((grade / 10) * lti_points_possible),
                 submission_details=submission_details,
             )
         else:
             lti_operation = LTINormalReplaceResultOperation(
-                data_type=LTIResultDataType.url,
+                data_type=data_type,
                 data_value=url,
                 grade=str((grade / 10)),
                 submission_details=submission_details,
@@ -602,6 +623,10 @@ class LTI:  # pylint: disable=too-many-public-methods
 class CanvasLTI(LTI):
     """The LTI class used for the Canvas LMS.
     """
+
+    @staticmethod
+    def supports_lti_launch_as_result() -> bool:
+        return True
 
     @staticmethod
     def get_lti_properties() -> t.List[LTIProperty]:
@@ -687,6 +712,9 @@ class CanvasLTI(LTI):
     def outcome_service_url(self) -> str:
         return self.launch_params['lis_outcome_service_url']
 
+    def has_outcome_service_url(self) -> bool:
+        return 'lis_outcome_service_url' in self.launch_params
+
     @property
     def result_sourcedid(self) -> str:
         return self.launch_params['lis_result_sourcedid']
@@ -740,10 +768,25 @@ class CanvasLTI(LTI):
         sourcedid: str,
         lti_points_possible: t.Optional[float],
         submission: models.Work,
-        url: str,
+        host: str,
     ) -> None:
         if initial:
             return
+
+        redirect = (
+            '/courses/{course_id}'
+            '/assignments/{assig_id}'
+            '/submissions/{sub_id}?inLTI=true'
+        ).format(
+            course_id=submission.assignment.course_id,
+            assig_id=submission.assignment_id,
+            sub_id=submission.id,
+        )
+        # Namespacing this get parameter is important as Canvas duplicates all
+        # get parameters in the body. This makes sure we won't override actual
+        # launch parameters. Also the url doesn't need to be quoted, as canvas
+        # does this for us.
+        url = f'{host}/api/v1/lti/launch/1?codegrade_redirect={redirect}'
         super()._passback_grade(
             key=key,
             secret=secret,
@@ -795,7 +838,7 @@ class LTIResultDataType(enum.Enum):
     """
     text = 'text'
     url = 'url'
-    launch_url = 'launchUrl'
+    lti_launch_url = 'ltiLaunchUrl'
 
 
 class LTIOperation(abc.ABC):

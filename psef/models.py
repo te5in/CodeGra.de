@@ -187,13 +187,6 @@ class LTIProvider(Base):
             actually do a passback when this is set to ``True``.
         :returns: Nothing.
         """
-        url = ('{}/'
-               'courses/{}/assignments/{}/submissions?inLTI=true').format(
-                   current_app.config['EXTERNAL_URL'],
-                   sub.assignment.course_id,
-                   sub.assignment_id,
-               )
-
         self.lti_class.passback_grade(
             key=self.key,
             secret=self.secret,
@@ -203,7 +196,7 @@ class LTIProvider(Base):
             sourcedid=sub.assignment.assignment_results[sub.user_id].sourcedid,
             lti_points_possible=sub.assignment.lti_points_possible,
             submission=sub,
-            url=url,
+            host=current_app.config['EXTERNAL_URL'],
         )
 
     @property

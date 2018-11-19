@@ -40,14 +40,17 @@ def launch_lti() -> t.Any:
         'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=1)
     }
     return flask.redirect(
-        '{}/lti_launch/?inLTI=true&jwt={}'.format(
-            app.config['EXTERNAL_URL'],
-            urllib.parse.quote(
+        '{host}/lti_launch/?inLTI=true&jwt={jwt}&redirect={redirect}'.format(
+            host=app.config['EXTERNAL_URL'],
+            jwt=urllib.parse.quote(
                 jwt.encode(
                     lti,
                     app.config['LTI_SECRET_KEY'],
                     algorithm='HS512',
                 ).decode('utf8')
+            ),
+            redirect=urllib.parse.quote(
+                flask.request.args.get('codegrade_redirect', '')
             )
         )
     )
