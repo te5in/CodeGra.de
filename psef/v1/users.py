@@ -11,7 +11,6 @@ import typing as t
 import flask_jwt_extended as flask_jwt
 from flask import request, current_app
 from sqlalchemy import case, func
-from validate_email import validate_email
 from flask_limiter.util import get_remote_address
 
 import psef.auth as auth
@@ -21,7 +20,7 @@ from psef import limiter, current_user
 from psef.errors import APICodes, APIException
 from psef.models import db
 from psef.helpers import (
-    JSONResponse, jsonify, ensure_json_dict, ensure_keys_in_dict
+    JSONResponse, jsonify, validate, ensure_json_dict, ensure_keys_in_dict
 )
 
 from . import api
@@ -126,7 +125,7 @@ def register_user() -> JSONResponse[t.Mapping[str, str]]:
     email = t.cast(str, content['email'])
     name = t.cast(str, content['name'])
 
-    if not all([username, password, email, name]):
+    if not all([username, email, name]):
         raise APIException(
             'All fields should contain at least one character',
             (
@@ -136,6 +135,10 @@ def register_user() -> JSONResponse[t.Mapping[str, str]]:
             APICodes.INVALID_PARAM,
             400,
         )
+    validate.ensure_valid_password(
+        password, username=username, email=email, name=name
+    )
+    validate.ensure_valid_email(email)
 
     if db.session.query(
         models.User.query.filter_by(username=username).exists()
@@ -147,13 +150,6 @@ def register_user() -> JSONResponse[t.Mapping[str, str]]:
             400,
         )
 
-    if not validate_email(email):
-        raise APIException(
-            'The given email is not valid',
-            f'The email "{email}"',
-            APICodes.INVALID_PARAM,
-            400,
-        )
 
     role = models.Role.query.filter_by(
         name=current_app.config['DEFAULT_ROLE']
@@ -164,8 +160,9 @@ def register_user() -> JSONResponse[t.Mapping[str, str]]:
         email=email,
         name=name,
         role=role,
-        active=True
+        active=True,
     )
+
     db.session.add(user)
     db.session.commit()
 

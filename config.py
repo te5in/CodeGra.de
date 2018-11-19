@@ -26,6 +26,18 @@ backend_ops = parser['Back-end']
 feature_ops = parser['Features']
 
 
+def ensure_between(
+    option: str,
+    val: t.Union[int, float],
+    min: t.Union[int, float, None],
+    max: t.Union[int, float, None],
+) -> None:
+    if (min is not None and val < min) or (max is not None and val > max):
+        raise ValueError(
+            f'Value of setting {option} must be between {min} and {max} (inclusive)',
+        )
+
+
 def set_bool(
     out: t.MutableMapping[str, t.Any], parser: t.Any, item: str, default: bool
 ) -> None:
@@ -34,17 +46,31 @@ def set_bool(
 
 
 def set_float(
-    out: t.MutableMapping[str, t.Any], parser: t.Any, item: str, default: float
+    out: t.MutableMapping[str, t.Any],
+    parser: t.Any,
+    item: str,
+    default: float,
+    min: float = None,
+    max: float = None,
 ) -> None:
     val = parser.getfloat(item)
-    out[item] = float(default if val is None else val)
+    val = float(default if val is None else val)
+    ensure_between(item, val, min, max)
+    out[item] = val
 
 
 def set_int(
-    out: t.MutableMapping[str, t.Any], parser: t.Any, item: str, default: int
+    out: t.MutableMapping[str, t.Any],
+    parser: t.Any,
+    item: str,
+    default: int,
+    min: int = None,
+    max: int = None,
 ) -> None:
     val = parser.getint(item)
-    out[item] = int(default if val is None else val)
+    val = int(default if val is None else val)
+    ensure_between(item, val, min, max)
+    out[item] = val
 
 
 def set_str(
@@ -229,6 +255,8 @@ assignment. You can change these settings <a
 href="{site_url}/courses/{course_id}">here</a>.</p>
         """.strip()
 )
+
+set_float(CONFIG, backend_ops, 'MIN_PASSWORD_SCORE', 3, min=0, max=4)
 
 ############
 # FEATURES #

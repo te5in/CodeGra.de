@@ -23,7 +23,8 @@ import psef
 import psef.models
 import psef.json_encoders as json
 
-from . import errors, models
+from . import validate
+from .. import errors, models
 
 if t.TYPE_CHECKING:  # pragma: no cover
     from psef import model_types  # pylint: disable=unused-import

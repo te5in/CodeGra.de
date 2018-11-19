@@ -210,6 +210,10 @@
 # directory of the celery instance.
 # jplag_jar = jplag.jar
 
+# Minimum required password strength, as calculated by zxcvbn, Dropbox's
+# password strength algorithm.
+# min_password_score = 3
+
 # This section enables you to disable certain features. If you change this
 # config you need to rebuild/restart the front-end and restart the backend
 # otherwise the changes are not applied.

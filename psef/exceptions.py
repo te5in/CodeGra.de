@@ -45,6 +45,7 @@ class APICodes(IntEnum):
     OBJECT_ALREADY_EXISTS = 20
     INVALID_ARCHIVE = 21
     ROUTE_NOT_FOUND = 22
+    WEAK_PASSWORD = 23
 
 
 class InvalidAssignmentState(TypeError):

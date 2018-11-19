@@ -9,7 +9,6 @@ import typing as t
 
 import flask_jwt_extended as flask_jwt
 from flask import request
-from validate_email import validate_email
 
 import psef.auth as auth
 import psef.mail as mail
@@ -19,7 +18,7 @@ from psef import current_user
 from psef.errors import APICodes, APIException
 from psef.models import db
 from psef.helpers import (
-    JSONResponse, EmptyResponse, ExtendedJSONResponse, jsonify,
+    JSONResponse, EmptyResponse, ExtendedJSONResponse, jsonify, validate,
     ensure_json_dict, extended_jsonify, ensure_keys_in_dict,
     make_empty_response
 )
@@ -211,18 +210,13 @@ def user_patch_handle_reset_password() -> JSONResponse[t.Mapping[str, str]]:
                ('token', str),
                ('user_id', int)]
     )
-
     password = t.cast(str, data['new_password'])
     user_id = t.cast(int, data['user_id'])
     token = t.cast(str, data['token'])
 
-    if password == '':
-        raise APIException(
-            'Password should at least be 1 char',
-            f'The password is {len(password)} chars long',
-            APICodes.INVALID_PARAM, 400
-        )
     user = helpers.get_or_404(models.User, user_id)
+    validate.ensure_valid_password(password, user=user)
+
     user.reset_password(token, password)
     db.session.commit()
     return jsonify(
@@ -284,6 +278,18 @@ def user_patch_handle_change_user_data() -> EmptyResponse:
     if old_password != '':
         _ensure_password('', 'The given old password is wrong')
 
+    if current_user.email != email:
+        auth.ensure_permission(GPerm.can_edit_own_info)
+        _ensure_password('email')
+        validate.ensure_valid_email(email)
+        current_user.email = email
+
+    if new_password != '':
+        auth.ensure_permission(GPerm.can_edit_own_password)
+        _ensure_password('password')
+        validate.ensure_valid_password(new_password, user=current_user)
+        current_user.password = new_password
+
     if current_user.name != name:
         auth.ensure_permission(GPerm.can_edit_own_info)
         if name == '':
@@ -292,23 +298,6 @@ def user_patch_handle_change_user_data() -> EmptyResponse:
                 'The given new name was empty', APICodes.INVALID_PARAM, 400
             )
         current_user.name = name
-
-    if current_user.email != email:
-        auth.ensure_permission(GPerm.can_edit_own_info)
-        if not validate_email(email):
-            raise APIException(
-                'The given email is not valid.',
-                'The email "{email}" is not valid.',
-                APICodes.INVALID_PARAM,
-                400,
-            )
-        _ensure_password('email')
-        current_user.email = email
-
-    if new_password != '':
-        _ensure_password('password')
-        auth.ensure_permission(GPerm.can_edit_own_password)
-        current_user.password = new_password
 
     db.session.commit()
     return make_empty_response()

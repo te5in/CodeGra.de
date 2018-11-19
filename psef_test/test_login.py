@@ -218,8 +218,11 @@ def test_login_duplicate_email(
 
 
 @pytest.mark.parametrize(
-    'new_password',
-    [needs_password('wow'), '', missing_error(None)]
+    'new_password', [
+        pytest.param('wow', marks=[pytest.mark.data_error, pytest.mark.needs_password]),
+        needs_password('jeasdasdf123432usdfhjkasd3'),
+        missing_error(None)
+    ]
 )
 @pytest.mark.parametrize(
     'email', [
@@ -265,10 +268,10 @@ def test_update_user_info(
         error = 403
     elif password_err:
         error = 403
-    elif data_err:
-        error = 400
     elif needs_pw and old_password != 'a':
         error = 403
+    elif data_err:
+        error = 400
     else:
         error = False
 
@@ -288,7 +291,7 @@ def test_update_user_info(
             '/api/v1/login',
             error or 204,
             data=data,
-            result=error_template if error else None
+            result=None,
         )
         new_user = m.User.query.get(user_id)
         if not error:
@@ -322,7 +325,7 @@ def test_update_user_info_permissions(
     user_id = user.id
 
     data = {}
-    data['new_password'] = 'new_pw'
+    data['new_password'] = 'new_pwasdfasd@#@WSDFad'
     data['old_password'] = 'a'
     data['email'] = 'new_email@email.com'
     data['name'] = 'new_name'
@@ -359,7 +362,7 @@ def test_update_user_info_permissions(
                 'name': 'NEW_USER',
                 'email': 'a@a.nl',
                 'old_password': 'a',
-                'new_password': 'b'
+                'new_password': 'b@#@#AA!!!SSDSD2342340?'
             },
         )
 
@@ -417,6 +420,8 @@ def test_reset_password(
     to_null,
     stubmailer,
 ):
+    monkeypatch.setitem(app.config, 'MIN_PASSWORD_SCORE', 0)
+
     stubmailer.do_raise = True
 
     test_client.req(
@@ -460,7 +465,7 @@ def test_reset_password(
             'new_password': '',
             'token': token
         },
-        result=error_template,
+        result={**error_template, 'feedback': object},
     )
     test_client.req(
         'patch',
