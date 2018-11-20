@@ -81,6 +81,9 @@ class MySession:  # pragma: no cover
     def add(self, arg: 'Base') -> None:
         ...
 
+    def add_all(self, arg: t.Sequence['Base']) -> None:
+        ...
+
     def flush(self) -> None:
         ...
 
