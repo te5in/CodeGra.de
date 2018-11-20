@@ -283,21 +283,22 @@ def create_app(  # pylint: disable=too-many-statements
 
     @resulting_app.after_request
     def __after_request(res: typ) -> typ:  # pylint: disable=unused-variable
-        queries_amount = g.queries_amount
-        queries_total_duration = g.queries_total_duration
-        queries_max_duration = g.queries_max_duration or 0
+        queries_amount: int = getattr(g, 'queries_amount', 0)
+        queries_total_duration: int = getattr(g, 'queries_total_duration', 0)
+        queries_max_duration: int = getattr(g, 'queries_max_duration', 0) or 0
         log_msg = (
             logger.info if queries_max_duration < 0.5 and queries_amount < 20
             else logger.warning
         )
 
-        cache_hits = g.cache_hits
-        cache_misses = g.cache_misses
+        cache_hits: int = getattr(g, 'cache_hits', 0)
+        cache_misses: int = getattr(g, 'cache_misses', 0)
 
         end_time = datetime.datetime.utcnow()
+        start_time = getattr(g, 'request_start_time', end_time)
         log_msg(
             'Request finished',
-            request_time=(end_time - g.request_start_time).total_seconds(),
+            request_time=(end_time - start_time).total_seconds(),
             status_code=getattr(res, 'status_code', None),
             queries_amount=queries_amount,
             queries_total_duration=queries_total_duration,

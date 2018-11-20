@@ -495,15 +495,20 @@ def _maybe_log_response(obj: object, response: t.Any, extended: bool) -> None:
         ):  # pragma: no cover
             to_log = response.get_json()
             if len(str(to_log)) > 500:
+                logger.bind(truncated=True, truncated_size=len(str(to_log)))
                 to_log = '{:.500} ... [TRUNCATED]'.format(str(to_log))
         else:
             to_log = response.response
+            if len(to_log) > 1000:  # pragma: no cover
+                logger.bind(truncated=True, truncated_size=len(to_log))
+                to_log = '{:.1000} ... [TRUNCATED]'.format(to_log)
         ext = 'extended ' if extended else ''
         logger.info(
             f'Created {ext}json return response',
             reponse_type=str(type(obj)),
             response=to_log,
         )
+        logger.try_unbind('truncated', 'truncated_size')
 
 
 def extended_jsonify(
