@@ -9,7 +9,7 @@ from zxcvbn import zxcvbn
 from validate_email import validate_email as _validate_email
 
 from .. import models
-from ..exceptions import APICodes, APIException
+from ..exceptions import APICodes, ValidationException, WeakPasswordException
 
 
 @t.overload
@@ -51,7 +51,8 @@ def ensure_valid_password(  # pylint: disable=function-redefined
     :param email: The email of the user.
     :param username: The username of the user.
     :returns: Nothing.
-    :raises APIException: When the password is empty or not strong enough.
+    :raises WeakPasswordException: When the password is empty or not
+        strong enough.
     """
 
     extra_inputs: t.List[str] = [name or '', username or '', email or '']
@@ -83,7 +84,7 @@ def ensure_valid_password(  # pylint: disable=function-redefined
         msg = 'Your chosen password is not secure enough.'
         if not result['feedback']['warning']:
             result['feedback']['warning'] = msg
-        raise APIException(
+        raise WeakPasswordException(
             msg, (
                 f'The given password achieved a score of {result["score"]} '
                 f'but a minimum of {min_score} was required.'
@@ -99,10 +100,10 @@ def ensure_valid_email(email: str) -> None:
 
     :param email: The email to check.
     :returns: Nothing.
-    :raises APIException: When the email is not valid.
+    :raises ValidationException: When the email is not valid.
     """
     if not _validate_email(email):
-        raise APIException(
+        raise ValidationException(
             'The given email is not valid.',
             'The email "{email}" is not valid.',
             APICodes.INVALID_PARAM,

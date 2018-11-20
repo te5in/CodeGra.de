@@ -20,7 +20,8 @@
         <submit-button ref="submit"
                        @click.native="submit"
                        label="Login"
-                       :show-empty="false"/>
+                       :show-empty="false"
+                       :delay="2000"/>
 
         <div class="login-links">
             <router-link :to="{ name: 'forgot' }">
@@ -66,14 +67,17 @@ export default {
         submit(event) {
             event.preventDefault();
 
+            const btn = this.$refs.submit;
+
             if (!this.password || !this.username) {
-                this.$refs.submit.fail('Please enter a username and password.');
+                btn.fail('Please enter a username and password.');
                 return;
             }
 
-            this.$refs.submit.submit(this.login({
+            btn.submit(this.login({
                 username: this.username,
                 password: this.password,
+                onWarning: warning => btn.warn(warning.text),
             }).then(() => {
                 this.$router.replace({ name: 'home' });
                 this.$emit('login');

@@ -16,6 +16,7 @@ class APIWarnings(IntEnum):
     CONDITION_ALREADY_MET = 2
     SYMLINK_IN_ARCHIVE = 3
     INVALID_FILENAME = 4
+    WEAK_PASSWORD = 5
 
 
 @unique
@@ -92,3 +93,13 @@ class PermissionException(APIException):
     """The exception used when a permission check fails.
     """
     pass
+
+
+class ValidationException(APIException):
+    """Thrown when some kind of validation fails.
+    """
+
+
+class WeakPasswordException(ValidationException):
+    """Thrown when a password is too weak.
+    """

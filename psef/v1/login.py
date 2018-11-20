@@ -15,11 +15,14 @@ import psef.mail as mail
 import psef.models as models
 import psef.helpers as helpers
 from psef import current_user
-from psef.errors import APICodes, APIException
+from psef.errors import (
+    APICodes, APIWarnings, APIException
+)
+from psef.exceptions import WeakPasswordException
 from psef.models import db
 from psef.helpers import (
     JSONResponse, EmptyResponse, ExtendedJSONResponse, jsonify, validate,
-    ensure_json_dict, extended_jsonify, ensure_keys_in_dict,
+    add_warning, ensure_json_dict, extended_jsonify, ensure_keys_in_dict,
     make_empty_response
 )
 
@@ -79,6 +82,19 @@ def login() -> ExtendedJSONResponse[t.Mapping[str, t.Union[models.User, str]]]:
             'User is not active',
             ('The user with id "{}" is not active any more').format(user.id),
             APICodes.INACTIVE_USER, 403
+        )
+
+    # Check if the current password is safe, and add a warning to the response
+    # if it is not.
+    try:
+        validate.ensure_valid_password(password, user=user)
+    except WeakPasswordException:
+        add_warning(
+            (
+                'Your password does not meet the requirements, consider '
+                'changing it. You will be logged in after a few seconds.'
+            ),
+            APIWarnings.WEAK_PASSWORD,
         )
 
     auth.set_current_user(user)

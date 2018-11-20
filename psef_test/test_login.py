@@ -99,6 +99,44 @@ def test_login(
 
 
 @pytest.mark.parametrize(
+    'password,is_strong', [('a', False), ('a9R!293pQ^/&qzy', True)]
+)
+def test_password_strength_on_login(
+    test_client, session, app, monkeypatch, password, is_strong
+):
+    monkeypatch.setitem(app.config, 'MIN_PASSWORD_SCORE', 0)
+
+    new_user = m.User(
+        name='NEW_USER',
+        email='a@a.nl',
+        password=password,
+        active=True,
+        username='a-the-a-er',
+    )
+    session.add(new_user)
+    session.commit()
+
+    monkeypatch.setitem(app.config, 'MIN_PASSWORD_SCORE', 3)
+
+    res, rv = test_client.req(
+        'post',
+        '/api/v1/login',
+        200,
+        data={
+            'username': new_user.username,
+            'password': password,
+        },
+        result=dict,
+        include_response=True,
+    )
+
+    if is_strong:
+        assert 'warning' not in rv.headers
+    else:
+        assert 'warning' in rv.headers
+
+
+@pytest.mark.parametrize(
     'named_user', [
         does_have_permission('Thomas Schaper'),
         'Student1',
