@@ -81,6 +81,7 @@ def login() -> ExtendedJSONResponse[t.Mapping[str, t.Union[models.User, str]]]:
             APICodes.INACTIVE_USER, 403
         )
 
+    auth.set_current_user(user)
     return extended_jsonify(
         {
             'user':
@@ -113,14 +114,16 @@ def self_information(
 
     :raises PermissionException: If there is no logged in user. (NOT_LOGGED_IN)
     """
-    if request.args.get('type') == 'roles':
+    args = request.args
+    if args.get('type') == 'roles':
         return jsonify(
             {
                 role.course_id: role.name
                 for role in current_user.courses.values()
             }
         )
-    elif request.args.get('type') == 'extended':
+
+    elif helpers.extended_requested() or args.get('type') == 'extended':
         return extended_jsonify(current_user)
     return jsonify(current_user)
 

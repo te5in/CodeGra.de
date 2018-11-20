@@ -100,7 +100,7 @@ def get_submission(
     elif request.args.get('type') == 'feedback':
         auth.ensure_can_see_grade(work)
         return extended_jsonify(get_feedback(work))
-    return extended_jsonify(work)
+    return extended_jsonify(work, use_extended=models.Work)
 
 
 def get_feedback(work: models.Work) -> t.Mapping[str, str]:

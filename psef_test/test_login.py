@@ -66,24 +66,25 @@ def test_login(
     if username is not None:
         data['username'] = username
 
-    res = test_client.req(
-        'post',
-        f'/api/v1/login',
-        error or 200,
-        data=data,
-        result=error_template if error else {
-            'user':
-                {
-                    'email': 'a@a.nl',
-                    'id': int,
-                    'name': 'NEW_USER',
-                    'username': 'a-the-a-er',
-                    'hidden': False,
-                },
-            'access_token': str
-        }
-    )
-    access_token = '' if error else res['access_token']
+    with app.app_context():
+        res = test_client.req(
+            'post',
+            f'/api/v1/login',
+            error or 200,
+            data=data,
+            result=error_template if error else {
+                'user':
+                    {
+                        'email': 'a@a.nl',
+                        'id': int,
+                        'name': 'NEW_USER',
+                        'username': 'a-the-a-er',
+                        'hidden': False,
+                    },
+                'access_token': str
+            }
+        )
+        access_token = '' if error else res['access_token']
 
     with app.app_context():
         test_client.req(
@@ -93,7 +94,8 @@ def test_login(
             headers={'Authorization': f'Bearer {access_token}'}
         )
 
-    test_client.req('get', '/api/v1/login', 401)
+    with app.app_context():
+        test_client.req('get', '/api/v1/login', 401)
 
 
 @pytest.mark.parametrize(
@@ -178,27 +180,28 @@ def test_login_duplicate_email(
     for user_id in [u.id for u in new_users]:
         user = m.User.query.get(user_id)
 
-        res = test_client.req(
-            'post',
-            f'/api/v1/login',
-            200,
-            data={
-                'username': user.username,
-                'password': 'a'
-            },
-            result={
-                'user':
-                    {
-                        'email': 'a@a.nl',
-                        'id': int,
-                        'name': 'NEW_USER',
-                        'username': user.username,
-                        'hidden': False,
-                    },
-                'access_token': str
-            }
-        )
-        access_token = res['access_token']
+        with app.app_context():
+            res = test_client.req(
+                'post',
+                f'/api/v1/login',
+                200,
+                data={
+                    'username': user.username,
+                    'password': 'a'
+                },
+                result={
+                    'user':
+                        {
+                            'email': 'a@a.nl',
+                            'id': int,
+                            'name': 'NEW_USER',
+                            'username': user.username,
+                            'hidden': False,
+                        },
+                    'access_token': str
+                }
+            )
+            access_token = res['access_token']
 
         with app.app_context():
             test_client.req(
@@ -209,12 +212,12 @@ def test_login_duplicate_email(
                 result={
                     'username': user.username,
                     'id': int,
-                    'email': user.email,
                     'name': user.name,
                 }
             )
 
-        test_client.req('get', '/api/v1/login', 401)
+        with app.app_context():
+            test_client.req('get', '/api/v1/login', 401)
 
 
 @pytest.mark.parametrize(

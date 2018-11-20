@@ -151,7 +151,7 @@ export default {
     mounted() {
         this.loading = true;
         Promise.all([
-            this.$http.get('/api/v1/login'),
+            this.$http.get('/api/v1/login?extended'),
             this.$hasPermission(['can_edit_own_info', 'can_edit_own_password']),
         ]).then(([{ data }, [canEditInfo, canEditPw]]) => {
             this.canEditInfo = canEditInfo;

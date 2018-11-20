@@ -106,7 +106,7 @@ def test_lti_new_user_new_course(test_client, app, logged_in, ta_user):
         with app.app_context():
             return test_client.req(
                 'get',
-                '/api/v1/login',
+                '/api/v1/login?extended',
                 200,
                 headers={'Authorization': f'Bearer {token}'} if token else {}
             )
@@ -709,7 +709,7 @@ def test_reset_lti_email(test_client, app, logged_in, ta_user, session):
         with app.app_context():
             return test_client.req(
                 'get',
-                '/api/v1/login',
+                '/api/v1/login?extended',
                 200,
                 headers={'Authorization': f'Bearer {token}'} if token else {}
             )

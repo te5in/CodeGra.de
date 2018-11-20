@@ -23,7 +23,7 @@ from psef.lti import LTI, CanvasLTI
 from psef.models import db
 
 from . import api
-from .. import helpers
+from .. import auth, helpers
 
 logger = structlog.get_logger()
 
@@ -135,6 +135,8 @@ def second_phase_lti_launch() -> helpers.JSONResponse[
     lti = CanvasLTI(launch_params)
 
     user, new_token, updated_email = lti.ensure_lti_user()
+    auth.set_current_user(user)
+
     course = lti.get_course()
     assig = lti.get_assignment(user, course)
     lti.set_user_role(user)

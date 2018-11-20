@@ -909,7 +909,6 @@ class User(Base):
             {
                 'id':    int, # The id of this user.
                 'name':  str, # The full name of this user.
-                'email': str, # The email of this user.
                 'username': str, # The username of this user.
             }
 
@@ -918,7 +917,6 @@ class User(Base):
         return {
             'id': self.id,
             'name': self.name,
-            'email': self.email,
             'username': self.username,
         }
 
@@ -930,6 +928,7 @@ class User(Base):
         .. code:: python
 
             {
+                'email': str, # The email of this user.
                 'hidden': bool, # indicating if this user can once
                                 # see hidden assignments.
                 **self.__to_json__()
@@ -937,7 +936,9 @@ class User(Base):
 
         :returns: A object as described above.
         """
+        is_self = psef.current_user and psef.current_user.id == self.id
         return {
+            'email': self.email if is_self else '<REDACTED>',
             "hidden": self.can_see_hidden,
             **self.__to_json__(),
         }
@@ -3488,7 +3489,8 @@ class PlagiarismRun(Base):
     cases: t.List['PlagiarismCase'] = db.relationship(
         "PlagiarismCase",
         backref=db.backref('plagiarism_run'),
-        order_by='desc(PlagiarismCase.match_avg)'
+        order_by='desc(PlagiarismCase.match_avg)',
+        cascade='all, delete-orphan',
     )
 
     @property

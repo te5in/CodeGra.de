@@ -186,7 +186,7 @@ def test_patch_submission(
         )
 
     with logged_in(ta_user):
-        test_client.req(
+        res = test_client.req(
             'get',
             f'/api/v1/submissions/{work_id}',
             200,
@@ -207,6 +207,7 @@ def test_patch_submission(
                     (None if error or 'feedback' not in data else dict),
             }
         )
+        assert 'email' not in res['user']
 
 
 @pytest.mark.parametrize('filename', ['test_flake8.tar.gz'], indirect=True)
