@@ -27,11 +27,14 @@
                         {{ run.provider_name }}
                     </span>
                     <description-popover hug-text>
-                        <ul slot="description" style="text-align: left;">
-                            <li v-for="config in run.config">
-                                {{ translateOption(config[0], run) }}: {{ config[1] }}
-                            </li>
-                        </ul>
+                        <div slot="description" class="selected-options-popover">
+                            Selected options:
+                            <ul>
+                                <li v-for="config in run.config">
+                                    {{ translateOption(config[0], run) }}: {{ config[1] }}
+                                </li>
+                            </ul>
+                        </div>
                     </description-popover>
                 </td>
                 <td>
@@ -549,7 +552,7 @@ export default {
 };
 </script>
 
-<style lang="less">
+<style lang="less" scoped>
 @import "~mixins.less";
 
 .plagiarism-runner > .loader {
@@ -607,6 +610,15 @@ export default {
     .run-delete {
         width: 1px;
         white-space: nowrap;
+    }
+}
+
+.selected-options-popover {
+    text-align: left;
+
+    ul {
+        padding-left: 1rem;
+        margin-bottom: 0;
     }
 }
 
