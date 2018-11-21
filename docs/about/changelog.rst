@@ -1,22 +1,38 @@
 Changelog
 ==========
 
+Version 1.0.7 (HereBeMonsters.1)
+--------------------------------
+
+**Released**: November 12th, 2018
+
+**Features & Updates:**
+
+- Support files encoded as ISO-8859-1 (latin1) in the frontend.
+  `(#666) <https://github.com/CodeGra-de/CodeGra.de/pull/666>`_
+
+**Fixes:**
+
+- Make it impossible to override the special files of the CodeGrade
+  filesystem. `(#673) <https://github.com/CodeGra-de/CodeGra.de/pull/673>`_
+- Various frontend fixes. `(#664) <https://github.com/CodeGra-de/CodeGra.de/pull/664>`_ `(#669) <https://github.com/CodeGra-de/CodeGra.de/pull/669>`_ `(#671) <https://github.com/CodeGra-de/CodeGra.de/pull/671>`_ `(#674) <https://github.com/CodeGra-de/CodeGra.de/pull/674>`_
+- Improve documentation. `(#672) <https://github.com/CodeGra-de/CodeGra.de/pull/672>`_
+
 Version 1.0.0 (HereBeMonsters)
 ------------------------------
 
 **Released**: October 30th, 2018
 
-Major changes
-~~~~~~~~~~~~~
+**Features & Updates:**
 
--  Add Plagiarism checkers (#486) (#513) (#536) (#555) (#508) (#556)
-   (#645) (#576) It is now possible to check for plagiarism in
+-  Add Plagiarism checkers `(#486) <https://github.com/CodeGra-de/CodeGra.de/pull/486>`_ `(#513) <https://github.com/CodeGra-de/CodeGra.de/pull/513>`_ `(#536) <https://github.com/CodeGra-de/CodeGra.de/pull/536>`_ `(#555) <https://github.com/CodeGra-de/CodeGra.de/pull/555>`_ `(#508) <https://github.com/CodeGra-de/CodeGra.de/pull/508>`_ `(#556) <https://github.com/CodeGra-de/CodeGra.de/pull/556>`_
+   `(#645) <https://github.com/CodeGra-de/CodeGra.de/pull/645>`_ `(#576) <https://github.com/CodeGra-de/CodeGra.de/pull/576>`_: It is now possible to check for plagiarism in
    CodeGrade. This enables privacy aware plagiarism checking. It is
    possible to use check against old CodeGrade assignment and upload
    base code and old submissions that are not in CodeGrade. For more
    information see our documentation.
 
--  Make it possible give grades higher than ten (#500) Teachers can now
+-  Make it possible give grades higher than ten `(#500) <https://github.com/CodeGra-de/CodeGra.de/pull/500>`_: Teachers can now
    indicate that students can receive a grader higher than 10 for an
    assignment, making it possible to create assignments with bonus
    points in CodeGrade. When using within LTI this requires a new LTI
@@ -31,123 +47,119 @@ Major changes
         $Canvas.assignment.pointsPossible
       </lticm:property>
 
-Minor changes
-~~~~~~~~~~~~~
+**Minor changes:**
 
--  Change homepage to login screen (#480) (#496) (#501) (#557) (#616)
+-  Change homepage to login screen `(#480) <https://github.com/CodeGra-de/CodeGra.de/pull/480>`_ `(#496) <https://github.com/CodeGra-de/CodeGra.de/pull/496>`_ `(#501) <https://github.com/CodeGra-de/CodeGra.de/pull/501>`_ `(#557) <https://github.com/CodeGra-de/CodeGra.de/pull/557>`_ `(#616) <https://github.com/CodeGra-de/CodeGra.de/pull/616>`_:
    The homepage has been improved to show all your courses and
    assignments at a glance when logged in.
--  Allow .tar.xz archives to be uploaded (#492) This further improves
+-  Use new logos `(#481) <https://github.com/CodeGra-de/CodeGra.de/pull/481>`_ `(#506) <https://github.com/CodeGra-de/CodeGra.de/pull/506>`_: This updates our logo to the newest and
+   greatest version!
+-  Allow .tar.xz archives to be uploaded `(#492) <https://github.com/CodeGra-de/CodeGra.de/pull/492>`_: This further improves
    the flexibility CodeGrade gives students when handing in submissions.
--  Fix infinite loop overview mode (#477) In some combinations of
+-  Fix infinite loop overview mode `(#477) <https://github.com/CodeGra-de/CodeGra.de/pull/477>`_: In some combinations of
    permissions loading the overview mode resulted in an infinite loader.
--  Add general feedback tab to overview mode (#523) This further
+-  Add general feedback tab to overview mode `(#523) <https://github.com/CodeGra-de/CodeGra.de/pull/523>`_: This further
    decreases the chance that students will miss any of their feedback.
--  Fix broken matchFiles function (#528) (#550) This fixes a bug that
-   files changed inside a directory would not show up in the overview
-   mode.
--  Improve speed of diffing by using another library (#529) Viewer the
+-  Improve speed of diffing by using another library `(#529) <https://github.com/CodeGra-de/CodeGra.de/pull/529>`_: Viewing the
    diff between two large files is a lot faster!
--  Remove the option to automatically generate keys (#554) It is no
+-  Remove the option to automatically generate keys `(#554) <https://github.com/CodeGra-de/CodeGra.de/pull/554>`_: It is no
    longer possible to generate the ``secret_key`` or ``lti_secret_key``
    configuration options. Please update your config accordingly.
--  Rewrite snippets manager (#551) This rewrite should make creating,
+-  Rewrite snippets manager `(#551) <https://github.com/CodeGra-de/CodeGra.de/pull/551>`_: This rewrite should make creating,
    using, deleting and updating snippets faster and more reliable.
--  Drastically improve the experience of CodeGrade on mobile (#558) It
+-  Drastically improve the experience of CodeGrade on mobile `(#558) <https://github.com/CodeGra-de/CodeGra.de/pull/558>`_: It
    is now way easier to use CodeGrade on mobile.
--  Filter users in the user selector (#553) When selecting users (when
+-  Filter users in the user selector `(#553) <https://github.com/CodeGra-de/CodeGra.de/pull/553>`_: When selecting users (when
    uploading for others, or adding to courses) only show users will be
    shown that can be selected.
--  Improve handling of LTI (#561) (#588) A complete rewrite of LTI
+-  Improve handling of LTI `(#561) <https://github.com/CodeGra-de/CodeGra.de/pull/561>`_ `(#588) <https://github.com/CodeGra-de/CodeGra.de/pull/588>`_: A complete rewrite of LTI
    backend handling. This should improve the stability of passbacks by a
    lot. This also guarantees that the submission date in Canvas and
-   CodeGrade will match exactly.
-
-   This also adds a new convenience route ``/api/v1/lti/?lms=Canvas`` to
-   get lti config for the given LMS (Canvas only supported at the
-   moment).
--  Add items to the sidebar conditionally (#578) (#580) (#600) Depending
+   CodeGrade will match exactly. This also adds a new convenience route
+   ``/api/v1/lti/?lms=Canvas`` to get lti config for the given LMS
+   (Canvas only supported at the moment).
+-  Add items to the sidebar conditionally `(#578) <https://github.com/CodeGra-de/CodeGra.de/pull/578>`_ `(#580) <https://github.com/CodeGra-de/CodeGra.de/pull/580>`_ `(#600) <https://github.com/CodeGra-de/CodeGra.de/pull/600>`_: Depending
    on what page you are you will get extra items in the sidebar to help
    quick navigation. Currently plagiarism cases and submissions are
    added depending on the page.
--  Start caching submissions (#643) (#636) Submissions are cached in the
+-  Start caching submissions `(#643) <https://github.com/CodeGra-de/CodeGra.de/pull/643>`_ `(#636) <https://github.com/CodeGra-de/CodeGra.de/pull/636>`_: Submissions are cached in the
    front-end so changing between the codeviewer and submissions list is
    now way quicker.
--  Ensure all rubric rows have a maximum amount of >= 0 points (#579) It
+-  Ensure all rubric rows have a maximum amount of >= 0 points `(#579) <https://github.com/CodeGra-de/CodeGra.de/pull/579>`_: It
    is no longer allowed to have rows in a rubric where the maximum
    possible score is < 0. If you needed this to create rubrics with
    bonus categories simply use the ‘Max points’ option in the rubric
    editor. All existing rubrics are not changed.
 
-Small changes and bugfixes
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+**Fixes:**
 
--  Use new logos (#481) (#506) This updates our logo to the newest and
-   greatest version!
 -  Various small bugs in the sidebar
--  Add a minimum duration on the permission manager loaders (#521) This
+-  Add a minimum duration on the permission manager loaders `(#521) <https://github.com/CodeGra-de/CodeGra.de/pull/521>`_: This
    makes it clearer that permissions are actually updated.
--  Throw an API error when a rubric row contains an empty header (#535)
+-  Throw an API error when a rubric row contains an empty header `(#535) <https://github.com/CodeGra-de/CodeGra.de/pull/535>`_:
    This is a backwards incompatible API change, however it doesn’t
    change anything for the frontend.
--  Fix horizontal overflow on codeviewer (#518) The codeviewer would
+-  Fix broken matchFiles function `(#528) <https://github.com/CodeGra-de/CodeGra.de/pull/528>`_ `(#550) <https://github.com/CodeGra-de/CodeGra.de/pull/550>`_: This fixes a bug that
+   files changed inside a directory would not show up in the overview
+   mode.
+-  Fix horizontal overflow on codeviewer `(#518) <https://github.com/CodeGra-de/CodeGra.de/pull/518>`_: The codeviewer would
    sometimes overflow creating a vertical scrollbar when displaying
    files containing a large amount of consecutive tabs.
--  Check if an assignment is loaded before getting its course (#549) In
+-  Check if an assignment is loaded before getting its course `(#549) <https://github.com/CodeGra-de/CodeGra.de/pull/549>`_: In
    some rare cases LTI launches would fail be cause assignments were not
    loaded correctly.
--  Add structured logging setup (#546) This makes it easier to follow
+-  Add structured logging setup `(#546) <https://github.com/CodeGra-de/CodeGra.de/pull/546>`_: This makes it easier to follow
    requests and debug issues.
--  Fix general feedback line wrapping (#570) Giving long lines as
+-  Fix general feedback line wrapping `(#570) <https://github.com/CodeGra-de/CodeGra.de/pull/570>`_: Giving long lines as
    general feedback should be displayed correctly to the user now.
--  Add manage assignment button to submission list (#574) It is now
+-  Add manage assignment button to submission list `(#574) <https://github.com/CodeGra-de/CodeGra.de/pull/574>`_: It is now
    possible to easily navigate to the manage assignment page from the
    submissions list.
--  Start using enum to store permissions in the backend (#571) Most
+-  Start using enum to store permissions in the backend `(#571) <https://github.com/CodeGra-de/CodeGra.de/pull/571>`_: Most
    routes will be faster by this design change.
--  Improve filetree design (#599) (#611) (#587) It is now easier to spot
+-  Improve filetree design `(#599) <https://github.com/CodeGra-de/CodeGra.de/pull/599>`_ `(#611) <https://github.com/CodeGra-de/CodeGra.de/pull/611>`_ `(#587) <https://github.com/CodeGra-de/CodeGra.de/pull/587>`_: It is now easier to spot
    additions, changes and deletion directly in the filetree.
--  Add ``<noscript>`` tag (#613) An error message will be displayed when
+-  Add ``<noscript>`` tag `(#613) <https://github.com/CodeGra-de/CodeGra.de/pull/613>`_: An error message will be displayed when
    javascript is disabled.
--  Improve speed of filetree operations (#623) Loading large filetrees
+-  Improve speed of filetree operations `(#623) <https://github.com/CodeGra-de/CodeGra.de/pull/623>`_: Loading large filetrees
    is now way quicker by using smarter data-structures.
--  Add health route (#593) It is now possible to more easily monitor the
+-  Add health route `(#593) <https://github.com/CodeGra-de/CodeGra.de/pull/593>`_: It is now possible to more easily monitor the
    health of your CodeGrade instance.
--  Fix fontSize & contextAmount on submission page (#633) Sometimes the
+-  Fix fontSize & contextAmount on submission page `(#633) <https://github.com/CodeGra-de/CodeGra.de/pull/633>`_: Sometimes the
    fields would show up empty, this shouldn’t happen anymore!
--  Replace submitted symlinks with actual files (#627) When a student
+-  Replace submitted symlinks with actual files `(#627) <https://github.com/CodeGra-de/CodeGra.de/pull/627>`_: When a student
    uploads an archive with symlinks the student is warned and all
    symlinks are replaced by files explaining that the original files
    were symlinks but that those are not supported by CodeGrade.
--  Fix grade history popover boundary (#625) The grade history would
+-  Fix grade history popover boundary `(#625) <https://github.com/CodeGra-de/CodeGra.de/pull/625>`_: The grade history would
    sometimes show up outside the screen, but no more!
--  Make it impossible to submit empty archives (#622) A error is shown
+-  Make it impossible to submit empty archives `(#622) <https://github.com/CodeGra-de/CodeGra.de/pull/622>`_: A error is shown
    when a student tries to submit an archive without files.
--  Show toast when local-storage doesn’t work (#607) When a user has no
+-  Show toast when local-storage doesn’t work `(#607) <https://github.com/CodeGra-de/CodeGra.de/pull/607>`_: When a user has no
    local-storage available a warning is shown so the user knows that
    their experience might be sub-optimal.
--  Show author of general feedback and line comments (#564) (#605) The
+-  Show author of general feedback and line comments `(#564) <https://github.com/CodeGra-de/CodeGra.de/pull/564>`_ `(#605) <https://github.com/CodeGra-de/CodeGra.de/pull/605>`_: The
    author of all general feedback and line comments is displayed to the
    user. Only users with the ``can_see_assignee`` permission will see
    authors.
--  Justify description popover text (#596) The text in descriptions is
+-  Justify description popover text `(#596) <https://github.com/CodeGra-de/CodeGra.de/pull/596>`_: The text in descriptions is
    now justified and their popups will only show when the ‘i’ is
    clicked.
--  Only submit rubric items or normal grade (#589) In some rare cases
+-  Only submit rubric items or normal grade `(#589) <https://github.com/CodeGra-de/CodeGra.de/pull/589>`_: In some rare cases
    overriding rubrics would result in a race condition, resulting in
    wrong case.
--  Redesign the download popover on the submission page (#595) This new
+-  Redesign the download popover on the submission page `(#595) <https://github.com/CodeGra-de/CodeGra.de/pull/595>`_: This new
    design looks way better, but you tell us!
 -  Only show overview mode when you have permission to see feedback
-   (#563) When you don’t have permission to see feedback the overview
+   `(#563) <https://github.com/CodeGra-de/CodeGra.de/pull/563>`_: When you don’t have permission to see feedback the overview
    mode will never be shown.
--  Various other performance improvements (#566) We always strive for
+-  Various other performance improvements `(#566) <https://github.com/CodeGra-de/CodeGra.de/pull/566>`_: We always strive for
    the best performance possible, and again in this release we increased
-   the performance of CodeGrade! :tada:
--  Make sure codeviewer is full width on medium pages (#591) This makes
+   the performance of CodeGrade!
+-  Make sure codeviewer is full width on medium pages `(#591) <https://github.com/CodeGra-de/CodeGra.de/pull/591>`_: This makes
    it easier to review and display code on smaller screens.
--  Use custom font in toasted actions (#614) It is now always possible
-   to close toasts, even when your font cannot display ‘✖’
+-  Use custom font in toasted actions `(#614) <https://github.com/CodeGra-de/CodeGra.de/pull/614>`_: It is now always possible
+   to close toasts, even when your font cannot display ‘✖’.
 
 Version 0.23.21 (GodfriedMetDenBaard.2)
 -----------------------------------------

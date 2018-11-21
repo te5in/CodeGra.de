@@ -2,7 +2,7 @@
 <template>
 <div class="userinfo">
     <loader class="col-md-12 text-center" v-if="loading"/>
-    <div @keyup.enter="submit" @keydown.capture="error = ''" v-else>
+    <div @keyup.enter="submit" v-else>
         <b-form-fieldset>
             <b-input-group prepend="Username">
                 <div v-b-popover.top.hover="'You cannot change your username'"
@@ -54,7 +54,7 @@
 
                         However this does require
                         that your email is correct. If this is not the
-                        case you can force CodeGra.de to copy the email
+                        case you can force CodeGrade to copy the email
                         that your LMS gives us the next time you use
                         CodeGra.de within your LMS. To do this please
                         press <submit-button
@@ -75,13 +75,30 @@
         <password-input v-model="newPw" label="New password" v-if="canEditPw"/>
         <password-input v-model="confirmPw" label="Confirm password" v-if="canEditPw"/>
 
-        <b-alert variant="danger" :show="true" v-if="error">
-            {{ error }}
-        </b-alert>
-
         <b-button-toolbar justify v-if="canEditInfo || canEditPw">
             <b-button variant="danger" @click="reset">Reset</b-button>
-            <submit-button @click="submit" ref="submitButton" :showError="false"/>
+
+            <submit-button @click="submit"
+                           ref="submitButton"
+                           :delay="5000"
+                           :confirm="confirmMessage">
+                <template slot="error" slot-scope="error">
+                    <div class="error-message">
+                        <span v-if="error.messages.warning">
+                            {{ error.messages.warning }}
+                        </span>
+
+                        <span v-if="error.messages.suggestions">
+                            <div style="margin-top: 1rem;"><b>Suggestions:</b></div>
+                            <ul>
+                                <li v-for="message in error.messages.suggestions">
+                                    {{ message }}
+                                </li>
+                            </ul>
+                        </span>
+                    </div>
+                </template>
+            </submit-button>
         </b-button-toolbar>
     </div>
 </div>
@@ -116,15 +133,25 @@ export default {
             loading: false,
             canEditInfo: false,
             canEditPw: false,
-            error: '',
             validator,
         };
+    },
+
+    computed: {
+        confirmMessage() {
+            if (this.newPw) {
+                return 'Please make sure you use a unique password, and at least ' +
+                       'different from the password you use for your LMS.';
+            } else {
+                return '';
+            }
+        },
     },
 
     mounted() {
         this.loading = true;
         Promise.all([
-            this.$http.get('/api/v1/login'),
+            this.$http.get('/api/v1/login?extended'),
             this.$hasPermission(['can_edit_own_info', 'can_edit_own_password']),
         ]).then(([{ data }, [canEditInfo, canEditPw]]) => {
             this.canEditInfo = canEditInfo;
@@ -152,33 +179,33 @@ export default {
             this.oldPw = '';
             this.newPw = '';
             this.confirmPw = '';
-            this.error = '';
         },
 
         submit() {
-            this.error = '';
+            const btn = this.$refs.submitButton;
 
             if (this.newPw !== this.confirmPw) {
-                this.error = 'New password doesn\'t match confirm password.';
-                return;
+                return btn.fail({
+                    warning: 'New password doesn\'t match confirm password.',
+                });
             }
             if (!validator.validate(this.email)) {
-                this.error = 'The given email is not valid.';
-                return;
+                return btn.fail({
+                    warning: 'The given email is not valid.',
+                });
             }
 
-            const req = this.$store.dispatch('user/updateUserInfo', {
-                name: this.name,
-                email: this.email,
-                oldPw: this.oldPw,
-                newPw: this.newPw,
-            });
-            req.then(() => {
-                this.reset();
-            }, ({ response }) => {
-                this.error = response.data.message;
-            });
-            this.$refs.submitButton.submit(req);
+            return btn.submitFunction(() =>
+                this.$store.dispatch('user/updateUserInfo', {
+                    name: this.name,
+                    email: this.email,
+                    oldPw: this.oldPw,
+                    newPw: this.newPw,
+                }).then(() => {
+                    this.reset();
+                }, ({ response }) => {
+                    throw response.data.feedback || { warning: response.data.message };
+                }));
         },
     },
 
@@ -191,3 +218,14 @@ export default {
     },
 };
 </script>
+
+<style lang="less" scoped>
+.error-message {
+    text-align: left;
+
+    ul {
+        margin-bottom: 0;
+        padding-left: 1rem;
+    }
+}
+</style>

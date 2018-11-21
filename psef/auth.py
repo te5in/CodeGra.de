@@ -7,6 +7,8 @@ from functools import wraps
 
 import oauth2
 import flask_jwt_extended as flask_jwt
+from flask import _app_ctx_stack
+from werkzeug.local import LocalProxy
 from mypy_extensions import NoReturn
 
 import psef
@@ -123,6 +125,25 @@ def ensure_enrolled(course_id: int) -> None:
                 psef.current_user.id, course_id
             ), APICodes.INCORRECT_PERMISSION, 403
         )
+
+def set_current_user(user: 'psef.models.User') -> None:
+    """Set the current user for this request.
+
+    You probably never should use this method, it is only useful after logging
+    in a user.
+
+    :param user: The user that should become the current user.
+    :returns: Nothing
+    """
+    # This prevents infinite recursion if the `user` is a `LocalProxy` by
+    # making sure we always assign an actual User object.
+    if isinstance(user, LocalProxy):
+        # pylint: disable=protected-access
+        user = psef.current_user._get_current_object()  # type: ignore
+    # This sets the current user for flask jwt. See
+    # https://github.com/vimalloc/flask-jwt-extended/issues/206 to make this
+    # easier.
+    _app_ctx_stack.top.jwt_user = user
 
 
 @login_required
@@ -491,7 +512,10 @@ class RequestValidatorMixin:
             )
 
             oauth_request = oauth2.Request.from_request(
-                method, url, headers=headers, parameters=parameters
+                method,
+                url,
+                headers=headers,
+                parameters=parameters,
             )
 
             self.oauth_server.verify_request(
@@ -539,7 +563,9 @@ class _FlaskOAuthValidator(RequestValidatorMixin):
         '''
         Parse Flask request
         '''
-        return (req.method, req.url, dict(req.headers), req.form.copy())
+        # base_url is used because of:
+        # https://github.com/instructure/canvas-lms/issues/600
+        return (req.method, req.base_url, dict(req.headers), req.form.copy())
 
 
 def ensure_valid_oauth(

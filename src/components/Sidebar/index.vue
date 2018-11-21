@@ -8,7 +8,11 @@
             <router-link class="sidebar-top-item logo"
                          :to="{ name: 'home' }"
                          @click.native="closeSubMenu(true)">
-                <img src="/static/img/logo.svg" v-if="showRegularLogo"/>
+                <img src="/static/img/CodeGrade_christmas.svg"
+                     v-if="isChristmas && showRegularLogo"/>
+                <img src="/static/img/CodeGrade_christmas_dark.svg"
+                     v-else-if="isChristmas && showInvertedLogo"/>
+                <img src="/static/img/logo.svg" v-else-if="showRegularLogo"/>
                 <img src="/static/img/logo-inv.svg" v-else-if="showInvertedLogo"/>
                 <img src="/static/img/codegrade.svg" v-else/>
             </router-link>
@@ -122,6 +126,7 @@
 
 <script>
 import { mapActions, mapGetters } from 'vuex';
+import moment from 'moment';
 
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/arrow-left';
@@ -188,7 +193,7 @@ export default {
                     name: 'register',
                     icon: 'rocket',
                     header: 'Register',
-                    condition: () => !this.loggedIn,
+                    condition: () => UserConfig.features.register && !this.loggedIn,
                     onClick: () => {
                         this.$router.push({ name: 'register' });
                     },
@@ -278,6 +283,14 @@ export default {
         ...mapGetters('courses', ['courses', 'assignments']),
 
         ...mapGetters('user', ['loggedIn', 'name']),
+
+        now() {
+            return moment();
+        },
+
+        isChristmas() {
+            return this.now.month() === 11 && this.now.date() <= 26;
+        },
 
         floating() {
             return this.$inLTI ||

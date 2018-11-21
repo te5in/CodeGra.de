@@ -158,6 +158,8 @@ export default {
 </style>
 
 <style lang="less">
+@import "~mixins.less";
+
 .submission-nav-bar .dropdown button {
     width: 100%;
     font-size: 1rem;
@@ -175,10 +177,17 @@ export default {
 }
 
 .nav-wrapper .title {
+    .default-text-colors;
+
     flex: 1;
-    background: white;
+    background-color: white;
     border: 1px solid #ccc;
     text-align: center;
-    padding: 0.375rem 0.75rem
+    padding: 0.375rem 0.75rem;
+
+    #app.dark & {
+        background-color: @color-primary;
+        border-color: @color-primary-darker;
+    }
 }
 </style>

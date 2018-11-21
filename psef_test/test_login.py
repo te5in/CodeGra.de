@@ -66,24 +66,25 @@ def test_login(
     if username is not None:
         data['username'] = username
 
-    res = test_client.req(
-        'post',
-        f'/api/v1/login',
-        error or 200,
-        data=data,
-        result=error_template if error else {
-            'user':
-                {
-                    'email': 'a@a.nl',
-                    'id': int,
-                    'name': 'NEW_USER',
-                    'username': 'a-the-a-er',
-                    'hidden': False,
-                },
-            'access_token': str
-        }
-    )
-    access_token = '' if error else res['access_token']
+    with app.app_context():
+        res = test_client.req(
+            'post',
+            f'/api/v1/login',
+            error or 200,
+            data=data,
+            result=error_template if error else {
+                'user':
+                    {
+                        'email': 'a@a.nl',
+                        'id': int,
+                        'name': 'NEW_USER',
+                        'username': 'a-the-a-er',
+                        'hidden': False,
+                    },
+                'access_token': str
+            }
+        )
+        access_token = '' if error else res['access_token']
 
     with app.app_context():
         test_client.req(
@@ -93,7 +94,46 @@ def test_login(
             headers={'Authorization': f'Bearer {access_token}'}
         )
 
-    test_client.req('get', '/api/v1/login', 401)
+    with app.app_context():
+        test_client.req('get', '/api/v1/login', 401)
+
+
+@pytest.mark.parametrize(
+    'password,is_strong', [('a', False), ('a9R!293pQ^/&qzy', True)]
+)
+def test_password_strength_on_login(
+    test_client, session, app, monkeypatch, password, is_strong
+):
+    monkeypatch.setitem(app.config, 'MIN_PASSWORD_SCORE', 0)
+
+    new_user = m.User(
+        name='NEW_USER',
+        email='a@a.nl',
+        password=password,
+        active=True,
+        username='a-the-a-er',
+    )
+    session.add(new_user)
+    session.commit()
+
+    monkeypatch.setitem(app.config, 'MIN_PASSWORD_SCORE', 3)
+
+    res, rv = test_client.req(
+        'post',
+        '/api/v1/login',
+        200,
+        data={
+            'username': new_user.username,
+            'password': password,
+        },
+        result=dict,
+        include_response=True,
+    )
+
+    if is_strong:
+        assert 'warning' not in rv.headers
+    else:
+        assert 'warning' in rv.headers
 
 
 @pytest.mark.parametrize(
@@ -178,27 +218,28 @@ def test_login_duplicate_email(
     for user_id in [u.id for u in new_users]:
         user = m.User.query.get(user_id)
 
-        res = test_client.req(
-            'post',
-            f'/api/v1/login',
-            200,
-            data={
-                'username': user.username,
-                'password': 'a'
-            },
-            result={
-                'user':
-                    {
-                        'email': 'a@a.nl',
-                        'id': int,
-                        'name': 'NEW_USER',
-                        'username': user.username,
-                        'hidden': False,
-                    },
-                'access_token': str
-            }
-        )
-        access_token = res['access_token']
+        with app.app_context():
+            res = test_client.req(
+                'post',
+                f'/api/v1/login',
+                200,
+                data={
+                    'username': user.username,
+                    'password': 'a'
+                },
+                result={
+                    'user':
+                        {
+                            'email': 'a@a.nl',
+                            'id': int,
+                            'name': 'NEW_USER',
+                            'username': user.username,
+                            'hidden': False,
+                        },
+                    'access_token': str
+                }
+            )
+            access_token = res['access_token']
 
         with app.app_context():
             test_client.req(
@@ -209,17 +250,20 @@ def test_login_duplicate_email(
                 result={
                     'username': user.username,
                     'id': int,
-                    'email': user.email,
                     'name': user.name,
                 }
             )
 
-        test_client.req('get', '/api/v1/login', 401)
+        with app.app_context():
+            test_client.req('get', '/api/v1/login', 401)
 
 
 @pytest.mark.parametrize(
-    'new_password',
-    [needs_password('wow'), '', missing_error(None)]
+    'new_password', [
+        pytest.param('wow', marks=[pytest.mark.data_error, pytest.mark.needs_password]),
+        needs_password('jeasdasdf123432usdfhjkasd3'),
+        missing_error(None)
+    ]
 )
 @pytest.mark.parametrize(
     'email', [
@@ -265,10 +309,10 @@ def test_update_user_info(
         error = 403
     elif password_err:
         error = 403
-    elif data_err:
-        error = 400
     elif needs_pw and old_password != 'a':
         error = 403
+    elif data_err:
+        error = 400
     else:
         error = False
 
@@ -288,7 +332,7 @@ def test_update_user_info(
             '/api/v1/login',
             error or 204,
             data=data,
-            result=error_template if error else None
+            result=None,
         )
         new_user = m.User.query.get(user_id)
         if not error:
@@ -322,7 +366,7 @@ def test_update_user_info_permissions(
     user_id = user.id
 
     data = {}
-    data['new_password'] = 'new_pw'
+    data['new_password'] = 'new_pwasdfasd@#@WSDFad'
     data['old_password'] = 'a'
     data['email'] = 'new_email@email.com'
     data['name'] = 'new_name'
@@ -359,7 +403,7 @@ def test_update_user_info_permissions(
                 'name': 'NEW_USER',
                 'email': 'a@a.nl',
                 'old_password': 'a',
-                'new_password': 'b'
+                'new_password': 'b@#@#AA!!!SSDSD2342340?'
             },
         )
 
@@ -417,6 +461,8 @@ def test_reset_password(
     to_null,
     stubmailer,
 ):
+    monkeypatch.setitem(app.config, 'MIN_PASSWORD_SCORE', 0)
+
     stubmailer.do_raise = True
 
     test_client.req(
@@ -460,7 +506,7 @@ def test_reset_password(
             'new_password': '',
             'token': token
         },
-        result=error_template,
+        result={**error_template, 'feedback': object},
     )
     test_client.req(
         'patch',

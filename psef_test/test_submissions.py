@@ -186,7 +186,7 @@ def test_patch_submission(
         )
 
     with logged_in(ta_user):
-        test_client.req(
+        res = test_client.req(
             'get',
             f'/api/v1/submissions/{work_id}',
             200,
@@ -207,6 +207,7 @@ def test_patch_submission(
                     (None if error or 'feedback' not in data else dict),
             }
         )
+        assert 'email' not in res['user']
 
 
 @pytest.mark.parametrize('filename', ['test_flake8.tar.gz'], indirect=True)
@@ -804,13 +805,15 @@ def test_clearing_rubric(
 @pytest.mark.parametrize('filename', ['test_flake8.tar.gz'], indirect=True)
 def test_selecting_wrong_rubric(
     request, test_client, logged_in, error_template, ta_user,
-    assignment_real_works, session, course_name, teacher_user
+    assignment_real_works, session, course_name, teacher_user, student_user
 ):
     assignment, work = assignment_real_works
     course = m.Course.query.filter_by(name=course_name).one()
 
     other_assignment = m.Assignment(name='OTHER ASSIGNMENT', course=course)
-    other_work = m.Work(assignment=other_assignment)
+    other_work = m.Work(
+        assignment=other_assignment, user=student_user._get_current_object()
+    )
     session.add(other_assignment)
     session.add(other_work)
     session.commit()

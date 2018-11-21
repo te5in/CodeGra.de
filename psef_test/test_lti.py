@@ -106,7 +106,7 @@ def test_lti_new_user_new_course(test_client, app, logged_in, ta_user):
         with app.app_context():
             return test_client.req(
                 'get',
-                '/api/v1/login',
+                '/api/v1/login?extended',
                 200,
                 headers={'Authorization': f'Bearer {token}'} if token else {}
             )
@@ -318,12 +318,12 @@ def test_lti_grade_passback(
 
         el = _get_parsed(last_xml)
         req_el = el.find('imsx_POXBody/replaceResultRequest/resultRecord')
+        assert req_el
 
         assert req_el.find(
             'sourcedGUID/sourcedId'
         ).text == patch_request.source_id
 
-        assert req_el
         assert el.find(
             'imsx_POXHeader/imsx_POXRequestHeaderInfo/imsx_messageIdentifier'
         ) is not None
@@ -345,6 +345,29 @@ def test_lti_grade_passback(
         assert el.find(
             'imsx_POXBody/replaceResultRequest/submissionDetails/submittedAt'
         ).text.startswith(created_at)
+
+        last_xml = None
+
+    def assert_initial_passback():
+        nonlocal last_xml
+
+        el = _get_parsed(last_xml)
+        req_el = el.find('imsx_POXBody/replaceResultRequest/resultRecord')
+        assert req_el
+
+        assert req_el.find(
+            'sourcedGUID/sourcedId'
+        ).text == patch_request.source_id
+        assert el.find(
+            'imsx_POXHeader/imsx_POXRequestHeaderInfo/imsx_messageIdentifier'
+        ) is not None
+
+        # No grade should be passed back
+        assert req_el.find('result/resultTotalScore') is None
+        assert req_el.find('result/resultScore') is None
+
+        # Result data should be passed back
+        assert req_el.find('result/resultData') is not None
 
         last_xml = None
 
@@ -454,10 +477,10 @@ def test_lti_grade_passback(
             headers={'Authorization': f'Bearer {token}'},
         )
 
-    # As we only support canvas it SHOULD NOT do a initial passback
     assig, token = do_lti_launch()
     work = get_upload_file(token, assig['id'])
-    assert not patch_request.called
+    assert patch_request.called
+    assert_initial_passback()
 
     # Assignment is not open so it should not passback the grade
     set_grade(token, 5.0, work['id'])
@@ -557,14 +580,16 @@ def test_lti_assignment_create(
         username='A the A-er',
         lti_id='USER_ID',
         source_id='NON_EXISTING2!',
-        published='false'
+        published='false',
+        course_name='NEW_COURSE',
+        assig_name='MY_ASSIG_TITLE',
     ):
         with app.app_context():
             data = {
-                'custom_canvas_course_name': 'NEW_COURSE',
+                'custom_canvas_course_name': course_name,
                 'custom_canvas_course_id': 'MY_COURSE_ID_100',
                 'custom_canvas_assignment_id': 'MY_ASSIG_ID_100',
-                'custom_canvas_assignment_title': 'MY_ASSIG_TITLE',
+                'custom_canvas_assignment_title': assig_name,
                 'roles': 'administrator,instructor',
                 'custom_canvas_user_login_id': username,
                 'custom_canvas_course_title': 'Common Lisp',
@@ -595,7 +620,7 @@ def test_lti_assignment_create(
                 assert m.Assignment.query.get(
                     lti_res['assignment']['id']
                 ).state == m._AssignmentStateEnum.open
-            assert lti_res['assignment']['course']['name'] == 'NEW_COURSE'
+            assert lti_res['assignment']['course']['name'] == course_name
             return lti_res['assignment'], lti_res.get('access_token', None)
 
     with app.app_context():
@@ -611,6 +636,15 @@ def test_lti_assignment_create(
             headers={'Authorization': f'Bearer {token}'},
             result=error_template,
         )
+
+        # Make sure name of course and assignment is updated with new launches
+        course_name = 'NEW_NAME!!!!'
+        assig_name = 'NEW_ASSIG_NAME!!!!'
+        assig, _ = do_lti_launch(
+            course_name=course_name, assig_name=assig_name
+        )
+        assert assig['name'] == assig_name
+        assert assig['course']['name'] == course_name
 
 
 def test_reset_lti_email(test_client, app, logged_in, ta_user, session):
@@ -675,7 +709,7 @@ def test_reset_lti_email(test_client, app, logged_in, ta_user, session):
         with app.app_context():
             return test_client.req(
                 'get',
-                '/api/v1/login',
+                '/api/v1/login?extended',
                 200,
                 headers={'Authorization': f'Bearer {token}'} if token else {}
             )

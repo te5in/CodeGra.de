@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 #
-# CodeGra.de documentation build configuration file, created by
+# CodeGrade documentation build configuration file, created by
 # sphinx-quickstart on Thu Jun 29 15:43:19 2017.
 #
 # This file is execfile()d with the current directory set to its
@@ -20,8 +20,9 @@
 import os
 import sys
 import subprocess
-import sphinx_fontawesome
 from datetime import date
+
+import sphinx_fontawesome
 
 sys.path.insert(0, os.path.abspath('../'))
 
@@ -121,6 +122,7 @@ htmlhelp_basename = 'CodeGradedoc'
 
 # -- Options for LaTeX output ---------------------------------------------
 
+latex_engine = 'xelatex'
 latex_elements = {
     # The paper size ('letterpaper' or 'a4paper').
     #
@@ -137,19 +139,28 @@ latex_elements = {
     # Latex figure (float) alignment
     #
     # 'figure_align': 'htbp',
+    'inputenc': '',
+    'utf8extra': '',
+    'preamble': r'''
+\setcounter{tocdepth}{2}
+\usepackage{comment}
+\excludecomment{sphinxtheindex}
+\let\endsphinxtheindex\relax
+''',
 }
+
 
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
-latex_documents = [(master_doc, 'CodeGrade.tex', 'CodeGrade Documentation',
+latex_documents = [(master_doc, 'CodeGrade.tex', 'CodeGrade User Manual',
                     author, 'manual'), ]
 
 # -- Options for manual page output ---------------------------------------
 
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
-man_pages = [(master_doc, 'codegrade', 'CodeGrade Documentation', [author],
+man_pages = [(master_doc, 'codegrade', 'CodeGrade Manual', [author],
               1)]
 
 # -- Options for Texinfo output -------------------------------------------
@@ -158,8 +169,9 @@ man_pages = [(master_doc, 'codegrade', 'CodeGrade Documentation', [author],
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'CodeGrade', 'CodeGrade Documentation', author, 'CodeGrade',
-     'One line description of project.', 'Miscellaneous'),
+    (master_doc, 'CodeGrade', 'CodeGrade User Manual', author, 'CodeGrade',
+     'Codegrade is a blended learning tool that makes grading programming ' +
+     'assignments more intuitive.', 'Miscellaneous'),
 ]
 
 todo_include_todos = True

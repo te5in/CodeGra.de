@@ -55,13 +55,6 @@ export default {
                 }
 
                 this.$LTIAssignmentId = data.assignment.id;
-                this.$router.replace({
-                    name: 'assignment_submissions',
-                    params: {
-                        courseId: data.assignment.course.id,
-                        assignmentId: data.assignment.id,
-                    },
-                });
                 if (data.new_role_created) {
                     this.$toasted.info(
                         `You do not have any permissions yet, please ask your teacher to enable them for your role "${data.new_role_created}".`,
@@ -91,6 +84,17 @@ export default {
                             },
                         },
                     );
+                }
+                if (this.$route.query.redirect && this.$route.query.redirect.startsWith('/')) {
+                    this.$router.replace(this.$route.query.redirect);
+                } else {
+                    this.$router.replace({
+                        name: 'assignment_submissions',
+                        params: {
+                            courseId: data.assignment.course.id,
+                            assignmentId: data.assignment.id,
+                        },
+                    });
                 }
             }).catch((err) => {
                 if (first && err.response && err.response.status === 401) {

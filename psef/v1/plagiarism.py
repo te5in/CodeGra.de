@@ -7,6 +7,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 """
 import typing as t
 
+from sqlalchemy.orm import defaultload
+
 from . import api
 from .. import auth, models, helpers, plagiarism
 from ..helpers import (
@@ -60,7 +62,18 @@ def get_plagiarism_run(
     :raises PermissionException: If the user can not view plagiarism runs or
         cases for the course associated with the run. (INCORRECT_PERMISSION)
     """
-    run = helpers.get_or_404(models.PlagiarismRun, plagiarism_id)
+    run = helpers.get_or_404(
+        models.PlagiarismRun,
+        plagiarism_id,
+        options=[
+            defaultload(models.PlagiarismRun.cases).defaultload(
+                models.PlagiarismCase.work1
+            ).joinedload(models.Work.selected_items),
+            defaultload(models.PlagiarismRun.cases).defaultload(
+                models.PlagiarismCase.work2
+            ).joinedload(models.Work.selected_items),
+        ],
+    )
     auth.ensure_permission(CPerm.can_view_plagiarism, run.assignment.course_id)
 
     if helpers.extended_requested():
@@ -83,7 +96,18 @@ def get_plagiarism_run_cases(
     :raises PermissionException: If the user can not view plagiarism runs or
         cases for the course associated with the run. (INCORRECT_PERMISSION)
     """
-    run = helpers.get_or_404(models.PlagiarismRun, plagiarism_id)
+    run = helpers.get_or_404(
+        models.PlagiarismRun,
+        plagiarism_id,
+        options=[
+            defaultload(models.PlagiarismRun.cases).defaultload(
+                models.PlagiarismCase.work1
+            ).joinedload(models.Work.selected_items),
+            defaultload(models.PlagiarismRun.cases).defaultload(
+                models.PlagiarismCase.work2
+            ).joinedload(models.Work.selected_items),
+        ],
+    )
     auth.ensure_permission(CPerm.can_view_plagiarism, run.assignment.course_id)
     return jsonify(run.cases)
 

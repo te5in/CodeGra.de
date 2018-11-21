@@ -1,11 +1,15 @@
+.. _management-chapter:
+
 Course and Assignment Management
-=================================
+========================================
 The :fa:`cog` button next to courses or assignments is visible to all users with the right
 permissions to manage courses or assignments. Clicking this button shows the corresponding
 management page.
 
 Additionally, clicking on the name of a course results in an overview of its assignments and
 still allows to click the :fa:`cog` button on the bottom right to show the management page.
+
+.. _course-management:
 
 Course Management
 -------------------
@@ -14,20 +18,25 @@ The course management page displays a list of all users (students, teachers and 
 
 .. note:: Course management is done in your learning management system if the course is connected, however managing roles and permissions is still done in CodeGrade.
 
-The second tab shows an overview of all roles and their specific permissions. Existing roles can be altered and
-completely new roles can be added via the dialog on the bottom of the page. More information about the
-specific course permissions can be found in the `next chapter <permissions.html>`__.
+The second tab shows an overview of all roles and their specific
+permissions. Existing roles can be altered and completely new roles can be added
+via the dialog on the bottom of the page. More information about the specific
+course permissions can be found in the :ref:`next chapter
+<permissions-chapter>`.
 
 Creating a new Course
 ~~~~~~~~~~~~~~~~~~~~~~
-Specific `site permissions <permissions.html#site-permissions>`__ are required to create a course,
-usually this can be done only be site administrators. If these permissions are set, a course can be
-created by navigating to the courses menu and clicking the :fa:`plus` icon. The name for the new course can then be given.
+Specific :ref:`site permissions <site-permissions>` are required to create a
+course, usually this can be done only be site administrators. If these
+permissions are set, a course can be created by navigating to the courses menu
+and clicking the :fa:`plus` icon. The name for the new course can then be given.
 
 Assignment Management
 ----------------------
 Clicking the :fa:`cog` button next to a specific assignment shows the assignment management page. Usually all teachers and
 course designers can manage courses. Next to basic settings as the assignment name and deadline this page provides some more advanced features.
+
+.. _manage-assignment-state:
 
 Assignment State
 ~~~~~~~~~~~~~~~~~~~
@@ -52,14 +61,22 @@ Manually assigning submissions is possible via the submission list, by selecting
 Linters
 ~~~~~~~~~
 CodeGrade provides several linters (e.g. Flake8 or Pylint). A linter analyses
-submissions to flag programming errors, bugs, stylistic errors, or suspicious constructs, depending on the linter's characteristics. After
-selecting the right linter and optionally writing a config file (custom config files can be given, however using an empty config file is recommended, please
-consult the specific linter's documentation for details on writing config files), the linter can be run using the 'Run' button.
+submissions to flag programming errors, bugs, stylistic errors, or suspicious
+constructs, depending on the linter's characteristics. After selecting the right
+linter and optionally writing a config file (custom config files can be given,
+however using an empty config file is recommended, please consult the specific
+linter's documentation for details on writing config files), the linter can be
+run using the 'Run' button.
 
-The output of the linter will be displayed in the `Codeviewer <codeviewer.html>`__ and indicated by red line numbers that
-display the linter output by hovering over. Linters can often be useful to provide a quick overview of stylistic errors or bad constructs.
+The output of the linter will be displayed in the :ref:`Codeviewer
+<codeviewer-chapter>` and indicated by red line numbers that display the linter
+output by hovering over. Linters can often be useful to provide a quick overview
+of stylistic errors or bad constructs.
 
-.. note:: However linter output can be very useful when manually grading, they cannot be used to automatically assign grades based on the linter output.
+.. note::
+
+    However linter output can be very useful when manually grading, they cannot
+    be used to automatically assign grades based on the linter output.
 
 CGIgnore File
 ~~~~~~~~~~~~~
@@ -93,8 +110,10 @@ CodeGrade provides two types of e-mail notifications to enable essential communi
 
 Plagiarism Detection
 ~~~~~~~~~~~~~~~~~~~~~~
-CodeGrade offers built in plagiarism detection functionalities, to efficiently and clearly detect for plagiarism on programming assignments.
-Please consult the `Plagiarism Detection <plagiarism.html>`__ chapter for more information.
+CodeGrade offers built in plagiarism detection functionalities, to efficiently
+and clearly detect for plagiarism on programming assignments.  Please consult
+the :ref:`Plagiarism Detection <plagiarism-chapter>` chapter for more
+information.
 
 Rubrics
 ~~~~~~~~~~
@@ -102,8 +121,10 @@ Rubrics are an indispensable tool in modern day education and allow for easy and
 Sophisticated rubrics can be made in CodeGrade. A basic rubric consist of multiple categories that all have multiple levels and corresponding
 points. All components in a CodeGrade rubric can have a name and description.
 
-A new category can be created by clicking the :fa:`plus` button. A name and description can be given, furthermore a number of levels can
-be given. New levels are automatically added by typing in previous levels and levels can be removed by pressing the :fa:`multiply` button.
+A new category can be created by clicking the :fa:`plus` button. A name and
+description can be given, furthermore a number of levels can be given. New
+levels are automatically added by typing in previous levels and levels can be
+removed by pressing the :fa:`times` button.
 
 Each level can be assigned a number of points (usually descending). The total number of points is automatically incremented by the given
 points but can be manually overridden if requested.
@@ -114,6 +135,8 @@ Uploading Submissions
 ~~~~~~~~~~~~~~~~~~~~~~~
 Submissions can be uploaded via the assignment management page too. Using the *Upload submission* tool submissions can be uploaded as
 any requested user: hand in submissions for students or hand in as administrator by selecting a user via the search bar.
+
+.. _upload-blackboard-zip:
 
 Uploading Blackboard Archives
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -130,6 +153,9 @@ If a student does not yet have a CodeGrade account, a new account will be create
 
 Creating a new Assignment
 ~~~~~~~~~~~~~~~~~~~~~~~~~
-With the right `permissions <permissions.html>`__ new assignments for a course can be created. To do this, select the course in the
-Course menu and click on it to display its assignment list. A new assignment can now be created for this course using the :fa:`plus` button
-on the bottom of the menu-screen. Press *Add* after specifying a name for the assignment to create it.
+With the right :ref:`permissions <permissions-chapter>` new assignments for a
+course can be created. To do this, select the course in the Course menu and
+click on it to display its assignment list. A new assignment can now be created
+for this course using the :fa:`plus` button on the bottom of the
+menu-screen. Press *Add* after specifying a name for the assignment to create
+it.

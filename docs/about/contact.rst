@@ -1,5 +1,7 @@
+.. _contact-chapter:
+
 Contact Us
-==========
+============
 Please feel free to contact us at info@codegra.de for more information or
 commercial support. More information on getting started with CodeGrade at your institute
-can be found on `CodeGra.de <https://codegra.de>`_.
+can be found on `our website <https://codegra.de>`_.

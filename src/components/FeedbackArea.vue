@@ -347,6 +347,13 @@ export default {
 }
 
 .feedback-area-wrapper {
+    .default-text-colors;
+    background-color: white;
+
+    #app.dark & {
+        background-color: @color-primary-darker;
+    }
+
     &.non-editable {
         display: flex;
         align-items: top;
@@ -356,8 +363,6 @@ export default {
 }
 
 .feedback-area {
-    .default-text-colors;
-
     &.non-editable {
         margin-top: 0;
         background-color: @footer-color;

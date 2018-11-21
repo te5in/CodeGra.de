@@ -19,8 +19,11 @@
     <b-popover :show="shouldShowMessage"
                triggers=""
                :target="btnId"
-               :placement="popoverPlacement">
-        <span>{{ err }}</span>
+               :placement="popoverPlacement"
+               @hide="reset">
+        <slot name="error" :messages="err">
+            <span>{{ err }}</span>
+        </slot>
     </b-popover>
 
     <b-popover v-if="confirm"
@@ -35,7 +38,7 @@
         <b-button-toolbar justify>
             <b-button variant="danger"
                       size="sm"
-                      @click="onClick">
+                      @click="confirmAction">
                 Yes
             </b-button>
             <b-button variant="success"
@@ -69,6 +72,7 @@ export default {
             timeout: null,
             showConfirm: false,
             confirmEvent: null,
+            confirmAction: null,
         };
     },
 
@@ -146,9 +150,34 @@ export default {
             type: String,
             default: '',
         },
+        mult: {
+            type: Number,
+            default: 1,
+        },
     },
 
     methods: {
+        submitFunction(func) {
+            if (this.pending) {
+                // TODO: We should keep a queue of requests and handle them one after the other,
+                // instead of simply rejecting to initiate a request.
+                return Promise.reject();
+            }
+
+            if (this.confirm && !this.showConfirm) {
+                this.$refs.confirmPopover.$emit('open');
+                this.showConfirm = true;
+                return new Promise((resolve) => {
+                    this.confirmAction = () => {
+                        this.resetConfirm();
+                        resolve(this.submitFunction(func));
+                    };
+                });
+            } else {
+                return this.submit(func());
+            }
+        },
+
         submit(promise) {
             this.pending = true;
             this.cancelled = false;
@@ -221,8 +250,10 @@ export default {
                 return;
             }
             if (this.confirm && !this.showConfirm) {
+                event.stopImmediatePropagation();
                 this.$refs.confirmPopover.$emit('open');
                 this.showConfirm = true;
+                this.confirmAction = this.onClick;
                 this.confirmEvent = event;
             } else {
                 this.$emit('click', this.confirmEvent || event);
@@ -232,6 +263,7 @@ export default {
 
         resetConfirm() {
             this.showConfirm = false;
+            this.confirmAction = null;
             this.confirmEvent = null;
         },
     },

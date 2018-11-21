@@ -38,7 +38,7 @@ from psef.exceptions import (
 )
 
 from . import api
-from .. import archive, plagiarism
+from .. import tasks, archive, plagiarism
 from ..permissions import CoursePermission as CPerm
 
 logger = structlog.get_logger()
@@ -581,8 +581,12 @@ def upload_work(assignment_id: int) -> ExtendedJSONResponse[models.Work]:
     db.session.add(work)
     db.session.flush()
 
-    # This method does nothing if the assignment is not an LTI assignment
-    work.passback_grade(initial=True)
+    if work.assignment.is_lti:
+        # TODO: Doing this for a LMS other than Canvas is probably not a good
+        # idea as it will result in a wrong submission date.
+        helpers.callback_after_this_request(
+            lambda: tasks.passback_grades([work.id], initial=True)
+        )
     db.session.commit()
 
     work.run_linter()
@@ -974,10 +978,9 @@ def post_submissions(assignment_id: int) -> EmptyResponse:
 
     newly_assigned: t.Set[int] = set()
 
-    for submission_info, submission_tree in submissions:
-        user = found_users.get(submission_info.student_id, None)
-
-        if user is None:
+    missing_users: t.List[models.User] = []
+    for submission_info, _ in submissions:
+        if found_users.get(submission_info.student_id, None) is None:
             # TODO: Check if this role still exists
             user = models.User(
                 name=submission_info.student_name,
@@ -988,10 +991,12 @@ def post_submissions(assignment_id: int) -> EmptyResponse:
                 role=global_role,
             )
             found_users[user.username] = user
-            # We don't need to track the users to insert as we are already
-            # tracking the submissions of them and they are coupled.
-        else:
-            user.courses[assignment.course_id] = student_course_role
+            missing_users.append(user)
+    db.session.add_all(missing_users)
+
+    for submission_info, submission_tree in submissions:
+        user = found_users[submission_info.student_id]
+        user.courses[assignment.course_id] = student_course_role
 
         work = models.Work(
             assignment=assignment,
@@ -1022,7 +1027,7 @@ def post_submissions(assignment_id: int) -> EmptyResponse:
         ignore_errors=True,
     )
 
-    db.session.bulk_save_objects(subs)
+    db.session.add_all(subs)
     db.session.commit()
 
     return make_empty_response()

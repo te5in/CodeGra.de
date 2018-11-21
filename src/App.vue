@@ -11,7 +11,7 @@
                      dismissible>
                 It seems the browser you are using is Internet Explorer which
                 is not fully supported. We suggest you use another browser to get
-                the most out of CodeGra.de!
+                the most out of CodeGrade!
             </b-alert>
             <router-view class="page col-lg-12"/>
             <footer-bar v-if="showFooter"/>

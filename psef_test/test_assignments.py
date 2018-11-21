@@ -1348,10 +1348,10 @@ def test_divide_assignments(
         seen = set()
         graders_seen = set()
         for assig in assigs:
-            if assig['user']['email'] in seen:
+            if assig['user']['username'] in seen:
                 continue
             else:
-                seen.add(assig['user']['email'])
+                seen.add(assig['user']['username'])
             if marker is None:
                 assert assig['assignee']['id'] in grader_ids
                 graders_seen.add(assig['assignee']['id'])
@@ -1365,9 +1365,9 @@ def test_divide_assignments(
             grader_assigs = defaultdict(lambda: set())
             seen = set()
             for assig in assigs:
-                if assig['user']['email'] in seen:
+                if assig['user']['username'] in seen:
                     continue
-                seen.add(assig['user']['email'])
+                seen.add(assig['user']['username'])
                 grader_assigs[assig['assignee']['id']].add(assig['id'])
             assert (
                 len(grader_assigs[grader_ids[0]]) == len(
@@ -1390,9 +1390,9 @@ def test_divide_assignments(
             grader_assigs2 = defaultdict(lambda: set())
             seen = set()
             for assig in assigs:
-                if assig['user']['email'] in seen:
+                if assig['user']['username'] in seen:
                     continue
-                seen.add(assig['user']['email'])
+                seen.add(assig['user']['username'])
                 grader_assigs2[assig['assignee']['id']].add(assig['id'])
             assert (
                 len(grader_assigs2[grader_ids[0]]) <

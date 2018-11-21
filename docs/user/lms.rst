@@ -1,3 +1,5 @@
+.. _lms-chapter:
+
 LMS Integration
 =================
 
@@ -21,7 +23,12 @@ It is now possible to create CodeGrade assignments in your Canvas course now.
 Choose the *External Tool* option as *Submission Type* and select CodeGrade
 in the *Find* menu.
 
-.. note:: We recommend grading assignments in CodeGrade's stand-alone environment so more *screen-space* is be used for grading. Your are automatically logged in to this environment with a linked CodeGrade account after opening CodeGrade through Canvas.
+.. note::
+
+    We recommend grading assignments in CodeGrade's stand-alone environment so
+    more *screen-space* is be used for grading. Your are automatically logged in
+    to this environment with a linked CodeGrade account after opening CodeGrade
+    through Canvas.
 
 BlackBoard Integration
 ------------------------
@@ -32,13 +39,13 @@ CodeGrade allows the uploading of BlackBoard assignment archives. In this way,
 the handing in and administration processes are done using BlackBoard, but
 grading and reviewing feedback can be done in the CodeGrade stand-alone website.
 
-More information on BlackBoard integration can be found
-`here <management.html#uploading-blackboard-archives>`__.
+More information on BlackBoard integration can be found :ref:`here
+<upload-blackboard-zip>`.
 
 Other LMS
 -----------
 CodeGrade is currently working on adding support for more learning management
-systems too. Please `contact us <../about/contact.html>`__ for more information
+systems too. Please :ref:`contact us <contact-chapter>` for more information
 about support of your learning management system.
 
 CodeGrade LMS Behaviour
@@ -46,6 +53,8 @@ CodeGrade LMS Behaviour
 CodeGrade works together with the learning management system through LTI to
 synchronise i.a. users, courses, assignments and grades. The following behaviour
 is specified:
+
+.. _lms-create-course-or-assig:
 
 Creating Courses or Assignments
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -64,13 +73,14 @@ CodeGrade after opening the CodeGrade assignment in the LMS.
 Users' roles are automatically saved from the LMS to CodeGrade when creating an
 assignment, however these can be changed inside CodeGrade later on.
 
+.. _lms-grading:
+
 Grading
 ~~~~~~~~
 When grading in CodeGrade is done, grades can be *passed back* to the LMS by
-manually setting the assignment state to *done* in CodeGrade
-(see `Assignment States <management.html#assignment-state>`__). Grades saved
-when the assignment state already is *done* are automatically passed back to the
-LMS.
+manually setting the assignment state to *done* in CodeGrade (see
+:ref:`Assignment States <manage-assignment-state>`). Grades saved when the
+assignment state already is *done* are automatically passed back to the LMS.
 
 .. warning:: Grades are **not** automatically passed back to the LMS but require the CodeGrade assignment state to be set to *done*.
 
@@ -80,6 +90,8 @@ assignment to muted in your LMS will also not hide the grades in CodeGrade if
 the assignment state is *done*. This is because of the fact that
 CodeGrade's *done* state does not correspond with any LMS state and does not
 automatically change with LMS assignment management yet.
+
+.. _lms-account-linking:
 
 Account Linking
 ~~~~~~~~~~~~~~~~~

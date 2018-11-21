@@ -90,7 +90,7 @@ export default {
                 return "You didn't launch the assignment using LTI, please navigate to the 'Assignments' page and submit your work there.";
             } else if (this.$inLTI &&
                        this.assignmentId !== this.$LTIAssignmentId) {
-                return 'You launched CodeGra.de for a different assignment. Please retry opening the correct assignment.';
+                return 'You launched CodeGrade for a different assignment. Please retry opening the correct assignment.';
             } else {
                 return undefined;
             }

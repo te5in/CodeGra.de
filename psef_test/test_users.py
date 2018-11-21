@@ -149,13 +149,16 @@ def test_searching_users_rate_limit(
     'password', [
         data_error(error=400)(''),
         data_error(error=400)(None),
-        'good',
+        data_error(error=400)('weak'),
+        'STRONG@#$!#$qwi09aewfjsdf9023u923j4ljksda',
     ]
 )
 def test_register_user(
     username, test_client, error_template, name, password, email, request, app,
-    session
+    session, monkeypatch
 ):
+    monkeypatch.setitem(app.config['FEATURES'], 'REGISTER', True)
+
     data_err = request.node.get_closest_marker('data_error')
     code = 200 if data_err is None else data_err.kwargs['error']
 
@@ -174,10 +177,14 @@ def test_register_user(
         '/api/v1/user',
         code,
         data=data,
-        result=error_template if code >= 400 else {'access_token': str}
+        result=None if code >= 400 else {'access_token': str}
     )
 
-    if code < 400:
+    if code >= 400:
+        assert isinstance(res['code'], str)
+        assert isinstance(res['description'], str)
+        assert isinstance(res['message'], str)
+    else:
         access_token = res['access_token']
         # Make sure we can log in with the newly given token
         test_client.req(
@@ -202,11 +209,11 @@ def test_register_user(
             }
         )
 
-    elif username != 'thomas':
+    if code >= 400 and username != 'thomas':
         assert session.query(m.User).filter_by(
             username=username
         ).first() is None, ('The new user should not have been created')
-    else:
+    elif code >= 400:
         assert session.query(m.User).filter_by(
             username=username
         ).one().name != name, ('The old user should be preserved')

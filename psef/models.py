@@ -187,13 +187,6 @@ class LTIProvider(Base):
             actually do a passback when this is set to ``True``.
         :returns: Nothing.
         """
-        url = ('{}/'
-               'courses/{}/assignments/{}/submissions?inLTI=true').format(
-                   current_app.config['EXTERNAL_URL'],
-                   sub.assignment.course_id,
-                   sub.assignment_id,
-               )
-
         self.lti_class.passback_grade(
             key=self.key,
             secret=self.secret,
@@ -203,7 +196,7 @@ class LTIProvider(Base):
             sourcedid=sub.assignment.assignment_results[sub.user_id].sourcedid,
             lti_points_possible=sub.assignment.lti_points_possible,
             submission=sub,
-            url=url,
+            host=current_app.config['EXTERNAL_URL'],
         )
 
     @property
@@ -568,7 +561,10 @@ class CourseRole(AbstractRole[CoursePermission], Base):
     id = db.Column('id', db.Integer, primary_key=True)
     name: str = db.Column('name', db.Unicode)
     course_id: int = db.Column(
-        'Course_id', db.Integer, db.ForeignKey('Course.id')
+        'Course_id',
+        db.Integer,
+        db.ForeignKey('Course.id'),
+        nullable=False,
     )
     _permissions: t.MutableMapping[
         CoursePermission, Permission[CoursePermission]] = db.relationship(
@@ -579,7 +575,7 @@ class CourseRole(AbstractRole[CoursePermission], Base):
 
     # Old syntax used to please sphinx
     course = db.relationship(
-        'Course', foreign_keys=course_id, backref="roles"
+        'Course', foreign_keys=course_id, backref="roles", innerjoin=True
     )  # type: Course
 
     @property
@@ -916,7 +912,6 @@ class User(Base):
             {
                 'id':    int, # The id of this user.
                 'name':  str, # The full name of this user.
-                'email': str, # The email of this user.
                 'username': str, # The username of this user.
             }
 
@@ -925,7 +920,6 @@ class User(Base):
         return {
             'id': self.id,
             'name': self.name,
-            'email': self.email,
             'username': self.username,
         }
 
@@ -937,6 +931,7 @@ class User(Base):
         .. code:: python
 
             {
+                'email': str, # The email of this user.
                 'hidden': bool, # indicating if this user can once
                                 # see hidden assignments.
                 **self.__to_json__()
@@ -944,7 +939,9 @@ class User(Base):
 
         :returns: A object as described above.
         """
+        is_self = psef.current_user and psef.current_user.id == self.id
         return {
+            'email': self.email if is_self else '<REDACTED>',
             "hidden": self.can_see_hidden,
             **self.__to_json__(),
         }
@@ -1265,17 +1262,21 @@ class GradeHistory(Base):
         'Work_id',
         db.Integer,
         db.ForeignKey('Work.id', ondelete='CASCADE'),
+        nullable=False,
     )
     user_id: int = db.Column(
         'User_id',
         db.Integer,
         db.ForeignKey('User.id', ondelete='CASCADE'),
+        nullable=False,
     )
 
     work = db.relationship(
         'Work',
         foreign_keys=work_id,
-        backref=db.backref('grade_histories', lazy='select')
+        backref=db.backref(
+            'grade_histories', lazy='select', cascade='all,delete'
+        )
     )  # type: 'Work'
     user = db.relationship('User', foreign_keys=user_id)  # type: User
 
@@ -1315,10 +1316,16 @@ class Work(Base):
     __tablename__ = "Work"  # type: str
     id = db.Column('id', db.Integer, primary_key=True)  # type: int
     assignment_id: int = db.Column(
-        'Assignment_id', db.Integer, db.ForeignKey('Assignment.id')
+        'Assignment_id',
+        db.Integer,
+        db.ForeignKey('Assignment.id'),
+        nullable=False,
     )
     user_id: int = db.Column(
-        'User_id', db.Integer, db.ForeignKey('User.id', ondelete='CASCADE')
+        'User_id',
+        db.Integer,
+        db.ForeignKey('User.id', ondelete='CASCADE'),
+        nullable=False,
     )
     _grade: t.Optional[float] = db.Column('grade', db.Float, default=None)
     comment: str = orm.deferred(db.Column('comment', db.Unicode, default=None))
@@ -1334,7 +1341,7 @@ class Work(Base):
         db.DateTime, default=datetime.datetime.utcnow
     )
     assigned_to: t.Optional[int] = db.Column(
-        'assigned_to', db.Integer, db.ForeignKey('User.id')
+        'assigned_to', db.Integer, db.ForeignKey('User.id'), nullable=True
     )
     selected_items = db.relationship(
         'RubricItem', secondary=work_rubric_item
@@ -1344,13 +1351,14 @@ class Work(Base):
         'Assignment',
         foreign_keys=assignment_id,
         lazy='joined',
+        innerjoin=True,
         backref=db.backref('submissions', lazy='select', uselist=True)
     )  # type: 'Assignment'
     comment_author = db.relationship(
         'User', foreign_keys=comment_author_id, lazy='select'
     )  # type: t.Optional[User]
     user = db.relationship(
-        'User', foreign_keys=user_id, lazy='joined'
+        'User', foreign_keys=user_id, lazy='joined', innerjoin=True
     )  # type: User
     assignee = db.relationship(
         'User', foreign_keys=assigned_to, lazy='joined'
@@ -1491,25 +1499,23 @@ class Work(Base):
             result so that the real grade won't show as too late.
         :returns: Nothing
         """
-        if not self.assignment.is_lti:
-            return
-
         lti_provider = self.assignment.course.lti_provider
 
         lti_provider.passback_grade(self, initial)
 
-        newest_grade_history_id = db.session.query(
-            t.cast(DbColumn[int], GradeHistory.id)
-        ).filter_by(work_id=self.id).order_by(
-            t.cast(DbColumn[datetime.datetime],
-                   GradeHistory.changed_at).desc(),
-        ).limit(1).with_for_update()
+        if not initial:
+            newest_grade_history_id = db.session.query(
+                t.cast(DbColumn[int], GradeHistory.id)
+            ).filter_by(work_id=self.id).order_by(
+                t.cast(DbColumn[datetime.datetime],
+                       GradeHistory.changed_at).desc(),
+            ).limit(1).with_for_update()
 
-        db.session.query(GradeHistory).filter(
-            GradeHistory.id == newest_grade_history_id.as_scalar(),
-        ).update({
-            'passed_back': True
-        }, synchronize_session='fetch')
+            db.session.query(GradeHistory).filter(
+                GradeHistory.id == newest_grade_history_id.as_scalar(),
+            ).update({
+                'passed_back': True
+            }, synchronize_session='fetch')
 
     def select_rubric_items(
         self, items: t.List['RubricItem'], user: User, override: bool = False
@@ -1921,7 +1927,10 @@ class File(Base):
     __tablename__ = "File"
     id: int = db.Column('id', db.Integer, primary_key=True)
     work_id: int = db.Column(
-        'Work_id', db.Integer, db.ForeignKey('Work.id', ondelete='CASCADE')
+        'Work_id',
+        db.Integer,
+        db.ForeignKey('Work.id', ondelete='CASCADE'),
+        nullable=False
     )
     # The given name of the file.
     name: str = db.Column('name', db.Unicode, nullable=False)
@@ -2171,17 +2180,27 @@ class Comment(Base):
         query = Base.query  # type: t.ClassVar[_MyQuery['Comment']]
     __tablename__ = "Comment"
     file_id: int = db.Column(
-        'File_id', db.Integer, db.ForeignKey('File.id', ondelete='CASCADE')
+        'File_id',
+        db.Integer,
+        db.ForeignKey('File.id', ondelete='CASCADE'),
+        nullable=False,
     )
     user_id: int = db.Column(
-        'User_id', db.Integer, db.ForeignKey('User.id', ondelete='CASCADE')
+        'User_id',
+        db.Integer,
+        db.ForeignKey('User.id', ondelete='CASCADE'),
+        nullable=False,
     )
     line: int = db.Column('line', db.Integer)
     comment: str = db.Column('comment', db.Unicode)
     __table_args__ = (db.PrimaryKeyConstraint(file_id, line), )
 
-    file: File = db.relationship('File', foreign_keys=file_id)
-    user: User = db.relationship('User', foreign_keys=user_id)
+    file: File = db.relationship(
+        'File', foreign_keys=file_id, lazy='joined', innerjoin=True
+    )
+    user: User = db.relationship(
+        'User', foreign_keys=user_id, lazy='joined', innerjoin=True
+    )
 
     def __to_json__(self) -> t.Mapping[str, t.Any]:
         """Creates a JSON serializable representation of this object.
@@ -2498,7 +2517,7 @@ class Assignment(Base):
     )
     description: str = db.Column('description', db.Unicode, default='')
     course_id: int = db.Column(
-        'Course_id', db.Integer, db.ForeignKey('Course.id')
+        'Course_id', db.Integer, db.ForeignKey('Course.id'), nullable=False
     )
     created_at: datetime.datetime = db.Column(
         db.DateTime, default=datetime.datetime.utcnow
@@ -2569,7 +2588,8 @@ class Assignment(Base):
         'Course',
         foreign_keys=course_id,
         back_populates='assignments',
-        lazy='joined'
+        lazy='joined',
+        innerjoin=True,
     )
 
     fixed_max_rubric_points: t.Optional[float] = db.Column(
@@ -3484,20 +3504,27 @@ class PlagiarismRun(Base):
     )
     json_config = db.Column('json_config', db.Unicode, nullable=False)
     assignment_id: int = db.Column(
-        'assignment_id', db.Integer, db.ForeignKey('Assignment.id')
+        'assignment_id',
+        db.Integer,
+        db.ForeignKey('Assignment.id'),
+        nullable=True,
     )
     created_at: datetime.datetime = db.Column(
         db.DateTime, default=datetime.datetime.utcnow
     )
 
     assignment = db.relationship(
-        'Assignment', foreign_keys=assignment_id, lazy='joined'
+        'Assignment',
+        foreign_keys=assignment_id,
+        lazy='joined',
+        innerjoin=True
     )  # type: 'Assignment'
 
     cases: t.List['PlagiarismCase'] = db.relationship(
         "PlagiarismCase",
         backref=db.backref('plagiarism_run'),
-        order_by='desc(PlagiarismCase.match_avg)'
+        order_by='desc(PlagiarismCase.match_avg)',
+        cascade='all,delete',
     )
 
     @property
@@ -3586,27 +3613,53 @@ class PlagiarismCase(Base):
     id = db.Column('id', db.Integer, primary_key=True)
 
     work1_id: int = db.Column(
-        'work1_id', db.Integer, db.ForeignKey('Work.id', ondelete='CASCADE')
+        'work1_id',
+        db.Integer,
+        db.ForeignKey('Work.id', ondelete='CASCADE'),
+        nullable=False
     )
     work2_id: int = db.Column(
-        'work2_id', db.Integer, db.ForeignKey('Work.id', ondelete='CASCADE')
+        'work2_id',
+        db.Integer,
+        db.ForeignKey('Work.id', ondelete='CASCADE'),
+        nullable=False
     )
     created_at: datetime.datetime = db.Column(
         db.DateTime, default=datetime.datetime.utcnow
     )
     plagiarism_run_id = db.Column(
-        'plagiarism_run_id', db.Integer,
-        db.ForeignKey('PlagiarismRun.id', ondelete='CASCADE')
+        'plagiarism_run_id',
+        db.Integer,
+        db.ForeignKey('PlagiarismRun.id', ondelete='CASCADE'),
+        nullable=False,
     )
 
     match_avg = db.Column('match_avg', db.Float, nullable=False)
     match_max = db.Column('match_max', db.Float, nullable=False)
 
     work1 = db.relationship(
-        'Work', foreign_keys=work1_id, lazy='joined'
+        'Work',
+        foreign_keys=work1_id,
+        lazy='joined',
+        innerjoin=True,
+        backref=db.backref(
+            '_plagiarism_cases1',
+            lazy='select',
+            uselist=True,
+            cascade='all,delete'
+        )
     )  # type: Work
     work2 = db.relationship(
-        'Work', foreign_keys=work2_id, lazy='joined'
+        'Work',
+        foreign_keys=work2_id,
+        lazy='joined',
+        innerjoin=True,
+        backref=db.backref(
+            '_plagiarism_cases2',
+            lazy='select',
+            uselist=True,
+            cascade='all,delete'
+        )
     )  # type: Work
 
     plagiarism_run: PlagiarismRun
@@ -3725,10 +3778,16 @@ class PlagiarismMatch(Base):
     id = db.Column('id', db.Integer, primary_key=True)  # type: int
 
     file1_id = db.Column(
-        'file1_id', db.Integer, db.ForeignKey('File.id', ondelete='CASCADE')
+        'file1_id',
+        db.Integer,
+        db.ForeignKey('File.id', ondelete='CASCADE'),
+        nullable=False
     )
     file2_id = db.Column(
-        'file2_id', db.Integer, db.ForeignKey('File.id', ondelete='CASCADE')
+        'file2_id',
+        db.Integer,
+        db.ForeignKey('File.id', ondelete='CASCADE'),
+        nullable=False,
     )
 
     file1_start = db.Column('file1_start', db.Integer, nullable=False)
@@ -3747,10 +3806,10 @@ class PlagiarismMatch(Base):
     )
 
     file1 = db.relationship(
-        'File', foreign_keys=file1_id, lazy='joined'
+        'File', foreign_keys=file1_id, lazy='joined', innerjoin=True
     )  # type: File
     file2 = db.relationship(
-        'File', foreign_keys=file2_id, lazy='joined'
+        'File', foreign_keys=file2_id, lazy='joined', innerjoin=True
     )  # type: File
 
     def __to_json__(self) -> t.Mapping[str, object]:

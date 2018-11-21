@@ -12,10 +12,9 @@ const actions = {
     loadRun({ state, commit }, runId) {
         if (state.curPromises[runId] == null) {
             const promise = Promise.all([
-                axios.get(`/api/v1/plagiarism/${runId}/cases/`),
                 axios.get(`/api/v1/plagiarism/${runId}?extended`),
-            ]).then(([{ data: serverCases }, { data: run }]) => {
-                run.cases = (serverCases || []).map((serverCase) => {
+            ]).then(([{ data: run }]) => {
+                run.cases = (run.cases || []).map((serverCase) => {
                     if (serverCase.assignments[0].id !== run.assignment.id) {
                         serverCase.assignments.reverse();
                         serverCase.users.reverse();
