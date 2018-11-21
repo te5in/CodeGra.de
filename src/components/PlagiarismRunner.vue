@@ -43,13 +43,15 @@
                 <td class="run-state">
                     {{ run.state }}
                 </td>
-                <td v-if="canManage"
-                    class="run-delete">
-                    <submit-button default="danger"
+                <td class="run-delete">
+                    <loader v-if="run.state == 'running'"
+                            :scale="1"
+                            v-b-popover.hover.top="'This job is running'"/>
+                    <submit-button v-else-if="canManage"
+                                   default="danger"
                                    size="sm"
                                    :label="false"
-                                   confirm="Are you sure you want to delete
-                                            the results?"
+                                   confirm="Are you sure you want to delete the results?"
                                    @click="deleteRun(run, i)"
                                    @click.native.stop
                                    v-b-popover.hover.top="'Delete results'"
