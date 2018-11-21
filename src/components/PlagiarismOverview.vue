@@ -267,11 +267,17 @@ export default {
 @import "~mixins.less";
 
 .plagiarism-overview .modal-dialog {
+    .default-text-colors;
     width: 75vw;
     margin-left: 12.5vw;
     margin-right: 12.5vw;
+
     .modal-content {
         width: 75vw;
+    }
+
+    pre {
+        color: inherit;
     }
 }
 
