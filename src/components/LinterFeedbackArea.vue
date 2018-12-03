@@ -42,10 +42,6 @@ export default {
 </script>
 
 <style lang="less" scoped>
-.linter-feedback-inner {
-    display: inline;
-}
-
 table.linter-feedback tr td:not(:last-child) {
     padding-right: 1rem;
 }
