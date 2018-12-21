@@ -32,7 +32,7 @@ from sqlalchemy.orm.collections import attribute_mapped_collection
 
 import psef  # pylint: disable=cyclic-import
 
-from . import current_app
+from . import features, current_app
 from .cache import cache_within_request
 from .exceptions import (
     APICodes, APIException, PermissionException, InvalidAssignmentState
@@ -1403,7 +1403,7 @@ class Work(Base):
 
         :returns: Nothing
         """
-        if not psef.helpers.has_feature('LINTERS'):
+        if not features.has_feature(features.Feature.LINTERS):
             return
 
         for linter in self.assignment.linters:

@@ -1,13 +1,13 @@
 import os
-import sys
 import json
 import typing as t
-import secrets
 import datetime
 import tempfile
 import warnings
 import subprocess
 from configparser import ConfigParser
+
+from mypy_extensions import TypedDict
 
 CONFIG: t.Dict[str, t.Any] = dict()
 CONFIG['BASE_DIR'] = os.path.dirname(os.path.abspath(__file__))
@@ -26,6 +26,58 @@ backend_ops = parser['Back-end']
 feature_ops = parser['Features']
 
 
+class CeleryConfig(TypedDict, total=True):
+    pass
+
+
+if t.TYPE_CHECKING and getattr(
+    t, 'SPHINX', False
+) is not True:  # pragma: no cover
+    import psef.features
+
+FlaskConfig = TypedDict(
+    'FlaskConfig', {
+        'FEATURES': t.Mapping['psef.features.Feature', bool],
+        '__S_FEATURES': t.Mapping[str, bool],
+        'Celery': CeleryConfig,
+        'LTI Consumer keys': t.Mapping[str, str],
+        'DEBUG': bool,
+        'SQLALCHEMY_DATABASE_URI': str,
+        'SECRET_KEY': str,
+        'LTI_SECRET_KEY': str,
+        'HEALTH_KEY': None,
+        'JWT_ACCESS_TOKEN_EXPIRES': int,
+        'UPLOAD_DIR': str,
+        'MIRROR_UPLOAD_DIR': str,
+        'SHARED_TEMP_DIR': str,
+        'MAX_NUMBER_OF_FILES': int,
+        'MAX_FILE_SIZE': int,
+        'MAX_NORMAL_UPLOAD_SIZE': int,
+        'MAX_LARGE_UPLOAD_SIZE': int,
+        'DEFAULT_ROLE': str,
+        'EXTERNAL_URL': str,
+        'JAVA_PATH': str,
+        'JPLAG_JAR': str,
+        'MAIL_SERVER': str,
+        'MAIL_PORT': int,
+        'MAIL_USE_TLS': bool,
+        'MAIL_USE_SSL': bool,
+        'MAIL_USERNAME': str,
+        'MAIL_PASSWORD': str,
+        'MAIL_DEFAULT_SENDER': str,
+        'MAIL_MAX_EMAILS': int,
+        'RESET_TOKEN_TIME': int,
+        'EMAIL_TEMPLATE': str,
+        'REMINDER_TEMPLATE': str,
+        'GRADER_STATUS_TEMPLATE': str,
+        'DONE_TEMPLATE': str,
+        'MIN_PASSWORD_SCORE': int,
+        '_USING_SQLITE': str,
+    },
+    total=True
+)
+
+
 def ensure_between(
     option: str,
     val: t.Union[int, float],
@@ -39,7 +91,10 @@ def ensure_between(
 
 
 def set_bool(
-    out: t.MutableMapping[str, t.Any], parser: t.Any, item: str, default: bool
+    out: t.MutableMapping[str, t.Any],
+    parser: t.Any,
+    item: str,
+    default: bool,
 ) -> None:
     val = parser.getboolean(item)
     out[item] = bool(default if val is None else val)
@@ -74,7 +129,9 @@ def set_int(
 
 
 def set_str(
-    out: t.MutableMapping[str, t.Any], parser: t.Any, item: str,
+    out: t.MutableMapping[str, t.Any],
+    parser: t.Any,
+    item: str,
     default: object,
 ) -> None:
     val = parser.get(item)
@@ -157,9 +214,14 @@ if not os.path.isdir(CONFIG['SHARED_TEMP_DIR']):
     )
 
 # Maximum size in bytes for single upload request
-set_float(
-    CONFIG, backend_ops, 'MAX_UPLOAD_SIZE', 64 * 2 ** 20
+set_int(CONFIG, backend_ops, 'MAX_FILE_SIZE', 50 * 2 ** 20)  # default: 50MB
+set_int(
+    CONFIG, backend_ops, 'MAX_NORMAL_UPLOAD_SIZE', 64 * 2 ** 20
 )  # default: 64MB
+set_int(
+    CONFIG, backend_ops, 'MAX_LARGE_UPLOAD_SIZE', 128 * 2 ** 20
+)  # default: 128MB
+set_int(CONFIG, backend_ops, 'MAX_NUMBER_OF_FILES', 1 << 16)
 
 with open(
     os.path.join(CONFIG['BASE_DIR'], 'seed_data', 'course_roles.json'), 'r'
@@ -261,7 +323,7 @@ set_float(CONFIG, backend_ops, 'MIN_PASSWORD_SCORE', 3, min=0, max=4)
 ############
 # FEATURES #
 ############
-CONFIG['FEATURES'] = {}
+CONFIG['__S_FEATURES'] = {}
 # This section contains all features, please do not add, remove or edit any
 # keys, the values however can and should be edited. A truth value enables the
 # given feature. Please do not add or remove any keys.
@@ -270,29 +332,29 @@ CONFIG['FEATURES'] = {}
 # sometimes the username can collide with another user, meaning work is
 # uploaded for the wrong user. This option is UNSAFE to enable when working
 # on a multiple school instance.
-set_bool(CONFIG['FEATURES'], feature_ops, 'BLACKBOARD_ZIP_UPLOAD', True)
+set_bool(CONFIG['__S_FEATURES'], feature_ops, 'BLACKBOARD_ZIP_UPLOAD', True)
 
 # Should rubrics be enabled. This means rubrics can be created by teachers
 # and used for grading purposes.
-set_bool(CONFIG['FEATURES'], feature_ops, 'RUBRICS', True)
+set_bool(CONFIG['__S_FEATURES'], feature_ops, 'RUBRICS', True)
 
 # Should we automatically create a default role for LTI launches with roles
 # that are not known.
-set_bool(CONFIG['FEATURES'], feature_ops, 'AUTOMATIC_LTI_ROLE', True)
+set_bool(CONFIG['__S_FEATURES'], feature_ops, 'AUTOMATIC_LTI_ROLE', True)
 
 # Should LTI be enabled.
-set_bool(CONFIG['FEATURES'], feature_ops, 'LTI', True)
+set_bool(CONFIG['__S_FEATURES'], feature_ops, 'LTI', True)
 
 # Should linters be enabled.
-set_bool(CONFIG['FEATURES'], feature_ops, 'LINTERS', True)
+set_bool(CONFIG['__S_FEATURES'], feature_ops, 'LINTERS', True)
 
 # Should incremental rubric submission be enabled.
 set_bool(
-    CONFIG['FEATURES'], feature_ops, 'INCREMENTAL_RUBRIC_SUBMISSION', True
+    CONFIG['__S_FEATURES'], feature_ops, 'INCREMENTAL_RUBRIC_SUBMISSION', True
 )
 
 # Should it be possible to register
-set_bool(CONFIG['FEATURES'], feature_ops, 'REGISTER', False)
+set_bool(CONFIG['__S_FEATURES'], feature_ops, 'REGISTER', False)
 
 ############
 # LTI keys #

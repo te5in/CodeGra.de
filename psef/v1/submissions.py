@@ -18,20 +18,18 @@ from flask import request
 from sqlalchemy.orm import selectinload
 from mypy_extensions import TypedDict
 
-import psef.auth as auth
 import psef.files
-import psef.models as models
-import psef.helpers as helpers
 from psef import app, current_user
-from psef.errors import APICodes, APIException
-from psef.models import FileOwner, db
-from psef.helpers import (
+
+from . import api
+from .. import auth, models, helpers, features
+from ..errors import APICodes, APIException
+from ..models import FileOwner, db
+from ..helpers import (
     JSONResponse, EmptyResponse, ExtendedJSONResponse, jsonify,
     ensure_json_dict, extended_jsonify, ensure_keys_in_dict,
     make_empty_response
 )
-
-from . import api
 from ..model_types import DbColumn
 from ..permissions import CoursePermission as CPerm
 
@@ -115,7 +113,7 @@ def get_feedback(work: models.Work) -> t.Mapping[str, str]:
 
     filename = f'{work.assignment.name}-{work.user.name}-feedback.txt'
 
-    path, name = psef.files.random_file_path('MIRROR_UPLOAD_DIR')
+    path, name = psef.files.random_file_path(True)
 
     with open(path, 'w') as f:
         f.write(
@@ -129,7 +127,7 @@ def get_feedback(work: models.Work) -> t.Mapping[str, str]:
         for comment in comments:
             f.write(f'{comment}\n')
 
-        if helpers.has_feature('LINTERS'):
+        if features.has_feature(features.Feature.LINTERS):
             f.write('\nLinter comments:\n')
             for lcomment in linter_comments:
                 f.write(f'{lcomment}\n')
@@ -156,7 +154,7 @@ def get_zip(work: models.Work,
     """
     auth.ensure_can_view_files(work, exclude_owner == FileOwner.student)
 
-    path, name = psef.files.random_file_path('MIRROR_UPLOAD_DIR')
+    path, name = psef.files.random_file_path(True)
 
     with open(
         path,
@@ -273,7 +271,7 @@ def get_feedback_from_submission(submission_id: int) -> JSONResponse[Feedback]:
         t.cast(DbColumn[int], models.LinterComment.file_id).asc(),
         t.cast(DbColumn[int], models.LinterComment.line).asc(),
     )
-    if helpers.has_feature('LINTERS'):
+    if features.has_feature(features.Feature.LINTERS):
         for lcomment in linter_comments:
             res['linter'][lcomment.file_id][lcomment.line].append(
                 (lcomment.linter_code, lcomment)
@@ -283,7 +281,7 @@ def get_feedback_from_submission(submission_id: int) -> JSONResponse[Feedback]:
 
 
 @api.route("/submissions/<int:submission_id>/rubrics/", methods=['GET'])
-@helpers.feature_required('RUBRICS')
+@features.feature_required(features.Feature.RUBRICS)
 def get_rubric(submission_id: int) -> JSONResponse[t.Mapping[str, t.Any]]:
     """Return full rubric of the :class:`.models.Assignment` of the given
     submission (:class:`.models.Work`).
@@ -321,7 +319,7 @@ def get_rubric(submission_id: int) -> JSONResponse[t.Mapping[str, t.Any]]:
 
 
 @api.route('/submissions/<int:submission_id>/rubricitems/', methods=['PATCH'])
-@helpers.feature_required('RUBRICS')
+@features.feature_required(features.Feature.RUBRICS)
 def select_rubric_items(submission_id: int, ) -> EmptyResponse:
     """Select the given rubric items for the given submission.
 
@@ -385,8 +383,8 @@ def select_rubric_items(submission_id: int, ) -> EmptyResponse:
     '/submissions/<int:submission_id>/rubricitems/<int:rubric_item_id>',
     methods=['DELETE']
 )
-@helpers.feature_required('RUBRICS')
-@helpers.feature_required('INCREMENTAL_RUBRIC_SUBMISSION')
+@features.feature_required(features.Feature.RUBRICS)
+@features.feature_required(features.Feature.INCREMENTAL_RUBRIC_SUBMISSION)
 def unselect_rubric_item(
     submission_id: int, rubric_item_id: int
 ) -> EmptyResponse:
@@ -424,8 +422,8 @@ def unselect_rubric_item(
     "/submissions/<int:submission_id>/rubricitems/<int:rubricitem_id>",
     methods=['PATCH']
 )
-@helpers.feature_required('RUBRICS')
-@helpers.feature_required('INCREMENTAL_RUBRIC_SUBMISSION')
+@features.feature_required(features.Feature.RUBRICS)
+@features.feature_required(features.Feature.INCREMENTAL_RUBRIC_SUBMISSION)
 def select_rubric_item(
     submission_id: int, rubricitem_id: int
 ) -> EmptyResponse:
@@ -651,9 +649,11 @@ def create_new_file(submission_id: int) -> JSONResponse[t.Mapping[str, t.Any]]:
 
     if (
         not create_dir and request.content_length and
-        request.content_length > app.config['MAX_UPLOAD_SIZE']
+        request.content_length > app.max_single_file_size
     ):
-        helpers.raise_file_too_big_exception()
+        helpers.raise_file_too_big_exception(
+            app.max_single_file_size, single_file=True
+        )
 
     if len(patharr) < 2:
         raise APIException(

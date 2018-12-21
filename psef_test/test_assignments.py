@@ -21,6 +21,10 @@ perm_error = create_marker(pytest.mark.perm_error)
 http_err = create_marker(pytest.mark.http_err)
 
 
+def get_submission_archive(name):
+    return f'{os.path.dirname(__file__)}/../test_data/test_submissions/{name}'
+
+
 @pytest.fixture
 def original_rubric_data():
     yield {
@@ -1061,11 +1065,7 @@ def test_upload_files(
                 f'/api/v1/assignments/{assignment.id}/submission',
                 400,
                 real_data={
-                    'file':
-                        (
-                            f'{os.path.dirname(__file__)}/../test_data/'
-                            f'test_submissions/{name}{ext}', f''
-                        )
+                    'file': (get_submission_archive(f'{name}{ext}'), f'')
                 },
                 result=error_template
             )
@@ -1082,8 +1082,8 @@ def test_upload_files(
                     real_data={
                         'file':
                             (
-                                f'{os.path.dirname(__file__)}/../test_data/'
-                                f'test_submissions/{name}{ext}', f'{name}{ext}'
+                                get_submission_archive(f'{name}{ext}'),
+                                f'{name}{ext}',
                             )
                     },
                     result={
@@ -1116,8 +1116,8 @@ def test_upload_files(
                     real_data={
                         'file':
                             (
-                                f'{os.path.dirname(__file__)}/../test_data/'
-                                f'test_submissions/{name}{ext}', f'{name}{ext}'
+                                get_submission_archive(f'{name}{ext}'),
+                                f'{name}{ext}'
                             )
                     },
                     result=error_template
@@ -1141,13 +1141,7 @@ def test_archive_with_symlinks(
             'post',
             f'/api/v1/assignments/{assignment.id}/submission',
             201,
-            real_data={
-                'file':
-                    (
-                        f'{os.path.dirname(__file__)}/../test_data/'
-                        f'test_submissions/{name}', f'{name}'
-                    )
-            },
+            real_data={'file': (get_submission_archive(name), name)},
             result=dict,
             include_response=True
         )
@@ -1170,7 +1164,7 @@ def test_archive_with_symlinks(
         assert open(file).read() != ''
 
 
-@pytest.mark.parametrize('name', ['single_file_archive'])
+@pytest.mark.parametrize('name', ['single_file_archive.tar.gz'])
 @pytest.mark.parametrize('assignment', ['new', 'old'], indirect=True)
 @pytest.mark.parametrize('after_deadline', [True, False])
 @pytest.mark.parametrize(
@@ -1225,13 +1219,7 @@ def test_upload_for_other(
                 f'extended&author={author}'
             ),
             code,
-            real_data={
-                'file':
-                    (
-                        f'{os.path.dirname(__file__)}/../test_data/'
-                        f'test_submissions/{name}.tar.gz', f'{name}'
-                    )
-            },
+            real_data={'file': (get_submission_archive(name), name)},
             result=res
         )
         if not marker:
@@ -1255,28 +1243,134 @@ def test_incorrect_ingore_files_value(
         assert res['message'].startswith('The given value for "ignored_files"')
 
 
+@pytest.mark.parametrize(
+    'get_data_func', [
+        lambda: {'file': (io.BytesIO(b'0' * 2 * 2 ** 20), 'filename')},
+        lambda: {
+            'file1': (io.BytesIO(b'0' * int(0.9 * 2 ** 20)), 'filename1'),
+            'file2': (io.BytesIO(b'0' * int(0.9 * 2 ** 20)), 'filename2'),
+            'file3': (io.BytesIO(b'0' * int(0.9 * 2 ** 20)), 'filename3'),
+            'file4': (io.BytesIO(b'0' * int(0.9 * 2 ** 20)), 'filename4'),
+            'file5': (io.BytesIO(b'0' * int(0.9 * 2 ** 20)), 'filename5'),
+        },
+        lambda: {
+            'file1': (get_submission_archive('larger_file.zip'), 'f1.zip'),
+            'file2': (get_submission_archive('larger_file.zip'), 'f2.zip'),
+            'file3': (get_submission_archive('larger_file.zip'), 'f3.zip'),
+            'file4': (get_submission_archive('larger_file.zip'), 'f4.zip'),
+            'file5': (get_submission_archive('larger_file.zip'), 'f5.zip'),
+        },
+        lambda: {'file': (
+            get_submission_archive('too_large.tar.gz'),
+            'l.tar.gz'
+        )},
+        lambda: {'file': (
+            get_submission_archive('too_large.zip'),
+            'l.zip'
+        )},
+        lambda: {'file': (
+            get_submission_archive('many_larger_files.tar.gz'),
+            'l.tar.gz'
+        )},
+        lambda: {'file': (
+            get_submission_archive('many_larger_files.zip'),
+            'l.zip'
+        )},
+        lambda: {'file': (
+            get_submission_archive('archive_with_large_file.tar.gz'),
+            'l.tar.gz'
+        )},
+        lambda: {'file': (
+            get_submission_archive('archive_with_large_file.zip'),
+            'l.zip'
+        )},
+    ]
+)
 def test_upload_too_large_file(
-    student_user, test_client, error_template, logged_in, assignment
+    student_user, test_client, error_template, logged_in, assignment,
+    get_data_func
 ):
-    filestr = b'0' * 2 * 2 ** 20
     with logged_in(student_user):
         res = test_client.req(
             'post',
             f'/api/v1/assignments/{assignment.id}/submission',
             400,
-            real_data={'file': (io.BytesIO(filestr), f'filename')},
+            real_data=get_data_func(),
             result=error_template
         )
-        assert res['message'].startswith('Uploaded files are too big')
+        assert 'larger than the maximum' in res['message']
+
+
+def test_upload_archive_with_dev_file(
+    student_user,
+    test_client,
+    error_template,
+    logged_in,
+    assignment,
+):
+    with logged_in(student_user):
+        res = test_client.req(
+            'post',
+            f'/api/v1/assignments/{assignment.id}/submission',
+            400,
+            real_data={
+                'file':
+                    (
+                        get_submission_archive('non_normal_files.tar.gz'),
+                        'arch.tar.gz'
+                    )
+            },
+            result=error_template
+        )
+        assert res['message'].startswith(
+            'The given archive contains invalid or too many'
+        )
+
+
+@pytest.mark.parametrize('ext', ['tar.gz', 'zip'])
+def test_upload_archive_with_many_files(
+    student_user, test_client, error_template, logged_in, assignment,
+    monkeypatch, app, ext
+):
+    monkeypatch.setitem(app.config, 'MAX_NUMBER_OF_FILES', 4)
+    with logged_in(student_user):
+        res = test_client.req(
+            'post',
+            f'/api/v1/assignments/{assignment.id}/submission',
+            400,
+            real_data={
+                'file':
+                    (
+                        get_submission_archive(f'multiple_dir_archive.{ext}'),
+                        f'arch.{ext}'
+                    )
+            },
+            result=error_template
+        )
+        assert res['message'].startswith(
+            'The given archive contains invalid or too many'
+        )
 
 
 def test_upload_empty_archive(
     student_user, test_client, error_template, logged_in, assignment
 ):
-    filename = (
-        f'{os.path.dirname(__file__)}/'
-        f'../test_data/test_submissions/empty_submission.tar.gz'
-    )
+    filename = get_submission_archive('empty_submission.tar.gz')
+    with logged_in(student_user):
+        res = test_client.req(
+            'post',
+            f'/api/v1/assignments/{assignment.id}/submission',
+            400,
+            real_data={'file': (filename, 'ar.tar.gz')},
+            result=error_template
+        )
+        assert res['message'].startswith('No files found')
+
+
+def test_upload_empty_archive(
+    student_user, test_client, error_template, logged_in, assignment
+):
+    filename = get_submission_archive('empty_submission.tar.gz')
     with logged_in(student_user):
         res = test_client.req(
             'post',
@@ -1928,8 +2022,7 @@ def test_assigning_after_uploading(
                 real_data={
                     'file':
                         (
-                            f'{os.path.dirname(__file__)}/../test_data/'
-                            'test_submissions/multiple_dir_archive.zip',
+                            get_submission_archive('multiple_dir_archive.zip'),
                             f'single_file_work.zip'
                         )
                 },
@@ -1969,9 +2062,8 @@ def test_assigning_after_uploading(
             real_data={
                 'file':
                     (
-                        f'{os.path.dirname(__file__)}/../test_data/'
-                        'test_submissions/multiple_dir_archive.zip',
-                        f'single_file_work.zip'
+                        get_submission_archive('multiple_dir_archive.zip'),
+                        'single_file_work.zip'
                     )
             },
             result=dict,
@@ -1996,9 +2088,8 @@ def test_assigning_after_uploading(
             real_data={
                 'file':
                     (
-                        f'{os.path.dirname(__file__)}/../test_data/'
-                        'test_submissions/multiple_dir_archive.zip',
-                        f'single_file_work.zip'
+                        get_submission_archive('multiple_dir_archive.zip'),
+                        'single_file_work.zip'
                     )
             },
             result=dict,
@@ -2052,9 +2143,8 @@ def test_reset_grader_status_after_upload(
                 real_data={
                     'file':
                         (
-                            f'{os.path.dirname(__file__)}/../test_data/'
-                            'test_submissions/multiple_dir_archive.zip',
-                            f'single_file_work.zip'
+                            get_submission_archive('multiple_dir_archive.zip'),
+                            'single_file_work.zip'
                         )
                 },
                 result=dict,
@@ -2084,8 +2174,7 @@ def test_reset_grader_status_after_upload(
             real_data={
                 'file':
                     (
-                        f'{os.path.dirname(__file__)}/../test_data/'
-                        'test_submissions/multiple_dir_archive.zip',
+                        get_submission_archive('multiple_dir_archive.zip'),
                         f'single_file_work.zip'
                     )
             },
@@ -2254,7 +2343,7 @@ def test_assign_after_blackboard_zip(
                         'name': 'something'
                     }, {
                         'id': int,
-                        'name': 'wow\wowsers'
+                        'name': 'wow\\wowsers'
                     }]
                 }, {
                     'id': int,
@@ -2399,8 +2488,8 @@ def test_ignored_upload_files(
                 real_data={
                     'file':
                         (
-                            f'{os.path.dirname(__file__)}/../test_data/'
-                            f'test_submissions/{name}{ext}', f'{name}{ext}'
+                            get_submission_archive(f'{name}{ext}'),
+                            f'{name}{ext}'
                         )
                 },
                 result={
@@ -2420,8 +2509,8 @@ def test_ignored_upload_files(
                 real_data={
                     'file':
                         (
-                            f'{os.path.dirname(__file__)}/../test_data/'
-                            f'test_submissions/{name}{ext}', f'{name}{ext}'
+                            get_submission_archive(f'{name}{ext}'),
+                            f'{name}{ext}'
                         )
                 },
             )
@@ -2444,8 +2533,8 @@ def test_ignored_upload_files(
                 real_data={
                     'file':
                         (
-                            f'{os.path.dirname(__file__)}/../test_data/'
-                            f'test_submissions/{name}{ext}', f'{name}{ext}'
+                            get_submission_archive(f'{name}{ext}'),
+                            f'{name}{ext}'
                         )
                 },
             )
@@ -2472,10 +2561,7 @@ def test_ignored_upload_files(
             400,
             real_data={
                 'file':
-                    (
-                        f'{os.path.dirname(__file__)}/../test_data/'
-                        f'test_submissions/{name}{ext}', f'{name}{ext}'
-                    )
+                    (get_submission_archive(f'{name}{ext}'), f'{name}{ext}')
             },
         )
 
@@ -2495,10 +2581,7 @@ def test_ignored_upload_files(
             201,
             real_data={
                 'file':
-                    (
-                        f'{os.path.dirname(__file__)}/../test_data/'
-                        f'test_submissions/{name}{ext}', f'{name}{ext}'
-                    )
+                    (get_submission_archive(f'{name}{ext}'), f'{name}{ext}')
             },
         )
         test_client.req(
@@ -2529,8 +2612,7 @@ def test_ignored_upload_files(
             real_data={
                 'file':
                     (
-                        f'{os.path.dirname(__file__)}/../test_data/'
-                        f'test_submissions/{name}{ext}', f'{name}'
+                        get_submission_archive(f'{name}{ext}'), f'{name}'
                         # Extension is not appended to the name, so the file
                         # won't get extracted.
                     )
@@ -2553,8 +2635,7 @@ def test_ignored_upload_files(
             real_data={
                 'file':
                     (
-                        f'{os.path.dirname(__file__)}/../test_data/'
-                        f'test_submissions/{name}{ext}', f'{name}'
+                        get_submission_archive(f'{name}{ext}'), f'{name}'
                         # Test without extension
                     )
             },
@@ -2571,10 +2652,7 @@ def test_ignored_upload_files(
             400,
             real_data={
                 'file':
-                    (
-                        f'{os.path.dirname(__file__)}/../test_data/'
-                        f'test_submissions/{name}{ext}', f'{name}{ext}'
-                    )
+                    (get_submission_archive(f'{name}{ext}'), f'{name}{ext}')
             },
             result={
                 'code': 'NO_FILES_SUBMITTED',
@@ -2602,8 +2680,7 @@ def test_ignored_upload_files(
             real_data={
                 'file':
                     (
-                        f'{os.path.dirname(__file__)}/../test_data/'
-                        f'test_submissions/{name}{ext}', f'{name}'
+                        get_submission_archive(f'{name}{ext}'), f'{name}'
                         # Test without extension
                     )
             },
@@ -2632,10 +2709,7 @@ def test_ignored_upload_files(
             201,
             real_data={
                 'file':
-                    (
-                        f'{os.path.dirname(__file__)}/../test_data/'
-                        f'test_submissions/{name}{ext}', f'{name}{ext}'
-                    )
+                    (get_submission_archive(f'{name}{ext}'), f'{name}{ext}')
             },
         )
         test_client.req(
@@ -2676,8 +2750,7 @@ def test_ignoring_dirs_tar_archives(
             real_data={
                 'file':
                     (
-                        f'{os.path.dirname(__file__)}/../test_data/'
-                        f'test_submissions/multiple_dir_archive.{ext}',
+                        get_submission_archive(f'multiple_dir_archive.{ext}'),
                         f'multiple_dir_archive.{ext}'
                     )
             },
@@ -2700,8 +2773,7 @@ def test_ignoring_dirs_tar_archives(
             real_data={
                 'file':
                     (
-                        f'{os.path.dirname(__file__)}/../test_data/'
-                        f'test_submissions/multiple_dir_archive.{ext}',
+                        get_submission_archive(f'multiple_dir_archive.{ext}'),
                         f'multiple_dir_archive.{ext}'
                     )
             },

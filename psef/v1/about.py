@@ -35,7 +35,7 @@ def about(
     status_code = 200
 
     features = {
-        key: bool(value)
+        key.name: bool(value)
         for key, value in current_app.config['FEATURES'].items()
     }
 

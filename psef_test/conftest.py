@@ -47,7 +47,9 @@ def app(request):
                 'BACKEND_URL': 'redis:///'
             },
         'MIRROR_UPLOAD_DIR': f'/tmp/psef/mirror_uploads',
-        'MAX_UPLOAD_SIZE': 2 ** 20,  # 1mb
+        'MAX_FILE_SIZE': 2 ** 20,  # 1mb
+        'MAX_NORMAL_UPLOAD_SIZE': 4 * 2 ** 20,  # 4 mb
+        'MAX_LARGE_UPLOAD_SIZE': 100 * 2 ** 20,  # 100mb
         'LTI_CONSUMER_KEY_SECRETS': {
             'my_lti': '12345678'
         },

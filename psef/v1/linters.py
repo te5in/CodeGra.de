@@ -6,20 +6,15 @@ of linters and their output.
 SPDX-License-Identifier: AGPL-3.0-only
 """
 
-import psef.auth as auth
-import psef.models as models
-import psef.helpers as helpers
-from psef.models import db
-from psef.helpers import (
-    JSONResponse, EmptyResponse, jsonify, make_empty_response
-)
-
 from . import api
+from .. import auth, models, helpers, features
+from ..models import db
+from ..helpers import JSONResponse, EmptyResponse, jsonify, make_empty_response
 from ..permissions import CoursePermission as CPerm
 
 
 @api.route('/linters/<linter_id>', methods=['DELETE'])
-@helpers.feature_required('LINTERS')
+@features.feature_required(features.Feature.LINTERS)
 def delete_linter_output(linter_id: str) -> EmptyResponse:
     """Delete the all the output created by the
     :class:`.models.AssignmentLinter` with the given id.
@@ -47,7 +42,7 @@ def delete_linter_output(linter_id: str) -> EmptyResponse:
 
 
 @api.route('/linters/<linter_id>', methods=['GET'])
-@helpers.feature_required('LINTERS')
+@features.feature_required(features.Feature.LINTERS)
 def get_linter_state(linter_id: str) -> JSONResponse[models.AssignmentLinter]:
     """Get the state of the :class:`.models.AssignmentLinter` with the given
     id.

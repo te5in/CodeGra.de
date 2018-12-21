@@ -16,12 +16,16 @@ import datetime
 import flask
 import structlog
 import flask_jwt_extended as flask_jwt
-from flask import g, jsonify, request, current_app
+from flask import g, jsonify, request
 from flask_limiter import Limiter, RateLimitExceeded
 
 if t.TYPE_CHECKING and getattr(
     t, 'SPHINX', False
-) is not True:  # pragma: no cover:
+) is not True:  # pragma: no cover
+    from config import FlaskConfig
+    from json import JSONEncoder
+
+    current_app: 'psef.Flask'
 
     class Flask:
         """A stub for flask.
@@ -31,11 +35,12 @@ if t.TYPE_CHECKING and getattr(
             self.before_request: t.Callable
             self.after_request: t.Callable
             self.errorhandler: t.Callable
-            self.config: t.MutableMapping[str, t.Any]
             self.teardown_request: t.Callable
             self.app_context: t.Callable
+            self.config: FlaskConfig
+            self.json_encoder = JSONEncoder
 else:
-    from flask import Flask
+    from flask import Flask, current_app
 
 
 class PsefFlask(Flask):
@@ -43,6 +48,27 @@ class PsefFlask(Flask):
 
     This contains the extra property :meth:`.PsefFlask.do_sanity_checks`.
     """
+    @property
+    def max_single_file_size(self) -> 'psef.archive.FileSize':
+        """The maximum allowed size for a single file.
+        """
+        return self.config['MAX_FILE_SIZE']
+
+    @property
+    def max_file_size(self) -> 'psef.archive.FileSize':
+        """The maximum allowed size for normal files.
+
+        .. note:: An individual file has a different limit!
+        """
+        return self.config['MAX_NORMAL_UPLOAD_SIZE']
+
+    @property
+    def max_large_file_size(self) -> 'psef.archive.FileSize':
+        """The maximum allowed size for large files (such as blackboard zips).
+
+        .. note:: An individual file has a different limit!
+        """
+        return self.config['MAX_LARGE_UPLOAD_SIZE']
 
     @property
     def do_sanity_checks(self) -> bool:
@@ -55,7 +81,7 @@ class PsefFlask(Flask):
 
 logger = structlog.get_logger()
 
-app = current_app  # pylint: disable=invalid-name
+app: 'PsefFlask' = current_app  # pylint: disable=invalid-name
 
 LTI_ROLE_LOOKUPS = {
 }  # type: t.Mapping[str, t.Mapping[str, t.Union[str, bool]]]
@@ -139,11 +165,11 @@ def create_app(  # pylint: disable=too-many-statements
             models.db.session.rollback()
 
     # Configurations
-    resulting_app.config.update(global_config.CONFIG)
-    resulting_app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    resulting_app.config.update(global_config.CONFIG)  # type: ignore
+    resulting_app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False  # type: ignore
 
     if config is not None:  # pragma: no cover
-        resulting_app.config.update(config)
+        resulting_app.config.update(config)  # type: ignore
 
     if (
         not skip_secret_key_check and (
@@ -224,6 +250,9 @@ def create_app(  # pylint: disable=too-many-statements
 
     from . import cache
     cache.init_app(resulting_app)
+
+    from . import features
+    features.init_app(resulting_app)
 
     from . import auth
     auth.init_app(resulting_app)

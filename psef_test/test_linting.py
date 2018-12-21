@@ -12,6 +12,7 @@ from werkzeug.local import LocalProxy
 
 import psef
 import psef.models as m
+import psef.features as feats
 from helpers import create_marker
 
 run_error = create_marker(pytest.mark.run_error)
@@ -534,7 +535,7 @@ def test_lint_later_submission_disabled_linters(
             }
         )
 
-    monkeypatch.setitem(app.config['FEATURES'], 'LINTERS', False)
+    monkeypatch.setitem(app.config['FEATURES'], feats.Feature.LINTERS, False)
 
     with logged_in(student_user):
         single_work = test_client.req(

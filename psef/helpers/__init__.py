@@ -14,7 +14,7 @@ from functools import wraps
 import flask
 import structlog
 import mypy_extensions
-from flask import g
+from flask import g, request
 from typing_extensions import Protocol
 from werkzeug.datastructures import FileStorage
 from sqlalchemy.sql.expression import or_
@@ -23,10 +23,11 @@ import psef
 import psef.models
 import psef.json_encoders as json
 
-from . import validate
+from . import features, validate
 from .. import errors, models
 
 if t.TYPE_CHECKING:  # pragma: no cover
+    import psef.archive  # pylint: disable=cyclic-import
     from psef import model_types  # pylint: disable=unused-import
     import werkzeug  # pylint: disable=unused-import
 
@@ -45,7 +46,7 @@ T_TypedDict = t.TypeVar(  # pylint: disable=invalid-name
 IsInstanceType = t.Union[t.Type, t.Tuple[t.Type, ...]]  # pylint: disable=invalid-name
 
 
-def init_app(app: t.Any) -> None:
+def init_app(app: 'psef.Flask') -> None:
     """Initialize the app.
 
     :param app: The flask app to initialize.
@@ -580,63 +581,54 @@ def make_empty_response() -> EmptyResponse:
     return response
 
 
-def has_feature(feature_name: str) -> bool:
-    """Check if a certain feature is enabled.
+def human_readable_size(size: 'psef.archive.FileSize') -> str:
+    """Get a human readable size.
 
-    :param feature_name: The name of te feature to check for.
-    :returns: A boolean indicating if the given feature is enabled
+    >>> human_readable_size(512)
+    '512B'
+    >>> human_readable_size(1024)
+    '1KB'
+    >>> human_readable_size(2.4 * 2 ** 20)
+    '2.40MB'
+    >>> human_readable_size(2.4444444 * 2 ** 20)
+    '2.44MB'
+
+    :param size: The size in bytes.
+    :returns: A string that is the amount of bytes which is human readable.
     """
-    return bool(psef.app.config['FEATURES'][feature_name])
+    size_f: float = size
+
+    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
+        if size_f < 1024.0:
+            break
+        size_f /= 1024.0
+
+    if int(size_f) == size_f:
+        return f"{int(size_f)}{unit}"
+    return f"{size_f:.2f}{unit}"
 
 
-def ensure_feature(feature_name: str) -> None:
-    """Check if a certain feature is enabled.
-
-    :param feature_name: The name of te feature to check for.
-    :returns: Nothing.
-
-    :raises APIException: If the feature is not enabled. (DISABLED_FEATURE)
-    """
-    if not has_feature(feature_name):
-        logger.warning('Tried to use disabled feature', feature=feature_name)
-        raise psef.errors.APIException(
-            'This feature is not enabled for this instance.',
-            f'The feature "{feature_name}" is not enabled.',
-            psef.errors.APICodes.DISABLED_FEATURE, 400
-        )
-
-
-def feature_required(feature_name: str) -> t.Callable:
-    """ A decorator used to make sure the function decorated is only called
-    with a certain feature enabled.
-
-    :param feature_name: The name of the feature to check for.
-
-    :returns: The value of the decorated function if the given feature is
-        enabled.
-
-    :raises APIException: If the feature is not enabled. (DISABLED_FEATURE)
-    """
-
-    def __decorator(f: t.Callable) -> t.Callable:
-        @wraps(f)
-        def __decorated_function(*args: t.Any, **kwargs: t.Any) -> t.Any:
-            ensure_feature(feature_name)
-            return f(*args, **kwargs)
-
-        return __decorated_function
-
-    return __decorator
-
-
-def raise_file_too_big_exception() -> mypy_extensions.NoReturn:
+def raise_file_too_big_exception(
+    max_size: 'psef.archive.FileSize', single_file: bool = False
+) -> mypy_extensions.NoReturn:
     """Get an exception that should be thrown when uploade file is too big.
 
+    :param max_size: The maximum size that was overwritten.
     :returns: A exception that should be thrown when file is too big.
     """
+    if single_file:
+        msg = (
+            f'The size of a single file is larger than the maximum, which '
+            f'is {human_readable_size(psef.app.max_single_file_size)}.'
+        )
+    else:
+        msg = (
+            f'The size of the uploaded files is larger than the maximum. '
+            f'The maximum is (extracted) size is '
+            f'{human_readable_size(max_size)}.'
+        )
     raise psef.errors.APIException(
-        'Uploaded files are too big.', 'Request is bigger than maximum '
-        f'upload size of {psef.current_app.config["MAX_UPLOAD_SIZE"]}.',
+        msg, 'Request is bigger than maximum upload size of max_size bytes.',
         psef.errors.APICodes.REQUEST_TOO_LARGE, 400
     )
 
@@ -754,7 +746,7 @@ def call_external(call_args: t.List[str]) -> t.Tuple[bool, str, str]:
 
 def get_files_from_request(
     *,
-    check_size: bool,
+    max_size: 'psef.archive.FileSize',
     keys: t.Sequence[str],
     only_start: bool = False,
 ) -> t.MutableSequence[FileStorage]:
@@ -764,7 +756,7 @@ def get_files_from_request(
     lot too large if you provide check_size. This is done for the entire
     request, not only the processed files.
 
-    :param check_size: Should the size of the request be checked.
+    :param only_small_files: Only allow small files to be uploaded.
     :param keys: The keys the files should match in the request.
     :param only_start: If set to false the key of the request should only match
         the start of one of the keys in ``keys``.
@@ -775,13 +767,8 @@ def get_files_from_request(
     """
     res = []
 
-    if (
-        check_size and flask.request.content_length and (
-            flask.request.content_length >
-            psef.current_app.config['MAX_UPLOAD_SIZE']
-        )
-    ):
-        raise_file_too_big_exception()
+    if (request.content_length or 0) > max_size:
+        raise_file_too_big_exception(max_size)
 
     if not flask.request.files:
         raise errors.APIException(
