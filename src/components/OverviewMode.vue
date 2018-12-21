@@ -50,6 +50,7 @@
 
                                 <feedback-area :feedback="feedback.user[id][line]"
                                                :editable="false"
+                                               :total-amount-lines="part[1]"
                                                :line="line"
                                                :fileId="Number(id)"
                                                :author="feedback.authors && feedback.authors[id][line].name"

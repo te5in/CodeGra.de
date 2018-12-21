@@ -4,6 +4,9 @@ import axios from 'axios';
 import { parseWarningHeader } from '@/utils';
 import * as types from '../mutation-types';
 
+const UNLOADED_SNIPPETS = {};
+let snippetsLastReloaded;
+
 const getters = {
     loggedIn: state => state.id !== 0,
     id: state => state.id,
@@ -11,10 +14,19 @@ const getters = {
     name: state => state.name,
     username: state => state.username,
     canSeeHidden: state => state.canSeeHidden,
-};
+    findSnippetsByPrefix(state) {
+        let values = [];
+        if (state && state.snippets !== UNLOADED_SNIPPETS) {
+            values = Object.values(
+                state.snippets,
+            ).sort((a, b) => a.key.localeCompare(b.key));
+        }
 
-const UNLOADED_SNIPPETS = {};
-let snippetsLastReloaded;
+        return prefix => values.filter(
+            ({ key }) => key.startsWith(prefix),
+        );
+    },
+};
 
 const actions = {
     login({ commit, state }, { username, password, onWarning }) {

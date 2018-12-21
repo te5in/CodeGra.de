@@ -36,6 +36,7 @@
                                    :author="feedback[i].author && feedback[i].author.name"
                                    :editable="editable"
                                    :line="i"
+                                   :total-amount-lines="codeLines.length"
                                    :fileId="file.id"
                                    :can-use-snippets="canUseSnippets"
                                    @feedbackChange="val => { feedbackChange(i, val); }"
