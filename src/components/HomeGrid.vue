@@ -129,9 +129,7 @@ export default {
         ...mapGetters('pref', ['darkMode']),
 
         courses() {
-            return Object.values(this.unsortedCourses).sort(
-                (a, b) => cmpNoCase(a.name, b.name),
-            );
+            return Object.values(this.unsortedCourses).sort((a, b) => cmpNoCase(a.name, b.name));
         },
     },
 
@@ -200,14 +198,14 @@ export default {
 </script>
 
 <style lang="less" scoped>
-@import "~mixins.less";
+@import '~mixins.less';
 
 .local-header img {
     float: right;
 
     &.large {
         height: 1.3em;
-        margin-top: .5rem;
+        margin-top: 0.5rem;
     }
 
     &.small {
@@ -239,11 +237,11 @@ export default {
             display: table-row;
 
             &:nth-of-type(even) {
-                background-color: rgba(0, 0, 0, .05);
+                background-color: rgba(0, 0, 0, 0.05);
             }
 
             &:hover {
-                background-color: rgba(0, 0, 0, .075);
+                background-color: rgba(0, 0, 0, 0.075);
             }
         }
 
@@ -280,7 +278,7 @@ export default {
         }
 
         .card-header {
-            padding: .75rem;
+            padding: 0.75rem;
 
             .course-name {
                 display: flex;
@@ -350,7 +348,7 @@ a {
 }
 
 .no-assignments {
-    margin: 1rem .75rem;
+    margin: 1rem 0.75rem;
     color: @color-secondary-text;
 
     #app.dark & {

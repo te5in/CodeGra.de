@@ -260,7 +260,9 @@ def test_login_duplicate_email(
 
 @pytest.mark.parametrize(
     'new_password', [
-        pytest.param('wow', marks=[pytest.mark.data_error, pytest.mark.needs_password]),
+        pytest.param(
+            'wow', marks=[pytest.mark.data_error, pytest.mark.needs_password]
+        ),
         needs_password('jeasdasdf123432usdfhjkasd3'),
         missing_error(None)
     ]
@@ -506,7 +508,9 @@ def test_reset_password(
             'new_password': '',
             'token': token
         },
-        result={**error_template, 'feedback': object},
+        result={
+            **error_template, 'feedback': object
+        },
     )
     test_client.req(
         'patch',

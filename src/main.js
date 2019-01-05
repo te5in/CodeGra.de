@@ -96,7 +96,7 @@ localforage.defineDriver(memoryStorageDriver).then(() => {
         "'": '&#39;',
         '`': '&#96;',
     };
-    Vue.prototype.$htmlEscape = (inputString) => {
+    Vue.prototype.$htmlEscape = inputString => {
         const string = `${inputString}`;
         if (string && reHasUnescapedHtml.test(string)) {
             return string.replace(reUnescapedHtml, ent => htmlEscapes[ent]);
@@ -108,31 +108,37 @@ localforage.defineDriver(memoryStorageDriver).then(() => {
     axios.defaults.transformResponse = [
         function defaultTransformResponse(data, headers) {
             switch (headers['content-type']) {
-            case 'application/json':
-                return JSON.parse(data);
-            default:
-                return data;
+                case 'application/json':
+                    return JSON.parse(data);
+                default:
+                    return data;
             }
         },
     ];
 
-    axios.interceptors.response.use(response => response, (() => {
-        let toastVisible = false;
-        return (error) => {
-            if (!error.response && error.request && !toastVisible) {
-                toastVisible = true;
-                Vue.toasted.error('There was an error connecting to the server... Please try again later', {
-                    position: 'bottom-center',
-                    closeOnSwipe: false,
-                    duration: 3000,
-                    onComplete: () => {
-                        toastVisible = false;
-                    },
-                });
-            }
-            throw error;
-        };
-    })());
+    axios.interceptors.response.use(
+        response => response,
+        (() => {
+            let toastVisible = false;
+            return error => {
+                if (!error.response && error.request && !toastVisible) {
+                    toastVisible = true;
+                    Vue.toasted.error(
+                        'There was an error connecting to the server... Please try again later',
+                        {
+                            position: 'bottom-center',
+                            closeOnSwipe: false,
+                            duration: 3000,
+                            onComplete: () => {
+                                toastVisible = false;
+                            },
+                        },
+                    );
+                }
+                throw error;
+            };
+        })(),
+    );
 
     const permissionStore = new PermissionStore(axios, { driver: DRIVERS });
 
@@ -199,28 +205,30 @@ localforage.defineDriver(memoryStorageDriver).then(() => {
         },
 
         methods: {
-            ...mapActions('user', [
-                'verifyLogin',
-            ]),
+            ...mapActions('user', ['verifyLogin']),
         },
     });
 
     // Clear some items in vuex store on CTRL-F5
-    document.addEventListener('keydown', async (event) => {
-        let isF5;
-        if (event.key !== undefined) {
-            isF5 = event.key === 'F5';
-        } else if (event.keyIdentifier !== undefined) {
-            isF5 = event.keyIdentifier === 'F5';
-        } else if (event.keyCode !== undefined) {
-            isF5 = event.keyCode === 116;
-        }
+    document.addEventListener(
+        'keydown',
+        async event => {
+            let isF5;
+            if (event.key !== undefined) {
+                isF5 = event.key === 'F5';
+            } else if (event.keyIdentifier !== undefined) {
+                isF5 = event.keyIdentifier === 'F5';
+            } else if (event.keyCode !== undefined) {
+                isF5 = event.keyCode === 116;
+            }
 
-        if (isF5 && (event.ctrlKey || event.shiftKey)) {
-            event.preventDefault();
-            await permissionStore.clearCache();
-            await app.$store.commit(`user/${mutationTypes.CLEAR_CACHE}`);
-            window.location.reload(true);
-        }
-    }, true);
+            if (isF5 && (event.ctrlKey || event.shiftKey)) {
+                event.preventDefault();
+                await permissionStore.clearCache();
+                await app.$store.commit(`user/${mutationTypes.CLEAR_CACHE}`);
+                window.location.reload(true);
+            }
+        },
+        true,
+    );
 });

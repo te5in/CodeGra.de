@@ -53,13 +53,16 @@ export default {
             {
                 key: 'user',
                 label: 'Grader',
-            }, {
+            },
+            {
                 key: 'grade',
                 label: 'Grade',
-            }, {
+            },
+            {
                 key: 'changed_at',
                 label: 'Date',
-            }, {
+            },
+            {
                 key: 'rubric',
                 label: 'By rubric',
             },
@@ -109,14 +112,13 @@ export default {
 }
 
 .btn-group {
-
 }
 </style>
 
 <style lang="less" scoped>
 #grade-history-collapse {
     transition-property: all;
-    transition-duration: .5s;
+    transition-duration: 0.5s;
     transition-timing-function: cubic-bezier(0, 1, 0.5, 1);
     max-height: 0;
     overflow-x: hidden;
@@ -131,16 +133,17 @@ export default {
 }
 
 .table {
-    th, td {
-        padding: .25rem !important;
+    th,
+    td {
+        padding: 0.25rem !important;
     }
     cursor: text !important;
 }
 .grade-history {
     width: 30em;
-    margin: -.5rem -.75rem;
+    margin: -0.5rem -0.75rem;
     max-height: 40em;
     overflow-y: auto;
-    padding: .5rem .75rem;
+    padding: 0.5rem 0.75rem;
 }
 </style>

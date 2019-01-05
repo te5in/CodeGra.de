@@ -151,7 +151,6 @@ import SubmissionsSidebarList from './SubmissionsSidebarList';
 
 import { MANAGE_SITE_PERIMSSIONS } from '../../constants';
 
-
 const floatingRoutes = new Set([
     'home',
     'forgot',
@@ -166,7 +165,8 @@ Icon.register({
     'bolt-o': {
         width: 1792,
         height: 1792,
-        raw: '<path d="m 1175.6954,707.84 q 11.52,12.8 4.48,28.16 l -345.60002,740.48 q -8.32,16 -26.88,16 -2.56,0 -8.96,-1.28 -10.88,-3.2 -16.32,-12.16 -5.44,-8.96 -2.88,-19.2 l 126.08,-517.12 -259.84,64.64 q -2.56,0.64 -7.68,0.64 -11.52,0 -19.84,-7.04 -11.52,-9.6 -8.32,-24.96 l 128.64,-528 q 2.56,-8.96 10.24,-14.72 7.68,-5.76 17.92,-5.76 h 209.92 q 12.16,0 20.48,8 8.32002,8 8.32002,18.88 0,5.12 -3.2,11.52 L 892.81538,762.24 1146.2554,699.52 q 5.12,-1.28 7.68,-1.28 12.16,0 21.76,9.6 z" style="stroke-width:0.63999999" /> <circle cx="896" cy="896" style="fill:none;stroke:#ffffff;stroke-width:150.50743103;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1" r="800.24628" />',
+        raw:
+            '<path d="m 1175.6954,707.84 q 11.52,12.8 4.48,28.16 l -345.60002,740.48 q -8.32,16 -26.88,16 -2.56,0 -8.96,-1.28 -10.88,-3.2 -16.32,-12.16 -5.44,-8.96 -2.88,-19.2 l 126.08,-517.12 -259.84,64.64 q -2.56,0.64 -7.68,0.64 -11.52,0 -19.84,-7.04 -11.52,-9.6 -8.32,-24.96 l 128.64,-528 q 2.56,-8.96 10.24,-14.72 7.68,-5.76 17.92,-5.76 h 209.92 q 12.16,0 20.48,8 8.32002,8 8.32002,18.88 0,5.12 -3.2,11.52 L 892.81538,762.24 1146.2554,699.52 q 5.12,-1.28 7.68,-1.28 12.16,0 21.76,9.6 z" style="stroke-width:0.63999999" /> <circle cx="896" cy="896" style="fill:none;stroke:#ffffff;stroke-width:150.50743103;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1" r="800.24628" />',
     },
 });
 
@@ -239,8 +239,10 @@ export default {
                         if (this.loggedIn && this.$inLTI && this.$LTIAssignmentId) {
                             const assig = this.assignments[this.$LTIAssignmentId];
                             if (assig) {
-                                return assig.course.canManage ||
-                                    assig.course.assignments.some(a => a.canManage);
+                                return (
+                                    assig.course.canManage ||
+                                    assig.course.assignments.some(a => a.canManage)
+                                );
                             }
                         }
                         return false;
@@ -266,7 +268,10 @@ export default {
                     icon: 'files-o',
                     header: 'Submissions',
                     component: 'submissions-sidebar-list',
-                    condition: () => this.loggedIn && (this.$route.name === 'submission_file' || this.$route.name === 'submission'),
+                    condition: () =>
+                        this.loggedIn &&
+                        (this.$route.name === 'submission_file' ||
+                            this.$route.name === 'submission'),
                     reload: true,
                     animate: true,
                 },
@@ -293,10 +298,12 @@ export default {
         },
 
         floating() {
-            return this.$inLTI ||
+            return (
+                this.$inLTI ||
                 !this.$root.$isMediumWindow ||
                 this.mobileVisible ||
-                floatingRoutes.has(this.$route.name);
+                floatingRoutes.has(this.$route.name)
+            );
         },
 
         dimPage() {
@@ -310,11 +317,7 @@ export default {
 
         hideInitialEntries() {
             const route = this.$route.name;
-            return (
-                this.$inLTI ||
-                !this.$root.$isMediumWindow ||
-                hideRoutes.has(route)
-            );
+            return this.$inLTI || !this.$root.$isMediumWindow || hideRoutes.has(route);
         },
 
         showRegularLogo() {
@@ -329,7 +332,7 @@ export default {
     watch: {
         loggedIn(newVal) {
             if (newVal) {
-                this.$hasPermission(MANAGE_SITE_PERIMSSIONS).then((perms) => {
+                this.$hasPermission(MANAGE_SITE_PERIMSSIONS).then(perms => {
                     this.canManageSite = perms.every(x => x);
                 });
             } else {
@@ -365,7 +368,7 @@ export default {
             this.canManageSite = perms.every(x => x);
         }
 
-        this.$root.$on('sidebar::show', (submenu) => {
+        this.$root.$on('sidebar::show', submenu => {
             if (submenu === undefined) {
                 this.toggleMobileSidebar();
             } else {
@@ -391,7 +394,10 @@ export default {
         }),
 
         fixAppMargin() {
-            if (this.$root.isEdge || (this.$el && getComputedStyle(this.$el).position === 'fixed')) {
+            if (
+                this.$root.isEdge ||
+                (this.$el && getComputedStyle(this.$el).position === 'fixed')
+            ) {
                 const app = document.querySelector('#app');
                 app.style.marginLeft = `${this.$el.clientWidth}px`;
                 this.$el.style.position = 'fixed';
@@ -511,10 +517,10 @@ export default {
 
         maybeCall(fun) {
             switch (typeof fun) {
-            case 'function':
-                return fun.bind(this)();
-            default:
-                return fun;
+                case 'function':
+                    return fun.bind(this)();
+                default:
+                    return fun;
             }
         },
 
@@ -543,7 +549,7 @@ export default {
 </script>
 
 <style lang="less" scoped>
-@import "~mixins.less";
+@import '~mixins.less';
 
 .sidebar {
     position: fixed;
@@ -576,7 +582,7 @@ export default {
         color: @text-color;
     }
 
-    box-shadow: 0 0 10px rgba(0, 0, 0, .5);
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
 
     @media @media-no-small {
         width: 6em;
@@ -603,11 +609,11 @@ export default {
     .sidebar-top-item {
         display: flex;
         flex-direction: column;
-        padding: .75rem .5rem;
+        padding: 0.75rem 0.5rem;
 
         @media @media-small {
             flex-direction: row;
-            padding: .5rem;
+            padding: 0.5rem;
         }
 
         &.logo {
@@ -625,7 +631,7 @@ export default {
             }
 
             @media @media-small {
-                margin-right: .5rem;
+                margin-right: 0.5rem;
             }
         }
 
@@ -644,7 +650,7 @@ export default {
 
     .sidebar-bottom-item {
         flex: 1 1 auto;
-        padding: .5rem .25rem .25rem;
+        padding: 0.5rem 0.25rem 0.25rem;
         text-align: center;
     }
 }
@@ -676,14 +682,14 @@ export default {
             display: flex;
             align-items: center;
             flex: 0 0 auto;
-            padding: .5rem .75rem;
+            padding: 0.5rem 0.75rem;
             cursor: pointer;
         }
 
         .submenu-header {
             flex: 1 1 auto;
             margin: 0;
-            padding: .5rem 0;
+            padding: 0.5rem 0;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -712,7 +718,7 @@ export default {
         }
 
         &:last-child {
-            box-shadow: 0 0 10px rgba(0, 0, 0, .75);
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.75);
         }
 
         &:not(:last-child) {
@@ -722,7 +728,7 @@ export default {
 }
 
 .page-overlay {
-    background-color: rgba(0, 0, 0, .33);
+    background-color: rgba(0, 0, 0, 0.33);
     position: fixed;
     top: 0;
     right: 0;
@@ -751,7 +757,7 @@ export default {
 </style>
 
 <style lang="less">
-@import "~mixins.less";
+@import '~mixins.less';
 
 .sidebar {
     & &-list-wrapper {
@@ -809,17 +815,17 @@ export default {
         overflow-y: auto;
 
         .separator {
-            margin: .5rem;
+            margin: 0.5rem;
         }
 
         &.no-items-text {
             color: @color-light-gray;
-            padding: 0 .75rem;
+            padding: 0 0.75rem;
         }
     }
 
     & &-list-section-header {
-        padding: 0 .75rem;
+        padding: 0 0.75rem;
         color: @color-light-gray;
     }
 
@@ -884,15 +890,15 @@ export default {
     }
 
     & &-item {
-        padding: .5rem .75rem;
+        padding: 0.5rem 0.75rem;
     }
 
     & &-filter {
-        margin: .5rem;
+        margin: 0.5rem;
     }
 
     hr.separator {
-        margin: 0 .5rem;
+        margin: 0 0.5rem;
         border-top: 1px solid @color-primary-darkest;
     }
 

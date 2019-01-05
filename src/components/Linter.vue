@@ -94,14 +94,7 @@ import Loader from './Loader';
 export default {
     name: 'linter',
 
-    props: [
-        'name',
-        'options',
-        'initialState',
-        'initialId',
-        'assignment',
-        'serverDescription',
-    ],
+    props: ['name', 'options', 'initialState', 'initialId', 'assignment', 'serverDescription'],
 
     data() {
         return {
@@ -143,7 +136,10 @@ export default {
         },
         changeSubCollapse(state) {
             if (Boolean(this.collapseState) !== state) {
-                this.$root.$emit('bv::toggle::collapse', `sub_collapse_${this.name}_${this.assignment.id}`);
+                this.$root.$emit(
+                    'bv::toggle::collapse',
+                    `sub_collapse_${this.name}_${this.assignment.id}`,
+                );
                 this.collapseState = !this.collapseState;
             }
         },
@@ -171,8 +167,7 @@ export default {
             });
         },
         startUpdateLoop() {
-            this.$http.get(`/api/v1/linters/${this.id}`)
-                .then(({ data }) => this.updateData(data));
+            this.$http.get(`/api/v1/linters/${this.id}`).then(({ data }) => this.updateData(data));
         },
         updateData(data) {
             this.done = data.done;
@@ -206,13 +201,15 @@ export default {
 
             this.starting = true;
 
-            this.$http.post(`/api/v1/assignments/${this.assignment.id}/linter`, {
-                name: this.name,
-                cfg: cfg || '',
-            }).then(({ data }) => {
-                this.starting = false;
-                this.updateData(data);
-            });
+            this.$http
+                .post(`/api/v1/assignments/${this.assignment.id}/linter`, {
+                    name: this.name,
+                    cfg: cfg || '',
+                })
+                .then(({ data }) => {
+                    this.starting = false;
+                    this.updateData(data);
+                });
         },
     },
 };

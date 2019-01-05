@@ -15,9 +15,11 @@ const debug = process.env.NODE_ENV !== 'production';
 const plugins = [];
 
 try {
-    plugins.push(createPersistedState({
-        paths: ['user', 'pref'],
-    }));
+    plugins.push(
+        createPersistedState({
+            paths: ['user', 'pref'],
+        }),
+    );
 } catch (e) {
     Vue.use(Toasted);
     Vue.toasted.error(

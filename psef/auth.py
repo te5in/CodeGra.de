@@ -126,6 +126,7 @@ def ensure_enrolled(course_id: int) -> None:
             ), APICodes.INCORRECT_PERMISSION, 403
         )
 
+
 def set_current_user(user: 'psef.models.User') -> None:
     """Set the current user for this request.
 

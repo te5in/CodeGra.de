@@ -120,8 +120,9 @@ export default {
 
         openVariant() {
             const st = this.assignment.state;
-            return st === states.SUBMITTING || st === states.GRADING || st === states.OPEN ?
-                'warning' : 'outline-warning';
+            return st === states.SUBMITTING || st === states.GRADING || st === states.OPEN
+                ? 'warning'
+                : 'outline-warning';
         },
 
         doneVariant() {
@@ -161,19 +162,22 @@ export default {
                 this.$http.patch(`/api/v1/assignments/${this.assignment.id}`, {
                     state: this.pendingState,
                 }),
-            ).then(() => {
-                this.updateAssignment({
-                    assignmentId: this.assignment.id,
-                    assignmentProps: {
-                        state: this.pendingState,
-                    },
-                });
-                this.pendingState = '';
-            }, (err) => {
-                // TODO: visual feedback
-                // eslint-disable-next-line
-                console.dir(err);
-            });
+            ).then(
+                () => {
+                    this.updateAssignment({
+                        assignmentId: this.assignment.id,
+                        assignmentProps: {
+                            state: this.pendingState,
+                        },
+                    });
+                    this.pendingState = '';
+                },
+                err => {
+                    // TODO: visual feedback
+                    // eslint-disable-next-line
+                    console.dir(err);
+                },
+            );
         },
     },
 

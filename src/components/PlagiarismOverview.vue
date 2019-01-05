@@ -90,25 +90,30 @@ export default {
             getOtherAssignmentPlagiarismDesc,
             filter: '',
             modalDisplayed: false,
-            tableFields: [{
-                key: 'user1',
-                sortable: true,
-                label: 'Student 1',
-            }, {
-                key: 'user2',
-                sortable: true,
-                label: 'Student 2',
-            }, {
-                key: 'match_max',
-                sortable: true,
-                label: 'Maximum score',
-                formatter: item => item.toFixed(2),
-            }, {
-                key: 'match_avg',
-                sortable: true,
-                label: 'Average score',
-                formatter: item => item.toFixed(2),
-            }],
+            tableFields: [
+                {
+                    key: 'user1',
+                    sortable: true,
+                    label: 'Student 1',
+                },
+                {
+                    key: 'user2',
+                    sortable: true,
+                    label: 'Student 2',
+                },
+                {
+                    key: 'match_max',
+                    sortable: true,
+                    label: 'Maximum score',
+                    formatter: item => item.toFixed(2),
+                },
+                {
+                    key: 'match_avg',
+                    sortable: true,
+                    label: 'Average score',
+                    formatter: item => item.toFixed(2),
+                },
+            ],
             loadingData: true,
             error: '',
             disabledPopoverRowId: '',
@@ -144,8 +149,7 @@ export default {
             const filter = new RegExp(this.filter, 'i');
 
             return this.run.cases.filter(
-                entry => entry.users[0].name.match(filter) ||
-                    entry.users[1].name.match(filter),
+                entry => entry.users[0].name.match(filter) || entry.users[1].name.match(filter),
             );
         },
     },
@@ -154,7 +158,7 @@ export default {
         $route(newRoute, oldRoute) {
             if (
                 newRoute.params.assignmentId !== oldRoute.params.assignmentId ||
-                    newRoute.params.plagiarismRunId !== oldRoute.params.plagiarismRunId
+                newRoute.params.plagiarismRunId !== oldRoute.params.plagiarismRunId
             ) {
                 this.loadRun();
             }
@@ -211,11 +215,9 @@ export default {
         sortCompareTable(a, b, key) {
             if (key === 'user1' || key === 'user2') {
                 const index = key === 'user1' ? 0 : 1;
-                return a.users[index].name.localeCompare(
-                    b.users[index].name, undefined, {
-                        numeric: true,
-                    },
-                );
+                return a.users[index].name.localeCompare(b.users[index].name, undefined, {
+                    numeric: true,
+                });
             }
             if (typeof a[key] === 'number' && typeof b[key] === 'number') {
                 // If both compared fields are native numbers
@@ -231,11 +233,14 @@ export default {
         loadRun() {
             this.loadingData = true;
 
-            this.loadPlagiarismRun(this.plagiarismRunId).then(() => {
-                this.loadingData = false;
-            }, (err) => {
-                this.error = err.response.data.message;
-            });
+            this.loadPlagiarismRun(this.plagiarismRunId).then(
+                () => {
+                    this.loadingData = false;
+                },
+                err => {
+                    this.error = err.response.data.message;
+                },
+            );
         },
     },
 
@@ -264,7 +269,7 @@ export default {
 </style>
 
 <style lang="less">
-@import "~mixins.less";
+@import '~mixins.less';
 
 .plagiarism-overview .modal-dialog {
     .default-text-colors;
@@ -294,7 +299,7 @@ export default {
         }
 
         &:nth-of-type(odd) {
-            background-color: rgba(0, 0, 0, .05) !important;
+            background-color: rgba(0, 0, 0, 0.05) !important;
         }
     }
 
@@ -302,7 +307,7 @@ export default {
         cursor: pointer;
 
         &:hover {
-            background-color: rgba(0, 0, 0, .075) !important;
+            background-color: rgba(0, 0, 0, 0.075) !important;
         }
     }
 

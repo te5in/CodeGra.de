@@ -65,7 +65,9 @@ seed_data:
 
 .PHONY: format
 format:
+	isort --recursive ./psef ./psef_test
 	yapf -rip ./psef ./psef_test
+	npm run format
 
 .PHONY: shrinkwrap
 shrinkwrap:

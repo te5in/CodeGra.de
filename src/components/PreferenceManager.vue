@@ -163,17 +163,14 @@ export default {
         loadValues() {
             this.loading = true;
 
-            return Promise.all([
-                this.loadWhitespace(),
-                this.loadLanguage(),
-            ]).then(() => {
+            return Promise.all([this.loadWhitespace(), this.loadLanguage()]).then(() => {
                 this.loading = false;
             });
         },
 
         loadWhitespace() {
             if (this.showWhitespace) {
-                return this.$whitespaceStore.getItem(`${this.fileId}`).then((white) => {
+                return this.$whitespaceStore.getItem(`${this.fileId}`).then(white => {
                     this.whitespace = white === null || white;
                 });
             } else {
@@ -183,7 +180,7 @@ export default {
 
         loadLanguage() {
             if (this.showLanguage) {
-                return this.$hlanguageStore.getItem(`${this.fileId}`).then((lang) => {
+                return this.$hlanguageStore.getItem(`${this.fileId}`).then(lang => {
                     this.selectedLanguage = lang || 'Default';
                 });
             } else {

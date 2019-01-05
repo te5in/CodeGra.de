@@ -246,7 +246,6 @@ import * as assignmentState from '@/store/assignment-states';
 
 import { setPageTitle } from '@/pages/title';
 
-
 export default {
     name: 'submission-page',
 
@@ -309,9 +308,11 @@ export default {
         },
 
         warnComment() {
-            return !this.editable &&
+            return (
+                !this.editable &&
                 this.assignment.state === assignmentState.DONE &&
-                this.submission.comment !== '';
+                this.submission.comment !== ''
+            );
         },
 
         overviewMode() {
@@ -345,13 +346,13 @@ export default {
             }
 
             switch (this.selectedRevision) {
-            case 'teacher':
-                return this.teacherTree;
-            case 'diff':
-                return this.diffTree;
-            case 'student':
-            default:
-                return this.studentTree;
+                case 'teacher':
+                    return this.teacherTree;
+                case 'diff':
+                    return this.diffTree;
+                case 'student':
+                default:
+                    return this.studentTree;
             }
         },
 
@@ -380,8 +381,10 @@ export default {
             if (oldVal == null || oldVal.id !== newVal.id) {
                 this.$nextTick(this.updateTitle);
             }
-            if (this.assignment.state === assignmentState.DONE &&
-                !Object.hasOwnProperty.call(this.$route.query, 'overview')) {
+            if (
+                this.assignment.state === assignmentState.DONE &&
+                !Object.hasOwnProperty.call(this.$route.query, 'overview')
+            ) {
                 this.toggleOverviewMode(true);
             }
         },
@@ -426,11 +429,9 @@ export default {
                 this.$router.replace({
                     name: 'submission_file',
                     params: { fileId },
-                    query: Object.assign(
-                        {},
-                        this.$route.query,
-                        { revision: this.selectedRevision },
-                    ),
+                    query: Object.assign({}, this.$route.query, {
+                        revision: this.selectedRevision,
+                    }),
                 });
             }
         },
@@ -455,31 +456,36 @@ export default {
             ),
             this.loadSubmissions(this.assignmentId),
             this.getSubmissionData(),
-        ]).then(([[
-            canGrade,
-            canSeeGrade,
-            canDeleteSubmission,
-            ownTeacher,
-            editOthersWork,
-            canSeeGradeHistory,
-        ]]) => {
-            this.editable = canGrade;
-            this.canSeeFeedback = canSeeGrade ||
-                (this.assignment.state === assignmentState.DONE);
-            this.canDeleteSubmission = canDeleteSubmission;
-            this.gradeHistory = canSeeGradeHistory;
+        ]).then(
+            ([
+                [
+                    canGrade,
+                    canSeeGrade,
+                    canDeleteSubmission,
+                    ownTeacher,
+                    editOthersWork,
+                    canSeeGradeHistory,
+                ],
+            ]) => {
+                this.editable = canGrade;
+                this.canSeeFeedback = canSeeGrade || this.assignment.state === assignmentState.DONE;
+                this.canDeleteSubmission = canDeleteSubmission;
+                this.gradeHistory = canSeeGradeHistory;
 
-            if (this.submission &&
-                this.userId === this.submission.user.id &&
-                this.assignment.state === assignmentState.DONE) {
-                this.canSeeRevision = ownTeacher;
-            } else {
-                this.canSeeRevision = editOthersWork;
-            }
+                if (
+                    this.submission &&
+                    this.userId === this.submission.user.id &&
+                    this.assignment.state === assignmentState.DONE
+                ) {
+                    this.canSeeRevision = ownTeacher;
+                } else {
+                    this.canSeeRevision = editOthersWork;
+                }
 
-            this.loadingPage = false;
-            this.loadingInner = false;
-        });
+                this.loadingPage = false;
+                this.loadingInner = false;
+            },
+        );
     },
 
     methods: {
@@ -490,11 +496,7 @@ export default {
             this.$router.push({
                 name: this.$route.params.fileId ? 'submission_file' : 'submission',
                 params: this.$route.params,
-                query: Object.assign(
-                    {},
-                    this.$route.query,
-                    { revision: val },
-                ),
+                query: Object.assign({}, this.$route.query, { revision: val }),
             });
         },
 
@@ -519,49 +521,50 @@ export default {
 
         toggleOverviewMode(forceOn = false) {
             this.$router.push({
-                query: Object.assign(
-                    {},
-                    this.$route.query,
-                    { overview: forceOn || !this.overviewMode },
-                ),
+                query: Object.assign({}, this.$route.query, {
+                    overview: forceOn || !this.overviewMode,
+                }),
             });
         },
 
         deleteSubmission() {
             const req = this.$http.delete(`/api/v1/submissions/${this.submissionId}`);
 
-            this.$refs.deleteButton.submit(req.catch((err) => {
-                throw err.response.data.message;
-            })).then(() => {
-                this.storeDeleteSubmission({
-                    assignmentId: this.assignmentId,
-                    submissionId: this.submissionId,
+            this.$refs.deleteButton
+                .submit(
+                    req.catch(err => {
+                        throw err.response.data.message;
+                    }),
+                )
+                .then(() => {
+                    this.storeDeleteSubmission({
+                        assignmentId: this.assignmentId,
+                        submissionId: this.submissionId,
+                    });
+                    this.$router.push({
+                        name: 'assignment_submissions',
+                        params: {
+                            courseId: this.assignment.course.id,
+                            assignmentId: this.assignment.id,
+                        },
+                    });
                 });
-                this.$router.push({
-                    name: 'assignment_submissions',
-                    params: {
-                        courseId: this.assignment.course.id,
-                        assignmentId: this.assignment.id,
-                    },
-                });
-            });
         },
 
         getSubmissionData() {
-            return Promise.all([
-                this.getFileTrees(),
-                this.getRubric(),
-            ]);
+            return Promise.all([this.getFileTrees(), this.getRubric()]);
         },
 
         getFileTrees() {
             return Promise.all([
                 this.$http.get(`/api/v1/submissions/${this.submissionId}/files/`),
-                this.$http.get(`/api/v1/submissions/${this.submissionId}/files/`, {
-                    params: {
-                        owner: 'teacher',
-                    },
-                }).catch(() => null),
+                this.$http
+                    .get(`/api/v1/submissions/${this.submissionId}/files/`, {
+                        params: {
+                            owner: 'teacher',
+                        },
+                    })
+                    .catch(() => null),
             ]).then(([student, teacher]) => {
                 this.studentTree = student.data;
                 this.studentTree.isStudent = true;
@@ -580,7 +583,9 @@ export default {
             const diffTree = {
                 name: tree1.name,
                 entries: [],
-                push(ids, name) { this.entries.push({ ids, name }); },
+                push(ids, name) {
+                    this.entries.push({ ids, name });
+                },
             };
 
             const lookupTree2 = tree2.entries.reduce((accum, cur) => {
@@ -588,7 +593,7 @@ export default {
                 return accum;
             }, {});
 
-            tree1.entries.forEach((self) => {
+            tree1.entries.forEach(self => {
                 const other = lookupTree2[self.name];
 
                 if (other == null) {
@@ -610,28 +615,40 @@ export default {
                     diffTree.push([self.id, other.id], self.name);
                 } else if (self.entries) {
                     diffTree.push([null, other.id], other.name);
-                    diffTree.entries.push(this.matchFiles(self, {
-                        name: self.name,
-                        entries: [],
-                    }));
+                    diffTree.entries.push(
+                        this.matchFiles(self, {
+                            name: self.name,
+                            entries: [],
+                        }),
+                    );
                 } else if (other.entries) {
                     diffTree.push([self.id, null], self.name);
-                    diffTree.entries.push(this.matchFiles({
-                        name: other.name,
-                        entries: [],
-                    }, other));
+                    diffTree.entries.push(
+                        this.matchFiles(
+                            {
+                                name: other.name,
+                                entries: [],
+                            },
+                            other,
+                        ),
+                    );
                 }
             });
 
-            Object.values(lookupTree2).forEach((val) => {
+            Object.values(lookupTree2).forEach(val => {
                 if (val.done) {
                     return;
                 }
                 if (val.entries) {
-                    diffTree.entries.push(this.matchFiles({
-                        name: val.name,
-                        entries: [],
-                    }, val));
+                    diffTree.entries.push(
+                        this.matchFiles(
+                            {
+                                name: val.name,
+                                entries: [],
+                            },
+                            val,
+                        ),
+                    );
                 } else {
                     diffTree.push([null, val.id], val.name);
                 }
@@ -652,9 +669,11 @@ export default {
             if (!UserConfig.features.rubrics) {
                 return Promise.resolve(null);
             }
-            return this.$http.get(`/api/v1/submissions/${this.submissionId}/rubrics/`).then(({ data: rubric }) => {
-                this.rubric = rubric;
-            }, () => null);
+            return this.$http
+                .get(`/api/v1/submissions/${this.submissionId}/rubrics/`)
+                .then(({ data: rubric }) => {
+                    this.rubric = rubric;
+                }, () => null);
         },
 
         // Returns the first file in the file tree that is not a folder
@@ -685,8 +704,11 @@ export default {
         searchTree(tree, id) {
             for (let i = 0; i < tree.entries.length; i += 1) {
                 const child = tree.entries[i];
-                if ((child.id === id || (child.revision && child.revision.id === id)) ||
-                    (child.ids && (child.ids[0] === id || child.ids[1] === id))) {
+                if (
+                    child.id === id ||
+                    (child.revision && child.revision.id === id) ||
+                    (child.ids && (child.ids[0] === id || child.ids[1] === id))
+                ) {
                     return child;
                 } else if (child.entries != null) {
                     const match = this.searchTree(child, id);
@@ -699,11 +721,15 @@ export default {
         },
 
         downloadType(type) {
-            this.$http.get(`/api/v1/submissions/${this.submissionId}?type=${type}`).then(({ data }) => {
-                const params = new URLSearchParams();
-                params.append('not_as_attachment', '');
-                window.open(`/api/v1/files/${data.name}/${data.output_name}?${params.toString()}`);
-            });
+            this.$http
+                .get(`/api/v1/submissions/${this.submissionId}?type=${type}`)
+                .then(({ data }) => {
+                    const params = new URLSearchParams();
+                    params.append('not_as_attachment', '');
+                    window.open(
+                        `/api/v1/files/${data.name}/${data.output_name}?${params.toString()}`,
+                    );
+                });
         },
 
         async gradeUpdated(grade) {
@@ -750,7 +776,7 @@ export default {
 </script>
 
 <style lang="less" scoped>
-@import "~mixins.less";
+@import '~mixins.less';
 
 .outer-container {
     display: flex;
@@ -861,18 +887,18 @@ export default {
 
 .submission-header-buttons {
     .input-group-append:first-child button:first-of-type {
-        border-top-left-radius: .25rem;
-        border-bottom-left-radius: .25rem;
+        border-top-left-radius: 0.25rem;
+        border-bottom-left-radius: 0.25rem;
     }
 
     .input-group-append:last-child button:last-of-type {
-        border-top-right-radius: .25rem;
-        border-bottom-right-radius: .25rem;
+        border-top-right-radius: 0.25rem;
+        border-bottom-right-radius: 0.25rem;
     }
 }
 
 .popover .table {
-    margin: -.5rem -.75rem;
+    margin: -0.5rem -0.75rem;
     min-width: 10rem;
     text-align: left;
 }

@@ -161,9 +161,12 @@ export default {
         },
 
         rubricScore() {
-            const toFixed = (val) => {
+            const toFixed = val => {
                 const fval = parseFloat(val);
-                return fval.toFixed(10).replace(/[.,]([1-9]*)0+$/, '.$1').replace(/\.$/, '');
+                return fval
+                    .toFixed(10)
+                    .replace(/[.,]([1-9]*)0+$/, '.$1')
+                    .replace(/\.$/, '');
             };
             const scored = toFixed(this.rubricPoints.selected);
             const max = toFixed(this.rubricPoints.max);
@@ -210,7 +213,9 @@ export default {
             if (this.showRubric && !this.rubricOverridden) {
                 req = this.$refs.rubricViewer.clearSelected();
             } else {
-                req = this.$http.patch(`/api/v1/submissions/${this.submission.id}`, { grade: null });
+                req = this.$http.patch(`/api/v1/submissions/${this.submission.id}`, {
+                    grade: null,
+                });
             }
             req.then(({ data }) => {
                 if (data.grade !== undefined) {
@@ -218,18 +223,25 @@ export default {
                     this.gradeUpdated();
                 }
             });
-            this.$refs.deleteButton.submit(req.catch((err) => {
-                throw err.response.data.message;
-            }));
+            this.$refs.deleteButton.submit(
+                req.catch(err => {
+                    throw err.response.data.message;
+                }),
+            );
         },
 
         putGrade() {
             const grade = parseFloat(this.grade);
-            const normalGrade = (this.rubricOverridden || !this.showRubric);
+            const normalGrade = this.rubricOverridden || !this.showRubric;
 
-            if (!(grade >= 0 && grade <= this.maxAllowedGrade) && normalGrade &&
-                !Number.isNaN(grade)) {
-                this.$refs.submitButton.fail(`Grade '${this.grade}' must be between 0 and ${this.maxAllowedGrade}`);
+            if (
+                !(grade >= 0 && grade <= this.maxAllowedGrade) &&
+                normalGrade &&
+                !Number.isNaN(grade)
+            ) {
+                this.$refs.submitButton.fail(
+                    `Grade '${this.grade}' must be between 0 and ${this.maxAllowedGrade}`,
+                );
                 return;
             }
 
@@ -237,19 +249,20 @@ export default {
 
             if (normalGrade) {
                 const data = { grade };
-                req = this.$http.patch(
-                    `/api/v1/submissions/${this.submission.id}`,
-                    data,
-                ).then(() => {
-                    this.grade = formatGrade(grade);
-                    this.gradeUpdated();
-                });
+                req = this.$http
+                    .patch(`/api/v1/submissions/${this.submission.id}`, data)
+                    .then(() => {
+                        this.grade = formatGrade(grade);
+                        this.gradeUpdated();
+                    });
             } else {
                 req = this.$refs.rubricViewer.submitAllItems();
             }
-            this.$refs.submitButton.submit(req.catch((err) => {
-                throw err.response.data.message;
-            }));
+            this.$refs.submitButton.submit(
+                req.catch(err => {
+                    throw err.response.data.message;
+                }),
+            );
         },
 
         ...mapActions({
@@ -270,7 +283,7 @@ export default {
 </script>
 
 <style lang="less" scoped>
-@import "~mixins.less";
+@import '~mixins.less';
 
 input,
 textarea {
@@ -295,7 +308,7 @@ textarea {
     overflow-x: hidden;
 
     transition-property: all;
-    transition-duration: .5s;
+    transition-duration: 0.5s;
     margin-bottom: 1rem;
     transition-timing-function: cubic-bezier(0, 1, 0.5, 1);
 

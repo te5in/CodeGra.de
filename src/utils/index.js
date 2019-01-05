@@ -27,7 +27,7 @@ export function cmpNoCase(first, second) {
  * that to its correct boolean value, otherwise return `dflt`.
  */
 export function parseBool(value, dflt = true) {
-    if ((typeof value) === 'boolean') return value;
+    if (typeof value === 'boolean') return value;
     else if (value === 'false') return false;
     else if (value === 'true') return true;
 
@@ -35,11 +35,16 @@ export function parseBool(value, dflt = true) {
 }
 
 export function formatDate(date) {
-    return moment.utc(date, moment.ISO_8601).local().format('YYYY-MM-DDTHH:mm');
+    return moment
+        .utc(date, moment.ISO_8601)
+        .local()
+        .format('YYYY-MM-DDTHH:mm');
 }
 
 export function convertToUTC(timeStr) {
-    return moment(timeStr, moment.ISO_8601).utc().format('YYYY-MM-DDTHH:mm');
+    return moment(timeStr, moment.ISO_8601)
+        .utc()
+        .format('YYYY-MM-DDTHH:mm');
 }
 
 export function parseWarningHeader(warningStr) {
@@ -47,7 +52,11 @@ export function parseWarningHeader(warningStr) {
 
     const code = parseFloat(arr[0]);
     const agent = arr[1];
-    const text = arr.slice(2).join(' ').replace(/\\"/g, '"').slice(1, -1);
+    const text = arr
+        .slice(2)
+        .join(' ')
+        .replace(/\\"/g, '"')
+        .slice(1, -1);
 
     return { code, agent, text };
 }
@@ -55,7 +64,7 @@ export function parseWarningHeader(warningStr) {
 export function waitAtLeast(time, ...promises) {
     const timeout = new Promise(resolve => setTimeout(resolve, time));
 
-    return Promise.all([timeout, ...promises]).then((vals) => {
+    return Promise.all([timeout, ...promises]).then(vals => {
         if (promises.length === 1) {
             return vals[1];
         } else {
@@ -83,8 +92,8 @@ export function range(start, end) {
 }
 
 export function isDecimalNumber(val) {
-    if (typeof val === 'number' || (val instanceof Number)) return true;
-    else if (!(typeof val === 'string' || (val instanceof String))) return false;
+    if (typeof val === 'number' || val instanceof Number) return true;
+    else if (!(typeof val === 'string' || val instanceof String)) return false;
 
     let res = /^-?[1-9]\d*$/.test(val);
     res = res || /^0$/.test(val);
@@ -99,7 +108,7 @@ export function hashString(str) {
 
     for (let i = 0; i < str.length; i++) {
         const character = str.charCodeAt(i);
-        hash = ((hash << 5) - hash) + character;
+        hash = (hash << 5) - hash + character;
         hash &= hash; // Convert to 32bit integer
     }
     return Math.abs(hash << 0);
@@ -108,7 +117,9 @@ export function hashString(str) {
 // Exported for testing purposes
 export function nSpaces(n) {
     const arr = Array(n + 1);
-    return `<span class="whitespace space" data-whitespace="${arr.join('&middot;')}">${arr.join(' ')}</span><wbr>`;
+    return `<span class="whitespace space" data-whitespace="${arr.join('&middot;')}">${arr.join(
+        ' ',
+    )}</span><wbr>`;
 }
 
 const MAX_SPACES = 8;
@@ -139,18 +150,19 @@ export function visualizeWhitespace(line) {
             let n = i - start;
             const cache = line[start] === ' ' ? spacesCache : tabsCache;
             while (n > 0) {
-                const index = (n % cache.length) || cache.length;
+                const index = n % cache.length || cache.length;
                 newLine.push(cache[index - 1]);
                 n -= index;
             }
         } else {
-            while (line[i] !== '<' && line[i] !== ' ' && line[i] !== '\t' && i < line.length) i += 1;
+            while (line[i] !== '<' && line[i] !== ' ' && line[i] !== '\t' && i < line.length) {
+                i += 1;
+            }
             newLine.push(line.slice(start, i));
         }
     }
     return newLine.join('');
 }
-
 
 export function getOtherAssignmentPlagiarismDesc(item, index) {
     const assig = item.assignments[index];
@@ -158,10 +170,15 @@ export function getOtherAssignmentPlagiarismDesc(item, index) {
         return 'This submission was uploaded during running as part of an archive of old submissions.';
     }
 
-    let desc = `This assignment was submitted to the assignment "${item.assignments[index].name}" of "${item.assignments[index].course.name}"`;
+    let desc = `This assignment was submitted to the assignment "${
+        item.assignments[index].name
+    }" of "${item.assignments[index].course.name}"`;
 
     if (item.submissions != null) {
-        const date = moment.utc(item.submissions[index].created_at, moment.ISO_8601).local().format('YYYY-MM-DD');
+        const date = moment
+            .utc(item.submissions[index].created_at, moment.ISO_8601)
+            .local()
+            .format('YYYY-MM-DD');
         desc = `${desc} on ${date}`;
     }
 

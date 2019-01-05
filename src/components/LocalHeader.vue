@@ -106,7 +106,7 @@ export default {
 </script>
 
 <style lang="less" scoped>
-@import "~mixins.less";
+@import '~mixins.less';
 
 .local-header {
     position: relative;
@@ -117,7 +117,7 @@ export default {
     border: 0;
     padding: 1rem;
     .default-footer-colors;
-    box-shadow: 0 0 4px rgba(0, 0, 0, .75);
+    box-shadow: 0 0 4px rgba(0, 0, 0, 0.75);
     color: @text-color;
 }
 
@@ -127,8 +127,8 @@ export default {
     }
 
     .back-button {
-        border-top-left-radius: .25rem !important;
-        border-bottom-left-radius: .25rem !important;
+        border-top-left-radius: 0.25rem !important;
+        border-bottom-left-radius: 0.25rem !important;
     }
 }
 

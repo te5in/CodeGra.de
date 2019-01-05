@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 import json
 
-import psef
 import pytest
-import psef.models as m
-from psef.errors import APICodes
 
+import psef
+import psef.models as m
 from helpers import create_marker
+from psef.errors import APICodes
 
 perm_error = create_marker(pytest.mark.perm_error)
 

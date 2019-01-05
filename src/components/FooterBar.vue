@@ -28,7 +28,6 @@ export default {
         };
     },
 
-
     components: {
         PrivacyNote,
     },
@@ -52,12 +51,12 @@ export default {
         .default-link-colors;
         cursor: pointer;
 
-        &, &:hover {
+        &,
+        &:hover {
             text-decoration: underline;
         }
     }
 }
-
 </style>
 
 <style lang="less">

@@ -48,6 +48,7 @@ class PsefFlask(Flask):
 
     This contains the extra property :meth:`.PsefFlask.do_sanity_checks`.
     """
+
     @property
     def max_single_file_size(self) -> 'psef.archive.FileSize':
         """The maximum allowed size for a single file.
@@ -166,7 +167,8 @@ def create_app(  # pylint: disable=too-many-statements
 
     # Configurations
     resulting_app.config.update(global_config.CONFIG)  # type: ignore
-    resulting_app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False  # type: ignore
+    resulting_app.config['SQLALCHEMY_TRACK_MODIFICATIONS'  # type: ignore
+                         ] = False
 
     if config is not None:  # pragma: no cover
         resulting_app.config.update(config)  # type: ignore

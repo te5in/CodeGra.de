@@ -400,7 +400,6 @@ class LTI:  # pylint: disable=too-many-public-methods
         if not assignment.is_done:
             assignment.state = self.assignment_state
 
-
         if assignment.name != self.assignment_name:
             logger.info(
                 'Assignment changed name',

@@ -71,12 +71,11 @@ def ensure_valid_password(  # pylint: disable=function-redefined
     else:
         result = {
             'score': -1,
-            'feedback': {
-                'warning': 'An empty password is not allowed',
-                'suggestions': [
-                    'Add more characters to your password',
-                ],
-            }
+            'feedback':
+                {
+                    'warning': 'An empty password is not allowed',
+                    'suggestions': ['Add more characters to your password', ],
+                }
         }
 
     min_score: int = current_app.config['MIN_PASSWORD_SCORE']

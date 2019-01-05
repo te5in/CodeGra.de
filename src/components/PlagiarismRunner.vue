@@ -237,9 +237,7 @@ export default {
         },
 
         oldAssignments() {
-            return this.allOldAssignments.filter(
-                assig => assig.id !== this.assignment.id,
-            );
+            return this.allOldAssignments.filter(assig => assig.id !== this.assignment.id);
         },
     },
 
@@ -280,7 +278,9 @@ export default {
             }
             const provider = this.providers.find(prov => prov.name === provName);
             return (
-                provider.options.find(opt => opt.name === optName) || { title: optName }
+                provider.options.find(opt => opt.name === optName) || {
+                    title: optName,
+                }
             ).title;
         },
 
@@ -316,10 +316,14 @@ export default {
             }
 
             let data;
-            if (this.selectedProvider.options.some(opt => opt.type === 'file' && selectedOptions[opt.name] != null)) {
+            if (
+                this.selectedProvider.options.some(
+                    opt => opt.type === 'file' && selectedOptions[opt.name] != null,
+                )
+            ) {
                 data = new FormData();
 
-                this.selectedProvider.options.forEach((opt) => {
+                this.selectedProvider.options.forEach(opt => {
                     if (opt.type === 'file') {
                         const optData = selectedOptions[opt.name];
                         selectedOptions[`has_${opt.name}`] = optData != null;
@@ -329,74 +333,71 @@ export default {
                         delete selectedOptions[opt.name];
                     }
                 });
-                data.append('json', new Blob([JSON.stringify(selectedOptions)], {
-                    type: 'application/json',
-                }));
+                data.append(
+                    'json',
+                    new Blob([JSON.stringify(selectedOptions)], {
+                        type: 'application/json',
+                    }),
+                );
             } else {
                 selectedOptions.has_base_code = false;
                 selectedOptions.has_old_submissions = false;
                 data = selectedOptions;
             }
 
-            const req = this.$http.post(
-                `/api/v1/assignments/${this.assignment.id}/plagiarism`,
-                data,
-            ).then(
-                ({ data: run }) => {
-                    run.created_at = formatDate(run.created_at);
-                    this.runs.push(run);
-                }, (err) => {
-                    let res = err.response.data.message;
-                    if (err.response.data.invalid_options) {
-                        res += ` (${err.response.data.invalid_options.join('. ')})`;
-                    }
-                    throw res;
-                },
-            );
+            const req = this.$http
+                .post(`/api/v1/assignments/${this.assignment.id}/plagiarism`, data)
+                .then(
+                    ({ data: run }) => {
+                        run.created_at = formatDate(run.created_at);
+                        this.runs.push(run);
+                    },
+                    err => {
+                        let res = err.response.data.message;
+                        if (err.response.data.invalid_options) {
+                            res += ` (${err.response.data.invalid_options.join('. ')})`;
+                        }
+                        throw res;
+                    },
+                );
 
             return this.$refs.runButton.submit(req);
         },
 
         async getOldAssignments() {
-            const permissions = Object.entries(await this.$http.get(
-                '/api/v1/permissions/?type=course&permission=can_view_plagiarism',
-            ).then(
-                ({ data }) => data,
-                () => {},
-            ));
+            const permissions = Object.entries(
+                await this.$http
+                    .get('/api/v1/permissions/?type=course&permission=can_view_plagiarism')
+                    .then(({ data }) => data, () => {}),
+            );
 
             let assignments = [];
             if (permissions.length) {
-                assignments = (await Promise.all(permissions.reduce(
-                    (promises, [courseId, { can_view_plagiarism: canView }]) => {
+                assignments = (await Promise.all(
+                    permissions.reduce((promises, [courseId, { can_view_plagiarism: canView }]) => {
                         if (canView) {
                             promises.push(
-                                this.$http.get(`/api/v1/courses/${courseId}/assignments/`).then(
-                                    ({ data }) => data,
-                                    () => [],
-                                ),
+                                this.$http
+                                    .get(`/api/v1/courses/${courseId}/assignments/`)
+                                    .then(({ data }) => data, () => []),
                             );
                         }
                         return promises;
-                    },
-                    [],
-                ))).reduce(
-                    (a, b) => a.concat(b),
-                ).map(
-                    (assig) => {
+                    }, []),
+                ))
+                    .reduce((a, b) => a.concat(b))
+                    .map(assig => {
                         const courseName = this.$htmlEscape(assig.course.name);
                         const assigName = this.$htmlEscape(assig.name);
                         assig.label = `${courseName} - ${assigName}`;
                         return assig;
-                    },
-                ).sort(
-                    (a, b) => cmpNoCase(a.label, b.label),
-                );
+                    })
+                    .sort((a, b) => cmpNoCase(a.label, b.label));
             }
 
             this.allOldAssignments = assignments;
-            this.providers.forEach((prov) => {
-                prov.options.forEach((opt) => {
+            this.providers.forEach(prov => {
+                prov.options.forEach(opt => {
                     if (opt.name === 'old_assignments') {
                         opt.possible_options = this.oldAssignments;
                     }
@@ -404,9 +405,8 @@ export default {
             });
         },
 
-
         addOldSubmissionsOption() {
-            this.providers.forEach((provider) => {
+            this.providers.forEach(provider => {
                 provider.options.push({
                     name: 'old_submissions',
                     title: 'Old submissions',
@@ -423,7 +423,7 @@ export default {
         },
 
         addBaseCodeOption() {
-            this.providers.forEach((provider) => {
+            this.providers.forEach(provider => {
                 if (provider.base_code) {
                     provider.options.push({
                         name: 'base_code',
@@ -444,7 +444,8 @@ export default {
                 this.providers[i].options.push({
                     name: 'old_assignments',
                     title: 'Old assignments',
-                    description: 'Include submissions from assignments from previous years in this run.',
+                    description:
+                        'Include submissions from assignments from previous years in this run.',
                     type: 'multiselect',
                     mandatory: false,
                     possible_options: null,
@@ -477,9 +478,7 @@ export default {
                 return;
             }
 
-            const { data: providers } = await this.$http.get('/api/v1/plagiarism/').catch(
-                () => [],
-            );
+            const { data: providers } = await this.$http.get('/api/v1/plagiarism/').catch(() => []);
             this.providers = providers;
         },
 
@@ -489,12 +488,10 @@ export default {
                 return;
             }
 
-            const { data: runs } = await this.$http.get(
-                `/api/v1/assignments/${this.assignment.id}/plagiarism/`,
-            ).catch(
-                () => [],
-            );
-            runs.forEach((run) => {
+            const { data: runs } = await this.$http
+                .get(`/api/v1/assignments/${this.assignment.id}/plagiarism/`)
+                .catch(() => []);
+            runs.forEach(run => {
                 run.created_at = formatDate(run.created_at);
             });
             this.runs = runs;
@@ -502,9 +499,7 @@ export default {
 
         pollRuns() {
             this.runsPollingInterval = setInterval(() => {
-                const running = this.runs.filter(
-                    run => run.state === 'running',
-                );
+                const running = this.runs.filter(run => run.state === 'running');
 
                 if (!running.length) {
                     return;
@@ -515,18 +510,18 @@ export default {
         },
 
         deleteRun(run, i) {
-            this.$refs.deleteRunButton[i].submit(
-                this.$http.delete(`/api/v1/plagiarism/${run.id}`).catch(
-                    ({ response }) => {
+            this.$refs.deleteRunButton[i]
+                .submit(
+                    this.$http.delete(`/api/v1/plagiarism/${run.id}`).catch(({ response }) => {
                         throw response.data.message;
+                    }),
+                )
+                .then(
+                    () => {
+                        this.runs.splice(i, 1);
                     },
-                ),
-            ).then(
-                () => {
-                    this.runs.splice(i, 1);
-                },
-                () => {},
-            );
+                    () => {},
+                );
         },
     },
 
@@ -555,7 +550,7 @@ export default {
 </script>
 
 <style lang="less" scoped>
-@import "~mixins.less";
+@import '~mixins.less';
 
 .plagiarism-runner > .loader {
     margin: 1rem;
@@ -566,8 +561,9 @@ export default {
         margin-bottom: 0;
     }
 
-    tr.run-done:hover, tr.run-crashed:hover {
-        background-color: rgba(0, 0, 0, .075);
+    tr.run-done:hover,
+    tr.run-crashed:hover {
+        background-color: rgba(0, 0, 0, 0.075);
         cursor: pointer;
     }
 
@@ -578,7 +574,7 @@ export default {
                 border-color: @alert-danger-color;
             }
         }
-        &:nth-of-type(2n+1) {
+        &:nth-of-type(2n + 1) {
             background: lighten(@alert-danger-color, 20%);
             #app.dark & {
                 background: @alert-danger-color;
@@ -629,7 +625,7 @@ export default {
 }
 
 .options-table {
-    border-bottom: 1px solid rgba(0, 0, 0, .15);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.15);
     cursor: default !important;
 
     #app.dark & {

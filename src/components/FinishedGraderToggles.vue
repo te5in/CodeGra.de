@@ -118,33 +118,46 @@ export default {
             let req;
 
             if (grader.done) {
-                req = this.$http.post(`/api/v1/assignments/${this.assignment.id}/graders/${grader.id}/done`);
+                req = this.$http.post(
+                    `/api/v1/assignments/${this.assignment.id}/graders/${grader.id}/done`,
+                );
             } else {
-                req = this.$http.delete(`/api/v1/assignments/${this.assignment.id}/graders/${grader.id}/done`);
+                req = this.$http.delete(
+                    `/api/v1/assignments/${this.assignment.id}/graders/${grader.id}/done`,
+                );
             }
 
-            waitAtLeast(500, req).then((res) => {
-                if (res.headers.warning) {
-                    const warning = parseWarningHeader(res.headers.warning);
-                    this.$set(this.warningGraders, grader.id, warning.text);
-                    this.$nextTick(() => setTimeout(() => {
-                        this.$set(this.warningGraders, grader.id, undefined);
-                        delete this.warningGraders[grader.id];
-                    }, 2000));
-                }
-            }, (err) => {
-                this.$set(this.errorGraders, grader.id, err.response.data.message);
+            waitAtLeast(500, req)
+                .then(
+                    res => {
+                        if (res.headers.warning) {
+                            const warning = parseWarningHeader(res.headers.warning);
+                            this.$set(this.warningGraders, grader.id, warning.text);
+                            this.$nextTick(() =>
+                                setTimeout(() => {
+                                    this.$set(this.warningGraders, grader.id, undefined);
+                                    delete this.warningGraders[grader.id];
+                                }, 2000),
+                            );
+                        }
+                    },
+                    err => {
+                        this.$set(this.errorGraders, grader.id, err.response.data.message);
 
-                this.$nextTick(() => setTimeout(() => {
-                    grader.done = !grader.done;
+                        this.$nextTick(() =>
+                            setTimeout(() => {
+                                grader.done = !grader.done;
 
-                    this.$set(this.errorGraders, grader.id, undefined);
-                    delete this.errorGraders[grader.id];
-                }, 2000));
-            }).then(() => {
-                this.$set(this.loadingGraders, grader.id, undefined);
-                delete this.loadingGraders[grader.id];
-            });
+                                this.$set(this.errorGraders, grader.id, undefined);
+                                delete this.errorGraders[grader.id];
+                            }, 2000),
+                        );
+                    },
+                )
+                .then(() => {
+                    this.$set(this.loadingGraders, grader.id, undefined);
+                    delete this.loadingGraders[grader.id];
+                });
         },
     },
 
@@ -170,11 +183,11 @@ export default {
 }
 
 .table td:not(:first-child) {
-    padding: .5rem;
+    padding: 0.5rem;
 }
 
 .table td:nth-child(2) {
-    padding-top: .75rem;
+    padding-top: 0.75rem;
 }
 
 .table td:nth-child(2),

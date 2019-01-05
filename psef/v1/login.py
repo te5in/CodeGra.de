@@ -15,16 +15,14 @@ import psef.mail as mail
 import psef.models as models
 import psef.helpers as helpers
 from psef import current_user
-from psef.errors import (
-    APICodes, APIWarnings, APIException
-)
-from psef.exceptions import WeakPasswordException
+from psef.errors import APICodes, APIWarnings, APIException
 from psef.models import db
 from psef.helpers import (
     JSONResponse, EmptyResponse, ExtendedJSONResponse, jsonify, validate,
     add_warning, ensure_json_dict, extended_jsonify, ensure_keys_in_dict,
     make_empty_response
 )
+from psef.exceptions import WeakPasswordException
 
 from . import api
 from ..permissions import GlobalPermission as GPerm

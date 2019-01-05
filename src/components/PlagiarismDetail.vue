@@ -154,7 +154,8 @@ export default {
         },
 
         $route(newRoute, oldRoute) {
-            if (newRoute.params.assignmentId !== oldRoute.params.assignmentId ||
+            if (
+                newRoute.params.assignmentId !== oldRoute.params.assignmentId ||
                 newRoute.params.plagiarismRunId !== oldRoute.params.plagiarismRunId ||
                 newRoute.params.plagiarismCaseId !== oldRoute.params.plagiarismCaseId
             ) {
@@ -169,24 +170,17 @@ export default {
         ...mapGetters('courses', ['assignments']),
 
         colorPairs() {
-            return [
-                '#00FF00',
-                '#FF0000',
-                '#0000FF',
-                '#FFFB00',
-                '#00FFFF',
-                '#7F00FF',
-            ].map((color) => {
+            return ['#00FF00', '#FF0000', '#0000FF', '#FFFB00', '#00FFFF', '#7F00FF'].map(color => {
                 const rgbInt = parseInt(color.slice(1), 16);
-                const b = rgbInt & 0xFF;
-                const g = (rgbInt >> 8) & 0xFF;
-                const r = (rgbInt >> 16) & 0xFF;
+                const b = rgbInt & 0xff;
+                const g = (rgbInt >> 8) & 0xff;
+                const r = (rgbInt >> 16) & 0xff;
                 const background = [r, g, b];
                 return {
                     background,
-                    textColor: this.darkMode ?
-                        background.map(item => Math.min(255, Math.max(25, item) * 4)) :
-                        background.map(item => item / 1.75),
+                    textColor: this.darkMode
+                        ? background.map(item => Math.min(255, Math.max(25, item) * 4))
+                        : background.map(item => item / 1.75),
                 };
             });
         },
@@ -208,17 +202,14 @@ export default {
         },
 
         userIds() {
-            return [
-                this.$route.params.userId1,
-                this.$route.params.userId2,
-            ];
+            return [this.$route.params.userId1, this.$route.params.userId2];
         },
 
         filesPerStudent() {
             const self = {};
             const other = {};
 
-            this.detail.matches.forEach((match) => {
+            this.detail.matches.forEach(match => {
                 self[match.files[0].id] = true;
                 other[match.files[1].id] = true;
             });
@@ -227,19 +218,11 @@ export default {
         },
 
         matchesSortedByRange() {
-            return this.detail.matches.sort(
-                (a, b) => {
-                    const lenA = (
-                        (a.lines[0][1] - a.lines[0][0]) +
-                            (a.lines[1][1] - a.lines[1][0])
-                    ) / 2;
-                    const lenB = (
-                        (b.lines[0][1] - b.lines[0][0]) +
-                            (b.lines[1][1] - b.lines[1][0])
-                    ) / 2;
-                    return lenB - lenA;
-                },
-            );
+            return this.detail.matches.sort((a, b) => {
+                const lenA = (a.lines[0][1] - a.lines[0][0] + (a.lines[1][1] - a.lines[1][0])) / 2;
+                const lenB = (b.lines[0][1] - b.lines[0][0] + (b.lines[1][1] - b.lines[1][0])) / 2;
+                return lenB - lenA;
+            });
         },
     },
 
@@ -284,35 +267,57 @@ export default {
             const endListingRegex = new RegExp('\\\\end{lstlisting}', 'g');
             const underscore = new RegExp('_', 'g');
 
-            const contents = Object.keys(matches.reduce((accum, match) => {
-                accum[match.files[0].id] = true;
-                accum[match.files[1].id] = true;
-                return accum;
-            }, {})).reduce((accum, fileId) => {
-                accum[fileId] = this.$http.get(`/api/v1/code/${fileId}`, { responseType: 'arraybuffer' }).then(
-                    ({ data }) => {
+            const contents = Object.keys(
+                matches.reduce((accum, match) => {
+                    accum[match.files[0].id] = true;
+                    accum[match.files[1].id] = true;
+                    return accum;
+                }, {}),
+            ).reduce((accum, fileId) => {
+                accum[fileId] = this.$http
+                    .get(`/api/v1/code/${fileId}`, {
+                        responseType: 'arraybuffer',
+                    })
+                    .then(({ data }) => {
                         const content = decodeBuffer(data, true);
-                        return content.split('\n').map(l => l.replace(endListingRegex, '\\end {lstlisting}'));
-                    },
-                );
+                        return content
+                            .split('\n')
+                            .map(l => l.replace(endListingRegex, '\\end {lstlisting}'));
+                    });
                 return accum;
             }, {});
 
-            const middle = await Promise.all(matches.map(async (match, i) => {
-                const left = (await contents[match.files[0].id]).slice(
-                    match.lines[0][0], match.lines[0][1] + 1,
-                );
-                const right = (await contents[match.files[1].id]).slice(
-                    match.lines[1][0], match.lines[1][1] + 1,
-                );
-                return `\\subsection*{Match ${i + 1}}
-    \\begin{lstlisting}[firstnumber=${match.lines[0][0] + 1}, caption={File \\texttt{${this.getFromFileTree(this.tree1, match.files[0]).replace(underscore, '\\_')}} of ${this.detail.users[0].name}}]
-${left.join('\n')}
-    \\end{lstlisting}
-    \\begin{lstlisting}[firstnumber=${match.lines[1][0] + 1}, caption={File \\texttt{${this.getFromFileTree(this.tree2, match.files[1]).replace(underscore, '\\_')}} of ${this.detail.users[1].name}}]
-${right.join('\n')}
-    \\end{lstlisting}`;
-            }));
+            const middle = await Promise.all(
+                matches.map(async (match, i) => {
+                    const left = (await contents[match.files[0].id]).slice(
+                        match.lines[0][0],
+                        match.lines[0][1] + 1,
+                    );
+                    const right = (await contents[match.files[1].id]).slice(
+                        match.lines[1][0],
+                        match.lines[1][1] + 1,
+                    );
+                    const captionLeft = this.getFromFileTree(this.tree1, match.files[0]).replace(
+                        underscore,
+                        '\\_',
+                    );
+                    const captionRight = this.getFromFileTree(this.tree2, match.files[1]).replace(
+                        underscore,
+                        '\\_',
+                    );
+                    // prettier-ignore-start
+                    return `\\subsection*{Match ${i + 1}}
+\\begin{lstlisting}[firstnumber=${match.lines[0][0] + 1},
+    caption={File \\texttt{${captionLeft}} of ${this.detail.users[0].name}}]
+    ${left.join('\n')}
+\\end{lstlisting}
+\\begin{lstlisting}[firstnumber=${match.lines[1][0] + 1},
+    caption={File \\texttt{${captionRight}} of ${this.detail.users[1].name}}]
+    ${right.join('\n')}
+\\end{lstlisting}`;
+                    // prettier-ignore-end
+                }),
+            );
 
             const footer = '\\end{document}\n';
 
@@ -320,31 +325,28 @@ ${right.join('\n')}
         },
 
         updateSortedFiles() {
-            const filesObj = this.detail.matches.reduce(
-                (accum, match) => {
-                    if (accum[match.files[0].id]) {
-                        accum[match.files[0].id].lines.push(match.lines[0]);
-                    } else {
-                        accum[match.files[0].id] = {
-                            name: match.files[0].name,
-                            id: match.files[0].id,
-                            lines: [match.lines[0]],
-                        };
-                    }
-                    if (accum[match.files[1].id]) {
-                        accum[match.files[1].id].lines.push(match.lines[1]);
-                    } else {
-                        accum[match.files[1].id] = {
-                            name: match.files[1].name,
-                            id: match.files[1].id,
-                            lines: [match.lines[1]],
-                        };
-                    }
+            const filesObj = this.detail.matches.reduce((accum, match) => {
+                if (accum[match.files[0].id]) {
+                    accum[match.files[0].id].lines.push(match.lines[0]);
+                } else {
+                    accum[match.files[0].id] = {
+                        name: match.files[0].name,
+                        id: match.files[0].id,
+                        lines: [match.lines[0]],
+                    };
+                }
+                if (accum[match.files[1].id]) {
+                    accum[match.files[1].id].lines.push(match.lines[1]);
+                } else {
+                    accum[match.files[1].id] = {
+                        name: match.files[1].name,
+                        id: match.files[1].id,
+                        lines: [match.lines[1]],
+                    };
+                }
 
-                    return accum;
-                },
-                {},
-            );
+                return accum;
+            }, {});
             this.sortedFiles = Object.values(filesObj).sort((a, b) => {
                 const lenA = a.lines.reduce((accum, item) => accum + (item[1] - item[0]), 0);
                 const lenB = b.lines.reduce((accum, item) => accum + (item[1] - item[0]), 0);
@@ -353,17 +355,20 @@ ${right.join('\n')}
             this.sortedFilesObject = filesObj;
         },
 
-
         async getFileContents() {
             this.contentLoaded = false;
 
             this.updateSortedFiles();
 
-            await Promise.all(this.sortedFiles.map(async (file) => {
-                const { data } = (await this.$http.get(`/api/v1/code/${file.id}`, { responseType: 'arraybuffer' }));
-                const content = decodeBuffer(data, true);
-                file.content = content.split('\n').map(this.$htmlEscape);
-            }));
+            await Promise.all(
+                this.sortedFiles.map(async file => {
+                    const { data } = await this.$http.get(`/api/v1/code/${file.id}`, {
+                        responseType: 'arraybuffer',
+                    });
+                    const content = decodeBuffer(data, true);
+                    file.content = content.split('\n').map(this.$htmlEscape);
+                }),
+            );
 
             this.highlightAllLines();
             this.contentLoaded = true;
@@ -371,7 +376,7 @@ ${right.join('\n')}
 
         highlightAllLines() {
             let colorIndex = 0;
-            this.detail.matches.forEach((match) => {
+            this.detail.matches.forEach(match => {
                 this.sortedFilesObject[match.files[0].id].content = this.highlightLines(
                     this.sortedFilesObject[match.files[0].id].content,
                     match,
@@ -392,8 +397,12 @@ ${right.join('\n')}
             const colorPair = this.colorPairs[totalColorIndex % this.colorPairs.length];
 
             for (let i = range[0]; i <= range[1]; i++) {
-                lines[i] = { old: lines[i].old == null ? lines[i] : lines[i].old };
-                lines[i].colored = `<span style="color: rgb(${colorPair.textColor}); background: rgba(${colorPair.background}, .1);">${lines[i].old}</span>`;
+                lines[i] = {
+                    old: lines[i].old == null ? lines[i] : lines[i].old,
+                };
+                lines[i].colored = `<span style="color: rgb(${
+                    colorPair.textColor
+                }); background: rgba(${colorPair.background}, .1);">${lines[i].old}</span>`;
             }
             match.color = colorPair.background;
 
@@ -420,60 +429,68 @@ ${right.join('\n')}
         // target must be 'self' or 'other'.
         gotoLineInTarget(lines, file, target) {
             const ref = `file-comparison-${target}`;
-            const codeViewer = this.$refs[`${ref}-${this.getFromFileTree(target === 'self' ? this.tree1 : this.tree2, file)}`][0];
+            const codeViewer = this.$refs[
+                `${ref}-${this.getFromFileTree(target === 'self' ? this.tree1 : this.tree2, file)}`
+            ][0];
 
             const line = lines[0];
 
             codeViewer.querySelectorAll('li')[Math.max(line - 1, 0)].scrollIntoView();
-            codeViewer.parentNode.scrollTop -= codeViewer.querySelector('.card-header').clientHeight;
+            codeViewer.parentNode.scrollTop -= codeViewer.querySelector(
+                '.card-header',
+            ).clientHeight;
         },
 
         loadDetail() {
             this.loadingData = true;
 
-            this.$http.get(
-                `/api/v1/plagiarism/${this.plagiarismRunId}/cases/${this.plagiarismCaseId}`,
-            ).then(
-                ({ data }) => {
-                    if (data.assignments[0].id !== this.assignmentId) {
-                        data.users.reverse();
-                        data.assignments.reverse();
-                        data.submissions.reverse();
+            this.$http
+                .get(`/api/v1/plagiarism/${this.plagiarismRunId}/cases/${this.plagiarismCaseId}`)
+                .then(
+                    ({ data }) => {
+                        if (data.assignments[0].id !== this.assignmentId) {
+                            data.users.reverse();
+                            data.assignments.reverse();
+                            data.submissions.reverse();
 
-                        for (let i = 0, l = data.matches.length; i < l; i++) {
-                            const match = data.matches[i];
-                            match.files.reverse();
-                            match.lines.reverse();
+                            for (let i = 0, l = data.matches.length; i < l; i++) {
+                                const match = data.matches[i];
+                                match.files.reverse();
+                                match.lines.reverse();
+                            }
                         }
-                    }
 
-                    this.detail = data;
+                        this.detail = data;
 
-                    return Promise.all([
-                        this.loadCourses(),
-                        this.loadFileTrees(),
-                        this.getFileContents(),
-                    ]);
-                },
-                (err) => {
-                    this.error = err.response.data.message;
-                    if (err.response.status === 403) {
-                        this.error += ' Make sure you have the `can_view_plagiarism` on both courses where the submissions originate.';
-                    }
-                },
-            ).then(
-                () => { this.loadingData = false; },
-            );
+                        return Promise.all([
+                            this.loadCourses(),
+                            this.loadFileTrees(),
+                            this.getFileContents(),
+                        ]);
+                    },
+                    err => {
+                        this.error = err.response.data.message;
+                        if (err.response.status === 403) {
+                            this.error +=
+                                ' Make sure you have the `can_view_plagiarism` on both courses where the submissions originate.';
+                        }
+                    },
+                )
+                .then(() => {
+                    this.loadingData = false;
+                });
         },
 
         async loadFileTrees() {
             [this.tree1, this.tree2] = await Promise.all([
-                this.$http.get(
-                    `/api/v1/submissions/${this.detail.submissions[0].id}/files/`,
-                ).then(a => this.processFileTree(a.data)).catch(() => null),
-                this.$http.get(
-                    `/api/v1/submissions/${this.detail.submissions[1].id}/files/`,
-                ).then(a => this.processFileTree(a.data)).catch(() => null),
+                this.$http
+                    .get(`/api/v1/submissions/${this.detail.submissions[0].id}/files/`)
+                    .then(a => this.processFileTree(a.data))
+                    .catch(() => null),
+                this.$http
+                    .get(`/api/v1/submissions/${this.detail.submissions[1].id}/files/`)
+                    .then(a => this.processFileTree(a.data))
+                    .catch(() => null),
             ]);
         },
 
@@ -501,15 +518,20 @@ ${right.join('\n')}
                 btn.fail('Select at least one case.');
                 return;
             }
-            btn.submit(this.getTexFile(
-                matches,
-            ).then((text) => {
-                this.$http.post('/api/v1/files/', text).then((response) => {
-                    this.exportMatches = {};
-                    const fileName = `plagiarism_case_${this.detail.users[0].name}+${this.detail.users[1].name}.tex`;
-                    window.open(`/api/v1/files/${response.data}/${encodeURIComponent(fileName)}`, '_blank');
-                });
-            }));
+            btn.submit(
+                this.getTexFile(matches).then(text => {
+                    this.$http.post('/api/v1/files/', text).then(response => {
+                        this.exportMatches = {};
+                        const fileName = `plagiarism_case_${this.detail.users[0].name}+${
+                            this.detail.users[1].name
+                        }.tex`;
+                        window.open(
+                            `/api/v1/files/${response.data}/${encodeURIComponent(fileName)}`,
+                            '_blank',
+                        );
+                    });
+                }),
+            );
         },
     },
 
@@ -543,8 +565,8 @@ ${right.join('\n')}
     max-height: 8em;
     flex: 0 0 auto;
     overflow-y: auto;
-    border: 1px solid rgba(0, 0, 0, .125);
-    border-radius: .25rem;
+    border: 1px solid rgba(0, 0, 0, 0.125);
+    border-radius: 0.25rem;
 }
 
 .range-table {
@@ -575,7 +597,7 @@ ${right.join('\n')}
 }
 
 .code-viewer {
-    margin-top: .75rem;
+    margin-top: 0.75rem;
     flex: 4 4 auto;
     overflow-y: auto;
 }
@@ -661,8 +683,8 @@ ol {
 
 li {
     position: relative;
-    padding-left: .75em;
-    padding-right: .75em;
+    padding-left: 0.75em;
+    padding-right: 0.75em;
 
     background-color: lighten(@linum-bg, 1%);
     border-left: 1px solid darken(@linum-bg, 5%);

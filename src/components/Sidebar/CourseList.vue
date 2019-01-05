@@ -88,9 +88,9 @@ export default {
         topCourses() {
             const now = moment();
             function closestDeadline(course) {
-                return Math.min(...course.assignments.map(
-                    assig => Math.abs(moment(assig.deadline).diff(now)),
-                ));
+                return Math.min(
+                    ...course.assignments.map(assig => Math.abs(moment(assig.deadline).diff(now))),
+                );
             }
 
             const lookup = Object.values(this.courses).reduce((res, course) => {
@@ -98,20 +98,17 @@ export default {
                 return res;
             }, {});
 
-            return Object.values(this.courses).sort(
-                (a, b) => lookup[a.id] - lookup[b.id],
-            ).slice(0, 3);
+            return Object.values(this.courses)
+                .sort((a, b) => lookup[a.id] - lookup[b.id])
+                .slice(0, 3);
         },
 
         showTopCourses() {
-            return !this.filter &&
-                this.sortedCourses.length >= this.topCourses.length + 2;
+            return !this.filter && this.sortedCourses.length >= this.topCourses.length + 2;
         },
 
         sortedCourses() {
-            return Object.values(this.courses).sort(
-                (a, b) => cmpNoCase(a.name, b.name),
-            );
+            return Object.values(this.courses).sort((a, b) => cmpNoCase(a.name, b.name));
         },
 
         filteredCourses() {
@@ -122,20 +119,19 @@ export default {
             const filterParts = this.filter.toLocaleLowerCase().split(' ');
 
             return this.sortedCourses.filter(course =>
-                filterParts.every(part =>
-                    course.name.toLocaleLowerCase().indexOf(part) > -1));
+                filterParts.every(part => course.name.toLocaleLowerCase().indexOf(part) > -1),
+            );
         },
 
         currentCourse() {
             return this.courses[this.$route.params.courseId];
         },
-
     },
 
     async mounted() {
         this.$root.$on('sidebar::reload', this.reload);
 
-        this.$hasPermission('can_create_courses').then((create) => {
+        this.$hasPermission('can_create_courses').then(create => {
             this.showAddButton = create;
         });
 
@@ -149,9 +145,11 @@ export default {
         await this.$nextTick();
 
         const activeEl = document.activeElement;
-        if (!activeEl ||
+        if (
+            !activeEl ||
             !activeEl.matches('input, textarea') ||
-            activeEl.closest('.sidebar .submenu')) {
+            activeEl.closest('.sidebar .submenu')
+        ) {
             this.$refs.filter.focus();
         }
     },
@@ -171,23 +169,26 @@ export default {
         },
 
         createNewCourse(name, resolve, reject) {
-            this.$http.post('/api/v1/courses/', {
-                name,
-            }).then(({ data: course }) => {
-                this.$emit('loading');
-                resolve();
-                return this.reloadCourses().then(() => {
-                    this.$emit('loaded');
-                    this.$router.push({
-                        name: 'manage_course',
-                        params: {
-                            courseId: course.id,
-                        },
+            this.$http
+                .post('/api/v1/courses/', {
+                    name,
+                })
+                .then(({ data: course }) => {
+                    this.$emit('loading');
+                    resolve();
+                    return this.reloadCourses().then(() => {
+                        this.$emit('loaded');
+                        this.$router.push({
+                            name: 'manage_course',
+                            params: {
+                                courseId: course.id,
+                            },
+                        });
                     });
+                })
+                .catch(err => {
+                    reject(err.response.data.message);
                 });
-            }).catch((err) => {
-                reject(err.response.data.message);
-            });
         },
     },
 

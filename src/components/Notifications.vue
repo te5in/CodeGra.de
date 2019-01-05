@@ -95,7 +95,6 @@ export default {
             doneType: this.assignment.done_type,
             options: [
                 {
-
                     text: 'Assigned graders only',
                     value: 'assigned_only',
                     help: `
@@ -135,9 +134,11 @@ divided or because they were assigned work manually.`,
             const button = this.$refs.updateReminder;
 
             if ((this.graders || this.finished) && !type) {
-                let msg = 'Please select when grading on this assignment should be considered finished.';
+                let msg =
+                    'Please select when grading on this assignment should be considered finished.';
                 if (this.graders) {
-                    msg += ' This also indicates who should get a notification when they are not yet done grading.';
+                    msg +=
+                        ' This also indicates who should get a notification when they are not yet done grading.';
                 }
                 button.fail(msg);
                 return;
@@ -149,23 +150,29 @@ divided or because they were assigned work manually.`,
                 reminder_time: time,
             };
 
-            const req = this.$http.patch(this.assignmentUrl, props).then((res) => {
-                if (type != null) {
-                    props.reminder_time = moment.utc(time).local().format('YYYY-MM-DDTHH:mm');
-                }
+            const req = this.$http.patch(this.assignmentUrl, props).then(
+                res => {
+                    if (type != null) {
+                        props.reminder_time = moment
+                            .utc(time)
+                            .local()
+                            .format('YYYY-MM-DDTHH:mm');
+                    }
 
-                this.updateAssignment({
-                    assignmentId: this.assignment.id,
-                    assignmentProps: props,
-                });
+                    this.updateAssignment({
+                        assignmentId: this.assignment.id,
+                        assignmentProps: props,
+                    });
 
-                if (res.headers.warning) {
-                    button.cancel();
-                    button.warn(parseWarningHeader(res.headers.warning).text);
-                }
-            }, (err) => {
-                throw err.response.data.message;
-            });
+                    if (res.headers.warning) {
+                        button.cancel();
+                        button.warn(parseWarningHeader(res.headers.warning).text);
+                    }
+                },
+                err => {
+                    throw err.response.data.message;
+                },
+            );
 
             button.submit(req);
         },
@@ -180,8 +187,8 @@ divided or because they were assigned work manually.`,
 
 <style lang="less" scoped>
 hr {
-    margin-top: .5rem;
-    margin-bottom: .5rem;
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
 }
 
 .grade-options {

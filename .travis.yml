@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 ---
 language: python
+dist: xenial
 sudo: false
 notifications:
   email: false
@@ -23,13 +24,13 @@ env:
 
 matrix:
   include:
-    - python: "3.7-dev"
+    - python: "3.7"
       env: TO_RUN="coverage"
-    - python: "3.7-dev"
+    - python: "3.7"
       env: TO_RUN="postgres-test"
-    - python: "3.7-dev"
+    - python: "3.7"
       env: TO_RUN="lint"
-    - python: "3.7-dev"
+    - python: "3.7"
       env: TO_RUN="js_unit"
 
 install:

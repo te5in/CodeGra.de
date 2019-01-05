@@ -175,7 +175,7 @@ export default {
             parseBool,
             showRubricModal: false,
             latestOnly: parseBool(this.$route.query.latest, true),
-            mineOnly: parseBool(this.$route.query.mine, true),
+            mineOnly: parseBool(this.$route.query.mine, null),
             currentPage: 1,
             filter: this.$route.query.q || '',
             latest: this.getLatest(this.submissions),
@@ -197,11 +197,13 @@ export default {
                     key: 'user',
                     label: 'User',
                     sortable: true,
-                }, {
+                },
+                {
                     key: 'grade',
                     label: 'Grade',
                     sortable: true,
-                }, {
+                },
+                {
                     key: 'created_at',
                     label: 'Created at',
                     sortable: true,
@@ -218,18 +220,22 @@ export default {
         },
 
         exportFilename() {
-            return this.assignment ? `${this.assignment.course.name}-${this.assignment.name}.csv` : null;
+            return this.assignment
+                ? `${this.assignment.course.name}-${this.assignment.name}.csv`
+                : null;
         },
 
         filteredSubmissions() {
             // WARNING: We need to access all, do not change!
-            if ([
-                this.submissions,
-                this.latestOnly,
-                this.mineOnly,
-                this.userId,
-                this.filter,
-            ].indexOf(undefined) !== -1) {
+            if (
+                [
+                    this.submissions,
+                    this.latestOnly,
+                    this.mineOnly,
+                    this.userId,
+                    this.filter,
+                ].indexOf(undefined) !== -1
+            ) {
                 return [];
             }
 
@@ -276,30 +282,32 @@ export default {
         ...mapActions('courses', ['forceLoadSubmissions']),
 
         submitForceLoadSubmissions() {
-            const req = waitAtLeast(500, this.forceLoadSubmissions(this.assignment.id).catch(
-                (err) => {
+            const req = waitAtLeast(
+                500,
+                this.forceLoadSubmissions(this.assignment.id).catch(err => {
                     throw err.response.data.message;
-                },
-            ));
+                }),
+            );
             this.$refs.refreshButton.submit(req);
         },
 
         updateAssigneeFilter() {
-            this.assigneeFilter = this.submissions.some(
-                s => s.assignee && s.assignee.id === this.userId,
-            );
+            this.assigneeFilter = this.submissions.some(s => s.assignee);
         },
 
         updateGraders(graders) {
-            const assignees = graders.map(ass =>
-                ({ value: ass.id, text: ass.name, data: ass }));
+            const assignees = graders.map(ass => ({
+                value: ass.id,
+                text: ass.name,
+                data: ass,
+            }));
             assignees.unshift({ value: null, text: '-', data: null });
             this.assignees = assignees;
         },
 
         getLatest(submissions) {
             const latest = {};
-            submissions.forEach((item) => {
+            submissions.forEach(item => {
                 if (!latest[item.user.id]) {
                     latest[item.user.id] = item.id;
                 }
@@ -309,11 +317,10 @@ export default {
 
         sortChanged(context) {
             this.$router.replace({
-                query: Object.assign(
-                    {},
-                    this.$route.query,
-                    { sortBy: context.sortBy, sortAsc: !context.sortDesc },
-                ),
+                query: Object.assign({}, this.$route.query, {
+                    sortBy: context.sortBy,
+                    sortAsc: !context.sortDesc,
+                }),
             });
         },
 
@@ -330,8 +337,8 @@ export default {
                     // Fuck you bootstrapVue (sortDesc should've been sortAsc)
                     sortBy: this.$refs.table.sortBy,
                     sortAsc: !this.$refs.table.sortDesc,
-                    overview: this.assignment.state === assignmentState.DONE &&
-                        submission.grade != null,
+                    overview:
+                        this.assignment.state === assignmentState.DONE && submission.grade != null,
                 },
             });
         },
@@ -376,22 +383,25 @@ export default {
                 res = this.$http.delete(`/api/v1/submissions/${submission.id}/grader`);
             }
 
-            res.then(() => {
-                this.$set(this.assigneeUpdating, submission.id, false);
-                let newAssignee;
-                for (let i = 0; i < this.assignees.length; i += 1) {
-                    if (this.assignees[i].data && this.assignees[i].data.id === newId) {
-                        newAssignee = this.assignees[i].data;
-                        break;
+            res.then(
+                () => {
+                    this.$set(this.assigneeUpdating, submission.id, false);
+                    let newAssignee;
+                    for (let i = 0; i < this.assignees.length; i += 1) {
+                        if (this.assignees[i].data && this.assignees[i].data.id === newId) {
+                            newAssignee = this.assignees[i].data;
+                            break;
+                        }
                     }
-                }
-                this.$emit('assigneeUpdated', submission, newAssignee);
-                this.updateAssigneeFilter();
-            }, ({ response }) => {
-                // TODO: visual feedback
-                // eslint-disable-next-line
-                console.log(response);
-            });
+                    this.$emit('assigneeUpdated', submission, newAssignee);
+                    this.updateAssigneeFilter();
+                },
+                ({ response }) => {
+                    // TODO: visual feedback
+                    // eslint-disable-next-line
+                    console.log(response);
+                },
+            );
         },
 
         formatGrade,
@@ -410,12 +420,13 @@ export default {
 </script>
 
 <style lang="less">
-@import "~mixins.less";
+@import '~mixins.less';
 
 .submissions-table {
     padding-top: 5em;
     content-sizing: content-box;
-    td, th {
+    td,
+    th {
         // student
         &:nth-child(1) {
             width: 30em;

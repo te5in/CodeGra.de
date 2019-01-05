@@ -212,10 +212,14 @@ export default {
                     return;
                 }
 
-                [1, 0].forEach((i) => {
+                [1, 0].forEach(i => {
                     const el = this.$refs.snippets[this.snippetSelected + i];
                     if (el && el.scrollIntoView) {
-                        el.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+                        el.scrollIntoView({
+                            block: 'nearest',
+                            inline: 'nearest',
+                            behavior: 'smooth',
+                        });
                     }
                 });
 
@@ -228,8 +232,8 @@ export default {
                 }
                 ({ value } = newSnip);
             }
-            this.internalFeedback = this.internalFeedback.slice(0, start) + value +
-                this.internalFeedback.slice(end);
+            this.internalFeedback =
+                this.internalFeedback.slice(0, start) + value + this.internalFeedback.slice(end);
         },
     },
 
@@ -273,12 +277,20 @@ export default {
         },
 
         beforeKeyPress(event) {
-            if ((event.key === 'Backspace' || event.keyIdentifier === 'Backspace' || event.keyCode === 8) &&
-                (event.selectionStart !== event.selectionEnd || this.snippetSelected !== null)) {
+            if (
+                (event.key === 'Backspace' ||
+                    event.keyIdentifier === 'Backspace' ||
+                    event.keyCode === 8) &&
+                (event.selectionStart !== event.selectionEnd || this.snippetSelected !== null)
+            ) {
                 event.preventDefault();
                 this.snippetSelected = null;
-            } else if ((event.key === 'Enter' || event.keyIdentifier === 'Enter' || event.keyCode === 13) &&
-                       this.snippetSelected !== null) {
+            } else if (
+                (event.key === 'Enter' ||
+                    event.keyIdentifier === 'Enter' ||
+                    event.keyCode === 13) &&
+                this.snippetSelected !== null
+            ) {
                 event.preventDefault();
                 this.confirmSnippet();
             }
@@ -301,19 +313,33 @@ export default {
         },
 
         updatePossibleSnippets(event) {
-            if (event.key === 'Tab' || event.keyIdentifier === 'Tab' || event.keyCode === 9 ||
-                event.key === 'Shift' || event.keyIdentifier === 'Shift' || event.keyCode === 16 ||
-                event.key === 'Alt' || event.keyIdentifier === 'Alt' || event.keyCode === 18 ||
-                event.key === 'Escape' || event.keyIdentifier === 'Escape' || event.keyCode === 27 ||
-                event.key === 'Control' || event.keyIdentifier === 'Control' || event.keyCode === 17) {
+            if (
+                event.key === 'Tab' ||
+                event.keyIdentifier === 'Tab' ||
+                event.keyCode === 9 ||
+                event.key === 'Shift' ||
+                event.keyIdentifier === 'Shift' ||
+                event.keyCode === 16 ||
+                event.key === 'Alt' ||
+                event.keyIdentifier === 'Alt' ||
+                event.keyCode === 18 ||
+                event.key === 'Escape' ||
+                event.keyIdentifier === 'Escape' ||
+                event.keyCode === 27 ||
+                event.key === 'Control' ||
+                event.keyIdentifier === 'Control' ||
+                event.keyCode === 17
+            ) {
                 return;
             }
-            if (event.key !== 'Delete' && event.keyIdentifier !== 'Delete' && event.keyCode !== 46) {
+            if (
+                event.key !== 'Delete' &&
+                event.keyIdentifier !== 'Delete' &&
+                event.keyCode !== 46
+            ) {
                 this.snippetKeySelected = null;
             }
-            if (this.done ||
-                !this.loadedSnippets ||
-                !this.internalFeedback) {
+            if (this.done || !this.loadedSnippets || !this.internalFeedback) {
                 this.possibleSnippets = [];
                 return;
             }
@@ -330,7 +356,6 @@ export default {
             const word = this.internalFeedback.slice(start, end) || '';
             this.possibleSnippets = this.findSnippetsByPrefix(word);
         },
-
 
         async changeFeedback(e) {
             if (this.editable) {
@@ -358,24 +383,26 @@ export default {
 
             const submitted = this.internalFeedback;
 
-            const req = this.$http.put(
-                `/api/v1/code/${this.fileId}/comments/${this.line}`,
-                {
+            const req = this.$http
+                .put(`/api/v1/code/${this.fileId}/comments/${this.line}`, {
                     comment: submitted,
-                },
-            ).then(() => {
-                this.internalFeedback = submitted;
-                this.serverFeedback = submitted;
-                this.snippetKey = '';
-                this.done = true;
-                this.$emit('feedbackChange', {
-                    line: this.line,
-                    msg: submitted,
-                    author: { name: this.nameCurrentUser },
-                });
-            }, (err) => {
-                throw err.response.data.message;
-            });
+                })
+                .then(
+                    () => {
+                        this.internalFeedback = submitted;
+                        this.serverFeedback = submitted;
+                        this.snippetKey = '';
+                        this.done = true;
+                        this.$emit('feedbackChange', {
+                            line: this.line,
+                            msg: submitted,
+                            author: { name: this.nameCurrentUser },
+                        });
+                    },
+                    err => {
+                        throw err.response.data.message;
+                    },
+                );
 
             this.$refs.addFeedbackButton.submit(req);
         },
@@ -388,19 +415,19 @@ export default {
             this.snippetKey = '';
 
             if (this.feedback !== '') {
-                const req = this.$http.delete(
-                    `/api/v1/code/${this.fileId}/comments/${this.line}`,
-                ).then(
-                    () => this.$emit('cancel', this.line),
-                    (err) => {
-                        // Don't error for a 404 as the comment was deleted.
-                        if (err.response.status === 404) {
-                            this.$emit('cancel', this.line);
-                        } else {
-                            throw err.response.data.message;
-                        }
-                    },
-                );
+                const req = this.$http
+                    .delete(`/api/v1/code/${this.fileId}/comments/${this.line}`)
+                    .then(
+                        () => this.$emit('cancel', this.line),
+                        err => {
+                            // Don't error for a 404 as the comment was deleted.
+                            if (err.response.status === 404) {
+                                this.$emit('cancel', this.line);
+                            } else {
+                                throw err.response.data.message;
+                            }
+                        },
+                    );
 
                 this.$refs.deleteFeedbackButton.submit(req);
             } else {
@@ -427,7 +454,6 @@ export default {
             }
 
             const len = this.possibleSnippets.length;
-
             if (!len) {
                 this.getPossibleSnippets(true);
                 return;
@@ -464,24 +490,31 @@ export default {
             let req;
             if (key in this.snippets) {
                 const { id } = this.snippets[key];
-                req = this.$http.patch(`/api/v1/snippets/${id}`, { key, value }).then(
-                    () => { this.updateSnippetInStore({ id, key, value }); },
-                );
+                req = this.$http.patch(`/api/v1/snippets/${id}`, { key, value }).then(() => {
+                    this.updateSnippetInStore({ id, key, value });
+                });
             } else {
-                req = this.$http.put('/api/v1/snippet', { key, value }).then(
-                    ({ data: newSnippet }) => {
+                req = this.$http
+                    .put('/api/v1/snippet', { key, value })
+                    .then(({ data: newSnippet }) => {
                         this.addSnippetToStore(newSnippet);
-                    },
-                );
+                    });
             }
 
-            return this.$refs.addSnippetButton.submit(
-                waitAtLeast(500, req.catch((err) => { throw err.response.data.message; })),
-            ).then((success) => {
-                if (success) {
-                    this.$root.$emit('collapse::toggle', `collapse${this.line}`);
-                }
-            });
+            return this.$refs.addSnippetButton
+                .submit(
+                    waitAtLeast(
+                        500,
+                        req.catch(err => {
+                            throw err.response.data.message;
+                        }),
+                    ),
+                )
+                .then(success => {
+                    if (success) {
+                        this.$root.$emit('collapse::toggle', `collapse${this.line}`);
+                    }
+                });
         },
 
         findSnippet() {
@@ -555,7 +588,8 @@ export default {
         list-style: none;
         border-bottom: 1px solid rgba(0, 0, 0, 0.125);
 
-        &:hover, &.selected {
+        &:hover,
+        &.selected {
             color: white;
         }
         &.selected {
@@ -639,7 +673,8 @@ button {
     &:hover {
         box-shadow: none;
     }
-    button, .submit-button {
+    button,
+    .submit-button {
         flex: 1;
         &:first-child {
             border-top-right-radius: 0px;
@@ -677,7 +712,7 @@ textarea {
 
 .editable-area {
     #app.dark & {
-        border: .5px solid @color-secondary;
+        border: 0.5px solid @color-secondary;
     }
     padding: 0;
     border-radius: 0.25rem;

@@ -176,7 +176,7 @@ export default {
 
     methods: {
         loadCodeWithSettings(setLoading = true) {
-            return this.$hlanguageStore.getItem(`${this.file.id}`).then((val) => {
+            return this.$hlanguageStore.getItem(`${this.file.id}`).then(val => {
                 if (val !== null) {
                     this.$emit('new-lang', val);
                     this.selectedLanguage = val;
@@ -197,33 +197,41 @@ export default {
             // Split in two promises so that highlighting can begin before we
             // have feedback as this is not needed anyway.
             return Promise.all([
-                this.$http.get(`/api/v1/code/${fileId}`, {
-                    responseType: 'arraybuffer',
-                }).then((code) => {
-                    try {
-                        this.code = decodeBuffer(code.data);
-                    } catch (e) {
-                        error.push('This file cannot be displayed');
-                        return;
-                    }
-                    this.rawCodeLines = this.code.split('\n');
+                this.$http
+                    .get(`/api/v1/code/${fileId}`, {
+                        responseType: 'arraybuffer',
+                    })
+                    .then(
+                        code => {
+                            try {
+                                this.code = decodeBuffer(code.data);
+                            } catch (e) {
+                                error.push('This file cannot be displayed');
+                                return;
+                            }
+                            this.rawCodeLines = this.code.split('\n');
 
-                    this.highlightCode(this.selectedLanguage);
-                }, ({ response: { data: { message } } }) => {
-                    error.push(this.$htmlEscape(message));
-                }),
+                            this.highlightCode(this.selectedLanguage);
+                        },
+                        ({ response: { data: { message } } }) => {
+                            error.push(this.$htmlEscape(message));
+                        },
+                    ),
 
                 Promise.all([
                     this.$http.get(`/api/v1/code/${fileId}?type=feedback`),
-                    (UserConfig.features.linters ?
-                        this.$http.get(`/api/v1/code/${fileId}?type=linter-feedback`) :
-                        Promise.resolve({ data: {} })),
-                ]).then(([feedback, linterFeedback]) => {
-                    this.linterFeedback = linterFeedback.data;
-                    this.feedback = feedback.data;
-                }, ({ response: { data: { message } } }) => {
-                    error.push(this.$htmlEscape(message));
-                }),
+                    UserConfig.features.linters
+                        ? this.$http.get(`/api/v1/code/${fileId}?type=linter-feedback`)
+                        : Promise.resolve({ data: {} }),
+                ]).then(
+                    ([feedback, linterFeedback]) => {
+                        this.linterFeedback = linterFeedback.data;
+                        this.feedback = feedback.data;
+                    },
+                    ({ response: { data: { message } } }) => {
+                        error.push(this.$htmlEscape(message));
+                    },
+                ),
             ]).then(() => {
                 this.error = error.join('<br>');
                 if (setLoading) {
@@ -242,14 +250,12 @@ export default {
 
             const lang = language === 'Default' ? this.extension : language;
             if (getLanguage(lang) === undefined || this.diffMode) {
-                this.codeLines = this.rawCodeLines
-                    .map(this.$htmlEscape)
-                    .map(visualizeWhitespace);
+                this.codeLines = this.rawCodeLines.map(this.$htmlEscape).map(visualizeWhitespace);
                 return;
             }
 
             let state = null;
-            this.codeLines = this.rawCodeLines.map((line) => {
+            this.codeLines = this.rawCodeLines.map(line => {
                 const { top, value } = highlight(lang, line, true, state);
 
                 state = top;
@@ -270,7 +276,7 @@ export default {
             if (!tree || !tree.entries) {
                 return [fileIds, filePaths];
             }
-            tree.entries.forEach((f) => {
+            tree.entries.forEach(f => {
                 if (f.entries) {
                     const [dirIds, dirPaths] = this.flattenFileTree(f, prefix.concat(f.name));
                     Object.assign(fileIds, dirIds);
@@ -369,8 +375,8 @@ ol {
 
 li {
     position: relative;
-    padding-left: .75em;
-    padding-right: .75em;
+    padding-left: 0.75em;
+    padding-right: 0.75em;
 
     background-color: lighten(@linum-bg, 1%);
     border-left: 1px solid darken(@linum-bg, 5%);
@@ -415,7 +421,7 @@ code {
 .add-feedback {
     position: absolute;
     top: 0;
-    right: .5em;
+    right: 0.5em;
     display: none;
     color: black;
 

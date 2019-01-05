@@ -111,7 +111,7 @@ export default {
 
         outOfSync() {
             const origSet = new Set(this.origSelected);
-            Object.keys(this.selected).forEach((item) => {
+            Object.keys(this.selected).forEach(item => {
                 if (origSet.has(item)) {
                     origSet.delete(item);
                 } else {
@@ -122,7 +122,7 @@ export default {
         },
 
         grade() {
-            let grade = Math.max(0, (this.selectedPoints / this.maxPoints) * 10);
+            let grade = Math.max(0, this.selectedPoints / this.maxPoints * 10);
             if (Object.keys(this.selected).length === 0) {
                 grade = null;
             }
@@ -142,14 +142,19 @@ export default {
         getHeadHtml(rubric) {
             const selected = this.selectedRows[rubric.id];
             const maxPoints = this.$htmlEscape(Math.max(...rubric.items.map(i => i.points)));
-            const header = this.$htmlEscape(`${rubric.header}`) || '<span class="unnamed">Unnamed category</span>';
+            const header =
+                this.$htmlEscape(`${rubric.header}`) ||
+                '<span class="unnamed">Unnamed category</span>';
 
             const getFraction = (upper, lower) => `<sup>${upper}</sup>&frasl;<sub>${lower}</sub>`;
             let res;
 
             if (selected) {
                 const selectedPoints = this.$htmlEscape(selected.points);
-                res = `<span>${header}</span> - <span>${getFraction(selectedPoints, maxPoints)}</span>`;
+                res = `<span>${header}</span> - <span>${getFraction(
+                    selectedPoints,
+                    maxPoints,
+                )}</span>`;
             } else if (this.editable) {
                 res = header;
             } else {
@@ -173,9 +178,11 @@ export default {
             };
 
             if (UserConfig.features.incremental_rubric_submission) {
-                return this.$http.patch(`/api/v1/submissions/${this.submission.id}/rubricitems/`, {
-                    items: [],
-                }).then(clear);
+                return this.$http
+                    .patch(`/api/v1/submissions/${this.submission.id}/rubricitems/`, {
+                        items: [],
+                    })
+                    .then(clear);
             } else {
                 clear();
                 return Promise.resolve({ data: {} });
@@ -188,11 +195,13 @@ export default {
             }
             const items = Object.keys(this.selected);
 
-            return this.$http.patch(`/api/v1/submissions/${this.submission.id}/rubricitems/`, {
-                items,
-            }).then(() => {
-                this.origSelected = items;
-            });
+            return this.$http
+                .patch(`/api/v1/submissions/${this.submission.id}/rubricitems/`, {
+                    items,
+                })
+                .then(() => {
+                    this.origSelected = items;
+                });
         },
 
         rubricUpdated({ rubrics, selected, points }, initial = false) {
@@ -205,10 +214,7 @@ export default {
                     return res;
                 }, {});
                 this.origSelected = Object.keys(this.selected);
-                this.selectedPoints = selected.reduce(
-                    (res, item) => res + item.points,
-                    0,
-                );
+                this.selectedPoints = selected.reduce((res, item) => res + item.points, 0);
                 this.selectedRows = rubrics.reduce((res, row) => {
                     res[row.id] = row.items.reduce(
                         (cur, item) => cur || this.selected[item.id],
@@ -228,7 +234,7 @@ export default {
         },
 
         sortRubricItems(rubrics) {
-            return rubrics.map((rubric) => {
+            return rubrics.map(rubric => {
                 rubric.items.sort((x, y) => x.points - y.points);
                 return rubric;
             });
@@ -245,50 +251,57 @@ export default {
             if (!doRequest) {
                 req = Promise.resolve();
             } else if (selectItem) {
-                req = this.$http.patch(`/api/v1/submissions/${this.submission.id}/rubricitems/${item.id}`);
+                req = this.$http.patch(
+                    `/api/v1/submissions/${this.submission.id}/rubricitems/${item.id}`,
+                );
             } else {
-                req = this.$http.delete(`/api/v1/submissions/${this.submission.id}/rubricitems/${item.id}`);
+                req = this.$http.delete(
+                    `/api/v1/submissions/${this.submission.id}/rubricitems/${item.id}`,
+                );
             }
 
             if (doRequest) {
                 req = waitAtLeast(500, req);
             }
 
-            req.then(() => {
-                row.items.forEach(({ id, points }) => {
-                    if (this.selected[id]) {
-                        this.selectedPoints -= points;
+            req.then(
+                () => {
+                    row.items.forEach(({ id, points }) => {
+                        if (this.selected[id]) {
+                            this.selectedPoints -= points;
+                        }
+                        delete this.selected[id];
+                    });
+                    if (selectItem) {
+                        this.selectedPoints += item.points;
+                        this.$set(this.selected, item.id, item);
+                    } else {
+                        this.$set(this.selected, item.id, undefined);
+                        delete this.selected[item.id];
                     }
-                    delete this.selected[id];
-                });
-                if (selectItem) {
-                    this.selectedPoints += item.points;
-                    this.$set(this.selected, item.id, item);
-                } else {
-                    this.$set(this.selected, item.id, undefined);
-                    delete this.selected[item.id];
-                }
-                this.$set(this.selectedRows, row.id, selectItem ? item : false);
+                    this.$set(this.selectedRows, row.id, selectItem ? item : false);
 
-                this.$emit('input', {
-                    selected: this.selectedPoints,
-                    max: this.maxPoints,
-                    grade: this.grade,
-                });
+                    this.$emit('input', {
+                        selected: this.selectedPoints,
+                        max: this.maxPoints,
+                        grade: this.grade,
+                    });
 
-                this.$nextTick(() => {
-                    this.$set(this.itemStates, item.id, false);
-                    delete this.itemStates[item.id];
-                });
-            }, (err) => {
-                this.$set(this.itemStates, item.id, err.response.data.message);
-                setTimeout(() => {
                     this.$nextTick(() => {
                         this.$set(this.itemStates, item.id, false);
                         delete this.itemStates[item.id];
                     });
-                }, 3000);
-            });
+                },
+                err => {
+                    this.$set(this.itemStates, item.id, err.response.data.message);
+                    setTimeout(() => {
+                        this.$nextTick(() => {
+                            this.$set(this.itemStates, item.id, false);
+                            delete this.itemStates[item.id];
+                        });
+                    }, 3000);
+                },
+            );
         },
     },
 
@@ -346,21 +359,21 @@ export default {
     }
 
     &-body {
-        padding: .5rem 0 0 .75rem;
+        padding: 0.5rem 0 0 0.75rem;
     }
 
     &-description {
         display: block;
         max-height: 5rem;
-        margin: .5rem 0 0;
-        padding-right: .5rem;
+        margin: 0.5rem 0 0;
+        padding-right: 0.5rem;
         overflow: auto;
         font-size: smaller;
 
         &::after {
-            content: "";
+            content: '';
             display: block;
-            height: .5rem;
+            height: 0.5rem;
         }
     }
 
@@ -392,10 +405,9 @@ export default {
 </style>
 
 <style lang="less">
-@import "~mixins.less";
+@import '~mixins.less';
 
 .rubric-viewer .nav-tabs li.nav-item > .nav-link {
-
     &.active {
         background-color: #f7f7f7;
         border-bottom-color: #f7f7f7;

@@ -163,10 +163,12 @@ export default {
         },
 
         checkUpload() {
-            if (this.warnForSelf && (this.author == null ||
-                                     this.defaultAuthor.username === this.author.username)) {
+            if (
+                this.warnForSelf &&
+                (this.author == null || this.defaultAuthor.username === this.author.username)
+            ) {
                 this.showWarn = true;
-                return new Promise((resolve) => {
+                return new Promise(resolve => {
                     const resetData = () => {
                         this.showWarn = false;
                         this.acceptWarn = null;
@@ -194,7 +196,9 @@ export default {
         },
 
         getUploadUrl(ignored = 'error') {
-            let res = `/api/v1/assignments/${this.assignment.id}/submission?ignored_files=${ignored}`;
+            let res = `/api/v1/assignments/${
+                this.assignment.id
+            }/submission?ignored_files=${ignored}`;
             if (this.forOthers && this.author) {
                 res += `&author=${this.author.username}`;
             }
@@ -205,18 +209,29 @@ export default {
             const { requestData } = this.$refs.uploader;
             const url = this.getUploadUrl(type);
 
-            btn.submit(this.$http.post(url, requestData).then(({ data: submission }) => {
-                this.addSubmission({ assignmentId: this.assignment.id, submission });
-                this.$emit('created', submission);
-                this.$root.$emit('bv::hide::modal', 'wrong-files-modal');
-            }, ({ response }) => {
-                this.$emit('error', response);
-                throw response.data.message;
-            }));
+            btn.submit(
+                this.$http.post(url, requestData).then(
+                    ({ data: submission }) => {
+                        this.addSubmission({
+                            assignmentId: this.assignment.id,
+                            submission,
+                        });
+                        this.$emit('created', submission);
+                        this.$root.$emit('bv::hide::modal', 'wrong-files-modal');
+                    },
+                    ({ response }) => {
+                        this.$emit('error', response);
+                        throw response.data.message;
+                    },
+                ),
+            );
         },
 
         response({ data: submission }) {
-            this.addSubmission({ assignmentId: this.assignment.id, submission });
+            this.addSubmission({
+                assignmentId: this.assignment.id,
+                submission,
+            });
             this.$emit('created', submission);
         },
     },
@@ -238,7 +253,7 @@ export default {
 .wrong-files-list {
     flex: 1 1 auto;
     list-style: none;
-    margin-right: -.95rem;
+    margin-right: -0.95rem;
     overflow: auto;
 }
 
@@ -248,7 +263,7 @@ export default {
 </style>
 
 <style lang="less">
-@import "~mixins.less";
+@import '~mixins.less';
 
 .submission-uploader .multiselect {
     min-height: 0px;
@@ -269,7 +284,7 @@ export default {
         margin: 12.5vh auto;
 
         @media @media-small {
-            max-height: ~"calc(100vh - 2rem)";
+            max-height: ~'calc(100vh - 2rem)';
             margin: 1rem auto;
         }
     }

@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 import pytest
+
 from helpers import create_marker
 
 perm_error = create_marker(pytest.mark.perm_error)

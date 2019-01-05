@@ -58,7 +58,7 @@ export default {
 
     methods: {
         getLinters() {
-            this.$http.get(`/api/v1/assignments/${this.assignment.id}/linters/`).then((data) => {
+            this.$http.get(`/api/v1/assignments/${this.assignment.id}/linters/`).then(data => {
                 this.linters = data.data;
                 this.loading = false;
             });
@@ -69,7 +69,7 @@ export default {
 
 
 <style lang="less">
-@import "~mixins.less";
+@import '~mixins.less';
 
 .linters .tab-content {
     #app.dark & {

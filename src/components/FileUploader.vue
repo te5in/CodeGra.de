@@ -73,39 +73,45 @@ export default {
                 return this.$refs.submitButton.fail('This uploader is disabled');
             }
 
-            const req = Promise.resolve(this.beforeUpload()).then((stop) => {
+            const req = Promise.resolve(this.beforeUpload()).then(stop => {
                 if (stop) {
                     stopped = true;
                     this.$refs.submitButton.reset();
                     return null;
                 }
-                return this.$http.post(this.url, this.requestData).then((res) => {
-                    if (res.headers.warning) {
-                        const { text } = parseWarningHeader(res.headers.warning);
-                        return this.$refs.submitButton.warn(text, 20).then(() => {
-                            this.$emit('response', res);
-                        });
-                    }
-                    this.$emit('response', res);
-                    return null;
-                }, ({ response }) => {
-                    this.$emit('error', response);
-                    throw response.data.message;
-                });
+                return this.$http.post(this.url, this.requestData).then(
+                    res => {
+                        if (res.headers.warning) {
+                            const { text } = parseWarningHeader(res.headers.warning);
+                            return this.$refs.submitButton.warn(text, 20).then(() => {
+                                this.$emit('response', res);
+                            });
+                        }
+                        this.$emit('response', res);
+                        return null;
+                    },
+                    ({ response }) => {
+                        this.$emit('error', response);
+                        throw response.data.message;
+                    },
+                );
             });
 
-            return this.$refs.submitButton.submit(req).then(() => {
-                if (!stopped) {
-                    this.$emit('clear');
-                    if (this.$refs.formFile) {
-                        this.$refs.formFile.reset();
+            return this.$refs.submitButton.submit(req).then(
+                () => {
+                    if (!stopped) {
+                        this.$emit('clear');
+                        if (this.$refs.formFile) {
+                            this.$refs.formFile.reset();
+                        }
                     }
-                }
-            }, (err) => {
-                if (err !== SubmitButtonCancelled) {
-                    throw err;
-                }
-            });
+                },
+                err => {
+                    if (err !== SubmitButtonCancelled) {
+                        throw err;
+                    }
+                },
+            );
         },
     },
 
@@ -122,7 +128,8 @@ export default {
     margin-bottom: 0;
 }
 
-.disabled, :disabled {
+.disabled,
+:disabled {
     cursor: not-allowed !important;
 }
 
