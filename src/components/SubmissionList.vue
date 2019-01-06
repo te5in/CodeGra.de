@@ -276,6 +276,14 @@ export default {
         if (this.graders) {
             this.updateGraders(this.graders);
         }
+        if (this.mineOnly == null) {
+            this.mineOnly = this.submissions.some(
+                s => s.user.id === this.userId || (s.assignee && s.assignee.id === this.userId),
+            );
+        }
+        if (!this.mineOnly) {
+            this.submit();
+        }
     },
 
     methods: {
