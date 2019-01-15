@@ -117,7 +117,6 @@ export default {
             grade: this.submission.grade,
             rubricPoints: {},
             rubricHasSelectedItems: false,
-            externalGrade: this.submission.grade,
         };
     },
 
@@ -204,7 +203,6 @@ export default {
 
     methods: {
         gradeUpdated() {
-            this.externalGrade = this.grade;
             this.$emit('gradeUpdated', this.grade);
         },
 
@@ -253,15 +251,19 @@ export default {
                     .patch(`/api/v1/submissions/${this.submission.id}`, data)
                     .then(() => {
                         this.grade = formatGrade(grade);
-                        this.gradeUpdated();
                     });
             } else {
                 req = this.$refs.rubricViewer.submitAllItems();
             }
             this.$refs.submitButton.submit(
-                req.catch(err => {
-                    throw err.response.data.message;
-                }),
+                req.then(
+                    () => {
+                        this.gradeUpdated();
+                    },
+                    err => {
+                        throw err.response.data.message;
+                    },
+                ),
             );
         },
 
