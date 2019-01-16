@@ -8,11 +8,10 @@ Version 1.1.4 (HereBeMonsters.3)
 
 **Features & Updates:**
 
--  Add PMD and Checkstyle linters
-   `(#734) <https://github.com/CodeGra-de/CodeGra.de/pull/683>`__: At
-   the request of a customer we added the Checkstyle and PMD linters for
-   java. Some restrictions on config apply, please see the documentation
-   for more details.
+- Add PMD and Checkstyle linters `(#734)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/683>`__: Addition of two Java
+  linters: PMD and Checkstyle. For security reasons, some restrictions on config
+  apply. Please see the documentation for more details
 
 -  Add snippet completion and selection
    `(#655) <https://github.com/CodeGra-de/CodeGra.de/pull/655>`__: This
@@ -23,7 +22,6 @@ Version 1.1.4 (HereBeMonsters.3)
 -  Fix a bug hiding indentation on lines with linter errors
    `(#710) <https://github.com/CodeGra-de/CodeGra.de/pull/710>`__: When
    linting lines with errors didn’t show indentation.
-
 -  Fix dark special holiday logo.
    `(#711) <https://github.com/CodeGra-de/CodeGra.de/pull/711>`__
 -  Make it impossible to upload too large archives
