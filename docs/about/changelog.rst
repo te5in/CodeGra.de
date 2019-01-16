@@ -1,6 +1,43 @@
 Changelog
 ==========
 
+Version 1.1.4 (HereBeMonsters.3)
+---------------------------------
+
+**Released**: January 16th, 2019
+
+**Features & Updates:**
+
+- Add PMD and Checkstyle linters `(#734)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/683>`__: Addition of two Java
+  linters: PMD and Checkstyle. For security reasons, some restrictions on config
+  apply. Please see the documentation for more details
+
+-  Add snippet completion and selection
+   `(#655) <https://github.com/CodeGra-de/CodeGra.de/pull/655>`__: This
+   makes it easier for users to use and add snippets.
+
+**Fixes:**
+
+-  Fix a bug hiding indentation on lines with linter errors
+   `(#710) <https://github.com/CodeGra-de/CodeGra.de/pull/710>`__: When
+   linting lines with errors didn’t show indentation.
+-  Fix dark special holiday logo.
+   `(#711) <https://github.com/CodeGra-de/CodeGra.de/pull/711>`__
+-  Make it impossible to upload too large archives
+   `(#709) <https://github.com/CodeGra-de/CodeGra.de/pull/709>`__: This
+   makes it way harder for users to bypass our restrictions to upload
+   very large archives.
+-  Various internal fixes and improvements.
+   `(#716) <https://github.com/CodeGra-de/CodeGra.de/pull/716>`__
+-  Don’t apply “mine” filter when assigning first submission to self
+   `(#717) <https://github.com/CodeGra-de/CodeGra.de/pull/717>`__: When
+   no submission had an assignee and you assigned yourself it filtered
+   all other submissions directly.
+-  Make sure the grade is updated when rubric is.
+   `(#731) <https://github.com/CodeGra-de/CodeGra.de/pull/731>`__
+-  Improve worst case performance in some plagiarism cases.
+   `(#732) <https://github.com/CodeGra-de/CodeGra.de/pull/732>`__
 
 Version 1.0.22 (HereBeMonsters.2)
 ----------------------------------
