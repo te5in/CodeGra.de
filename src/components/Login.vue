@@ -74,16 +74,21 @@ export default {
                 return;
             }
 
-            btn.submit(this.login({
-                username: this.username,
-                password: this.password,
-                onWarning: warning => btn.warn(warning.text),
-            }).then(() => {
-                this.$router.replace({ name: 'home' });
-                this.$emit('login');
-            }, (reason) => {
-                throw reason ? reason.message : '';
-            }));
+            btn.submit(
+                this.login({
+                    username: this.username,
+                    password: this.password,
+                    onWarning: warning => btn.warn(warning.text),
+                }).then(
+                    () => {
+                        this.$router.replace({ name: 'home' });
+                        this.$emit('login');
+                    },
+                    reason => {
+                        throw reason ? reason.message : '';
+                    },
+                ),
+            );
         },
     },
 };

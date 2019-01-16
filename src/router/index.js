@@ -16,10 +16,7 @@ import {
     Admin,
 } from '@/pages';
 
-import {
-    PlagiarismOverview,
-    PlagiarismDetail,
-} from '@/components';
+import { PlagiarismOverview, PlagiarismDetail } from '@/components';
 
 import { resetPageTitle } from '@/pages/title';
 
@@ -70,7 +67,8 @@ const router = new Router({
             component: Submission,
         },
         {
-            path: '/courses/:courseId/assignments/:assignmentId/submissions/:submissionId/files/:fileId',
+            path:
+                '/courses/:courseId/assignments/:assignmentId/submissions/:submissionId/files/:fileId',
             name: 'submission_file',
             component: Submission,
         },
@@ -95,7 +93,8 @@ const router = new Router({
             component: PlagiarismOverview,
         },
         {
-            path: '/courses/:courseId/assignments/:assignmentId/plagiarism/:plagiarismRunId/cases/:plagiarismCaseId',
+            path:
+                '/courses/:courseId/assignments/:assignmentId/plagiarism/:plagiarismRunId/cases/:plagiarismCaseId',
             name: 'plagiarism_detail',
             component: PlagiarismDetail,
         },
@@ -106,13 +105,7 @@ const router = new Router({
 // logged in, so we can restore it when the user logs in.
 let restorePath = '';
 
-const notLoggedInRoutes = new Set([
-    'login',
-    'forgot',
-    'register',
-    'lti-launch',
-    'reset-password',
-]);
+const notLoggedInRoutes = new Set(['login', 'forgot', 'register', 'lti-launch', 'reset-password']);
 
 router.beforeEach((to, from, next) => {
     // Unset page title. Pages will set title,
@@ -132,14 +125,17 @@ router.beforeEach((to, from, next) => {
             next();
         }
     } else if (!notLoggedInRoutes.has(to.name)) {
-        store.dispatch('user/verifyLogin').then(() => {
-            next();
-        }, () => {
-            // Store path so we can go to the requested route
-            // when the user is logged in.
-            restorePath = to.path;
-            next('/login');
-        });
+        store.dispatch('user/verifyLogin').then(
+            () => {
+                next();
+            },
+            () => {
+                // Store path so we can go to the requested route
+                // when the user is logged in.
+                restorePath = to.path;
+                next('/login');
+            },
+        );
     } else {
         next();
     }

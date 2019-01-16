@@ -60,33 +60,39 @@ export default {
     },
 
     methods: {
-        ...mapActions('user', [
-            'updateAccessToken',
-        ]),
+        ...mapActions('user', ['updateAccessToken']),
 
         submit() {
             const button = this.$refs.btn;
 
             if (this.newPw !== this.confirmPw) {
-                return button.fail('The passwords don\'t match');
+                return button.fail("The passwords don't match");
             } else if (this.newPw === '') {
                 return button.fail('The new password may not be empty');
             }
 
             return button.submitFunction(() =>
-                this.$http.patch('/api/v1/login?type=reset_password', {
-                    user_id: Number(this.$route.query.user),
-                    token: this.$route.query.token,
-                    new_password: this.newPw,
-                }).then(async ({ data }) => {
-                    await this.updateAccessToken(data.access_token);
-                    this.$router.replace({
-                        name: 'home',
-                        query: { sbloc: 'm' },
-                    });
-                }, ({ response }) => {
-                    throw response.data.feedback || { warning: response.data.message };
-                }));
+                this.$http
+                    .patch('/api/v1/login?type=reset_password', {
+                        user_id: Number(this.$route.query.user),
+                        token: this.$route.query.token,
+                        new_password: this.newPw,
+                    })
+                    .then(
+                        async ({ data }) => {
+                            await this.updateAccessToken(data.access_token);
+                            this.$router.replace({
+                                name: 'home',
+                                query: { sbloc: 'm' },
+                            });
+                        },
+                        ({ response }) => {
+                            throw response.data.feedback || {
+                                warning: response.data.message,
+                            };
+                        },
+                    ),
+            );
         },
     },
 };

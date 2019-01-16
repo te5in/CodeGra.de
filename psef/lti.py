@@ -23,15 +23,14 @@ import flask_jwt_extended as flask_jwt
 from mypy_extensions import TypedDict
 from defusedxml.ElementTree import fromstring as defused_xml_fromstring
 
-import psef
-import psef.auth as auth
-import psef.models as models
-import psef.helpers as helpers
-from psef import LTI_ROLE_LOOKUPS, app, current_user
-from psef.auth import _user_active
 from dataclasses import dataclass
-from psef.errors import APICodes, APIException
-from psef.models import db
+
+from . import (
+    LTI_ROLE_LOOKUPS, app, auth, models, helpers, features, current_user
+)
+from .auth import _user_active
+from .models import db
+from .exceptions import APICodes, APIException
 
 logger = structlog.get_logger()
 
@@ -401,7 +400,6 @@ class LTI:  # pylint: disable=too-many-public-methods
         if not assignment.is_done:
             assignment.state = self.assignment_state
 
-
         if assignment.name != self.assignment_name:
             logger.info(
                 'Assignment changed name',
@@ -474,7 +472,7 @@ class LTI:  # pylint: disable=too-many-public-methods
                 user.courses[course.id] = crole
                 return False
 
-            if not psef.app.config['FEATURES']['AUTOMATIC_LTI_ROLE']:
+            if not features.has_feature(features.Feature.AUTOMATIC_LTI_ROLE):
                 raise APIException(
                     'The given LTI role was not valid found, please '
                     'ask your instructor or site admin.',

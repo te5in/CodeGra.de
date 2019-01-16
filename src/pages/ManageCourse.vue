@@ -71,9 +71,11 @@ export default {
         tabIndex(newVal) {
             if (this.filter !== '') this.filter = '';
 
-            this.$router.replace(Object.assign({}, this.$route, {
-                hash: newVal === 1 ? '#roles' : '#users',
-            }));
+            this.$router.replace(
+                Object.assign({}, this.$route, {
+                    hash: newVal === 1 ? '#roles' : '#users',
+                }),
+            );
         },
 
         course() {
@@ -117,7 +119,7 @@ export default {
 </script>
 
 <style lang="less">
-@import "~mixins.less";
+@import '~mixins.less';
 
 .manage-course {
     display: flex;

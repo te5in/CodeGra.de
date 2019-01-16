@@ -1,6 +1,67 @@
 Changelog
 ==========
 
+
+Version 1.0.22 (HereBeMonsters.2)
+----------------------------------
+
+**Released**: November 21st, 2018
+
+**Features & Updates:**
+
+-  Enforce minimal password strength
+   `(#683) <https://github.com/CodeGra-de/CodeGra.de/pull/683>`__
+   `(#697) <https://github.com/CodeGra-de/CodeGra.de/pull/697>`__:
+   CodeGrade now enforces a minimum password strength for all users. A
+   warning is also shown if a user logs in with a password that doesn't
+   adhere to the current requirements. We recommend all users to update
+   their passwords if they receive such a warning.
+-  Update course and assignment name on LTI launch
+   `(#682) <https://github.com/CodeGra-de/CodeGra.de/pull/682>`__: If
+   the name of a course or assignment changes within your LMS this
+   change is now copied in CodeGrade.
+-  Do lti launch on grade result
+   `(#681) <https://github.com/CodeGra-de/CodeGra.de/pull/681>`__: When
+   viewing new grades this will trigger an LTI launch. This means you
+   will always be logged-in in CodeGrade with the current LMS user.
+-  Show a loader instead of the delete button for plagiarism checks that
+   are still running.
+   `(#700) <https://github.com/CodeGra-de/CodeGra.de/pull/700>`__
+
+**Fixes:**
+
+-  Only show register button when the feature is enabled.
+   `(#679) <https://github.com/CodeGra-de/CodeGra.de/pull/679>`__
+-  Make it possible to create PDF manuals.
+   `(#687) <https://github.com/CodeGra-de/CodeGra.de/pull/687>`__
+-  Fix plagiarism detail viewer
+   `(#690) <https://github.com/CodeGra-de/CodeGra.de/pull/690>`__:
+   Because of a misplaced bracket it was not possible to view plagiarism
+   cases.
+-  Always do an initial grade passback
+   `(#692) <https://github.com/CodeGra-de/CodeGra.de/pull/692>`__: This
+   reverts a change in version 1.0.0 which caused Canvas to not remove
+   CodeGrade assignments from the todo list of students. By doing a LTI
+   passback when students hand-in a submission the assignment should be
+   removed from their todo list.
+-  Various small logging fixes.
+   `(#693) <https://github.com/CodeGra-de/CodeGra.de/pull/693>`__
+-  Redact emails of other users
+   `(#695) <https://github.com/CodeGra-de/CodeGra.de/pull/695>`__: This
+   is a minor **breaking change**. When serializing a user an ``email``
+   key was always sent including the email of every user. With this
+   change the ``email`` key is only sent with the extended serialization
+   of a user, and the value is changed to ``'<REDACTED>'`` for every
+   user except the currently logged-in user. This prevents people in the
+   same course from seeing each others email.
+-  Improve speed of plagiarism route
+   `(#694) <https://github.com/CodeGra-de/CodeGra.de/pull/694>`__: By
+   using the database in a more efficient way this route should become
+   about twice as fast!
+-  Various styling fixes.
+   `(#701) <https://github.com/CodeGra-de/CodeGra.de/pull/701>`__
+   `(#703) <https://github.com/CodeGra-de/CodeGra.de/pull/703>`__
+
 Version 1.0.7 (HereBeMonsters.1)
 --------------------------------
 

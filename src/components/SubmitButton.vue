@@ -78,9 +78,11 @@ export default {
 
     computed: {
         shouldShowMessage() {
-            return (this.showError &&
-                    (this.state === 'failure' || this.state === 'warning') &&
-                    (Boolean(this.err) || this.showEmpty));
+            return (
+                this.showError &&
+                (this.state === 'failure' || this.state === 'warning') &&
+                (Boolean(this.err) || this.showEmpty)
+            );
         },
 
         variants() {
@@ -167,7 +169,7 @@ export default {
             if (this.confirm && !this.showConfirm) {
                 this.$refs.confirmPopover.$emit('open');
                 this.showConfirm = true;
-                return new Promise((resolve) => {
+                return new Promise(resolve => {
                     this.confirmAction = () => {
                         this.resetConfirm();
                         resolve(this.submitFunction(func));
@@ -183,7 +185,7 @@ export default {
             this.cancelled = false;
             return Promise.resolve(promise).then(
                 res => !this.cancelled && this.succeed(res),
-                (err) => {
+                err => {
                     if (this.cancelled) {
                         throw SubmitButtonCancelled;
                     } else {
@@ -207,8 +209,7 @@ export default {
 
         succeed(res) {
             this.pending = false;
-            return this.update('success')
-                .then(() => res);
+            return this.update('success').then(() => res);
         },
 
         cancel() {
@@ -224,13 +225,14 @@ export default {
         fail(err, mult = 3) {
             this.pending = false;
             this.err = err;
-            return this.update('failure', mult)
-                .then(() => { throw err; });
+            return this.update('failure', mult).then(() => {
+                throw err;
+            });
         },
 
         update(state, mult = 1) {
             this.state = state;
-            return new Promise((resolve) => {
+            return new Promise(resolve => {
                 if (this.timeout != null) {
                     clearTimeout(this.timeout);
                 }

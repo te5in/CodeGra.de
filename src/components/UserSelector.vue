@@ -106,7 +106,7 @@ export default {
             const username = this.value.username.toLocaleLowerCase();
             const name = this.value.name ? this.value.name.toLocaleLowerCase() : ';';
 
-            return this.searchQuery.split(' ').every((queryWord) => {
+            return this.searchQuery.split(' ').every(queryWord => {
                 const word = queryWord.toLocaleLowerCase();
                 return username.indexOf(word) >= 0 || name.indexOf(word) >= 0;
             });
@@ -128,25 +128,28 @@ export default {
                 let id;
                 const params = Object.assign({ q: query }, this.extraParams);
                 id = setTimeout(() => {
-                    this.$http.get(this.baseUrl, { params }).then(({ data }) => {
-                        if (stop) {
-                            return;
-                        }
+                    this.$http.get(this.baseUrl, { params }).then(
+                        ({ data }) => {
+                            if (stop) {
+                                return;
+                            }
 
-                        this.loadingStudentsCallback = null;
-                        this.students = data.filter(this.filterStudents);
-                        this.loadingStudents = false;
-                    }, (err) => {
-                        if (stop) {
-                            return;
-                        }
+                            this.loadingStudentsCallback = null;
+                            this.students = data.filter(this.filterStudents);
+                            this.loadingStudents = false;
+                        },
+                        err => {
+                            if (stop) {
+                                return;
+                            }
 
-                        if (err.response.data.code === 'RATE_LIMIT_EXCEEDED') {
-                            id = setTimeout(() => this.asyncFind(query), 1000);
-                        } else {
-                            throw err;
-                        }
-                    });
+                            if (err.response.data.code === 'RATE_LIMIT_EXCEEDED') {
+                                id = setTimeout(() => this.asyncFind(query), 1000);
+                            } else {
+                                throw err;
+                            }
+                        },
+                    );
                 }, 250);
 
                 this.stopLoadingStudents = () => {

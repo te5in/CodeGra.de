@@ -25,6 +25,4 @@ export const MANAGE_COURSE_PERMISSIONS = Object.freeze([
     ...MANAGE_GENERAL_COURSE_PERMISSIONS,
 ]);
 
-export const MANAGE_SITE_PERIMSSIONS = Object.freeze([
-    'can_manage_site_users',
-]);
+export const MANAGE_SITE_PERIMSSIONS = Object.freeze(['can_manage_site_users']);

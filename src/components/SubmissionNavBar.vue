@@ -64,7 +64,6 @@ export default {
             return this.$route.query.sortBy || 'user';
         },
 
-
         filter() {
             return this.$route.query.search;
         },
@@ -118,11 +117,9 @@ export default {
                 return;
             }
             this.$router.push({
-                params: Object.assign(
-                    {},
-                    this.$route.params,
-                    { submissionId: sub.id },
-                ),
+                params: Object.assign({}, this.$route.params, {
+                    submissionId: sub.id,
+                }),
                 query: this.$route.query,
             });
         },
@@ -158,7 +155,7 @@ export default {
 </style>
 
 <style lang="less">
-@import "~mixins.less";
+@import '~mixins.less';
 
 .submission-nav-bar .dropdown button {
     width: 100%;
@@ -173,7 +170,7 @@ export default {
 #student-selector {
     border-radius: 0;
     width: 100%;
-    padding-top: .625rem;
+    padding-top: 0.625rem;
 }
 
 .nav-wrapper .title {

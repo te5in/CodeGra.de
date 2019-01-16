@@ -92,12 +92,17 @@ export default {
                         return res;
                     }, {}),
             });
-            this.$refs.submitButton.submit(req.then(() => {
-                this.forceLoadSubmissions(this.assignment.id);
-                this.$emit('divided');
-            }, (err) => {
-                throw err.response.data.message;
-            }));
+            this.$refs.submitButton.submit(
+                req.then(
+                    () => {
+                        this.forceLoadSubmissions(this.assignment.id);
+                        this.$emit('divided');
+                    },
+                    err => {
+                        throw err.response.data.message;
+                    },
+                ),
+            );
         },
     },
 
@@ -109,7 +114,7 @@ export default {
 </script>
 
 <style lang="less" scoped>
-@import "~mixins.less";
+@import '~mixins.less';
 
 .grader-list {
     margin-bottom: 1rem;
@@ -131,7 +136,7 @@ tbody .weight {
     padding: 0;
 
     input {
-        padding: .75rem;
+        padding: 0.75rem;
         border: none;
         border-bottom: 1px solid transparent !important;
         border-radius: 0;

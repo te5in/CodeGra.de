@@ -36,24 +36,68 @@ def pytest_addoption(parser):
 def app(request):
     """Session-wide test `Flask` application."""
     settings_override = {
-        'TESTING': True,
-        'DEBUG': True,
-        'UPLOAD_DIR': f'/tmp/psef/uploads',
-        'RATELIMIT_STRATEGY': 'moving-window',
-        'RATELIMIT_HEADERS_ENABLED': True,
+        'TESTING':
+            True,
+        'DEBUG':
+            True,
+        'UPLOAD_DIR':
+            f'/tmp/psef/uploads',
+        'RATELIMIT_STRATEGY':
+            'moving-window',
+        'RATELIMIT_HEADERS_ENABLED':
+            True,
         'CELERY_CONFIG':
             {
                 'BROKER_URL': 'redis:///',
                 'BACKEND_URL': 'redis:///'
             },
-        'MIRROR_UPLOAD_DIR': f'/tmp/psef/mirror_uploads',
-        'MAX_UPLOAD_SIZE': 2 ** 20,  # 1mb
+        'MIRROR_UPLOAD_DIR':
+            f'/tmp/psef/mirror_uploads',
+        'MAX_FILE_SIZE':
+            2 ** 20,  # 1mb
+        'MAX_NORMAL_UPLOAD_SIZE':
+            4 * 2 ** 20,  # 4 mb
+        'MAX_LARGE_UPLOAD_SIZE':
+            100 * 2 ** 20,  # 100mb
         'LTI_CONSUMER_KEY_SECRETS': {
             'my_lti': '12345678'
         },
-        'LTI_SECRET_KEY': 'hunter123',
-        'SECRET_KEY': 'hunter321',
-        'HEALTH_KEY': 'uuyahdsdsdiufhaiwueyrriu2h3',
+        'LTI_SECRET_KEY':
+            'hunter123',
+        'SECRET_KEY':
+            'hunter321',
+        'HEALTH_KEY':
+            'uuyahdsdsdiufhaiwueyrriu2h3',
+        'CHECKSTYLE_PROGRAM':
+            [
+                "java",
+                "-Dbasedir={files}",
+                "-jar",
+                os.path.join(
+                    os.path.dirname(__file__), '..', 'checkstyle.jar'
+                ),
+                "-f",
+                "xml",
+                "-c",
+                "{config}",
+                "{files}",
+            ],
+        'PMD_PROGRAM':
+            [
+                os.path.join(
+                    os.path.dirname(__file__), '..', './pmd/bin/run.sh'
+                ),
+                'pmd',
+                '-dir',
+                '{files}',
+                '-failOnViolation',
+                'false',
+                '-format',
+                'csv',
+                '-shortnames',
+                '-rulesets',
+                '{config}',
+            ]
     }
     if request.config.getoption('--postgresql'):
         print('Running with postgres!')

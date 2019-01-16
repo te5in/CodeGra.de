@@ -260,10 +260,7 @@ export default {
             await this.loadCourses();
             this.assignmentTempName = this.assignment.name;
             this.assignmentTempDeadline = this.assignment.deadline;
-            await Promise.all([
-                this.loadPermissions(),
-                this.loadGraders(),
-            ]);
+            await Promise.all([this.loadPermissions(), this.loadGraders()]);
             this.loading = false;
         },
 
@@ -281,7 +278,9 @@ export default {
                 this.gradersLoading = true;
             }
 
-            const { data } = await this.$http.get(`/api/v1/assignments/${this.assignment.id}/graders/`);
+            const { data } = await this.$http.get(
+                `/api/v1/assignments/${this.assignment.id}/graders/`,
+            );
             this.graders = data;
             this.gradersLoading = false;
             this.gradersLoadedOnce = true;
@@ -292,17 +291,22 @@ export default {
                 name: this.assignmentTempName,
             });
 
-            this.$refs.updateName.submit(req.then(() => {
-                this.updateAssignment({
-                    courseId: this.assignment.course.id,
-                    assignmentId: this.assignment.id,
-                    assignmentProps: {
-                        name: this.assignmentTempName,
+            this.$refs.updateName.submit(
+                req.then(
+                    () => {
+                        this.updateAssignment({
+                            courseId: this.assignment.course.id,
+                            assignmentId: this.assignment.id,
+                            assignmentProps: {
+                                name: this.assignmentTempName,
+                            },
+                        });
                     },
-                });
-            }, (err) => {
-                throw err.response.data.message;
-            }));
+                    err => {
+                        throw err.response.data.message;
+                    },
+                ),
+            );
         },
 
         updateDeadline() {
@@ -310,16 +314,21 @@ export default {
                 deadline: convertToUTC(this.assignmentTempDeadline),
             });
 
-            this.$refs.updateDeadline.submit(req.then(() => {
-                this.updateAssignment({
-                    assignmentId: this.assignment.id,
-                    assignmentProps: {
-                        deadline: this.assignmentTempDeadline,
+            this.$refs.updateDeadline.submit(
+                req.then(
+                    () => {
+                        this.updateAssignment({
+                            assignmentId: this.assignment.id,
+                            assignmentProps: {
+                                deadline: this.assignmentTempDeadline,
+                            },
+                        });
                     },
-                });
-            }, (err) => {
-                throw err.response.data.message;
-            }));
+                    err => {
+                        throw err.response.data.message;
+                    },
+                ),
+            );
         },
 
         goToSubmissions() {
@@ -376,7 +385,7 @@ export default {
 }
 
 .divide-submissions {
-    margin: -1.25rem -1.25rem -.25rem;
+    margin: -1.25rem -1.25rem -0.25rem;
 }
 
 .finished-grader-toggles {

@@ -214,6 +214,27 @@
 # password strength algorithm.
 # min_password_score = 3
 
+# The program list to call checkstyle. The list should be given as a JSON
+# array. Every item in the list should be a string after JSON parsing. Every
+# item will be formatted when the program is executed, you should use the
+# following variables (all between {}):
+# - config: The location of the config file that should be given to checkstyle.
+# - files: The location of the files that should be checked.
+# checkstyle_program = ["java", "-Dbasedir={files}", "-jar", "checkstyle.jar", "-f", "xml", "-c", "{config}", "{files}"]
+
+# The program lilst to call PMD. The list should be given as a JSON array, the
+# same as the checkstyle list.
+# pmd_program = ["./pmd/bin/run.sh", "pmd", "-dir", "{files}", "-failOnViolation", "false", "-format", "csv", "-shortnames", "-rulesets", "{config}"]
+
+# The program lilst to call pylint. The list should be given as a JSON array,
+# the same as the checkstyle list.
+# pylint_program = ["pylint", "--rcfile", "{config}", "--output-format", "json", "{files}"]
+
+# The program lilst to call flake8. The list should be given as a JSON array,
+# the same as the checkstyle list, plus an extra format argument '{line_fmt}'.
+# flake8_program = ["flake8", "--disable-noqa", "--config={config}", "--format", "{line_fmt}", "--exit-zero", "{files}"]
+
+
 # This section enables you to disable certain features. If you change this
 # config you need to rebuild/restart the front-end and restart the backend
 # otherwise the changes are not applied.

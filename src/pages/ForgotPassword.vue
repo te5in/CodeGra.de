@@ -10,31 +10,31 @@
 </template>
 
 <script>
-    import { mapGetters } from 'vuex';
+import { mapGetters } from 'vuex';
 
-    import { ForgotPassword } from '@/components';
+import { ForgotPassword } from '@/components';
 
-    import { setPageTitle } from './title';
+import { setPageTitle } from './title';
 
-    export default {
-        name: 'forgot-password-page',
+export default {
+    name: 'forgot-password-page',
 
-        computed: {
-            ...mapGetters('pref', ['darkMode']),
-        },
+    computed: {
+        ...mapGetters('pref', ['darkMode']),
+    },
 
-        mounted() {
-            setPageTitle('Forgot password');
-        },
+    mounted() {
+        setPageTitle('Forgot password');
+    },
 
-        components: {
-            ForgotPassword,
-        },
-    };
+    components: {
+        ForgotPassword,
+    },
+};
 </script>
 
 <style lang="less" scoped>
-@import "~mixins.less";
+@import '~mixins.less';
 
 .forgot-password-wrapper {
     margin: 2em auto;
@@ -55,4 +55,3 @@
     margin-bottom: 1em;
 }
 </style>
-

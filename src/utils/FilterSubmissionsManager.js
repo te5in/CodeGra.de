@@ -13,7 +13,7 @@ export function filterSubmissions(
 
     // BLAZE IT: R y a n C e l s i u s ° S o u n d s
     if (latest) {
-        latestSubs = submissions.filter((item) => {
+        latestSubs = submissions.filter(item => {
             if (l.has(item.user.id)) {
                 return callback(item);
             } else {
@@ -23,13 +23,10 @@ export function filterSubmissions(
         });
     }
 
-    const filterAssignee = latestSubs.some(s => s.assignee &&
-        s.assignee.id === userId);
+    const filterAssignee = latestSubs.some(s => s.assignee && s.assignee.id === userId);
 
-
-    return latestSubs.filter((item) => {
-        if (filterAssignee && mine &&
-            (item.assignee == null || item.assignee.id !== userId)) {
+    return latestSubs.filter(item => {
+        if (filterAssignee && mine && (item.assignee == null || item.assignee.id !== userId)) {
             if (!callback(item)) return false;
         } else if (!filter) {
             return true;
@@ -39,13 +36,12 @@ export function filterSubmissions(
             user_name: item.user.name.toLowerCase(),
             grade: (item.grade || 0).toString(),
             created_at: item.created_at,
-            assignee: (item.assignee && item.assignee.name) ? item.assignee.name.toLowerCase() : '-',
+            assignee: item.assignee && item.assignee.name ? item.assignee.name.toLowerCase() : '-',
         };
         const out = (filter || '')
             .toLowerCase()
             .split(' ')
-            .every(word => Object.keys(terms)
-                .some(key => terms[key].indexOf(word) >= 0));
+            .every(word => Object.keys(terms).some(key => terms[key].indexOf(word) >= 0));
         if (out) {
             l.add(item.user.id);
         }
@@ -109,31 +105,27 @@ export default class FilterSubmissionsManager {
         if (this.curSubmissionId === sub.id) {
             this.forceInclude.add(sub.id);
             this.$router.replace({
-                query: Object.assign(
-                    {},
-                    this.$route.query,
-                    { forceInclude: JSON.stringify([...this.forceInclude]) },
-                ),
+                query: Object.assign({}, this.$route.query, {
+                    forceInclude: JSON.stringify([...this.forceInclude]),
+                }),
             });
             return true;
         }
         return false;
     }
 
-    filter(
-        submissions,
-        latest,
-        mine,
-        userId,
-        filter,
-        sortBy,
-    ) {
+    filter(submissions, latest, mine, userId, filter, sortBy) {
         this.query = filter;
         if (submissions.length === 0) {
             return [];
         }
-        return filterSubmissions(submissions, latest, mine, userId, filter,
-            this.checkReally.bind(this))
-            .sort((a, b) => sortSubmissions(a, b, sortBy));
+        return filterSubmissions(
+            submissions,
+            latest,
+            mine,
+            userId,
+            filter,
+            this.checkReally.bind(this),
+        ).sort((a, b) => sortSubmissions(a, b, sortBy));
     }
 }

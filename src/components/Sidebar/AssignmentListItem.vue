@@ -78,7 +78,6 @@ export default {
         readableDeadline() {
             return moment(this.assignment.deadline).from(this.now);
         },
-
     },
 
     methods: {
@@ -117,7 +116,7 @@ export default {
 </script>
 
 <style lang="less" scoped>
-@import "~mixins.less";
+@import '~mixins.less';
 
 .name {
     flex: 1 1 auto;

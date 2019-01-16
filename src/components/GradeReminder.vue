@@ -78,11 +78,12 @@ Send a reminder e-mail to all graders. This will also probably you.`,
                 reminder_type: this.assignment.reminder_type,
                 reminder_time: convertToUTC(this.assignment.reminder_time),
             });
-            this.$refs.updateReminder.submit(req.catch((err) => {
-                throw err.response.data.message;
-            }));
+            this.$refs.updateReminder.submit(
+                req.catch(err => {
+                    throw err.response.data.message;
+                }),
+            );
         },
-
     },
 
     components: {
@@ -94,7 +95,7 @@ Send a reminder e-mail to all graders. This will also probably you.`,
 
 <style lang="less">
 .grade-options {
-    margin: .75em 0;
+    margin: 0.75em 0;
 
     & > .custom-control:last-child {
         margin-bottom: 0;

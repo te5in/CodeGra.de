@@ -4,6 +4,9 @@ import axios from 'axios';
 import { parseWarningHeader } from '@/utils';
 import * as types from '../mutation-types';
 
+const UNLOADED_SNIPPETS = {};
+let snippetsLastReloaded;
+
 const getters = {
     loggedIn: state => state.id !== 0,
     id: state => state.id,
@@ -11,34 +14,39 @@ const getters = {
     name: state => state.name,
     username: state => state.username,
     canSeeHidden: state => state.canSeeHidden,
-};
+    findSnippetsByPrefix(state) {
+        let values = [];
+        if (state && state.snippets !== UNLOADED_SNIPPETS) {
+            values = Object.values(state.snippets).sort((a, b) => a.key.localeCompare(b.key));
+        }
 
-const UNLOADED_SNIPPETS = {};
-let snippetsLastReloaded;
+        return prefix => values.filter(({ key }) => key.startsWith(prefix));
+    },
+};
 
 const actions = {
     login({ commit, state }, { username, password, onWarning }) {
         state.jwtToken = null;
         return new Promise((resolve, reject) => {
-            axios.post('/api/v1/login', { username, password }).then(async (response) => {
-                // Allow the warning to be shown somewhere before actually
-                // logging in.
-                if (onWarning != null && response.headers.warning) {
-                    await onWarning(
-                        parseWarningHeader(response.headers.warning),
-                        response,
-                    );
-                }
-                commit(types.LOGIN, response.data);
-                resolve(response);
-                actions.refreshSnippets({ commit });
-            }).catch((err) => {
-                if (err.response) {
-                    reject(err.response.data);
-                } else {
-                    reject(new Error('Login failed for a unknown reason!'));
-                }
-            });
+            axios
+                .post('/api/v1/login', { username, password })
+                .then(async response => {
+                    // Allow the warning to be shown somewhere before actually
+                    // logging in.
+                    if (onWarning != null && response.headers.warning) {
+                        await onWarning(parseWarningHeader(response.headers.warning), response);
+                    }
+                    commit(types.LOGIN, response.data);
+                    resolve(response);
+                    actions.refreshSnippets({ commit });
+                })
+                .catch(err => {
+                    if (err.response) {
+                        reject(err.response.data);
+                    } else {
+                        reject(new Error('Login failed for a unknown reason!'));
+                    }
+                });
         });
     },
 
@@ -55,7 +63,7 @@ const actions = {
     },
 
     refreshSnippets({ commit }) {
-        return new Promise((resolve) => {
+        return new Promise(resolve => {
             axios.get('/api/v1/snippets/').then(({ data }) => {
                 const snips = {};
                 for (let i = 0, len = data.length; i < len; i += 1) {
@@ -85,37 +93,44 @@ const actions = {
     logout({ commit }) {
         return Promise.all([
             commit(`courses/${types.CLEAR_COURSES}`, null, { root: true }),
-            commit(`plagiarism/${types.CLEAR_PLAGIARISM_RUNS}`, null, { root: true }),
+            commit(`plagiarism/${types.CLEAR_PLAGIARISM_RUNS}`, null, {
+                root: true,
+            }),
             commit(types.LOGOUT),
         ]);
     },
 
     verifyLogin({ commit, state, dispatch }) {
         return new Promise((resolve, reject) => {
-            axios.get('/api/v1/login?type=extended').then((response) => {
-                // We are already logged in. Update state to logged in state
-                commit(types.LOGIN, {
-                    access_token: state.jwtToken,
-                    user: response.data,
+            axios
+                .get('/api/v1/login?type=extended')
+                .then(response => {
+                    // We are already logged in. Update state to logged in state
+                    commit(types.LOGIN, {
+                        access_token: state.jwtToken,
+                        user: response.data,
+                    });
+                    resolve();
+                })
+                .catch(() => {
+                    dispatch('logout').then(reject, reject);
                 });
-                resolve();
-            }).catch(() => {
-                dispatch('logout').then(reject, reject);
-            });
         });
     },
 
     updateUserInfo({ commit }, {
         name, email, oldPw, newPw,
     }) {
-        return axios.patch('/api/v1/login', {
-            name,
-            email,
-            old_password: oldPw,
-            new_password: newPw,
-        }).then(() => {
-            commit(types.UPDATE_USER_INFO, { name, email });
-        });
+        return axios
+            .patch('/api/v1/login', {
+                name,
+                email,
+                old_password: oldPw,
+                new_password: newPw,
+            })
+            .then(() => {
+                commit(types.UPDATE_USER_INFO, { name, email });
+            });
     },
 
     updateAccessToken({ dispatch, commit }, newToken) {
@@ -157,9 +172,7 @@ const mutations = {
     },
 
     [types.UPDATE_SNIPPET](state, { id, key, value }) {
-        const oldKey = Object.entries(state.snippets).find(
-            ([, snippet]) => snippet.id === id,
-        )[0];
+        const oldKey = Object.entries(state.snippets).find(([, snippet]) => snippet.id === id)[0];
         delete state.snippets[oldKey];
         Vue.prototype.$set(state.snippets, key, { id, key, value });
     },

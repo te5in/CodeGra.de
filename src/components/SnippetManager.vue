@@ -106,10 +106,12 @@ export default {
                 {
                     key: 'key',
                     label: 'Key',
-                }, {
+                },
+                {
                     key: 'text',
                     label: 'Text',
-                }, {
+                },
+                {
                     key: 'actions',
                     label: 'Actions',
                 },
@@ -129,16 +131,16 @@ export default {
         ...mapGetters('user', ['snippets']),
 
         storedSnippets() {
-            return Object.values(this.snippets).map(
-                snip => Object.assign({}, snip, {
-                    origKey: snip.key,
-                    origValue: snip.value,
-                    keyError: '',
-                    valueError: '',
-                }),
-            ).sort(
-                (a, b) => cmpNoCase(a.key, b.key),
-            );
+            return Object.values(this.snippets)
+                .map(snip =>
+                    Object.assign({}, snip, {
+                        origKey: snip.key,
+                        origValue: snip.value,
+                        keyError: '',
+                        valueError: '',
+                    }),
+                )
+                .sort((a, b) => cmpNoCase(a.key, b.key));
         },
 
         allSnippets() {
@@ -180,9 +182,13 @@ export default {
         },
 
         canUpdateSnippet(snippet) {
-            return this.hasSnippetChanged(snippet) &&
-                snippet.key && !snippet.keyError &&
-                snippet.value && !snippet.valueError;
+            return (
+                this.hasSnippetChanged(snippet) &&
+                snippet.key &&
+                !snippet.keyError &&
+                snippet.value &&
+                !snippet.valueError
+            );
         },
 
         saveButtonPopover(snippet) {
@@ -241,9 +247,7 @@ export default {
 
         saveSnippet(snippet, index) {
             if (!this.canUpdateSnippet(snippet)) {
-                this.$refs[`snippetSaveButton-${index}`].fail(
-                    this.saveButtonPopover(snippet),
-                );
+                this.$refs[`snippetSaveButton-${index}`].fail(this.saveButtonPopover(snippet));
                 return null;
             }
 
@@ -256,7 +260,12 @@ export default {
             }
 
             req = this.$refs[`snippetSaveButton-${index}`].submit(
-                waitAtLeast(500, req.catch((err) => { throw err.response.data.message; })),
+                waitAtLeast(
+                    500,
+                    req.catch(err => {
+                        throw err.response.data.message;
+                    }),
+                ),
             );
 
             if (snippet.id == null) {
@@ -268,7 +277,9 @@ export default {
                     this.addSnippetToStore(newSnippet);
                 });
             } else {
-                return req.then(() => { this.updateSnippetInStore(snippet); });
+                return req.then(() => {
+                    this.updateSnippetInStore(snippet);
+                });
             }
         },
 
@@ -280,13 +291,13 @@ export default {
                 return null;
             }
 
-            const req = this.$http.delete(`/api/v1/snippets/${snippet.id}`).catch(
-                (err) => { throw err.response.data.message; },
-            );
+            const req = this.$http.delete(`/api/v1/snippets/${snippet.id}`).catch(err => {
+                throw err.response.data.message;
+            });
 
-            return this.$refs[`snippetDeleteButton-${index}`].submit(req).then(
-                () => { this.deleteSnippetFromStore(snippet); },
-            );
+            return this.$refs[`snippetDeleteButton-${index}`].submit(req).then(() => {
+                this.deleteSnippetFromStore(snippet);
+            });
         },
 
         resetSnippet(snippet) {
@@ -312,7 +323,7 @@ export default {
 
 <style lang="less" scoped>
 .filter-group {
-    padding: .75rem;
+    padding: 0.75rem;
 }
 
 .snippets-table {
@@ -330,7 +341,7 @@ export default {
 
 .global {
     text-align: right;
-    padding-right: .9rem;
+    padding-right: 0.9rem;
 }
 </style>
 

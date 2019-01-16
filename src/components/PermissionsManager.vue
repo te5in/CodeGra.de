@@ -142,15 +142,17 @@ export default {
 
         getAllPermissions() {
             return this.$http.get(this.getRetrieveUrl(this.courseId)).then(({ data }) => {
-                const fields = [{
-                    key: 'name',
-                    label: 'Name',
-                    sortable: true,
-                }];
+                const fields = [
+                    {
+                        key: 'name',
+                        label: 'Name',
+                        sortable: true,
+                    },
+                ];
 
                 this.items = [];
 
-                data.forEach((item) => {
+                data.forEach(item => {
                     fields.push({
                         key: item.name,
                         label: item.name,
@@ -208,14 +210,11 @@ export default {
             const perm = this.fields[index];
             const button = this.$refs[`delete-perm-${index}`][0];
 
-            const req = this.$http.delete(
-                this.getDeleteRoleUrl(
-                    this.courseId,
-                    perm.id,
-                ),
-            ).catch(({ response }) => {
-                throw response.data.message;
-            });
+            const req = this.$http
+                .delete(this.getDeleteRoleUrl(this.courseId, perm.id))
+                .catch(({ response }) => {
+                    throw response.data.message;
+                });
 
             button.submit(req).then(() => {
                 this.fields.splice(index, 1);
@@ -227,16 +226,21 @@ export default {
             if (this.newRoleName === '') {
                 button.fail('The name cannot be empty!');
             } else {
-                const req = this.$http.post(`/api/v1/courses/${this.courseId}/roles/`, {
-                    name: this.newRoleName,
-                }).then(() => {
-                    this.getAllPermissions().then(() => {
-                        this.newRole = '';
-                        this.newRoleName = '';
-                    });
-                }, ({ response }) => {
-                    throw response.data.message;
-                });
+                const req = this.$http
+                    .post(`/api/v1/courses/${this.courseId}/roles/`, {
+                        name: this.newRoleName,
+                    })
+                    .then(
+                        () => {
+                            this.getAllPermissions().then(() => {
+                                this.newRole = '';
+                                this.newRoleName = '';
+                            });
+                        },
+                        ({ response }) => {
+                            throw response.data.message;
+                        },
+                    );
                 button.submit(req);
             }
         },

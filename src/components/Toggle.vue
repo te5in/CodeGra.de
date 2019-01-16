@@ -92,7 +92,7 @@ export default {
 <style lang="less" scoped>
 @import '~mixins.less';
 
-@unchecked-opacity: .5;
+@unchecked-opacity: 0.5;
 
 .toggle-container {
     cursor: default;
@@ -119,8 +119,8 @@ export default {
     position: relative;
     width: 2.1rem;
     height: 1.2rem;
-    margin: 0 .5rem;
-    border-radius: .6rem;
+    margin: 0 0.5rem;
+    border-radius: 0.6rem;
 
     background-color: @color-light-gray;
     transition: background-color @transition-duration;
@@ -130,7 +130,7 @@ export default {
         display: block;
         width: 1rem;
         height: 1rem;
-        transform: translate(.1rem, .1rem);
+        transform: translate(0.1rem, 0.1rem);
         border-radius: 50%;
 
         background-color: white;
@@ -154,10 +154,9 @@ export default {
         #app.dark & {
             background-color: @color-primary-darkest;
         }
-
     }
     .toggle::before {
-        transform: translate(100%, .1rem);
+        transform: translate(100%, 0.1rem);
     }
 
     .label-on {

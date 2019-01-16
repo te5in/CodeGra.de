@@ -103,9 +103,7 @@ export default {
     },
 
     methods: {
-        ...mapActions('user', [
-            'updateAccessToken',
-        ]),
+        ...mapActions('user', ['updateAccessToken']),
 
         submit() {
             const button = this.$refs.submit;
@@ -117,22 +115,30 @@ export default {
             }
 
             return button.submitFunction(() =>
-                this.$http.post('/api/v1/user', {
-                    username: this.username,
-                    password: this.firstPw,
-                    email: this.firstEmail,
-                    name: this.name,
-                }).then(async ({ data }) => {
-                    if (data.access_token) {
-                        await this.updateAccessToken(data.access_token);
-                        this.$router.push({
-                            name: 'me',
-                            query: { sbloc: 'm' },
-                        });
-                    }
-                }, ({ response }) => {
-                    throw response.data.feedback || { warning: response.data.message };
-                }));
+                this.$http
+                    .post('/api/v1/user', {
+                        username: this.username,
+                        password: this.firstPw,
+                        email: this.firstEmail,
+                        name: this.name,
+                    })
+                    .then(
+                        async ({ data }) => {
+                            if (data.access_token) {
+                                await this.updateAccessToken(data.access_token);
+                                this.$router.push({
+                                    name: 'me',
+                                    query: { sbloc: 'm' },
+                                });
+                            }
+                        },
+                        ({ response }) => {
+                            throw response.data.feedback || {
+                                warning: response.data.message,
+                            };
+                        },
+                    ),
+            );
         },
     },
 

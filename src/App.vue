@@ -36,9 +36,11 @@ export default {
         },
 
         showFooter() {
-            return this.$route.name !== 'submission' &&
+            return (
+                this.$route.name !== 'submission' &&
                 this.$route.name !== 'submission_file' &&
-                this.$route.name !== 'plagiarism_detail';
+                this.$route.name !== 'plagiarism_detail'
+            );
         },
     },
 
@@ -49,32 +51,40 @@ export default {
 
         let popoversShown = false;
 
-        document.body.addEventListener('click', (event) => {
-            popoversShown = false;
-            if (!event.target.closest('.popover-body')) {
-                if (!event.target.closest('.sidebar') && this.$refs.sidebar) {
-                    this.$refs.sidebar.$emit('sidebar::close');
-                }
+        document.body.addEventListener(
+            'click',
+            event => {
+                popoversShown = false;
+                if (!event.target.closest('.popover-body')) {
+                    if (!event.target.closest('.sidebar') && this.$refs.sidebar) {
+                        this.$refs.sidebar.$emit('sidebar::close');
+                    }
 
-                setTimeout(() => {
-                    this.$nextTick(() => {
-                        if (!popoversShown) {
-                            this.$root.$emit('bv::hide::popover');
-                        }
-                    });
-                }, 10);
-            }
-        }, true);
+                    setTimeout(() => {
+                        this.$nextTick(() => {
+                            if (!popoversShown) {
+                                this.$root.$emit('bv::hide::popover');
+                            }
+                        });
+                    }, 10);
+                }
+            },
+            true,
+        );
 
         this.$root.$on('bv::popover::show', () => {
             popoversShown = true;
         });
 
-        document.body.addEventListener('keyup', (event) => {
-            if (event.key === 'Escape') {
-                this.$root.$emit('bv::hide::popover');
-            }
-        }, true);
+        document.body.addEventListener(
+            'keyup',
+            event => {
+                if (event.key === 'Escape') {
+                    this.$root.$emit('bv::hide::popover');
+                }
+            },
+            true,
+        );
     },
 
     components: {

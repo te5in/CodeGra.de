@@ -50,6 +50,7 @@
 
                                 <feedback-area :feedback="feedback.user[id][line]"
                                                :editable="false"
+                                               :total-amount-lines="part[1]"
                                                :line="line"
                                                :fileId="Number(id)"
                                                :author="feedback.authors && feedback.authors[id][line].name"
@@ -204,11 +205,9 @@ export default {
                 return;
             }
 
-            const newQuery = Object.assign(
-                {},
-                this.$route.query,
-                { overviewTab: newVal },
-            );
+            const newQuery = Object.assign({}, this.$route.query, {
+                overviewTab: newVal,
+            });
             if (newVal === 0) {
                 delete newQuery.overviewTab;
             }
@@ -233,7 +232,9 @@ export default {
         await this.$nextTick();
 
         this.error = '';
-        this.feedback = (await this.$http.get(`/api/v1/submissions/${this.submission.id}/feedbacks/`)).data;
+        this.feedback = (await this.$http.get(
+            `/api/v1/submissions/${this.submission.id}/feedbacks/`,
+        )).data;
 
         this.fileIds = Object.keys(this.feedback.user);
         const codeLines = await Promise.all(this.fileIds.map(this.loadCodeWithSettings));
@@ -297,19 +298,28 @@ export default {
         },
 
         getCode(fileId, selectedLanguage) {
-            return this.$http.get(`/api/v1/code/${fileId}`, {
-                responseType: 'arraybuffer',
-            }).then((rawCode) => {
-                let code;
-                try {
-                    code = decodeBuffer(rawCode.data);
-                } catch (e) {
-                    return [];
-                }
-                return this.highlightCode(code.split('\n'), selectedLanguage, this.flattenedFileTree[fileId]);
-            }, ({ response: { data: { message } } }) => {
-                this.error = message;
-            });
+            return this.$http
+                .get(`/api/v1/code/${fileId}`, {
+                    responseType: 'arraybuffer',
+                })
+                .then(
+                    rawCode => {
+                        let code;
+                        try {
+                            code = decodeBuffer(rawCode.data);
+                        } catch (e) {
+                            return [];
+                        }
+                        return this.highlightCode(
+                            code.split('\n'),
+                            selectedLanguage,
+                            this.flattenedFileTree[fileId],
+                        );
+                    },
+                    ({ response: { data: { message } } }) => {
+                        this.error = message;
+                    },
+                );
         },
 
         // Highlight this.codeLines.
@@ -320,13 +330,11 @@ export default {
 
             const lang = language === 'Default' ? getExtension(filePath) : language;
             if (getLanguage(lang) === undefined) {
-                return codeLines
-                    .map(this.$htmlEscape)
-                    .map(visualizeWhitespace);
+                return codeLines.map(this.$htmlEscape).map(visualizeWhitespace);
             }
 
             let state = null;
-            return codeLines.map((line) => {
+            return codeLines.map(line => {
                 const { top, value } = highlight(lang, line, true, state);
 
                 state = top;
@@ -339,7 +347,7 @@ export default {
             if (!tree || !tree.entries) {
                 return {};
             }
-            tree.entries.forEach((f) => {
+            tree.entries.forEach(f => {
                 if (f.entries) {
                     const dirPaths = this.flattenFileTree(f, prefix.concat(f.name));
                     Object.assign(filePaths, dirPaths);
@@ -366,13 +374,13 @@ export default {
             if (!tree || !tree.entries) {
                 return { changed, added, deleted };
             }
-            tree.entries.forEach((f) => {
+            tree.entries.forEach(f => {
                 if (f.entries) {
                     const res = this.getChangedFiles(f, prefix.concat(f.name));
                     changed.push(...res.changed);
                     added.push(...res.added);
                     deleted.push(...res.deleted);
-                } else if (f.ids && f.ids[0] !== f.ids[1] && !(f.ids[0] === f.ids[1] === null)) {
+                } else if (f.ids && f.ids[0] !== f.ids[1] && !((f.ids[0] === f.ids[1]) === null)) {
                     let toChange = changed;
                     if (f.ids[0] == null) {
                         toChange = added;
@@ -380,9 +388,11 @@ export default {
                         toChange = deleted;
                     }
 
-                    toChange.push(Object.assign({}, f, {
-                        fullName: prefix.concat(f.name).join('/'),
-                    }));
+                    toChange.push(
+                        Object.assign({}, f, {
+                            fullName: prefix.concat(f.name).join('/'),
+                        }),
+                    );
                 }
             });
             return { changed, added, deleted };
@@ -425,7 +435,8 @@ export default {
 @import '~mixins.less';
 
 .file-card.card {
-    &:first-child, &:last-child:not(:nth-child(2)) {
+    &:first-child,
+    &:last-child:not(:nth-child(2)) {
         border: 0;
     }
     &:last-child {
@@ -487,8 +498,8 @@ export default {
 
 .code li {
     position: relative;
-    padding-left: .75em;
-    padding-right: .75em;
+    padding-left: 0.75em;
+    padding-right: 0.75em;
 
     background-color: lighten(@linum-bg, 1%);
     border-left: 1px solid darken(@linum-bg, 5%);
@@ -529,13 +540,13 @@ export default {
 
 .code-part {
     border: 1px solid rgba(0, 0, 0, 0.1);
-    padding-right: .25rem;
-    border-radius: .25rem;
+    padding-right: 0.25rem;
+    border-radius: 0.25rem;
     li:first-child {
-        border-top-right-radius: .25rem;
+        border-top-right-radius: 0.25rem;
     }
     li:last-child {
-        border-bottom-right-radius: .25rem;
+        border-bottom-right-radius: 0.25rem;
     }
 }
 
@@ -591,7 +602,7 @@ export default {
                 border-color: @color-border-gray-lighter;
                 background-color: rgb(247, 247, 247);
                 border-bottom-color: rgb(247, 247, 247);
-        }
+            }
         }
     }
     .tab-content {
@@ -602,7 +613,7 @@ export default {
         border-top: 0;
         overflow: auto;
 
-        border-radius: .25rem;
+        border-radius: 0.25rem;
         border-top-right-radius: 0;
         border-top-left-radius: 0;
 

@@ -68,10 +68,10 @@ def get_plagiarism_run(
         options=[
             defaultload(models.PlagiarismRun.cases).defaultload(
                 models.PlagiarismCase.work1
-            ).joinedload(models.Work.selected_items),
+            ).selectinload(models.Work.selected_items),
             defaultload(models.PlagiarismRun.cases).defaultload(
                 models.PlagiarismCase.work2
-            ).joinedload(models.Work.selected_items),
+            ).selectinload(models.Work.selected_items),
         ],
     )
     auth.ensure_permission(CPerm.can_view_plagiarism, run.assignment.course_id)
@@ -102,10 +102,10 @@ def get_plagiarism_run_cases(
         options=[
             defaultload(models.PlagiarismRun.cases).defaultload(
                 models.PlagiarismCase.work1
-            ).joinedload(models.Work.selected_items),
+            ).selectinload(models.Work.selected_items),
             defaultload(models.PlagiarismRun.cases).defaultload(
                 models.PlagiarismCase.work2
-            ).joinedload(models.Work.selected_items),
+            ).selectinload(models.Work.selected_items),
         ],
     )
     auth.ensure_permission(CPerm.can_view_plagiarism, run.assignment.course_id)

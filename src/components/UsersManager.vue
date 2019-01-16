@@ -189,9 +189,12 @@ export default {
         },
 
         getAllUsers() {
-            return this.$http.get(`/api/v1/courses/${this.courseId}/users/`).then(({ data }) => {
-                this.users = data;
-            }, () => []);
+            return this.$http.get(`/api/v1/courses/${this.courseId}/users/`).then(
+                ({ data }) => {
+                    this.users = data;
+                },
+                () => [],
+            );
         },
 
         getAllRoles() {
@@ -214,14 +217,16 @@ export default {
                 role_id: role.id,
             });
 
-            waitAtLeast(250, req).then(() => {
-                this.$set(this.updating, user.User.id, false);
-                delete this.updating[user.User.id];
-            }).catch((err) => {
-                // TODO: visual feedback
-                // eslint-disable-next-line
-                console.dir(err)
-            });
+            waitAtLeast(250, req)
+                .then(() => {
+                    this.$set(this.updating, user.User.id, false);
+                    delete this.updating[user.User.id];
+                })
+                .catch(err => {
+                    // TODO: visual feedback
+                    // eslint-disable-next-line
+                    console.dir(err);
+                });
         },
 
         addUser() {
@@ -232,16 +237,23 @@ export default {
             } else if (this.newStudentUsername == null || this.newStudentUsername.username === '') {
                 btn.fail('You have to add a non empty username!');
             } else {
-                btn.submit(this.$http.put(`/api/v1/courses/${this.courseId}/users/`, {
-                    username: this.newStudentUsername.username,
-                    role_id: this.newRole.id,
-                }).then(({ data }) => {
-                    this.newRole = '';
-                    this.newStudentUsername = null;
-                    this.users.push(data);
-                }, ({ response }) => {
-                    throw response.data.message;
-                }));
+                btn.submit(
+                    this.$http
+                        .put(`/api/v1/courses/${this.courseId}/users/`, {
+                            username: this.newStudentUsername.username,
+                            role_id: this.newRole.id,
+                        })
+                        .then(
+                            ({ data }) => {
+                                this.newRole = '';
+                                this.newStudentUsername = null;
+                                this.users.push(data);
+                            },
+                            ({ response }) => {
+                                throw response.data.message;
+                            },
+                        ),
+                );
             }
         },
     },
@@ -294,7 +306,6 @@ export default {
     -ms-hyphens: auto;
     hyphens: auto;
 }
-
 
 .role-dropdown .dropdown-toggle {
     padding-top: 3px;

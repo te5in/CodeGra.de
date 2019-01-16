@@ -15,16 +15,12 @@ from collections import defaultdict
 import werkzeug
 import structlog
 import sqlalchemy.sql as sql
-from flask import request, current_app
+from flask import request
 from sqlalchemy.orm import undefer, joinedload, selectinload
 
 import psef
-import psef.auth as auth
 import psef.files
-import psef.models as models
-import psef.helpers as helpers
-import psef.linters as linters
-import psef.parsers as parsers
+from psef import app as current_app
 from psef import current_user
 from psef.ignore import IgnoreFilterManager
 from psef.models import db
@@ -38,7 +34,10 @@ from psef.exceptions import (
 )
 
 from . import api
-from .. import tasks, archive, plagiarism
+from .. import (
+    auth, tasks, models, archive, helpers, linters, parsers, features,
+    plagiarism
+)
 from ..permissions import CoursePermission as CPerm
 
 logger = structlog.get_logger()
@@ -311,7 +310,7 @@ def update_assignment(assignment_id: int) -> EmptyResponse:
 
 
 @api.route('/assignments/<int:assignment_id>/rubrics/', methods=['GET'])
-@helpers.feature_required('RUBRICS')
+@features.feature_required(features.Feature.RUBRICS)
 def get_assignment_rubric(assignment_id: int
                           ) -> JSONResponse[t.Sequence[models.RubricRow]]:
     """Return the rubric corresponding to the given `assignment_id`.
@@ -351,7 +350,7 @@ def get_assignment_rubric(assignment_id: int
 
 
 @api.route('/assignments/<int:assignment_id>/rubrics/', methods=['DELETE'])
-@helpers.feature_required('RUBRICS')
+@features.feature_required(features.Feature.RUBRICS)
 def delete_rubric(assignment_id: int) -> EmptyResponse:
     """Delete the rubric for the given assignment.
 
@@ -384,7 +383,7 @@ def delete_rubric(assignment_id: int) -> EmptyResponse:
 
 
 @api.route('/assignments/<int:assignment_id>/rubrics/', methods=['PUT'])
-@helpers.feature_required('RUBRICS')
+@features.feature_required(features.Feature.RUBRICS)
 def add_assignment_rubric(assignment_id: int
                           ) -> JSONResponse[t.Sequence[models.RubricRow]]:
     """Add or update rubric of an assignment.
@@ -537,7 +536,7 @@ def upload_work(assignment_id: int) -> ExtendedJSONResponse[models.Work]:
         is empty. (INVALID_PARAM)
     """
     files = helpers.get_files_from_request(
-        check_size=True, keys=['file'], only_start=True
+        max_size=current_app.max_file_size, keys=['file'], only_start=True
     )
     assig = helpers.get_or_404(models.Assignment, assignment_id)
     given_author = request.args.get('author', None)
@@ -573,6 +572,7 @@ def upload_work(assignment_id: int) -> ExtendedJSONResponse[models.Work]:
 
     tree = psef.files.process_files(
         files,
+        max_size=current_app.max_file_size,
         force_txt=False,
         ignore_filter=IgnoreFilterManager(assig.cgignore),
         handle_ignore=raise_or_delete,
@@ -906,7 +906,7 @@ def get_all_works_for_assignment(
 
 
 @api.route("/assignments/<int:assignment_id>/submissions/", methods=['POST'])
-@helpers.feature_required('BLACKBOARD_ZIP_UPLOAD')
+@features.feature_required(features.Feature.BLACKBOARD_ZIP_UPLOAD)
 def post_submissions(assignment_id: int) -> EmptyResponse:
     """Add submissions to the  given:class:`.models.Assignment` from a
     blackboard zip file as :class:`.models.Work` objects.
@@ -932,10 +932,14 @@ def post_submissions(assignment_id: int) -> EmptyResponse:
     """
     assignment = helpers.get_or_404(models.Assignment, assignment_id)
     auth.ensure_permission(CPerm.can_upload_bb_zip, assignment.course_id)
-    files = helpers.get_files_from_request(check_size=False, keys=['file'])
+    files = helpers.get_files_from_request(
+        max_size=current_app.max_large_file_size, keys=['file']
+    )
 
     try:
-        submissions = psef.files.process_blackboard_zip(files[0])
+        submissions = psef.files.process_blackboard_zip(
+            files[0], max_size=current_app.max_large_file_size
+        )
     except Exception:  # pylint: disable=broad-except
         # TODO: Narrow this exception down.
         logger.info(
@@ -1034,7 +1038,7 @@ def post_submissions(assignment_id: int) -> EmptyResponse:
 
 
 @api.route('/assignments/<int:assignment_id>/linters/', methods=['GET'])
-@helpers.feature_required('LINTERS')
+@features.feature_required(features.Feature.LINTERS)
 def get_linters(assignment_id: int
                 ) -> JSONResponse[t.Sequence[t.Mapping[str, t.Any]]]:
     """Get all linters for the given :class:`.models.Assignment`.
@@ -1101,7 +1105,7 @@ def get_linters(assignment_id: int
 
 
 @api.route('/assignments/<int:assignment_id>/linter', methods=['POST'])
-@helpers.feature_required('LINTERS')
+@features.feature_required(features.Feature.LINTERS)
 def start_linting(assignment_id: int) -> JSONResponse[models.AssignmentLinter]:
     """Starts running a specific linter on all the latest submissions
     (:class:`.models.Work`) of the given :class:`.models.Assignment`.
@@ -1143,13 +1147,11 @@ def start_linting(assignment_id: int) -> JSONResponse[models.AssignmentLinter]:
         )
 
     res = models.AssignmentLinter.create_linter(assignment_id, name, cfg)
-
     db.session.add(res)
-    db.session.commit()
 
     try:
         linter_cls = linters.get_linter_by_name(name)
-    except ValueError:
+    except KeyError:
         raise APIException(
             f'No linter named "{name}" was found',
             (
@@ -1159,17 +1161,23 @@ def start_linting(assignment_id: int) -> JSONResponse[models.AssignmentLinter]:
             APICodes.OBJECT_NOT_FOUND,
             404,
         )
+    linter_cls.validate_config(cfg)
+
     if linter_cls.RUN_LINTER:
-        for i in range(0, len(res.tests), 10):
-            psef.tasks.lint_instances(
-                name,
-                cfg,
-                [t.id for t in res.tests[i:i + 10]],
-            )
+
+        def start_running_linter() -> None:
+            for i in range(0, len(res.tests), 10):
+                tasks.lint_instances(
+                    name,
+                    cfg,
+                    [t.id for t in res.tests[i:i + 10]],
+                )
+
+        helpers.callback_after_this_request(start_running_linter)
     else:
         for linter_inst in res.tests:
             linter_inst.state = models.LinterState.done
-        db.session.commit()
+    db.session.commit()
 
     return jsonify(res)
 
@@ -1298,10 +1306,11 @@ def start_plagiarism_check(
         auth.ensure_permission(CPerm.can_view_plagiarism, old_course_id)
 
     if has_old_submissions:
+        max_size = current_app.max_file_size
         old_subs = helpers.get_files_from_request(
-            check_size=False, keys=['old_submissions']
+            max_size=max_size, keys=['old_submissions']
         )
-        tree = psef.files.process_files(old_subs)
+        tree = psef.files.process_files(old_subs, max_size=max_size)
         for i, child in enumerate(tree.values):
             if isinstance(
                 child,
@@ -1314,9 +1323,11 @@ def start_plagiarism_check(
                     tree.values[i] = psef.files.process_files(
                         [
                             werkzeug.datastructures.FileStorage(
-                                stream=f, filename=child.name
+                                stream=f,
+                                filename=child.name,
                             )
-                        ]
+                        ],
+                        max_size=max_size,
                     )
                     # This is to create a name for the author that resembles
                     # the name of the archive.
@@ -1348,11 +1359,12 @@ def start_plagiarism_check(
             )
 
         base_code = helpers.get_files_from_request(
-            check_size=False, keys=['base_code']
+            max_size=current_app.max_large_file_size, keys=['base_code']
         )[0]
-        base_code_dir = psef.files.extract_to_temp(
+        base_code_dir, _ = psef.files.extract_to_temp(
             base_code,
             psef.files.IgnoreFilterManager(None),
+            max_size=current_app.max_large_file_size,
             archive_name='base_code_archive',
             parent_result_dir=current_app.config['SHARED_TEMP_DIR'],
         )

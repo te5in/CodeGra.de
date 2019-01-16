@@ -9,11 +9,18 @@ Source code documentation of ``psef``
     :undoc-members:
     :show-inheritance:
 
-
 ``psef.auth``
 ------------------------
 
 .. automodule:: psef.auth
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+``psef.exceptions``
+------------------------
+
+.. automodule:: psef.exceptions
     :members:
     :undoc-members:
     :show-inheritance:

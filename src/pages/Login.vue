@@ -34,7 +34,7 @@ export default {
 </script>
 
 <style lang="less" scoped>
-@import "~mixins.less";
+@import '~mixins.less';
 
 .login-wrapper {
     margin: 2em auto;

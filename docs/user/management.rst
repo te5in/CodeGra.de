@@ -60,7 +60,7 @@ Manually assigning submissions is possible via the submission list, by selecting
 
 Linters
 ~~~~~~~~~
-CodeGrade provides several linters (e.g. Flake8 or Pylint). A linter analyses
+CodeGrade provides several linters (e.g. Pylint, Checkstyle). A linter analyses
 submissions to flag programming errors, bugs, stylistic errors, or suspicious
 constructs, depending on the linter's characteristics. After selecting the right
 linter and optionally writing a config file (custom config files can be given,
@@ -73,10 +73,62 @@ The output of the linter will be displayed in the :ref:`Codeviewer
 output by hovering over. Linters can often be useful to provide a quick overview
 of stylistic errors or bad constructs.
 
+The version of the linters doesn't have to be the same for each CodeGrade
+instance. However, official CodeGrade instances always try to run the latest
+version.
+
 .. note::
 
     However linter output can be very useful when manually grading, they cannot
     be used to automatically assign grades based on the linter output.
+
+
+Checkstyle
+^^^^^^^^^^
+Checkstyle is a linter for Java code. It checks Java code primarily for
+stylistic errors, like wrong indentation. It can be configured by a XML file,
+you can find documentation on how to write such a configuration file
+`here <http://checkstyle.sourceforge.net/config.html>`__.
+
+
+.. note::
+
+    Not all configuration fields are allowed because of security. For the same
+    reason it is also not possible to upload your own checkers.
+
+Flake8
+^^^^^^
+Flake8 is a linter for Python code. It checks for code style. By default it
+checks if code adheres to PEP8, but you can change some rules by uploading a
+configuration file. The documentation for this file can be found
+`here <http://flake8.pycqa.org/en/latest/user/configuration.html>`__.
+
+Flake8 is run without any extensions by default. If such extensions are required
+please :ref:`contact us <contact-chapter>`.
+
+PMD
+^^^^
+PMD is a linter that supports multiple languages, of which support for the most
+common one, Java, is implemented in CodeGrade. The linter focuses on coding
+style and common functional errors, but can also find stylistic errors. The
+linter has to be configured using rulesets, how to do this is described here
+`here <https://pmd.github.io/pmd-6.10.0/pmd_userdocs_making_rulesets.html>`__.
+
+.. note::
+
+    Because of security reasons, it is not possible to create custom rules, nor
+    is it possible to create XPath rules. This is because of security.
+
+Pylint
+^^^^^^
+Pylint is a linter for Python code. It checks Python *packages*, this means it
+currently only works for submissions that contain a ``__init__.py`` file. If
+Pylint failed to run because no package could be found it places a comment on
+the first line of each python file.
+
+Pylint is configured using a configuration file that you can upload. This
+configuration file is passed directly to Pylint. Documentation about Pylint and
+this configuration file can be viewed `here <https://docs.pylint.org>`__.
 
 CGIgnore File
 ~~~~~~~~~~~~~

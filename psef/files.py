@@ -183,6 +183,7 @@ class ExtractFileTree(ExtractFileTreeDirectory):
 
     This is simply a directory with some utility methods.
     """
+    size: archive.FileSize
 
     @property
     def contains_file(self) -> bool:
@@ -218,11 +219,12 @@ class ExtractFileTree(ExtractFileTreeDirectory):
         ...         ExtractFileTreeDirectory(name=3, values=[f1, f2])
         ...       ]
         ...     )
-        ...   ]
+        ...   ],
+        ...   size=9,
         ... ).dehead()
         ...
         >>> res
-        ExtractFileTree(name=1, values=[<object object at 0x...>, <object object at 0x...>])
+        ExtractFileTree(name=1, values=[<object object at 0x...>, <object object at 0x...>], size=9)
         >>> res.values[0] != res.values[1]
         True
 
@@ -555,14 +557,16 @@ def rename_directory_structure(rootdir: str) -> ExtractFileTreeDirectory:
 def extract_to_temp(
     file: FileStorage,
     ignore_filter: IgnoreFilterManager,
+    max_size: archive.FileSize,
     handle_ignore: IgnoreHandling = IgnoreHandling.keep,
     archive_name: str = 'archive',
     parent_result_dir: t.Optional[str] = None,
-) -> str:
+) -> t.Tuple[str, archive.FileSize]:
     """Extracts the contents of file into a temporary directory.
 
     :param file: The archive to extract.
     :param ignore_filter: The files and directories that should be ignored.
+    :param max_size: The maximum size the extracted archive may be.
     :param handle_ignore: Determines how ignored files should be handled.
     :param archive_name: The name used for the archive in error messages.
     :param parent_result_dir: The location the resulting directory should be
@@ -570,6 +574,7 @@ def extract_to_temp(
     :returns: The pathname of the new temporary directory.
     """
     tmpfd, tmparchive = tempfile.mkstemp()
+    size: archive.FileSize
 
     try:
         os.remove(tmparchive)
@@ -579,17 +584,16 @@ def extract_to_temp(
         tmpdir = tempfile.mkdtemp(dir=parent_result_dir)
         file.save(tmparchive)
 
-        arch = archive.Archive.create_from_file(tmparchive)
-
-        if handle_ignore == IgnoreHandling.error:
-            wrong_files = ignore_filter.get_ignored_files_in_archive(arch)
-            if wrong_files:
-                raise IgnoredFilesException(invalid_files=wrong_files)
-            arch.extract(to_path=tmpdir)
-        else:
-            arch.extract(to_path=tmpdir)
-            if handle_ignore == IgnoreHandling.delete:
-                ignore_filter.delete_from_dir(tmpdir)
+        with archive.Archive.create_from_file(tmparchive) as arch:
+            if handle_ignore == IgnoreHandling.error:
+                wrong_files = ignore_filter.get_ignored_files_in_archive(arch)
+                if wrong_files:
+                    raise IgnoredFilesException(invalid_files=wrong_files)
+                size = arch.extract(to_path=tmpdir, max_size=max_size)
+            else:
+                size = arch.extract(to_path=tmpdir, max_size=max_size)
+                if handle_ignore == IgnoreHandling.delete:
+                    ignore_filter.delete_from_dir(tmpdir)
     except (
         tarfile.ReadError, zipfile.BadZipFile,
         archive.UnrecognizedArchiveFormat
@@ -600,9 +604,14 @@ def extract_to_temp(
             APICodes.INVALID_ARCHIVE,
             400,
         )
+    except (archive.ArchiveTooLarge, archive.FileTooLarge) as e:
+        helpers.raise_file_too_big_exception(
+            max_size, single_file=isinstance(e, archive.FileTooLarge)
+        )
     except (InvalidFile, archive.UnsafeArchive) as e:
+        logger.warning('Unsafe archive submitted', exc_info=True)
         raise APIException(
-            f'The given {archive_name} contains invalid files',
+            f'The given {archive_name} contains invalid or too many files',
             str(e),
             APICodes.INVALID_FILE_IN_ARCHIVE,
             400,
@@ -611,17 +620,18 @@ def extract_to_temp(
         os.close(tmpfd)
         os.remove(tmparchive)
 
-    return tmpdir
+    return tmpdir, size
 
 
 def extract(
     file: FileStorage,
+    max_size: archive.FileSize,
     ignore_filter: t.Optional[IgnoreFilterManager] = None,
     handle_ignore: IgnoreHandling = IgnoreHandling.keep
 ) -> ExtractFileTree:
     """Extracts all files in archive with random name to uploads folder.
 
-    >>> extract(object(), ignore_filter=None, handle_ignore=IgnoreHandling.error)
+    >>> extract(object(), max_size=5, ignore_filter=None, handle_ignore=IgnoreHandling.error)
     Traceback (most recent call last):
     ...
     ValueError: Invalid combination of `ignore_filter` and `ignore_handler`
@@ -631,7 +641,8 @@ def extract(
         The returned ExtractFileTree may be empty, i.e. contain only
         directories and no files.
 
-    :param werkzeug.datastructures.FileStorage file: The file to extract.
+    :param file: The file to extract.
+    :param max_size: The maximum size of the extracted archive.
     :param ignore_filter: What files should be ignored in the given archive.
         This can only be None when ``handle_ignore`` is
         ``IgnoreHandling.keep``, as can be seen in the above example.
@@ -646,10 +657,11 @@ def extract(
             'Invalid combination of `ignore_filter` and `ignore_handler`'
         )
 
-    tmpdir = extract_to_temp(
-        file,
-        ignore_filter,
-        handle_ignore,
+    tmpdir, size = extract_to_temp(
+        file=file,
+        ignore_filter=ignore_filter,
+        handle_ignore=handle_ignore,
+        max_size=max_size,
     )
 
     try:
@@ -660,24 +672,31 @@ def extract(
         # name.
 
         if len(res) == 1 and isinstance(res[0], ExtractFileTreeDirectory):
-            return ExtractFileTree(name=res[0].name, values=res[0].values)
+            return ExtractFileTree(
+                name=res[0].name, values=res[0].values, size=size
+            )
         else:
             filename: str = file.filename.split('.')[0]
-            return ExtractFileTree(name=filename, values=res)
+            return ExtractFileTree(name=filename, values=res, size=size)
     finally:
         shutil.rmtree(tmpdir)
 
 
-def random_file_path(config_key: str = 'UPLOAD_DIR') -> t.Tuple[str, str]:
+def random_file_path(use_mirror_dir: bool = False) -> t.Tuple[str, str]:
     """Generates a new random file path in the upload directory.
 
-    :param config_key: The key to use to find the basedir of the random file
-        path from the ``app.config`` store.
+    :param use_mirror_dir: Use the mirror directory as the basedir of the
+        random file path.
     :returns: The name of the new file and a path to that file
     """
+    if use_mirror_dir:
+        root = app.config['MIRROR_UPLOAD_DIR']
+    else:
+        root = app.config['UPLOAD_DIR']
+
     while True:
         name = str(uuid.uuid4())
-        candidate = os.path.join(app.config[config_key], name)
+        candidate = os.path.join(root, name)
         if os.path.exists(candidate):  # pragma: no cover
             continue
         else:
@@ -687,6 +706,7 @@ def random_file_path(config_key: str = 'UPLOAD_DIR') -> t.Tuple[str, str]:
 
 def process_files(
     files: t.MutableSequence[FileStorage],
+    max_size: archive.FileSize,
     force_txt: bool = False,
     ignore_filter: IgnoreFilterManager = None,
     handle_ignore: IgnoreHandling = IgnoreHandling.keep,
@@ -695,6 +715,7 @@ def process_files(
     structure.
 
     :param files: The files to move and extract
+    :param max_size: The maximum combined size of all extracted files.
     :param force_txt: Do not extract archive and force all files to be
         considered to be plain text.
     :param ignore_filter: The files and directories that should be ignored.
@@ -728,11 +749,19 @@ def process_files(
             return val
         raise no_files_error()
 
+    total_size = 0
     if len(files) > 1 or not consider_archive(files[0]):
         res: t.List[ExtractFileTreeBase] = []
         for file in files:
             if consider_archive(file):
-                res.append(extract(file, ignore_filter, handle_ignore))
+                tree = extract(
+                    file,
+                    max_size=max_size,
+                    ignore_filter=ignore_filter,
+                    handle_ignore=handle_ignore
+                )
+                res.append(tree)
+                total_size += tree.size
             else:
                 if handle_ignore != IgnoreHandling.keep:
                     assert ignore_filter is not None
@@ -754,17 +783,39 @@ def process_files(
 
                 new_file_name, filename = random_file_path()
                 file.save(new_file_name)
+                file_size = os.path.getsize(new_file_name)
+                total_size += file_size
                 res.append(
                     ExtractFileTreeFile(
                         name=file.filename, disk_name=filename
                     )
                 )
+                if file_size > app.max_single_file_size:
+                    helpers.raise_file_too_big_exception(
+                        app.max_single_file_size, single_file=True
+                    )
+
+            logger.info('Total size', total_size=total_size, size=max_size)
+            if total_size > max_size:
+                # TODO: Delete all extracted/saved files
+                helpers.raise_file_too_big_exception(
+                    max_size, single_file=False
+                )
 
         # `res` can be the empty list if all single files were ignored.
         res = unwrap(res or None)
-        tree = ExtractFileTree(name='top', values=res)
+        tree = ExtractFileTree(
+            name='top', values=res, size=archive.FileSize(total_size)
+        )
     else:
-        tree = unwrap(extract(files[0], ignore_filter, handle_ignore))
+        tree = unwrap(
+            extract(
+                files[0],
+                max_size=max_size,
+                ignore_filter=ignore_filter,
+                handle_ignore=handle_ignore
+            )
+        )
 
     if not tree.contains_file:
         raise no_files_error()
@@ -773,7 +824,8 @@ def process_files(
 
 
 def process_blackboard_zip(
-    blackboard_zip: FileStorage
+    blackboard_zip: FileStorage,
+    max_size: archive.FileSize,
 ) -> t.MutableSequence[t.Tuple[blackboard.SubmissionInfo, ExtractFileTree]]:
     """Process the given :py:mod:`.blackboard` zip file.
 
@@ -802,10 +854,11 @@ def process_blackboard_zip(
             files.append(FileStorage(stream=stream, filename=name))
         return files
 
-    tmpdir = extract_to_temp(
+    tmpdir, _ = extract_to_temp(
         blackboard_zip,
-        IgnoreFilterManager([]),
-        IgnoreHandling.keep,
+        max_size=max_size,
+        ignore_filter=IgnoreFilterManager([]),
+        handle_ignore=IgnoreHandling.keep,
     )
     try:
         info_files = filter(
@@ -818,7 +871,9 @@ def process_blackboard_zip(
             )
 
             try:
-                tree = process_files(__get_files(info))
+                tree = process_files(
+                    files=__get_files(info), max_size=max_size
+                )
             # TODO: We catch all exceptions, this should probably be narrowed
             # down, however finding all exception types is difficult.
             except Exception:  # pylint: disable=broad-except
@@ -831,7 +886,9 @@ def process_blackboard_zip(
                         filename='__WARNING__'
                     )
                 )
-                tree = process_files(files, force_txt=True)
+                tree = process_files(
+                    files=files, max_size=max_size, force_txt=True
+                )
 
             submissions.append((info, tree))
         if not submissions:

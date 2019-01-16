@@ -42,22 +42,20 @@ export default {
     mounted() {
         setPageTitle('Admin page');
         // Do not forget to add new permissions to constants file
-        this.$hasPermission('can_manage_site_users').then((manage) => {
+        this.$hasPermission('can_manage_site_users').then(manage => {
             this.manage = manage;
             this.loading = false;
         });
     },
 
     computed: {
-        ...mapGetters('user', [
-            'loggedIn',
-        ]),
+        ...mapGetters('user', ['loggedIn']),
     },
 };
 </script>
 
 <style lang="less" scoped>
-@import "~mixins.less";
+@import '~mixins.less';
 
 .row > div:not(.col-12) .card:not(:first-child) {
     margin-top: 15px;

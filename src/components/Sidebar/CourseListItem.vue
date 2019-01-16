@@ -79,7 +79,7 @@ export default {
 </script>
 
 <style lang="less" scoped>
-@import "~mixins.less";
+@import '~mixins.less';
 
 .course-name {
     flex: 1 1 auto;

@@ -45,16 +45,13 @@ export default class PermissionStore {
             }
         }
 
-
         const cacheKey = PermissionStore.getCacheKey(courseId);
         const cached = await this.store.getItem(cacheKey);
         if (cached != null) {
             const { map, expiration } = cached;
             const res = getValues(val => map[val]);
 
-            if (Date.now() < expiration &&
-                wrapArray(res).every(i => i != null)
-            ) {
+            if (Date.now() < expiration && wrapArray(res).every(i => i != null)) {
                 return res;
             }
         }

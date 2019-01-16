@@ -13,17 +13,13 @@ from flask import request, current_app
 from sqlalchemy import case, func
 from flask_limiter.util import get_remote_address
 
-import psef.auth as auth
-import psef.models as models
-import psef.helpers as helpers
-from psef import limiter, current_user
-from psef.errors import APICodes, APIException
-from psef.models import db
-from psef.helpers import (
+from . import api
+from .. import auth, models, helpers, limiter, features, current_user
+from ..models import db
+from ..helpers import (
     JSONResponse, jsonify, validate, ensure_json_dict, ensure_keys_in_dict
 )
-
-from . import api
+from ..exceptions import APICodes, APIException
 from ..permissions import CoursePermission as CPerm
 from ..permissions import GlobalPermission as GPerm
 
@@ -90,7 +86,7 @@ def search_users() -> JSONResponse[t.Sequence[models.User]]:
 
 
 @api.route('/user', methods=['POST'])
-@helpers.feature_required('REGISTER')
+@features.feature_required(features.Feature.REGISTER)
 @limiter.limit('1 per second', key_func=get_remote_address)
 def register_user() -> JSONResponse[t.Mapping[str, str]]:
     """Create a new :class:`.models.User`.
@@ -149,7 +145,6 @@ def register_user() -> JSONResponse[t.Mapping[str, str]]:
             APICodes.OBJECT_ALREADY_EXISTS,
             400,
         )
-
 
     role = models.Role.query.filter_by(
         name=current_app.config['DEFAULT_ROLE']

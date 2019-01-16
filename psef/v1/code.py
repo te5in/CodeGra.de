@@ -13,19 +13,14 @@ import sqlalchemy.sql as sql
 from flask import request, make_response
 from sqlalchemy.orm import make_transient
 
-import psef.auth as auth
-import psef.files
-import psef.models as models
-import psef.helpers as helpers
-from psef import app, current_user
-from psef.errors import APICodes, APIException
-from psef.models import FileOwner, db
-from psef.helpers import (
+from . import api
+from .. import app, auth, files, models, helpers, features, current_user
+from ..errors import APICodes, APIException
+from ..models import FileOwner, db
+from ..helpers import (
     JSONResponse, EmptyResponse, jsonify, ensure_json_dict,
     ensure_keys_in_dict, make_empty_response
 )
-
-from . import api
 from ..permissions import CoursePermission as CPerm
 
 _HumanFeedback = models.Comment
@@ -163,7 +158,7 @@ def get_code(file_id: int) -> t.Union[werkzeug.wrappers.Response, JSONResponse[
     elif get_type == 'linter-feedback':
         return jsonify(get_feedback(file, linter=True))
     else:
-        contents = psef.files.get_file_contents(file)
+        contents = files.get_file_contents(file)
         res: 'werkzeug.wrappers.Response' = make_response(contents)
         res.headers['Content-Type'] = 'application/octet-stream'
         return res
@@ -177,7 +172,7 @@ def get_file_url(file: models.File) -> str:
     :param file: The file object
     :returns: The name of the newly created file (the copy).
     """
-    path, name = psef.files.random_file_path('MIRROR_UPLOAD_DIR')
+    path, name = files.random_file_path(True)
     shutil.copyfile(file.get_diskname(), path)
 
     return name
@@ -205,7 +200,7 @@ def get_feedback(file: models.File, linter: bool = False) -> _FeedbackMapping:
         auth.ensure_can_see_grade(file.work)
 
         if linter:
-            helpers.ensure_feature('LINTERS')
+            features.ensure_feature(features.Feature.LINTERS)
             comments = db.session.query(
                 models.LinterComment,
             ).filter_by(file_id=file.id).all()
@@ -357,7 +352,7 @@ def split_code(
     code.fileowner = new_owner
     if not code.is_directory:
         assert old_diskname is not None
-        _, code.filename = psef.files.random_file_path()
+        _, code.filename = files.random_file_path()
         shutil.copyfile(old_diskname, code.get_diskname())
     else:
         redistribute_directory(
@@ -450,11 +445,10 @@ def update_code(file_id: int) -> JSONResponse[models.File]:
 
     auth.ensure_can_edit_work(code.work)
 
-    if (
-        request.content_length and
-        request.content_length > app.config['MAX_UPLOAD_SIZE']
-    ):
-        helpers.raise_file_too_big_exception()
+    if (request.content_length or 0) > app.max_single_file_size:
+        helpers.raise_file_too_big_exception(
+            app.max_file_size, single_file=True
+        )
 
     def _update_file(
         code: models.File,
@@ -478,7 +472,7 @@ def update_code(file_id: int) -> JSONResponse[models.File]:
     if request.args.get('operation', None) == 'rename':
         ensure_keys_in_dict(request.args, [('new_path', str)])
         new_path = t.cast(str, request.args['new_path'])
-        path_arr, _ = psef.files.split_path(new_path)
+        path_arr, _ = files.split_path(new_path)
         new_name = path_arr[-1]
         new_parent = code.work.search_file(
             '/'.join(path_arr[:-1]) + '/', other

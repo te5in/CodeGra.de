@@ -112,10 +112,12 @@ export default {
                 {
                     title: 'Student',
                     value: 'student',
-                }, {
+                },
+                {
                     title: 'Teacher',
                     value: 'teacher',
-                }, {
+                },
+                {
                     title: 'Diff',
                     value: 'diff',
                 },
@@ -146,9 +148,7 @@ export default {
         },
 
         selectedRevision() {
-            let revision = this.revisionOptions.findIndex(
-                opt => opt.value === this.revision,
-            );
+            let revision = this.revisionOptions.findIndex(opt => opt.value === this.revision);
 
             if (revision < 0 || this.revisionOptions[revision].disabled) {
                 revision = 0;
@@ -158,8 +158,11 @@ export default {
         },
 
         showRevisions() {
-            return this.depth === 0 && this.canSeeRevision &&
-                (!this.tree.isStudent || this.hasRevision(this.tree));
+            return (
+                this.depth === 0 &&
+                this.canSeeRevision &&
+                (!this.tree.isStudent || this.hasRevision(this.tree))
+            );
         },
     },
 
@@ -211,8 +214,7 @@ export default {
         fileHasRevision(f) {
             if (f.entries) return false;
 
-            return f.revision !== undefined ||
-                (f.ids && f.ids[0] !== f.ids[1]);
+            return f.revision !== undefined || (f.ids && f.ids[0] !== f.ids[1]);
         },
 
         dirHasRevision(d) {
@@ -286,7 +288,7 @@ export default {
 </script>
 
 <style lang="less" scoped>
-@import "~mixins.less";
+@import '~mixins.less';
 
 .file-tree a,
 .file-tree {
@@ -319,9 +321,10 @@ export default {
         overflow: hidden;
     }
 
-    .file, .directory {
+    .file,
+    .directory {
         &.faded > .label {
-            opacity: .6;
+            opacity: 0.6;
         }
 
         &.active > .label {
@@ -340,7 +343,7 @@ export default {
 
     .file-icon {
         width: 1em;
-        margin-right: .5em;
+        margin-right: 0.5em;
     }
 
     .rev-popover {
@@ -352,9 +355,9 @@ export default {
     position: relative;
     position: sticky;
     top: 0;
-    margin: -.5rem -.75rem .875rem;
-    padding: .5rem .75rem 0;
-    border-bottom: 1px solid rgba(0, 0, 0, .15);
+    margin: -0.5rem -0.75rem 0.875rem;
+    padding: 0.5rem 0.75rem 0;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.15);
     background-color: @footer-color;
 
     #app.dark & {
@@ -364,8 +367,8 @@ export default {
     .tabs {
         flex: 1 1 auto;
         overflow: auto;
-        margin: 0  -.75rem -1px -.75rem;
-        padding: 0 .75rem 0 .75rem;
+        margin: 0 -0.75rem -1px -0.75rem;
+        padding: 0 0.75rem 0 0.75rem;
 
         .revision-tabs-wrapper {
             width: auto;
@@ -375,10 +378,10 @@ export default {
     .description-popover {
         position: absolute;
         top: 0;
-        bottom: .75rem;
+        bottom: 0.75rem;
         right: 0;
         width: 1.5rem;
-        padding-top: .95rem;
+        padding-top: 0.95rem;
         background-color: inherit;
     }
 }

@@ -18,12 +18,10 @@
                         <b-dropdown-divider/>
                         <b-dropdown-item @click="clicked(true, 'Custom config')">Custom config</b-dropdown-item>
                     </b-dropdown>
-                    <b-btn variant="primary"
-                           :disabled="Object.keys(options).length !== 0 && selectedOption === 'Select config file'"
-                           @click="run">
-                        <loader :scale="1" v-if="starting"/>
-                        <span v-else>Run</span>
-                    </b-btn>
+                    <submit-button label="Run"
+                                   @click="run"
+                                   ref="submitBtn"
+                                   :disabled="Object.keys(options).length !== 0 && selectedOption === 'Select config file'"/>
                 </b-button-toolbar>
 
                 <b-collapse :id="`sub_collapse_${name}_${assignment.id}`">
@@ -36,13 +34,10 @@
                 </b-collapse>
             </div>
 
-            <b-btn variant="primary"
-                   v-else
-                   :disabled="Object.keys(options).length !== 0 && selectedOption === 'Select config file'"
-                   @click="run">
-                <loader :scale="1" v-if="starting"/>
-                <span v-else>Run</span>
-            </b-btn>
+            <submit-button label="Run"
+                           ref="submitBtn"
+                           @click="run"
+                           v-else/>
         </div>
         <div v-else-if="state == 'running'">
             <b-progress v-model="done"
@@ -89,19 +84,13 @@ import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/check';
 import 'vue-awesome/icons/times';
 
+import SubmitButton from './SubmitButton';
 import Loader from './Loader';
 
 export default {
     name: 'linter',
 
-    props: [
-        'name',
-        'options',
-        'initialState',
-        'initialId',
-        'assignment',
-        'serverDescription',
-    ],
+    props: ['name', 'options', 'initialState', 'initialId', 'assignment', 'serverDescription'],
 
     data() {
         return {
@@ -114,7 +103,6 @@ export default {
             done: 0,
             working: 0,
             crashed: 0,
-            starting: false,
         };
     },
 
@@ -135,6 +123,7 @@ export default {
     components: {
         Loader,
         Icon,
+        SubmitButton,
     },
 
     methods: {
@@ -143,7 +132,10 @@ export default {
         },
         changeSubCollapse(state) {
             if (Boolean(this.collapseState) !== state) {
-                this.$root.$emit('bv::toggle::collapse', `sub_collapse_${this.name}_${this.assignment.id}`);
+                this.$root.$emit(
+                    'bv::toggle::collapse',
+                    `sub_collapse_${this.name}_${this.assignment.id}`,
+                );
                 this.collapseState = !this.collapseState;
             }
         },
@@ -171,8 +163,7 @@ export default {
             });
         },
         startUpdateLoop() {
-            this.$http.get(`/api/v1/linters/${this.id}`)
-                .then(({ data }) => this.updateData(data));
+            this.$http.get(`/api/v1/linters/${this.id}`).then(({ data }) => this.updateData(data));
         },
         updateData(data) {
             this.done = data.done;
@@ -204,15 +195,19 @@ export default {
             this.working = 0;
             this.crashed = 0;
 
-            this.starting = true;
-
-            this.$http.post(`/api/v1/assignments/${this.assignment.id}/linter`, {
-                name: this.name,
-                cfg: cfg || '',
-            }).then(({ data }) => {
-                this.starting = false;
-                this.updateData(data);
-            });
+            this.$refs.submitBtn.submitFunction(() =>
+                this.$http
+                    .post(`/api/v1/assignments/${this.assignment.id}/linter`, {
+                        name: this.name,
+                        cfg: cfg || '',
+                    })
+                    .then(({ data }) => {
+                        this.updateData(data);
+                    })
+                    .catch(({ response }) => {
+                        throw response.data.message;
+                    }),
+            );
         },
     },
 };

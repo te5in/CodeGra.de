@@ -88,8 +88,7 @@ export default {
                 return 'You can only submit this assignment from within your LMS';
             } else if (this.$inLTI && this.$LTIAssignmentId == null) {
                 return "You didn't launch the assignment using LTI, please navigate to the 'Assignments' page and submit your work there.";
-            } else if (this.$inLTI &&
-                       this.assignmentId !== this.$LTIAssignmentId) {
+            } else if (this.$inLTI && this.assignmentId !== this.$LTIAssignmentId) {
                 return 'You launched CodeGrade for a different assignment. Please retry opening the correct assignment.';
             } else {
                 return undefined;
@@ -101,8 +100,7 @@ export default {
                 return true;
             } else if (this.$inLTI && this.$LTIAssignmentId == null) {
                 return true;
-            } else if (this.$inLTI &&
-                       this.assignmentId !== this.$LTIAssignmentId) {
+            } else if (this.$inLTI && this.assignmentId !== this.$LTIAssignmentId) {
                 return true;
             } else {
                 return false;
@@ -118,10 +116,7 @@ export default {
         },
 
         assignment(newVal, oldVal) {
-            if (oldVal != null &&
-                    newVal.id !== oldVal.id &&
-                    !this.loading
-            ) {
+            if (oldVal != null && newVal.id !== oldVal.id && !this.loading) {
                 this.loadData();
             }
         },
@@ -155,35 +150,46 @@ export default {
                     ],
                     this.courseId,
                 ),
-            ]).then(([, [
-                seeAssignee, assignGrader, submitOwn, submitOthers, others, before,
-                afterDeadline, canList,
-            ]]) => {
-                setPageTitle(`${this.assignment.name} ${pageTitleSep} Submissions`);
-                this.canSeeAssignee = seeAssignee;
-                this.canAssignGrader = assignGrader;
-                this.canUploadForOthers = submitOthers;
-                this.canListUsers = canList;
-                this.canUpload = (
-                    (submitOwn || submitOthers) &&
+            ]).then(
+                ([
+                    ,
+                    [
+                        seeAssignee,
+                        assignGrader,
+                        submitOwn,
+                        submitOthers,
+                        others,
+                        before,
+                        afterDeadline,
+                        canList,
+                    ],
+                ]) => {
+                    setPageTitle(`${this.assignment.name} ${pageTitleSep} Submissions`);
+                    this.canSeeAssignee = seeAssignee;
+                    this.canAssignGrader = assignGrader;
+                    this.canUploadForOthers = submitOthers;
+                    this.canListUsers = canList;
+                    this.canUpload =
+                        (submitOwn || submitOthers) &&
                         (this.assignment.state === assignmentState.SUBMITTING ||
-                            (afterDeadline && this.assignment.state !== assignmentState.HIDDEN))
-                );
+                            (afterDeadline && this.assignment.state !== assignmentState.HIDDEN));
 
-                if (others) {
-                    if (this.assignment.state === assignmentState.DONE) {
-                        this.canDownload = true;
-                    } else {
-                        this.canDownload = before;
+                    if (others) {
+                        if (this.assignment.state === assignmentState.DONE) {
+                            this.canDownload = true;
+                        } else {
+                            this.canDownload = before;
+                        }
                     }
-                }
 
-                this.loading = false;
-            }, (err) => {
-                // TODO: visual feedback
-                // eslint-disable-next-line
-                console.dir(err);
-            });
+                    this.loading = false;
+                },
+                err => {
+                    // TODO: visual feedback
+                    // eslint-disable-next-line
+                    console.dir(err);
+                },
+            );
         },
 
         goToSubmission(submission) {
@@ -219,6 +225,5 @@ export default {
 #wrong-files-modal ul {
     max-height: 50vh;
     overflow-y: auto;
-
 }
 </style>

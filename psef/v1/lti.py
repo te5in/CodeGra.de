@@ -16,20 +16,18 @@ import flask
 import werkzeug
 import structlog
 
-import psef.errors as errors
-import psef.models as models
 from psef import app
-from psef.lti import LTI, CanvasLTI
-from psef.models import db
 
 from . import api
-from .. import auth, helpers
+from .. import auth, errors, models, helpers, features
+from ..lti import LTI, CanvasLTI
+from ..models import db
 
 logger = structlog.get_logger()
 
 
 @api.route('/lti/launch/1', methods=['POST'])
-@helpers.feature_required('LTI')
+@features.feature_required(features.Feature.LTI)
 def launch_lti() -> t.Any:
     """Do a LTI launch.
 
@@ -88,7 +86,7 @@ def get_lti_config() -> werkzeug.wrappers.Response:
 
 
 @api.route('/lti/launch/2', methods=['POST'])
-@helpers.feature_required('LTI')
+@features.feature_required(features.Feature.LTI)
 def second_phase_lti_launch() -> helpers.JSONResponse[
     t.Mapping[str, t.Union[str, models.Assignment, bool]]]:
     """Do the second part of an LTI launch.

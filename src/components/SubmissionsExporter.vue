@@ -106,7 +106,7 @@ export default {
                     {
                         name: 'General feedback',
                         enabled: false,
-                        getter: (submission) => {
+                        getter: submission => {
                             if (submission.feedback && submission.feedback.general !== '') {
                                 return submission.feedback.general;
                             }
@@ -116,7 +116,7 @@ export default {
                     {
                         name: 'Line feedback',
                         enabled: false,
-                        getter: (submission) => {
+                        getter: submission => {
                             if (submission.feedback && submission.feedback.user) {
                                 return submission.feedback.user.join('\n');
                             }
@@ -129,7 +129,7 @@ export default {
                     cols.push({
                         name: 'Linter feedback',
                         enabled: false,
-                        getter: (submission) => {
+                        getter: submission => {
                             if (submission.feedback && submission.feedback.linter) {
                                 return submission.feedback.user.join('\n');
                             }
@@ -146,7 +146,9 @@ export default {
     computed: {
         items() {
             // eslint-disable-next-line no-underscore-dangle
-            return this.exportSetting === 'All' ? this.getSubmissions(false) : this.getSubmissions(true);
+            return this.exportSetting === 'All'
+                ? this.getSubmissions(false)
+                : this.getSubmissions(true);
         },
 
         enabledColumns() {
@@ -154,7 +156,7 @@ export default {
         },
 
         currentFilename() {
-            return encodeURIComponent((this.userFilename) ? this.userFilename : this.filename);
+            return encodeURIComponent(this.userFilename ? this.userFilename : this.filename);
         },
     },
 
@@ -165,7 +167,6 @@ export default {
         };
     },
 
-
     methods: {
         createCSV() {
             const data = [];
@@ -175,16 +176,21 @@ export default {
             if (this.enabledColumns.find(item => item.name.endsWith('feedback')) === undefined) {
                 cont = Promise.resolve({ data: {} });
             } else {
-                cont = this.$http.get(`/api/v1/assignments/${this.assignmentId}/feedbacks/`).catch(() => ({
-                    data: {},
-                }));
+                cont = this.$http
+                    .get(`/api/v1/assignments/${this.assignmentId}/feedbacks/`)
+                    .catch(() => ({
+                        data: {},
+                    }));
             }
 
             cont.then(({ data: feedback }) => {
                 for (let i = 0; i < this.items.length; i += 1) {
-                    const item = Object.assign({
-                        feedback: feedback[this.items[i].id],
-                    }, this.items[i]);
+                    const item = Object.assign(
+                        {
+                            feedback: feedback[this.items[i].id],
+                        },
+                        this.items[i],
+                    );
                     const row = {};
                     for (let j = 0; j < idx.length; j += 1) {
                         const col = this.enabledColumns[idx[j]];
@@ -196,7 +202,7 @@ export default {
                     fields: this.enabledColumns.map(obj => obj.name),
                     data,
                 });
-                this.$http.post('/api/v1/files/', csv).then((response) => {
+                this.$http.post('/api/v1/files/', csv).then(response => {
                     window.open(`/api/v1/files/${response.data}/${this.currentFilename}`);
                 });
             });
@@ -206,7 +212,7 @@ export default {
 </script>
 
 <style lang="less">
-@import "~mixins.less";
+@import '~mixins.less';
 
 .exporter .text-muted {
     color: @color-light-gray !important;

@@ -9,18 +9,15 @@ import { MANAGE_ASSIGNMENT_PERMISSIONS, MANAGE_GENERAL_COURSE_PERMISSIONS } from
 
 const getters = {
     courses: state => state.courses,
-    assignments: (state) => {
+    assignments: state => {
         if (!state.courses) return {};
 
-        return Object.values(state.courses).reduce(
-            (assignments, course) => {
-                course.assignments.forEach((assignment) => {
-                    assignments[assignment.id] = assignment;
-                });
-                return assignments;
-            },
-            {},
-        );
+        return Object.values(state.courses).reduce((assignments, course) => {
+            course.assignments.forEach(assignment => {
+                assignments[assignment.id] = assignment;
+            });
+            return assignments;
+        }, {});
     },
 };
 
@@ -43,13 +40,15 @@ const actions = {
         return state.currentCourseLoader;
     },
 
-
     deleteSubmission({ commit }, { assignmentId, submissionId }) {
         commit(types.DELETE_SUBMISSION, { assignmentId, submissionId });
     },
 
     addSubmission({ commit }, { assignmentId, submission }) {
-        submission.created_at = moment.utc(submission.created_at, moment.ISO_8601).local().format('YYYY-MM-DD HH:mm');
+        submission.created_at = moment
+            .utc(submission.created_at, moment.ISO_8601)
+            .local()
+            .format('YYYY-MM-DD HH:mm');
         submission.grade = utils.formatGrade(submission.grade);
         commit(types.ADD_SUBMISSION, { assignmentId, submission });
     },
@@ -62,12 +61,9 @@ const actions = {
     },
 
     async forceLoadRubric({ commit }, assignmentId) {
-        const rubric = await axios.get(
-            `/api/v1/assignments/${assignmentId}/rubrics/`,
-        ).then(
-            ({ data }) => data,
-            () => null,
-        );
+        const rubric = await axios
+            .get(`/api/v1/assignments/${assignmentId}/rubrics/`)
+            .then(({ data }) => data, () => null);
         commit(types.UPDATE_ASSIGNMENT, {
             assignmentId,
             assignmentProps: { rubric },
@@ -86,27 +82,24 @@ const actions = {
             }
 
             await Promise.all([
-                axios.get(
-                    `/api/v1/assignments/${assignmentId}/submissions/?extended`,
-                ).then(({ data: submissions }) => {
-                    submissions.forEach((sub) => {
-                        sub.created_at = moment.utc(sub.created_at, moment.ISO_8601).local().format('YYYY-MM-DD HH:mm');
-                        sub.grade = utils.formatGrade(sub.grade);
-                    });
-                    return submissions;
-                }),
-                axios.get(
-                    `/api/v1/assignments/${assignmentId}/rubrics/`,
-                ).then(
-                    ({ data }) => data,
-                    () => null,
-                ),
-                axios.get(
-                    `/api/v1/assignments/${assignmentId}/graders/`,
-                ).then(
-                    ({ data }) => data,
-                    () => null,
-                ),
+                axios
+                    .get(`/api/v1/assignments/${assignmentId}/submissions/?extended`)
+                    .then(({ data: submissions }) => {
+                        submissions.forEach(sub => {
+                            sub.created_at = moment
+                                .utc(sub.created_at, moment.ISO_8601)
+                                .local()
+                                .format('YYYY-MM-DD HH:mm');
+                            sub.grade = utils.formatGrade(sub.grade);
+                        });
+                        return submissions;
+                    }),
+                axios
+                    .get(`/api/v1/assignments/${assignmentId}/rubrics/`)
+                    .then(({ data }) => data, () => null),
+                axios
+                    .get(`/api/v1/assignments/${assignmentId}/graders/`)
+                    .then(({ data }) => data, () => null),
             ]).then(([submissions, rubric, graders]) => {
                 context.commit(types.UPDATE_ASSIGNMENT, {
                     assignmentId,
@@ -140,16 +133,20 @@ const actions = {
     },
 
     updateSubmission({ commit }, { assignmentId, submissionId, submissionProps }) {
-        commit(types.UPDATE_SUBMISSION, { assignmentId, submissionId, submissionProps });
+        commit(types.UPDATE_SUBMISSION, {
+            assignmentId,
+            submissionId,
+            submissionProps,
+        });
     },
 
     async reloadCourses({ commit }) {
         const params = new URLSearchParams();
         params.append('type', 'course');
-        MANAGE_ASSIGNMENT_PERMISSIONS.forEach((perm) => {
+        MANAGE_ASSIGNMENT_PERMISSIONS.forEach(perm => {
             params.append('permission', perm);
         });
-        MANAGE_GENERAL_COURSE_PERMISSIONS.forEach((perm) => {
+        MANAGE_GENERAL_COURSE_PERMISSIONS.forEach(perm => {
             params.append('permission', perm);
         });
         params.append('permission', 'can_create_assignment');
@@ -168,28 +165,32 @@ const actions = {
             return commit(types.CLEAR_COURSES);
         }
 
-        const [manageCourses, manageAssigs, createAssigs] = Object.entries(
-            perms,
-        ).reduce(([course, assig, create], [key, val]) => {
-            assig[key] = Object.entries(val).some(
-                ([k, v]) => MANAGE_ASSIGNMENT_PERMISSIONS.indexOf(k) !== -1 && v,
-            );
+        const [manageCourses, manageAssigs, createAssigs] = Object.entries(perms).reduce(
+            ([course, assig, create], [key, val]) => {
+                assig[key] = Object.entries(val).some(
+                    ([k, v]) => MANAGE_ASSIGNMENT_PERMISSIONS.indexOf(k) !== -1 && v,
+                );
 
-            course[key] = Object.entries(val).some(
-                ([k, v]) => MANAGE_GENERAL_COURSE_PERMISSIONS.indexOf(k) !== -1 && v,
-            );
+                course[key] = Object.entries(val).some(
+                    ([k, v]) => MANAGE_GENERAL_COURSE_PERMISSIONS.indexOf(k) !== -1 && v,
+                );
 
-            create[key] = Object.entries(val).some(
-                ([k, v]) => k === 'can_create_assignment' && v,
-            );
+                create[key] = Object.entries(val).some(
+                    ([k, v]) => k === 'can_create_assignment' && v,
+                );
 
-            return [course, assig, create];
-        }, [{}, {}, {}]);
-
-        return commit(
-            types.SET_COURSES,
-            [courses, manageCourses, manageAssigs, createAssigs, perms],
+                return [course, assig, create];
+            },
+            [{}, {}, {}],
         );
+
+        return commit(types.SET_COURSES, [
+            courses,
+            manageCourses,
+            manageAssigs,
+            createAssigs,
+            perms,
+        ]);
     },
 
     updateCourse({ commit }, data) {
@@ -206,7 +207,7 @@ const mutations = {
         state.submissionsLoaders = {};
 
         state.courses = courses.reduce((res, course) => {
-            course.assignments.forEach((assignment) => {
+            course.assignments.forEach(assignment => {
                 const deadline = moment.utc(assignment.deadline, moment.ISO_8601).local();
                 const reminderTime = moment.utc(assignment.reminder_time, moment.ISO_8601).local();
                 let defaultReminderTime = deadline.clone().add(7, 'days');
@@ -219,10 +220,9 @@ const mutations = {
                 assignment.created_at = utils.formatDate(assignment.created_at);
                 assignment.canManage = manageAssigs[course.id];
                 assignment.has_reminder_time = reminderTime.isValid();
-                assignment.reminder_time = (
-                    reminderTime.isValid() ?
-                        reminderTime :
-                        defaultReminderTime
+                assignment.reminder_time = (reminderTime.isValid()
+                    ? reminderTime
+                    : defaultReminderTime
                 ).format('YYYY-MM-DDTHH:mm');
             });
 
@@ -248,7 +248,7 @@ const mutations = {
             throw ReferenceError(`Could not find course: ${courseId}`);
         }
 
-        Object.keys(courseProps).forEach((key) => {
+        Object.keys(courseProps).forEach(key => {
             if (!{}.hasOwnProperty.call(course, key) || key === 'id') {
                 throw TypeError(`Cannot set course property: ${key}`);
             }
@@ -268,9 +268,13 @@ const mutations = {
     [types.UPDATE_ASSIGNMENT](state, { assignmentId, assignmentProps }) {
         const assignment = getAssignment(state, assignmentId);
 
-        Object.keys(assignmentProps).forEach((key) => {
-            if (key !== 'submissions' && key !== 'rubric' && key !== 'graders' &&
-                (!{}.hasOwnProperty.call(assignment, key) || key === 'id')) {
+        Object.keys(assignmentProps).forEach(key => {
+            if (
+                key !== 'submissions' &&
+                key !== 'rubric' &&
+                key !== 'graders' &&
+                (!{}.hasOwnProperty.call(assignment, key) || key === 'id')
+            ) {
                 throw TypeError(`Cannot set assignment property: ${key}`);
             }
 
@@ -288,7 +292,11 @@ const mutations = {
         const assignment = getAssignment(state, assignmentId);
 
         if (assignment.submissions != null) {
-            Vue.set(assignment, 'submissions', assignment.submissions.filter(sub => sub.id !== submissionId));
+            Vue.set(
+                assignment,
+                'submissions',
+                assignment.submissions.filter(sub => sub.id !== submissionId),
+            );
         }
     },
 
@@ -302,7 +310,11 @@ const mutations = {
                     if (key === 'id') {
                         throw TypeError(`Cannot set submission property: ${key}`);
                     }
-                    Vue.set(assignment.submissions[i], key, key === 'grade' ? utils.formatGrade(val) : val);
+                    Vue.set(
+                        assignment.submissions[i],
+                        key,
+                        key === 'grade' ? utils.formatGrade(val) : val,
+                    );
                 });
                 return;
             }
@@ -317,7 +329,7 @@ export default {
     state: {
         courses: {},
         currentCourseLoader: null,
-        submissionsLoaders: { },
+        submissionsLoaders: {},
     },
 
     getters,

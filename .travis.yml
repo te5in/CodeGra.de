@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 ---
 language: python
+dist: xenial
 sudo: false
 notifications:
   email: false
@@ -23,13 +24,13 @@ env:
 
 matrix:
   include:
-    - python: "3.7-dev"
+    - python: "3.7"
       env: TO_RUN="coverage"
-    - python: "3.7-dev"
+    - python: "3.7"
       env: TO_RUN="postgres-test"
-    - python: "3.7-dev"
+    - python: "3.7"
       env: TO_RUN="lint"
-    - python: "3.7-dev"
+    - python: "3.7"
       env: TO_RUN="js_unit"
 
 install:
@@ -43,6 +44,10 @@ before_script:
   - mkdir -p /tmp/psef/uploads
   - mkdir -p /tmp/psef/mirror_uploads
   - python --version
+  - wget https://github.com/checkstyle/checkstyle/releases/download/checkstyle-8.15/checkstyle-8.15-all.jar -O ./checkstyle.jar
+  - wget https://github.com/pmd/pmd/releases/download/pmd_releases%2F6.10.0/pmd-bin-6.10.0.zip -O pmd.zip
+  - unzip pmd.zip
+  - mv pmd-bin-6.10.0 pmd
   - export PYTHONPATH="$PYTHONPATH:$(pwd)"
   - export DEBUG_ON=True
   - psql -c 'create database travis_ci_test;' -U postgres

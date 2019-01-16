@@ -10,6 +10,7 @@ import dateutil.parser
 
 import psef.auth as auth
 import psef.models as m
+import psef.features as feats
 from helpers import create_marker
 
 perm_error = create_marker(pytest.mark.perm_error)
@@ -250,7 +251,9 @@ def test_lti_no_roles_found(test_client, app, logged_in, ta_user, monkeypatch):
     assert len(user.courses) == 1
     assert list(user.courses.values())[0].name == 'non_existing'
 
-    monkeypatch.setitem(app.config['FEATURES'], 'AUTOMATIC_LTI_ROLE', False)
+    monkeypatch.setitem(
+        app.config['FEATURES'], feats.Feature.AUTOMATIC_LTI_ROLE, False
+    )
 
     _, __, res = do_lti_launch(username='NEW_USERNAME')
     assert not res['new_role_created']

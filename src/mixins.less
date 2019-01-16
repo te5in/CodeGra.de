@@ -17,7 +17,7 @@
 @linum-bg: #f8f8f8;
 @line-bg: white;
 
-@line-spacing: .5em;
+@line-spacing: 0.5em;
 @code-linum-width: 4rem;
 
 @alert-danger-color: #a94442;
@@ -28,10 +28,10 @@
 @background-color: #fff;
 @footer-color: #f5f5f5;
 
-@color-danger-dark: lighten(#D9534F, 10%);
+@color-danger-dark: lighten(#d9534f, 10%);
 
 @color-diff-added-light: #ddffdd;
-@color-diff-added-dark: lighten(#448F65, 10%);
+@color-diff-added-dark: lighten(#448f65, 10%);
 @color-diff-removed-light: #ffdddd;
 @color-diff-removed-dark: @color-danger-dark;
 
@@ -39,14 +39,14 @@
 @color-border-gray: #989898;
 @color-border-gray-darker: darken(@color-border-gray, 35%);
 
-@media-small:     ~"only screen and (max-width: 628px)";
-@media-no-small:  ~"only screen and (min-width: 628px)";
-@media-medium:    ~"only screen and (min-width: 768px)";
-@media-no-medium: ~"only screen and (max-width: 768px)";
-@media-large:     ~"only screen and (min-width: 992px)";
-@media-no-large:  ~"only screen and (max-width: 992px)";
+@media-small: ~'only screen and (max-width: 628px)';
+@media-no-small: ~'only screen and (min-width: 628px)';
+@media-medium: ~'only screen and (min-width: 768px)';
+@media-no-medium: ~'only screen and (max-width: 768px)';
+@media-large: ~'only screen and (min-width: 992px)';
+@media-no-large: ~'only screen and (max-width: 992px)';
 
-@lti-colors:      ~"#app.lti:not(.dark)";
+@lti-colors: ~'#app.lti:not(.dark)';
 
 @transition-duration: 300ms;
 
@@ -54,29 +54,33 @@
     background-color: @footer-color;
     color: @color-secondary-text;
 
-    #app:not(.lti) #global-sidebar &, #app.dark & {
+    #app:not(.lti) #global-sidebar &,
+    #app.dark & {
         background-color: @color-primary-darker;
         color: @color-secondary-text-lighter;
     }
 }
 
 .default-alter-danger-colors {
-    #app:not(.lti) #global-sidebar &, #app.dark & {
+    #app:not(.lti) #global-sidebar &,
+    #app.dark & {
         background-color: @alert-danger-color;
-        border-color:  @alert-danger-color;
+        border-color: @alert-danger-color;
         color: darken(@alert-danger-color, 30%);
     }
 }
 
 .default-text-colors {
-    #app:not(.lti) #global-sidebar &, #app.dark & {
+    #app:not(.lti) #global-sidebar &,
+    #app.dark & {
         color: @text-color-dark;
     }
     color: @text-color;
 }
 
 .default-secondary-text-colors {
-    #app:not(.lti) #global-sidebar &, #app.dark & {
+    #app:not(.lti) #global-sidebar &,
+    #app.dark & {
         color: @color-secondary-text-lighter;
     }
     color: @color-secondary-text;
@@ -87,7 +91,8 @@
     &:hover {
         color: lighten(@color-primary, 10%);
     }
-    #app:not(.lti) #global-sidebar &, #app.dark & {
+    #app:not(.lti) #global-sidebar &,
+    #app.dark & {
         color: lighten(@color-primary, 15%);
         &:hover {
             color: lighten(@color-primary, 30%);
@@ -98,7 +103,8 @@
 .navbar-color {
     background-color: @color-primary;
 
-    #app:not(.lti) #global-sidebar &, #app.dark & {
+    #app:not(.lti) #global-sidebar &,
+    #app.dark & {
         background-color: @color-primary-darker;
     }
 }
@@ -106,14 +112,16 @@
 .default-background {
     background-color: #fff;
 
-    #app:not(.lti) #global-sidebar &, #app.dark & {
+    #app:not(.lti) #global-sidebar &,
+    #app.dark & {
         background-color: @color-primary;
     }
 }
 
 .default-color {
     color: @text-color;
-    #app:not(.lti) #global-sidebar &, #app.dark & {
+    #app:not(.lti) #global-sidebar &,
+    #app.dark & {
         color: @text-color-dark;
     }
 }
@@ -126,7 +134,8 @@
         background-color: @color-primary;
     }
 
-    #app:not(.lti) #global-sidebar &, #app.dark & {
+    #app:not(.lti) #global-sidebar &,
+    #app.dark & {
         color: @text-color-dark;
         border-color: @color-primary-darker;
 
@@ -134,7 +143,6 @@
             background-color: @color-primary-darker;
             color: @text-color-dark;
         }
-
     }
 }
 
@@ -153,7 +161,9 @@
     }
 
     .sidebar &,
-    #app:not(.lti) #global-sidebar &, #app.dark &, #app.dark ~ .popover & {
+    #app:not(.lti) #global-sidebar &,
+    #app.dark &,
+    #app.dark ~ .popover & {
         background-color: @color-primary-darker;
         border-color: @color-primary-darker;
 
@@ -171,7 +181,8 @@
 
 .secondary-button-color {
     &:not(.btn-success):not(.btn-danger):not(.btn-warning):not(.btn-info) {
-        &, &.disabled {
+        &,
+        &.disabled {
             background-color: @background-color;
             &:hover:not(:disabled) {
                 background-color: darken(@background-color, 10%);
@@ -179,7 +190,8 @@
             color: @text-color;
             border-color: #ccc;
 
-            #app:not(.lti) #global-sidebar &, #app.dark & {
+            #app:not(.lti) #global-sidebar &,
+            #app.dark & {
                 background-color: @color-primary;
                 border-color: @color-primary-darker;
                 &:hover:not(:disabled) {
@@ -199,8 +211,7 @@
         }
 
         &:focus ~ .custom-control-indicator {
-            box-shadow: 0 0 0 1px white,
-                        0 0 0 3px @color-primary;
+            box-shadow: 0 0 0 1px white, 0 0 0 3px @color-primary;
         }
 
         &:checked ~ .custom-control-indicator {
@@ -229,8 +240,7 @@
         }
 
         &:focus ~ .custom-control-indicator {
-            box-shadow: 0 0 0 1px @color-primary,
-                        0 0 0 3px white;
+            box-shadow: 0 0 0 1px @color-primary, 0 0 0 3px white;
         }
 
         &:checked ~ .custom-control-indicator {
@@ -302,7 +312,8 @@
         backbround: @color-primary;
     }
 
-    input, textarea {
+    input,
+    textarea {
         .dark-input-colors;
     }
 }
@@ -334,7 +345,7 @@
 .default-table-colors {
     #app:not(.lti) #global-sidebar &,
     #app.dark &,
-    #app.dark ~.popover & {
+    #app.dark ~ .popover & {
         .dark-table-colors;
     }
 }
@@ -381,7 +392,8 @@
 }
 
 .default-checkbox-and-radio-colors {
-    &, & ~ .popover {
+    &,
+    & ~ .popover {
         .custom-checkbox .custom-control-label,
         .custom-radio .custom-control-label {
             cursor: pointer;
@@ -404,7 +416,8 @@
         }
     }
 
-    &.dark, &.dark ~ .popover {
+    &.dark,
+    &.dark ~ .popover {
         & .custom-control-input:not(:checked) ~ .custom-control-label::before {
             background-color: transparent;
             border: 1px solid @color-secondary-text-lighter;
@@ -432,9 +445,9 @@
     }
 }
 
-
 .dark-input-group-colors {
-    .input-group-addon, .input-group-text {
+    .input-group-addon,
+    .input-group-text {
         background-color: @color-primary-darker;
         color: @color-secondary-text-lighter;
         border-color: @color-primary-darkest;
@@ -444,7 +457,8 @@
         color: @text-color-dark;
     }
 
-    .input-group-btn .btn-secondary:not(.btn-success):not(.btn-danger):not(.btn-warning):not(.btn-info) {
+    .input-group-btn
+        .btn-secondary:not(.btn-success):not(.btn-danger):not(.btn-warning):not(.btn-info) {
         background-color: @color-primary-darker;
         color: @text-color-dark;
         &:hover:not(:disabled) {
@@ -483,7 +497,8 @@
             color: @text-color-dark;
             border-color: @color-primary-darker;
             outline: none !important;
-            &:hover, &:focus {
+            &:hover,
+            &:focus {
                 background-color: @color-primary-darker;
             }
         }
@@ -519,7 +534,9 @@
         #app.dark & {
             background-color: @color-primary;
             color: @text-color-dark;
-            .modal-body, .modal-footer, .modal-header {
+            .modal-body,
+            .modal-footer,
+            .modal-header {
                 border-color: @color-primary-darker;
                 background-color: @color-primary;
             }

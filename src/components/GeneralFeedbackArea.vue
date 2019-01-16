@@ -66,22 +66,20 @@ export default {
         putFeedback() {
             const data = { feedback: this.feedback || '' };
 
-            const req = this.$http.patch(
-                `/api/v1/submissions/${this.submission.id}`,
-                data,
-            ).then(
-                () => this.updateSubmission({
-                    assignmentId: this.assignment.id,
-                    submissionId: this.submission.id,
-                    submissionProps: {
-                        comment: data.feedback,
-                        comment_author: {
-                            name: this.nameCurrentUser,
-                            id: this.userId,
+            const req = this.$http.patch(`/api/v1/submissions/${this.submission.id}`, data).then(
+                () =>
+                    this.updateSubmission({
+                        assignmentId: this.assignment.id,
+                        submissionId: this.submission.id,
+                        submissionProps: {
+                            comment: data.feedback,
+                            comment_author: {
+                                name: this.nameCurrentUser,
+                                id: this.userId,
+                            },
                         },
-                    },
-                }),
-                (err) => {
+                    }),
+                err => {
                     throw err.response.data.message;
                 },
             );
@@ -105,7 +103,6 @@ export default {
                 }
             }
         },
-
     },
 
     components: {
@@ -115,7 +112,7 @@ export default {
 </script>
 
 <style lang="less" scoped>
-@import "~mixins.less";
+@import '~mixins.less';
 
 .feedback-field {
     max-height: 80vh;

@@ -48,20 +48,25 @@ export default {
         ...mapActions('courses', ['updateAssignment']),
 
         updateIgnore() {
-            this.$refs
-                .submitBtn
-                .submit(this.$http.patch(`/api/v1/assignments/${this.assignment.id}`, {
-                    ignore: this.content,
-                }).then(() => {
-                    this.updateAssignment({
-                        assignmentId: this.assignmentId,
-                        assignmentProps: {
-                            cgignore: this.content,
+            this.$refs.submitBtn.submit(
+                this.$http
+                    .patch(`/api/v1/assignments/${this.assignment.id}`, {
+                        ignore: this.content,
+                    })
+                    .then(
+                        () => {
+                            this.updateAssignment({
+                                assignmentId: this.assignmentId,
+                                assignmentProps: {
+                                    cgignore: this.content,
+                                },
+                            });
                         },
-                    });
-                }, ({ response }) => {
-                    throw response.data.message;
-                }));
+                        ({ response }) => {
+                            throw response.data.message;
+                        },
+                    ),
+            );
         },
     },
 

@@ -57,17 +57,22 @@ case "$TO_RUN" in
              "$(pwd)/psef/"
         res3="$?"
 
-        out="$(yapf -rdp "$(pwd)/psef" "$(pwd)/psef_test")"
-        set +o xtrace
-        if [[ "$out" ]]; then
+        out="$(isort --check-only --diff --recursive "$PWD/psef" "$PWD/psef_test")"
+        res4=$?
+        if [[ "$res4" -ne 0 ]]; then
             echo "$out"
-            res4=1
-        else
-            res4=0
         fi
 
-        [[ "$(bc <<< "$res1 + $res2 + $res3 + $res4")" -eq 0 ]]
-        res="$?"
+        yapf -vv -rd "$(pwd)/psef" "$(pwd)/psef_test"
+        res5=$?
+
+        out="$(npm run check-format)"
+        res6=$?
+        if [[ "$res6" -ne 0 ]]; then
+            echo "$out"
+        fi
+
+        res="$(bc <<< "$res1 + $res2 + $res3 + $res4 + $res5 + $res6")"
         set +x xtrace
         ;;
     "js_unit")

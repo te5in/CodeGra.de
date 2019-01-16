@@ -122,17 +122,19 @@ export default {
             return !!(course && course.canManage);
         },
 
-
         manageButtonActive() {
             const course = this.currentCourse;
-            return !!(this.$route.params.courseId &&
-                        course &&
-                        this.$route.params.courseId.toString() === course.id.toString() &&
-                        !this.currentAssignment);
+            return !!(
+                this.$route.params.courseId &&
+                course &&
+                this.$route.params.courseId.toString() === course.id.toString() &&
+                !this.currentAssignment
+            );
         },
 
         assignments() {
-            return this.currentCourse ? this.currentCourse.assignments
+            return this.currentCourse
+                ? this.currentCourse.assignments
                 : Object.values(this.allAssignments);
         },
 
@@ -142,20 +144,18 @@ export default {
                 return res;
             }, {});
 
-            return this.assignments.slice().sort(
-                (a, b) => lookup[a.id] - lookup[b.id],
-            ).slice(0, 3);
+            return this.assignments
+                .slice()
+                .sort((a, b) => lookup[a.id] - lookup[b.id])
+                .slice(0, 3);
         },
 
         showTopAssignments() {
-            return !this.filter &&
-                this.sortedAssignments.length >= this.topAssignments.length + 2;
+            return !this.filter && this.sortedAssignments.length >= this.topAssignments.length + 2;
         },
 
         sortedAssignments() {
-            return this.assignments.slice().sort(
-                (a, b) => cmpNoCase(a.name, b.name),
-            );
+            return this.assignments.slice().sort((a, b) => cmpNoCase(a.name, b.name));
         },
 
         filteredAssignments() {
@@ -166,9 +166,12 @@ export default {
             const filterParts = this.filter.toLocaleLowerCase().split(' ');
 
             return this.sortedAssignments.filter(assig =>
-                filterParts.every(part =>
-                    assig.name.toLocaleLowerCase().indexOf(part) > -1 ||
-                    assig.course.name.toLocaleLowerCase().indexOf(part) > -1));
+                filterParts.every(
+                    part =>
+                        assig.name.toLocaleLowerCase().indexOf(part) > -1 ||
+                        assig.course.name.toLocaleLowerCase().indexOf(part) > -1,
+                ),
+            );
         },
     },
 
@@ -188,9 +191,11 @@ export default {
 
         await this.$nextTick();
         const activeEl = document.activeElement;
-        if (!activeEl ||
+        if (
+            !activeEl ||
             !activeEl.matches('input, textarea') ||
-            activeEl.closest('.sidebar .submenu')) {
+            activeEl.closest('.sidebar .submenu')
+        ) {
             this.$refs.filter.focus();
         }
     },
@@ -230,24 +235,27 @@ export default {
         },
 
         createNewAssignment(name, resolve, reject) {
-            this.$http.post(`/api/v1/courses/${this.currentCourse.id}/assignments/`, {
-                name,
-            }).then(({ data: assig }) => {
-                this.$emit('loading');
-                resolve();
-                return this.reloadCourses().then(() => {
-                    this.$emit('loaded');
-                    this.$router.push({
-                        name: 'manage_assignment',
-                        params: {
-                            courseId: this.currentCourse.id,
-                            assignmentId: assig.id,
-                        },
+            this.$http
+                .post(`/api/v1/courses/${this.currentCourse.id}/assignments/`, {
+                    name,
+                })
+                .then(({ data: assig }) => {
+                    this.$emit('loading');
+                    resolve();
+                    return this.reloadCourses().then(() => {
+                        this.$emit('loaded');
+                        this.$router.push({
+                            name: 'manage_assignment',
+                            params: {
+                                courseId: this.currentCourse.id,
+                                assignmentId: assig.id,
+                            },
+                        });
                     });
+                })
+                .catch(err => {
+                    reject(err.response.data.message);
                 });
-            }).catch((err) => {
-                reject(err.response.data.message);
-            });
         },
     },
 

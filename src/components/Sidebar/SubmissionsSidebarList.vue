@@ -45,7 +45,6 @@ import FilterSubmissionsManager from '@/utils/FilterSubmissionsManager';
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/plus';
 
-
 export default {
     name: 'submissions-sidebar-list',
 
@@ -125,9 +124,11 @@ export default {
 
         await this.$nextTick();
         const activeEl = document.activeElement;
-        if (!activeEl ||
+        if (
+            !activeEl ||
             !activeEl.matches('input, textarea') ||
-            activeEl.closest('.sidebar .submenu')) {
+            activeEl.closest('.sidebar .submenu')
+        ) {
             this.$refs.filter.focus();
         }
     },
@@ -171,11 +172,9 @@ export default {
             await this.$nextTick();
 
             this.$router.push({
-                params: Object.assign(
-                    {},
-                    this.$route.params,
-                    { submissionId: sub.id },
-                ),
+                params: Object.assign({}, this.$route.params, {
+                    submissionId: sub.id,
+                }),
                 query: this.$route.query,
             });
             this.$emit('close-menu');
@@ -212,7 +211,7 @@ export default {
 </script>
 
 <style lang="less" scoped>
-@import "~mixins.less";
+@import '~mixins.less';
 
 a {
     text-decoration: none;

@@ -35,12 +35,13 @@ module.exports = {
         }],
         // allow debugger during development
         'no-debugger': process.env.NODE_ENV === 'production' ? 2 : 0,
-        'indent': ["error", 4],
+        'indent': ["error", 4, { 'SwitchCase': 1 }],
         'no-else-return': 'off',
         'no-plusplus': 'off',
-        'function-paren-newline': ['error', 'consistent'],
+        'function-paren-newline': 'off',
         'no-bitwise': 'off',
         'no-mixed-operators': 'off',
+        'arrow-parens': ['error', 'as-needed'],
 
         // allow vuex
         'no-param-reassign': ["error", { 'props': false }],

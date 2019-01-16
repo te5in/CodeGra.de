@@ -48,7 +48,6 @@ import { getOtherAssignmentPlagiarismDesc } from '@/utils';
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/plus';
 
-
 export default {
     name: 'plagiarism-case-list',
 
@@ -92,18 +91,28 @@ export default {
 
             const filterParts = this.filter.toLocaleLowerCase().split(' ');
 
-            return this.cases.filter(
-                curCase => filterParts.every((part) => {
+            return this.cases.filter(curCase =>
+                filterParts.every(part => {
                     if (curCase.users[0].name.toLocaleLowerCase().indexOf(part) > -1) {
                         return true;
                     }
                     if (curCase.users[1].name.toLocaleLowerCase().indexOf(part) > -1) {
                         return true;
                     }
-                    if (curCase.match_avg.toFixed(2).toLocaleLowerCase().indexOf(part) > -1) {
+                    if (
+                        curCase.match_avg
+                            .toFixed(2)
+                            .toLocaleLowerCase()
+                            .indexOf(part) > -1
+                    ) {
                         return true;
                     }
-                    return curCase.match_max.toFixed(2).toLocaleLowerCase().indexOf(part) > -1;
+                    return (
+                        curCase.match_max
+                            .toFixed(2)
+                            .toLocaleLowerCase()
+                            .indexOf(part) > -1
+                    );
                 }),
             );
         },
@@ -118,9 +127,11 @@ export default {
 
         await this.$nextTick();
         const activeEl = document.activeElement;
-        if (!activeEl ||
+        if (
+            !activeEl ||
             !activeEl.matches('input, textarea') ||
-            activeEl.closest('.sidebar .submenu')) {
+            activeEl.closest('.sidebar .submenu')
+        ) {
             this.$refs.filter.focus();
         }
     },
@@ -159,7 +170,7 @@ export default {
 </script>
 
 <style lang="less" scoped>
-@import "~mixins.less";
+@import '~mixins.less';
 
 a {
     text-decoration: none;

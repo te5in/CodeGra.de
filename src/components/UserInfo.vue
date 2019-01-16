@@ -140,8 +140,10 @@ export default {
     computed: {
         confirmMessage() {
             if (this.newPw) {
-                return 'Please make sure you use a unique password, and at least ' +
-                       'different from the password you use for your LMS.';
+                return (
+                    'Please make sure you use a unique password, and at least ' +
+                    'different from the password you use for your LMS.'
+                );
             } else {
                 return '';
             }
@@ -168,9 +170,11 @@ export default {
         resetEmailOnLti() {
             const btn = this.$refs.resetOnLtiButton;
             const req = this.$http.patch('/api/v1/login', {}, { params: { type: 'reset_on_lti' } });
-            btn.submit(req.catch((err) => {
-                throw err.response.data.message;
-            }));
+            btn.submit(
+                req.catch(err => {
+                    throw err.response.data.message;
+                }),
+            );
         },
 
         reset() {
@@ -186,7 +190,7 @@ export default {
 
             if (this.newPw !== this.confirmPw) {
                 return btn.fail({
-                    warning: 'New password doesn\'t match confirm password.',
+                    warning: "New password doesn't match confirm password.",
                 });
             }
             if (!validator.validate(this.email)) {
@@ -196,16 +200,24 @@ export default {
             }
 
             return btn.submitFunction(() =>
-                this.$store.dispatch('user/updateUserInfo', {
-                    name: this.name,
-                    email: this.email,
-                    oldPw: this.oldPw,
-                    newPw: this.newPw,
-                }).then(() => {
-                    this.reset();
-                }, ({ response }) => {
-                    throw response.data.feedback || { warning: response.data.message };
-                }));
+                this.$store
+                    .dispatch('user/updateUserInfo', {
+                        name: this.name,
+                        email: this.email,
+                        oldPw: this.oldPw,
+                        newPw: this.newPw,
+                    })
+                    .then(
+                        () => {
+                            this.reset();
+                        },
+                        ({ response }) => {
+                            throw response.data.feedback || {
+                                warning: response.data.message,
+                            };
+                        },
+                    ),
+            );
         },
     },
 

@@ -106,28 +106,39 @@ export default {
             this.loading = true;
             this.error = '';
 
-            const promises = this.file.ids.map(id => (id ?
-                this.$http.get(`/api/v1/code/${id}`, { responseType: 'arraybuffer' }) :
-                Promise.resolve('')));
-
-            Promise.all(promises).then(([{ data: orig }, { data: rev }]) => {
-                let origCode;
-                let revCode;
-                try {
-                    origCode = decodeBuffer(orig);
-                    revCode = decodeBuffer(rev);
-                } catch (e) {
-                    this.error = 'This file cannot be displayed';
-                    return;
+            const promises = this.file.ids.map(id => {
+                if (id) {
+                    return this.$http.get(`/api/v1/code/${id}`, {
+                        responseType: 'arraybuffer',
+                    });
+                } else {
+                    return Promise.resolve('');
                 }
-
-                this.diffCode(origCode, revCode);
-            }, ({ response: { data: { message } } }) => {
-                this.error = message;
-            }).then(() => {
-                this.loading = false;
-                this.$emit('load');
             });
+
+            Promise.all(promises)
+                .then(
+                    ([{ data: orig }, { data: rev }]) => {
+                        let origCode;
+                        let revCode;
+                        try {
+                            origCode = decodeBuffer(orig);
+                            revCode = decodeBuffer(rev);
+                        } catch (e) {
+                            this.error = 'This file cannot be displayed';
+                            return;
+                        }
+
+                        this.diffCode(origCode, revCode);
+                    },
+                    ({ response: { data: { message } } }) => {
+                        this.error = message;
+                    },
+                )
+                .then(() => {
+                    this.loading = false;
+                    this.$emit('load');
+                });
         },
 
         diffCode(origCode, revCode) {
@@ -180,12 +191,12 @@ export default {
                 });
             });
 
-            lines.forEach((line) => {
+            lines.forEach(line => {
                 line.txt = this.$htmlEscape(line.txt);
             });
 
             if (lines.length < 5000) {
-                lines.forEach((line) => {
+                lines.forEach(line => {
                     line.txt = visualizeWhitespace(line.txt);
                 });
             }
@@ -262,8 +273,8 @@ ol {
 
 li {
     position: relative;
-    padding-left: .75em;
-    padding-right: .75em;
+    padding-left: 0.75em;
+    padding-right: 0.75em;
     background-color: lighten(@linum-bg, 1%);
     border-left: 1px solid darken(@linum-bg, 5%);
 
@@ -318,13 +329,13 @@ code {
 
 .diff-part {
     border: 1px solid rgba(0, 0, 0, 0.1);
-    border-radius: .25rem;
+    border-radius: 0.25rem;
     z-index: 100;
     li:first-child {
-        border-top-right-radius: .25rem;
+        border-top-right-radius: 0.25rem;
     }
     li:last-child {
-        border-bottom-right-radius: .25rem;
+        border-bottom-right-radius: 0.25rem;
     }
 }
 </style>

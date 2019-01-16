@@ -11,9 +11,13 @@ const localVue = createLocalVue();
 localVue.use(Vuex);
 localVue.use(BootstrapVue);
 
-const snippets = {
-    snippet: { id: 0, key: 'snippet', value: 'snippet expanded text' },
-};
+const snippets = [{
+    id: 0, key: 'snippet', value: 'snippet expanded text',
+}, {
+    id: 1, key: 'snippets2', value: 'WOW NOG EEN SNIPPET',
+}, {
+    id: 2, key: 'snippets3', value: 'WOW NOG EEN SNIPPET2',
+}];
 
 describe('FeedbackArea.vue', () => {
     let store;
@@ -26,6 +30,7 @@ describe('FeedbackArea.vue', () => {
     let mockPatch;
     let mockSubmit;
     let mockFail;
+    let updateSelection;
 
     function makeInstance(propsData = null) {
         wrapper = shallowMount(FeedbackArea, {
@@ -44,8 +49,15 @@ describe('FeedbackArea.vue', () => {
                 line: 0,
                 feedback: '',
                 fileId: 0,
+                editing: true,
+                totalAmountLines: 100,
             }, propsData),
         });
+        wrapper.vm.$refs.field = {
+            focus: jest.fn(),
+            selectionStart: 0,
+            selectionEnd: 0,
+        };
 
         comp = wrapper.vm;
     }
@@ -59,6 +71,11 @@ describe('FeedbackArea.vue', () => {
         mockSubmit = jest.fn(() => Promise.resolve(true));
         mockFail = jest.fn(() => Promise.resolve(false));
 
+        updateSelection = () => {
+            comp.$refs.field.selectionStart = comp.internalFeedback.length || 0;
+            comp.$refs.field.selectionEnd = comp.internalFeedback.length || 0;
+        };
+
         store = new Vuex.Store({
             modules: {
                 user: {
@@ -66,10 +83,16 @@ describe('FeedbackArea.vue', () => {
                         snippets,
                     },
                     getters: {
-                        snippets: () => snippets,
+                        snippets: () => snippets.reduce((accum, val) => {
+                            accum[val.key] = val;
+                            return accum;
+                        }, {}),
+                        findSnippetsByPrefix: () => (prefix) => {
+                            return snippets.filter(s => s.key.startsWith(prefix));
+                        },
                     },
                     actions: {
-                        refreshSnippets: mockRefresh,
+                        maybeRefreshSnippets: mockRefresh,
                         addSnippet: mockAdd,
                         updateSnippet: mockUpdate,
                     },
@@ -77,6 +100,7 @@ describe('FeedbackArea.vue', () => {
                 },
             },
         });
+
 
         makeInstance({ canUseSnippets: true });
     });
@@ -91,19 +115,19 @@ describe('FeedbackArea.vue', () => {
         it('should do nothing if the user can\'t use snippets', () => {
             makeInstance({ canUseSnippets: false });
 
-            const snippet = Object.keys(snippets)[0];
+            const snippetK = snippets[0].key;
             comp.canUseSnippets = false;
-            comp.internalFeedback = snippet;
-            comp.expandSnippet(event);
-            expect(comp.internalFeedback).toBe(snippet);
+            comp.internalFeedback = snippetK;
+            comp.maybeSelectNextSnippet();
+            expect(comp.internalFeedback).toBe(snippetK);
         });
 
         it('should do nothing if some text is selected', () => {
-            const snippet = Object.keys(snippets)[0];
+            const snippetK = snippets[0].key;
             comp.$refs.field = { selectionStart: 0, selectionEnd: 2 };
-            comp.internalFeedback = snippet;
-            comp.expandSnippet(event);
-            expect(comp.internalFeedback).toBe(snippet);
+            comp.internalFeedback = snippetK;
+            comp.maybeSelectNextSnippet();
+            expect(comp.internalFeedback).toBe(snippetK);
         });
 
         it('should do nothing if the last word is not a snippet', () => {
@@ -122,12 +146,13 @@ describe('FeedbackArea.vue', () => {
                 field.selectionStart = value.length;
                 field.selectionEnd = value.length;
                 comp.internalFeedback = value;
-                comp.expandSnippet(event);
+                comp.maybeSelectNextSnippet();
                 expect(comp.internalFeedback).toBe(value);
+                expect(comp.possibleSnippets.length).toBe(0);
             }
         });
 
-        it('should expand the last word if it is a snippet', () => {
+        it('should expand the last word if it is a snippet', async () => {
             let values = [
                 'snippet',
                 'this is a snippet',
@@ -135,18 +160,70 @@ describe('FeedbackArea.vue', () => {
 
                 ending in a snippet`,
             ];
-            let field = {};
-            comp.$refs.field = field;
 
             for (let value of values) {
-                field.selectionStart = value.length;
-                field.selectionEnd = value.length;
-                comp.internalFeedback = value;
-                comp.expandSnippet(event);
+                localVue.set(comp, 'internalFeedback', value);
+                updateSelection();
+                comp.updatePossibleSnippets({ event: { key: 't' } });
+
+                expect(comp.possibleSnippets.length).toBe(3);
+
+                updateSelection();
+                comp.maybeSelectNextSnippet();
+                await comp.$nextTick();
                 expect(comp.internalFeedback).toBe(
-                    value.replace(/snippet$/, snippets.snippet.value),
+                    value.replace(/snippet$/, snippets[0].value),
                 );
+
+                updateSelection();
+                comp.maybeSelectNextSnippet();
+                await comp.$nextTick();
+                expect(comp.internalFeedback).toBe(
+                    value.replace(/snippet$/, snippets[1].value),
+                );
+
+                updateSelection();
+                comp.maybeSelectNextSnippet();
+                await comp.$nextTick();
+                expect(comp.internalFeedback).toBe(
+                    value.replace(/snippet$/, snippets[2].value),
+                );
+
+                updateSelection();
+                comp.maybeSelectNextSnippet();
+                expect(comp.snippetSelected).toBe(null);
+                await comp.$nextTick();
+                await comp.$nextTick();
+                expect(comp.internalFeedback).toBe(value);
             }
+        });
+
+        it('should expand to all snippets with no input', async () => {
+            comp.internalFeedback = '';
+            updateSelection();
+            comp.maybeSelectNextSnippet();
+            await comp.$nextTick();
+            expect(comp.possibleSnippets.length).toBe(3);
+
+            // Notice space at the end
+            localVue.set(comp, 'internalFeedback', 'snippets2 ');
+            updateSelection();
+            comp.maybeSelectNextSnippet();
+            expect(comp.possibleSnippets.length).toBe(3);
+        });
+
+        it('should be possible to filter more', () => {
+            localVue.set(comp, 'internalFeedback', 'a snippet');
+            updateSelection();
+            comp.updatePossibleSnippets({ event: { key: 't' } });
+            expect(comp.possibleSnippets.length).toBe(3);
+
+            localVue.set(comp, 'internalFeedback', comp.internalFeedback + 's');
+            updateSelection();
+            comp.updatePossibleSnippets({ event: { key: 's' } });
+            expect(comp.possibleSnippets.length).toBe(2);
+            expect(comp.possibleSnippets.map(a => a.key)).toEqual(['snippets2', 'snippets3']);
+            expect(comp.snippetSelected).toBe(null);
         });
     });
 
@@ -208,7 +285,7 @@ describe('FeedbackArea.vue', () => {
 
         it('should do nothing if the field already has a value', () => {
             comp.snippetKey = 'new_snippet';
-            comp.internalFeedback = Object.values(snippets)[0].value;
+            comp.internalFeedback = snippets[0].value;
             comp.findSnippet();
             expect(comp.snippetKey).toBe('new_snippet');
         });
@@ -216,7 +293,7 @@ describe('FeedbackArea.vue', () => {
         it('should do nothing if the snippet dialog is visible', () => {
             comp.showSnippetDialog = true;
             comp.snippetKey = '';
-            comp.internalFeedback = Object.values(snippets)[0].value;
+            comp.internalFeedback = snippets[0].value;
             comp.findSnippet();
             expect(comp.snippetKey).toBe('');
         });
@@ -229,7 +306,7 @@ describe('FeedbackArea.vue', () => {
         });
 
         it('should set the snippet key corresponding to the value in internalFeedback', () => {
-            const [key, { value }] = Object.entries(snippets)[0];
+            const { key, value } = snippets[0];
             comp.snippetKey = '';
             comp.internalFeedback = value;
             comp.findSnippet();

@@ -85,21 +85,27 @@ export default {
         },
 
         submit(btn = null) {
-            const maxGrade = (this.maxGrade === '' || this.maxGrade == null) ? null : Number(this.maxGrade);
+            const maxGrade =
+                this.maxGrade === '' || this.maxGrade == null ? null : Number(this.maxGrade);
 
-            const req = this.$http.patch(`/api/v1/assignments/${this.assignment.id}`, {
-                max_grade: maxGrade,
-            }).then(() => {
-                this.maxGrade = maxGrade;
-                this.updateAssignment({
-                    assignmentId: this.assignmentId,
-                    assignmentProps: {
-                        max_grade: this.maxGrade,
+            const req = this.$http
+                .patch(`/api/v1/assignments/${this.assignment.id}`, {
+                    max_grade: maxGrade,
+                })
+                .then(
+                    () => {
+                        this.maxGrade = maxGrade;
+                        this.updateAssignment({
+                            assignmentId: this.assignmentId,
+                            assignmentProps: {
+                                max_grade: this.maxGrade,
+                            },
+                        });
                     },
-                });
-            }, ({ response }) => {
-                throw response.data.message;
-            });
+                    ({ response }) => {
+                        throw response.data.message;
+                    },
+                );
             return btn.submit(req);
         },
     },

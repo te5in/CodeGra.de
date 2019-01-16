@@ -252,20 +252,15 @@ export default {
 
     computed: {
         curMaxPoints() {
-            return this.rubrics.reduce(
-                (cur, row) => {
-                    const extra = Math.max(...row.items.map(
-                        val => Number(val.points),
-                    ).filter(
-                        item => !Number.isNaN(item),
-                    ));
-                    if (extra === -Infinity) {
-                        return cur;
-                    }
-                    return cur + extra;
-                },
-                0,
-            );
+            return this.rubrics.reduce((cur, row) => {
+                const extra = Math.max(
+                    ...row.items.map(val => Number(val.points)).filter(item => !Number.isNaN(item)),
+                );
+                if (extra === -Infinity) {
+                    return cur;
+                }
+                return cur + extra;
+            }, 0);
         },
     },
 
@@ -296,13 +291,15 @@ export default {
         resetRubric() {
             const btn = this.$refs.resetButton;
             this.loading = true;
-            btn.submit(this.getAndSetRubrics().then(() => {
-                this.loading = false;
-            }));
+            btn.submit(
+                this.getAndSetRubrics().then(() => {
+                    this.loading = false;
+                }),
+            );
         },
 
         setRubricData(serverRubrics) {
-            this.rubrics = serverRubrics.map((origRow) => {
+            this.rubrics = serverRubrics.map(origRow => {
                 const row = Object.assign({}, origRow);
 
                 // We slice here so we have a complete new object to sort.
@@ -336,20 +333,28 @@ export default {
                 setTimeout(() => {
                     this.$root.$emit('bv::hide::modal', 'modal_delete_rubric');
                 }, 1000);
-                this.setRubric({ assignmentId: this.assignmentId, rubric: null, maxPoints: null });
+                this.setRubric({
+                    assignmentId: this.assignmentId,
+                    rubric: null,
+                    maxPoints: null,
+                });
             };
 
-            const req = this.$http.delete(`/api/v1/assignments/${this.assignmentId}/rubrics/`).then(() => {
-                success();
-            });
-
-            this.$refs.deleteButton.submit(req.catch(({ response }) => {
-                if (response.status === 404) {
+            const req = this.$http
+                .delete(`/api/v1/assignments/${this.assignmentId}/rubrics/`)
+                .then(() => {
                     success();
-                } else {
-                    throw response.data.message;
-                }
-            }));
+                });
+
+            this.$refs.deleteButton.submit(
+                req.catch(({ response }) => {
+                    if (response.status === 404) {
+                        success();
+                    } else {
+                        throw response.data.message;
+                    }
+                }),
+            );
         },
 
         checkFixedMaxPoints() {
@@ -385,7 +390,10 @@ export default {
 
                 for (let j = 0, len2 = row.items.length - 1; j < len2; j += 1) {
                     if (Number.isNaN(parseFloat(row.items[j].points))) {
-                        wrongItems.push(`'${row.header || '[No name]'} - ${row.items[j].header || '[No name]'}'`);
+                        wrongItems.push(
+                            `'${row.header || '[No name]'} - ${row.items[j].header ||
+                                '[No name]'}'`,
+                        );
                     }
                     row.items[j].points = parseFloat(row.items[j].points);
 
@@ -423,9 +431,7 @@ ${arrayToSentence(wrongCategories)}.`);
             }
 
             if (rows.length === 0) {
-                this.$refs.submitButton.fail(
-                    'You cannot submit an empty rubric.',
-                );
+                this.$refs.submitButton.fail('You cannot submit an empty rubric.');
                 return undefined;
             }
 
@@ -439,22 +445,23 @@ ${arrayToSentence(wrongCategories)}.`);
                 return;
             }
 
-            const req = this.$http.put(
-                `/api/v1/assignments/${this.assignmentId}/rubrics/`,
-                {
+            const req = this.$http
+                .put(`/api/v1/assignments/${this.assignmentId}/rubrics/`, {
                     max_points: this.internalFixedMaxPoints,
-                },
-            ).then(({ data: rubric }) => {
-                this.setRubric({
-                    assignmentId: this.assignmentId,
-                    rubric,
-                    maxPoints: this.internalFixedMaxPoints,
+                })
+                .then(({ data: rubric }) => {
+                    this.setRubric({
+                        assignmentId: this.assignmentId,
+                        rubric,
+                        maxPoints: this.internalFixedMaxPoints,
+                    });
                 });
-            });
 
-            this.$refs.maxPointsButton.submit(waitAtLeast(500, req).catch(({ response }) => {
-                throw response.data.message;
-            }));
+            this.$refs.maxPointsButton.submit(
+                waitAtLeast(500, req).catch(({ response }) => {
+                    throw response.data.message;
+                }),
+            );
         },
 
         submit() {
@@ -474,25 +481,28 @@ ${arrayToSentence(wrongCategories)}.`);
                 return;
             }
 
-            const req = this.$http.put(
-                `/api/v1/assignments/${this.assignmentId}/rubrics/`,
-                {
+            const req = this.$http
+                .put(`/api/v1/assignments/${this.assignmentId}/rubrics/`, {
                     rows,
                     max_points: this.internalFixedMaxPoints,
-                },
-            ).then(({ data: rubric }) => {
-                this.setRubricData(rubric);
-                this.setRubric({
-                    assignmentId: this.assignmentId,
-                    rubric,
-                    maxPoints: this.internalFixedMaxPoints,
+                })
+                .then(({ data: rubric }) => {
+                    this.setRubricData(rubric);
+                    this.setRubric({
+                        assignmentId: this.assignmentId,
+                        rubric,
+                        maxPoints: this.internalFixedMaxPoints,
+                    });
                 });
-            });
-            this.$refs.submitButton.submit(req.catch(({ response }) => {
-                throw response.data.message;
-            })).then(() => {
-                this.forceLoadSubmissions(this.assignmentId);
-            });
+            this.$refs.submitButton
+                .submit(
+                    req.catch(({ response }) => {
+                        throw response.data.message;
+                    }),
+                )
+                .then(() => {
+                    this.forceLoadSubmissions(this.assignmentId);
+                });
         },
 
         addRubricRow() {
@@ -561,7 +571,7 @@ ${arrayToSentence(wrongCategories)}.`);
 </script>
 
 <style lang="less" scoped>
-@import "~mixins.less";
+@import '~mixins.less';
 
 @rubric-items-per-row: 4;
 @rubric-items-fixed-offset: @rubric-items-per-row + 1;
@@ -572,7 +582,7 @@ ${arrayToSentence(wrongCategories)}.`);
 
     .card.rubric-item {
         min-width: @rubric-item-min-width;
-        padding: .5rem;
+        padding: 0.5rem;
         border-bottom: 0;
         border-top: 0;
         border-left: 0;
@@ -607,7 +617,8 @@ ${arrayToSentence(wrongCategories)}.`);
         }
     }
 
-    .card, card-header {
+    .card,
+    card-header {
         border-radius: 0;
         &:not(.tab) {
             border-bottom: 0 !important;
@@ -625,7 +636,7 @@ ${arrayToSentence(wrongCategories)}.`);
     .rubric-editor {
         .card-header,
         .card-block {
-            padding: .5rem .75rem;
+            padding: 0.5rem 0.75rem;
             .rubric-item-wrapper {
                 margin: -0.5em;
                 padding: 0.5em;
@@ -659,7 +670,7 @@ ${arrayToSentence(wrongCategories)}.`);
             background: transparent;
 
             border: 1px solid transparent !important;
-            margin-bottom: .2em;
+            margin-bottom: 0.2em;
 
             &:hover:not(.disabled) {
                 border-bottom: 1px solid @color-primary-darkest !important;
@@ -673,12 +684,12 @@ ${arrayToSentence(wrongCategories)}.`);
             &.item-points,
             &.item-header {
                 min-width: 0;
-                padding: .375rem .1rem;
+                padding: 0.375rem 0.1rem;
             }
 
             &.item-points {
                 flex: 0 0 4rem;
-                margin-right: .2rem;
+                margin-right: 0.2rem;
                 text-align: left;
 
                 &:not(:focus) {
@@ -718,7 +729,6 @@ ${arrayToSentence(wrongCategories)}.`);
         .default-text-colors;
         cursor: help;
     }
-
 }
 
 .empty {
@@ -779,7 +789,7 @@ ${arrayToSentence(wrongCategories)}.`);
 </style>
 
 <style lang="less">
-@import "~mixins.less";
+@import '~mixins.less';
 
 .rubric-editor {
     &:not(.editable) {

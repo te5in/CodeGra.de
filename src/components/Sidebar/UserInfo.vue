@@ -44,9 +44,7 @@ export default {
 
     mounted() {
         this.$emit('loading');
-        const done = this.$hasPermission(
-            'can_use_snippets',
-        ).then((snippets) => {
+        const done = this.$hasPermission('can_use_snippets').then(snippets => {
             this.snippets = snippets;
         });
 
@@ -80,15 +78,13 @@ export default {
     },
 
     computed: {
-        ...mapGetters('user', [
-            'loggedIn',
-        ]),
+        ...mapGetters('user', ['loggedIn']),
     },
 };
 </script>
 
 <style lang="less" scoped>
-@import "~mixins.less";
+@import '~mixins.less';
 .card {
     margin-bottom: 15px;
 
