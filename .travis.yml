@@ -44,6 +44,10 @@ before_script:
   - mkdir -p /tmp/psef/uploads
   - mkdir -p /tmp/psef/mirror_uploads
   - python --version
+  - wget https://github.com/checkstyle/checkstyle/releases/download/checkstyle-8.15/checkstyle-8.15-all.jar -O ./checkstyle.jar
+  - wget https://github.com/pmd/pmd/releases/download/pmd_releases%2F6.10.0/pmd-bin-6.10.0.zip -O pmd.zip
+  - unzip pmd.zip
+  - mv pmd-bin-6.10.0 pmd
   - export PYTHONPATH="$PYTHONPATH:$(pwd)"
   - export DEBUG_ON=True
   - psql -c 'create database travis_ci_test;' -U postgres

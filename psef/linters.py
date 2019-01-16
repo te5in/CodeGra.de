@@ -6,29 +6,52 @@ method.
 
 SPDX-License-Identifier: AGPL-3.0-only
 """
-
 import os
+import abc
+import csv
+import json
 import uuid
 import typing as t
 import tempfile
 import subprocess
+import xml.etree.ElementTree as ET
+from io import StringIO
 
 import structlog
+from defusedxml.ElementTree import fromstring as defused_xml_fromstring
 
-import psef
-import psef.files
-import psef.models as models
-from psef.models import db
-from psef.helpers import get_class_by_name, get_all_subclasses
+from . import app, files, models
+from .models import db
+from .helpers import register
+from .exceptions import ValidationException
 
 logger = structlog.get_logger()
+
+T_LINTER = t.TypeVar('T_LINTER', bound='Linter')  # pylint: disable=invalid-name
 
 
 def init_app(_: t.Any) -> None:
     pass
 
 
-class Linter:
+_linter_handlers: register.Register[str, t.
+                                    Type['Linter']] = register.Register()
+
+
+def _read_config_file(config_cat: str, config_name: str) -> str:
+    with open(
+        os.path.join(
+            os.path.dirname(__file__),
+            os.pardir,
+            'resources',
+            config_cat,
+            config_name,
+        ), 'r'
+    ) as f:
+        return f.read()
+
+
+class Linter(abc.ABC):
     """The base class for a linter.
 
     Every linter should inherit from this class as they are discovered by
@@ -50,6 +73,19 @@ class Linter:
     def __init__(self, cfg: str) -> None:
         self.config = cfg
 
+    # pylint: disable=unused-argument
+    @classmethod
+    def validate_config(cls: t.Type[T_LINTER], config: str) -> None:
+        """Verify if the config is correct.
+
+        This method should never return something but raise a
+        :class:`.ValidationException` instead.
+
+        :param config: The config to validate.
+        """
+        return None
+
+    @abc.abstractmethod
     def run(self, tempdir: str, emit: t.Callable[[str, int, str, str], None]
             ) -> None:  # pragma: no cover
         """Run the linter on the code in `tempdir`.
@@ -64,6 +100,7 @@ class Linter:
         raise NotImplementedError('A subclass should implement this function!')
 
 
+@_linter_handlers.register('Pylint')
 class Pylint(Linter):
     """The pylint checker.
 
@@ -81,41 +118,44 @@ class Pylint(Linter):
 
         Arguments are the same as for :py:meth:`Linter.run`.
         """
-        cfg = os.path.join(tempdir, '.__config__')
-        with open(cfg, 'w') as config_file:
-            config_file.write(self.config)
-        sep = uuid.uuid4()
-        fmt = '{1}{0}{2}{0}{3}{0}{4}'.format(
-            sep, '{path}', '{line}', '{msg_id}', '{msg}'
-        )
+        with tempfile.NamedTemporaryFile('w') as cfg:
+            cfg.write(self.config)
+            cfg.flush()
 
-        out = subprocess.run(
-            [
-                'pylint', '--rcfile={}'.format(cfg), '--msg-template', fmt,
-                tempdir
-            ],
-            stdout=subprocess.PIPE
-        )
-        res = out.stdout.decode('utf8')
+            out = subprocess.run(
+                [
+                    part.format(config=cfg.name, files=tempdir)
+                    for part in app.config['PYLINT_PROGRAM']
+                ],
+                stdout=subprocess.PIPE,
+                text=True,
+            )
+
         if out.returncode == 32:
-            raise ValueError(res)
+            raise ValueError(out.stdout)
         if out.returncode == 1:
-            for dir_name, _, files in os.walk(tempdir):
-                for test_file in files:
+            for dir_name, _, test_files in os.walk(tempdir):
+                for test_file in test_files:
                     if test_file.endswith('.py'):
                         emit(
                             os.path.join(dir_name, test_file), 1, 'ERR',
                             'No init file was found, pylint did not run!'
                         )
             return
-        for line in res.split('\n'):
-            args = line.split(str(sep))
+
+        for err in json.loads(out.stdout):
             try:
-                emit(args[0], int(args[1]), *args[2:])
-            except (IndexError, ValueError):
+                emit(
+                    err['path'],
+                    int(err['line']),
+                    err['message-id'],
+                    err['message'],
+                )
+            except (KeyError, ValueError):  # pragma: no cover
                 pass
 
 
+@_linter_handlers.register('Flake8')
 class Flake8(Linter):
     """Run the Flake8 linter.
 
@@ -128,26 +168,26 @@ class Flake8(Linter):
 
     def run(self, tempdir: str,
             emit: t.Callable[[str, int, str, str], None]) -> None:
-        cfg = os.path.join(tempdir, '.flake8')
-        with open(cfg, 'w') as f:
-            f.write(self.config)
-
         # This is not guessable
         sep = uuid.uuid4()
         fmt = '%(path)s{0}%(row)d{0}%(code)s{0}%(text)s'.format(sep)
-        out = subprocess.run(
-            [
-                'flake8', '--disable-noqa', '--config={}'.format(cfg),
-                '--format', fmt, tempdir, '--exit-zero'
-            ],
-            stdout=subprocess.PIPE
-        )
-        res = out.stdout.decode('utf8')
+
+        with tempfile.NamedTemporaryFile('w') as cfg:
+            cfg.write(self.config)
+            cfg.flush()
+            out = subprocess.run(
+                [
+                    part.format(config=cfg.name, files=tempdir, line_fmt=fmt)
+                    for part in app.config['FLAKE8_PROGRAM']
+                ],
+                stdout=subprocess.PIPE,
+                text=True,
+            )
 
         if out.returncode != 0:
-            raise ValueError(res)
+            raise ValueError(out.stdout)
 
-        for line in res.split('\n'):
+        for line in out.stdout.split('\n'):
             args = line.split(str(sep))
             try:
                 emit(args[0], int(args[1]), *args[2:])
@@ -155,6 +195,7 @@ class Flake8(Linter):
                 pass
 
 
+@_linter_handlers.register('MixedWhitespace')
 class MixedWhitespace(Linter):
     """Run the MixedWhitespace linter.
 
@@ -172,9 +213,232 @@ class MixedWhitespace(Linter):
         assert False
 
 
-class LinterRunner():
+@_linter_handlers.register('Checkstyle')
+class Checkstyle(Linter):
+    """Run the Checkstyle linter.
+
+    This checks java source files for common errors. It is configured by a xml
+    file. It is not possible to upload your own checkers, neither is it
+    possible to supply some properties such as `basedir` and `file`.
+    """
+    DEFAULT_OPTIONS = {
+        'Google style': _read_config_file('checkstyle', 'google.xml'),
+        'Sun style': _read_config_file('checkstyle', 'sun.xml'),
+    }
+
+    @classmethod
+    def _validate_module(cls: t.Type['Checkstyle'], mod: ET.Element) -> None:
+        name = mod.attrib.get('name')
+        if name is not None:
+            if '.' in name:
+                raise ValidationException(
+                    'The given config is not valid', (
+                        'Invalid module used, only default checkstyle '
+                        'modules are supported'
+                    )
+                )
+            for sub_el in mod:
+                validate_func = cls._get_validate_func(sub_el.tag)
+                if validate_func is not None:
+                    validate_func(sub_el)
+
+    @staticmethod
+    def _validate_property(prop: ET.Element) -> None:
+        attrib = prop.attrib
+        if attrib['name'] in {
+            'basedir', 'cacheFile', 'haltOnException', 'file'
+        }:
+            raise ValidationException(
+                'The given config is not valid',
+                f'Invalid property "{attrib["name"]}" found'
+            )
+        if list(prop):
+            raise ValidationException(
+                'The given config is not valid',
+                f'A property cannot have children'
+            )
+
+    @classmethod
+    def _get_validate_func(cls: t.Type['Checkstyle'], name: str
+                           ) -> t.Optional[t.Callable[[ET.Element], None]]:
+        return {
+            'property': cls._validate_property,
+            'module': cls._validate_module,
+            'message': lambda _: None,
+        }.get(name)
+
+    @classmethod
+    def validate_config(cls: t.Type['Checkstyle'], config: str) -> None:
+        """Check if the given config is valid for checkstyle.
+
+        This also does some extra checks to make sure some invalid properties
+        are not present.
+
+        :param config: The config to check.
+        """
+        try:
+            xml_config: ET.Element = defused_xml_fromstring(config)
+            assert xml_config is not None
+        except:
+            raise ValidationException(
+                'The given xml config could not be parsed.',
+                f'The config {config} could not be parsed as xml.'
+            )
+        if xml_config.tag != 'module' or xml_config.attrib.get(
+            'name'
+        ) != 'Checker':
+            raise ValidationException(
+                'The given config is not valid.',
+                'The given top module of the config should be Checker.'
+            )
+        for sub_el in xml_config:
+            validate_func = cls._get_validate_func(sub_el.tag)
+            if validate_func is None:
+                raise ValidationException(
+                    'The given config is not valid',
+                    f'Unknown tag "{sub_el.tag}" encountered'
+                )
+            validate_func(sub_el)
+
+    def run(self, tempdir: str,
+            emit: t.Callable[[str, int, str, str], None]) -> None:
+        """Run checkstyle
+
+        Arguments are the same as for :py:meth:`Linter.run`.
+        """
+        tempdir = os.path.dirname(tempdir)
+
+        with tempfile.NamedTemporaryFile('w') as cfg:
+            module: ET.Element = defused_xml_fromstring(self.config)
+            assert module is not None
+            assert module.attrib.get('name') == 'Checker'
+            module.append(
+                module.__class__(
+                    'property', {
+                        'name': 'basedir',
+                        'value': '${basedir}'
+                    }
+                )
+            )
+            cfg.write(
+                """<?xml version="1.0"?>
+<!DOCTYPE module PUBLIC
+          "-//Checkstyle//DTD Checkstyle Configuration 1.3//EN"
+          "https://checkstyle.org/dtds/configuration_1_3.dtd">\n"""
+            )
+            cfg.write(ET.tostring(module, encoding='unicode'))
+            cfg.flush()
+
+            out = subprocess.run(
+                [
+                    part.format(config=cfg.name, files=tempdir)
+                    for part in app.config['CHECKSTYLE_PROGRAM']
+                ],
+                stdout=subprocess.PIPE,
+                check=True,
+                text=True,
+            )
+            output: ET.Element = defused_xml_fromstring(out.stdout)
+            assert output is not None
+
+            for file_el in output:
+                if file_el.tag != 'file':  # pragma: no cover
+                    continue
+                filename = file_el.attrib['name']
+                for error_el in file_el:
+                    if error_el.tag != 'error':  # pragma: no cover
+                        continue
+                    attrib = error_el.attrib
+                    emit(
+                        filename,
+                        int(attrib['line']),
+                        attrib.get('severity', 'warning'),
+                        attrib['message'],
+                    )
+
+
+@_linter_handlers.register('PMD')
+class PMD(Linter):
+    """Run the PMD linter.
+
+    This checks java source files for common errors. It is configured by a xml
+    file. It is not possible to upload your own rules, neither is it
+    possible to use XPath rules.
+    """
+    DEFAULT_OPTIONS: t.ClassVar[t.Mapping[str, str]] = {
+        'Maven': _read_config_file('pmd', 'maven.xml'),
+    }
+
+    @classmethod
+    def validate_config(cls: t.Type['PMD'], config: str) -> None:
+        """Check if the given config is valid for PMD.
+
+        This also does some extra checks to make sure some invalid properties
+        are not present.
+
+        :param config: The config to check.
+        """
+        try:
+            xml_config: ET.Element = defused_xml_fromstring(config)
+            assert xml_config is not None
+        except:
+            logger.warning('Error', exc_info=True)
+            raise ValidationException(
+                'The given xml config could not be parsed.',
+                f'The config {config} could not be parsed as xml.'
+            )
+        stack: t.List[ET.Element] = [xml_config]
+
+        while stack:
+            cur = stack.pop()
+            stack.extend(cur)
+            class_el = cur.attrib.get('class')
+            if class_el is None:
+                continue
+            if 'xpathrule' in class_el.lower().split('.'):
+                raise ValidationException(
+                    'XPath rules cannot be used.', (
+                        'The given config is invalid as XPath rules are'
+                        ' not allowed.'
+                    )
+                )
+
+    def run(self, tempdir: str,
+            emit: t.Callable[[str, int, str, str], None]) -> None:
+        """Run PMD.
+
+        Arguments are the same as for :py:meth:`Linter.run`.
+        """
+        tempdir = os.path.dirname(tempdir)
+
+        with tempfile.NamedTemporaryFile('w') as cfg:
+            cfg.write(self.config)
+            cfg.flush()
+
+            out = subprocess.run(
+                [
+                    part.format(config=cfg.name, files=tempdir)
+                    for part in app.config['PMD_PROGRAM']
+                ],
+                stdout=subprocess.PIPE,
+                check=True,
+                text=True,
+            )
+            output = csv.DictReader(StringIO(out.stdout))
+            assert output is not None
+
+            for line in output:
+                filename = line['File']
+                line_number = int(line['Line'])
+                msg = line['Description']
+                code = line['Rule set']
+
+                emit(filename, line_number, code, msg)
+
+
+class LinterRunner:
     """This class is used to run a :class:`Linter` with a specific config on
-    sets of :class:`models.Work`.
+    sets of :class:`.models.Work`.
 
     .. py:attribute:: linter
         The attached :class:`Linter` that will be ran by this class.
@@ -186,7 +450,7 @@ class LinterRunner():
         :param Linter cls: The linter to run.
         :param str cfg: The config as as `str` to pass to the linter.
         """
-        self.linter = cls(cfg)  # type: Linter
+        self.linter = cls(cfg)
 
     def run(self, linter_instance_ids: t.Sequence[str]) -> None:
         """Run this linter runner on the given works.
@@ -222,7 +486,7 @@ class LinterRunner():
                 db.session.commit()
 
     def test(self, linter_instance: models.LinterInstance) -> None:
-        """Test the given code (:class:`models.Work`) and add generated
+        """Test the given code (:class:`.models.Work`) and add generated
         comments.
 
         :param linter_instance: The linter instance that will be run. This
@@ -247,7 +511,7 @@ class LinterRunner():
                     temp_res[f][line] = []
                 temp_res[f][line].append((code, msg))
 
-            tree_root = psef.files.restore_directory_structure(
+            tree_root = files.restore_directory_structure(
                 linter_instance.work,
                 tmpdir,
             )
@@ -256,7 +520,7 @@ class LinterRunner():
 
         del tmpdir
 
-        def __do(tree: psef.files.FileTree, parent: str) -> None:
+        def __do(tree: files.FileTree, parent: str) -> None:
             parent = os.path.join(parent, tree['name'])
             if 'entries' in tree:  # this is dir:
                 for entry in tree['entries']:
@@ -293,24 +557,25 @@ def get_all_linters(
 
     .. doctest::
 
-        >>> class MyLinter(Linter): pass
+        >>> @_linter_handlers.register('MyLinter')
+        ... class MyLinter(Linter): pass
         >>> MyLinter.__doc__ = "Description"
         >>> MyLinter.DEFAULT_OPTIONS = {'wow': 'sers'}
         >>> all_linters = get_all_linters()
         >>> sorted(all_linters.keys())
-        ['Flake8', 'MixedWhitespace', 'MyLinter', 'Pylint']
+        ['Checkstyle', 'Flake8', 'MixedWhitespace', 'MyLinter', 'PMD', 'Pylint']
         >>> linter = all_linters['MyLinter']
         >>> linter == {'desc': 'Description', 'opts': {'wow': 'sers'} }
         True
     """
     res = {}
-    for cls in get_all_subclasses(Linter):
+    for name, cls in _linter_handlers.get_all():
         item: t.Dict[str, t.Union[str, t.Mapping[str, str]]]
         item = {
             'desc': cls.__doc__ or 'No linter documentation',
             'opts': cls.DEFAULT_OPTIONS,
         }
-        res[cls.__name__] = item
+        res[name] = item
     return res
 
 
@@ -321,6 +586,6 @@ def get_linter_by_name(name: str) -> t.Type[Linter]:
     :returns: The linter with the attribute `__name__` equal to `name`. If
         there are multiple linters with the name `name` the result can be any
         one of these linters.
-    :raises ValueError: If the linter with the specified name is not found.
+    :raises KeyError: If the linter with the specified name is not found.
     """
-    return get_class_by_name(Linter, name)
+    return _linter_handlers[name]

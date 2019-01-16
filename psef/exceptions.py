@@ -99,6 +99,15 @@ class ValidationException(APIException):
     """Thrown when some kind of validation fails.
     """
 
+    def __init__(
+        self,
+        message: str,
+        description: str,
+        code: APICodes = APICodes.INVALID_PARAM,
+        **rest: t.Any,
+    ) -> None:
+        super().__init__(message, description, code, 400, **rest)
+
 
 class WeakPasswordException(ValidationException):
     """Thrown when a password is too weak.

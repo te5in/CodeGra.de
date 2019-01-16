@@ -19,7 +19,62 @@ run_error = create_marker(pytest.mark.run_error)
 perm_error = create_marker(pytest.mark.perm_error)
 get_works = create_marker(pytest.mark.get_works)
 
-ALL_LINTERS = sorted(['Flake8', 'MixedWhitespace', 'Pylint'])
+ALL_LINTERS = sorted(
+    ['Flake8', 'MixedWhitespace', 'Pylint', 'Checkstyle', 'PMD']
+)
+
+CHECKSTYLE_INVALID_EL = open(
+    os.path.join(
+        os.path.dirname(__file__), '..', 'test_data', 'test_linter',
+        'checkstyle_invalid_el.xml'
+    )
+).read()
+CHECKSTYLE_INVALID_MODULE = open(
+    os.path.join(
+        os.path.dirname(__file__), '..', 'test_data', 'test_linter',
+        'checkstyle_invalid_module.xml'
+    )
+).read()
+CHECKSTYLE_INVALID_PROP_WITH_CHILDREN = open(
+    os.path.join(
+        os.path.dirname(__file__), '..', 'test_data', 'test_linter',
+        'checkstyle_invalid_prop_with_children.xml'
+    )
+).read()
+CHECKSTYLE_INVALID_PROPS = open(
+    os.path.join(
+        os.path.dirname(__file__), '..', 'test_data', 'test_linter',
+        'checkstyle_invalid_props.xml'
+    )
+).read()
+CHECKSTYLE_GOOGLE = open(
+    os.path.join(
+        os.path.dirname(__file__),
+        '..',
+        'resources',
+        'checkstyle',
+        'google.xml',
+    )
+).read()
+
+PMD_XPATH = open(
+    os.path.join(
+        os.path.dirname(__file__),
+        '..',
+        'test_data',
+        'test_linter',
+        'pmd_xpath.xml',
+    )
+).read()
+PMD_MAVEN = open(
+    os.path.join(
+        os.path.dirname(__file__),
+        '..',
+        'resources',
+        'pmd',
+        'maven.xml',
+    )
+).read()
 
 
 @pytest.mark.parametrize(
@@ -27,7 +82,14 @@ ALL_LINTERS = sorted(['Flake8', 'MixedWhitespace', 'Pylint'])
     [
         (
             'test_flake8.tar.gz', [
-                ('Flake8', '', ['W191', 'E211', 'E201', 'E202'])
+                (
+                    'Flake8', '', [
+                        (1, 'W191'),
+                        (1, 'E211'),
+                        (1, 'E201'),
+                        (1, 'E202'),
+                    ]
+                )
             ]
         ),
         run_error(error=400)(('test_flake8.tar.gz', [(6, '666', '')])),
@@ -52,31 +114,91 @@ ALL_LINTERS = sorted(['Flake8', 'MixedWhitespace', 'Pylint'])
                         'Flake8',
                         '[flake8]\ndisable_noqa=Trues # This should crash', ''
                     ),
-                    ('Pylint', '', ['ERR']),
+                    ('Pylint', '', [(0, 'ERR')]),
                 ]
             )
+        ),
+        run_error(error=400)(
+            ('test_checkstyle.tar.gz', [('Checkstyle', 'not xml', '')])
+        ),
+        run_error(error=400)(
+            (
+                'test_checkstyle.tar.gz', [
+                    ('Checkstyle', '<?xml version="1.0"?><module/>', '')
+                ]
+            )
+        ),
+        run_error(error=400)(
+            ('test_checkstyle.tar.gz', [('PMD', 'NOT XML!', '')])
+        ),
+        run_error(error=400)(
+            ('test_checkstyle.tar.gz', [('PMD', PMD_XPATH, '')])
+        ),
+        *[
+            run_error(error=400)(
+                ('test_checkstyle.tar.gz', [('Checkstyle', cfg, '')])
+            ) for cfg in [
+                CHECKSTYLE_INVALID_EL, CHECKSTYLE_INVALID_MODULE,
+                CHECKSTYLE_INVALID_PROP_WITH_CHILDREN, CHECKSTYLE_INVALID_PROPS
+            ]
+        ],
+        (
+            'test_pmd.tar.gz', [
+                (
+                    'PMD', PMD_MAVEN, [
+                        (14, 'Error Prone'),
+                        (16, 'Error Prone'),
+                        (18, 'Best Practices'),
+                        (18, 'Design'),
+                    ]
+                )
+            ]
+        ),
+        (
+            'test_checkstyle.tar.gz', [
+                (
+                    'Checkstyle', CHECKSTYLE_GOOGLE, [
+                        (13, 'warning'),
+                        (13, 'warning'),
+                        (14, 'warning'),
+                        (15, 'warning'),
+                        (16, 'warning'),
+                        (17, 'warning'),
+                        (18, 'warning'),
+                        (19, 'warning'),
+                        (20, 'warning'),
+                    ]
+                )
+            ]
         ),
         (
             'test_pylint.tar.gz', [
                 (
                     'Pylint', '', [
-                        'C0111',
-                        'C0103',
-                        'C0103',
-                        'C0111',
-                        'W0613',
-                        'W0312',
-                        'C0326',
-                        'C0326',
+                        (0, 'C0111'),
+                        (0, 'C0103'),
+                        (0, 'C0103'),
+                        (0, 'C0111'),
+                        (0, 'W0613'),
+                        (1, 'W0312'),
+                        (1, 'C0326'),
+                        (1, 'C0326'),
                     ]
                 )
             ]
         ),
-        ('test_flake8.tar.gz', [('Pylint', '', ['ERR'])]),
+        ('test_flake8.tar.gz', [('Pylint', '', [(0, 'ERR')])]),
         (
             'test_flake8.tar.gz', [
-                ('Pylint', '', ['ERR']),
-                ('Flake8', '', ['W191', 'E211', 'E201', 'E202'])
+                ('Pylint', '', [(0, 'ERR')]),
+                (
+                    'Flake8', '', [
+                        (1, 'W191'),
+                        (1, 'E211'),
+                        (1, 'E201'),
+                        (1, 'E202'),
+                    ]
+                )
             ]
         ),
     ],
@@ -214,7 +336,9 @@ def test_linters(
 
         for _, feedbacks in res:
             for name, linter_comm in feedbacks:
-                assert linters[name].pop(0) == linter_comm['code']
+                val = linters[name].pop(0)
+                assert val[0] == linter_comm['line']
+                assert val[1] == linter_comm['code']
 
         assert not any(linters.values())
 

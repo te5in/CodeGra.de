@@ -89,7 +89,6 @@ def ensure_valid_password(  # pylint: disable=function-redefined
                 f'but a minimum of {min_score} was required.'
             ),
             APICodes.WEAK_PASSWORD,
-            400,
             feedback=result['feedback']
         )
 
@@ -105,6 +104,4 @@ def ensure_valid_email(email: str) -> None:
         raise ValidationException(
             'The given email is not valid.',
             'The email "{email}" is not valid.',
-            APICodes.INVALID_PARAM,
-            400,
         )

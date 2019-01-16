@@ -1147,13 +1147,11 @@ def start_linting(assignment_id: int) -> JSONResponse[models.AssignmentLinter]:
         )
 
     res = models.AssignmentLinter.create_linter(assignment_id, name, cfg)
-
     db.session.add(res)
-    db.session.commit()
 
     try:
         linter_cls = linters.get_linter_by_name(name)
-    except ValueError:
+    except KeyError:
         raise APIException(
             f'No linter named "{name}" was found',
             (
@@ -1163,17 +1161,23 @@ def start_linting(assignment_id: int) -> JSONResponse[models.AssignmentLinter]:
             APICodes.OBJECT_NOT_FOUND,
             404,
         )
+    linter_cls.validate_config(cfg)
+
     if linter_cls.RUN_LINTER:
-        for i in range(0, len(res.tests), 10):
-            psef.tasks.lint_instances(
-                name,
-                cfg,
-                [t.id for t in res.tests[i:i + 10]],
-            )
+
+        def start_running_linter() -> None:
+            for i in range(0, len(res.tests), 10):
+                tasks.lint_instances(
+                    name,
+                    cfg,
+                    [t.id for t in res.tests[i:i + 10]],
+                )
+
+        helpers.callback_after_this_request(start_running_linter)
     else:
         for linter_inst in res.tests:
             linter_inst.state = models.LinterState.done
-        db.session.commit()
+    db.session.commit()
 
     return jsonify(res)
 

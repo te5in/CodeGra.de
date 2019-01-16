@@ -72,6 +72,10 @@ FlaskConfig = TypedDict(
         'GRADER_STATUS_TEMPLATE': str,
         'DONE_TEMPLATE': str,
         'MIN_PASSWORD_SCORE': int,
+        'CHECKSTYLE_PROGRAM': t.List[str],
+        'PMD_PROGRAM': t.List[str],
+        'PYLINT_PROGRAM': t.List[str],
+        'FLAKE8_PROGRAM': t.List[str],
         '_USING_SQLITE': str,
     },
     total=True
@@ -136,6 +140,22 @@ def set_str(
 ) -> None:
     val = parser.get(item)
     out[item] = default if val is None else str(val)
+
+
+def set_list(
+    out: t.MutableMapping[str, t.Any],
+    parser: t.Any,
+    item: str,
+    default: object,
+) -> None:
+    val = parser.get(item)
+    if val is None:
+        out[item] = default
+    else:
+        parsed_val = json.loads(val)
+        assert isinstance(parsed_val, list), f'Value "{item}" should be a list'
+        assert all(isinstance(v, str) for v in parsed_val)
+        out[item] = parsed_val
 
 
 set_bool(CONFIG, backend_ops, 'DEBUG', False)
@@ -319,6 +339,56 @@ href="{site_url}/courses/{course_id}">here</a>.</p>
 )
 
 set_float(CONFIG, backend_ops, 'MIN_PASSWORD_SCORE', 3, min=0, max=4)
+
+set_list(
+    CONFIG, backend_ops, 'CHECKSTYLE_PROGRAM', [
+        'java',
+        '-Dbasedir={files}',
+        '-jar',
+        'checkstyle.jar',
+        '-f',
+        'xml',
+        '-c',
+        '{config}',
+        '{files}',
+    ]
+)
+set_list(
+    CONFIG, backend_ops, 'PMD_PROGRAM', [
+        './pmd/bin/run.sh',
+        'pmd',
+        '-dir',
+        '{files}',
+        '-failOnViolation',
+        'false',
+        '-format',
+        'csv',
+        '-shortnames',
+        '-rulesets',
+        '{config}',
+    ]
+)
+set_list(
+    CONFIG, backend_ops, 'PYLINT_PROGRAM', [
+        'pylint',
+        '--rcfile',
+        '{config}',
+        '--output-format',
+        'json',
+        '{files}',
+    ]
+)
+set_list(
+    CONFIG, backend_ops, 'FLAKE8_PROGRAM', [
+        'flake8',
+        '--disable-noqa',
+        '--config={config}',
+        '--format',
+        '{line_fmt}',
+        '--exit-zero',
+        '{files}',
+    ]
+)
 
 ############
 # FEATURES #

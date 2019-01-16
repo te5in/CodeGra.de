@@ -41,7 +41,7 @@ import structlog
 import dataclasses
 
 from . import app
-from .helpers import add_warning
+from .helpers import register, add_warning
 from .exceptions import APIWarnings
 
 T = t.TypeVar('T', bound='_BaseArchive')
@@ -89,6 +89,10 @@ class UnsafeArchive(ArchiveException):
         self.member = member
 
 
+_archive_handlers: register.Register[str, t.Type['_BaseArchive']
+                                     ] = register.Register()
+
+
 class ArchiveTooLarge(ArchiveException):
     """Error raised when archive is too large when extracted."""
 
@@ -99,21 +103,6 @@ class ArchiveTooLarge(ArchiveException):
 
 class FileTooLarge(ArchiveTooLarge):
     pass
-
-
-extensions_map: t.Dict[str, t.Type['_BaseArchive']] = {}
-
-
-def _register_archive(
-    extensions: t.List[str],
-) -> t.Callable[[t.Type[T]], t.Type[T]]:
-    def __decorator(cls: t.Type[T]) -> t.Type[T]:
-        for ext in extensions:
-            assert ext not in extensions_map
-            extensions_map[ext] = cls
-        return cls
-
-    return __decorator
 
 
 class Archive(t.Generic[TT]):  # pylint: disable=unsubscriptable-object
@@ -138,12 +127,11 @@ class Archive(t.Generic[TT]):  # pylint: disable=unsubscriptable-object
     @staticmethod
     def __get_base_archive_class(filename: str
                                  ) -> t.Optional[t.Type['_BaseArchive']]:
-        base, tail_ext = path.splitext(filename.lower())
-        cls = extensions_map.get(tail_ext)
+        base, tail_ext = os.path.splitext(filename.lower())
+        cls = _archive_handlers.get(tail_ext)
         if cls is None:
-            base, ext = path.splitext(base)
-            cls = extensions_map.get(ext)
-
+            base, ext = os.path.splitext(base)
+            cls = _archive_handlers.get(ext)
         return cls
 
     @classmethod
@@ -420,7 +408,7 @@ class _BaseArchive(abc.ABC, t.Generic[TT]):
         raise NotImplementedError
 
 
-@_register_archive(
+@_archive_handlers.register_all(
     [
         '.tar', '.tar.bz2', '.tar.gz', '.tgz', '.tz2', '.tar.xz', '.tbz',
         '.tb2', '.tbz2', '.txz'
@@ -515,7 +503,7 @@ class _TarArchive(_BaseArchive[tarfile.TarInfo]):  # pylint: disable=unsubscript
         return True
 
 
-@_register_archive(['.zip'])
+@_archive_handlers.register('.zip')
 class _ZipArchive(_BaseArchive[zipfile.ZipInfo]):  # pylint: disable=unsubscriptable-object
     def close(self) -> None:
         self._archive.close()
