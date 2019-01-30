@@ -65,7 +65,9 @@
 
     <loader :scale="2" v-if="canManage && providers == null"/>
     <div v-else-if="canManage">
-        <b-form-radio-group v-model="selectedProvider">
+        <b-form-radio-group v-model="selectedProvider"
+                            v-if="providers.length > 1"
+                            class="provider-selectors">
             <table class="table table-striped table-hover providers-table">
                 <thead>
                     <tr>
@@ -480,6 +482,9 @@ export default {
 
             const { data: providers } = await this.$http.get('/api/v1/plagiarism/').catch(() => []);
             this.providers = providers;
+            if (this.providers.length === 1) {
+                [this.selectedProvider] = this.providers;
+            }
         },
 
         async loadRuns() {
