@@ -45,3 +45,4 @@ export { default as PlagiarismOverview } from './PlagiarismOverview';
 export { default as PlagiarismDetail } from './PlagiarismDetail';
 export { default as PlagiarismRunner } from './PlagiarismRunner';
 export { default as HomeGrid } from './HomeGrid';
+export { default as DatetimePicker } from './DatetimePicker';

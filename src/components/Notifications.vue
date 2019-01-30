@@ -13,10 +13,7 @@
         <b-collapse :visible="graders" :id="`collapse-${Math.random()}`">
             <b-input-group prepend="Time to send"
                            class="extra-box">
-                <input type="datetime-local"
-                       @keyup.ctrl.enter="updateReminder"
-                       class="form-control"
-                       v-model="reminderTime"/>
+                <datetime-picker v-model="reminderTime"/>
             </b-input-group>
         </b-collapse>
     </div>
@@ -71,6 +68,7 @@ import { convertToUTC, parseWarningHeader } from '@/utils';
 
 import SubmitButton from './SubmitButton';
 import DescriptionPopover from './DescriptionPopover';
+import DatetimePicker from './DatetimePicker';
 
 export default {
     props: {
@@ -181,6 +179,7 @@ divided or because they were assigned work manually.`,
     components: {
         SubmitButton,
         DescriptionPopover,
+        DatetimePicker,
     },
 };
 </script>

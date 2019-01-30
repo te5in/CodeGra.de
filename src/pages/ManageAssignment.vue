@@ -3,7 +3,7 @@
 <div class="manage-assignment loading" v-if="loading">
     <local-header>
         <template slot="title" v-if="assignment">
-            {{ assignment.name }} - <small>{{ assignment.deadline }}</small>
+            {{ assignment.name }} - <small>{{ formattedDeadline }}</small>
         </template>
         <template slot="title" v-else>
         </template>
@@ -14,7 +14,7 @@
 <div class="manage-assignment" v-else>
     <local-header>
         <template slot="title">
-            {{ assignment.name }} - <small>{{ assignment.deadline }}</small>
+            {{ assignment.name }} - <small>{{ formattedDeadline  }}</small>
         </template>
         <assignment-state :assignment="assignment"
                           class="assignment-state"
@@ -47,10 +47,8 @@
 
             <b-form-fieldset v-if="!assignment.is_lti && permissions.can_edit_assignment_info">
                 <b-input-group prepend="Deadline">
-                    <input type="datetime-local"
-                           class="form-control"
-                           v-model="assignmentTempDeadline"
-                           @keyup.ctrl.enter="updateDeadline"/>
+                    <datetime-picker
+                        v-model="assignmentTempDeadline"/>
                     <b-input-group-append>
                         <submit-button @click="updateDeadline"
                                        ref="updateDeadline"/>
@@ -186,7 +184,7 @@
 <script>
 import { mapActions, mapGetters } from 'vuex';
 
-import { convertToUTC } from '@/utils';
+import { convertToUTC, readableFormatDate } from '@/utils';
 import { MANAGE_COURSE_PERMISSIONS } from '@/constants';
 
 import {
@@ -205,6 +203,7 @@ import {
     SubmissionUploader,
     MaximumGrade,
     PlagiarismRunner,
+    DatetimePicker,
 } from '@/components';
 
 export default {
@@ -225,6 +224,13 @@ export default {
 
     computed: {
         ...mapGetters('courses', ['assignments']),
+
+        formattedDeadline() {
+            if (!this.assignment || !this.assignment.deadline) {
+                return '';
+            }
+            return readableFormatDate(this.assignment.deadline);
+        },
 
         assignmentId() {
             return Number(this.$route.params.assignmentId);
@@ -358,6 +364,7 @@ export default {
         SubmissionUploader,
         MaximumGrade,
         PlagiarismRunner,
+        DatetimePicker,
     },
 };
 </script>

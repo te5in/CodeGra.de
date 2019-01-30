@@ -2,9 +2,7 @@
 <template>
 <div>
     <b-input-group left="Time to send">
-        <input type="datetime-local"
-               class="form-control"
-               v-model="assignment.reminder_time"/>
+        <datetime-picker v-model="assignment.reminder_time"/>
     </b-input-group>
     <div class="grade-options custom-controls-stacked">
         <label class="custom-control custom-radio"
@@ -32,6 +30,7 @@ import { convertToUTC } from '@/utils';
 
 import SubmitButton from './SubmitButton';
 import DescriptionPopover from './DescriptionPopover';
+import DatetimePicker from './DatetimePicker';
 
 export default {
     props: {
@@ -89,6 +88,7 @@ Send a reminder e-mail to all graders. This will also probably you.`,
     components: {
         SubmitButton,
         DescriptionPopover,
+        DatetimePicker,
     },
 };
 </script>
