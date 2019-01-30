@@ -958,7 +958,7 @@ def test_set_fixed_max_points(
                     'id': int,
                     'name': 'single_file_work_copy'
                 }
-            ], 'multiple_file_archive', ['.tar.gz', '.zip']
+            ], 'multiple_file_archive', ['.tar.gz', '.zip', '.7z']
         ), (
             'deheading_dir_archive', [
                 {
@@ -968,7 +968,7 @@ def test_set_fixed_max_points(
                     'id': int,
                     'name': 'single_file_work_copy'
                 }
-            ], 'dir', ['.tar.gz', '.zip']
+            ], 'dir', ['.tar.gz', '.zip', '.7z']
         ),
         (
             'single_dir_archive', [
@@ -1019,7 +1019,7 @@ def test_set_fixed_max_points(
                     }]
                 }
             ],
-            'multiple_dir_archive', ['.tar.gz', '.zip']
+            'multiple_dir_archive', ['.tar.gz', '.zip', '.7z']
         ), (
             'single_file_work', [
                 {
@@ -1269,6 +1269,10 @@ def test_incorrect_ingore_files_value(
             'l.zip'
         )},
         lambda: {'file': (
+            get_submission_archive('too_large.7z'),
+            'l.7z'
+        )},
+        lambda: {'file': (
             get_submission_archive('many_larger_files.tar.gz'),
             'l.tar.gz'
         )},
@@ -1277,12 +1281,20 @@ def test_incorrect_ingore_files_value(
             'l.zip'
         )},
         lambda: {'file': (
+            get_submission_archive('many_larger_files.7z'),
+            'l.7z'
+        )},
+        lambda: {'file': (
             get_submission_archive('archive_with_large_file.tar.gz'),
             'l.tar.gz'
         )},
         lambda: {'file': (
             get_submission_archive('archive_with_large_file.zip'),
             'l.zip'
+        )},
+        lambda: {'file': (
+            get_submission_archive('archive_with_large_file.7z'),
+            'l.7z'
         )},
     ]
 )

@@ -36,6 +36,7 @@ import zipfile
 import contextlib
 from os import path
 
+import py7zlib
 import structlog
 
 import dataclasses
@@ -503,6 +504,71 @@ class _TarArchive(_BaseArchive[tarfile.TarInfo]):  # pylint: disable=unsubscript
         return True
 
 
+@t.overload
+def _get_members_of_archives(  # pylint: disable=function-redefined,missing-docstring,unused-argument
+    archive_files: t.Iterable[zipfile.ZipInfo],
+) -> t.Iterable[ArchiveMemberInfo[zipfile.ZipInfo]]:
+    ...  # pylint: disable=pointless-statement
+
+
+@t.overload
+def _get_members_of_archives(  # pylint: disable=function-redefined,missing-docstring,unused-argument
+    archive_files: t.Iterable[py7zlib.ArchiveFile],
+) -> t.Iterable[ArchiveMemberInfo[py7zlib.ArchiveFile]]:
+    ...  # pylint: disable=pointless-statement
+
+
+def _get_members_of_archives(
+    archive_files: t.Iterable[t.Union[zipfile.ZipInfo, py7zlib.ArchiveFile]],
+) -> t.Iterable[ArchiveMemberInfo[t.Union[zipfile.ZipInfo, py7zlib.ArchiveFile]
+                                  ]]:
+    """Get the members of a 7zip or a *normal* zipfile.
+
+    :param arch: The archive to get the archive members of.
+    :returns: A iterable of archive member objects.
+    """
+    seen_dirs: t.Set[str] = set()
+    for member in archive_files:
+        name = member.filename
+        cur_is_dir = name[-1] == '/'
+        name.rstrip('/')
+
+        while name and name not in seen_dirs:
+            name, tail = path.split(name)
+            if name:
+                cur_path = '{}/{}'.format(name, tail)
+            else:
+                cur_path = tail
+
+            seen_dirs.add(cur_path)
+
+            if cur_is_dir:
+                cur_path += '/'
+
+            if cur_is_dir:
+                yield ArchiveMemberInfo(
+                    name=cur_path,
+                    is_dir=cur_is_dir,
+                    orig_file=member,
+                    size=FileSize(0),
+                )
+            elif isinstance(member, zipfile.ZipInfo):
+                yield ArchiveMemberInfo(
+                    name=cur_path,
+                    is_dir=cur_is_dir,
+                    orig_file=member,
+                    size=FileSize(member.file_size),
+                )
+            elif isinstance(member, py7zlib.ArchiveFile):
+                yield ArchiveMemberInfo(
+                    name=cur_path,
+                    is_dir=cur_is_dir,
+                    orig_file=member,
+                    size=FileSize(member.size),
+                )
+            cur_is_dir = True
+
+
 @_archive_handlers.register('.zip')
 class _ZipArchive(_BaseArchive[zipfile.ZipInfo]):  # pylint: disable=unsubscriptable-object
     def close(self) -> None:
@@ -525,7 +591,7 @@ class _ZipArchive(_BaseArchive[zipfile.ZipInfo]):  # pylint: disable=unsubscript
         """
         self._archive.extract(member.orig_file, path=to_path)
 
-    def get_members(self) -> t.Iterable[ArchiveMemberInfo]:
+    def get_members(self) -> t.Iterable[ArchiveMemberInfo[zipfile.ZipInfo]]:
         """Get all members from this zip archive.
 
         >>> zp = _ZipArchive('test_data/test_submissions/multiple_dir_archive.zip')
@@ -543,30 +609,7 @@ class _ZipArchive(_BaseArchive[zipfile.ZipInfo]):  # pylint: disable=unsubscript
 ('dir/dir2/single_file_work', False, ..., ...), \
 ('dir/dir2/single_file_work_copy', False, ..., ...)]
         """
-        seen_dirs: t.Set[str] = set()
-        for member in self._archive.infolist():
-            name = member.filename
-            cur_is_dir = name[-1] == '/'
-            name = name[:-1] if cur_is_dir else name
-
-            while name and name not in seen_dirs:
-                name, tail = path.split(name)
-                if name:
-                    cur_path = '{}/{}'.format(name, tail)
-                else:
-                    cur_path = tail
-
-                seen_dirs.add(cur_path)
-
-                if cur_is_dir:
-                    cur_path += '/'
-                yield ArchiveMemberInfo(
-                    name=cur_path,
-                    is_dir=cur_is_dir,
-                    orig_file=member,
-                    size=FileSize(0 if cur_is_dir else member.file_size),
-                )
-                cur_is_dir = True
+        yield from _get_members_of_archives(self._archive.infolist())
 
     def has_less_items_than(self, max_items: int) -> bool:
         """Check if this archive has less than a given amount of members.
@@ -576,3 +619,58 @@ class _ZipArchive(_BaseArchive[zipfile.ZipInfo]):  # pylint: disable=unsubscript
         # It is not possible to get the number of items in the zipfile without
         # reading them all, which is done on the ``__init__`` function.
         return len(self._archive.infolist()) < max_items
+
+
+@_archive_handlers.register('.7z')
+class _7ZipArchive(_BaseArchive[py7zlib.ArchiveFile]):  # pylint: disable=unsubscriptable-object
+    def close(self) -> None:
+        self._fp.close()
+
+    def has_unsafe_filetypes(self) -> bool:  # pylint: disable=no-self-use
+        return False
+
+    def __init__(self, filename: str) -> None:
+        super().__init__(filename)
+        self._fp = open(filename, 'rb')
+        self._archive = py7zlib.Archive7z(self._fp)
+
+    def extract_member(  # pylint: disable=no-self-use
+        self, member: ArchiveMemberInfo[py7zlib.ArchiveFile], to_path: str
+    ) -> None:
+        """Extract the given member.
+
+        :param member: The member to extract.
+        :param to_path: The location to which it should be extracted.
+        """
+        with open(os.path.join(to_path, member.name), 'wb') as f:
+            f.write(member.orig_file.read())
+
+    def get_members(self
+                    ) -> t.Iterable[ArchiveMemberInfo[py7zlib.ArchiveFile]]:
+        """Get all members from this 7zip archive.
+
+        >>> zp = _7ZipArchive('test_data/test_submissions/multiple_dir_archive.7z')
+        >>> print([(i.name, i.is_dir) for i in sorted(zp.get_members())])
+        [('dir/', True), \
+('dir/single_file_work', False), \
+('dir/single_file_work_copy', False), \
+('dir2/', True), \
+('dir2/single_file_work', False), \
+('dir2/single_file_work_copy', False)]
+        >>> zp = _7ZipArchive('test_data/test_submissions/deheading_dir_archive.7z')
+        >>> print([(i.name, i.is_dir) for i in sorted(zp.get_members())])
+        [('dir/', True), \
+('dir/dir2/', True), \
+('dir/dir2/single_file_work', False), \
+('dir/dir2/single_file_work_copy', False)]
+        """
+        yield from _get_members_of_archives(self._archive.getmembers())
+
+    def has_less_items_than(self, max_items: int) -> bool:
+        """Check if this archive has less than a given amount of members.
+
+        :param max_items: The amount to check for.
+        """
+        # It is not possible to get the number of items in the zipfile without
+        # reading them all, which is done on the ``__init__`` function.
+        return len(self._archive.getmembers()) < max_items

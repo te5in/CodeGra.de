@@ -41,3 +41,4 @@ structlog==18.2.0
 colorama==0.4.0
 defusedxml==0.5.0
 zxcvbn==4.4.27
+pylzma==0.5.0

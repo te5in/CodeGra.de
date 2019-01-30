@@ -754,7 +754,11 @@ def test_update_code(
 
 
 @pytest.mark.parametrize(
-    'filename', ['../test_submissions/multiple_dir_archive.zip'],
+    'filename', [
+        '../test_submissions/multiple_dir_archive.tar.gz',
+        '../test_submissions/multiple_dir_archive.zip',
+        '../test_submissions/multiple_dir_archive.7z',
+    ],
     indirect=True
 )
 def test_rename_code(
