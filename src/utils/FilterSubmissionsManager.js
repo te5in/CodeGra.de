@@ -32,16 +32,16 @@ export function filterSubmissions(
             return true;
         }
 
-        const terms = {
-            user_name: item.user.name.toLowerCase(),
-            grade: (item.grade || 0).toString(),
-            created_at: item.created_at,
-            assignee: item.assignee && item.assignee.name ? item.assignee.name.toLowerCase() : '-',
-        };
+        const terms = [
+            item.user.name.toLowerCase(),
+            (item.grade || 0).toString(),
+            item.formatted_created_at,
+            item.assignee && item.assignee.name ? item.assignee.name.toLowerCase() : '-',
+        ];
         const out = (filter || '')
             .toLowerCase()
             .split(' ')
-            .every(word => Object.keys(terms).some(key => terms[key].indexOf(word) >= 0));
+            .every(word => terms.some(value => value.indexOf(word) >= 0));
         if (out) {
             l.add(item.user.id);
         }
@@ -59,8 +59,8 @@ export function sortSubmissions(a, b, sortBy) {
 
         return cmpNoCase(first.name, second.name);
     } else if (sortBy === 'created_at') {
-        const first = a[sortBy];
-        const second = b[sortBy];
+        const first = a.formatted_created_at;
+        const second = b.formatted_created_at;
 
         const ret = cmpOneNull(first, second);
         if (ret !== null) return ret;

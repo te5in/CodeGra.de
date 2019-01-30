@@ -38,7 +38,7 @@
                     </description-popover>
                 </td>
                 <td>
-                    {{ run.created_at }}
+                    {{ run.formatted_created_at }}
                 </td>
                 <td class="run-state">
                     {{ run.state }}
@@ -184,7 +184,7 @@ import Multiselect from 'vue-multiselect';
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/times';
 
-import { cmpNoCase, formatDate } from '@/utils';
+import { cmpNoCase, readableFormatDate } from '@/utils';
 
 import DescriptionPopover from './DescriptionPopover';
 import Loader from './Loader';
@@ -351,7 +351,7 @@ export default {
                 .post(`/api/v1/assignments/${this.assignment.id}/plagiarism`, data)
                 .then(
                     ({ data: run }) => {
-                        run.created_at = formatDate(run.created_at);
+                        run.formatted_created_at = readableFormatDate(run.created_at);
                         this.runs.push(run);
                     },
                     err => {
@@ -497,7 +497,7 @@ export default {
                 .get(`/api/v1/assignments/${this.assignment.id}/plagiarism/`)
                 .catch(() => []);
             runs.forEach(run => {
-                run.created_at = formatDate(run.created_at);
+                run.formatted_created_at = readableFormatDate(run.created_at);
             });
             this.runs = runs;
         },

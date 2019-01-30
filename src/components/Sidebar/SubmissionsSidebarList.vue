@@ -20,7 +20,7 @@
                 {{ sub.user.name }}
 
                 <small>
-                    Created at: {{ sub.created_at }}
+                    Created at: {{ sub.formatted_created_at }}
                 </small>
                 <small v-if="sub.assignee">
                     Assignee: {{ sub.assignee.name }}

@@ -102,8 +102,13 @@
         <template slot="grade" slot-scope="item">
             {{formatGrade(item.value) || '-'}}
         </template>
-        <template slot="created_at" slot-scope="item">
+        <template slot="formatted_created_at" slot-scope="item">
             {{item.value ? item.value : '-'}}
+            <span v-if="item.item.created_at > assignment.deadline">
+                <icon name="clock-o"
+                      class="late-icon"
+                      v-b-popover.hover.top="getHandedInLateText(item.item)"/>
+            </span>
         </template>
         <template slot="assignee" slot-scope="item">
             <span v-if="!canAssignGrader || graders == null">
@@ -122,10 +127,12 @@
 </template>
 
 <script>
+import moment from 'moment';
 import { mapGetters, mapActions } from 'vuex';
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/gear';
 import 'vue-awesome/icons/refresh';
+import 'vue-awesome/icons/clock-o';
 
 import { formatGrade, parseBool, waitAtLeast } from '@/utils';
 import { filterSubmissions, sortSubmissions } from '@/utils/FilterSubmissionsManager';
@@ -204,7 +211,7 @@ export default {
                     sortable: true,
                 },
                 {
-                    key: 'created_at',
+                    key: 'formatted_created_at',
                     label: 'Created at',
                     sortable: true,
                 },
@@ -245,7 +252,14 @@ export default {
                 this.mineOnly,
                 this.userId,
                 this.filter,
-            );
+            ).map(sub => {
+                if (sub.created_at > this.assignment.deadline) {
+                    return Object.assign({}, sub, {
+                        _rowVariant: 'danger',
+                    });
+                }
+                return sub;
+            });
         },
 
         manageAssignmentRoute() {
@@ -414,6 +428,14 @@ export default {
 
         formatGrade,
         sortSubmissions,
+
+        getHandedInLateText(sub) {
+            const diff = moment(sub.created_at, moment.ISO_8601).from(
+                moment(this.assignment.deadline, moment.ISO_8601),
+                true, // Only get time string, not the 'in' before.
+            );
+            return `This submission was submitted ${diff} after the deadline.`;
+        },
     },
 
     components: {
@@ -426,6 +448,14 @@ export default {
     },
 };
 </script>
+
+<style lang="less" scoped>
+.late-icon {
+    text-decoration: bold;
+    margin-bottom: -0.125em;
+    cursor: help;
+}
+</style>
 
 <style lang="less">
 @import '~mixins.less';

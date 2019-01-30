@@ -45,10 +45,7 @@ const actions = {
     },
 
     addSubmission({ commit }, { assignmentId, submission }) {
-        submission.created_at = moment
-            .utc(submission.created_at, moment.ISO_8601)
-            .local()
-            .format('YYYY-MM-DD HH:mm');
+        submission.formatted_created_at = utils.readableFormatDate(submission.created_at);
         submission.grade = utils.formatGrade(submission.grade);
         commit(types.ADD_SUBMISSION, { assignmentId, submission });
     },
@@ -86,10 +83,7 @@ const actions = {
                     .get(`/api/v1/assignments/${assignmentId}/submissions/?extended`)
                     .then(({ data: submissions }) => {
                         submissions.forEach(sub => {
-                            sub.created_at = moment
-                                .utc(sub.created_at, moment.ISO_8601)
-                                .local()
-                                .format('YYYY-MM-DD HH:mm');
+                            sub.formatted_created_at = utils.readableFormatDate(sub.created_at);
                             sub.grade = utils.formatGrade(sub.grade);
                         });
                         return submissions;

@@ -41,6 +41,13 @@ export function formatDate(date) {
         .format('YYYY-MM-DDTHH:mm');
 }
 
+export function readableFormatDate(date) {
+    return moment
+        .utc(date, moment.ISO_8601)
+        .local()
+        .format('YYYY-MM-DD HH:mm');
+}
+
 export function convertToUTC(timeStr) {
     return moment(timeStr, moment.ISO_8601)
         .utc()

@@ -96,7 +96,7 @@ export default {
                     {
                         name: 'Created at',
                         enabled: true,
-                        getter: submission => submission.created_at,
+                        getter: submission => submission.formatted_created_at,
                     },
                     {
                         name: 'Assigned to',
