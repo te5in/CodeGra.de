@@ -94,6 +94,13 @@ var webpackConfig = merge(baseWebpackConfig, {
         to: config.build.assetsSubDirectory,
         ignore: ['.*']
       }
+    ]),
+    new CopyWebpackPlugin([
+      {
+        from: path.resolve(__dirname, '../node_modules/mathjax'),
+        to: path.join('vendor', 'mathjax'),
+        ignore: ['.*']
+      }
     ])
   ]
 })

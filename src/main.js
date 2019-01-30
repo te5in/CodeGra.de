@@ -17,6 +17,7 @@ import VueMasonry from 'vue-masonry-css';
 import '@/polyfills';
 import App from '@/App';
 import router from '@/router';
+import { htmlEscape } from '@/utils';
 import store from './store';
 import * as mutationTypes from './store/mutation-types';
 import PermissionStore from './permissions';
@@ -74,6 +75,8 @@ Object.defineProperty(Vue.prototype, '$LTIAssignmentId', {
     },
 });
 
+Vue.prototype.$userConfig = UserConfig;
+
 // eslint-disable-next-line
 localforage.defineDriver(memoryStorageDriver).then(() => {
     Vue.prototype.$hlanguageStore = localforage.createInstance({
@@ -85,24 +88,7 @@ localforage.defineDriver(memoryStorageDriver).then(() => {
         driver: DRIVERS,
     });
 
-    const reUnescapedHtml = /[&<>"'`]/g;
-    const reHasUnescapedHtml = RegExp(reUnescapedHtml.source);
-    /** Used to map characters to HTML entities. */
-    const htmlEscapes = {
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#39;',
-        '`': '&#96;',
-    };
-    Vue.prototype.$htmlEscape = inputString => {
-        const string = `${inputString}`;
-        if (string && reHasUnescapedHtml.test(string)) {
-            return string.replace(reUnescapedHtml, ent => htmlEscapes[ent]);
-        }
-        return string;
-    };
+    Vue.prototype.$htmlEscape = htmlEscape;
 
     // Fix axios automatically parsing all responses as JSON... WTF!!!
     axios.defaults.transformResponse = [

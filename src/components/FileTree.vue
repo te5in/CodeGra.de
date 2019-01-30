@@ -22,21 +22,21 @@
                 Choose to view either the student's submitted files, the revised files as edited by a
                 teacher or teaching assistant, or a diff between the two versions.
 
-                <p v-if="!dirHasRevision(tree)" style="margin: 1rem 0 0;">
+                <p v-if="!hasRevision(tree)" style="margin: 1rem 0 0;">
                     This submission has no revisions.
                 </p>
             </span>
         </description-popover>
     </div>
 
-    <div class="directory" :class="{ faded: depth > 0 && diffMode && !dirHasRevision(tree) }" @click.stop="toggle()">
+    <div class="directory" :class="{ faded: depth > 0 && diffMode && !hasRevision(tree) }" @click.stop="toggle()">
         <span class="label">
             <icon name="caret-right" class="caret-icon" v-if="isCollapsed"/>
             <icon name="caret-down" class="caret-icon" v-else/>
             <icon name="folder" class="dir-icon" v-if="isCollapsed"/>
             <icon name="folder-open" class="dir-icon" v-else/>
             {{ tree.name }}
-            <sup v-if="depth > 0 && dirHasRevision(tree)"
+            <sup v-if="depth > 0 && hasRevision(tree)"
                     v-b-popover.hover.top="'This directory has a file with a teacher\'s revision'"
                     class="rev-popover">
                 modified
@@ -49,6 +49,7 @@
             :class="{ faded: diffMode && !fileHasRevision(f), active: fileIsSelected(f) }">
             <file-tree :tree="f"
                        :collapsed="!fileInTree($route.params.fileId, f)"
+                       :revision-cache="internalRevisionCache"
                        :depth="depth + 1"
                         v-if="f.entries"/>
             <router-link :to="getFileRoute(f)"
@@ -103,11 +104,17 @@ export default {
             type: String,
             default: 'student',
         },
+
+        revisionCache: {
+            type: Object,
+            default: () => ({}),
+        },
     },
 
     data() {
         return {
             isCollapsed: this.collapsed,
+            internalRevisionCache: { ...this.revisionCache },
             revisionOptions: [
                 {
                     title: 'Student',
@@ -164,6 +171,10 @@ export default {
                 (!this.tree.isStudent || this.hasRevision(this.tree))
             );
         },
+
+        allRevisionCache() {
+            return this.internalRevisionCache;
+        },
     },
 
     methods: {
@@ -186,12 +197,20 @@ export default {
         },
 
         fileInTree(fileId, tree) {
-            for (let i = 0; i < tree.entries.length; i += 1) {
-                if (tree.entries[i].entries) {
-                    if (this.fileInTree(fileId, tree.entries[i])) {
-                        return true;
-                    }
-                } else if (Number(tree.entries[i].id) === Number(fileId)) {
+            // This property depends on the return value of this function for
+            // the parent. If the parent doesn't have the file in its tree this
+            // component will also not have it.
+            if (this.collapsed) {
+                return false;
+            }
+
+            const todo = [...tree.entries];
+
+            for (let i = 0; i < todo.length; i++) {
+                const child = todo[i];
+                if (child.entries) {
+                    todo.push(...child.entries);
+                } else if (Number(child.id) === Number(fileId)) {
                     return true;
                 }
             }
@@ -205,10 +224,17 @@ export default {
         },
 
         hasRevision(f) {
-            if (f.entries) {
-                return this.dirHasRevision(f);
+            if (this.internalRevisionCache[f.id] == null) {
+                let res;
+                if (f.entries) {
+                    res = this.dirHasRevision(f);
+                } else {
+                    res = this.fileHasRevision(f);
+                }
+
+                this.internalRevisionCache[f.id] = res;
             }
-            return this.fileHasRevision(f);
+            return this.internalRevisionCache[f.id];
         },
 
         fileHasRevision(f) {

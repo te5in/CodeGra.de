@@ -45,4 +45,6 @@ export { default as PlagiarismOverview } from './PlagiarismOverview';
 export { default as PlagiarismDetail } from './PlagiarismDetail';
 export { default as PlagiarismRunner } from './PlagiarismRunner';
 export { default as HomeGrid } from './HomeGrid';
+export { default as IpythonViewer } from './IPythonViewer';
+export { default as MarkdownViewer } from './MarkdownViewer';
 export { default as DatetimePicker } from './DatetimePicker';

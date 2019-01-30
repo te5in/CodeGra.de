@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import DiffViewer from '@/components/DiffViewer';
-import * as utils from '@/utils';
+import * as visualize from '@/utils/visualize';
 import { shallowMount, createLocalVue } from '@vue/test-utils';
 import VueRouter from 'vue-router';
 jest.mock('axios');
 
-utils.visualizeWhitespace = jest.fn(a => a);
+visualize.visualizeWhitespace = jest.fn(a => a);
 
 const localVue = createLocalVue();
 localVue.use(VueRouter);
@@ -55,10 +55,10 @@ describe('diffCode in DiffViewer.vue', () => {
     });
 
     it('should work with equal text', () => {
-        utils.visualizeWhitespace.mockClear();
+        visualize.visualizeWhitespace.mockClear();
         comp.diffCode(text1, text1);
         expect(comp.lines.length).toBe(3);
-        expect(utils.visualizeWhitespace.mock.calls.length).toBe(3);
+        expect(visualize.visualizeWhitespace.mock.calls.length).toBe(3);
         comp.lines.forEach((line, i) => {
             expect(line.txt).toEqual(text1.split('\n')[i]);
             expect(line.cls).toEqual('');
@@ -66,10 +66,10 @@ describe('diffCode in DiffViewer.vue', () => {
     });
 
     it('should work with only deleted code', () => {
-        utils.visualizeWhitespace.mockClear();
+        visualize.visualizeWhitespace.mockClear();
         comp.diffCode(text1, '');
         expect(comp.lines.length).toBe(3);
-        expect(utils.visualizeWhitespace.mock.calls.length).toBe(3);
+        expect(visualize.visualizeWhitespace.mock.calls.length).toBe(3);
         comp.lines.forEach((line, i) => {
             expect(line.txt).toEqual(text1.split('\n')[i]);
             expect(line.cls).toEqual('removed');
@@ -77,10 +77,10 @@ describe('diffCode in DiffViewer.vue', () => {
     });
 
     it('should work with only added code', () => {
-        utils.visualizeWhitespace.mockClear();
+        visualize.visualizeWhitespace.mockClear();
         comp.diffCode('', text1);
         expect(comp.lines.length).toBe(3);
-        expect(utils.visualizeWhitespace.mock.calls.length).toBe(3);
+        expect(visualize.visualizeWhitespace.mock.calls.length).toBe(3);
         comp.lines.forEach((line, i) => {
             expect(line.txt).toEqual(text1.split('\n')[i]);
             expect(line.cls).toEqual('added');
@@ -88,10 +88,10 @@ describe('diffCode in DiffViewer.vue', () => {
     });
 
     it('should work with more edits', () => {
-        utils.visualizeWhitespace.mockClear();
+        visualize.visualizeWhitespace.mockClear();
         comp.diffCode(text1, text2);
         expect(comp.lines.length).toBe(6);
-        expect(utils.visualizeWhitespace.mock.calls.length).toBe(6);
+        expect(visualize.visualizeWhitespace.mock.calls.length).toBe(6);
 
         const txt1 = text1.split('\n');
         const txt2 = text2.split('\n');
@@ -105,10 +105,10 @@ describe('diffCode in DiffViewer.vue', () => {
     });
 
     it('should work with trailing whitespace', () => {
-        utils.visualizeWhitespace.mockClear();
+        visualize.visualizeWhitespace.mockClear();
         comp.diffCode('', text3);
         expect(comp.lines.length).toBe(text3.split('\n').length);
-        expect(utils.visualizeWhitespace.mock.calls.length).toBe(text3.split('\n').length);
+        expect(visualize.visualizeWhitespace.mock.calls.length).toBe(text3.split('\n').length);
         comp.lines.forEach((line, i) => {
             expect(line.txt).toEqual(text3.split('\n')[i]);
             expect(line.cls).toEqual('added');
@@ -116,10 +116,10 @@ describe('diffCode in DiffViewer.vue', () => {
     });
 
     it('should work with only whitespace', () => {
-        utils.visualizeWhitespace.mockClear();
+        visualize.visualizeWhitespace.mockClear();
         comp.diffCode(text2, text4);
         expect(comp.lines.length).toBe(6);
-        expect(utils.visualizeWhitespace.mock.calls.length).toBe(6);
+        expect(visualize.visualizeWhitespace.mock.calls.length).toBe(6);
 
         const txt1 = text2.split('\n');
         const txt2 = text4.split('\n');

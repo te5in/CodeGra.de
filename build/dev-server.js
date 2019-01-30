@@ -64,6 +64,8 @@ app.use(hotMiddleware)
 // serve pure static assets
 var staticPath = path.posix.join(config.dev.assetsPublicPath, config.dev.assetsSubDirectory)
 app.use(staticPath, express.static('./static'))
+var mathjaxPath = path.posix.join(config.dev.assetsPublicPath, 'vendor', 'mathjax')
+app.use(mathjaxPath, express.static('./node_modules/mathjax'))
 
 var uri = 'http://localhost:' + port
 

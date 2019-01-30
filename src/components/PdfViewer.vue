@@ -26,9 +26,9 @@ export default {
     name: 'pdf-viewer',
 
     props: {
-        id: {
-            type: Number,
-            default: -1,
+        file: {
+            type: Object,
+            default: null,
         },
 
         isDiff: {
@@ -48,6 +48,12 @@ export default {
     watch: {
         id() {
             this.embedPdf();
+        },
+    },
+
+    computed: {
+        id() {
+            return this.file ? this.file.id : -1;
         },
     },
 
