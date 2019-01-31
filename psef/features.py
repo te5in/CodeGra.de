@@ -9,7 +9,7 @@ from functools import wraps
 
 import structlog
 
-import psef  # pylint: disable=cyclic-import,unused-import
+import psef
 
 from .exceptions import APICodes, APIException
 

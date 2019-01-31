@@ -40,7 +40,7 @@ if t.TYPE_CHECKING and getattr(
             self.config: FlaskConfig
             self.json_encoder = JSONEncoder
 else:
-    from flask import Flask, current_app
+    from flask import Flask, current_app  # type: ignore
 
 
 class PsefFlask(Flask):

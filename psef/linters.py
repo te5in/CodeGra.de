@@ -86,8 +86,9 @@ class Linter(abc.ABC):
         return None
 
     @abc.abstractmethod
-    def run(self, tempdir: str, emit: t.Callable[[str, int, str, str], None]
-            ) -> None:  # pragma: no cover
+    def run(
+        self, tempdir: str, emit: t.Callable[[str, int, str, str], None]
+    ) -> None:  # pragma: no cover
         """Run the linter on the code in `tempdir`.
 
         :param tempdir: The temp directory that should contain the code to
@@ -112,8 +113,9 @@ class Pylint(Linter):
         'Empty config file': ''
     }
 
-    def run(self, tempdir: str,
-            emit: t.Callable[[str, int, str, str], None]) -> None:
+    def run(
+        self, tempdir: str, emit: t.Callable[[str, int, str, str], None]
+    ) -> None:
         """Run the pylinter.
 
         Arguments are the same as for :py:meth:`Linter.run`.
@@ -166,8 +168,9 @@ class Flake8(Linter):
         'Empty config file': ''
     }
 
-    def run(self, tempdir: str,
-            emit: t.Callable[[str, int, str, str], None]) -> None:
+    def run(
+        self, tempdir: str, emit: t.Callable[[str, int, str, str], None]
+    ) -> None:
         # This is not guessable
         sep = uuid.uuid4()
         fmt = '%(path)s{0}%(row)d{0}%(code)s{0}%(text)s'.format(sep)
@@ -206,8 +209,9 @@ class MixedWhitespace(Linter):
     """
     RUN_LINTER: t.ClassVar[bool] = False
 
-    def run(self, tempdir: str, emit: t.Callable[[str, int, str, str], None]
-            ) -> None:  # pragma: no cover
+    def run(
+        self, tempdir: str, emit: t.Callable[[str, int, str, str], None]
+    ) -> None:  # pragma: no cover
         # This method should never be called as ``RUN_LINTER`` is set to
         # ``false..
         assert False
@@ -300,8 +304,9 @@ class Checkstyle(Linter):
                 )
             validate_func(sub_el)
 
-    def run(self, tempdir: str,
-            emit: t.Callable[[str, int, str, str], None]) -> None:
+    def run(
+        self, tempdir: str, emit: t.Callable[[str, int, str, str], None]
+    ) -> None:
         """Run checkstyle
 
         Arguments are the same as for :py:meth:`Linter.run`.
@@ -403,8 +408,9 @@ class PMD(Linter):
                     )
                 )
 
-    def run(self, tempdir: str,
-            emit: t.Callable[[str, int, str, str], None]) -> None:
+    def run(
+        self, tempdir: str, emit: t.Callable[[str, int, str, str], None]
+    ) -> None:
         """Run PMD.
 
         Arguments are the same as for :py:meth:`Linter.run`.

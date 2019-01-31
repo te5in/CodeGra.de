@@ -18,8 +18,7 @@ from ..exceptions import APICodes, APIException
 from ..permissions import CoursePermission
 
 if t.TYPE_CHECKING:  # pragma: no cover
-    # pylint: disable=unused-import,cyclic-import
-    from . import work as work_models
+    from . import work as work_models  # pylint: disable=unused-import
 
 
 @enum.unique

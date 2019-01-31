@@ -23,12 +23,12 @@ from .link_tables import user_course, course_permissions
 from ..permissions import CoursePermission, GlobalPermission
 
 if t.TYPE_CHECKING and not getattr(t, 'SPHINX', False):  # pragma: no cover
-    # pylint: disable=unused-import,invalid-name,cyclic-import
+    # pylint: disable=unused-import,invalid-name
     from . import group as group_models
     from .assignment import AssignmentResult, AssignmentAssignedGrader
     hybrid_property = property
 else:
-    from sqlalchemy.ext.hybrid import hybrid_property
+    from sqlalchemy.ext.hybrid import hybrid_property  # type: ignore
 
 logger = structlog.get_logger()
 

@@ -26,7 +26,7 @@ from . import features, validate
 from .. import errors, models
 
 if t.TYPE_CHECKING and not getattr(t, 'SPHINX', False):  # pragma: no cover
-    import psef.archive  # pylint: disable=cyclic-import
+    import psef.archive
     from ..models import Base  # pylint: disable=unused-import
     import werkzeug  # pylint: disable=unused-import
 
@@ -407,8 +407,9 @@ def coerce_json_value_to_typeddict(
     """
     mapping = ensure_json_dict(obj)
     annots = list(typeddict.__annotations__.items())
-    assert all(isinstance(t, type) for _, t in annots
-               ), "This function only supports checking for basic types"
+    assert all(
+        isinstance(t, type) for _, t in annots
+    ), "This function only supports checking for basic types"
     ensure_keys_in_dict(mapping, annots)
     return t.cast(T_TypedDict, mapping)
 

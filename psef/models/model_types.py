@@ -47,13 +47,15 @@ class MySession:  # pragma: no cover
         ...
 
     @t.overload  # NOQA
-    def query(self, __x: t.Type[T],
-              __y: 'DbColumn[Z]') -> '_MyQuery[t.Tuple[T, Z]]':
+    def query(
+        self, __x: t.Type[T], __y: 'DbColumn[Z]'
+    ) -> '_MyQuery[t.Tuple[T, Z]]':
         ...
 
     @t.overload  # NOQA
-    def query(self, __x: t.Type[T],
-              __y: t.Type[Z]) -> '_MyQuery[t.Tuple[T, Z]]':
+    def query(
+        self, __x: t.Type[T], __y: t.Type[Z]
+    ) -> '_MyQuery[t.Tuple[T, Z]]':
         ...
 
     @t.overload  # NOQA
@@ -131,8 +133,9 @@ class MyDb:  # pragma: no cover
         ...
 
     @t.overload
-    def Column(self, name: str, type_: DbType[T], *args: t.Any,
-               **rest: t.Any) -> T:
+    def Column(
+        self, name: str, type_: DbType[T], *args: t.Any, **rest: t.Any
+    ) -> T:
         ...
 
     @t.overload  # NOQA
@@ -156,8 +159,9 @@ class MyDb:  # pragma: no cover
         ...
 
     @t.overload  # NOQA
-    def relationship(self, name: t.Type[T], *args: t.Any,
-                     **kwargs: t.Any) -> T:
+    def relationship(
+        self, name: t.Type[T], *args: t.Any, **kwargs: t.Any
+    ) -> T:
         ...
 
     def relationship(self, *args: t.Any, **kwargs: t.Any) -> t.Any:  # NOQA

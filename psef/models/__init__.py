@@ -178,18 +178,17 @@ UUID_LENGTH = 36
 
 if t.TYPE_CHECKING and getattr(
     t, 'SPHINX', False
-) is not True:  # pragma: no cover:
+) is not True:  # pragma: no cover
     from .model_types import Base, Comparator
 else:
-    from sqlalchemy.ext.hybrid import hybrid_property, Comparator
-    Base = db.Model  # pylint: disable=invalid-name
+    from sqlalchemy.ext.hybrid import hybrid_property, Comparator  # type: ignore
+    Base = db.Model  # type: ignore # pylint: disable=invalid-name
 
 # Sphinx has problems with resolving types when this decorator is used, we
 # simply remove it in the case of Sphinx.
-if getattr(t, 'SPHINX', False) is True:  # pragma: no cover:
+if getattr(t, 'SPHINX', False) is True:  # pragma: no cover
     # pylint: disable=invalid-name
     cache_within_request = lambda x: x  # type: ignore
-    # pylint: enable=invalid-name
 
 if True:  # pylint: disable=using-constant-test
     from .course import Course

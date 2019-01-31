@@ -84,8 +84,9 @@ class UnsafeArchive(ArchiveException):
     extracted outside of the target directory.
     """
 
-    def __init__(self, msg: str,
-                 member: t.Optional[ArchiveMemberInfo] = None) -> None:
+    def __init__(
+        self, msg: str, member: t.Optional[ArchiveMemberInfo] = None
+    ) -> None:
         super().__init__(msg)
         self.member = member
 
@@ -350,8 +351,9 @@ class _BaseArchive(abc.ABC, t.Generic[TT]):
         self.filename = filename
 
     @abc.abstractmethod
-    def extract_member(self, member: ArchiveMemberInfo[TT],
-                       to_path: str) -> None:
+    def extract_member(
+        self, member: ArchiveMemberInfo[TT], to_path: str
+    ) -> None:
         """Extract the given filename to the given path.
 
         :param to_path: The base path to which the member should be

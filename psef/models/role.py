@@ -15,7 +15,7 @@ from .link_tables import roles_permissions, course_permissions
 from ..permissions import BasePermission, CoursePermission, GlobalPermission
 
 if t.TYPE_CHECKING:  # pragma: no cover
-    # pylint: disable=unused-import,cyclic-import
+    # pylint: disable=unused-import
     from . import course as course_models
 
 _T = t.TypeVar('_T', bound=BasePermission)  # pylint: disable=invalid-name

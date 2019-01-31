@@ -358,8 +358,9 @@ class PlagiarismProvider(metaclass=abc.ABCMeta):
             self._set_provider_values(complete_values)
 
     @abc.abstractmethod
-    def _set_provider_values(self,
-                             values: t.Dict[str, helpers.JSONType]) -> None:
+    def _set_provider_values(
+        self, values: t.Dict[str, helpers.JSONType]
+    ) -> None:
         """Set the provided values as options.
 
         When this function is called you can assume that the provided values

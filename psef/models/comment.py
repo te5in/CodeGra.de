@@ -12,7 +12,7 @@ from .file import File
 from ..permissions import CoursePermission
 
 if t.TYPE_CHECKING:  # pragma: no cover
-    # pylint: disable=unused-import,cyclic-import
+    # pylint: disable=unused-import
     from . import user as user_models
 
 

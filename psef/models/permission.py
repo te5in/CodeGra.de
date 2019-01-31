@@ -20,7 +20,7 @@ else:
 if t.TYPE_CHECKING and not getattr(t, 'SPHINX', False):  # pragma: no cover
     hybrid_property = property  # pylint: disable=invalid-name
 else:
-    from sqlalchemy.ext.hybrid import hybrid_property
+    from sqlalchemy.ext.hybrid import hybrid_property  # type: ignore
 
 
 class Permission(Base, t.Generic[_T]):  # pylint: disable=unsubscriptable-object

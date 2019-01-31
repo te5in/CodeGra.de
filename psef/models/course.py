@@ -10,10 +10,10 @@ import psef
 
 from . import UUID_LENGTH, Base, DbColumn, db, _MyQuery
 from .role import CourseRole
-from .user import User  # pylint: disable=cyclic-import
-from .work import Work  # pylint: disable=cyclic-import
-from .assignment import Assignment  # pylint: disable=cyclic-import
-from .link_tables import user_course  # pylint: disable=cyclic-import
+from .user import User
+from .work import Work
+from .assignment import Assignment
+from .link_tables import user_course
 from ..permissions import CoursePermission
 
 if t.TYPE_CHECKING:

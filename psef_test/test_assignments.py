@@ -1738,8 +1738,13 @@ def test_get_all_graders(
         http_err(error=403)('admin'),
         http_err(error=401)('NOT_LOGGED_IN'),
         'Devin Hillenius',
-        pytest.mark.no_grade(
-            pytest.mark.no_others(pytest.mark.no_hidden('Student1'))
+        pytest.param(
+            'Student1',
+            marks=[
+                pytest.mark.no_grade,
+                pytest.mark.no_others,
+                pytest.mark.no_hidden,
+            ]
         ),
     ],
     indirect=True
@@ -2977,8 +2982,9 @@ def test_grader_done(
         if graders[-1]['id'] == named_user.id:
             graders[-1], graders[0] = graders[0], graders[-1]
 
-    assert all(not g['done'] for g in graders
-               ), 'Make sure all graders are not done by default'
+    assert all(
+        not g['done'] for g in graders
+    ), 'Make sure all graders are not done by default'
     if toggle_self:
         grader_done = named_user.id
     else:
@@ -3002,11 +3008,13 @@ def test_grader_done(
 
     graders = get_graders()
     if err:
-        assert all(not g['done'] for g in graders
-                   ), 'Make sure all graders are still not done'
+        assert all(
+            not g['done'] for g in graders
+        ), 'Make sure all graders are still not done'
     else:
-        assert all(g['done'] == (g['id'] == grader_done)
-                   for g in graders), 'Make sure only changed grader is done'
+        assert all(
+            g['done'] == (g['id'] == grader_done) for g in graders
+        ), 'Make sure only changed grader is done'
         with logged_in(named_user):
             # Make sure you cannot reset this grader to done
             test_client.req(
@@ -3044,8 +3052,9 @@ def test_grader_done(
         assert_remind_email(False)
 
     graders = get_graders()
-    assert all(not g['done']
-               for g in graders), 'Make sure all graders are again not done'
+    assert all(
+        not g['done'] for g in graders
+    ), 'Make sure all graders are again not done'
 
     with logged_in(teacher_user):
         test_client.req(
@@ -3307,11 +3316,14 @@ def test_reminder_email(
         test_mail(assigned_graders)
         test_done_email()
 
-        assert task.args == [((assig_id, ), )
-                             ], 'The correct task should be scheduled.'
-        assert task.kwargs == [{
-            'eta': time
-        }], 'The time should be preserved directly.'
+        assert task.args == [
+            ((assig_id, ), )
+        ], 'The correct task should be scheduled.'
+        assert task.kwargs == [
+            {
+                'eta': time
+            }
+        ], 'The time should be preserved directly.'
         task_id = task.rets[-1].id
 
         revoker.reset()
@@ -3334,8 +3346,9 @@ def test_reminder_email(
             'Nothing should be scheduled as the type '
             'was none'
         )
-        assert revoker.args == [(task_id, )
-                                ], 'Assert the correct task was revoked'
+        assert revoker.args == [
+            (task_id, )
+        ], 'Assert the correct task was revoked'
         test_mail([])
         test_done_email()
         revoker.reset()

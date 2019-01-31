@@ -12,14 +12,14 @@ from sqlalchemy.sql.expression import func as sql_func
 
 from . import Base, DbColumn, db
 from . import user as user_models
-from . import work as work_models  # pylint: disable=cyclic-import
+from . import work as work_models
 from . import _MyQuery
 from . import assignment as assignment_models
 from ..exceptions import APICodes, APIException
 from .link_tables import users_groups
 
 if t.TYPE_CHECKING:  # pragma: no cover
-    # pylint: disable=invalid-name,unused-import,cyclic-import
+    # pylint: disable=invalid-name,unused-import
     from . import course as course_models
     from . import assignment as assignment_models
     cached_property = property

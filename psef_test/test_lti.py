@@ -767,7 +767,9 @@ def test_reset_lti_email(test_client, app, logged_in, ta_user, session):
     assert out['email'] == 'new@example.com'
     assert out['id'] == old_id
 
-    assert not m.User.query.get(out['id']).reset_email_on_lti, """
+    assert not m.User.query.get(
+        out['id']
+    ).reset_email_on_lti, """
     This field should be reset
     """
 

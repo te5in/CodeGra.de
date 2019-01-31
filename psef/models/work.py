@@ -25,7 +25,7 @@ from .link_tables import work_rubric_item
 from ..permissions import CoursePermission
 
 if t.TYPE_CHECKING:  # pragma: no cover
-    # pylint: disable=unused-import,cyclic-import
+    # pylint: disable=unused-import
     from . import user as user_models
     from . import assignment as assignment_models
 

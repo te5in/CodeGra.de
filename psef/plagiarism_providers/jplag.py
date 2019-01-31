@@ -93,8 +93,9 @@ class JPlag(plag.PlagiarismProvider):
             ),
         ]
 
-    def _set_provider_values(self, values: t.Dict[str, psef.helpers.JSONType]
-                             ) -> None:
+    def _set_provider_values(
+        self, values: t.Dict[str, psef.helpers.JSONType]
+    ) -> None:
         """Set the options for JPlag.
 
         :param values: The values to be set.

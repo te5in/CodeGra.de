@@ -453,8 +453,9 @@ def ensure_can_edit_members_of_group(
 
 
 @login_required
-def ensure_any_of_permissions(permissions: t.List[CPerm],
-                              course_id: int) -> None:
+def ensure_any_of_permissions(
+    permissions: t.List[CPerm], course_id: int
+) -> None:
     """Make sure that the current user has at least one of the given
         permissions.
 

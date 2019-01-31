@@ -32,7 +32,7 @@ from .link_tables import user_course, work_rubric_item, course_permissions
 from ..permissions import CoursePermission as CPerm
 
 if t.TYPE_CHECKING:  # pragma: no cover
-    # pylint: disable=unused-import,cyclic-import
+    # pylint: disable=unused-import
     from . import group as group_models
     from . import course as course_models
     cached_property = property  # pylint: disable=invalid-name

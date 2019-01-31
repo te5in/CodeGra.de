@@ -55,7 +55,6 @@ class APICodes(IntEnum):
 class InvalidAssignmentState(TypeError):
     """Exception used to signal the assignment state is invalid.
     """
-    pass
 
 
 class APIException(Exception):
@@ -95,7 +94,6 @@ class APIException(Exception):
 class PermissionException(APIException):
     """The exception used when a permission check fails.
     """
-    pass
 
 
 class ValidationException(APIException):
