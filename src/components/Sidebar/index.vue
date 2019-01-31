@@ -30,8 +30,8 @@
                    class="sidebar-top-item"
                    :class="{ selected: currentEntry && entry.name === currentEntry.name }">
                     <icon :name="entry.icon"
-                        :scale="mobileVisible ? 1.5 : 3"
-                        :label="maybeCall(entry.title || entry.header)"/>
+                          :scale="mobileVisible ? 1.5 : 3"
+                          :label="maybeCall(entry.title || entry.header)"/>
                     <small class="name">
                         {{ maybeCall(entry.title || entry.header) }}
                     </small>
@@ -132,7 +132,7 @@ import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/arrow-left';
 import 'vue-awesome/icons/book';
 import 'vue-awesome/icons/edit';
-import 'vue-awesome/icons/graduation-cap';
+import 'vue-awesome/icons/user-circle-o';
 import 'vue-awesome/icons/power-off';
 import 'vue-awesome/icons/rocket';
 import 'vue-awesome/icons/question';
@@ -202,7 +202,7 @@ export default {
                 },
                 {
                     name: 'user',
-                    icon: 'graduation-cap',
+                    icon: 'user-circle-o',
                     title: () => this.name,
                     header: 'User',
                     width: '600px',
@@ -662,6 +662,7 @@ export default {
             @media @media-no-small {
                 display: block;
                 margin: 0 auto;
+                margin-bottom: 5px;
             }
 
             @media @media-small {
