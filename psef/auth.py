@@ -71,14 +71,15 @@ def _load_user(user_id: int) -> t.Optional['psef.models.User']:
     return psef.models.User.query.get(int(user_id))
 
 
-def _user_active() -> bool:
-    """Check if there is a current user who is authenticated and active.
+def _user_active(user: t.Optional['psef.models.User']) -> bool:
+    """Check if the given user is active.
 
-    :returns: True if there is an active logged in user
+    :returns: True if the given user is not ``None`` and active.
     """
-    # pylint: disable=protected-access
-    user = psef.current_user._get_current_object()  # type: ignore
-    return user is not None and user.is_active
+    try:
+        return user is not None and user.is_active
+    except AttributeError:
+        return False
 
 
 def login_required(fun: T) -> T:
@@ -102,15 +103,18 @@ def ensure_logged_in() -> None:
 
     :raises PermissionException: If there is no logged in user. (NOT_LOGGED_IN)
     """
-    if not _user_active():
+    if not _user_active(psef.current_user):
         _raise_login_exception()
 
 
 @login_required
-def ensure_enrolled(course_id: int) -> None:
-    """Ensure that the current user is enrolled in the given course.
+def ensure_enrolled(
+    course_id: int, user: t.Optional['psef.models.User'] = None
+) -> None:
+    """Ensure that the given user is enrolled in the given course.
 
     :param course_id: The id of the course to check for.
+    :param user: The user to check for. This defaults to the current user.
 
     :returns: Nothing.
 
@@ -118,12 +122,17 @@ def ensure_enrolled(course_id: int) -> None:
     :raises PermissionException: If the user is not enrolled.
         (INCORRECT_PERMISSION)
     """
-    if course_id not in psef.current_user.courses:
+    if user is None:
+        label = 'You are'
+        user = psef.current_user
+    else:
+        label = f'The user "{user.name}" is'
+
+    if user.virtual or course_id not in user.courses:
         raise PermissionException(
-            'You are not enrolled in this course.',
-            'The user "{}" is not enrolled in course "{}"'.format(
-                psef.current_user.id, course_id
-            ), APICodes.INCORRECT_PERMISSION, 403
+            f'{label} not enrolled in this course.',
+            f'The user "{user.id}" is not enrolled in course "{course_id}"',
+            APICodes.INCORRECT_PERMISSION, 403
         )
 
 
@@ -218,7 +227,7 @@ def ensure_can_see_grade(work: 'psef.models.Work') -> None:
     :raises PermissionException: If the user can not see the grade.
         (INCORRECT_PERMISSION)
     """
-    if work.user_id != psef.current_user.id:
+    if not work.has_as_author(psef.current_user):
         ensure_permission(CPerm.can_see_others_work, work.assignment.course_id)
 
     if not work.assignment.is_done:
@@ -310,7 +319,7 @@ def ensure_can_see_plagiarims_case(
     if assignments:
         ensure_can_see_assignment(other_assignment)
 
-    if submissions and other_work.user_id != psef.current_user.id:
+    if submissions and not other_work.has_as_author(psef.current_user):
         ensure_permission(CPerm.can_see_others_work, other_course_id)
 
 
@@ -342,7 +351,7 @@ def ensure_can_view_files(
         files.
     """
     try:
-        if work.user_id != psef.current_user.id:
+        if not work.has_as_author(psef.current_user):
             try:
                 ensure_permission(
                     CPerm.can_see_others_work, work.assignment.course_id
@@ -387,18 +396,119 @@ def ensure_can_view_files(
         raise
 
 
+@login_required
+def ensure_can_view_group(group: 'psef.models.Group') -> None:
+    """Make sure that the current user can view the given group.
+
+    :param group: The group to check for.
+    :returns: Nothing.
+    :raises PermissionException: If the current user cannot view the given
+        group.
+    """
+    if group.members and psef.current_user.id not in (
+        m.id for m in group.members
+    ):
+        ensure_permission(
+            CPerm.can_view_others_groups,
+            group.group_set.course_id,
+        )
+
+
+@login_required
+def ensure_can_edit_members_of_group(
+    group: 'psef.models.Group', members: t.List['psef.models.User']
+) -> None:
+    """Make sure that the current user can edit the given group.
+
+    :param group: The group to check for.
+    :param members: The members you want to add to the group.
+    :returns: Nothing.
+    :raises PermissionException: If the current user cannot edit the given
+        group.
+    """
+    perms = []
+    if all(member.id == psef.current_user.id for member in members):
+        perms.append(CPerm.can_edit_own_groups)
+    perms.append(CPerm.can_edit_others_groups)
+    ensure_any_of_permissions(
+        perms,
+        group.group_set.course_id,
+    )
+
+    for member in members:
+        ensure_enrolled(group.group_set.course_id, member)
+
+    if group.has_a_submission:
+        ensure_permission(
+            CPerm.can_edit_groups_after_submission,
+            group.group_set.course_id,
+            extra_message=(
+                # The leading space is needed as the message of the default
+                # exception ends with a .
+                " This is because you don't have the permission to"
+                " change the users of a group after the group handed in a"
+                " submission."
+            )
+        )
+
+
+@login_required
+def ensure_any_of_permissions(permissions: t.List[CPerm],
+                              course_id: int) -> None:
+    """Make sure that the current user has at least one of the given
+        permissions.
+
+    :param permissions: The permissions to check for.
+    :param course_id: The course id of the course that should be used to check
+        for the given permissions.
+    :returns: Nothing.
+    :raises PermissionException: If the current user has none of the given
+        permissions. This will always happen if the list of given permissions
+        is empty.
+    """
+    for perm in permissions:
+        try:
+            ensure_permission(perm, course_id)
+        except PermissionException:
+            continue
+        else:
+            return
+    # All checks raised a PermissionException
+    raise PermissionException(
+        'You do not have permission to do this.',
+        'None of the permissions "{}" are not enabled for user "{}"'.format(
+            ', '.join(p.name for p in permissions), psef.current_user.id
+        ), APICodes.INCORRECT_PERMISSION, 403
+    )
+
+
 @t.overload
-def ensure_permission(permission: CPerm, course_id: int) -> None:  # pylint: disable=function-redefined,missing-docstring,unused-argument
+# pylint: disable=function-redefined,missing-docstring,unused-argument
+def ensure_permission(
+    permission: CPerm,
+    course_id: int,
+    *,
+    user: t.Optional['psef.models.User'] = None,
+    extra_message: str = '',
+) -> None:
     ...  # pylint: disable=pointless-statement
 
 
 @t.overload
-def ensure_permission(permission: GPerm) -> None:  # pylint: disable=function-redefined,missing-docstring,unused-argument
+# pylint: disable=function-redefined,missing-docstring,unused-argument
+def ensure_permission(
+    permission: GPerm,
+    *,
+    user: t.Optional['psef.models.User'] = None,
+    extra_message: str = ''
+) -> None:
     ...  # pylint: disable=pointless-statement
 
 
 def ensure_permission(  # pylint: disable=function-redefined
     permission: t.Union[CPerm, GPerm], course_id: t.Optional[int] = None
+        , *, user: t.Optional['psef.models.User'] = None,
+        extra_message: str = '',
 ) -> None:
     """Ensure that the current user is logged and has the given permission.
 
@@ -408,6 +518,11 @@ def ensure_permission(  # pylint: disable=function-redefined
         course_id is supplied but the given permission is not a course
         permission (but a role permission) this function will **NEVER** grant
         the permission.
+    :param user: The user to check for, defaults to current user when not
+        provided.
+    :param extra_message: Text that should be appended to the message provided
+        in the raised :class:`.PermissionException` when the permission check
+        fails.
 
     :returns: Nothing
 
@@ -415,25 +530,38 @@ def ensure_permission(  # pylint: disable=function-redefined
     :raises PermissionException: If the permission is not enabled for the
                                  current user. (INCORRECT_PERMISSION)
     """
-    if _user_active():
-        if isinstance(
-            permission, CPerm
-        ) and course_id is not None and psef.current_user.has_permission(
-            permission, course_id=course_id
-        ):
+    user = psef.current_user if user is None else user
+
+    if _user_active(user):
+        if isinstance(permission,
+                      CPerm) and course_id is not None and user.has_permission(
+                          permission, course_id=course_id
+                      ):
             return
         elif isinstance(
             permission, GPerm
-        ) and course_id is None and psef.current_user.has_permission(
-            permission
-        ):
+        ) and course_id is None and user.has_permission(permission):
             return
         else:
+            you_do = (
+                'You do'
+                if user.id == psef.current_user.id else f'{user.name} does'
+            )
+            msg = (
+                '{you_do} not have the permission'
+                ' to do this.{extra_msg}'
+            ).format(
+                you_do=you_do,
+                extra_msg=extra_message,
+            )
             raise PermissionException(
-                'You do not have permission to do this.',
+                msg,
                 'The permission "{}" is not enabled for user "{}"'.format(
-                    permission.name, psef.current_user.id
-                ), APICodes.INCORRECT_PERMISSION, 403
+                    permission.name,
+                    user.id,
+                ),
+                APICodes.INCORRECT_PERMISSION,
+                403,
             )
     else:
         _raise_login_exception(

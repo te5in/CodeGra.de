@@ -45,12 +45,13 @@
              @mouseleave.native="rowHovered(null)"
              class="overview-table">
         <template slot="user1" slot-scope="row">
-            {{ row.item.users[0].name }}
+            <user :user="row.item.users[0]"/>
         </template>
 
         <template slot="user2" slot-scope="row">
             <span>
-                {{ row.item.users[1].name }} <sup v-b-popover.hover.top="getOtherAssignmentPlagiarismDesc(row.item, 1)"
+                <user :user="row.item.users[1]"/>
+                <sup v-b-popover.hover.top="getOtherAssignmentPlagiarismDesc(row.item, 1)"
                                                   class="description"
                                                   v-if="row.item.assignments[1].id != run.assignment.id"
                                                   >*</sup>
@@ -78,9 +79,9 @@
 <script>
 import { mapActions, mapGetters } from 'vuex';
 
-import { Loader, LocalHeader, DescriptionPopover } from '@/components';
+import { Loader, LocalHeader, DescriptionPopover, User } from '@/components';
 
-import { getOtherAssignmentPlagiarismDesc } from '@/utils';
+import { getOtherAssignmentPlagiarismDesc, nameOfUser } from '@/utils';
 
 export default {
     name: 'plagiarism-overview',
@@ -149,7 +150,9 @@ export default {
             const filter = new RegExp(this.filter, 'i');
 
             return this.run.cases.filter(
-                entry => entry.users[0].name.match(filter) || entry.users[1].name.match(filter),
+                entry =>
+                    nameOfUser(entry.users[0]).match(filter) ||
+                    nameOfUser(entry.users[1]).match(filter),
             );
         },
     },
@@ -215,9 +218,13 @@ export default {
         sortCompareTable(a, b, key) {
             if (key === 'user1' || key === 'user2') {
                 const index = key === 'user1' ? 0 : 1;
-                return a.users[index].name.localeCompare(b.users[index].name, undefined, {
-                    numeric: true,
-                });
+                return nameOfUser(a.users[index]).localeCompare(
+                    nameOfUser(b.users[index]),
+                    undefined,
+                    {
+                        numeric: true,
+                    },
+                );
             }
             if (typeof a[key] === 'number' && typeof b[key] === 'number') {
                 // If both compared fields are native numbers
@@ -252,6 +259,7 @@ export default {
         LocalHeader,
         Loader,
         DescriptionPopover,
+        User,
     },
 };
 </script>

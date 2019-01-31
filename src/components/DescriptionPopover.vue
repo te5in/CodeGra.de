@@ -7,6 +7,7 @@
                :triggers="triggers"
                :show="show"
                :target="compId"
+               :boundary="boundary"
                :title="title">
         <span class="description-popover-content">
             <slot name="description">{{ description }}</slot>
@@ -68,6 +69,10 @@ export default {
         icon: {
             type: String,
             default: 'info',
+        },
+
+        boundary: {
+            default: undefined,
         },
     },
 

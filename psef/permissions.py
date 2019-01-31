@@ -163,6 +163,12 @@ class CoursePermission(BasePermission):
     :ivar can_view_plagiarism: Users with this permission can view the summary of a plagiarism check and see details of a plagiarism case. To view a plagiarism case between this and another course, the user must also have either this permission, or both "See assignments" and "See other's work" in the other course.
     :ivar can_manage_plagiarism: Users with this permission can add and delete plagiarism runs.
     :ivar can_list_course_users: Users with this permission can see all users of this course including the name of their role.
+    :ivar can_edit_own_groups: Users with this permission can edit groups they are in. This means they can join groups, add users to groups they are in and change the name of groups they are in. They cannot remove users from groups they are in, except for themselves.
+    :ivar can_edit_others_groups: Users with this permission can edit groups they are not in, they can add users, remove users and rename all groups. Users with this permission can also edit groups they are in.
+    :ivar can_edit_groups_after_submission: Users with this permission can edit groups which handed in a submission. Users with this permission cannot automatically edit groups, they also need either "Edit own groups" or "Edit others groups".
+    :ivar can_view_others_groups: Users with this permission can view groups they are not in, and the members of these groups.
+    :ivar can_edit_group_assignment: Users with this permission can change an assignment into a group assignment, and change the minimum and maximum required group size.
+    :ivar can_edit_group_set: Users with this permissions can create, delete and edit group sets.
     """
 
     @staticmethod
@@ -197,5 +203,11 @@ class CoursePermission(BasePermission):
     can_view_plagiarism = _PermissionValue(item=25, default_value=False)
     can_manage_plagiarism = _PermissionValue(item=26, default_value=False)
     can_list_course_users = _PermissionValue(item=27, default_value=True)
+    can_edit_own_groups = _PermissionValue(item=28, default_value=True)
+    can_edit_others_groups = _PermissionValue(item=29, default_value=False)
+    can_edit_groups_after_submission = _PermissionValue(item=30, default_value=False)
+    can_view_others_groups = _PermissionValue(item=31, default_value=True)
+    can_edit_group_assignment = _PermissionValue(item=32, default_value=False)
+    can_edit_group_set = _PermissionValue(item=33, default_value=False)
 
 # yapf: enable

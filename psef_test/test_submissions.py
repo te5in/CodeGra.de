@@ -1887,7 +1887,7 @@ def test_uploading_unsafe_archive(
         test_client.req(
             'patch',
             f'/api/v1/assignments/{assignment.id}',
-            204,
+            200,
             data={
                 'ignore': 'a\n',
             }
@@ -1921,7 +1921,7 @@ def test_uploading_invalid_file(
             test_client.req(
                 'patch',
                 f'/api/v1/assignments/{assignment.id}',
-                204,
+                200,
                 data={
                     'ignore': 'a\n',
                 }
@@ -1945,14 +1945,6 @@ def test_uploading_invalid_file(
 
 
 @pytest.mark.parametrize(
-    'named_user', [
-        'Robin',
-        http_error(error=403)('Student2'),
-        http_error(error=403)('Thomas Schaper'),
-    ],
-    indirect=True
-)
-@pytest.mark.parametrize(
     'max_grade', [
         10,
         4,
@@ -1960,6 +1952,14 @@ def test_uploading_invalid_file(
         http_error(error=400)('Hello'),
         http_error(error=400)(-2),
     ]
+)
+@pytest.mark.parametrize(
+    'named_user', [
+        'Robin',
+        http_error(error=403)('Student2'),
+        http_error(error=403)('Thomas Schaper'),
+    ],
+    indirect=True
 )
 @pytest.mark.parametrize('filename', ['test_flake8.tar.gz'], indirect=True)
 def test_maximum_grade(
@@ -1969,8 +1969,8 @@ def test_maximum_grade(
     assignment, work = assignment_real_works
     work_id = work['id']
 
-    marker = request.node.get_marker('http_error')
-    code = 204 if marker is None else marker.kwargs['error']
+    marker = request.node.get_closest_marker('http_error')
+    code = 200 if marker is None else marker.kwargs['error']
 
     data = {'grade': 11}
 
@@ -2041,7 +2041,7 @@ def test_maximum_grade(
         test_client.req(
             'patch',
             f'/api/v1/assignments/{assignment.id}',
-            204,
+            200,
             data={'max_grade': None},
         )
         assert test_client.req(

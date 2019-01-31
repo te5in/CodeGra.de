@@ -76,7 +76,7 @@
                                placement="bottom">
                         <template slot="title">
                             <span v-if="submission && submission.comment_author">
-                                General feedback by {{ submission.comment_author.name }}
+                                General feedback by <user :user="submission.comment_author"/>
                             </span>
                             <span v-else>
                                 General feedback
@@ -228,6 +228,7 @@ import {
     SubmitButton,
     Toggle,
     OverviewMode,
+    User,
     IpythonViewer,
     MarkdownViewer,
 } from '@/components';
@@ -789,6 +790,7 @@ export default {
         Toggle,
         Icon,
         OverviewMode,
+        User,
         IpythonViewer,
         MarkdownViewer,
     },

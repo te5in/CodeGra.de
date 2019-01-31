@@ -2,7 +2,7 @@
 <template>
 <div class="submission-uploader">
     <b-modal id="wrong-files-modal"
-             v-if="showModal"
+             v-if="showWrongFileModal"
              hide-footer
              title="Probably superfluous files found!">
         <p>
@@ -29,6 +29,64 @@
                            @click="overrideSubmit('keep', $refs.submitKeep)"/>
             <submit-button label="Cancel submission"
                            @click="$root.$emit('bv::hide::modal', 'wrong-files-modal');"/>
+        </b-button-toolbar>
+    </b-modal>
+
+    <b-modal id="group-manage-modal"
+             v-if="showGroupModal"
+             hide-footer
+             title="Group">
+        <div class="group-modal-wrapper">
+            <p class="header">
+                This assignment is a group assignment. Each group should have at
+                least {{ assignment.group_set.minimum_size }} members.
+
+                <span v-if="currentGroup">
+                    <span v-if="differentAuthor">{{ currentAuthor.name }} is</span>
+                    <span v-else>You are</span>
+                    currently member of a group with
+                    {{ currentGroup.members.length }} members.
+                </span>
+                <span v-else>
+                    <span v-if="differentAuthor">{{ currentAuthor.name }} is</span>
+                    <span v-else>You are</span>
+                    currently not member of any group.
+                </span>
+            </p>
+            <p v-if="assignment.is_lti">
+                This assignment is coupled to an assignment in your LMS (like
+                Canvas). This means that every user has to open the assignment
+                at least once through this LMS. Every user below <b>without</b>
+                a check-mark next to their name should try to (re)open the
+                assignment. If this issue persists, please contact CodeGrade
+                support. You cannot submit while there are still members without
+                a check-mark next to their name.
+            </p>
+
+            <div class="group-modal-body">
+                <groups-management :assignment="assignment"
+                                   :course="assignment.course"
+                                   :group-set="assignment.group_set"
+                                   :filter="currentGroup ? ((group) => currentGroup.id == group.id) : (() => true)"
+                                   :show-lti-progress="currentGroup && assignment.is_lti ?
+                                                       ((group) => currentGroup.id === group.id) :
+                                                       (() => false)"
+                                   @groups-changed="groupsChanged"
+                                   :show-add-button="!currentGroup"
+                                   />
+            </div>
+        </div>
+
+        <b-button-toolbar justify>
+            <submit-button label="Cancel submission"
+                           default="danger"
+                           @click="$root.$emit('bv::hide::modal', 'group-manage-modal');"
+                           />
+            <submit-button label="Try again"
+                           @click="trySubmitAgain($refs.tryAgainButton)"
+                           ref="tryAgainButton"
+                           :disabled="groupSubmitPossible"
+                           />
         </b-button-toolbar>
     </b-modal>
 
@@ -70,6 +128,8 @@ import Loader from './Loader';
 import FileUploader from './FileUploader';
 import SubmitButton from './SubmitButton';
 import UserSelector from './UserSelector';
+import GroupManagement from './GroupManagement';
+import GroupsManagement from './GroupsManagement';
 
 let i = 0;
 
@@ -113,13 +173,29 @@ export default {
             return { name: this.myName, username: this.myUsername };
         },
 
+        groupSubmitPossible() {
+            return (
+                !this.currentGroup ||
+                this.currentGroup.members.length < this.assignment.group_set.minimum_size
+            );
+        },
+
         warnForSelf() {
             return this.forOthers;
+        },
+
+        differentAuthor() {
+            return !!(this.forOthers && this.author);
+        },
+
+        currentAuthor() {
+            return this.differentAuthor ? this.author : this.defaultAuthor;
         },
     },
 
     data() {
         return {
+            emptySet: new Set(),
             wrongFiles: [],
             author: null,
             showWarn: false,
@@ -130,11 +206,13 @@ export default {
             // hidden. I most cases the modal on this page is never shown (it is
             // only shown when a user tries to hand in files that match the
             // ignore filters), so by default we don't render it (there is a
-            // `v-if="showModal"`) at all. When the modal is needed we set this
-            // variable to `true`. We never reset this value back to `false` as
-            // doing so f*cks the entire animation.
-            showModal: false,
+            // `v-if="showWrongFileModal"`) at all. When the modal is needed we
+            // set this variable to `true`. We never reset this value back to
+            // `false` as doing so f*cks the entire animation.
+            showWrongFileModal: false,
+            showGroupModal: false,
             uploaderId: `submission-uploader-${i++}`,
+            currentGroup: null,
         };
     },
 
@@ -147,19 +225,49 @@ export default {
     methods: {
         ...mapActions('courses', ['addSubmission']),
 
+        groupsChanged(newGroups) {
+            for (let index = 0; index < newGroups.length; ++index) {
+                const group = newGroups[index];
+                const needle = this.currentAuthor.username;
+                if (group.members.some(user => user.username === needle)) {
+                    this.currentGroup = group;
+                    return;
+                }
+            }
+            this.currentGroup = null;
+        },
+
+        isGroupError(err) {
+            const { code } = err.data;
+            return (
+                code === 'INSUFFICIENT_GROUP_SIZE' || code === 'ASSIGNMENT_RESULT_GROUP_NOT_READY'
+            );
+        },
+
         async uploadError(err) {
-            if (err.data.code !== 'INVALID_FILE_IN_ARCHIVE') return;
+            const { code } = err.data;
 
-            this.wrongFiles = err.data.invalid_files;
-            this.showModal = true;
-            await this.$nextTick();
-            this.$root.$emit('bv::show::modal', 'wrong-files-modal');
+            const done = async () => {
+                // We need the double next ticks as next ticks are executed before
+                // data updates of the next tick.
+                await this.$nextTick();
+                await this.$nextTick();
+                this.$refs.uploader.$refs.submitButton.reset();
+            };
 
-            // We need the double next ticks as next ticks are executed before
-            // data updates of the next tick.
-            await this.$nextTick();
-            await this.$nextTick();
-            this.$refs.uploader.$refs.submitButton.reset();
+            if (code === 'INVALID_FILE_IN_ARCHIVE') {
+                this.wrongFiles = err.data.invalid_files;
+                this.showWrongFileModal = true;
+                await this.$nextTick();
+                this.$root.$emit('bv::show::modal', 'wrong-files-modal');
+                done();
+            } else if (this.isGroupError(err)) {
+                this.currentGroup = err.data.group;
+                this.showGroupModal = true;
+                await this.$nextTick();
+                this.$root.$emit('bv::show::modal', 'group-manage-modal');
+                done();
+            }
         },
 
         checkUpload() {
@@ -199,7 +307,7 @@ export default {
             let res = `/api/v1/assignments/${
                 this.assignment.id
             }/submission?ignored_files=${ignored}`;
-            if (this.forOthers && this.author) {
+            if (this.differentAuthor) {
                 res += `&author=${this.author.username}`;
             }
             return res;
@@ -227,6 +335,27 @@ export default {
             );
         },
 
+        trySubmitAgain(btn) {
+            const { requestData } = this.$refs.uploader;
+            const url = this.getUploadUrl();
+
+            btn.submit(this.$http.post(url, requestData)).then(
+                ({ data: submission }) => {
+                    this.addSubmission({ assignmentId: this.assignment.id, submission });
+                    this.$emit('created', submission);
+                    this.$root.$emit('bv::hide::modal', 'wrong-files-modal');
+                    this.$root.$emit('bv::hide::modal', 'group-manage-modal');
+                },
+                ({ response }) => {
+                    this.$emit('error', response);
+                    if (!this.isGroupError(response)) {
+                        this.uploadError(response);
+                    }
+                    throw response.data.message;
+                },
+            );
+        },
+
         response({ data: submission }) {
             this.addSubmission({
                 assignmentId: this.assignment.id,
@@ -237,6 +366,8 @@ export default {
     },
 
     components: {
+        GroupManagement,
+        GroupsManagement,
         FileUploader,
         SubmitButton,
         UserSelector,
@@ -255,6 +386,19 @@ export default {
     list-style: none;
     margin-right: -0.95rem;
     overflow: auto;
+}
+
+.group-modal-wrapper {
+    overflow: auto;
+    border-bottom: 1px solid #e9ecef;
+    margin: -0.95rem;
+    margin-bottom: 0.95rem;
+    padding: 0.95rem;
+    min-height: 50vh;
+}
+
+.group-modal-body .groups-management {
+    margin: 5px 0;
 }
 
 .btn-toolbar {

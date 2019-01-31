@@ -16,7 +16,7 @@
                 <td class="name">
                     <b-form-checkbox @change="graderChanged(i)"
                                     :checked="grader.weight != 0">
-                        {{ grader.name }}
+                        <user :user="grader"/>
                     </b-form-checkbox>
                 </td>
                 <td class="weight">
@@ -48,6 +48,7 @@ import { mapActions } from 'vuex';
 
 import Loader from './Loader';
 import SubmitButton from './SubmitButton';
+import User from './User';
 
 export default {
     name: 'divide-submissions',
@@ -109,6 +110,7 @@ export default {
     components: {
         Loader,
         SubmitButton,
+        User,
     },
 };
 </script>

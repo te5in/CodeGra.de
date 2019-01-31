@@ -14,6 +14,7 @@ import {
     Submission,
     Submissions,
     Admin,
+    Groups,
 } from '@/pages';
 
 import { PlagiarismOverview, PlagiarismDetail } from '@/components';
@@ -86,6 +87,11 @@ const router = new Router({
             path: '/courses/:courseId/assignments/:assignmentId',
             name: 'manage_assignment',
             component: ManageAssignment,
+        },
+        {
+            path: '/courses/:courseId/group_sets/:groupSetId',
+            name: 'manage_groups',
+            component: Groups,
         },
         {
             path: '/courses/:courseId/assignments/:assignmentId/plagiarism/:plagiarismRunId/cases/',

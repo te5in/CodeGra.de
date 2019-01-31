@@ -8,7 +8,12 @@
             <icon name="angle-left"/>
         </b-button>
         <div class="title">
-            {{ curSub ? `Submission by ${curSub.user.name}` : '' }}
+            <span v-if="curSub">
+                Submission by <user :user="curSub.user"/>
+            </span>
+            <span v-else>
+                -
+            </span>
         </div>
         <b-button :disabled="nextSub == null"
                   v-b-popover.hover.bottom="generatePopoverTitle(nextSub)"
@@ -20,12 +25,14 @@
 </template>
 
 <script>
-import { parseBool } from '@/utils';
+import { parseBool, nameOfUser } from '@/utils';
 import FilterSubmissionsManager from '@/utils/FilterSubmissionsManager';
 import { mapGetters } from 'vuex';
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/angle-left';
 import 'vue-awesome/icons/angle-right';
+
+import User from './User';
 
 export default {
     name: 'submission-nav-bar',
@@ -125,12 +132,13 @@ export default {
         },
 
         generatePopoverTitle(sub) {
-            return `Go to ${this.$htmlEscape(sub && sub.user.name)}'s submission`;
+            return `Go to ${sub && nameOfUser(sub.user)}'s submission`;
         },
     },
 
     components: {
         Icon,
+        User,
     },
 };
 </script>

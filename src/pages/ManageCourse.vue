@@ -1,30 +1,38 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
-<div v-else class="manage-course">
-    <local-header>
+<div class="manage-course">
+    <local-header always-show-extra-slot>
         <b-form-fieldset class="filter-input">
             <input v-model="filter"
                     class="form-control"
                     placeholder="Type to Search"/>
         </b-form-fieldset>
 
-        <toggle label-off="Users" label-on="Roles"
-                :value-off="0" :value-on="1"
-                :colors="false"
-                class="component-toggler"
-                v-model="tabIndex"
-                :disabled-text="course ? `You don't have permission to edit the ${course.permissions.can_edit_course_users ? 'roles' : 'users'}.` : ''"
-                :disabled="!course || !course.canManage"/>
+        <template slot="extra">
+            <category-selector
+                v-if="course"
+                slot="extra"
+                class="cat-selector"
+                v-model="selectedCat"
+                default="Members"
+                :categories="categories"/>
+        </template>
     </local-header>
 
     <loader v-if="!course" page-loader/>
     <div class="content" v-else>
-        <users-manager v-show="tabIndex === 0"
+        <users-manager :class="{ hidden: selectedCat !== 'Members'}"
+                       class="cat-wrapper"
                        :course="course"
                        :filter="filter"/>
-        <permissions-manager v-show="tabIndex === 1"
+        <permissions-manager :class="{ hidden: selectedCat !== 'Permissions' }"
+                             class="cat-wrapper"
                              :course-id="course.id"
                              :filter="filter"/>
+        <span :class="{ hidden: selectedCat !== 'Groups' }"
+              class="cat-wrapper">
+            <group-set-manager :course="course"/>
+        </span>
     </div>
 </div>
 </template>
@@ -36,7 +44,8 @@ import UsersManager from '@/components/UsersManager';
 import PermissionsManager from '@/components/PermissionsManager';
 import LocalHeader from '@/components/LocalHeader';
 import Loader from '@/components/Loader';
-import Toggle from '@/components/Toggle';
+import CategorySelector from '@/components/CategorySelector';
+import GroupSetManager from '@/components/GroupSetManager';
 
 import { setPageTitle } from './title';
 
@@ -45,7 +54,7 @@ export default {
 
     data() {
         return {
-            tabIndex: 0,
+            selectedCat: '',
             filter: '',
         };
     },
@@ -60,52 +69,40 @@ export default {
         courseId() {
             return Number(this.$route.params.courseId);
         },
+
+        categories() {
+            return [
+                {
+                    name: 'Members',
+                    enabled: this.course && this.course.permissions.can_edit_course_users,
+                },
+                {
+                    name: 'Permissions',
+                    enabled: this.course && this.course.permissions.can_edit_course_roles,
+                },
+                {
+                    name: 'Groups',
+                    enabled:
+                        UserConfig.features.groups &&
+                        this.course &&
+                        this.course.permissions.can_edit_group_set,
+                },
+            ];
+        },
     },
 
     async mounted() {
         await this.loadCourses();
-        this.tabIndex = this.getInitialTab();
     },
 
     watch: {
-        tabIndex(newVal) {
-            if (this.filter !== '') this.filter = '';
-
-            this.$router.replace(
-                Object.assign({}, this.$route, {
-                    hash: newVal === 1 ? '#roles' : '#users',
-                }),
-            );
-        },
-
         course() {
             setPageTitle(this.course.name);
-        },
-
-        $route(newVal, oldVal) {
-            if (newVal.hash !== oldVal.hash) {
-                if (newVal.params.courseId !== oldVal.params.courseId) {
-                    setPageTitle(this.course.name);
-                }
-                this.tabIndex = this.getInitialTab();
-            }
         },
     },
 
     methods: {
         ...mapActions('courses', ['loadCourses']),
-
-        getInitialTab() {
-            const oldPage = this.$route.hash;
-
-            if (oldPage === '#users' && this.course.permissions.can_edit_course_users) {
-                return 0;
-            } else if (oldPage === '#roles' && this.course.permissions.can_edit_course_roles) {
-                return 1;
-            } else {
-                return this.course.permissions.can_edit_course_users ? 0 : 1;
-            }
-        },
     },
 
     components: {
@@ -113,12 +110,13 @@ export default {
         PermissionsManager,
         LocalHeader,
         Loader,
-        Toggle,
+        CategorySelector,
+        GroupSetManager,
     },
 };
 </script>
 
-<style lang="less">
+<style lang="less" scoped>
 @import '~mixins.less';
 
 .manage-course {
@@ -136,9 +134,18 @@ export default {
     margin-bottom: 0;
 }
 
-.component-toggler {
-    flex: 0 0 auto;
-    .default-text-colors;
-    font-size: 1.2em;
+.cat-wrapper {
+    transition: opacity @transition-duration ease-out;
+    height: 100%;
+    padding-top: 5px;
+
+    &.hidden {
+        height: 0;
+        overflow: hidden;
+        padding: 0;
+        transition: none;
+        opacity: 0;
+        max-height: 0;
+    }
 }
 </style>

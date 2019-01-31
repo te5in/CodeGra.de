@@ -14,7 +14,7 @@
             <tr v-for="grader, i in internalGraders"
                 :key="grader.id"
                 class="grader">
-                <td>{{ grader.name }}</td>
+                <td><user :user="grader"/></td>
                 <td>
                     <b-popover placement="top"
                                 :show="!!(warningGraders[grader.id] || errorGraders[grader.id])"
@@ -61,6 +61,7 @@ import { parseWarningHeader, waitAtLeast } from '@/utils';
 
 import Toggle from './Toggle';
 import Loader from './Loader';
+import User from './User';
 
 export default {
     props: {
@@ -165,6 +166,7 @@ export default {
         Icon,
         Toggle,
         Loader,
+        User,
     },
 };
 </script>

@@ -47,6 +47,9 @@ class APICodes(IntEnum):
     INVALID_ARCHIVE = 21
     ROUTE_NOT_FOUND = 22
     WEAK_PASSWORD = 23
+    INSUFFICIENT_GROUP_SIZE = 24
+    ASSIGNMENT_RESULT_GROUP_NOT_READY = 25
+    ASSIGNMENT_GROUP_FULL = 26
 
 
 class InvalidAssignmentState(TypeError):

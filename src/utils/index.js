@@ -163,6 +163,12 @@ export function getOtherAssignmentPlagiarismDesc(item, index) {
     return desc;
 }
 
+export function nameOfUser(user) {
+    if (!user) return '';
+    if (user.group) return `Group "${user.group.name}"`;
+    else return user.name;
+}
+
 export function highlightCode(sourceArr, language, maxLen = 5000) {
     if (sourceArr.length > maxLen) {
         return sourceArr.map(htmlEscape);

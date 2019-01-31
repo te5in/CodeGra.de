@@ -140,6 +140,7 @@ import 'vue-awesome/icons/tachometer';
 import 'vue-awesome/icons/refresh';
 import 'vue-awesome/icons/search';
 import 'vue-awesome/icons/files-o';
+import 'vue-awesome/icons/users';
 
 import { Loader } from '@/components';
 
@@ -148,6 +149,7 @@ import CourseList from './CourseList';
 import AssignmentList from './AssignmentList';
 import PlagiarismCaseList from './PlagiarismCaseList';
 import SubmissionsSidebarList from './SubmissionsSidebarList';
+import GroupList from './GroupList';
 
 import { MANAGE_SITE_PERIMSSIONS } from '../../constants';
 
@@ -255,6 +257,20 @@ export default {
                     animateAdd: true,
                 },
                 {
+                    name: 'groups',
+                    icon: 'users',
+                    header: 'Groups',
+                    component: 'group-list',
+                    data: () => ({ course: this.course }),
+                    condition: () =>
+                        UserConfig.features.groups &&
+                        this.loggedIn &&
+                        this.course &&
+                        this.course.group_sets.length > 0,
+                    reload: true,
+                    animateAdd: true,
+                },
+                {
                     name: 'cases',
                     icon: 'search',
                     header: 'Plagiarism Cases',
@@ -288,6 +304,22 @@ export default {
         ...mapGetters('courses', ['courses', 'assignments']),
 
         ...mapGetters('user', ['loggedIn', 'name']),
+
+        courseId() {
+            return Number(this.$route.params.courseId);
+        },
+
+        course() {
+            return this.courses[this.courseId] || null;
+        },
+
+        assignmentId() {
+            return Number(this.$route.params.assignmentId);
+        },
+
+        assignment() {
+            return (this.assignments || {})[this.assignmentId];
+        },
 
         now() {
             return moment();
@@ -431,14 +463,15 @@ export default {
                 this.openMenuStack([this.findEntry('assignments')]);
             } else if (this.$route.query.sbloc === 'c') {
                 this.openMenuStack([this.findEntry('courses')]);
+            } else if (this.$route.query.sbloc === 'g') {
+                this.openMenuStack([this.findEntry('groups')]);
             } else {
-                const course = this.courses[this.$route.params.courseId];
                 const menuStack = [this.findEntry('courses')];
-                if (course != null) {
+                if (this.course != null) {
                     menuStack.push({
-                        header: course.name,
+                        header: this.course.name,
                         component: 'assignment-list',
-                        data: { course },
+                        data: { course: this.course },
                         reload: true,
                     });
                 }
@@ -544,6 +577,7 @@ export default {
         AssignmentList,
         PlagiarismCaseList,
         SubmissionsSidebarList,
+        GroupList,
     },
 };
 </script>
@@ -735,24 +769,6 @@ export default {
     bottom: 0;
     left: 0;
     z-index: -2;
-}
-
-.pop-in-enter-active,
-.pop-in-leave-active {
-    transition-property: opacity, transform;
-    transition-duration: @transition-duration;
-}
-
-.pop-in-enter,
-.pop-in-leave-to {
-    transform: scale(0);
-    opacity: 0;
-}
-
-.pop-in-enter-to,
-.pop-in-leave {
-    transform: scale(1);
-    opacity: 1;
 }
 </style>
 

@@ -377,3 +377,21 @@ textarea:disabled {
 .toasted-container .toasted .action {
     font-family: font-awesome, sans-serif;
 }
+
+.pop-in-enter-active,
+.pop-in-leave-active {
+    transition-property: opacity, transform;
+    transition-duration: @transition-duration;
+}
+
+.pop-in-enter,
+.pop-in-leave-to {
+    transform: scale(0);
+    opacity: 0;
+}
+
+.pop-in-enter-to,
+.pop-in-leave {
+    transform: scale(1);
+    opacity: 1;
+}

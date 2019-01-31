@@ -27,7 +27,8 @@
         <feedback-area
             :editing="editing[i - 1]"
             :feedback="feedback[i - 1 + lineFeedbackOffset].msg"
-            :author="feedback[i - 1 + lineFeedbackOffset].author && feedback[i - 1 + lineFeedbackOffset].author.name"
+            :author="feedback[i - 1 + lineFeedbackOffset].author &&
+                     nameOfUser(feedback[i - 1 + lineFeedbackOffset].author.name)"
             :editable="editable"
             :line="i - 1 + lineFeedbackOffset"
             :total-amount-lines="computedEndLine"
@@ -47,6 +48,8 @@
 <script>
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/level-up';
+
+import { nameOfUser } from '@/utils';
 
 import FeedbackArea from './FeedbackArea';
 import LinterFeedbackArea from './LinterFeedbackArea';
@@ -123,6 +126,7 @@ export default {
     data() {
         return {
             editing: {},
+            nameOfUser,
         };
     },
 

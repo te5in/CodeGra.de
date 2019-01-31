@@ -1,4 +1,5 @@
-import { cmpOneNull, cmpNoCase } from '@/utils';
+/* SPDX-License-Identifier: AGPL-3.0-only */
+import { cmpOneNull, cmpNoCase, nameOfUser } from '@/utils';
 
 export function filterSubmissions(
     submissions,
@@ -33,7 +34,7 @@ export function filterSubmissions(
         }
 
         const terms = [
-            item.user.name.toLowerCase(),
+            nameOfUser(item.user).toLowerCase(),
             (item.grade || 0).toString(),
             item.formatted_created_at,
             item.assignee && item.assignee.name ? item.assignee.name.toLowerCase() : '-',
@@ -50,34 +51,32 @@ export function filterSubmissions(
 }
 
 export function sortSubmissions(a, b, sortBy) {
-    if (sortBy === 'user' || sortBy === 'assignee') {
-        const first = a[sortBy];
-        const second = b[sortBy];
+    const first = a[sortBy];
+    const second = b[sortBy];
 
-        const ret = cmpOneNull(first, second);
-        if (ret !== null) return ret;
+    const ret = cmpOneNull(first, second);
+    if (ret !== null) {
+        return ret;
+    }
 
-        return cmpNoCase(first.name, second.name);
+    if (sortBy === 'assignee') {
+        return cmpNoCase(nameOfUser(first.name), nameOfUser(second.name));
+    } else if (sortBy === 'user') {
+        return cmpNoCase(nameOfUser(first), nameOfUser(second));
     } else if (sortBy === 'created_at') {
-        const first = a.formatted_created_at;
-        const second = b.formatted_created_at;
+        const createdA = a.formatted_created_at;
+        const createdB = b.formatted_created_at;
 
-        const ret = cmpOneNull(first, second);
-        if (ret !== null) return ret;
+        const res = cmpOneNull(createdA, createdB);
+        if (res !== null) return res;
 
-        return cmpNoCase(first, second);
+        return cmpNoCase(createdA, createdB);
     } else if (sortBy === 'grade') {
-        const first = a[sortBy];
-        const second = b[sortBy];
-
-        let ret = cmpOneNull(first, second);
-        if (ret !== null) return ret;
-
         const firstF = parseFloat(first);
         const secondF = parseFloat(second);
 
-        ret = cmpOneNull(firstF, secondF);
-        if (ret !== null) return ret;
+        const ret2 = cmpOneNull(firstF, secondF);
+        if (ret2 !== null) return ret2;
 
         return firstF - secondF;
     }

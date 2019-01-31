@@ -264,7 +264,7 @@ class LTI:  # pylint: disable=too-many-public-methods
             optionally the updated email of the user as a string, this is
             ``None`` if the email was not updated.
         """
-        is_logged_in = _user_active()
+        is_logged_in = _user_active(current_user)
         token = None
         user = None
 

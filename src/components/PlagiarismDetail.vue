@@ -13,8 +13,8 @@
     <local-header :back-route="{ name: 'plagiarism_overview' }"
                   back-popover="Go back to overview">
         <template slot="title">
-            Plagiarism comparison between &quot;{{detail.users[0].name}}&quot; and
-            &quot;{{detail.users[1].name}}&quot; for assignment &quot;{{assignment.name}}&quot;
+            Plagiarism comparison between &quot;<user :user="detail.user[0]"/>&quot; and
+            &quot;<user :user="detail.user[1]"/>&quot; for assignment &quot;{{assignment.name}}&quot;
         </template>
 
         <b-btn v-b-modal.plagiarism-export style="margin-left: 15px;">Export</b-btn>
@@ -26,10 +26,10 @@
             <thead>
                 <tr>
                     <th>Export</th>
-                    <th class="col-student-name">{{ detail.users[0].name }}</th>
+                    <th class="col-student-name"><user :user="detail.users[0]"/></th>
                     <th class="col-student-range">Lines</th>
                     <th class="col-student-range">Color</th>
-                    <th class="col-student-name">{{ detail.users[1].name }}</th>
+                    <th class="col-student-name"><user :user="detail.users[0]"/></th>
                     <th class="col-student-range">Lines</th>
                 </tr>
             </thead>
@@ -62,10 +62,10 @@
         <table class="range-table table table-striped table-hover">
             <thead>
                 <tr>
-                    <th class="col-student-name">{{ detail.users[0].name }}</th>
+                    <th class="col-student-name"><user :user="detail.users[0]"/></th>
                     <th class="col-student-range">Lines</th>
                     <th class="col-student-range">Color</th>
-                    <th class="col-student-name">{{ detail.users[1].name }}</th>
+                    <th class="col-student-name"><user :user="detail.users[1]"/></th>
                     <th class="col-student-range">Lines</th>
                 </tr>
             </thead>
@@ -129,7 +129,9 @@
 import { mapActions, mapGetters } from 'vuex';
 import decodeBuffer from '@/utils/decode';
 
-import { Loader, LocalHeader, SubmitButton } from '@/components';
+import { nameOfUser } from '@/utils';
+
+import { Loader, LocalHeader, SubmitButton, User } from '@/components';
 
 export default {
     name: 'plagiarism-detail',
@@ -305,14 +307,15 @@ export default {
                         underscore,
                         '\\_',
                     );
+                    const [user1, user2] = this.detail.users;
                     // prettier-ignore-start
                     return `\\subsection*{Match ${i + 1}}
 \\begin{lstlisting}[firstnumber=${match.lines[0][0] + 1},
-    caption={File \\texttt{${captionLeft}} of ${this.detail.users[0].name}}]
+    caption={File \\texttt{${captionLeft}} of ${nameOfUser(user1)}}]
     ${left.join('\n')}
 \\end{lstlisting}
 \\begin{lstlisting}[firstnumber=${match.lines[1][0] + 1},
-    caption={File \\texttt{${captionRight}} of ${this.detail.users[1].name}}]
+    caption={File \\texttt{${captionRight}} of ${nameOfUser(user2)}}]
     ${right.join('\n')}
 \\end{lstlisting}`;
                     // prettier-ignore-end
@@ -522,9 +525,10 @@ export default {
                 this.getTexFile(matches).then(text => {
                     this.$http.post('/api/v1/files/', text).then(response => {
                         this.exportMatches = {};
-                        const fileName = `plagiarism_case_${this.detail.users[0].name}+${
-                            this.detail.users[1].name
-                        }.tex`;
+                        const [user1, user2] = this.detail.users;
+                        const fileName = `plagiarism_case_${nameOfUser(user1)}+${nameOfUser(
+                            user2,
+                        )}.tex`;
                         window.open(
                             `/api/v1/files/${response.data}/${encodeURIComponent(fileName)}`,
                             '_blank',
@@ -543,6 +547,7 @@ export default {
         Loader,
         LocalHeader,
         SubmitButton,
+        User,
     },
 };
 </script>

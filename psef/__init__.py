@@ -250,6 +250,9 @@ def create_app(  # pylint: disable=too-many-statements
 
     limiter.init_app(resulting_app)
 
+    from . import permissions
+    permissions.init_app(resulting_app, skip_perm_check)
+
     from . import cache
     cache.init_app(resulting_app)
 
@@ -288,9 +291,6 @@ def create_app(  # pylint: disable=too-many-statements
 
     from . import linters
     linters.init_app(resulting_app)
-
-    from . import permissions
-    permissions.init_app(resulting_app, skip_perm_check)
 
     from . import plagiarism
     plagiarism.init_app(resulting_app)

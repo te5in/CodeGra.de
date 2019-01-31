@@ -17,6 +17,7 @@
              :disabled="disabled"
              label="name"
              track-by="username"
+             :class="{ disabled }"
              v-if="useSelector">
     <span slot="noResult" v-if="searchQuery && searchQuery.length < 3">
         Please give a larger search string.
@@ -28,6 +29,7 @@
 <input :value="value ? value.username : ''"
        @input="onInput({ username: $event.target.value })"
        class="form-control user-selector"
+       :class="{ disabled }"
        :placeholder="placeholder"
        :disabled="disabled"
        v-else/>
@@ -87,6 +89,14 @@ export default {
             stopLoadingStudents: () => {},
             searchQuery: null,
         };
+    },
+
+    watch: {
+        value() {
+            if (!this.value) {
+                this.students = [];
+            }
+        },
     },
 
     methods: {
@@ -166,10 +176,22 @@ export default {
 };
 </script>
 
+<style lang="less" scoped>
+.disabled {
+    cursor: not-allowed;
+}
+</style>
+
 <style lang="less">
 @import '~mixins.less';
 
 .user-selector.multiselect {
+    &.disabled,
+    &.disabled > .multiselect__select {
+        cursor: not-allowed !important;
+        pointer-events: initial;
+    }
+
     .multiselect__tags {
         border-top-right-radius: 0;
         border-bottom-right-radius: 0;

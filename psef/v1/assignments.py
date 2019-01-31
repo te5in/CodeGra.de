@@ -137,7 +137,9 @@ def get_assignments_feedback(assignment_id: int) -> JSONResponse[
     try:
         auth.ensure_permission(CPerm.can_see_others_work, assignment.course_id)
     except auth.PermissionException:
-        latest_subs = latest_subs.filter_by(user_id=current_user.id)
+        latest_subs = models.Work.limit_to_user_submissions(
+            latest_subs, current_user
+        )
 
     res = {}
     for sub in latest_subs:
@@ -210,10 +212,8 @@ def set_reminder(
 
 @api.route('/assignments/<int:assignment_id>', methods=['PATCH'])
 @auth.login_required
-def update_assignment(assignment_id: int) -> EmptyResponse:
+def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
     """Update the given :class:`.models.Assignment` with new values.
-
-    :py:func:`psef.helpers.JSONResponse`
 
     .. :quickref: Assignment; Update assignment information.
 
@@ -234,12 +234,14 @@ def update_assignment(assignment_id: int) -> EmptyResponse:
     :<json float max_grade: The maximum possible grade for this assignment. You
         can reset this by passing ``null`` as value. This value has to be >
         0. (OPTIONAL)
+    :<json int group_set_id: The group set id for this assignment. Set
+        to ``null`` to make this assignment not a group assignment.
 
     If any of ``done_type``, ``done_email`` or ``reminder_time`` is given all
     the other values should be given too.
 
     :param int assignment_id: The id of the assignment
-    :returns: An empty response with return code 204
+    :returns: An empty response with return code 204.
     :raises APIException: If an invalid value is submitted. (INVALID_PARAM)
     """
     assig = helpers.get_or_404(models.Assignment, assignment_id)
@@ -304,21 +306,33 @@ def update_assignment(assignment_id: int) -> EmptyResponse:
         )
         set_reminder(assig, content)
 
+    if 'group_set_id' in content:
+        auth.ensure_permission(
+            CPerm.can_edit_group_assignment, assig.course_id
+        )
+        ensure_keys_in_dict(content, [('group_set_id', (int, type(None)))])
+        group_set_id = t.cast(t.Optional[int], content['group_set_id'])
+        if group_set_id is None:
+            group_set = None
+        else:
+            group_set = helpers.get_or_404(models.GroupSet, group_set_id)
+        assig.group_set = group_set
+
     db.session.commit()
 
-    return make_empty_response()
+    return jsonify(assig)
 
 
 @api.route('/assignments/<int:assignment_id>/rubrics/', methods=['GET'])
 @features.feature_required(features.Feature.RUBRICS)
 def get_assignment_rubric(assignment_id: int
                           ) -> JSONResponse[t.Sequence[models.RubricRow]]:
-    """Return the rubric corresponding to the given `assignment_id`.
+    """Return the rubric corresponding to the given ``assignment_id``.
 
     .. :quickref: Assignment; Get the rubric of an assignment.
 
     :param int assignment_id: The id of the assignment
-    :returns: A list of JSON of :class:`.models.RubricRows` items
+    :returns: A list of JSON of :class:`.models.RubricRows` items.
 
     :raises APIException: If no assignment with given id exists.
         (OBJECT_ID_NOT_FOUND)
@@ -511,7 +525,7 @@ def process_rubric_row(row: JSONType) -> models.RubricRow:
         return models.RubricRow.create_from_json(header, desc, items)
 
 
-@api.route("/assignments/<int:assignment_id>/submission", methods=['POST'])
+@api.route('/assignments/<int:assignment_id>/submission', methods=['POST'])
 def upload_work(assignment_id: int) -> ExtendedJSONResponse[models.Work]:
     """Upload one or more files as :class:`.models.Work` to the given
     :class:`.models.Assignment`.
@@ -550,6 +564,23 @@ def upload_work(assignment_id: int) -> ExtendedJSONResponse[models.Work]:
         )
 
     auth.ensure_can_submit_work(assig, author)
+
+    group = None
+    if assig.group_set:
+        group = assig.group_set.get_valid_group_for_user(author)
+    if group is not None:
+        author = group.virtual_user
+        if assig.is_lti and any(
+            assig.id not in member.assignment_results
+            for member in group.members
+        ):
+            raise APIException(
+                "Some authors haven't opened the assignment in the LMS yet",
+                'No assignment_results found for some authors in the group',
+                APICodes.ASSIGNMENT_RESULT_GROUP_NOT_READY,
+                400,
+                group=group,
+            )
 
     work = models.Work(assignment=assig, user_id=author.id)
     work.divide_new_work()
@@ -617,16 +648,14 @@ def divide_assignments(assignment_id: int) -> EmptyResponse:
     :returns: An empty response with return code 204
 
     :raises APIException: If no assignment with given id exists or the
-                          assignment has no submissions. (OBJECT_ID_NOT_FOUND)
+        assignment has no submissions. (OBJECT_ID_NOT_FOUND)
     :raises APIException: If there was no grader in the request.
-                          (MISSING_REQUIRED_PARAM)
+        (MISSING_REQUIRED_PARAM)
     :raises APIException: If some grader id is invalid or some grader does not
-                          have the permission to grade the assignment.
-                          (INVALID_PARAM)
+        have the permission to grade the assignment.  (INVALID_PARAM)
     :raises PermissionException: If there is no logged in user. (NOT_LOGGED_IN)
     :raises PermissionException: If the user is not allowed to divide
-                                 submissions for this assignment.
-                                 (INCORRECT_PERMISSION)
+        submissions for this assignment.  (INCORRECT_PERMISSION)
     """
     assignment = helpers.get_or_404(models.Assignment, assignment_id)
 
@@ -893,7 +922,7 @@ def get_all_works_for_assignment(
     if not current_user.has_permission(
         CPerm.can_see_others_work, course_id=assignment.course_id
     ):
-        obj = obj.filter_by(user_id=current_user.id)
+        obj = models.Work.limit_to_user_submissions(obj, current_user)
 
     if helpers.extended_requested():
         obj = obj.options(undefer(models.Work.comment))
@@ -1393,3 +1422,33 @@ def start_plagiarism_check(
         raise
 
     return jsonify(run)
+
+
+@api.route(
+    '/assignments/<int:assignment_id>/groups/<int:group_id>/member_states/',
+    methods=['GET']
+)
+@features.feature_required(features.Feature.GROUPS)
+@auth.login_required
+def get_group_member_states(assignment_id: int, group_id: int
+                            ) -> JSONResponse[t.Mapping[int, bool]]:
+    """Get the LTI states for the members of a group for the given assignment.
+
+    .. :quickref: Assignment; Get LTI states for members of a group.
+
+    :param assignment_id: The assignment for which the LTI states should be
+        given.
+    :param group_id: The group for which the states should be returned.
+    :returns: A mapping between user id and a boolean indicating if we can
+        already passback grades for this user. If the assignment is any LTI
+        assignment and any of the values in this mapping is ``False`` trying to
+        submit anyway will result in a failure.
+    """
+    assig = helpers.get_or_404(models.Assignment, assignment_id)
+    group = helpers.filter_single_or_404(
+        models.Group, models.Group.id == group_id,
+        models.Group.group_set_id == assig.group_set_id
+    )
+    auth.ensure_can_view_group(group)
+
+    return jsonify(group.get_member_lti_states(assig))

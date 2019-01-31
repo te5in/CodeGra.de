@@ -33,7 +33,6 @@
                          v-else
                          :key="`file-${id}-line-${part[0]}`">
                         <hr v-if="i !== 0">
-
                         <inner-code-viewer
                             class="code-part"
                             :assignment="assignment"
@@ -53,7 +52,7 @@
         <b-tab title="General feedback">
             <b-card class="file-card">
                 <span v-if="!!submission.comment_author" slot="header">
-                    {{ submission.comment_author.name }} wrote:
+                    <user :user="submission.comment_author"/> wrote:
                 </span>
                 <pre class="general-feedback"
                      v-if="submission.comment">{{ submission.comment }}</pre>
@@ -137,6 +136,7 @@ import InnerCodeViewer from './InnerCodeViewer';
 import Loader from './Loader';
 import Toggle from './Toggle';
 import DiffViewer from './DiffViewer';
+import User from './User';
 
 export default {
     name: 'overview-mode',
@@ -425,6 +425,7 @@ export default {
         Loader,
         Toggle,
         DiffViewer,
+        User,
         InnerCodeViewer,
     },
 };

@@ -7,6 +7,7 @@ import sys
 import json
 import secrets
 import datetime
+import readline
 import subprocess
 from collections import OrderedDict
 
@@ -50,9 +51,8 @@ def downgrade():
 
 
 def get_input(question: str) -> str:
-    print(question, end=': ')
     while True:
-        user_input = input()
+        user_input = input(question + ': ')
         if user_input:
             return user_input
 

@@ -21,6 +21,7 @@ def init_app(app: t.Any) -> None:
     # are NOT unused.
     from . import (  # pylint: disable=unused-variable
         code, login, courses, linters, snippets, assignments, permissions,
-        submissions, files, about, roles, lti, users, plagiarism
+        submissions, files, about, roles, lti, users, plagiarism, groups,
+        group_sets
     )
     app.register_blueprint(api, url_prefix='/api/v1')

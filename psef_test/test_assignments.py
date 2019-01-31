@@ -152,6 +152,7 @@ def test_get_assignment(
                 'done_email': None,
                 'fixed_max_rubric_points': None,
                 'max_grade': None,
+                'group_set': None,
             }
         else:
             res = error_template
@@ -250,7 +251,7 @@ def test_update_assignment(
         test_client.req(
             'patch',
             f'/api/v1/assignments/{assig_id}',
-            err_code if err_code else 204,
+            err_code if err_code else 200,
             data=data,
             result=error_template if err_code else None
         )
@@ -2469,7 +2470,7 @@ def test_ignored_upload_files(
         test_client.req(
             'patch',
             f'/api/v1/assignments/{assignment.id}',
-            204,
+            200,
             data={
                 'ignore':
                     '# single_file_work_copy\n'
@@ -2561,7 +2562,7 @@ def test_ignored_upload_files(
         test_client.req(
             'patch',
             f'/api/v1/assignments/{assignment.id}',
-            204,
+            200,
             data={'ignore': '*'}
         )
 
@@ -2581,7 +2582,7 @@ def test_ignored_upload_files(
         test_client.req(
             'patch',
             f'/api/v1/assignments/{assignment.id}',
-            204,
+            200,
             data={'ignore': '*\n!dir/'}
         )
 
@@ -2611,7 +2612,7 @@ def test_ignored_upload_files(
         test_client.req(
             'patch',
             f'/api/v1/assignments/{assignment.id}',
-            204,
+            200,
             data={'ignore': '*'}
         )
 
@@ -2677,7 +2678,7 @@ def test_ignored_upload_files(
         test_client.req(
             'patch',
             f'/api/v1/assignments/{assignment.id}',
-            204,
+            200,
             data={'ignore': '# Nothing'}
         )
 
@@ -2750,7 +2751,7 @@ def test_ignoring_dirs_tar_archives(
         test_client.req(
             'patch',
             f'/api/v1/assignments/{assignment.id}',
-            204,
+            200,
             data={'ignore': 'dir/\n'}
         )
 
@@ -3285,6 +3286,8 @@ def test_reminder_email(
                 assert assig['done_email'] == data[
                     'done_email'], 'Make sure email is correct'
 
+    if not err:
+        code = 200
     with logged_in(named_user):
         test_client.req(
             'patch',
@@ -3444,7 +3447,7 @@ def test_warning_grading_done_email(
         _, rv = test_client.req(
             'patch',
             f'/api/v1/assignments/{assig_id}',
-            204,
+            200,
             data={
                 'done_type': 'all_graders',
                 'reminder_time': None,

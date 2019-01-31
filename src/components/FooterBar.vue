@@ -3,7 +3,7 @@
     <footer class="footer">
         <small>
             &copy; {{ new Date().getFullYear() }} - CodeGrade ({{ version }}) - Made with ❤️ &amp; 🍺 -
-            <a class="codegra-email" :href="`mailto:${email}`">{{ email }}</a> -
+            <a :href="`mailto:${email}`">{{ email }}</a> -
             <a class="privacy-statement" @click="showModal = !showModal">Privacy statement</a>
         </small>
         <b-modal id="privacyModal"

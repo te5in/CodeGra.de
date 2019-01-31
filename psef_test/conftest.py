@@ -3,6 +3,7 @@ import os
 import sys
 import copy
 import json
+import uuid
 import random
 import datetime
 import contextlib
@@ -17,6 +18,8 @@ import psef
 import manage
 import psef.auth as a
 import psef.models as m
+from helpers import create_error_template, create_user_with_perms
+from psef.permissions import CoursePermission as CPerm
 
 TESTDB = 'test_project.db'
 TESTDB_PATH = "/tmp/psef/psef-{}-{}".format(TESTDB, random.random())
@@ -116,6 +119,8 @@ def app(request):
     app = psef.create_app(
         settings_override, skip_celery=True, skip_perm_check=True
     )
+    app.config['__S_FEATURES']['GROUPS'] = True
+    app.config['FEATURES'][psef.features.Feature.GROUPS] = True
 
     psef.tasks.celery.conf.update(
         {
@@ -157,6 +162,7 @@ def test_client(app):
         data=None,
         real_data=None,
         include_response=False,
+        allow_extra=False,
         **kwargs
     ):
         if real_data is None:
@@ -184,18 +190,27 @@ def test_client(app):
         def checker(vals, tree):
             is_list = isinstance(tree, list)
             i = 0
+            allowed_extra = False
             for k, value in enumerate(tree) if is_list else tree.items():
+                if k == '__allow_extra__' and value:
+                    allowed_extra = True
+                    continue
                 i += 1
                 assert is_list or k in vals
 
                 if isinstance(value, type):
                     assert isinstance(vals[k], value)
                 elif isinstance(value, list) or isinstance(value, dict):
+                    if isinstance(vals, dict):
+                        assert k in vals
+                    else:
+                        assert 0 <= k < len(vals)
                     checker(vals[k], value)
                 else:
                     assert vals[k] == value
 
-            assert len(vals) == i
+            if is_list or not allowed_extra:
+                assert len(vals) == i
 
         if result is not None:
             checker({'top': val}, {'top': result})
@@ -211,11 +226,7 @@ def test_client(app):
 
 @pytest.fixture
 def error_template():
-    yield {
-        'code': str,
-        'message': str,
-        'description': str,
-    }
+    yield create_error_template()
 
 
 @pytest.fixture(params=[True, False])
@@ -261,6 +272,12 @@ def named_user(session, request):
 @pytest.fixture
 def student_user(session):
     return LocalProxy(session.query(m.User).filter_by(name="Student1").one)
+
+
+@pytest.fixture
+def user_with_perms(session, request, course_name):
+    course = session.query(m.Course).filter_by(name=course_name).one()
+    yield create_user_with_perms(session, request.param, course)
 
 
 @pytest.fixture
@@ -368,6 +385,11 @@ def monkeypatch_celery(app, monkeypatch):
 @pytest.fixture(params=['Programmeertalen'])
 def course_name(request):
     yield request.param
+
+
+@pytest.fixture
+def course(session, course_name):
+    yield LocalProxy(session.query(m.Course).filter_by(name=course_name).first)
 
 
 @pytest.fixture(params=[False])

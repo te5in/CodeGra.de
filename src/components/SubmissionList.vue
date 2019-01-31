@@ -97,7 +97,7 @@
            slot="user"
            slot-scope="item"
            @click.prevent>
-            {{item.value.name ? item.value.name : '-'}}
+            <user :user="item.value"/>
         </a>
         <template slot="grade" slot-scope="item">
             {{formatGrade(item.value) || '-'}}
@@ -112,7 +112,8 @@
         </template>
         <template slot="assignee" slot-scope="item">
             <span v-if="!canAssignGrader || graders == null">
-                {{ item.value ? item.value.name : '-' }}
+                <user :user="item.value" v-if="item.value"/>
+                <span v-else>-</span>
             </span>
             <loader :scale="1" v-else-if="assigneeUpdating[item.item.id]"/>
             <b-form-select :options="assignees"
@@ -134,7 +135,7 @@ import 'vue-awesome/icons/gear';
 import 'vue-awesome/icons/refresh';
 import 'vue-awesome/icons/clock-o';
 
-import { formatGrade, parseBool, waitAtLeast } from '@/utils';
+import { formatGrade, parseBool, waitAtLeast, nameOfUser } from '@/utils';
 import { filterSubmissions, sortSubmissions } from '@/utils/FilterSubmissionsManager';
 
 import * as assignmentState from '@/store/assignment-states';
@@ -143,6 +144,7 @@ import Loader from './Loader';
 import SubmitButton from './SubmitButton';
 import RubricEditor from './RubricEditor';
 import LocalHeader from './LocalHeader';
+import User from './User';
 
 export default {
     name: 'submission-list',
@@ -320,7 +322,7 @@ export default {
         updateGraders(graders) {
             const assignees = graders.map(ass => ({
                 value: ass.id,
-                text: ass.name,
+                text: nameOfUser(ass),
                 data: ass,
             }));
             assignees.unshift({ value: null, text: '-', data: null });
@@ -445,6 +447,7 @@ export default {
         RubricEditor,
         SubmissionsExporter,
         LocalHeader,
+        User,
     },
 };
 </script>

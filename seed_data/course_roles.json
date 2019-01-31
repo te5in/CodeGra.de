@@ -4,7 +4,9 @@
       "can_submit_own_work",
       "can_view_own_teacher_files",
       "can_list_course_users",
-      "can_see_assignments"
+      "can_see_assignments",
+      "can_edit_own_groups",
+      "can_view_others_groups"
     ],
     "initial_role": false
   },
@@ -19,7 +21,11 @@
       "can_edit_others_work",
       "can_view_own_teacher_files",
       "can_list_course_users",
-      "can_see_hidden_assignments"
+      "can_see_hidden_assignments",
+      "can_edit_own_groups",
+      "can_edit_others_groups",
+      "can_edit_groups_after_submission",
+      "can_view_others_groups"
     ],
     "initial_role": false
   },
@@ -52,7 +58,13 @@
       "can_edit_maximum_grade",
       "can_manage_plagiarism",
       "can_list_course_users",
-      "can_view_plagiarism"
+      "can_view_plagiarism",
+      "can_edit_own_groups",
+      "can_edit_others_groups",
+      "can_edit_groups_after_submission",
+      "can_view_others_groups",
+      "can_edit_group_assignment",
+      "can_edit_group_set"
     ],
     "initial_role": true
   },
@@ -77,7 +89,13 @@
       "manage_rubrics",
       "can_view_own_teacher_files",
       "can_list_course_users",
-      "can_see_hidden_assignments"
+      "can_see_hidden_assignments",
+      "can_edit_own_groups",
+      "can_edit_others_groups",
+      "can_edit_groups_after_submission",
+      "can_view_others_groups",
+      "can_edit_group_assignment",
+      "can_edit_group_set"
     ],
     "initial_role": false
   }

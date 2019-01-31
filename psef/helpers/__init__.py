@@ -20,15 +20,14 @@ from werkzeug.datastructures import FileStorage
 from sqlalchemy.sql.expression import or_
 
 import psef
-import psef.models
 import psef.json_encoders as json
 
 from . import features, validate
 from .. import errors, models
 
-if t.TYPE_CHECKING:  # pragma: no cover
+if t.TYPE_CHECKING and not getattr(t, 'SPHINX', False):  # pragma: no cover
     import psef.archive  # pylint: disable=cyclic-import
-    from psef import model_types  # pylint: disable=unused-import
+    from ..models import Base  # pylint: disable=unused-import
     import werkzeug  # pylint: disable=unused-import
 
 logger = structlog.get_logger()
@@ -36,7 +35,7 @@ logger = structlog.get_logger()
 #: Type vars
 T = t.TypeVar('T')
 Z = t.TypeVar('Z', bound='Comparable')
-Y = t.TypeVar('Y', bound='model_types.Base')
+Y = t.TypeVar('Y', bound='Base')
 T_Type = t.TypeVar('T_Type', bound=t.Type)  # pylint: disable=invalid-name
 T_TypedDict = t.TypeVar(  # pylint: disable=invalid-name
     'T_TypedDict',
@@ -231,7 +230,7 @@ class EmptyResponse:
 
 
 def get_in_or_error(
-    model: t.Type[Y], in_column: psef.models.DbColumn[T], in_values: t.List[T]
+    model: t.Type[Y], in_column: models.DbColumn[T], in_values: t.List[T]
 ) -> t.List[Y]:
     """Get object by doing an ``IN`` query.
 
@@ -289,7 +288,7 @@ def filter_all_or_404(model: t.Type[Y], *criteria: t.Any) -> t.Sequence[Y]:
     criteria.
 
     .. note::
-        ``Y`` is bound to :py:class:`psef.models.Base`, so it should be a
+        ``Y`` is bound to :py:class:`models.Base`, so it should be a
         SQLAlchemy model.
 
     :param model: The object to get.
@@ -307,7 +306,7 @@ def filter_single_or_404(model: t.Type[Y], *criteria: t.Any) -> Y:
     exception.
 
     .. note::
-        ``Y`` is bound to :py:class:`psef.models.Base`, so it should be a
+        ``Y`` is bound to :py:class:`models.Base`, so it should be a
         SQLAlchemy model.
 
     :param model: The object to get.
@@ -329,7 +328,7 @@ def get_or_404(
     """Get the specified object by primary key or raise an exception.
 
     .. note::
-        ``Y`` is bound to :py:class:`psef.models.Base`, so it should be a
+        ``Y`` is bound to :py:class:`models.Base`, so it should be a
         SQLAlchemy model.
 
     :param model: The object to get.
@@ -344,7 +343,7 @@ def get_or_404(
     :raises APIException: If no object with the given id could be found.
         (OBJECT_ID_NOT_FOUND)
     """
-    query = psef.models.db.session.query(model)
+    query = models.db.session.query(model)
     if options is not None:
         query = query.options(*options)
     obj: t.Optional[Y] = query.get(object_id)
@@ -359,8 +358,8 @@ def get_or_404(
 
 
 def filter_users_by_name(
-    query: str, base: 'psef.models._MyQuery[psef.models.User]'
-) -> 'psef.models._MyQuery[psef.models.User]':
+    query: str, base: 'models._MyQuery[models.User]'
+) -> 'models._MyQuery[models.User]':
     """Find users from the given base query using the given query string.
 
     :param query: The string to filter usernames and names of users with.
@@ -379,11 +378,11 @@ def filter_users_by_name(
             '%{}%'.format(
                 escape_like(query).replace(' ', '%'),
             )
-        ) for col in [psef.models.User.name, psef.models.User.username]
+        ) for col in [models.User.name, models.User.username]
     ]
 
     return base.filter(or_(*likes)).order_by(
-        t.cast(psef.models.DbColumn[str], psef.models.User.name)
+        t.cast(models.DbColumn[str], models.User.name)
     )
 
 

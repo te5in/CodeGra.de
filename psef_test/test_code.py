@@ -161,7 +161,7 @@ def test_get_code_plaintext_revisions(
         test_client.req(
             'patch',
             f'/api/v1/assignments/{assignment_id}',
-            204,
+            200,
             data={'state': 'done'},
         )
 
@@ -193,7 +193,7 @@ def test_get_code_plaintext_revisions(
         test_client.req(
             'patch',
             f'/api/v1/assignments/{assignment_id}',
-            204,
+            200,
             data={'state': 'open'},
         )
 

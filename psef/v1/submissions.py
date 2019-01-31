@@ -24,13 +24,12 @@ from psef import app, current_user
 from . import api
 from .. import auth, models, helpers, features
 from ..errors import APICodes, APIException
-from ..models import FileOwner, db
+from ..models import DbColumn, FileOwner, db
 from ..helpers import (
     JSONResponse, EmptyResponse, ExtendedJSONResponse, jsonify,
     ensure_json_dict, extended_jsonify, ensure_keys_in_dict,
     make_empty_response
 )
-from ..model_types import DbColumn
 from ..permissions import CoursePermission as CPerm
 
 logger = structlog.get_logger()
@@ -84,7 +83,7 @@ def get_submission(
     """
     work = helpers.get_or_404(models.Work, submission_id)
 
-    if work.user_id != current_user.id:
+    if not work.has_as_author(current_user):
         auth.ensure_permission(
             CPerm.can_see_others_work, work.assignment.course_id
         )
