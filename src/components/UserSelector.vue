@@ -19,10 +19,11 @@
              track-by="username"
              :class="{ disabled }"
              v-if="useSelector">
-    <span slot="noResult" v-if="searchQuery && searchQuery.length < 3">
-        Please give a larger search string.
+    <span class="caret" slot="caret"><icon name="search"/></span>
+    <span slot="noResult" v-if="searchQuery && searchQuery.length < 3" class="text-muted">
+        Please give a longer search string.
     </span>
-    <span slot="noResult" v-else>
+    <span slot="noResult" v-else class="text-muted">
         No results were found. You can search on name and username.
     </span>
 </multiselect>
@@ -37,6 +38,9 @@
 
 <script>
 import Multiselect from 'vue-multiselect';
+
+import Icon from 'vue-awesome/components/Icon';
+import 'vue-awesome/icons/search';
 
 export default {
     name: 'user-selector',
@@ -172,6 +176,7 @@ export default {
 
     components: {
         Multiselect,
+        Icon,
     },
 };
 </script>
@@ -179,6 +184,21 @@ export default {
 <style lang="less" scoped>
 .disabled {
     cursor: not-allowed;
+}
+
+.caret {
+    line-height: 16px;
+    display: block;
+    position: absolute;
+    box-sizing: border-box;
+    width: 40px;
+    height: 38px;
+    right: 1px;
+    top: 13px;
+    margin: 0;
+    text-decoration: none;
+    text-align: center;
+    cursor: pointer;
 }
 </style>
 

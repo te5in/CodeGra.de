@@ -80,7 +80,7 @@
              v-show="!editingGroup">
             <b-input-group class="new-user-wrapper"
                            v-if="canEditOthers">
-                <user-selector placeholder="New member"
+                <user-selector placeholder="Type to add a member"
                                :filter-students="filterMembers"
                                :disabled="groupFull"
                                v-model="newAuthor"
