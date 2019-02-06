@@ -183,7 +183,7 @@ export default {
             }
         },
 
-        run() {
+        run(_, extraOpts) {
             let cfg;
             if (this.selectedOption === 'Custom config') {
                 cfg = this.config;
@@ -195,18 +195,20 @@ export default {
             this.working = 0;
             this.crashed = 0;
 
-            this.$refs.submitBtn.submitFunction(() =>
-                this.$http
-                    .post(`/api/v1/assignments/${this.assignment.id}/linter`, {
-                        name: this.name,
-                        cfg: cfg || '',
-                    })
-                    .then(({ data }) => {
-                        this.updateData(data);
-                    })
-                    .catch(({ response }) => {
-                        throw response.data.message;
-                    }),
+            this.$refs.submitBtn.submitFunction(
+                () =>
+                    this.$http
+                        .post(`/api/v1/assignments/${this.assignment.id}/linter`, {
+                            name: this.name,
+                            cfg: cfg || '',
+                        })
+                        .then(({ data }) => {
+                            this.updateData(data);
+                        })
+                        .catch(({ response }) => {
+                            throw response.data.message;
+                        }),
+                extraOpts,
             );
         },
     },

@@ -160,20 +160,26 @@ export default {
     },
 
     methods: {
-        submitFunction(func) {
-            if (this.pending || (this.confirm && this.showConfirm)) {
+        submitFunction(func, extraOpts) {
+            const skipConfirm = !!(extraOpts && extraOpts.fromConfirm);
+
+            if (this.pending || (this.confirm && this.showConfirm && !skipConfirm)) {
                 // TODO: We should keep a queue of requests and handle them one after the other,
                 // instead of simply rejecting to initiate a request.
                 return Promise.reject();
             }
 
-            if (this.confirm && !this.showConfirm) {
+            if (this.confirm && !this.showConfirm && !skipConfirm) {
                 this.$refs.confirmPopover.$emit('open');
                 this.showConfirm = true;
                 return new Promise(resolve => {
                     this.confirmAction = () => {
                         this.resetConfirm();
-                        resolve(this.submitFunction(func));
+                        resolve(
+                            this.submitFunction(func, {
+                                fromConfirm: true,
+                            }),
+                        );
                     };
                 });
             } else {
@@ -261,7 +267,9 @@ export default {
             } else if (this.confirm && this.showConfirm && !fromConfirm) {
                 // NOOP
             } else {
-                this.$emit('click', this.confirmEvent || event);
+                this.$emit('click', this.confirmEvent || event, {
+                    fromConfirm,
+                });
                 this.resetConfirm();
             }
         },

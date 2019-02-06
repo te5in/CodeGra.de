@@ -105,7 +105,7 @@ export default {
     methods: {
         ...mapActions('user', ['updateAccessToken']),
 
-        submit() {
+        submit(_, extraOpts) {
             const button = this.$refs.submit;
 
             if (this.firstPw !== this.secondPw) {
@@ -114,30 +114,32 @@ export default {
                 return button.fail('The two emails do not match!');
             }
 
-            return button.submitFunction(() =>
-                this.$http
-                    .post('/api/v1/user', {
-                        username: this.username,
-                        password: this.firstPw,
-                        email: this.firstEmail,
-                        name: this.name,
-                    })
-                    .then(
-                        async ({ data }) => {
-                            if (data.access_token) {
-                                await this.updateAccessToken(data.access_token);
-                                this.$router.push({
-                                    name: 'me',
-                                    query: { sbloc: 'm' },
-                                });
-                            }
-                        },
-                        ({ response }) => {
-                            throw response.data.feedback || {
-                                warning: response.data.message,
-                            };
-                        },
-                    ),
+            return button.submitFunction(
+                () =>
+                    this.$http
+                        .post('/api/v1/user', {
+                            username: this.username,
+                            password: this.firstPw,
+                            email: this.firstEmail,
+                            name: this.name,
+                        })
+                        .then(
+                            async ({ data }) => {
+                                if (data.access_token) {
+                                    await this.updateAccessToken(data.access_token);
+                                    this.$router.push({
+                                        name: 'me',
+                                        query: { sbloc: 'm' },
+                                    });
+                                }
+                            },
+                            ({ response }) => {
+                                throw response.data.feedback || {
+                                    warning: response.data.message,
+                                };
+                            },
+                        ),
+                extraOpts,
             );
         },
     },
