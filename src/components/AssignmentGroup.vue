@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div class="assignment-group">
-    <table class="range-table table table-striped">
+    <table class="range-table table table-striped table-hover">
         <tbody class="group-table"
                name="fade"
                is="transition-group">
@@ -14,9 +14,10 @@
             </tr>
             <tr v-else
                 v-for="groupSet in groupSets"
-                :key="groupSet.id">
+                :key="groupSet.id"
+                @click.prevent="selectGroupSet(groupSet.id)">
                 <td>
-                    <b-form-checkbox @click.native.prevent="selected = selected === groupSet.id ? null : groupSet.id"
+                    <b-form-checkbox @click.native.prevent
                                      :checked="selected === groupSet.id"/>
                 </td>
                 <td>
@@ -148,6 +149,10 @@ export default {
             );
 
             btn.submit(waitAtLeast(500, req));
+        },
+
+        selectGroupSet(id) {
+            this.selected = this.selected === id ? null : id;
         },
     },
 
