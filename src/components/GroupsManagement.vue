@@ -2,7 +2,12 @@
 <template>
 <div class="groups-management">
     <loader v-if="loading"/>
-    <transition-group :name="doAnimations ? 'fade' : ''"
+    <p v-else-if="!groups.length"
+        class="text-center text-muted">
+        No groups have been created yet.
+    </p>
+    <transition-group v-else
+                      :name="doAnimations ? 'fade' : ''"
                       tag="div">
         <group-management v-for="group, i in groups"
                           :value="groups[i]"
