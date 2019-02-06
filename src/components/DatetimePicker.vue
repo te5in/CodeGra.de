@@ -64,12 +64,18 @@ export default {
 </script>
 
 <style lang="less">
+@import '~mixins.less';
+
 .datetime-picker {
-    &:not(:disabled) {
-        background-color: white !important;
+    &.flatpickr-input:not(:disabled) {
+        background-color: white;
     }
     &:disabled {
         cursor: not-allowed;
+    }
+
+    &.flatpickr-input {
+        .default-form-control-colors;
     }
 }
 </style>
