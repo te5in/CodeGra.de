@@ -16,7 +16,7 @@
         :editing="editingFeedback"
         :editable="editable"
         :feedback="feedback.msg"
-        :author="feedback && feedback.author && feedback.author.name"
+        :author="feedback && feedback.author"
         :line="line"
         :file-id="fileId"
         :total-amount-lines="line + 1000"

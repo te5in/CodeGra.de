@@ -1,8 +1,8 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div class="feedback-area-wrapper non-editable" v-if="!editing">
-    <div class="author" v-if="author">{{ author }}</div>
-    <b-card class="feedback-area non-editable" :class="{'has-author': author != null}">
+    <div class="author" v-if="authorName">{{ authorName }}</div>
+    <b-card class="feedback-area non-editable" :class="{'has-author': !!authorName}">
         <div @click="changeFeedback($event)" :style="{'min-height': '1em'}">
             <div v-html="newlines($htmlEscape(serverFeedback))"></div>
         </div>
@@ -103,7 +103,7 @@ import 'vue-awesome/icons/plus';
 
 import { mapActions, mapGetters } from 'vuex';
 
-import { waitAtLeast } from '@/utils';
+import { waitAtLeast, nameOfUser } from '@/utils';
 import SubmitButton from './SubmitButton';
 
 export default {
@@ -121,7 +121,7 @@ export default {
         },
 
         author: {
-            type: [String, Object],
+            type: [Object],
             required: false,
             default: undefined,
         },
@@ -269,6 +269,10 @@ export default {
 
         showSnippetsAbove() {
             return this.forceSnippetsAbove || (this.notSnippetsAbsoluteBelow && this.line > 6);
+        },
+
+        authorName() {
+            return nameOfUser(this.author);
         },
     },
 
