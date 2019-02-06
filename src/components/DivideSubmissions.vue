@@ -36,6 +36,7 @@
     </table>
 
     <submit-button label="Divide"
+                   style="height: inherit;"
                    @click="divideAssignments"
                    ref="submitButton"
                    v-if="graders.length"/>
@@ -118,7 +119,8 @@ export default {
 <style lang="less" scoped>
 @import '~mixins.less';
 
-.grader-list {
+.grader-list,
+.divide-submissions {
     margin-bottom: 1rem;
 }
 

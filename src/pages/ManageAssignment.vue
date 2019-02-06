@@ -86,7 +86,7 @@
                     <c-g-ignore-file :assignment-id="assignmentId"/>
                 </b-card>
 
-                <b-card v-if="canEditGroups">
+                <b-card v-if="canEditGroups" no-body>
                     <span slot="header">
                         Group Assignment
                         <description-popover>
@@ -139,7 +139,7 @@
         <div class="row cat-wrapper"
              :class="{hidden: selectedCat !== 'Graders'}">
             <div class="col-lg-6">
-                <b-card v-if="canAssignGraders">
+                <b-card v-if="canAssignGraders" no-body>
                     <span slot="header">
                         Divide submissions
                         <description-popover
@@ -159,7 +159,7 @@
             </div>
 
             <div class="col-lg-6">
-                <b-card v-if="canUpdateGradersStatus">
+                <b-card v-if="canUpdateGradersStatus" no-body>
                     <span slot="header">
                         Finished grading
                         <description-popover
@@ -198,7 +198,7 @@
         </div>
 
         <div class="cat-wrapper" :class="{hidden: selectedCat !== 'Plagiarism'}">
-            <b-card v-if="canUsePlagiarism">
+            <b-card v-if="canUsePlagiarism" no-body>
                 <span slot="header">
                     Plagiarism checking
                     <description-popover
@@ -531,14 +531,8 @@ export default {
     color: inherit;
 }
 
-.divide-submissions,
-.assignment-group {
-    margin: -1.25rem -1.25rem -0.25rem;
-}
-
-.finished-grader-toggles,
 .plagiarism-runner {
-    margin: -1.25rem;
+    margin-bottom: 1rem;
 }
 
 .categories {

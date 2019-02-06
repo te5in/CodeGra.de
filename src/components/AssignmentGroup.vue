@@ -1,7 +1,8 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div class="assignment-group">
-    <table class="range-table table table-striped table-hover">
+    <table class="range-table table table-striped"
+           :class="{ 'table-hover': groupSets.length > 0 }">
         <tbody class="group-table"
                name="fade"
                is="transition-group">
@@ -50,7 +51,10 @@
                   v-b-popover.hover.top="'Manage group sets for this course.'">
             Edit group sets
         </b-button>
-        <submit-button ref="submitButton" @click="submit"/>
+        <submit-button ref="submitButton"
+                       style="height: inherit;"
+                       v-if="groupSets.length > 0"
+                       @click="submit"/>
     </b-button-toolbar>
 </div>
 </template>
@@ -197,9 +201,8 @@ export default {
 <style lang="less" scoped>
 @import '~mixins.less';
 
-.submit-group {
-    margin-right: 1rem;
-    float: right;
+.table {
+    margin-bottom: 0;
 }
 
 .group-table {
@@ -241,6 +244,6 @@ td {
 }
 
 .btn-toolbar {
-    padding: 0 0.75rem;
+    padding: 1rem 0.75rem;
 }
 </style>
