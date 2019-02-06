@@ -246,5 +246,11 @@
     "course_permission": true,
     "short_description": "Edit group set",
     "long_description": "Users with this permissions can create, delete and edit group sets."
+  },
+  "can_create_groups": {
+    "default_value": true,
+    "course_permission": true,
+    "short_description": "Create groups",
+    "long_description": "Users with this permission can create new groups in group assignments."
   }
 }

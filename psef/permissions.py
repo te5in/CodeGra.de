@@ -169,6 +169,7 @@ class CoursePermission(BasePermission):
     :ivar can_view_others_groups: Users with this permission can view groups they are not in, and the members of these groups.
     :ivar can_edit_group_assignment: Users with this permission can change an assignment into a group assignment, and change the minimum and maximum required group size.
     :ivar can_edit_group_set: Users with this permissions can create, delete and edit group sets.
+    :ivar can_create_groups: Users with this permission can create new groups in group assignments.
     """
 
     @staticmethod
@@ -209,5 +210,6 @@ class CoursePermission(BasePermission):
     can_view_others_groups = _PermissionValue(item=31, default_value=True)
     can_edit_group_assignment = _PermissionValue(item=32, default_value=False)
     can_edit_group_set = _PermissionValue(item=33, default_value=False)
+    can_create_groups = _PermissionValue(item=34, default_value=True)
 
 # yapf: enable

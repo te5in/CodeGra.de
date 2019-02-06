@@ -6,7 +6,8 @@
       "can_list_course_users",
       "can_see_assignments",
       "can_edit_own_groups",
-      "can_view_others_groups"
+      "can_view_others_groups",
+      "can_create_groups"
     ],
     "initial_role": false
   },
@@ -25,7 +26,8 @@
       "can_edit_own_groups",
       "can_edit_others_groups",
       "can_edit_groups_after_submission",
-      "can_view_others_groups"
+      "can_view_others_groups",
+      "can_create_groups"
     ],
     "initial_role": false
   },
@@ -64,13 +66,15 @@
       "can_edit_groups_after_submission",
       "can_view_others_groups",
       "can_edit_group_assignment",
-      "can_edit_group_set"
+      "can_edit_group_set",
+      "can_create_groups"
     ],
     "initial_role": true
   },
   "Observer": {
     "permissions": [
-      "can_list_course_users"
+      "can_list_course_users",
+      "can_create_groups"
     ],
     "initial_role": false
   },
@@ -95,7 +99,8 @@
       "can_edit_groups_after_submission",
       "can_view_others_groups",
       "can_edit_group_assignment",
-      "can_edit_group_set"
+      "can_edit_group_set",
+      "can_create_groups"
     ],
     "initial_role": false
   }

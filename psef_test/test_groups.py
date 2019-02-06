@@ -78,8 +78,8 @@ def test_create_group_set(
 
 @pytest.mark.parametrize(
     'user_with_perms', [
-        [CPerm.can_edit_own_groups],
-        [CPerm.can_edit_others_groups],
+        [CPerm.can_create_groups, CPerm.can_edit_own_groups],
+        [CPerm.can_create_groups, CPerm.can_edit_others_groups],
         perm_error([]),
     ],
     indirect=True
@@ -141,8 +141,8 @@ def test_create_simple_group(
 
 @pytest.mark.parametrize(
     'user_with_perms', [
-        perm_error([CPerm.can_edit_own_groups]),
-        [CPerm.can_edit_others_groups],
+        perm_error([CPerm.can_create_groups, CPerm.can_edit_own_groups]),
+        [CPerm.can_create_groups, CPerm.can_edit_others_groups],
     ],
     indirect=True
 )

@@ -55,6 +55,7 @@ def init_app(app: t.Any) -> None:
         logger.warning(
             'APIException occurred',
             api_exception=error.__to_json__(),
+            exc_info=True,
         )
         return response
 

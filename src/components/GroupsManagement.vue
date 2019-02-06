@@ -2,41 +2,47 @@
 <template>
 <div class="groups-management">
     <loader v-if="loading"/>
-    <p v-else-if="!groups.length"
-        class="text-center text-muted">
-        No groups have been created yet.
-    </p>
-    <transition-group v-else
-                      :name="doAnimations ? 'fade' : ''"
-                      tag="div">
-        <group-management v-for="group, i in groups"
-                          :value="groups[i]"
-                          @input="(val) => changedGroup(val, i)"
-                          v-if="filter(group, i)"
-                          :show-lti-progress="showLtiProgress(group, i)"
-                          :can-edit-own="canEdit.own"
-                          :can-edit-others="canEdit.others"
-                          :selected-members="selectedMembers"
-                          :key="`assignment-group-${group.id}`"
-                          :assignment="assignment"
-                          :course="course"
-                          :group-set="groupSet"/>
-    </transition-group>
-    <div class="button-wrapper" v-if="showAddButton && (canEdit.own || canEdit.others)">
-        <submit-button label="Create new group" @click="addGroup" ref="addButton"/>
-    </div>
-    <!-- This is showed on assignment pages-->
-    <div v-if="!loading && !(showAddButton && (canEdit.own || canEdit.others)) && groups.length === 0"
-         class="no-perms">
-        You are currently in no group and you don't have the permission to
-        create any. Please ask your instructor to add you to a group.
-        <span v-if="groupSet.minimum_size > 1">
-            To submit work it is mandatory that you are in a group of at least
-            {{ groupSet.minimum_size }} members.
-        </span>
-        <span v-else>
-            You are not required to be part of a group to submit work for this assignment.
-        </span>
+    <div v-else>
+        <transition-group v-if="groups.length > 0"
+                          :name="doAnimations ? 'fade' : ''"
+                          tag="div">
+            <group-management v-for="group, i in groups"
+                              :value="groups[i]"
+                              @input="(val) => changedGroup(val, i)"
+                              v-if="filter(group, i)"
+                              :show-lti-progress="showLtiProgress(group, i)"
+                              :can-edit-own="canEdit.own"
+                              :can-edit-others="canEdit.others"
+                              :selected-members="selectedMembers"
+                              :key="`assignment-group-${group.id}`"
+                              :assignment="assignment"
+                              :course="course"
+                              :group-set="groupSet"/>
+        </transition-group>
+
+        <p class="text-muted">
+            <span v-if="groups.length === 0">
+                There are no groups yet.
+            </span>
+
+            <span v-if="!showAddButton || !canCreate">
+                You are currently not in a group and you don't have the permission to create any.
+                Please ask your instructor to create a group, if needed.
+
+                <span v-if="groupSet.minimum_size > 1">
+                    To submit work it is mandatory that you are in a group of at least
+                    {{ groupSet.minimum_size }} members.
+                </span>
+
+                <span v-else>
+                    You are not required to be part of a group to submit work for this assignment.
+                </span>
+            </span>
+        </p>
+
+        <div class="button-wrapper" v-if="showAddButton && canCreate">
+            <submit-button label="Create new group" @click="addGroup" ref="addButton"/>
+        </div>
     </div>
 </div>
 </template>
@@ -94,6 +100,7 @@ export default {
                 own: false,
                 others: false,
             },
+            canCreate: false,
         };
     },
 
@@ -159,10 +166,11 @@ export default {
 
         getPermissions() {
             return this.$hasPermission(
-                ['can_edit_own_groups', 'can_edit_others_groups'],
+                ['can_edit_own_groups', 'can_edit_others_groups', 'can_create_groups'],
                 this.course.id,
-            ).then(([own, others]) => {
+            ).then(([own, others, create]) => {
                 this.canEdit = { own, others };
+                this.canCreate = create;
             });
         },
 
@@ -193,7 +201,7 @@ export default {
 <style lang="less" scoped>
 @import '~mixins.less';
 
-.group-management:not(:last-child) {
+.group-management {
     margin-bottom: 1rem;
 }
 
@@ -201,13 +209,6 @@ export default {
     margin-top: 1rem;
     .btn {
         float: right;
-    }
-}
-
-.no-perms {
-    color: gray;
-    #app.dark & {
-        color: @color-light-gray;
     }
 }
 

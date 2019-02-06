@@ -37,8 +37,8 @@ def create_group(group_set_id: int) -> JSONResponse[models.Group]:
     :returns: The newly created group.
     """
     group_set = get_or_404(models.GroupSet, group_set_id)
-    auth.ensure_any_of_permissions(
-        [CPerm.can_edit_own_groups, CPerm.can_edit_others_groups],
+    auth.ensure_permission(
+        CPerm.can_create_groups,
         group_set.course_id,
     )
 
