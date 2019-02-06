@@ -87,7 +87,7 @@
 }
 
 .default-link-colors {
-    &:not(.inline-link) {
+    &:not(.inline-link):not(.btn) {
         color: @color-primary;
 
         &:hover {
@@ -134,8 +134,10 @@
     color: @color-primary;
     border-color: @color-primary;
 
-    &:hover {
-        background-color: @color-primary;
+    &:hover,
+    &:active:not(:disabled):not(.disabled) {
+        background-color: saturate(lighten(@color-primary, 7.5%), 10%);
+        border-color: saturate(lighten(@color-primary, 7.5%), 10%);
     }
 
     #app:not(.lti) #global-sidebar &,
@@ -154,7 +156,8 @@
     background-color: @color-primary;
     border-color: @color-primary;
 
-    &:hover {
+    &:hover,
+    &:active:not(:disabled):not(.disabled) {
         background-color: saturate(lighten(@color-primary, 7.5%), 10%);
         border-color: saturate(lighten(@color-primary, 7.5%), 10%);
     }

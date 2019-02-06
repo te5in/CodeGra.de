@@ -18,7 +18,8 @@
                 @click.prevent="selectGroupSet(groupSet.id)">
                 <td>
                     <b-form-checkbox @click.native.prevent
-                                     :checked="selected === groupSet.id"/>
+                                     :checked="selected === groupSet.id"
+                                     class="group-set-checkbox"/>
                 </td>
                 <td>
                     <ul>
@@ -31,16 +32,34 @@
                         </li>
                     </ul>
                 </td>
+                <td>
+                    <b-button :to="manageGroupsLink(groupSet)"
+                              variant="primary"
+                              size="sm"
+                              v-b-popover.hover="'Manage groups in this set.'">
+                        <icon name="pencil"/>
+                    </b-button>
+                </td>
             </tr>
         </tbody>
     </table>
 
-    <submit-button ref="submitButton" @click="submit"/>
+    <b-button-toolbar justify>
+        <b-button :to="manageLink"
+                  variant="outline-primary"
+                  v-b-popover.hover.top="'Manage group sets for this course.'">
+            Edit group sets
+        </b-button>
+        <submit-button ref="submitButton" @click="submit"/>
+    </b-button-toolbar>
 </div>
 </template>
 
 <script>
 import { mapActions, mapGetters } from 'vuex';
+
+import Icon from 'vue-awesome/components/Icon';
+import 'vue-awesome/icons/pencil';
 
 import { waitAtLeast } from '@/utils';
 
@@ -151,6 +170,16 @@ export default {
             btn.submit(waitAtLeast(500, req));
         },
 
+        manageGroupsLink(groupSet) {
+            return {
+                name: 'manage_groups',
+                params: {
+                    courseId: this.assignment.course.id,
+                    groupSetId: groupSet.id,
+                },
+            };
+        },
+
         selectGroupSet(id) {
             this.selected = this.selected === id ? null : id;
         },
@@ -160,6 +189,7 @@ export default {
         SubmitButton,
         DescriptionPopover,
         Toggle,
+        Icon,
     },
 };
 </script>
@@ -167,7 +197,7 @@ export default {
 <style lang="less" scoped>
 @import '~mixins.less';
 
-.submit-button {
+.submit-group {
     margin-right: 1rem;
     float: right;
 }
@@ -175,7 +205,8 @@ export default {
 .group-table {
     vertical-align: middle;
 
-    td:first-child:not(:last-child) {
+    td:first-child:not(:last-child),
+    td:last-child:not(:first-child) {
         width: 1px;
         white-space: nowrap;
     }
@@ -202,5 +233,14 @@ ul {
 
 td {
     vertical-align: middle;
+}
+
+.group-set-checkbox {
+    margin-right: 0;
+    padding-left: 0.75rem;
+}
+
+.btn-toolbar {
+    padding: 0 0.75rem;
 }
 </style>

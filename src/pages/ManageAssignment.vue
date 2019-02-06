@@ -93,13 +93,8 @@
                             <span slot="description">
                                 Determine if this assignment should be a group
                                 assignment. Select a group set for this
-                                assignment to make it a group assignment. You
-                                can create group
-                                sets <router-link class="inline-link"
-                                                  :to="manageGroupLink">here</router-link>.
-
-                                To learn more about how groups work on
-                                CodeGrade, you can read
+                                assignment to make it a group assignment. To
+                                learn more about how groups work on CodeGrade, you can read
                                 more <a class="inline-link"
                                         href="https://docs.codegra.de/"
                                         target="_blank">here</a>.
