@@ -451,6 +451,26 @@ def test_update_group_set(
             result=error_template,
         )
 
+        # You should also not be able to disconnect the group set for this
+        # assignment
+        test_client.req(
+            'patch',
+            f'/api/v1/assignments/{assignment.id}',
+            400,
+            data={'group_set_id': None},
+            result=error_template,
+        )
+        new_group_set = create_group_set(test_client, prog_course.id, 2, 4)
+        # You should also not be able to change the group set for this
+        # assignment
+        test_client.req(
+            'patch',
+            f'/api/v1/assignments/{assignment.id}',
+            400,
+            data={'group_set_id': new_group_set['id']},
+            result=error_template,
+        )
+
 
 @pytest.mark.parametrize(
     'user_with_perms', [

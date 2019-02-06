@@ -316,6 +316,18 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
             group_set = None
         else:
             group_set = helpers.get_or_404(models.GroupSet, group_set_id)
+
+        if assig.group_set != group_set and assig.has_group_submissions():
+            raise APIException(
+                (
+                    'This assignment has submissions by a group, delete'
+                    ' these first'
+                ), (
+                    "You can't disconnect this group set as there are"
+                    " still submissions by groups"
+                ), APICodes.INVALID_STATE, 400
+            )
+
         assig.group_set = group_set
 
     db.session.commit()

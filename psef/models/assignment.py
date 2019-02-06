@@ -21,6 +21,7 @@ import psef
 from . import UUID_LENGTH, Base, DbColumn, db
 from . import user as user_models
 from . import work as work_models
+from . import group as group_models
 from . import linter as linter_models
 from . import _MyQuery
 from .. import auth, helpers
@@ -33,7 +34,6 @@ from ..permissions import CoursePermission as CPerm
 
 if t.TYPE_CHECKING:  # pragma: no cover
     # pylint: disable=unused-import
-    from . import group as group_models
     from . import course as course_models
     cached_property = property  # pylint: disable=invalid-name
 else:
@@ -1048,3 +1048,17 @@ class Assignment(Base):
             res = res.order_by(func.lower(done_graders.c.name))
 
         return res
+
+    def has_group_submissions(self) -> bool:
+        """Check if the assignment has submissions by a group.
+
+        :returns: ``True`` if the assignment has a submission by a group.
+        """
+        return db.session.query(
+            db.session.query(
+                work_models.Work
+            ).filter_by(assignment_id=self.id).join(
+                user_models.User,
+                user_models.User.id == work_models.Work.user_id
+            ).join(group_models.Group).exists()
+        ).scalar()

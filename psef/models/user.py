@@ -148,7 +148,7 @@ class User(Base):
 
     role: Role = db.relationship('Role', foreign_keys=role_id, lazy='select')
 
-    def __eq__(self, other: t.Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         if not isinstance(other, User):
             return False
         return self.id == other.id
@@ -156,7 +156,7 @@ class User(Base):
     def __hash__(self) -> int:
         return hash(self.id)
 
-    def __ne__(self, other: t.Any) -> bool:  # pragma: no cover
+    def __ne__(self, other: object) -> bool:  # pragma: no cover
         return not self.__eq__(other)
 
     @classmethod

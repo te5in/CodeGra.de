@@ -76,6 +76,11 @@ class GroupSet(Base):
         order_by='Group.created_at',
     )  # type: t.MutableSequence['Group']
 
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, GroupSet):
+            return False
+        return self.id == other.id
+
     def get_valid_group_for_user(self, user: 'user_models.User'
                                  ) -> t.Optional['Group']:
         """Get the group for the given user.
