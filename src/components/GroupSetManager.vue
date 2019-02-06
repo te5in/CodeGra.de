@@ -58,12 +58,14 @@
                     <td class="btns">
                         <b-button-group>
                             <submit-button default="warning"
+                                           size="sm"
                                            label
                                            @click="$set(editing, set.id, null)"
                                            v-b-popover.top.hover="'Revert'">
                                 <icon name="reply"/>
                             </submit-button>
                             <submit-button @click="submitSet(editing[set.id])"
+                                           size="sm"
                                            label
                                            :ref="`saveSet-${set.id}`"
                                            v-b-popover.top.hover="'Save'">
@@ -78,12 +80,14 @@
                     <td><span class="txt assigs">{{ formattedAssignments(set)}}</span></td>
                     <td class="btns">
                         <b-button-group>
-                            <submit-button label
+                            <submit-button size="sm"
+                                           label
                                            @click="startEdit(set)"
                                            v-b-popover.top.hover="'Edit group set'">
                                 <icon name="pencil"/>
                             </submit-button>
                             <submit-button default="danger"
+                                           size="sm"
                                            label
                                            @click="deleteSet(set)"
                                            :ref="`deleteSet-${set.id}`"
