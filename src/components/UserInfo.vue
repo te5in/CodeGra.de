@@ -218,7 +218,7 @@ export default {
                                 };
                             },
                         ),
-                extraOpts.fromConfirm,
+                extraOpts,
             );
         },
     },
