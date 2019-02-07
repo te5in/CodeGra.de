@@ -1,6 +1,66 @@
 Changelog
 ==========
 
+Version 1.2.19 (Izanami)
+------------------------
+
+**Released**: Februari 07th, 2019
+
+**Features & Updates**
+
+- Group assignments `(#715)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/715>`__: With this release
+  we have added group assignments. It is possible to create groups, share
+  them between assignments, and submit as a group. Groups can be given
+  a nice name, that is easily remembered by the TA.
+- Add support for 7zip as archive format `(#738)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/738>`__
+- Make late submissions stand out `(#739)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/739>`__: Submissions that have
+  been handed in after the deadline are highlighted in the submissions list.
+- Make it possible to display IPython notebooks `(#742)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/742>`__: CodeGrade now renders
+  handed in IPython notebooks in the web interface instead of showing a JSON
+  blob. Additionally, markdown files are also rendered. Teachers can place
+  comments in both types of files, as well as on image files now. This also
+  adds a message when a file does not end in a newline character.
+
+**Minor updates**
+
+- Show message when uploaded file is empty `(#766)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/766>`__: When a file is empty,
+  it wouldn't show up at all in the code viewer. This changes it to show
+  a message, indicating that the file is empty.
+- Make the user selector more clear `(#752)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/752>`__: The user selector now
+  shows a magnifying glass, indicating that the user can type to search for
+  users.
+- Use flatpickr datetime picker instead of native `(#737)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/737>`__: Date/time inputs have
+  been changed to use a date picker, so users of browsers besides Chromium can
+  now also pleasantly select a date or time.
+- Change icon for user in the sidebar `(#747)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/747>`__
+
+**Fixes**
+
+- Hide plagiarism providers when there is only one `(#745)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/745>`__
+- Make sure it is possible to ignore single files `(#767)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/767>`__: When a student
+  submitted a single file instead of an archive, the student would not be warned
+  that the file was ignored by the assignment's CGignore file.
+- Make sure confirmations work correctly when submitFunction is used `(#748)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/748>`__
+- Improve grade viewer `(#764)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/764>`__: It was not possible to
+  simultaneously submit a change to a rubric and override the grade calculated
+  by the rubric.
+- Various front-end UI fixes `(#763)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/763>`__
+- Various browser specific UI fixes `(#768)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/768>`__
+
 Version 1.1.4 (HereBeMonsters.3)
 ---------------------------------
 
