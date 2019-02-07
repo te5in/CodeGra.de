@@ -22,6 +22,21 @@
             </span>
         </b-popover>
         <span id="submission-file-uploader-wrapper">
+            <b-alert show variant="info" class="assignment-alert"
+                        v-if="assignment.group_set">
+                This assignment is a group assignment.
+                <template v-if="assignment.group_set.minimum_size > 1">
+                    To submit you have to be in a group with at least
+                    {{ assignment.group_set.minimum_size }} members.
+                </template>
+                <template v-else>
+                    You don't have to be member of group to submit.
+                </template>
+                You can create or join
+                groups <router-link class="inline-link"
+                                    :to="groupSetPageLink">here</router-link>.
+                When submitting you will always submit for your entire group.
+            </b-alert>
             <submission-uploader :assignment="assignment"
                                  :for-others="canUploadForOthers"
                                  :can-list-users="canListUsers"
@@ -58,6 +73,17 @@ export default {
 
     computed: {
         ...mapGetters('courses', ['assignments']),
+
+        groupSetPageLink() {
+            return {
+                name: 'manage_groups',
+                params: {
+                    courseId: this.assignment.course.id,
+                    groupSetId: this.assignment.group_set && this.assignment.group_set.id,
+                },
+                query: { sbloc: 'g' },
+            };
+        },
 
         assignment() {
             return this.assignments[this.assignmentId];

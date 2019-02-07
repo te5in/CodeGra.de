@@ -264,7 +264,7 @@ class LTI:  # pylint: disable=too-many-public-methods
             optionally the updated email of the user as a string, this is
             ``None`` if the email was not updated.
         """
-        is_logged_in = _user_active()
+        is_logged_in = _user_active(current_user)
         token = None
         user = None
 
@@ -750,8 +750,9 @@ class CanvasLTI(LTI):
             deadline = deadline.astimezone(datetime.timezone.utc)
             return deadline.replace(tzinfo=None)
         except (KeyError, ValueError, OverflowError):
-            return (datetime.datetime.utcnow() + datetime.timedelta(days=365)
-                    ) if default is None else default
+            return (
+                datetime.datetime.utcnow() + datetime.timedelta(days=365)
+            ) if default is None else default
 
     @classmethod
     def passback_grade(
@@ -893,7 +894,6 @@ class LTIRawReplaceResultOperation(LTIReplaceResultBaseOperation):
 class LTIInitalReplaceResultOperation(LTIReplaceResultBaseOperation):
     """An initial replaceResult operation, which doens't provide a grade.
     """
-    pass
 
 
 class OutcomeRequest:
@@ -1062,7 +1062,7 @@ class OutcomeRequest:
                 for key, value in self.lti_operation.submission_details.items(
                 ):
                     sub_details_el = ET.SubElement(details_el, key)
-                    sub_details_el.text = value
+                    sub_details_el.text = str(value)
 
         return ET.tostring(root, encoding='utf-8')
 

@@ -265,9 +265,6 @@ export default {
         .delete .loader {
             height: 1.25rem;
         }
-        th {
-            border-top: none;
-        }
 
         tr {
             :first-child {

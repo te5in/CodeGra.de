@@ -47,6 +47,8 @@ import 'vue-awesome/icons/cog';
 
 import Baby from 'babyparse';
 
+import { nameOfUser } from '@/utils';
+
 export default {
     name: 'submissions-exporter',
 
@@ -86,7 +88,7 @@ export default {
                     {
                         name: 'Name',
                         enabled: true,
-                        getter: submission => submission.user.name,
+                        getter: submission => nameOfUser(submission.user),
                     },
                     {
                         name: 'Grade',
@@ -96,12 +98,12 @@ export default {
                     {
                         name: 'Created at',
                         enabled: true,
-                        getter: submission => submission.created_at,
+                        getter: submission => submission.formatted_created_at,
                     },
                     {
                         name: 'Assigned to',
                         enabled: true,
-                        getter: submission => (submission.assignee ? submission.assignee.name : ''),
+                        getter: submission => nameOfUser(submission.assignee),
                     },
                     {
                         name: 'General feedback',

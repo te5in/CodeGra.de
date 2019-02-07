@@ -185,7 +185,7 @@ export default {
             this.confirmPw = '';
         },
 
-        submit() {
+        submit(_, extraOpts = {}) {
             const btn = this.$refs.submitButton;
 
             if (this.newPw !== this.confirmPw) {
@@ -199,24 +199,26 @@ export default {
                 });
             }
 
-            return btn.submitFunction(() =>
-                this.$store
-                    .dispatch('user/updateUserInfo', {
-                        name: this.name,
-                        email: this.email,
-                        oldPw: this.oldPw,
-                        newPw: this.newPw,
-                    })
-                    .then(
-                        () => {
-                            this.reset();
-                        },
-                        ({ response }) => {
-                            throw response.data.feedback || {
-                                warning: response.data.message,
-                            };
-                        },
-                    ),
+            return btn.submitFunction(
+                () =>
+                    this.$store
+                        .dispatch('user/updateUserInfo', {
+                            name: this.name,
+                            email: this.email,
+                            oldPw: this.oldPw,
+                            newPw: this.newPw,
+                        })
+                        .then(
+                            () => {
+                                this.reset();
+                            },
+                            ({ response }) => {
+                                throw response.data.feedback || {
+                                    warning: response.data.message,
+                                };
+                            },
+                        ),
+                extraOpts,
             );
         },
     },

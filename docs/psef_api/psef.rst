@@ -101,9 +101,6 @@ Source code documentation of ``psef``
 --------------------------
 
 .. automodule:: psef.models
-    :members:
-    :show-inheritance:
-    :special-members:
 
 ``psef.parsers``
 ---------------------------

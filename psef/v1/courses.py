@@ -24,6 +24,7 @@ from psef.helpers import (
 )
 
 from . import api
+from .. import features
 from ..permissions import CoursePermMap
 from ..permissions import CoursePermission as CPerm
 from ..permissions import GlobalPermission as GPerm
@@ -501,8 +502,8 @@ def get_courses() -> JSONResponse[t.Sequence[t.Mapping[str, t.Any]]]:
     :returns: A response containing the JSON serialized courses
 
     :param str extended: If set to ``true``, ``1`` or the empty string all the
-        assignments for each course are also included under the key
-        `assignments`.
+        assignments and group sets for each course are also included under the
+        key ``assignments`` and ``group_sets`` respectively.
 
     :>jsonarr str role: The name of the role the current user has in this
         course.
@@ -515,6 +516,7 @@ def get_courses() -> JSONResponse[t.Sequence[t.Mapping[str, t.Any]]]:
         if helpers.extended_requested():
             return {
                 'assignments': course.get_all_visible_assignments(),
+                'group_sets': course.group_sets,
                 **course.__to_json__(),
             }
         return course.__to_json__()
@@ -611,3 +613,102 @@ def get_permissions_for_course(
         also_error=lambda c: c.virtual,
     )
     return jsonify(CPerm.create_map(current_user.get_all_permissions(course)))
+
+
+@api.route('/courses/<int:course_id>/group_sets/', methods=['GET'])
+@features.feature_required(features.Feature.GROUPS)
+@auth.login_required
+def get_group_sets(course_id: int
+                   ) -> JSONResponse[t.Sequence[models.GroupSet]]:
+    """Get the all the :class:`.models.GroupSet` objects in the given course.
+
+    .. :quickref: Course; Get all group sets in the course.
+
+    :param int course_id: The id of the course of which the group sets should
+        be retrieved.
+    :returns: A list of group sets.
+    """
+    course = helpers.get_or_404(models.Course, course_id)
+    auth.ensure_enrolled(course.id)
+    return jsonify(course.group_sets)
+
+
+@api.route('/courses/<int:course_id>/group_sets/', methods=['PUT'])
+@features.feature_required(features.Feature.GROUPS)
+@auth.login_required
+def create_group_set(course_id: int) -> JSONResponse[models.GroupSet]:
+    """Create or update a :class:`.models.GroupSet` in the given course id.
+
+    .. :quickref: Course; Create a new group set in the course.
+
+    :>json int minimum_size: The minimum size attribute that the group set
+        should have.
+    :>json int maximum_size: The maximum size attribute that the group set
+        should have.
+    :>json int id: The id of the group to update.
+    :param course_id: The id of the course in which the group set should be
+        created or updated. The course id of a group set cannot change.
+    :returns: The created or updated group.
+    """
+    auth.ensure_permission(CPerm.can_edit_group_set, course_id)
+    course = helpers.get_or_404(models.Course, course_id)
+
+    content = ensure_json_dict(request.get_json())
+    ensure_keys_in_dict(
+        content, [
+            ('minimum_size', int),
+            ('maximum_size', int),
+        ]
+    )
+    min_size = t.cast(int, content['minimum_size'])
+    max_size = t.cast(int, content['maximum_size'])
+
+    if 'id' in content:
+        ensure_keys_in_dict(content, [('id', int)])
+        group_set_id = t.cast(int, content['id'])
+        group_set = helpers.get_or_404(
+            models.GroupSet,
+            group_set_id,
+        )
+        if group_set.course_id != course.id:
+            raise APIException(
+                'You cannot change the course id of a group set', (
+                    f'The group set {group_set.id} is '
+                    f'not connected to course {course.id}'
+                ), APICodes.INVALID_PARAM, 400
+            )
+    else:
+        group_set = models.GroupSet(course_id=course.id)
+        models.db.session.add(group_set)
+
+    if min_size <= 0:
+        raise APIException(
+            'Minimum size should be larger than 0',
+            f'Minimum size "{min_size}" is <= than 0', APICodes.INVALID_PARAM,
+            400
+        )
+    elif max_size < min_size:
+        raise APIException(
+            'Maximum size is smaller than minimum size', (
+                f'Maximum size "{max_size}" is smaller '
+                f'than minimum size "{min_size}"'
+            ), APICodes.INVALID_PARAM, 400
+        )
+    elif group_set.largest_group_size > max_size:
+        raise APIException(
+            'There are groups larger than the new maximum size',
+            f'Some groups have more than {max_size} members',
+            APICodes.INVALID_PARAM, 400
+        )
+    elif group_set.smallest_group_size < min_size:
+        raise APIException(
+            'There are groups smaller than the new minimum size',
+            f'Some groups have less than {min_size} members',
+            APICodes.INVALID_PARAM, 400
+        )
+    group_set.minimum_size = min_size
+    group_set.maximum_size = max_size
+
+    models.db.session.commit()
+
+    return jsonify(group_set)

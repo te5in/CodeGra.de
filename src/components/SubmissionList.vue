@@ -97,17 +97,23 @@
            slot="user"
            slot-scope="item"
            @click.prevent>
-            {{item.value.name ? item.value.name : '-'}}
+            <user :user="item.value"/>
         </a>
         <template slot="grade" slot-scope="item">
             {{formatGrade(item.value) || '-'}}
         </template>
-        <template slot="created_at" slot-scope="item">
+        <template slot="formatted_created_at" slot-scope="item">
             {{item.value ? item.value : '-'}}
+            <span v-if="item.item.created_at > assignment.deadline">
+                <icon name="clock-o"
+                      class="late-icon"
+                      v-b-popover.hover.top="getHandedInLateText(item.item)"/>
+            </span>
         </template>
         <template slot="assignee" slot-scope="item">
             <span v-if="!canAssignGrader || graders == null">
-                {{ item.value ? item.value.name : '-' }}
+                <user :user="item.value" v-if="item.value"/>
+                <span v-else>-</span>
             </span>
             <loader :scale="1" v-else-if="assigneeUpdating[item.item.id]"/>
             <b-form-select :options="assignees"
@@ -122,12 +128,14 @@
 </template>
 
 <script>
+import moment from 'moment';
 import { mapGetters, mapActions } from 'vuex';
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/gear';
 import 'vue-awesome/icons/refresh';
+import 'vue-awesome/icons/clock-o';
 
-import { formatGrade, parseBool, waitAtLeast } from '@/utils';
+import { formatGrade, parseBool, waitAtLeast, nameOfUser } from '@/utils';
 import { filterSubmissions, sortSubmissions } from '@/utils/FilterSubmissionsManager';
 
 import * as assignmentState from '@/store/assignment-states';
@@ -136,6 +144,7 @@ import Loader from './Loader';
 import SubmitButton from './SubmitButton';
 import RubricEditor from './RubricEditor';
 import LocalHeader from './LocalHeader';
+import User from './User';
 
 export default {
     name: 'submission-list',
@@ -204,7 +213,7 @@ export default {
                     sortable: true,
                 },
                 {
-                    key: 'created_at',
+                    key: 'formatted_created_at',
                     label: 'Created at',
                     sortable: true,
                 },
@@ -245,7 +254,14 @@ export default {
                 this.mineOnly,
                 this.userId,
                 this.filter,
-            );
+            ).map(sub => {
+                if (sub.created_at > this.assignment.deadline) {
+                    return Object.assign({}, sub, {
+                        _rowVariant: 'danger',
+                    });
+                }
+                return sub;
+            });
         },
 
         manageAssignmentRoute() {
@@ -306,7 +322,7 @@ export default {
         updateGraders(graders) {
             const assignees = graders.map(ass => ({
                 value: ass.id,
-                text: ass.name,
+                text: nameOfUser(ass),
                 data: ass,
             }));
             assignees.unshift({ value: null, text: '-', data: null });
@@ -414,6 +430,14 @@ export default {
 
         formatGrade,
         sortSubmissions,
+
+        getHandedInLateText(sub) {
+            const diff = moment(sub.created_at, moment.ISO_8601).from(
+                moment(this.assignment.deadline, moment.ISO_8601),
+                true, // Only get time string, not the 'in' before.
+            );
+            return `This submission was submitted ${diff} after the deadline.`;
+        },
     },
 
     components: {
@@ -423,9 +447,18 @@ export default {
         RubricEditor,
         SubmissionsExporter,
         LocalHeader,
+        User,
     },
 };
 </script>
+
+<style lang="less" scoped>
+.late-icon {
+    text-decoration: bold;
+    margin-bottom: -0.125em;
+    cursor: help;
+}
+</style>
 
 <style lang="less">
 @import '~mixins.less';

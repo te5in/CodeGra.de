@@ -16,7 +16,7 @@
                 <td class="name">
                     <b-form-checkbox @change="graderChanged(i)"
                                     :checked="grader.weight != 0">
-                        {{ grader.name }}
+                        <user :user="grader"/>
                     </b-form-checkbox>
                 </td>
                 <td class="weight">
@@ -36,6 +36,7 @@
     </table>
 
     <submit-button label="Divide"
+                   style="height: inherit;"
                    @click="divideAssignments"
                    ref="submitButton"
                    v-if="graders.length"/>
@@ -48,6 +49,7 @@ import { mapActions } from 'vuex';
 
 import Loader from './Loader';
 import SubmitButton from './SubmitButton';
+import User from './User';
 
 export default {
     name: 'divide-submissions',
@@ -109,6 +111,7 @@ export default {
     components: {
         Loader,
         SubmitButton,
+        User,
     },
 };
 </script>
@@ -116,7 +119,8 @@ export default {
 <style lang="less" scoped>
 @import '~mixins.less';
 
-.grader-list {
+.grader-list,
+.divide-submissions {
     margin-bottom: 1rem;
 }
 

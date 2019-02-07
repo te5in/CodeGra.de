@@ -17,10 +17,10 @@
             class="sidebar-list-item">
             <a class="sidebar-item name"
                @click="gotoSub(sub)">
-                {{ sub.user.name }}
+                <user :user="sub.user"/>
 
                 <small>
-                    Created at: {{ sub.created_at }}
+                    Created at: {{ sub.formatted_created_at }}
                 </small>
                 <small v-if="sub.assignee">
                     Assignee: {{ sub.assignee.name }}
@@ -44,6 +44,8 @@ import FilterSubmissionsManager from '@/utils/FilterSubmissionsManager';
 
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/plus';
+
+import User from '../User';
 
 export default {
     name: 'submissions-sidebar-list',
@@ -206,6 +208,7 @@ export default {
 
     components: {
         Icon,
+        User,
     },
 };
 </script>

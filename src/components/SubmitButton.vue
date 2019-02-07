@@ -7,7 +7,7 @@
           :size="size"
           :tabindex="tabindex"
           style="height: 100%;"
-          @click="onClick">
+          @click="(event) => onClick(event, false)">
     <span v-if="pending">
         <slot name="pending">
             <loader :scale="1" center/>
@@ -38,7 +38,8 @@
         <b-button-toolbar justify>
             <b-button variant="danger"
                       size="sm"
-                      @click="confirmAction">
+                      @click="(event) => confirmAction(event, true)"
+                      >
                 Yes
             </b-button>
             <b-button variant="success"
@@ -159,20 +160,26 @@ export default {
     },
 
     methods: {
-        submitFunction(func) {
-            if (this.pending) {
+        submitFunction(func, extraOpts) {
+            const skipConfirm = !!(extraOpts && extraOpts.fromConfirm);
+
+            if (this.pending || (this.confirm && this.showConfirm && !skipConfirm)) {
                 // TODO: We should keep a queue of requests and handle them one after the other,
                 // instead of simply rejecting to initiate a request.
                 return Promise.reject();
             }
 
-            if (this.confirm && !this.showConfirm) {
+            if (this.confirm && !this.showConfirm && !skipConfirm) {
                 this.$refs.confirmPopover.$emit('open');
                 this.showConfirm = true;
                 return new Promise(resolve => {
                     this.confirmAction = () => {
                         this.resetConfirm();
-                        resolve(this.submitFunction(func));
+                        resolve(
+                            this.submitFunction(func, {
+                                fromConfirm: true,
+                            }),
+                        );
                     };
                 });
             } else {
@@ -247,7 +254,7 @@ export default {
             });
         },
 
-        onClick(event) {
+        onClick(event, fromConfirm) {
             if (this.pending) {
                 return;
             }
@@ -257,8 +264,12 @@ export default {
                 this.showConfirm = true;
                 this.confirmAction = this.onClick;
                 this.confirmEvent = event;
+            } else if (this.confirm && this.showConfirm && !fromConfirm) {
+                // NOOP
             } else {
-                this.$emit('click', this.confirmEvent || event);
+                this.$emit('click', this.confirmEvent || event, {
+                    fromConfirm,
+                });
                 this.resetConfirm();
             }
         },

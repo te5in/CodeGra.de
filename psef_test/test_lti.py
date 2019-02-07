@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 import os
+import uuid
 import urllib
 import datetime
 import xml.etree.ElementTree as ET
@@ -11,7 +12,11 @@ import dateutil.parser
 import psef.auth as auth
 import psef.models as m
 import psef.features as feats
-from helpers import create_marker
+from helpers import (
+    create_group, create_marker, create_group_set, create_submission,
+    create_user_with_perms
+)
+from psef.permissions import CoursePermission as CPerm
 
 perm_error = create_marker(pytest.mark.perm_error)
 data_error = create_marker(pytest.mark.data_error)
@@ -25,6 +30,90 @@ SUCCESS_XML = open(
         'valid_replace_result.xml',
     )
 ).read()
+
+
+def _get_parsed(xml):
+    assert xml is not None
+
+    # Normal parsing should work
+    out = ET.fromstring(xml)
+    assert out is not None
+    assert len(out)
+    ns = 'http://www.imsglobal.org/services/ltiv1p1/xsd/imsoms_v1p0'
+    # Make sure the namespace is set correctly
+    assert out.tag.split('}')[0].strip('{') == ns
+
+    # Parse it without namespace for ease of testing
+    xml_no_ns = xml.replace(f' xmlns="{ns}"', '', 1)
+    res = ET.fromstring(xml_no_ns)
+    assert res is not None
+    assert len(res)
+    assert res.tag == 'imsx_POXEnvelopeRequest'
+    print(ET.tostring(res))
+    return res
+
+
+def assert_grade_deleted(xml, source_id):
+    el = _get_parsed(xml)
+    req_el = el.find('imsx_POXBody/deleteResultRequest')
+    assert req_el is not None
+    assert len(req_el)
+    assert el.find(
+        'imsx_POXHeader/imsx_POXRequestHeaderInfo/imsx_messageIdentifier'
+    ) is not None
+    assert req_el.find('resultRecord/sourcedGUID/sourcedId').text == source_id
+
+
+def assert_grade_set_to(
+    xml, source_id, lti_max_points, grade, raw, created_at
+):
+    assert isinstance(grade, (int, float))
+
+    el = _get_parsed(xml)
+    req_el = el.find('imsx_POXBody/replaceResultRequest/resultRecord')
+    assert req_el is not None
+
+    assert req_el.find('sourcedGUID/sourcedId').text == source_id
+
+    assert el.find(
+        'imsx_POXHeader/imsx_POXRequestHeaderInfo/imsx_messageIdentifier'
+    ) is not None
+    if raw:
+        score = req_el.find('result/resultTotalScore')
+        assert score is not None
+        assert score.find('language').text == 'en'
+        assert score.find('textString').text == str(
+            grade / 10 * lti_max_points
+        )
+        assert req_el.find('result/resultScore') is None
+    else:
+        score = req_el.find('result/resultScore')
+        assert score is not None
+        assert score.find('language').text == 'en'
+        assert score.find('textString').text == str(grade / 10)
+        assert req_el.find('result/resultTotalScore') is None
+
+    assert el.find(
+        'imsx_POXBody/replaceResultRequest/submissionDetails/submittedAt'
+    ).text.startswith(created_at)
+
+
+def assert_initial_passback(xml, source_id):
+    el = _get_parsed(xml)
+    req_el = el.find('imsx_POXBody/replaceResultRequest/resultRecord')
+    assert req_el is not None
+
+    assert req_el.find('sourcedGUID/sourcedId').text == source_id
+    assert el.find(
+        'imsx_POXHeader/imsx_POXRequestHeaderInfo/imsx_messageIdentifier'
+    ) is not None
+
+    # No grade should be passed back
+    assert req_el.find('result/resultTotalScore') is None
+    assert req_el.find('result/resultScore') is None
+
+    # Result data should be passed back
+    assert req_el.find('result/resultData') is not None
 
 
 @pytest.fixture(autouse=True)
@@ -283,97 +372,6 @@ def test_lti_grade_passback(
     lti_max_points = assig_max_points / 2
     last_xml = None
 
-    def _get_parsed(xml):
-        assert xml is not None
-
-        # Normal parsing should work
-        out = ET.fromstring(xml)
-        assert out
-        ns = 'http://www.imsglobal.org/services/ltiv1p1/xsd/imsoms_v1p0'
-        # Make sure the namespace is set correctly
-        assert out.tag.split('}')[0].strip('{') == ns
-
-        # Parse it without namespace for ease of testing
-        xml_no_ns = xml.replace(f' xmlns="{ns}"', '', 1)
-        res = ET.fromstring(xml_no_ns)
-        assert res
-        assert res.tag == 'imsx_POXEnvelopeRequest'
-        print(ET.tostring(res))
-        return res
-
-    def assert_grade_deleted():
-        nonlocal last_xml
-
-        el = _get_parsed(last_xml)
-        req_el = el.find('imsx_POXBody/deleteResultRequest')
-        assert req_el
-        assert el.find(
-            'imsx_POXHeader/imsx_POXRequestHeaderInfo/imsx_messageIdentifier'
-        ) is not None
-        assert req_el.find(
-            'resultRecord/sourcedGUID/sourcedId'
-        ).text == patch_request.source_id
-        last_xml = None
-
-    def assert_grade_set_to(grade, raw, created_at):
-        nonlocal last_xml
-        assert isinstance(grade, (int, float))
-
-        el = _get_parsed(last_xml)
-        req_el = el.find('imsx_POXBody/replaceResultRequest/resultRecord')
-        assert req_el
-
-        assert req_el.find(
-            'sourcedGUID/sourcedId'
-        ).text == patch_request.source_id
-
-        assert el.find(
-            'imsx_POXHeader/imsx_POXRequestHeaderInfo/imsx_messageIdentifier'
-        ) is not None
-        if raw:
-            score = req_el.find('result/resultTotalScore')
-            assert score is not None
-            assert score.find('language').text == 'en'
-            assert score.find('textString').text == str(
-                grade / 10 * lti_max_points
-            )
-            assert req_el.find('result/resultScore') is None
-        else:
-            score = req_el.find('result/resultScore')
-            assert score is not None
-            assert score.find('language').text == 'en'
-            assert score.find('textString').text == str(grade / 10)
-            assert req_el.find('result/resultTotalScore') is None
-
-        assert el.find(
-            'imsx_POXBody/replaceResultRequest/submissionDetails/submittedAt'
-        ).text.startswith(created_at)
-
-        last_xml = None
-
-    def assert_initial_passback():
-        nonlocal last_xml
-
-        el = _get_parsed(last_xml)
-        req_el = el.find('imsx_POXBody/replaceResultRequest/resultRecord')
-        assert req_el
-
-        assert req_el.find(
-            'sourcedGUID/sourcedId'
-        ).text == patch_request.source_id
-        assert el.find(
-            'imsx_POXHeader/imsx_POXRequestHeaderInfo/imsx_messageIdentifier'
-        ) is not None
-
-        # No grade should be passed back
-        assert req_el.find('result/resultTotalScore') is None
-        assert req_el.find('result/resultScore') is None
-
-        # Result data should be passed back
-        assert req_el.find('result/resultData') is not None
-
-        last_xml = None
-
     class Patch:
         def __init__(self):
             self._called = False
@@ -407,7 +405,9 @@ def test_lti_grade_passback(
         published='false',
         canvas_id='MY_COURSE_ID_100',
     ):
+        nonlocal last_xml
         with app.app_context():
+            last_xml = None
             data = {
                 'custom_canvas_course_name': 'NEW_COURSE',
                 'custom_canvas_course_id': canvas_id,
@@ -483,7 +483,7 @@ def test_lti_grade_passback(
     assig, token = do_lti_launch()
     work = get_upload_file(token, assig['id'])
     assert patch_request.called
-    assert_initial_passback()
+    assert_initial_passback(last_xml, patch_request.source_id)
 
     # Assignment is not open so it should not passback the grade
     set_grade(token, 5.0, work['id'])
@@ -492,7 +492,7 @@ def test_lti_grade_passback(
     test_client.req(
         'patch',
         f'/api/v1/assignments/{assig["id"]}',
-        204,
+        200,
         data={
             'state': 'done',
         },
@@ -501,7 +501,14 @@ def test_lti_grade_passback(
 
     # After setting assignment open it should passback the grades.
     assert patch_request.called
-    assert_grade_set_to(5.0, raw=False, created_at=work['created_at'])
+    assert_grade_set_to(
+        last_xml,
+        patch_request.source_id,
+        lti_max_points,
+        5.0,
+        raw=False,
+        created_at=work['created_at']
+    )
 
     if patch:
         test_client.req(
@@ -523,18 +530,25 @@ def test_lti_grade_passback(
     # Updating while open shoudl passback straight away
     set_grade(token, 6, work['id'])
     assert patch_request.called
-    assert_grade_set_to(6, raw=False, created_at=work['created_at'])
+    assert_grade_set_to(
+        last_xml,
+        patch_request.source_id,
+        lti_max_points,
+        6,
+        raw=False,
+        created_at=work['created_at']
+    )
 
     # Setting grade to ``None`` should do a delete request
     set_grade(token, None, work['id'])
     assert patch_request.called
-    assert_grade_deleted()
+    assert_grade_deleted(last_xml, patch_request.source_id)
 
     with app.app_context():
         test_client.req(
             'patch',
             f'/api/v1/assignments/{assig["id"]}',
-            204,
+            200,
             data={
                 'max_grade': 11,
             },
@@ -545,12 +559,26 @@ def test_lti_grade_passback(
     # if the grade passeback is in fact > 10
     set_grade(token, 6, work['id'])
     assert patch_request.called
-    assert_grade_set_to(6.0, raw=False, created_at=work['created_at'])
+    assert_grade_set_to(
+        last_xml,
+        patch_request.source_id,
+        lti_max_points,
+        6.0,
+        raw=False,
+        created_at=work['created_at']
+    )
 
     # As this grade is >11 the ``raw`` option should be used
     set_grade(token, 11, work['id'])
     assert patch_request.called
-    assert_grade_set_to(11.0, raw=True, created_at=work['created_at'])
+    assert_grade_set_to(
+        last_xml,
+        patch_request.source_id,
+        lti_max_points,
+        11.0,
+        raw=True,
+        created_at=work['created_at']
+    )
 
     assig, token = do_lti_launch(
         username='NEW_USERNAME',
@@ -739,14 +767,14 @@ def test_reset_lti_email(test_client, app, logged_in, ta_user, session):
     assert out['email'] == 'new@example.com'
     assert out['id'] == old_id
 
-    assert not m.User.query.get(out['id']).reset_email_on_lti, """
+    assert not m.User.query.get(
+        out['id']
+    ).reset_email_on_lti, """
     This field should be reset
     """
 
 
-def test_invalid_jwt(
-    test_client, app, logged_in, ta_user, session, error_template
-):
+def test_invalid_jwt(test_client, app, logged_in, session, error_template):
     due_at = datetime.datetime.utcnow() + datetime.timedelta(
         days=1, hours=1, minutes=2
     )
@@ -792,3 +820,202 @@ def test_invalid_jwt(
             data={'jwt_token': 'INVALID_JWT'},
             result=error_template
         )
+
+
+@pytest.mark.parametrize('filename', [
+    ('correct.tar.gz'),
+])
+def test_lti_grade_passback_with_groups(
+    test_client, app, logged_in, teacher_user, filename, monkeypatch,
+    monkeypatch_celery, error_template, session
+):
+    due_at = datetime.datetime.utcnow() + datetime.timedelta(days=1)
+    assig_max_points = 8
+    lti_max_points = assig_max_points / 2
+    source_id = str(uuid.uuid4())
+
+    class Patch:
+        def __init__(self):
+            self._called = 0
+            self._xmls = []
+
+        def get_and_reset(self):
+            old = self._called
+            xmls = self._xmls
+            self._called = 0
+            self._xmls = []
+            return old, xmls
+
+        def __call__(self, uri, method, body, headers):
+            self._called += 1
+            assert method == 'POST'
+            assert isinstance(headers, dict)
+            assert headers['Content-Type'] == 'application/xml'
+            assert isinstance(body, bytes)
+            self._xmls.append(body.decode('utf-8'))
+            return '', SUCCESS_XML
+
+    patch_request = Patch()
+    monkeypatch.setattr(oauth2.Client, 'request', patch_request)
+
+    def do_lti_launch(
+        username='A the A-er',
+        lti_id='USER_ID',
+        canvas_id='MY_COURSE_ID_100',
+    ):
+        with app.app_context():
+            data = {
+                'custom_canvas_course_name': 'NEW_COURSE',
+                'custom_canvas_course_id': canvas_id,
+                'custom_canvas_assignment_id': f'{canvas_id}_ASSIG_1',
+                'custom_canvas_assignment_title': 'MY_ASSIG_TITLE',
+                'roles': 'administrator,instructor',
+                'custom_canvas_user_login_id': username,
+                'custom_canvas_course_title': 'Common Lisp',
+                'custom_canvas_due_at': due_at.isoformat(),
+                'custom_canvas_assignment_published': 'true',
+                'user_id': lti_id,
+                'lis_person_contact_email_primary': 'a@a.nl',
+                'lis_person_name_full': username,
+                'context_id': 'NO_CONTEXT!!',
+                'context_title': 'WRONG_TITLE!!',
+                'oauth_consumer_key': 'my_lti',
+                'lis_outcome_service_url': source_id,
+                'custom_canvas_points_possible': lti_max_points,
+            }
+            if source_id:
+                data['lis_result_sourcedid'] = source_id
+            res = test_client.post('/api/v1/lti/launch/1', data=data)
+
+            url = urllib.parse.urlparse(res.headers['Location'])
+            jwt = urllib.parse.parse_qs(url.query)['jwt'][0]
+            lti_res = test_client.req(
+                'post',
+                '/api/v1/lti/launch/2',
+                200,
+                data={'jwt_token': jwt},
+            )
+            assert m.Assignment.query.get(
+                lti_res['assignment']['id']
+            ).state == m._AssignmentStateEnum.open
+            assert lti_res['assignment']['course']['name'] == 'NEW_COURSE'
+            return lti_res['assignment'], lti_res.get('access_token', None)
+
+    def set_grade(grade, work_id):
+        test_client.req(
+            'patch',
+            f'/api/v1/submissions/{work_id}',
+            200,
+            data={
+                'grade': grade,
+                'feedback': 'feedback'
+            },
+        )
+
+    with logged_in(teacher_user):
+        assig, token = do_lti_launch()
+        u1 = create_user_with_perms(
+            session,
+            [CPerm.can_submit_own_work],
+            m.Course.query.get(assig['course']['id'])
+        )
+        u2 = create_user_with_perms(
+            session,
+            [CPerm.can_submit_own_work],
+            m.Course.query.get(assig['course']['id'])
+        )
+        u3 = create_user_with_perms(
+            session,
+            [CPerm.can_submit_own_work],
+            m.Course.query.get(assig['course']['id'])
+        )
+        u1_lti_id = str(uuid.uuid4())
+        u2_lti_id = str(uuid.uuid4())
+
+        g_set = create_group_set(
+            test_client, assig['course']['id'], 2, 4, [assig["id"]]
+        )
+        g = create_group(test_client, g_set['id'], [u1.id, u2.id])
+        test_client.req(
+            'get', (
+                f'/api/v1/assignments/{assig["id"]}/groups/'
+                f'{g["id"]}/member_states/'
+            ),
+            200,
+            result={
+                str(u1.id): False,
+                str(u2.id): False,
+            }
+        )
+
+    with logged_in(u1):
+        do_lti_launch(lti_id=u1_lti_id)
+        test_client.req(
+            'get', (
+                f'/api/v1/assignments/{assig["id"]}/groups/'
+                f'{g["id"]}/member_states/'
+            ),
+            200,
+            result={
+                str(u1.id): True,
+                str(u2.id): False,
+            }
+        )
+        create_submission(test_client, assig['id'], err=400)
+
+    with logged_in(u3):
+        # Cannot see this state as the user is not part of the group
+        test_client.req(
+            'get',
+            (
+                f'/api/v1/assignments/{assig["id"]}/groups/'
+                f'{g["id"]}/member_states/'
+            ),
+            403,
+            result=error_template,
+        )
+
+    with logged_in(u2):
+        do_lti_launch(lti_id=u2_lti_id)
+        test_client.req(
+            'get', (
+                f'/api/v1/assignments/{assig["id"]}/groups/'
+                f'{g["id"]}/member_states/'
+            ),
+            200,
+            result={
+                str(u1.id): True,
+                str(u2.id): True,
+            }
+        )
+        sub = create_submission(test_client, assig['id'])
+        assert sub['user']['group']['id'] == g['id']
+
+        num, xmls = patch_request.get_and_reset()
+        assert num == 2
+        for xml in xmls:
+            assert_initial_passback(xml, source_id)
+
+    with logged_in(teacher_user):
+        set_grade(8.5, sub['id'])
+        assert patch_request.get_and_reset()[0] == 0
+        test_client.req(
+            'patch',
+            f'/api/v1/assignments/{assig["id"]}',
+            200,
+            data={
+                'state': 'done',
+            },
+        )
+
+        num, xmls = patch_request.get_and_reset()
+        assert num == 2
+        for xml in xmls:
+            assert_grade_set_to(
+                xml,
+                source_id,
+                lti_max_points,
+                8.5,
+                False,
+                created_at=sub['created_at']
+            )

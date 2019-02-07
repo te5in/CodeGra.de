@@ -426,6 +426,8 @@ set_bool(
 # Should it be possible to register
 set_bool(CONFIG['__S_FEATURES'], feature_ops, 'REGISTER', False)
 
+set_bool(CONFIG['__S_FEATURES'], feature_ops, 'GROUPS', False)
+
 ############
 # LTI keys #
 ############

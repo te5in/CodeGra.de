@@ -8,7 +8,6 @@ from flask import current_app
 from zxcvbn import zxcvbn
 from validate_email import validate_email as _validate_email
 
-from .. import models
 from ..exceptions import APICodes, ValidationException, WeakPasswordException
 
 
@@ -16,7 +15,7 @@ from ..exceptions import APICodes, ValidationException, WeakPasswordException
 def ensure_valid_password(  # pylint: disable=missing-docstring,unused-argument
     new_password: str,
     *,
-    user: models.User,
+    user: 'psef.models.User',
 ) -> None:
     ...  # pylint: disable=pointless-statement
 
@@ -35,7 +34,7 @@ def ensure_valid_password(  # pylint: disable=function-redefined,missing-docstri
 def ensure_valid_password(  # pylint: disable=function-redefined
     new_password: str,
     *,
-    user: t.Optional[models.User] = None,
+    user: t.Optional['psef.models.User'] = None,
     name: t.Optional[str] = None,
     email: t.Optional[str] = None,
     username: t.Optional[str] = None,
@@ -105,3 +104,7 @@ def ensure_valid_email(email: str) -> None:
             'The given email is not valid.',
             'The email "{email}" is not valid.',
         )
+
+
+if t.TYPE_CHECKING:  # pragma: no cover
+    import psef  # pylint: disable=unused-import

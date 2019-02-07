@@ -1,8 +1,8 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
-<div class="feedback-area-wrapper non-editable" v-if="(done && !editing)">
-    <div class="author" v-if="author">{{ author }}</div>
-    <b-card class="feedback-area non-editable" :class="{'has-author': author != null}">
+<div class="feedback-area-wrapper non-editable" v-if="!editing">
+    <div class="author" v-if="authorName">{{ authorName }}</div>
+    <b-card class="feedback-area non-editable" :class="{'has-author': !!authorName}">
         <div @click="changeFeedback($event)" :style="{'min-height': '1em'}">
             <div v-html="newlines($htmlEscape(serverFeedback))"></div>
         </div>
@@ -33,13 +33,15 @@
 
     <b-input-group
         class="editable-area"
-        :style="{ 'margin-bottom': possibleSnippets.length && line + 6 >= totalAmountLines ?
+        :style="{ 'margin-bottom': notSnippetsAbsoluteBelow && !showSnippetsAbove ?
                 '11em' :
                 undefined }">
         <div style="flex: 1; position: relative;">
             <b-card class="snippet-list-wrapper"
+                    :class="{ 'snippets-above': showSnippetsAbove }"
                     v-if="possibleSnippets.length > 0">
-                <span slot="header">Snippets (press <kbd>Tab</kbd> to select the next item)</span>
+                <span slot="header"
+                      class="snippet-header">Snippets (press <kbd>Tab</kbd> to select the next item)</span>
                 <ul
                     :class="{ 'snippet-list': true, inline: line + 6 >= totalAmountLines, }">
                     <li class="snippet-item"
@@ -101,7 +103,7 @@ import 'vue-awesome/icons/plus';
 
 import { mapActions, mapGetters } from 'vuex';
 
-import { waitAtLeast } from '@/utils';
+import { waitAtLeast, nameOfUser } from '@/utils';
 import SubmitButton from './SubmitButton';
 
 export default {
@@ -119,7 +121,7 @@ export default {
         },
 
         author: {
-            type: [String, Object],
+            type: [Object],
             required: false,
             default: undefined,
         },
@@ -148,13 +150,17 @@ export default {
             type: Number,
             required: true,
         },
+
+        forceSnippetsAbove: {
+            type: Boolean,
+            default: false,
+        },
     },
 
     data() {
         return {
             internalFeedback: this.feedback,
             serverFeedback: this.feedback,
-            done: false,
             snippetKey: '',
             loadedSnippets: null,
             snippetSelected: null,
@@ -203,7 +209,7 @@ export default {
                     start = end - oldSnip.value.length;
                 }
                 const el = this.$refs.snippets[oldVal === 0 ? this.$refs.snippets.length - 1 : 0];
-                if (el && el.scrollIntoView) {
+                if (el && el.scrollIntoView && !(this.$root.isEdge || this.$root.isSafari)) {
                     el.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
                 }
             } else {
@@ -214,7 +220,7 @@ export default {
 
                 [1, 0].forEach(i => {
                     const el = this.$refs.snippets[this.snippetSelected + i];
-                    if (el && el.scrollIntoView) {
+                    if (el && el.scrollIntoView && !(this.$root.isEdge || this.$root.isSafari)) {
                         el.scrollIntoView({
                             block: 'nearest',
                             inline: 'nearest',
@@ -245,7 +251,7 @@ export default {
         }),
 
         snippetBound() {
-            if (this.done || !this.internalFeedback) {
+            if (!this.editing || !this.internalFeedback) {
                 return [0, 0];
             }
             const { selectionEnd } = this.$refs.field;
@@ -255,6 +261,18 @@ export default {
                 this.ignoreSnippets = null;
             }
             return [spaceIndex, selectionEnd];
+        },
+
+        notSnippetsAbsoluteBelow() {
+            return this.possibleSnippets.length && this.line + 6 >= this.totalAmountLines;
+        },
+
+        showSnippetsAbove() {
+            return this.forceSnippetsAbove || (this.notSnippetsAbsoluteBelow && this.line > 6);
+        },
+
+        authorName() {
+            return nameOfUser(this.author);
         },
     },
 
@@ -339,7 +357,7 @@ export default {
             ) {
                 this.snippetKeySelected = null;
             }
-            if (this.done || !this.loadedSnippets || !this.internalFeedback) {
+            if (!this.editing || !this.loadedSnippets || !this.internalFeedback) {
                 this.possibleSnippets = [];
                 return;
             }
@@ -359,7 +377,7 @@ export default {
 
         async changeFeedback(e) {
             if (this.editable) {
-                this.done = false;
+                this.$emit('editFeedback', this.line);
                 this.$nextTick(() => this.$refs.field.focus());
                 this.internalFeedback = this.serverFeedback;
                 e.stopPropagation();
@@ -387,24 +405,20 @@ export default {
                 .put(`/api/v1/code/${this.fileId}/comments/${this.line}`, {
                     comment: submitted,
                 })
-                .then(
-                    () => {
-                        this.internalFeedback = submitted;
-                        this.serverFeedback = submitted;
-                        this.snippetKey = '';
-                        this.done = true;
-                        this.$emit('feedbackChange', {
-                            line: this.line,
-                            msg: submitted,
-                            author: { name: this.nameCurrentUser },
-                        });
-                    },
-                    err => {
-                        throw err.response.data.message;
-                    },
-                );
+                .catch(err => {
+                    throw err.response.data.message;
+                });
 
-            this.$refs.addFeedbackButton.submit(req);
+            this.$refs.addFeedbackButton.submit(req).then(() => {
+                this.internalFeedback = submitted;
+                this.serverFeedback = submitted;
+                this.snippetKey = '';
+                this.$emit('feedbackChange', {
+                    line: this.line,
+                    msg: submitted,
+                    author: { name: this.nameCurrentUser },
+                });
+            });
         },
 
         newlines(value) {
@@ -414,24 +428,27 @@ export default {
         cancelFeedback() {
             this.snippetKey = '';
 
+            const emitRemove = () => {
+                this.$emit('feedbackChange', {
+                    line: this.line,
+                    msg: null,
+                    author: null,
+                });
+            };
+
             if (this.feedback !== '') {
                 const req = this.$http
                     .delete(`/api/v1/code/${this.fileId}/comments/${this.line}`)
-                    .then(
-                        () => this.$emit('cancel', this.line),
-                        err => {
-                            // Don't error for a 404 as the comment was deleted.
-                            if (err.response.status === 404) {
-                                this.$emit('cancel', this.line);
-                            } else {
-                                throw err.response.data.message;
-                            }
-                        },
-                    );
+                    .catch(err => {
+                        // Don't error for a 404 as the comment was deleted.
+                        if (err.response.status !== 404) {
+                            throw err.response.data.message;
+                        }
+                    });
 
-                this.$refs.deleteFeedbackButton.submit(req);
+                this.$refs.deleteFeedbackButton.submit(req).then(emitRemove);
             } else {
-                this.$emit('cancel', this.line);
+                emitRemove();
             }
         },
 
@@ -546,24 +563,52 @@ export default {
     position: absolute;
     width: 100%;
     top: 100%;
-    z-index: 10;
+    z-index: 2;
     margin: 0;
+
+    &.snippets-above {
+        position: absolute;
+        top: -10.3em;
+        height: 10.3em;
+        border-bottom-left-radius: 0;
+        border-bottom-right-radius: 0;
+        box-shadow: 0.2em -0.1em 0.5em 0 #ced4da;
+        #app.dark & {
+            box-shadow: 0.2em -0.1em 0.5em 0 @color-primary;
+        }
+
+        .snippet-header {
+            height: 2em;
+        }
+
+        ~ .form-control {
+            border-top-left-radius: 0;
+        }
+    }
+    &:not(.snippets-above) {
+        box-shadow: 0.2em 0.1em 0.5em 0 #ced4da;
+
+        #app.dark & {
+            box-shadow: 0.2em 0.1em 0.5em 0 @color-primary;
+        }
+
+        border-top-left-radius: 0;
+        border-top-right-radius: 0;
+        border-top: 0;
+
+        ~ .form-control {
+            border-bottom-left-radius: 0;
+        }
+    }
+
     .card-header {
         padding: 5px 15px;
+        max-height: 2.3em;
     }
     .card-body {
         padding: 0;
         height: 100%;
     }
-
-    ~ .form-control {
-        box-shadow: none;
-        transition: box-shadow 0.2s ease-in;
-        border-bottom-left-radius: 0;
-    }
-    border-top-left-radius: 0;
-    border-top-right-radius: 0;
-    border-top: 0;
 }
 
 .snippet-list {
@@ -571,7 +616,11 @@ export default {
     max-height: 8em;
     padding: 0px;
     overflow-y: auto;
-    border-bottom-left-radius: 0.25rem;
+
+    .snippet-list-wrapper:not(.snippets-above) & {
+        border-bottom-left-radius: 0.25rem;
+        border-bottom-right-radius: 0.25rem;
+    }
     &.inline {
         height: 8em;
     }
@@ -598,7 +647,10 @@ export default {
         &:hover {
             background: lighten(@color-secondary, 20%) !important;
         }
-        &:last-child {
+        .snippet-list-wrapper.snippets-above &:first-child {
+            border-top: 0;
+        }
+        .snippet-list-wrapper:not(.snippets-above) &:last-child {
             border-bottom: 0;
             padding-bottom: 5px;
         }
@@ -656,6 +708,7 @@ export default {
     &.edit {
         position: relative;
         padding-top: @line-spacing;
+        padding-bottom: @line-spacing;
     }
 }
 

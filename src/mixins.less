@@ -87,15 +87,19 @@
 }
 
 .default-link-colors {
-    color: @color-primary;
-    &:hover {
-        color: lighten(@color-primary, 10%);
+    &:not(.inline-link):not(.btn) {
+        color: @color-primary;
+
+        &:hover {
+            color: lighten(@color-primary, 10%);
+        }
     }
+
     #app:not(.lti) #global-sidebar &,
     #app.dark & {
-        color: lighten(@color-primary, 15%);
+        color: lighten(@color-primary, 30%);
         &:hover {
-            color: lighten(@color-primary, 30%);
+            color: lighten(@color-primary, 40%);
         }
     }
 }
@@ -130,8 +134,10 @@
     color: @color-primary;
     border-color: @color-primary;
 
-    &:hover {
-        background-color: @color-primary;
+    &:hover,
+    &:active:not(:disabled):not(.disabled) {
+        background-color: saturate(lighten(@color-primary, 7.5%), 10%);
+        border-color: saturate(lighten(@color-primary, 7.5%), 10%);
     }
 
     #app:not(.lti) #global-sidebar &,
@@ -150,7 +156,8 @@
     background-color: @color-primary;
     border-color: @color-primary;
 
-    &:hover {
+    &:hover,
+    &:active:not(:disabled):not(.disabled) {
         background-color: saturate(lighten(@color-primary, 7.5%), 10%);
         border-color: saturate(lighten(@color-primary, 7.5%), 10%);
     }
@@ -362,6 +369,18 @@
 }
 
 .default-form-control-colors {
+    #app.lti #global-sidebar &:focus,
+    #app:not(.dark) #main-content &:focus {
+        box-shadow: inset 0 0 0.2em 0 #ced4da;
+        border-color: #ced4da;
+    }
+
+    #app:not(.lti) #global-sidebar &:focus,
+    #app.dark &:focus {
+        box-shadow: inset 0 0 0.2em 0 @color-primary-darkest;
+        border-color: @color-primary-darkest;
+    }
+
     #app:not(.lti) #global-sidebar .has-danger &,
     #app.dark .has-danger & {
         border-color: #d9534f;

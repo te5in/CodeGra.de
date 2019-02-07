@@ -24,6 +24,7 @@ describe('PlagiarismRunner.vue', () => {
     let runs;
     let providers;
     let mockSubmit;
+    let remount;
 
     beforeEach(() => {
         jest.useFakeTimers();
@@ -66,23 +67,26 @@ describe('PlagiarismRunner.vue', () => {
         store = new Vuex.Store({
         });
 
-        wrapper = shallowMount(PlagiarismRunner, {
-            store,
-            localVue,
-            router,
-            methods: {
-                $hasPermission() { return true; },
-            },
-            mocks: {
-                $http: { post: mockPost, get: mockGet },
-            },
-            propsData: {
-                canManage: true,
-                assignment: { id: 0 },
-                canView: true,
-            },
-        });
-        comp = wrapper.vm;
+        remount = () => {
+            wrapper = shallowMount(PlagiarismRunner, {
+                store,
+                localVue,
+                router,
+                methods: {
+                    $hasPermission() { return true; },
+                },
+                mocks: {
+                    $http: { post: mockPost, get: mockGet },
+                },
+                propsData: {
+                    canManage: true,
+                    assignment: { id: 0 },
+                    canView: true,
+                },
+            });
+            comp = wrapper.vm;
+        }
+        remount();
     });
 
     describe('canGoToOverview', () => {
@@ -209,6 +213,24 @@ describe('PlagiarismRunner.vue', () => {
             expect(comp.runs[comp.runs.length - 1]).toEqual(
                 await mockPost.mock.results[0].value.then(a => a.data),
             );
+        });
+    });
+
+    describe('load providers', () => {
+        it('should work with multiple providers', async () => {
+            await comp.$nextTick();
+            expect(comp.selectedProvider).toEqual(null);
+            expect(comp.providers).toEqual(providers);
+            expect(wrapper.findAll('.provider-selectors').exists()).toBe(true);
+        });
+
+        it('should work with a single provider', async () => {
+            providers = [providers[0]];
+            remount();
+            await comp.$nextTick();
+            expect(comp.selectedProvider).toEqual(providers[0]);
+            expect(comp.providers).toEqual(providers);
+            expect(wrapper.findAll('.provider-selectors').exists()).toBe(false);
         });
     });
 });

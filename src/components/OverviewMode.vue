@@ -4,7 +4,7 @@
     <div v-html="error"></div>
 </b-alert>
 <loader class="text-center" v-else-if="loading"/>
-<div class="overview-mode form-control" v-else>
+<div class="overview-mode" v-else>
     <b-tabs no-fade
             nav-wrapper-class="tab-wrapper"
             v-model="tabIndex">
@@ -23,41 +23,28 @@
                             {{ flattenedFileTree[id] }}
                         </router-link>
                     </h4>
+                    <div v-if="disabledFileType(id)">
+                        Overview mode is not available for {{ disabledFileType(id) }}.
+                        Click
+                        <router-link class="inline-link" :to="getFileLink(id)">here</router-link>
+                        to see the entire file.
+                    </div>
                     <div v-for="(part, i) in getParts(id)"
+                         v-else
                          :key="`file-${id}-line-${part[0]}`">
                         <hr v-if="i !== 0">
-                        <ol :class="{ 'lint-whitespace': assignment.whitespace_linter, 'show-whitespace': showWhitespace }"
-                            :start="part[0] + 1"
-                            :style="{
-                                    paddingLeft: `${3 + Math.log10(part[1]) * 2/3}em`,
-                                    fontSize: `${fontSize}px`,
-                                    }"
-                            class="hljs code-part">
-                            <li v-for="line in range(part[0], part[1])"
-                                :key="line"
-                                class="line"
-                                :class="{
-                                        'linter-feedback-outer': UserConfig.features.linters &&
-                                        feedback.linter[id] &&
-                                        feedback.linter[id][line] != null,
-                                        'feedback-outer': feedback.user[id][line] }">
-                                <linter-feedback-area :feedback="feedback.linter[id][line]"
-                                                      v-if="UserConfig.features.linters &&
-                                                            feedback.linter[id] &&
-                                                            feedback.linter[id][line] != null"/>
-
-                                <code v-html="codeLines[id][line]"/>
-
-                                <feedback-area :feedback="feedback.user[id][line]"
-                                               :editable="false"
-                                               :total-amount-lines="part[1]"
-                                               :line="line"
-                                               :fileId="Number(id)"
-                                               :author="feedback.authors && feedback.authors[id][line].name"
-                                               :can-use-snippets="false"
-                                               v-if="feedback.user[id][line] != null"/>
-                            </li>
-                        </ol>
+                        <inner-code-viewer
+                            class="code-part"
+                            :assignment="assignment"
+                            :code-lines="codeLines[id]"
+                            :feedback="feedback.user[id] || null"
+                            :linter-feedback="feedback.linter[id]"
+                            :show-whitespace="showWhitespace"
+                            :font-size="fontSize"
+                            :editable="null"
+                            :file-id="Number(id)"
+                            :start-line="part[0]"
+                            :end-line="part[1]"/>
                     </div>
                 </b-card>
             </div>
@@ -65,7 +52,7 @@
         <b-tab title="General feedback">
             <b-card class="file-card">
                 <span v-if="!!submission.comment_author" slot="header">
-                    {{ submission.comment_author.name }} wrote:
+                    <user :user="submission.comment_author"/> wrote:
                 </span>
                 <pre class="general-feedback"
                      v-if="submission.comment">{{ submission.comment }}</pre>
@@ -138,20 +125,18 @@
 </template>
 
 <script>
-import { getLanguage, highlight } from 'highlightjs';
-
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/plus';
 import 'vue-awesome/icons/cog';
 
-import { visualizeWhitespace, last, getExtension, range } from '@/utils';
+import { last, getExtension, range, highlightCode } from '@/utils';
 import decodeBuffer from '@/utils/decode';
 
-import FeedbackArea from './FeedbackArea';
-import LinterFeedbackArea from './LinterFeedbackArea';
+import InnerCodeViewer from './InnerCodeViewer';
 import Loader from './Loader';
 import Toggle from './Toggle';
 import DiffViewer from './DiffViewer';
+import User from './User';
 
 export default {
     name: 'overview-mode',
@@ -232,9 +217,20 @@ export default {
         await this.$nextTick();
 
         this.error = '';
-        this.feedback = (await this.$http.get(
-            `/api/v1/submissions/${this.submission.id}/feedbacks/`,
-        )).data;
+        this.feedback = await this.$http
+            .get(`/api/v1/submissions/${this.submission.id}/feedbacks/`)
+            .then(({ data }) => {
+                Object.entries(data.user).forEach(([fileId, fileFeedback]) => {
+                    Object.keys(fileFeedback).forEach(line => {
+                        fileFeedback[line] = {
+                            line,
+                            msg: fileFeedback[line],
+                            author: data.authors ? data.authors[fileId][line] : null,
+                        };
+                    });
+                });
+                return data;
+            });
 
         this.fileIds = Object.keys(this.feedback.user);
         const codeLines = await Promise.all(this.fileIds.map(this.loadCodeWithSettings));
@@ -324,22 +320,8 @@ export default {
 
         // Highlight this.codeLines.
         highlightCode(codeLines, language, filePath) {
-            if (codeLines.length > 1000) {
-                return codeLines.map(this.$htmlEscape);
-            }
-
             const lang = language === 'Default' ? getExtension(filePath) : language;
-            if (getLanguage(lang) === undefined) {
-                return codeLines.map(this.$htmlEscape).map(visualizeWhitespace);
-            }
-
-            let state = null;
-            return codeLines.map(line => {
-                const { top, value } = highlight(lang, line, true, state);
-
-                state = top;
-                return visualizeWhitespace(value);
-            });
+            return highlightCode(codeLines, lang, 1000);
         },
 
         flattenFileTree(tree, prefix = []) {
@@ -397,6 +379,24 @@ export default {
             });
             return { changed, added, deleted };
         },
+
+        disabledFileType(fileId) {
+            const file = this.flattenedFileTree[fileId];
+            if (!file) {
+                return false;
+            }
+            const parts = file.split('.');
+            return {
+                ipynb: 'IPython notebooks',
+                md: 'markdown files',
+                markdown: 'markdown files',
+                svg: 'images',
+                gif: 'images',
+                jpeg: 'images',
+                jpg: 'images',
+                png: 'images',
+            }[parts.length > 1 ? parts[parts.length - 1] : ''];
+        },
     },
 
     computed: {
@@ -422,11 +422,11 @@ export default {
 
     components: {
         Icon,
-        FeedbackArea,
-        LinterFeedbackArea,
         Loader,
         Toggle,
         DiffViewer,
+        User,
+        InnerCodeViewer,
     },
 };
 </script>
@@ -479,58 +479,6 @@ export default {
     height: 100%;
     overflow-x: auto;
     overflow-y: auto;
-}
-
-.code ol {
-    min-height: 5em;
-    margin: 0;
-    padding: 0;
-    overflow-x: visible;
-    background: @linum-bg;
-    font-family: monospace;
-    font-size: small;
-
-    #app.dark & {
-        background: @color-primary-darkest;
-        color: @color-secondary-text-lighter;
-    }
-}
-
-.code li {
-    position: relative;
-    padding-left: 0.75em;
-    padding-right: 0.75em;
-
-    background-color: lighten(@linum-bg, 1%);
-    border-left: 1px solid darken(@linum-bg, 5%);
-
-    #app.dark & {
-        background: @color-primary-darker;
-        border-left: 1px solid darken(@color-primary-darkest, 5%);
-    }
-
-    &:hover {
-        cursor: text;
-    }
-}
-
-.code code {
-    border-bottom: 1px solid transparent;
-    color: @color-secondary-text;
-    white-space: pre-wrap;
-
-    word-wrap: break-word;
-    word-break: break-word;
-    -ms-word-break: break-all;
-
-    -webkit-hyphens: auto;
-    -moz-hyphens: auto;
-    -ms-hyphens: auto;
-    hyphens: auto;
-
-    #app.dark & {
-        color: #839496;
-    }
 }
 
 .loader {
@@ -622,22 +570,6 @@ export default {
             will-change: transform;
             height: 100%;
         }
-    }
-}
-
-#app.dark .overview-mode ol .btn:not(.btn-success):not(.btn-danger):not(.btn-warning) {
-    background: @color-secondary;
-
-    &.btn-secondary {
-        background-color: @color-primary-darker;
-
-        &:hover {
-            background: @color-primary-darker;
-        }
-    }
-
-    &:hover {
-        background: darken(@color-secondary, 10%);
     }
 }
 </style>

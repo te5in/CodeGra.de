@@ -1,5 +1,26 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import moment from 'moment';
+import { getLanguage, highlight } from 'highlightjs';
+import { visualizeWhitespace } from './visualize';
+
+const reUnescapedHtml = /[&<>"'`]/g;
+const reHasUnescapedHtml = RegExp(reUnescapedHtml.source);
+/** Used to map characters to HTML entities. */
+const htmlEscapes = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+    '`': '&#96;',
+};
+export function htmlEscape(inputString) {
+    const string = typeof inputString === 'string' ? inputString : `${inputString}`;
+    if (string && reHasUnescapedHtml.test(string)) {
+        return string.replace(reUnescapedHtml, ent => htmlEscapes[ent]);
+    }
+    return string;
+}
 
 export function formatGrade(grade) {
     const g = parseFloat(grade);
@@ -39,6 +60,13 @@ export function formatDate(date) {
         .utc(date, moment.ISO_8601)
         .local()
         .format('YYYY-MM-DDTHH:mm');
+}
+
+export function readableFormatDate(date) {
+    return moment
+        .utc(date, moment.ISO_8601)
+        .local()
+        .format('YYYY-MM-DD HH:mm');
 }
 
 export function convertToUTC(timeStr) {
@@ -114,56 +142,6 @@ export function hashString(str) {
     return Math.abs(hash << 0);
 }
 
-// Exported for testing purposes
-export function nSpaces(n) {
-    const arr = Array(n + 1);
-    return `<span class="whitespace space" data-whitespace="${arr.join('&middot;')}">${arr.join(
-        ' ',
-    )}</span><wbr>`;
-}
-
-const MAX_SPACES = 8;
-const spacesCache = range(1, MAX_SPACES + 1).map(nSpaces);
-
-// Exported for testing purposes
-export function nTabs(n) {
-    const arr = Array(n + 1);
-    const oneTab = `<span class="whitespace tab" data-whitespace="&#8594;">${'\t'}</span><wbr>`;
-    return arr.join(oneTab);
-}
-
-const MAX_TABS = 4;
-const tabsCache = range(1, MAX_TABS + 1).map(nTabs);
-
-export function visualizeWhitespace(line) {
-    const newLine = [];
-
-    for (let i = 0; i < line.length;) {
-        const start = i;
-        if (line[i] === '<') {
-            while (line[i] !== '>' && i < line.length) i += 1;
-            newLine.push(line.slice(start, i + 1));
-            i += 1;
-        } else if (line[i] === ' ' || line[i] === '\t') {
-            while (line[i] === line[start] && i < line.length) i += 1;
-
-            let n = i - start;
-            const cache = line[start] === ' ' ? spacesCache : tabsCache;
-            while (n > 0) {
-                const index = n % cache.length || cache.length;
-                newLine.push(cache[index - 1]);
-                n -= index;
-            }
-        } else {
-            while (line[i] !== '<' && line[i] !== ' ' && line[i] !== '\t' && i < line.length) {
-                i += 1;
-            }
-            newLine.push(line.slice(start, i));
-        }
-    }
-    return newLine.join('');
-}
-
 export function getOtherAssignmentPlagiarismDesc(item, index) {
     const assig = item.assignments[index];
     if (assig && assig.course.virtual) {
@@ -183,4 +161,42 @@ export function getOtherAssignmentPlagiarismDesc(item, index) {
     }
 
     return desc;
+}
+
+export function nameOfUser(user) {
+    if (!user) return '';
+    if (user.group) return `Group "${user.group.name}"`;
+    else return user.name;
+}
+
+export function highlightCode(sourceArr, language, maxLen = 5000) {
+    if (sourceArr.length > maxLen) {
+        return sourceArr.map(htmlEscape);
+    }
+
+    if (getLanguage(language) === undefined) {
+        return sourceArr.map(htmlEscape).map(visualizeWhitespace);
+    }
+
+    let state = null;
+    return sourceArr.map(line => {
+        const { top, value } = highlight(language, line, true, state);
+
+        state = top;
+        return visualizeWhitespace(value);
+    });
+}
+
+export function loadCodeAndFeedback(http, fileId) {
+    return Promise.all([
+        http.get(`/api/v1/code/${fileId}`),
+        http.get(`/api/v1/code/${fileId}?type=feedback`).catch(() => ({
+            data: {},
+        })),
+    ]).then(
+        ([{ data: code }, { data: feedback }]) => ({ code, feedback }),
+        ({ response: { data: { message } } }) => {
+            throw message;
+        },
+    );
 }

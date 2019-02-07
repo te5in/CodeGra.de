@@ -4,7 +4,7 @@
     <sidebar ref="sidebar"
              v-if="showSidebar"/>
     <div class="container-fluid">
-        <main class="row justify-content-center">
+        <main class="row justify-content-center" id="main-content">
             <b-alert class="ie-banner"
                      :show="$root.isIE"
                      variant="warning"

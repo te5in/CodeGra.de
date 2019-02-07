@@ -55,7 +55,7 @@
                              id="codeviewer-settings-content"
                              ref="settingsContent">
                             <preference-manager :file-id="(currentFile && currentFile.id) || `${submission && submission.id}-OVERVIEW`"
-                                                :show-language="!(diffMode || overviewMode)"
+                                                :show-language="currentFileData && currentFileData.showLanguage"
                                                 :show-context-amount="overviewMode"
                                                 @whitespace="whitespaceChanged"
                                                 @language="languageChanged"/>
@@ -76,7 +76,7 @@
                                placement="bottom">
                         <template slot="title">
                             <span v-if="submission && submission.comment_author">
-                                General feedback by {{ submission.comment_author.name }}
+                                General feedback by <user :user="submission.comment_author"/>
                             </span>
                             <span v-else>
                                 General feedback
@@ -157,35 +157,23 @@
                      v-else-if="fileTree.entries.length === 0">
                 No files found!
             </b-alert>
-            <overview-mode v-else-if="overviewMode"
-                           :assignment="assignment"
-                           :submission="submission"
-                           :tree="diffTree"
-                           :context="contextAmount"
-                           :teacher-tree="teacherTree"
-                           :can-see-revision="canSeeRevision"
-                           :font-size="fontSize"
-                           :show-whitespace="showWhitespace"/>
-            <pdf-viewer :id="currentFile.id"
-                        :is-diff="diffMode"
-                        v-else-if="currentFile.extension === 'pdf'"/>
-            <image-viewer :id="currentFile.id"
-                          :name="currentFile.name"
-                          v-else-if="/^(?:gif|jpe?g|png|svg)$/.test(currentFile.extension)"/>
-            <diff-viewer v-else-if="selectedRevision === 'diff' && currentFile.ids[0] !== currentFile.ids[1]"
-                         :file="currentFile"
-                         :font-size="fontSize"
-                         :show-whitespace="showWhitespace"/>
-            <code-viewer v-else
-                         :assignment="assignment"
-                         :submission="submission"
-                         :file="currentFile"
-                         :editable="editable && studentMode"
-                         :tree="fileTree"
-                         :font-size="fontSize"
-                         :show-whitespace="showWhitespace"
-                         @new-lang="languageChanged"
-                         :language="selectedLanguage"/>
+            <component :is="currentFileData.component"
+                       v-else
+                       :assignment="assignment"
+                       :submission="submission"
+                       :tree="diffTree"
+                       :context="contextAmount"
+                       :teacher-tree="teacherTree"
+                       :can-see-revision="canSeeRevision"
+                       :font-size="fontSize"
+                       :show-whitespace="showWhitespace"
+                       :is-diff="diffMode"
+                       :file="currentFile"
+                       :editable="editable"
+                       @new-lang="languageChanged"
+                       :language="selectedLanguage"
+                       :can-use-snippets="canUseSnippets"
+                       />
 
             <grade-viewer :assignment="assignment"
                           :submission="submission"
@@ -222,7 +210,7 @@ import 'vue-awesome/icons/binoculars';
 
 import { mapGetters, mapActions } from 'vuex';
 
-import { cmpNoCase, parseBool } from '@/utils';
+import { cmpNoCase, parseBool, nameOfUser } from '@/utils';
 
 import {
     CodeViewer,
@@ -240,6 +228,9 @@ import {
     SubmitButton,
     Toggle,
     OverviewMode,
+    User,
+    IpythonViewer,
+    MarkdownViewer,
 } from '@/components';
 
 import * as assignmentState from '@/store/assignment-states';
@@ -263,6 +254,8 @@ export default {
             showWhitespace: true,
             selectedLanguage: 'Default',
             gradeHistory: true,
+            editable: false,
+            canUseSnippets: false,
         };
     },
 
@@ -272,7 +265,7 @@ export default {
         ...mapGetters('courses', ['assignments', 'submissions']),
 
         studentMode() {
-            return this.$route.query.revision === 'student';
+            return this.$route.query.revision === 'student' || !this.$route.query.revision;
         },
 
         courseId() {
@@ -317,6 +310,26 @@ export default {
 
         overviewMode() {
             return this.canSeeFeedback && parseBool(this.$route.query.overview, false);
+        },
+
+        currentFileData() {
+            if (!this.currentFile) {
+                return null;
+            }
+            const cf = this.currentFile;
+            const val = [
+                [this.overviewMode, 'overview-mode', false],
+                [cf.extension === 'pdf', 'pdf-viewer', false],
+                [/^(?:gif|jpe?g|png|svg)$/.test(cf.extension), 'image-viewer', false],
+                [this.selectedRevision === 'diff' && cf.ids[0] !== cf.ids[1], 'diff-viewer', false],
+                [cf.extension === 'ipynb', 'ipython-viewer', false],
+                [cf.extension === 'md' || cf.extension === 'markdown', 'markdown-viewer', false],
+                [true, 'code-viewer', true],
+            ].find(([use]) => use);
+            return {
+                component: val[1],
+                showLanguage: val[2],
+            };
         },
 
         selectedRevision() {
@@ -454,6 +467,7 @@ export default {
                 ],
                 this.courseId,
             ),
+            this.$hasPermission('can_use_snippets'),
             this.loadSubmissions(this.assignmentId),
             this.getSubmissionData(),
         ]).then(
@@ -466,11 +480,14 @@ export default {
                     editOthersWork,
                     canSeeGradeHistory,
                 ],
+                canUseSnippets,
             ]) => {
                 this.editable = canGrade;
                 this.canSeeFeedback = canSeeGrade || this.assignment.state === assignmentState.DONE;
                 this.canDeleteSubmission = canDeleteSubmission;
                 this.gradeHistory = canSeeGradeHistory;
+
+                this.canUseSnippets = canUseSnippets;
 
                 if (
                     this.submission &&
@@ -507,7 +524,7 @@ export default {
 
             let title = this.assignment.name;
             if (this.submission) {
-                title += ` by ${this.submission.user.name}`;
+                title += ` by ${nameOfUser(this.submission.user)}`;
                 if (this.submission.grade) {
                     title += ` (${this.submission.grade})`;
                 }
@@ -702,8 +719,13 @@ export default {
 
         // Search the tree for the file with the givven id.
         searchTree(tree, id) {
-            for (let i = 0; i < tree.entries.length; i += 1) {
-                const child = tree.entries[i];
+            if (!tree || !tree.entries || id == null) {
+                return null;
+            }
+            const todo = [...tree.entries];
+
+            for (let i = 0; todo.length > i; ++i) {
+                const child = todo[i];
                 if (
                     child.id === id ||
                     (child.revision && child.revision.id === id) ||
@@ -711,10 +733,7 @@ export default {
                 ) {
                     return child;
                 } else if (child.entries != null) {
-                    const match = this.searchTree(child, id);
-                    if (match != null) {
-                        return match;
-                    }
+                    todo.push(...child.entries);
                 }
             }
             return null;
@@ -771,6 +790,9 @@ export default {
         Toggle,
         Icon,
         OverviewMode,
+        User,
+        IpythonViewer,
+        MarkdownViewer,
     },
 };
 </script>
@@ -827,7 +849,16 @@ export default {
     min-height: 0;
 }
 
+.markdown-viewer {
+    overflow-y: hidden;
+    overflow-x: auto;
+    @media @media-no-large {
+        flex: 0 1 auto;
+    }
+}
+
 .code-viewer,
+.ipython-viewer,
 .overview-mode,
 .diff-viewer {
     overflow: auto;
@@ -851,6 +882,8 @@ export default {
 .no-file,
 .overview-mode,
 .code-viewer,
+.markdown-viewer,
+.ipython-viewer,
 .diff-viewer,
 .pdf-viewer,
 .image-viewer,

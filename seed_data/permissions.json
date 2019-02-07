@@ -193,22 +193,64 @@
     "long_description": "Users with this permission can edit the maximum grade possible, and therefore also determine if getting a 'bonus' for an assignment is also possible."
   },
   "can_view_plagiarism": {
-      "default_value": false,
-      "course_permission": true,
-      "short_description": "View plagiarism",
-      "long_description": "Users with this permission can view the summary of a plagiarism check and see details of a plagiarism case. To view a plagiarism case between this and another course, the user must also have either this permission, or both \"See assignments\" and \"See other's work\" in the other course.",
-      "warning": "This permission also implies the \"See assignments\" and \"See other's work\" permissions in this course."
+    "default_value": false,
+    "course_permission": true,
+    "short_description": "View plagiarism",
+    "long_description": "Users with this permission can view the summary of a plagiarism check and see details of a plagiarism case. To view a plagiarism case between this and another course, the user must also have either this permission, or both \"See assignments\" and \"See other's work\" in the other course.",
+    "warning": "This permission also implies the \"See assignments\" and \"See other's work\" permissions in this course."
   },
   "can_manage_plagiarism": {
-      "default_value": false,
-      "course_permission": true,
-      "short_description": "Manage plagiarism",
-      "long_description": "Users with this permission can add and delete plagiarism runs."
+    "default_value": false,
+    "course_permission": true,
+    "short_description": "Manage plagiarism",
+    "long_description": "Users with this permission can add and delete plagiarism runs."
   },
   "can_list_course_users": {
     "default_value": true,
     "course_permission": true,
     "short_description": "List course users",
     "long_description": "Users with this permission can see all users of this course including the name of their role."
+  },
+  "can_edit_own_groups": {
+    "default_value": true,
+    "course_permission": true,
+    "short_description": "Edit own groups",
+    "long_description": "Users with this permission can edit groups they are in. This means they can join groups, add users to groups they are in and change the name of groups they are in. They cannot remove users from groups they are in, except for themselves."
+  },
+  "can_edit_others_groups": {
+    "default_value": false,
+    "course_permission": true,
+    "short_description": "Edit others groups",
+    "long_description": "Users with this permission can edit groups they are not in, they can add users, remove users and rename all groups. Users with this permission can also edit groups they are in."
+  },
+  "can_edit_groups_after_submission": {
+    "default_value": false,
+    "course_permission": true,
+    "short_description": "Edit groups after first submission",
+    "long_description": "Users with this permission can edit groups which handed in a submission. Users with this permission cannot automatically edit groups, they also need either \"Edit own groups\" or \"Edit others groups\"."
+  },
+  "can_view_others_groups": {
+    "default_value": true,
+    "course_permission": true,
+    "short_description": "View others groups",
+    "long_description": "Users with this permission can view groups they are not in, and the members of these groups."
+  },
+  "can_edit_group_assignment": {
+    "default_value": false,
+    "course_permission": true,
+    "short_description": "Edit group assignment",
+    "long_description": "Users with this permission can change an assignment into a group assignment, and change the minimum and maximum required group size."
+  },
+  "can_edit_group_set": {
+    "default_value": false,
+    "course_permission": true,
+    "short_description": "Edit group set",
+    "long_description": "Users with this permissions can create, delete and edit group sets."
+  },
+  "can_create_groups": {
+    "default_value": true,
+    "course_permission": true,
+    "short_description": "Create groups",
+    "long_description": "Users with this permission can create new groups in group assignments."
   }
 }

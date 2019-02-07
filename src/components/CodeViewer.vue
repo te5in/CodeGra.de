@@ -6,62 +6,33 @@
     <loader class="text-center" v-else-if="loading"></loader>
     <div class="code-viewer form-control" v-else>
         <div class="scroller">
-            <ol :class="{ editable, 'lint-whitespace': assignment.whitespace_linter, 'show-whitespace': showWhitespace }"
-                :style="{
-                    paddingLeft: `${3 + Math.log10(codeLines.length) * 2/3}em`,
-                    fontSize: `${fontSize}px`,
-                }"
-                class="hljs"
-                @click="editable && addFeedback($event)">
-
-                <li v-for="(line, i) in codeLines"
-                    :key="i"
-                    class="line"
-                    :class="{
-                        'linter-feedback-outer': UserConfig.features.linters &&
-                                                 linterFeedback[i] &&
-                                                 !diffMode,
-                        'feedback-outer': feedback[i] != null && !diffMode }"
-                    :data-line="i">
-
-                    <linter-feedback-area :feedback="linterFeedback[i]"
-                                          v-if="UserConfig.features.linters &&
-                                                linterFeedback[i] != null &&
-                                                !diffMode"/>
-
-                    <code v-html="line"/>
-
-                    <feedback-area :editing="editing[i] === true"
-                                   :feedback="feedback[i].msg"
-                                   :author="feedback[i].author && feedback[i].author.name"
-                                   :editable="editable"
-                                   :line="i"
-                                   :total-amount-lines="codeLines.length"
-                                   :fileId="file.id"
-                                   :can-use-snippets="canUseSnippets"
-                                   @feedbackChange="val => { feedbackChange(i, val); }"
-                                   @cancel="onChildCancel"
-                                   v-if="feedback[i] != null && !diffMode"/>
-                </li>
-            </ol>
+            <inner-code-viewer
+                :assignment="assignment"
+                :code-lines="codeLines"
+                :feedback="diffMode ? {} : feedback"
+                :linter-feedback="diffMode ? {} : linterFeedback"
+                :show-whitespace="showWhitespace"
+                @set-feedback="$set(feedback, $event.line, $event)"
+                :font-size="fontSize"
+                :editable="editable && !diffMode"
+                :can-use-snippets="canUseSnippets"
+                :file-id="file.id"/>
         </div>
     </div>
 </template>
 
 <script>
-import { getLanguage, highlight, listLanguages } from 'highlightjs';
-import Vue from 'vue';
+import { listLanguages } from 'highlightjs';
 
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/plus';
 import 'vue-awesome/icons/cog';
 
-import { visualizeWhitespace, cmpNoCase } from '@/utils';
+import { cmpNoCase, highlightCode } from '@/utils';
 import '@/polyfills';
 import decodeBuffer from '@/utils/decode';
 
-import FeedbackArea from './FeedbackArea';
-import LinterFeedbackArea from './LinterFeedbackArea';
+import InnerCodeViewer from './InnerCodeViewer';
 import Loader from './Loader';
 import Toggle from './Toggle';
 
@@ -101,6 +72,10 @@ export default {
             type: Boolean,
             default: true,
         },
+        canUseSnippets: {
+            type: Boolean,
+            required: true,
+        },
     },
 
     computed: {
@@ -124,7 +99,6 @@ export default {
         languages.sort(cmpNoCase);
         languages.unshift('Default');
         return {
-            UserConfig,
             code: '',
             rawCodeLines: [],
             codeLines: [],
@@ -136,7 +110,6 @@ export default {
             darkMode: true,
             selectedLanguage: 'Default',
             languages,
-            canUseSnippets: false,
             canSeeAssignee: false,
         };
     },
@@ -144,10 +117,8 @@ export default {
     mounted() {
         Promise.all([
             this.loadCodeWithSettings(false),
-            this.$hasPermission('can_use_snippets'),
             this.$hasPermission('can_see_assignee', this.assignment.course.id),
-        ]).then(([, snips, assignee]) => {
-            this.canUseSnippets = snips;
+        ]).then(([, assignee]) => {
             this.loading = false;
             this.canSeeAssignee = assignee;
         });
@@ -243,24 +214,8 @@ export default {
 
         // Highlight this.codeLines.
         highlightCode(language) {
-            if (this.isLargeFile) {
-                this.codeLines = this.rawCodeLines.map(this.$htmlEscape);
-                return;
-            }
-
             const lang = language === 'Default' ? this.extension : language;
-            if (getLanguage(lang) === undefined || this.diffMode) {
-                this.codeLines = this.rawCodeLines.map(this.$htmlEscape).map(visualizeWhitespace);
-                return;
-            }
-
-            let state = null;
-            this.codeLines = this.rawCodeLines.map(line => {
-                const { top, value } = highlight(lang, line, true, state);
-
-                state = top;
-                return visualizeWhitespace(value);
-            });
+            this.codeLines = highlightCode(this.rawCodeLines, lang);
         },
 
         // Given a file-tree object as returned by the API, generate an
@@ -294,46 +249,13 @@ export default {
             });
             return [fileIds, filePaths];
         },
-
-        onChildCancel(line) {
-            Vue.set(this.editing, line, false);
-            Vue.set(this.feedback, line, null);
-        },
-
-        addFeedback($event) {
-            const el = $event.target.closest('li.line');
-            if (!el) return;
-
-            const line = Number(el.getAttribute('data-line'));
-            Vue.set(this.editing, line, true);
-
-            if (this.feedback[line] == null) {
-                Vue.set(this.feedback, line, { line, msg: '' });
-            }
-
-            const feedbackArea = el.querySelector('.feedback-area textarea');
-            if (feedbackArea) {
-                feedbackArea.focus();
-            }
-        },
-
-        feedbackChange(line, feedback) {
-            if (this.editable) {
-                this.editing[line] = false;
-                this.feedback[line] = feedback;
-                if (!this.canSeeAssignee) {
-                    delete this.feedback[line].author;
-                }
-            }
-        },
     },
 
     components: {
         Icon,
-        FeedbackArea,
-        LinterFeedbackArea,
         Loader,
         Toggle,
+        InnerCodeViewer,
     },
 };
 </script>
@@ -358,100 +280,8 @@ export default {
     overflow-y: auto;
 }
 
-ol {
-    min-height: 5em;
-    margin: 0;
-    padding: 0;
-    overflow-x: visible;
-    background: @linum-bg;
-    font-family: monospace;
-    font-size: small;
-
-    #app.dark & {
-        background: @color-primary-darkest;
-        color: @color-secondary-text-lighter;
-    }
-}
-
-li {
-    position: relative;
-    padding-left: 0.75em;
-    padding-right: 0.75em;
-
-    background-color: lighten(@linum-bg, 1%);
-    border-left: 1px solid darken(@linum-bg, 5%);
-
-    #app.dark & {
-        background: @color-primary-darker;
-        border-left: 1px solid darken(@color-primary-darkest, 5%);
-    }
-
-    &:hover {
-        cursor: text;
-    }
-
-    .editable &:hover {
-        cursor: pointer;
-    }
-}
-
-code {
-    border-bottom: 1px solid transparent;
-    color: @color-secondary-text;
-    white-space: pre-wrap;
-
-    word-wrap: break-word;
-    word-break: break-word;
-    -ms-word-break: break-all;
-
-    -webkit-hyphens: auto;
-    -moz-hyphens: auto;
-    -ms-hyphens: auto;
-    hyphens: auto;
-
-    #app.dark & {
-        color: #839496;
-    }
-
-    ol.editable li:hover & {
-        border-bottom-color: currentColor;
-    }
-}
-
-.add-feedback {
-    position: absolute;
-    top: 0;
-    right: 0.5em;
-    display: none;
-    color: black;
-
-    li:hover & {
-        display: block;
-    }
-}
-
 .loader {
     margin-top: 2.5em;
     margin-bottom: 3em;
-}
-</style>
-
-<style lang="less">
-@import '~mixins.less';
-
-#app.dark .code-viewer ol .btn:not(.btn-success):not(.btn-danger):not(.btn-warning) {
-    background: @color-secondary;
-
-    &.btn-secondary {
-        background-color: @color-primary-darker;
-
-        &:hover {
-            background: @color-primary-darker;
-        }
-    }
-
-    &:hover {
-        background: darken(@color-secondary, 10%);
-    }
 }
 </style>

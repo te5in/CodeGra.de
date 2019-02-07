@@ -38,7 +38,7 @@
                     </description-popover>
                 </td>
                 <td>
-                    {{ run.created_at }}
+                    {{ run.formatted_created_at }}
                 </td>
                 <td class="run-state">
                     {{ run.state }}
@@ -65,7 +65,9 @@
 
     <loader :scale="2" v-if="canManage && providers == null"/>
     <div v-else-if="canManage">
-        <b-form-radio-group v-model="selectedProvider">
+        <b-form-radio-group v-model="selectedProvider"
+                            v-if="providers.length > 1"
+                            class="provider-selectors">
             <table class="table table-striped table-hover providers-table">
                 <thead>
                     <tr>
@@ -182,7 +184,7 @@ import Multiselect from 'vue-multiselect';
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/times';
 
-import { cmpNoCase, formatDate } from '@/utils';
+import { cmpNoCase, readableFormatDate } from '@/utils';
 
 import DescriptionPopover from './DescriptionPopover';
 import Loader from './Loader';
@@ -349,7 +351,7 @@ export default {
                 .post(`/api/v1/assignments/${this.assignment.id}/plagiarism`, data)
                 .then(
                     ({ data: run }) => {
-                        run.created_at = formatDate(run.created_at);
+                        run.formatted_created_at = readableFormatDate(run.created_at);
                         this.runs.push(run);
                     },
                     err => {
@@ -480,6 +482,9 @@ export default {
 
             const { data: providers } = await this.$http.get('/api/v1/plagiarism/').catch(() => []);
             this.providers = providers;
+            if (this.providers.length === 1) {
+                [this.selectedProvider] = this.providers;
+            }
         },
 
         async loadRuns() {
@@ -492,7 +497,7 @@ export default {
                 .get(`/api/v1/assignments/${this.assignment.id}/plagiarism/`)
                 .catch(() => []);
             runs.forEach(run => {
-                run.created_at = formatDate(run.created_at);
+                run.formatted_created_at = readableFormatDate(run.created_at);
             });
             this.runs = runs;
         },

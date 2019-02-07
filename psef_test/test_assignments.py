@@ -152,6 +152,7 @@ def test_get_assignment(
                 'done_email': None,
                 'fixed_max_rubric_points': None,
                 'max_grade': None,
+                'group_set': None,
             }
         else:
             res = error_template
@@ -250,7 +251,7 @@ def test_update_assignment(
         test_client.req(
             'patch',
             f'/api/v1/assignments/{assig_id}',
-            err_code if err_code else 204,
+            err_code if err_code else 200,
             data=data,
             result=error_template if err_code else None
         )
@@ -958,7 +959,7 @@ def test_set_fixed_max_points(
                     'id': int,
                     'name': 'single_file_work_copy'
                 }
-            ], 'multiple_file_archive', ['.tar.gz', '.zip']
+            ], 'multiple_file_archive', ['.tar.gz', '.zip', '.7z']
         ), (
             'deheading_dir_archive', [
                 {
@@ -968,7 +969,7 @@ def test_set_fixed_max_points(
                     'id': int,
                     'name': 'single_file_work_copy'
                 }
-            ], 'dir', ['.tar.gz', '.zip']
+            ], 'dir', ['.tar.gz', '.zip', '.7z']
         ),
         (
             'single_dir_archive', [
@@ -1019,7 +1020,7 @@ def test_set_fixed_max_points(
                     }]
                 }
             ],
-            'multiple_dir_archive', ['.tar.gz', '.zip']
+            'multiple_dir_archive', ['.tar.gz', '.zip', '.7z']
         ), (
             'single_file_work', [
                 {
@@ -1269,6 +1270,10 @@ def test_incorrect_ingore_files_value(
             'l.zip'
         )},
         lambda: {'file': (
+            get_submission_archive('too_large.7z'),
+            'l.7z'
+        )},
+        lambda: {'file': (
             get_submission_archive('many_larger_files.tar.gz'),
             'l.tar.gz'
         )},
@@ -1277,12 +1282,20 @@ def test_incorrect_ingore_files_value(
             'l.zip'
         )},
         lambda: {'file': (
+            get_submission_archive('many_larger_files.7z'),
+            'l.7z'
+        )},
+        lambda: {'file': (
             get_submission_archive('archive_with_large_file.tar.gz'),
             'l.tar.gz'
         )},
         lambda: {'file': (
             get_submission_archive('archive_with_large_file.zip'),
             'l.zip'
+        )},
+        lambda: {'file': (
+            get_submission_archive('archive_with_large_file.7z'),
+            'l.7z'
         )},
     ]
 )
@@ -1725,8 +1738,13 @@ def test_get_all_graders(
         http_err(error=403)('admin'),
         http_err(error=401)('NOT_LOGGED_IN'),
         'Devin Hillenius',
-        pytest.mark.no_grade(
-            pytest.mark.no_others(pytest.mark.no_hidden('Student1'))
+        pytest.param(
+            'Student1',
+            marks=[
+                pytest.mark.no_grade,
+                pytest.mark.no_others,
+                pytest.mark.no_hidden,
+            ]
         ),
     ],
     indirect=True
@@ -2457,7 +2475,7 @@ def test_ignored_upload_files(
         test_client.req(
             'patch',
             f'/api/v1/assignments/{assignment.id}',
-            204,
+            200,
             data={
                 'ignore':
                     '# single_file_work_copy\n'
@@ -2549,7 +2567,7 @@ def test_ignored_upload_files(
         test_client.req(
             'patch',
             f'/api/v1/assignments/{assignment.id}',
-            204,
+            200,
             data={'ignore': '*'}
         )
 
@@ -2569,7 +2587,7 @@ def test_ignored_upload_files(
         test_client.req(
             'patch',
             f'/api/v1/assignments/{assignment.id}',
-            204,
+            200,
             data={'ignore': '*\n!dir/'}
         )
 
@@ -2599,7 +2617,7 @@ def test_ignored_upload_files(
         test_client.req(
             'patch',
             f'/api/v1/assignments/{assignment.id}',
-            204,
+            200,
             data={'ignore': '*'}
         )
 
@@ -2665,7 +2683,7 @@ def test_ignored_upload_files(
         test_client.req(
             'patch',
             f'/api/v1/assignments/{assignment.id}',
-            204,
+            200,
             data={'ignore': '# Nothing'}
         )
 
@@ -2724,6 +2742,44 @@ def test_ignored_upload_files(
         )
 
 
+def test_ignoring_file(
+    logged_in, student_user, teacher_user, assignment, test_client
+):
+    filename = f'file-{uuid.uuid4()}.txt'
+    with logged_in(teacher_user):
+        assig = test_client.req(
+            'get', f'/api/v1/assignments/{assignment.id}', 200
+        )
+        assert assig['cgignore'] is None
+
+        test_client.req(
+            'patch',
+            f'/api/v1/assignments/{assignment.id}',
+            200,
+            data={'ignore': '*.txt'}
+        )
+
+    with logged_in(student_user):
+        test_client.req(
+            'post', f'/api/v1/assignments/{assignment.id}/submission?'
+            'ignored_files=error',
+            400,
+            real_data={
+                'file':
+                    (
+                        get_submission_archive(f'multiple_dir_archive.zip'),
+                        filename
+                    )
+            },
+            result={
+                'code': 'INVALID_FILE_IN_ARCHIVE',
+                'message': str,
+                'description': str,
+                'invalid_files': [[filename, '*.txt']],
+            }
+        )
+
+
 @pytest.mark.parametrize('ext', ['tar.gz', 'zip'])
 def test_ignoring_dirs_tar_archives(
     logged_in, student_user, teacher_user, assignment, test_client, ext
@@ -2738,7 +2794,7 @@ def test_ignoring_dirs_tar_archives(
         test_client.req(
             'patch',
             f'/api/v1/assignments/{assignment.id}',
-            204,
+            200,
             data={'ignore': 'dir/\n'}
         )
 
@@ -2964,8 +3020,9 @@ def test_grader_done(
         if graders[-1]['id'] == named_user.id:
             graders[-1], graders[0] = graders[0], graders[-1]
 
-    assert all(not g['done'] for g in graders
-               ), 'Make sure all graders are not done by default'
+    assert all(
+        not g['done'] for g in graders
+    ), 'Make sure all graders are not done by default'
     if toggle_self:
         grader_done = named_user.id
     else:
@@ -2989,11 +3046,13 @@ def test_grader_done(
 
     graders = get_graders()
     if err:
-        assert all(not g['done'] for g in graders
-                   ), 'Make sure all graders are still not done'
+        assert all(
+            not g['done'] for g in graders
+        ), 'Make sure all graders are still not done'
     else:
-        assert all(g['done'] == (g['id'] == grader_done)
-                   for g in graders), 'Make sure only changed grader is done'
+        assert all(
+            g['done'] == (g['id'] == grader_done) for g in graders
+        ), 'Make sure only changed grader is done'
         with logged_in(named_user):
             # Make sure you cannot reset this grader to done
             test_client.req(
@@ -3031,8 +3090,9 @@ def test_grader_done(
         assert_remind_email(False)
 
     graders = get_graders()
-    assert all(not g['done']
-               for g in graders), 'Make sure all graders are again not done'
+    assert all(
+        not g['done'] for g in graders
+    ), 'Make sure all graders are again not done'
 
     with logged_in(teacher_user):
         test_client.req(
@@ -3273,6 +3333,8 @@ def test_reminder_email(
                 assert assig['done_email'] == data[
                     'done_email'], 'Make sure email is correct'
 
+    if not err:
+        code = 200
     with logged_in(named_user):
         test_client.req(
             'patch',
@@ -3292,11 +3354,14 @@ def test_reminder_email(
         test_mail(assigned_graders)
         test_done_email()
 
-        assert task.args == [((assig_id, ), )
-                             ], 'The correct task should be scheduled.'
-        assert task.kwargs == [{
-            'eta': time
-        }], 'The time should be preserved directly.'
+        assert task.args == [
+            ((assig_id, ), )
+        ], 'The correct task should be scheduled.'
+        assert task.kwargs == [
+            {
+                'eta': time
+            }
+        ], 'The time should be preserved directly.'
         task_id = task.rets[-1].id
 
         revoker.reset()
@@ -3319,8 +3384,9 @@ def test_reminder_email(
             'Nothing should be scheduled as the type '
             'was none'
         )
-        assert revoker.args == [(task_id, )
-                                ], 'Assert the correct task was revoked'
+        assert revoker.args == [
+            (task_id, )
+        ], 'Assert the correct task was revoked'
         test_mail([])
         test_done_email()
         revoker.reset()
@@ -3432,7 +3498,7 @@ def test_warning_grading_done_email(
         _, rv = test_client.req(
             'patch',
             f'/api/v1/assignments/{assig_id}',
-            204,
+            200,
             data={
                 'done_type': 'all_graders',
                 'reminder_time': None,

@@ -1,4 +1,5 @@
-import { cmpOneNull, cmpNoCase } from '@/utils';
+/* SPDX-License-Identifier: AGPL-3.0-only */
+import { cmpOneNull, cmpNoCase, nameOfUser } from '@/utils';
 
 export function filterSubmissions(
     submissions,
@@ -32,16 +33,16 @@ export function filterSubmissions(
             return true;
         }
 
-        const terms = {
-            user_name: item.user.name.toLowerCase(),
-            grade: (item.grade || 0).toString(),
-            created_at: item.created_at,
-            assignee: item.assignee && item.assignee.name ? item.assignee.name.toLowerCase() : '-',
-        };
+        const terms = [
+            nameOfUser(item.user).toLowerCase(),
+            (item.grade || 0).toString(),
+            item.formatted_created_at,
+            nameOfUser(item.assignee).toLowerCase() || '-',
+        ];
         const out = (filter || '')
             .toLowerCase()
             .split(' ')
-            .every(word => Object.keys(terms).some(key => terms[key].indexOf(word) >= 0));
+            .every(word => terms.some(value => value.indexOf(word) >= 0));
         if (out) {
             l.add(item.user.id);
         }
@@ -50,34 +51,32 @@ export function filterSubmissions(
 }
 
 export function sortSubmissions(a, b, sortBy) {
-    if (sortBy === 'user' || sortBy === 'assignee') {
-        const first = a[sortBy];
-        const second = b[sortBy];
+    const first = a[sortBy];
+    const second = b[sortBy];
 
-        const ret = cmpOneNull(first, second);
-        if (ret !== null) return ret;
+    const ret = cmpOneNull(first, second);
+    if (ret !== null) {
+        return ret;
+    }
 
-        return cmpNoCase(first.name, second.name);
-    } else if (sortBy === 'created_at') {
-        const first = a[sortBy];
-        const second = b[sortBy];
+    if (sortBy === 'assignee') {
+        return cmpNoCase(nameOfUser(first), nameOfUser(second));
+    } else if (sortBy === 'user') {
+        return cmpNoCase(nameOfUser(first), nameOfUser(second));
+    } else if (sortBy === 'formatted_created_at') {
+        const createdA = a.formatted_created_at;
+        const createdB = b.formatted_created_at;
 
-        const ret = cmpOneNull(first, second);
-        if (ret !== null) return ret;
+        const res = cmpOneNull(createdA, createdB);
+        if (res !== null) return res;
 
-        return cmpNoCase(first, second);
+        return cmpNoCase(createdA, createdB);
     } else if (sortBy === 'grade') {
-        const first = a[sortBy];
-        const second = b[sortBy];
-
-        let ret = cmpOneNull(first, second);
-        if (ret !== null) return ret;
-
         const firstF = parseFloat(first);
         const secondF = parseFloat(second);
 
-        ret = cmpOneNull(firstF, secondF);
-        if (ret !== null) return ret;
+        const ret2 = cmpOneNull(firstF, secondF);
+        if (ret2 !== null) return ret2;
 
         return firstF - secondF;
     }

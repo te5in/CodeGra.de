@@ -43,6 +43,7 @@ documentation:
    user/codeviewer.rst
    user/management.rst
    user/plagiarism.rst
+   user/groups.rst
    user/permissions.rst
    user/preferences.rst
    Filesystem <https://fs-docs.codegra.de>

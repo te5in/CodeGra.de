@@ -146,7 +146,12 @@ describe('Submission.vue', () => {
             localVue,
             router,
             mocks: {
-                $hasPermission(perms) { return perms.map(() => true); },
+                $hasPermission(perms) {
+                    if (Array.isArray(perms))
+                        return perms.map(() => true)
+                    else
+                        return true;
+                },
                 $route,
                 $router,
                 $http: {

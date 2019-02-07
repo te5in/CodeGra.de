@@ -80,6 +80,7 @@ def test_login(
                         'name': 'NEW_USER',
                         'username': 'a-the-a-er',
                         'hidden': False,
+                        'group': None,
                     },
                 'access_token': str
             }
@@ -157,6 +158,7 @@ def test_extended_get_login(test_client, named_user, logged_in, request):
                 'id': int,
                 'email': str,
                 'hidden': perm_true,
+                'group': None,
                 'username': str,
             }
         )
@@ -235,8 +237,9 @@ def test_login_duplicate_email(
                             'name': 'NEW_USER',
                             'username': user.username,
                             'hidden': False,
+                            'group': None,
                         },
-                    'access_token': str
+                    'access_token': str,
                 }
             )
             access_token = res['access_token']
@@ -251,6 +254,7 @@ def test_login_duplicate_email(
                     'username': user.username,
                     'id': int,
                     'name': user.name,
+                    'group': None,
                 }
             )
 

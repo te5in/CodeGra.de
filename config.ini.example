@@ -270,6 +270,9 @@
 # determined by `default_role` (see above).
 # register = false
 
+# Should group assignments be enabled.
+# groups = false
+
 # All LTI consumer keys mapped to secret keys. Please add your own, these ARE
 # case sensitive.
 [LTI Consumer keys]

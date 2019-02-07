@@ -14,6 +14,7 @@ from . import api
 from .. import models, permissions
 from ..files import check_dir
 from ..helpers import JSONResponse, jsonify
+from ..permissions import CoursePermission
 
 logger = structlog.get_logger()
 
@@ -50,7 +51,7 @@ def about(
                 models.Permission.get_all_permissions(
                     permissions.CoursePermission
                 )
-            ) == len(models.CoursePermission)
+            ) == len(CoursePermission)
         except:  # pylint: disable=bare-except
             logger.error('Database not working', exc_info=True)
             database = False

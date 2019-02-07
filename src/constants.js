@@ -13,16 +13,17 @@ export const MANAGE_ASSIGNMENT_PERMISSIONS = Object.freeze([
     'can_edit_maximum_grade',
     'can_view_plagiarism',
     'can_manage_plagiarism',
+    'can_edit_group_assignment',
 ]);
 
 export const MANAGE_GENERAL_COURSE_PERMISSIONS = Object.freeze([
     'can_edit_course_users',
     'can_edit_course_roles',
+    'can_edit_group_set',
 ]);
 
 export const MANAGE_COURSE_PERMISSIONS = Object.freeze([
-    ...MANAGE_ASSIGNMENT_PERMISSIONS,
-    ...MANAGE_GENERAL_COURSE_PERMISSIONS,
+    ...new Set([...MANAGE_ASSIGNMENT_PERMISSIONS, ...MANAGE_GENERAL_COURSE_PERMISSIONS]),
 ]);
 
 export const MANAGE_SITE_PERIMSSIONS = Object.freeze(['can_manage_site_users']);

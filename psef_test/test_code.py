@@ -161,7 +161,7 @@ def test_get_code_plaintext_revisions(
         test_client.req(
             'patch',
             f'/api/v1/assignments/{assignment_id}',
-            204,
+            200,
             data={'state': 'done'},
         )
 
@@ -193,7 +193,7 @@ def test_get_code_plaintext_revisions(
         test_client.req(
             'patch',
             f'/api/v1/assignments/{assignment_id}',
-            204,
+            200,
             data={'state': 'open'},
         )
 
@@ -754,7 +754,11 @@ def test_update_code(
 
 
 @pytest.mark.parametrize(
-    'filename', ['../test_submissions/multiple_dir_archive.zip'],
+    'filename', [
+        '../test_submissions/multiple_dir_archive.tar.gz',
+        '../test_submissions/multiple_dir_archive.zip',
+        '../test_submissions/multiple_dir_archive.7z',
+    ],
     indirect=True
 )
 def test_rename_code(

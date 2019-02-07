@@ -2,64 +2,22 @@
 import {
     range,
     last,
-    visualizeWhitespace,
-    nSpaces,
-    nTabs,
     isDecimalNumber,
     formatGrade,
     cmpOneNull,
     hashString,
     getExtension,
     waitAtLeast,
+    highlightCode
 } from '@/utils';
+
+import * as visualize from '@/utils/visualize';
+
+import * as highlight from 'highlightjs';
 
 jest.useFakeTimers();
 
 describe('utils.js', () => {
-    describe('visualizeWhitespace', () => {
-        it('should be a function', () => {
-            expect(typeof visualizeWhitespace).toBe('function');
-        });
-
-        it('should work with an empty line', () => {
-            expect(visualizeWhitespace('')).toBe('');
-        });
-
-        it('should work without spaces', () => {
-            const text = '<span class="nospaces wwee">hellonospaceshere</span>';
-            expect(visualizeWhitespace(text)).toBe(text);
-        });
-
-        it('should work with a single space', () => {
-            const text = '<span class="single space">hello space</span>';
-            const res = `<span class="single space">hello${nSpaces(1)}space</span>`;
-            expect(visualizeWhitespace(text)).toBe(res);
-        });
-
-        it('should work with a large amount of spaces', () => {
-            const spaces = Array(18).join(' ');
-            const text = `<span class="many space">hello${spaces}space</span>`;
-            const res = `<span class="many space">hello${nSpaces(1)}${nSpaces(8)}${nSpaces(8)}space</span>`;
-            expect(visualizeWhitespace(text)).toBe(res);
-        });
-
-        it('should work with a single tab', () => {
-            const text = '<span class="single tab">hello\ttab</span>';
-            const res = `<span class="single tab">hello${nTabs(1)}tab</span>`;
-            expect(visualizeWhitespace(text)).toBe(res);
-        });
-
-        it('should work with a large amount of tabs', () => {
-            const tabs = Array(18).join('\t');
-            const text = `<span class="many tab">hello${tabs}tab</span>`;
-            const res = `<span class="many tab">hello${nTabs(1)}${nTabs(4)}${nTabs(4)}${nTabs(4)}${nTabs(4)}tab</span>`;
-            const out = visualizeWhitespace(text);
-
-            expect(out).toBe(res);
-            expect(out.split('<wbr>').length).toBe(18);
-        });
-    });
-
     describe('range', () => {
         it('should work for zero length', () => {
             expect(range(2, 2)).toEqual([]);
@@ -208,6 +166,65 @@ describe('utils.js', () => {
 
             jest.advanceTimersByTime(time);
             await expect(promise).resolves.toBe(obj1);
+        });
+    });
+
+    describe('highlightCode', () => {
+        let mockVisul;
+        let mockHighlight;
+        let mockGetLang;
+        let i = 0;
+
+        beforeEach(() => {
+            mockVisul = jest.fn(x => x);
+            visualize.visualizeWhitespace = mockVisul;
+
+            mockHighlight = jest.fn(function() {
+                return {
+                    value: Array.prototype.slice.call(arguments),
+                    top: `STATE${++i}`,
+                };
+            });
+            highlight.default.highlight = mockHighlight;
+            mockGetLang = jest.spyOn(highlight.default, 'getLanguage');
+        });
+
+        afterEach(() => {
+            i = 0;
+            mockVisul.mockRestore();
+            mockHighlight.mockRestore();
+            mockGetLang.mockRestore();
+        });
+
+        it('should work without a language', () => {
+            const data = Array(10).fill('<a>code line</a>')
+            const res = Array(10).fill('&lt;a&gt;code line&lt;/a&gt;');
+            expect(highlightCode(data)).toEqual(res);
+            expect(mockVisul).toHaveBeenCalledTimes(data.length);
+            expect(mockGetLang).toHaveBeenCalledTimes(1);
+        });
+
+        it('should work for very large arrays', () => {
+            const data = Array(100).fill('hello');
+            expect(highlightCode(data, 'NOT USED!', 99)).toEqual(data);
+            // Should not be called for large files
+            expect(mockVisul).not.toBeCalled();
+            expect(mockGetLang).not.toBeCalled();
+        });
+
+        it('should work with a language', () => {
+            const code = [
+                'import os',
+                '',
+                'with open(os.path.join("dir", "file")) as f:',
+                '\tprint(f.read())',
+            ];
+            const result = code.map(
+                (x, idx) => ['python', x, true, idx ? `STATE${idx}` : null],
+            );
+            expect(highlightCode(code, 'python')).toEqual(result);
+            expect(mockVisul).toHaveBeenCalledTimes(code.length);
+            expect(mockGetLang).toHaveBeenCalledTimes(1);
         });
     });
 });

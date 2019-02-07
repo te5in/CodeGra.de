@@ -234,6 +234,10 @@ export default {
         margin-bottom: 0;
 
         .assig-list-item {
+            #app.dark &,
+            #app.dark & .fa-icon {
+                color: #d2d4d5;
+            }
             display: table-row;
 
             &:nth-of-type(even) {
@@ -257,8 +261,9 @@ export default {
         a:hover {
             text-decoration: none;
 
+            #app.dark & .fa-icon,
             .fa-icon {
-                border-bottom: none;
+                border-bottom-color: transparent;
             }
         }
 

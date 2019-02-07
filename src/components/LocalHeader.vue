@@ -28,7 +28,7 @@
 
         <slot/>
 
-        <b-input-group-append v-if="hasExtraSlot"
+        <b-input-group-append v-if="hasExtraSlot && !alwaysShowExtraSlot"
                               class="extra-button"
                               v-b-popover.bottom.hover="`${showExtra ? 'Hide' : 'Show'} more options`">
             <b-button v-b-toggle.local-header-extra
@@ -39,10 +39,13 @@
         </b-input-group-append>
     </b-button-toolbar>
 
-    <b-collapse id="local-header-extra" v-if="hasExtraSlot">
+    <b-collapse id="local-header-extra" v-if="hasExtraSlot && !alwaysShowExtraSlot">
         <hr class="separator">
         <slot name="extra"/>
     </b-collapse>
+    <div class="always-extra-header" v-if="alwaysShowExtraSlot">
+        <slot name="extra"/>
+    </div>
 </div>
 </template>
 
@@ -75,6 +78,11 @@ export default {
         backPopover: {
             type: String,
             default: 'Go back',
+        },
+
+        alwaysShowExtraSlot: {
+            type: Boolean,
+            default: false,
         },
     },
 
@@ -136,6 +144,7 @@ export default {
     flex: 2;
     margin-bottom: 0;
     text-align: left;
+    line-height: 1;
 }
 
 .toolbar {

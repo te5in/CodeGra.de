@@ -2,8 +2,8 @@
 <template>
 <loader v-if="loading"/>
 <div class="grade-history" v-else>
-    <b-table striped :items="history" :fields="fields">
-        <span slot="user" slot-scope="data">{{ data.item.user.name }}</span>
+    <b-table striped :items="history" :fields="fields" show-empty empty-text="No grade history">
+        <span slot="user" slot-scope="data"><user :user="data.item.user"/></span>
         <span slot="grade" slot-scope="data">
             {{ data.item.grade >= 0 ? Math.round(data.item.grade * 100) / 100 : 'Deleted' }}
         </span>
@@ -25,6 +25,7 @@ import moment from 'moment';
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/bars';
 import Loader from './Loader';
+import User from './User';
 
 export default {
     name: 'grade-history',
@@ -97,6 +98,7 @@ export default {
     components: {
         Icon,
         Loader,
+        User,
     },
 };
 </script>

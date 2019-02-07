@@ -10,16 +10,16 @@
 
     <ul class="sidebar-list" v-if="cases.length > 0">
         <li v-for="curCase in filteredCases"
-            :class="{ 'light-selected': curCase.id ===  plagiarismCaseId }"
-            class="sidebar-list-item">
+            class="sidebar-list-item"
+            :class="{ 'light-selected': curCase.id ===  plagiarismCaseId }">
             <router-link class="sidebar-item name"
                          :to="caseRoute(curCase)">
                 <div class="name-user" style="width: 100%">
-                    {{ curCase.users[0].name }}
+                    <user :user="curCase.users[0]"/>
                 </div>
                 <div style="display: flex;">
                     <div class="name-user" style="flex: 0 1 auto; margin-right: 5px">
-                        {{ curCase.users[1].name }}
+                        <user :user="curCase.users[1]"/>
                     </div>
                     <div>
                         <sup v-b-popover.hover.top="getOtherAssignmentPlagiarismDesc(curCase, 1)"
@@ -43,10 +43,12 @@
 
 <script>
 import { mapActions, mapGetters } from 'vuex';
-import { getOtherAssignmentPlagiarismDesc } from '@/utils';
+import { getOtherAssignmentPlagiarismDesc, nameOfUser } from '@/utils';
 
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/plus';
+
+import User from '@/components/User';
 
 export default {
     name: 'plagiarism-case-list',
@@ -93,10 +95,18 @@ export default {
 
             return this.cases.filter(curCase =>
                 filterParts.every(part => {
-                    if (curCase.users[0].name.toLocaleLowerCase().indexOf(part) > -1) {
+                    if (
+                        nameOfUser(curCase.users[0])
+                            .toLocaleLowerCase()
+                            .indexOf(part) > -1
+                    ) {
                         return true;
                     }
-                    if (curCase.users[1].name.toLocaleLowerCase().indexOf(part) > -1) {
+                    if (
+                        nameOfUser(curCase.users[1])
+                            .toLocaleLowerCase()
+                            .indexOf(part) > -1
+                    ) {
                         return true;
                     }
                     if (
@@ -165,6 +175,7 @@ export default {
 
     components: {
         Icon,
+        User,
     },
 };
 </script>

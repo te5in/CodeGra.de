@@ -246,8 +246,9 @@ def _lint_instances_1(
 # processing the task (if the machine fails, or if the main process is killed
 # with the ``KILL`` signal) the task will also be retried.
 @celery.task(acks_late=True, max_retries=10, reject_on_worker_lost=True)  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
-def _passback_grades_1(submission_ids: t.Sequence[int],
-                       initial: bool = False) -> None:
+def _passback_grades_1(
+    submission_ids: t.Sequence[int], initial: bool = False
+) -> None:
     if not submission_ids:  # pragma: no cover
         return
 

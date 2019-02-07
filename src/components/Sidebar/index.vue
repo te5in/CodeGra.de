@@ -4,21 +4,20 @@
      :class="{ floating, inLTI: $inLTI }"
      id="global-sidebar">
     <div class="main-menu" :class="{ show: mobileVisible }">
+        <router-link class="sidebar-top-item logo"
+                     :to="{ name: 'home' }"
+                     :target="$inLTI ? '_blank' : undefined"
+                     @click.native="closeSubMenu(true)">
+            <img src="/static/img/CodeGrade_christmas.svg"
+                 v-if="isChristmas && showRegularLogo"/>
+            <img src="/static/img/CodeGrade_christmas_dark.svg"
+                 v-else-if="isChristmas && showInvertedLogo"/>
+            <img src="/static/img/logo.svg" v-else-if="showRegularLogo"/>
+            <img src="/static/img/logo-inv.svg" v-else-if="showInvertedLogo"/>
+            <img src="/static/img/codegrade.svg" v-else/>
+        </router-link>
+        <hr class="separator">
         <div class="sidebar-top">
-            <router-link class="sidebar-top-item logo"
-                         :to="{ name: 'home' }"
-                         @click.native="closeSubMenu(true)">
-                <img src="/static/img/CodeGrade_christmas.svg"
-                     v-if="isChristmas && showRegularLogo"/>
-                <img src="/static/img/CodeGrade_christmas_dark.svg"
-                     v-else-if="isChristmas && showInvertedLogo"/>
-                <img src="/static/img/logo.svg" v-else-if="showRegularLogo"/>
-                <img src="/static/img/logo-inv.svg" v-else-if="showInvertedLogo"/>
-                <img src="/static/img/codegrade.svg" v-else/>
-            </router-link>
-
-            <hr class="separator">
-
             <transition v-for="entry in entries"
                         :key="`sidebar-transition-${entry.name}`"
                         v-if="maybeCall(entry.condition)"
@@ -27,11 +26,11 @@
                         :enter-active-class="entry.animate || entry.animateAdd ? 'pop-in-enter-active' : ''"
                         :leave-active-class="entry.animate || entry.animateRemove ? 'pop-in-leave-active' : ''">
                 <a @click="openUpperSubMenu(entry, true)"
-                   class="sidebar-top-item"
+                   class="sidebar-top-item sidebar-entry"
                    :class="{ selected: currentEntry && entry.name === currentEntry.name }">
                     <icon :name="entry.icon"
-                        :scale="mobileVisible ? 1.5 : 3"
-                        :label="maybeCall(entry.title || entry.header)"/>
+                          :scale="mobileVisible ? 1.5 : 2.25"
+                          :label="maybeCall(entry.title || entry.header)"/>
                     <small class="name">
                         {{ maybeCall(entry.title || entry.header) }}
                     </small>
@@ -132,7 +131,7 @@ import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/arrow-left';
 import 'vue-awesome/icons/book';
 import 'vue-awesome/icons/edit';
-import 'vue-awesome/icons/graduation-cap';
+import 'vue-awesome/icons/user-circle-o';
 import 'vue-awesome/icons/power-off';
 import 'vue-awesome/icons/rocket';
 import 'vue-awesome/icons/question';
@@ -140,6 +139,7 @@ import 'vue-awesome/icons/tachometer';
 import 'vue-awesome/icons/refresh';
 import 'vue-awesome/icons/search';
 import 'vue-awesome/icons/files-o';
+import 'vue-awesome/icons/users';
 
 import { Loader } from '@/components';
 
@@ -148,6 +148,7 @@ import CourseList from './CourseList';
 import AssignmentList from './AssignmentList';
 import PlagiarismCaseList from './PlagiarismCaseList';
 import SubmissionsSidebarList from './SubmissionsSidebarList';
+import GroupList from './GroupList';
 
 import { MANAGE_SITE_PERIMSSIONS } from '../../constants';
 
@@ -200,7 +201,7 @@ export default {
                 },
                 {
                     name: 'user',
-                    icon: 'graduation-cap',
+                    icon: 'user-circle-o',
                     title: () => this.name,
                     header: 'User',
                     width: '600px',
@@ -255,6 +256,20 @@ export default {
                     animateAdd: true,
                 },
                 {
+                    name: 'groups',
+                    icon: 'users',
+                    header: 'Groups',
+                    component: 'group-list',
+                    data: () => ({ course: this.course }),
+                    condition: () =>
+                        UserConfig.features.groups &&
+                        this.loggedIn &&
+                        this.course &&
+                        this.course.group_sets.length > 0,
+                    reload: true,
+                    animateAdd: true,
+                },
+                {
                     name: 'cases',
                     icon: 'search',
                     header: 'Plagiarism Cases',
@@ -288,6 +303,22 @@ export default {
         ...mapGetters('courses', ['courses', 'assignments']),
 
         ...mapGetters('user', ['loggedIn', 'name']),
+
+        courseId() {
+            return Number(this.$route.params.courseId);
+        },
+
+        course() {
+            return this.courses[this.courseId] || null;
+        },
+
+        assignmentId() {
+            return Number(this.$route.params.assignmentId);
+        },
+
+        assignment() {
+            return (this.assignments || {})[this.assignmentId];
+        },
 
         now() {
             return moment();
@@ -431,14 +462,15 @@ export default {
                 this.openMenuStack([this.findEntry('assignments')]);
             } else if (this.$route.query.sbloc === 'c') {
                 this.openMenuStack([this.findEntry('courses')]);
+            } else if (this.$route.query.sbloc === 'g') {
+                this.openMenuStack([this.findEntry('groups')]);
             } else {
-                const course = this.courses[this.$route.params.courseId];
                 const menuStack = [this.findEntry('courses')];
-                if (course != null) {
+                if (this.course != null) {
                     menuStack.push({
-                        header: course.name,
+                        header: this.course.name,
                         component: 'assignment-list',
-                        data: { course },
+                        data: { course: this.course },
                         reload: true,
                     });
                 }
@@ -544,6 +576,7 @@ export default {
         AssignmentList,
         PlagiarismCaseList,
         SubmissionsSidebarList,
+        GroupList,
     },
 };
 </script>
@@ -602,8 +635,13 @@ export default {
         }
     }
 
+    .sidebar-top-item.logo {
+        flex: 0 0 auto;
+    }
+
     .sidebar-top {
         flex: 1 1 auto;
+        overflow-y: auto;
     }
 
     .sidebar-top-item {
@@ -618,9 +656,12 @@ export default {
 
         &.logo {
             display: block;
+            padding: 1rem 0.5rem;
 
             img {
-                width: 100%;
+                width: 90%;
+                margin: 0 auto;
+                display: block;
             }
         }
 
@@ -628,6 +669,7 @@ export default {
             @media @media-no-small {
                 display: block;
                 margin: 0 auto;
+                margin-bottom: 5px;
             }
 
             @media @media-small {
@@ -735,24 +777,6 @@ export default {
     bottom: 0;
     left: 0;
     z-index: -2;
-}
-
-.pop-in-enter-active,
-.pop-in-leave-active {
-    transition-property: opacity, transform;
-    transition-duration: @transition-duration;
-}
-
-.pop-in-enter,
-.pop-in-leave-to {
-    transform: scale(0);
-    opacity: 0;
-}
-
-.pop-in-enter-to,
-.pop-in-leave {
-    transform: scale(1);
-    opacity: 1;
 }
 </style>
 

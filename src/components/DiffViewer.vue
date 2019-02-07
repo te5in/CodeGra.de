@@ -45,7 +45,8 @@ import 'vue-awesome/icons/plus';
 import 'vue-awesome/icons/cog';
 import DiffMatchPatch from 'diff-match-patch';
 
-import { visualizeWhitespace, last, range } from '@/utils';
+import { last, range } from '@/utils';
+import { visualizeWhitespace } from '@/utils/visualize';
 
 import decodeBuffer from '@/utils/decode';
 

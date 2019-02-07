@@ -486,7 +486,7 @@ describe('actions', () => {
             expect(mockCommit).toBeCalledWith(types.ADD_SUBMISSION, {
                 assignmentId: 2,
                 submission: {
-                    created_at: expect.any(String),
+                    formatted_created_at: expect.any(String),
                     grade: single2,
                     anything: 5,
                 },

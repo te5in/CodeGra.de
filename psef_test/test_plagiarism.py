@@ -614,8 +614,7 @@ def test_jplag_old_submissions(
         f'../test_data/test_old_sumbissions/{old_subs_tar_gz}'
     )
 
-    marker = request.node.get_marker('http_err')
-    code = marker.kwargs['error'] if marker else 200
+    code = 200
 
     def my_check_output(call, **kwargs):
         f_p = os.path.join(call[call.index('-r') + 1], 'computer_matches.csv')
@@ -715,8 +714,9 @@ def test_jplag_old_submissions(
                                                              ).all()
         assert len(virtual_courses) == 1
         assert len(virtual_courses[0].assignments) == 1
-        assert len(virtual_courses[0].assignments[0].submissions
-                   ) == amount_old_subs
+        assert len(
+            virtual_courses[0].assignments[0].submissions
+        ) == amount_old_subs
         assert not any(
             f.name.endswith('.tar.gz')
             for sub in virtual_courses[0].assignments[0].submissions
@@ -801,8 +801,9 @@ def test_jplag_base_code(
         f_p = os.path.join(call[call.index('-r') + 1], 'computer_matches.csv')
         assert call[call.index('-bc') + 1].startswith('/tmp/')
         assert os.listdir(call[call.index('-bc') + 1]) == ['dir']
-        assert len(os.listdir('{}/dir'.format(call[call.index('-bc') + 1]))
-                   ) > 1
+        assert len(
+            os.listdir('{}/dir'.format(call[call.index('-bc') + 1]))
+        ) > 1
         open(f_p, 'w').close()
         return b'Done!'
 

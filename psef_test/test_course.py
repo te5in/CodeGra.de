@@ -71,6 +71,8 @@ def test_get_all_extended_courses(ta_user, test_client, logged_in):
         for item in res:
             assert 'assignments' in item
             assert isinstance(item['assignments'], list)
+            assert 'group_sets' in item
+            assert isinstance(item['group_sets'], list)
 
 
 @pytest.mark.parametrize('add_lti', [True, False])
@@ -796,6 +798,7 @@ def test_add_assignment(
                 'reminder_time': None,
                 'fixed_max_rubric_points': None,
                 'max_grade': None,
+                'group_set': None,
             }
         )
 

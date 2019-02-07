@@ -137,6 +137,11 @@ def get_code(file_id: int) -> t.Union[werkzeug.wrappers.Response, JSONResponse[
     :returns: A response containing a plain text file unless specified
         otherwise.
 
+    .. todo:
+
+        Change the route to not take a type parameter anymore. All these things
+        should simply be different endpoints.
+
     :raises APIException: If there is not file with the given id.
                           (OBJECT_ID_NOT_FOUND)
     :raises PermissionException: If there is no logged in user. (NOT_LOGGED_IN)

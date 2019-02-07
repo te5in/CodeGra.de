@@ -153,8 +153,8 @@ class FileTree(  # pylint: disable=inherit-non-class,missing-docstring
 class ExtractFileTreeBase:
     """Base type for an entry in an extracted file tree.
 
-    :ivar name: The original name of this file in the archive that was
-        extracted.
+    :ivar ~.ExtractFileTreeBase.name: The original name of this file in the
+        archive that was extracted.
     """
     name: str
 
@@ -163,7 +163,8 @@ class ExtractFileTreeBase:
 class ExtractFileTreeFile(ExtractFileTreeBase):
     """Type used to represent a file in an extracted file tree.
 
-    :ivar diskname: The name of the file saved in the uploads directory.
+    :ivar ~.ExtractFileTreeFile.diskname: The name of the file saved in the
+        uploads directory.
     """
     disk_name: str
 
@@ -172,7 +173,8 @@ class ExtractFileTreeFile(ExtractFileTreeBase):
 class ExtractFileTreeDirectory(ExtractFileTreeBase):
     """Type used to represent a directory of an extracted file tree.
 
-    :ivar values: The items present in this directory.
+    :ivar ~.ExtractFileTreeDirectory.values: The items present in this
+        directory.
     """
     values: t.List[ExtractFileTreeBase]
 
@@ -765,7 +767,7 @@ def process_files(
             else:
                 if handle_ignore != IgnoreHandling.keep:
                     assert ignore_filter is not None
-                    is_ignored, line = ignore_filter.is_ignored(file.name)
+                    is_ignored, line = ignore_filter.is_ignored(file.filename)
 
                     if not is_ignored:
                         pass

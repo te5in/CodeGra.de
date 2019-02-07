@@ -47,13 +47,15 @@ class MySession:  # pragma: no cover
         ...
 
     @t.overload  # NOQA
-    def query(self, __x: t.Type[T],
-              __y: 'DbColumn[Z]') -> '_MyQuery[t.Tuple[T, Z]]':
+    def query(
+        self, __x: t.Type[T], __y: 'DbColumn[Z]'
+    ) -> '_MyQuery[t.Tuple[T, Z]]':
         ...
 
     @t.overload  # NOQA
-    def query(self, __x: t.Type[T],
-              __y: t.Type[Z]) -> '_MyQuery[t.Tuple[T, Z]]':
+    def query(
+        self, __x: t.Type[T], __y: t.Type[Z]
+    ) -> '_MyQuery[t.Tuple[T, Z]]':
         ...
 
     @t.overload  # NOQA
@@ -131,8 +133,9 @@ class MyDb:  # pragma: no cover
         ...
 
     @t.overload
-    def Column(self, name: str, type_: DbType[T], *args: t.Any,
-               **rest: t.Any) -> T:
+    def Column(
+        self, name: str, type_: DbType[T], *args: t.Any, **rest: t.Any
+    ) -> T:
         ...
 
     @t.overload  # NOQA
@@ -145,13 +148,20 @@ class MyDb:  # pragma: no cover
     def PrimaryKeyConstraint(self, *args: t.Any) -> t.Any:
         ...
 
+    def CheckConstraint(self, *args: t.Any) -> t.Any:
+        ...
+
+    def UniqueConstraint(self, *args: t.Any) -> t.Any:
+        ...
+
     @t.overload
     def relationship(self, name: str, *args: t.Any, **kwargs: t.Any) -> t.Any:
         ...
 
     @t.overload  # NOQA
-    def relationship(self, name: t.Type[T], *args: t.Any,
-                     **kwargs: t.Any) -> T:
+    def relationship(
+        self, name: t.Type[T], *args: t.Any, **kwargs: t.Any
+    ) -> T:
         ...
 
     def relationship(self, *args: t.Any, **kwargs: t.Any) -> t.Any:  # NOQA
@@ -192,6 +202,9 @@ class DbColumn(t.Generic[T]):  # pragma: no cover
         ...
 
     def has(self, **kwargs: t.Any) -> 'DbColumn[T]':
+        ...
+
+    def any(self, i: t.Any = ...) -> 'DbColumn[T]':
         ...
 
 
@@ -255,4 +268,7 @@ class _MyQuery(t.Generic[T], t.Iterable):  # pragma: no cover
         ...
 
     def group_by(self, arg: t.Any) -> '_MyQuery[T]':
+        ...
+
+    def with_entities(self, arg: DbColumn[Z]) -> '_MyQuery[t.Tuple[Z]]':
         ...
