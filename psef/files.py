@@ -767,7 +767,7 @@ def process_files(
             else:
                 if handle_ignore != IgnoreHandling.keep:
                     assert ignore_filter is not None
-                    is_ignored, line = ignore_filter.is_ignored(file.name)
+                    is_ignored, line = ignore_filter.is_ignored(file.filename)
 
                     if not is_ignored:
                         pass

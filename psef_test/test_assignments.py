@@ -2742,6 +2742,44 @@ def test_ignored_upload_files(
         )
 
 
+def test_ignoring_file(
+    logged_in, student_user, teacher_user, assignment, test_client
+):
+    filename = f'file-{uuid.uuid4()}.txt'
+    with logged_in(teacher_user):
+        assig = test_client.req(
+            'get', f'/api/v1/assignments/{assignment.id}', 200
+        )
+        assert assig['cgignore'] is None
+
+        test_client.req(
+            'patch',
+            f'/api/v1/assignments/{assignment.id}',
+            200,
+            data={'ignore': '*.txt'}
+        )
+
+    with logged_in(student_user):
+        test_client.req(
+            'post', f'/api/v1/assignments/{assignment.id}/submission?'
+            'ignored_files=error',
+            400,
+            real_data={
+                'file':
+                    (
+                        get_submission_archive(f'multiple_dir_archive.zip'),
+                        filename
+                    )
+            },
+            result={
+                'code': 'INVALID_FILE_IN_ARCHIVE',
+                'message': str,
+                'description': str,
+                'invalid_files': [[filename, '*.txt']],
+            }
+        )
+
+
 @pytest.mark.parametrize('ext', ['tar.gz', 'zip'])
 def test_ignoring_dirs_tar_archives(
     logged_in, student_user, teacher_user, assignment, test_client, ext
