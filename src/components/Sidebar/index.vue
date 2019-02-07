@@ -4,21 +4,20 @@
      :class="{ floating, inLTI: $inLTI }"
      id="global-sidebar">
     <div class="main-menu" :class="{ show: mobileVisible }">
+        <router-link class="sidebar-top-item logo"
+                     :to="{ name: 'home' }"
+                     :target="$inLTI ? '_blank' : undefined"
+                     @click.native="closeSubMenu(true)">
+            <img src="/static/img/CodeGrade_christmas.svg"
+                 v-if="isChristmas && showRegularLogo"/>
+            <img src="/static/img/CodeGrade_christmas_dark.svg"
+                 v-else-if="isChristmas && showInvertedLogo"/>
+            <img src="/static/img/logo.svg" v-else-if="showRegularLogo"/>
+            <img src="/static/img/logo-inv.svg" v-else-if="showInvertedLogo"/>
+            <img src="/static/img/codegrade.svg" v-else/>
+        </router-link>
+        <hr class="separator">
         <div class="sidebar-top">
-            <router-link class="sidebar-top-item logo"
-                         :to="{ name: 'home' }"
-                         @click.native="closeSubMenu(true)">
-                <img src="/static/img/CodeGrade_christmas.svg"
-                     v-if="isChristmas && showRegularLogo"/>
-                <img src="/static/img/CodeGrade_christmas_dark.svg"
-                     v-else-if="isChristmas && showInvertedLogo"/>
-                <img src="/static/img/logo.svg" v-else-if="showRegularLogo"/>
-                <img src="/static/img/logo-inv.svg" v-else-if="showInvertedLogo"/>
-                <img src="/static/img/codegrade.svg" v-else/>
-            </router-link>
-
-            <hr class="separator">
-
             <transition v-for="entry in entries"
                         :key="`sidebar-transition-${entry.name}`"
                         v-if="maybeCall(entry.condition)"
@@ -27,10 +26,10 @@
                         :enter-active-class="entry.animate || entry.animateAdd ? 'pop-in-enter-active' : ''"
                         :leave-active-class="entry.animate || entry.animateRemove ? 'pop-in-leave-active' : ''">
                 <a @click="openUpperSubMenu(entry, true)"
-                   class="sidebar-top-item"
+                   class="sidebar-top-item sidebar-entry"
                    :class="{ selected: currentEntry && entry.name === currentEntry.name }">
                     <icon :name="entry.icon"
-                          :scale="mobileVisible ? 1.5 : 3"
+                          :scale="mobileVisible ? 1.5 : 2.25"
                           :label="maybeCall(entry.title || entry.header)"/>
                     <small class="name">
                         {{ maybeCall(entry.title || entry.header) }}
@@ -636,8 +635,13 @@ export default {
         }
     }
 
+    .sidebar-top-item.logo {
+        flex: 0 0 auto;
+    }
+
     .sidebar-top {
         flex: 1 1 auto;
+        overflow-y: auto;
     }
 
     .sidebar-top-item {
@@ -652,9 +656,12 @@ export default {
 
         &.logo {
             display: block;
+            padding: 1rem 0.5rem;
 
             img {
-                width: 100%;
+                width: 90%;
+                margin: 0 auto;
+                display: block;
             }
         }
 

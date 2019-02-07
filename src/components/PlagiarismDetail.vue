@@ -13,8 +13,8 @@
     <local-header :back-route="{ name: 'plagiarism_overview' }"
                   back-popover="Go back to overview">
         <template slot="title">
-            Plagiarism comparison between &quot;<user :user="detail.user[0]"/>&quot; and
-            &quot;<user :user="detail.user[1]"/>&quot; for assignment &quot;{{assignment.name}}&quot;
+            Plagiarism comparison between &quot;<user :user="detail.users[0]"/>&quot; and
+            &quot;<user :user="detail.users[1]"/>&quot; for assignment &quot;{{assignment.name}}&quot;
         </template>
 
         <b-btn v-b-modal.plagiarism-export style="margin-left: 15px;">Export</b-btn>

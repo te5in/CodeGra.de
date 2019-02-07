@@ -210,7 +210,7 @@ import 'vue-awesome/icons/binoculars';
 
 import { mapGetters, mapActions } from 'vuex';
 
-import { cmpNoCase, parseBool } from '@/utils';
+import { cmpNoCase, parseBool, nameOfUser } from '@/utils';
 
 import {
     CodeViewer,
@@ -524,7 +524,7 @@ export default {
 
             let title = this.assignment.name;
             if (this.submission) {
-                title += ` by ${this.submission.user.name}`;
+                title += ` by ${nameOfUser(this.submission.user)}`;
                 if (this.submission.grade) {
                     title += ` (${this.submission.grade})`;
                 }
