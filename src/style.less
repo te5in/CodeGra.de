@@ -271,12 +271,14 @@ textarea:disabled {
     background: rgba(255, 0, 0, 0.025) !important;
     color: red;
     font-weight: bold;
-    -webkit-text-decoration-style: wavy;
-    -moz-text-decoration-style: wavy;
-    text-decoration-style: wavy;
 
     > * {
+        color: black;
         font-weight: normal;
+
+        #app.dark {
+            color: @text-color-dark;
+        }
     }
 }
 

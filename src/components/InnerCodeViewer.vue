@@ -18,11 +18,11 @@
                 'feedback-outer': feedback[i - 1] != null }"
         :data-line="i">
 
+        <code v-html="codeLines[i - 1]"/>
+
         <linter-feedback-area :feedback="linterFeedback[i - 1]"
                               v-if="$userConfig.features.linters &&
                                     linterFeedback[i - 1] != null"/>
-
-        <code v-html="codeLines[i - 1]"/>
 
         <feedback-area
             :editing="editing[i - 1]"

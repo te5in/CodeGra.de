@@ -173,6 +173,13 @@ localforage.defineDriver(memoryStorageDriver).then(() => {
                 return window.navigator.userAgent.indexOf('Edge') > -1;
             },
 
+            isSafari() {
+                const ua = window.navigator.userAgent;
+                // Contains safari and does not contain Chrome as Google Chrome
+                // contains Safari and Chrome.
+                return ua.indexOf('Safari') > -1 && ua.indexOf('Chrome') < 0;
+            },
+
             // Detect if browser is Internet Explorer,
             // source: https://s.codepen.io/boomerang/iFrameKey-82faba85-1442-af7e-7e36-bd4e4cc10796/index.html
             isIE() {

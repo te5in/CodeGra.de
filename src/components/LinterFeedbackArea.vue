@@ -45,4 +45,8 @@ export default {
 table.linter-feedback tr td:not(:last-child) {
     padding-right: 1rem;
 }
+
+.linter-feedback-inner {
+    display: inline;
+}
 </style>

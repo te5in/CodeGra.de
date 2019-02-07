@@ -26,7 +26,12 @@
             </span>
 
             <span v-if="!showAddButton || !canCreate">
-                You are currently not in a group and you don't have the permission to create any.
+                <span v-if="currentUserInGroup">
+                    You don't have the permission to create any new groups.
+                </span>
+                <span v-else>
+                    You are currently not in a group and you don't have the permission to create any.
+                </span>
                 Please ask your instructor to create a group, if needed.
 
                 <span v-if="groupSet.minimum_size > 1">
@@ -48,6 +53,8 @@
 </template>
 
 <script>
+import { mapGetters } from 'vuex';
+
 import UserSelector from '@/components/UserSelector';
 import GroupManagement from '@/components/GroupManagement';
 import PermissionsManager from '@/components/PermissionsManager';
@@ -105,10 +112,16 @@ export default {
     },
 
     computed: {
+        ...mapGetters('user', { myId: 'id' }),
+
         selectedMembers() {
             const res = new Set();
             this.groups.forEach(group => group.members.forEach(user => res.add(user.id)));
             return res;
+        },
+
+        currentUserInGroup() {
+            return this.groups.some(group => group.members.some(user => user.id === this.myId));
         },
     },
 

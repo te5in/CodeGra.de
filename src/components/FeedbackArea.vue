@@ -209,7 +209,7 @@ export default {
                     start = end - oldSnip.value.length;
                 }
                 const el = this.$refs.snippets[oldVal === 0 ? this.$refs.snippets.length - 1 : 0];
-                if (el && el.scrollIntoView) {
+                if (el && el.scrollIntoView && !(this.$root.isEdge || this.$root.isSafari)) {
                     el.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
                 }
             } else {
@@ -220,7 +220,7 @@ export default {
 
                 [1, 0].forEach(i => {
                     const el = this.$refs.snippets[this.snippetSelected + i];
-                    if (el && el.scrollIntoView) {
+                    if (el && el.scrollIntoView && !(this.$root.isEdge || this.$root.isSafari)) {
                         el.scrollIntoView({
                             block: 'nearest',
                             inline: 'nearest',
@@ -573,6 +573,9 @@ export default {
         border-bottom-left-radius: 0;
         border-bottom-right-radius: 0;
         box-shadow: 0.2em -0.1em 0.5em 0 #ced4da;
+        #app.dark & {
+            box-shadow: 0.2em -0.1em 0.5em 0 @color-primary;
+        }
 
         .snippet-header {
             height: 2em;
@@ -584,6 +587,11 @@ export default {
     }
     &:not(.snippets-above) {
         box-shadow: 0.2em 0.1em 0.5em 0 #ced4da;
+
+        #app.dark & {
+            box-shadow: 0.2em 0.1em 0.5em 0 @color-primary;
+        }
+
         border-top-left-radius: 0;
         border-top-right-radius: 0;
         border-top: 0;
