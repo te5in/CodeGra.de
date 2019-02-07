@@ -37,9 +37,13 @@
             @feedbackChange="feedbackChange"
             v-if="feedback[i - 1 + lineFeedbackOffset] && feedback[i - 1 + lineFeedbackOffset].msg !== null"/>
     </li>
+    <li class="empty-file"
+        v-if="codeLines.length === 1 && codeLines[0] === ''">
+        File is empty.
+    </li>
     <li class="missing-newline"
         v-if="warnNoNewline && computedEndLine === codeLines.length && codeLines[codeLines.length - 1] != ''">
-        <icon name="level-up" style="transform: rotate(90deg)"/> Missing newline at the end of file
+        <icon name="level-up" style="transform: rotate(90deg)"/> Missing newline at the end of file.
     </li>
 </ol>
 </template>
@@ -254,10 +258,12 @@ code {
     }
 }
 
-.missing-newline {
+.missing-newline,
+.empty-file {
     list-style-type: none;
     cursor: default !important;
     user-select: none;
+
     svg {
         margin-bottom: -0.125em;
     }
