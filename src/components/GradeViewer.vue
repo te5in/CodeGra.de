@@ -254,7 +254,7 @@ export default {
                 req = this.$refs.rubricViewer.submitAllItems();
             }
 
-            if (this.rubricOverridden) {
+            if (!this.showRubric || this.rubricOverridden) {
                 req = req.then(() => this.submitNormalGrade(grade));
             }
 
