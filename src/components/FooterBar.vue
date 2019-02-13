@@ -24,7 +24,7 @@ export default {
         return {
             showModal: false,
             email: UserConfig.email,
-            version: UserConfig.version,
+            version: UserConfig.release.version,
         };
     },
 

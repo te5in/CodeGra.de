@@ -295,7 +295,7 @@ export default {
             subMenus: [],
             mobileVisible: false,
             dimmingUseSpace: true,
-            version: UserConfig.version,
+            version: UserConfig.release.version,
         };
     },
 

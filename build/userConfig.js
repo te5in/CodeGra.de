@@ -2,6 +2,7 @@
 const fs = require('fs');
 const ini = require('ini');
 const execFileSync = require('child_process').execFileSync;
+const moment = require('moment');
 
 let userConfig = {};
 
@@ -18,10 +19,29 @@ const config = Object.assign({}, {
     email: 'info@CodeGra.de',
 }, userConfig['Front-end']);
 
-config.version = execFileSync('git', ['describe', '--abbrev=0', '--tags']).toString();
-if (config.version.slice(-1) === '\n') {
-    config.version = config.version.slice(0, -1);
-}
+const version = execFileSync('git', ['describe', '--abbrev=0', '--tags']).toString().trim();
+const tagMsg = execFileSync('git', ['tag', '-l', '-n400', version]).toString().split('\n');
+let inCorrectPart = false;
+let done = false;
+let skip = false;
+
+config.release = {
+    version,
+    date: process.env.CG_FORCE_BUILD_DATE || moment.utc().toISOString(),
+    message: tagMsg.reduce((res, cur) => {
+        if (done || skip) {
+            skip = false;
+        } else if (inCorrectPart && /^ *$/.test(cur)) {
+            done = true;
+        } else if (inCorrectPart) {
+            res.push(cur);
+        } else if (/^ *\*\*Released\*\*/.test(cur)) {
+            inCorrectPart = true;
+            skip = true;
+        }
+        return res;
+    }, []).join(' '),
+};
 
 config.features = Object.assign({}, {
     blackboard_zip_upload: true,
@@ -31,6 +51,7 @@ config.features = Object.assign({}, {
     linters: true,
     incremental_rubric_submission: true,
     register: false,
+    groups: false,
 }, userConfig.Features);
 
 module.exports = config;

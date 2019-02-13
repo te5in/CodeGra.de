@@ -10,6 +10,13 @@
         <img class="small" src="/static/img/logo.svg" v-if="darkMode"/>
         <img class="small" src="/static/img/logo-inv.svg" v-else/>
     </local-header>
+    <b-alert show v-if="showReleaseNote" variant="info">
+        A new version of CodeGrade has been released:
+        <b>{{ UserConfig.release.version }}</b>.
+        {{ UserConfig.release.message }} You can check the entire
+        changelog <a href="https://docs.codegra.de/about/changelog.html"
+        target="_blank" class="alert-link">here</a>.
+    </b-alert>
     <loader v-if="loadingCourses"/>
     <div v-else-if="courses.length === 0">
         <span class="no-courses">You have no courses yet!</span>
@@ -117,6 +124,7 @@ export default {
     data() {
         return {
             loadingCourses: true,
+            UserConfig,
             moment,
             now: moment(),
             nowInterval: null,
@@ -130,6 +138,13 @@ export default {
 
         courses() {
             return Object.values(this.unsortedCourses).sort((a, b) => cmpNoCase(a.name, b.name));
+        },
+
+        showReleaseNote() {
+            return (
+                UserConfig.release.message &&
+                this.now.diff(moment(UserConfig.release.date), 'days') < 7
+            );
         },
     },
 
