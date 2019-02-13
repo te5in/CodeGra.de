@@ -98,7 +98,40 @@
         </b-tab>
 
         <div slot="empty" class="text-center text-muted empty" v-if="editable">
-            This assignment does not have rubric yet. Click the '+' to add a category.
+            <p>This assignment does not have rubric yet. Click the '+' to add a category.</p>
+            <hr>
+
+            <p>You can also import a rubric from a different assignment:</p>
+            <b-alert v-if="loadAssignmentsFailed"
+                     variant="danger"
+                     show>
+                Loading assignments failed.
+            </b-alert>
+            <b-input-group v-else>
+                <multiselect
+                    class="assignment-selector"
+                    v-model="importAssignment"
+                    :options="assignments || []"
+                    :searchable="true"
+                    :custom-label="a => `${a.course.name} - ${a.name}`"
+                    :multiple="false"
+                    track-by="id"
+                    label="label"
+                    :close-on-select="true"
+                    :hide-selected="false"
+                    placeholder="Select old assignment"
+                    :internal-search="true"
+                    :loading="loadingAssignments">
+                    <span slot="noResult">
+                        No results were found.
+                    </span>
+                </multiselect>
+                <template slot="append">
+                    <submit-button ref="importBtn"
+                                   :disabled="!importAssignment"
+                                   @click="loadOldRubric"/>
+                </template>
+            </b-input-group>
         </div>
     </b-tabs>
 
@@ -186,6 +219,7 @@
 </template>
 
 <script>
+import Multiselect from 'vue-multiselect';
 import { mapActions } from 'vuex';
 
 import Icon from 'vue-awesome/components/Icon';
@@ -210,6 +244,10 @@ export default {
             currentCategory: 0,
             assignmentId: this.assignment.id,
             internalFixedMaxPoints: this.assignment.fixed_max_rubric_points,
+            assignments: null,
+            importAssignment: null,
+            loadingAssignments: false,
+            loadAssignmentsFailed: false,
         };
     },
 
@@ -231,11 +269,25 @@ export default {
         defaultRubric: {
             default: null,
         },
+
+        hidden: {
+            type: Boolean,
+            default: false,
+        },
     },
 
     watch: {
         assignmentId() {
             this.getAndSetRubrics();
+        },
+
+        hidden: {
+            immediate: true,
+            handler() {
+                if (!this.hidden && this.assignments === null && this.rubrics.length === 0) {
+                    this.loadAssignments();
+                }
+            },
         },
     },
 
@@ -266,6 +318,39 @@ export default {
 
     methods: {
         ...mapActions('courses', ['forceLoadSubmissions', 'forceLoadRubric', 'setRubric']),
+
+        loadOldRubric() {
+            const btn = this.$refs.importBtn;
+            btn
+                .submit(
+                    this.$http
+                        .post(`/api/v1/assignments/${this.assignmentId}/rubric`, {
+                            old_assignment_id: this.importAssignment.id,
+                        })
+                        .catch(({ response }) => {
+                            throw response.data.message;
+                        }),
+                )
+                .then(({ data }) => {
+                    this.importAssignment = null;
+                    this.setRubricData(data);
+                });
+        },
+
+        loadAssignments() {
+            this.loadingAssignments = true;
+            this.assignments = [];
+            this.$http.get('/api/v1/assignments/?only_with_rubric').then(
+                ({ data }) => {
+                    this.assignments = data;
+                    this.loadingAssignments = false;
+                },
+                () => {
+                    this.loadAssignmentsFailed = true;
+                    this.loadingAssignments = false;
+                },
+            );
+        },
 
         getEmptyItem() {
             return {
@@ -329,6 +414,8 @@ export default {
 
         deleteRubric() {
             const success = () => {
+                this.loadAssignments();
+
                 this.rubrics = [];
                 setTimeout(() => {
                     this.$root.$emit('bv::hide::modal', 'modal_delete_rubric');
@@ -566,6 +653,7 @@ ${arrayToSentence(wrongCategories)}.`);
         SubmitButton,
         Loader,
         DescriptionPopover,
+        Multiselect,
     },
 };
 </script>
@@ -786,6 +874,10 @@ ${arrayToSentence(wrongCategories)}.`);
         border-color: @color-primary;
     }
 }
+
+.alert {
+    margin-bottom: 0;
+}
 </style>
 
 <style lang="less">
@@ -826,6 +918,15 @@ ${arrayToSentence(wrongCategories)}.`);
         border-top: 0;
         border-bottom-right-radius: 0.25rem;
         border-bottom-left-radius: 0.25rem;
+    }
+
+    .assignment-selector {
+        z-index: 8;
+        flex: 1;
+        .multiselect__tags {
+            border-bottom-right-radius: 0;
+            border-top-right-radius: 0;
+        }
     }
 }
 </style>

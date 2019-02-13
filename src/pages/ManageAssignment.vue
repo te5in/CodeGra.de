@@ -206,6 +206,7 @@
                                      the results."/>
                 </span>
                 <plagiarism-runner :assignment="assignment"
+                                   :hidden="selectedCat !== 'Plagiarism'"
                                    :can-manage="permissions.can_manage_plagiarism"
                                    :can-view="permissions.can_view_plagiarism"/>
             </b-card>
@@ -214,6 +215,7 @@
         <div class="cat-wrapper" :class="{hidden: selectedCat !== 'Rubric'}">
             <b-card header="Rubric" v-if="canUseRubrics">
                 <rubric-editor :assignment="assignment"
+                               :hidden="selectedCat !== 'Rubric'"
                                ref="rubricEditor"
                                editable/>
 
@@ -562,7 +564,6 @@ export default {
 
 .cat-wrapper {
     transition: opacity 0.25s ease-out;
-    overflow-y: auto;
     padding-top: 5px;
 
     &.hidden {
@@ -570,6 +571,7 @@ export default {
         transition: none;
         opacity: 0;
         max-height: 0;
+        overflow-y: hidden;
     }
 }
 

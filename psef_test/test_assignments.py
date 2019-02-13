@@ -11,10 +11,10 @@ import pytest
 
 import psef
 import psef.models as m
-from helpers import create_marker
+from helpers import create_marker, create_assignment, create_user_with_perms
 from psef.errors import APICodes, APIWarnings
 from psef.helpers import ensure_keys_in_dict
-from psef.permissions import CoursePermission
+from psef.permissions import CoursePermission as CPerm
 
 # http_err = pytest.mark.http_err
 perm_error = create_marker(pytest.mark.perm_error)
@@ -1073,8 +1073,7 @@ def test_upload_files(
             assert res['message'].startswith('No file in HTTP')
 
             if assignment.is_open or named_user.has_permission(
-                psef.permissions.CoursePermission.can_upload_after_deadline,
-                assignment.course_id
+                CPerm.can_upload_after_deadline, assignment.course_id
             ):
                 res = test_client.req(
                     'post',
@@ -1210,7 +1209,7 @@ def test_upload_for_other(
         code = 403
         res = error_template
         named_user.courses[assignment.course_id].set_permission(
-            CoursePermission.can_upload_after_deadline, False
+            CPerm.can_upload_after_deadline, False
         )
 
     with logged_in(named_user):
@@ -2853,7 +2852,7 @@ def test_cgignore_permission(
     teacher_user, session, test_client, error_template, assignment, logged_in
 ):
     teacher_user.courses[assignment.course_id].set_permission(
-        psef.permissions.CoursePermission.can_edit_cgignore,
+        CPerm.can_edit_cgignore,
         False,
     )
 
@@ -3107,9 +3106,7 @@ def test_grader_done(
 
     if not err:
         new_user = m.User.query.filter_by(name='Student1').first()
-        new_user.courses[course_id].set_permission(
-            CoursePermission.can_grade_work, True
-        )
+        new_user.courses[course_id].set_permission(CPerm.can_grade_work, True)
         session.commit()
 
         with logged_in(new_user):
@@ -3515,7 +3512,7 @@ def test_notification_permission(
 ):
     assig_id = assignment.id
     teacher_user.courses[assignment.course_id].set_permission(
-        CoursePermission.can_update_course_notifications,
+        CPerm.can_update_course_notifications,
         False,
     )
     with logged_in(teacher_user):
@@ -3529,4 +3526,157 @@ def test_notification_permission(
                 'done_email': 'thomas@example.com'
             },
             result=error_template,
+        )
+
+
+def test_duplicating_rubric(
+    test_client, session, error_template, admin_user, logged_in,
+    original_rubric_data
+):
+    with logged_in(admin_user):
+        base_assignment = create_assignment(test_client, state='open')
+        base_assignment_no_rubric = create_assignment(
+            test_client, base_assignment['course']['id'], state='open'
+        )
+        base_assignment_hidden = create_assignment(
+            test_client, base_assignment['course']['id'], state='hidden'
+        )
+        no_permission_assignment = create_assignment(test_client, state='open')
+
+        new_assignment = create_assignment(test_client, state='open')
+
+    user = create_user_with_perms(
+        session,
+        [CPerm.can_see_assignments],
+        courses=[
+            base_assignment['course'],
+            new_assignment['course'],
+        ]
+    )
+    user.courses[new_assignment['course']['id']].set_permission(
+        CPerm.manage_rubrics, True
+    )
+    session.commit()
+
+    def assert_rubric_empty():
+        with logged_in(user):
+            test_client.req(
+                'get', f'/api/v1/assignments/{new_assignment["id"]}/rubrics/',
+                404
+            )
+
+    assert_rubric_empty()
+
+    for assig in [
+        no_permission_assignment, base_assignment, base_assignment_hidden
+    ]:
+        with logged_in(
+            create_user_with_perms(
+                session,
+                [
+                    CPerm.manage_rubrics, CPerm.can_see_assignments,
+                    CPerm.can_see_hidden_assignments
+                ],
+                courses=[assig['course']]
+            )
+        ):
+            test_client.req(
+                'put',
+                f'/api/v1/assignments/{assig["id"]}/rubrics/',
+                200,
+                data=original_rubric_data
+            )
+            test_client.req(
+                'get', f'/api/v1/assignments/{assig["id"]}/rubrics/', 200
+            )
+
+    with logged_in(user):
+        for assig, code in [
+            (base_assignment_no_rubric, 404), (base_assignment_hidden, 403),
+            (no_permission_assignment, 403), (new_assignment, 404)
+        ]:
+            test_client.req(
+                'get', f'/api/v1/assignments/{assig["id"]}/rubrics/', code
+            )
+            test_client.req(
+                'post',
+                f'/api/v1/assignments/{new_assignment["id"]}/rubric',
+                code,
+                data={'old_assignment_id': assig["id"]}
+            )
+            assert_rubric_empty()
+
+        result = test_client.req(
+            'post',
+            f'/api/v1/assignments/{new_assignment["id"]}/rubric',
+            200,
+            data={'old_assignment_id': base_assignment["id"]},
+            result=[
+                {
+                    'header':
+                        original_rubric_data['rows'][0]['header'],
+                    'description':
+                        original_rubric_data['rows'][0]['description'],
+                    'id':
+                        int,
+                    'items':
+                        list,
+                }
+            ]
+        )
+        test_client.req(
+            'get',
+            f'/api/v1/assignments/{new_assignment["id"]}/rubrics/',
+            200,
+            result=result
+        )
+
+        # You cannot import into an assignment which has a rubric.
+        test_client.req(
+            'post',
+            f'/api/v1/assignments/{new_assignment["id"]}/rubric',
+            400,
+            data={'old_assignment_id': base_assignment["id"]}
+        )
+
+
+def test_get_all_assignments_with_rubric(
+    test_client, session, error_template, admin_user, logged_in,
+    original_rubric_data
+):
+    with logged_in(admin_user):
+        assig_no_perms = create_assignment(test_client, state='open')
+        assig_perms_no_rubric = create_assignment(test_client, state='open')
+        assig_perms_rubric = create_assignment(test_client, state='open')
+    user = create_user_with_perms(
+        session,
+        [CPerm.can_see_assignments, CPerm.manage_rubrics],
+        courses=[
+            assig_perms_no_rubric['course'],
+            assig_perms_rubric['course'],
+        ]
+    )
+    with logged_in(user):
+        test_client.req(
+            'put',
+            f'/api/v1/assignments/{assig_perms_rubric["id"]}/rubrics/',
+            200,
+            data=original_rubric_data
+        )
+
+        test_client.req(
+            'get',
+            '/api/v1/assignments/',
+            200,
+            result=[
+                assig_perms_rubric,
+                assig_perms_no_rubric,
+            ]
+        )
+
+        test_client.req(
+            'get',
+            '/api/v1/assignments/?only_with_rubric',
+            200,
+            result=[assig_perms_rubric]
         )

@@ -57,6 +57,13 @@ class RubricItem(Base):
             'points': t.cast(numbers.Real, self.points),
         }
 
+    def copy(self) -> 'RubricItem':
+        return RubricItem(
+            header=self.header,
+            description=self.description,
+            points=self.points,
+        )
+
 
 class RubricRow(Base):
     """Describes a row of some rubric.
@@ -85,6 +92,15 @@ class RubricRow(Base):
         cascade='delete-orphan, delete, save-update',
         order_by='asc(RubricItem.points)',
     )  # type: t.MutableSequence[RubricItem]
+
+    def copy(self) -> 'RubricRow':
+        return RubricRow(
+            created_at=datetime.datetime.utcnow(),
+            description=self.description,
+            header=self.header,
+            assignment_id=self.assignment_id,
+            items=[item.copy() for item in self.items]
+        )
 
     @property
     def is_valid(self) -> bool:

@@ -208,6 +208,11 @@ export default {
             type: Boolean,
             required: true,
         },
+
+        hidden: {
+            type: Boolean,
+            default: true,
+        },
     },
 
     data() {
@@ -216,7 +221,7 @@ export default {
             selectedProvider: null,
             selectedOptionsMap: new WeakMap(),
             selectedOptions: null,
-            allOldAssignments: [],
+            allOldAssignments: null,
             runs: null,
             oldSubmissions: null,
             runsPollingInterval: null,
@@ -244,6 +249,15 @@ export default {
     },
 
     watch: {
+        hidden: {
+            immediate: true,
+            handler() {
+                if (!this.hidden && this.allOldAssignments === null) {
+                    this.getOldAssignments();
+                }
+            },
+        },
+
         selectedProvider(provider) {
             if (provider == null) {
                 return;
@@ -255,9 +269,8 @@ export default {
 
             this.selectedOptions = this.selectedOptionsMap.get(provider);
 
-            if (this.allOldAssignments.length === 0) {
-                this.getOldAssignments();
-            }
+            // Old assignments are loaded using the watcher on `hidden`. That
+            // should probably be changed when we have more than one provider.
         },
 
         $route(oldRoute, newRoute) {

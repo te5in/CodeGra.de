@@ -52,6 +52,8 @@ def get_all_assignments() -> JSONResponse[t.Sequence[models.Assignment]]:
     .. :quickref: Assignment; Get all assignments.
 
     :returns: An array of :py:class:`.models.Assignment` items encoded in JSON.
+    :query only_with_rubric: When this parameter is given only assignments that
+        have a rubric will be loaded.
 
     :raises PermissionException: If there is no logged in user. (NOT_LOGGED_IN)
     """
@@ -63,24 +65,33 @@ def get_all_assignments() -> JSONResponse[t.Sequence[models.Assignment]]:
 
     res = []
 
+    query = db.session.query(
+        models.Assignment,
+        t.cast(models.DbColumn[str], models.AssignmentLinter.id).isnot(None)
+    ).filter(
+        t.cast(
+            models.DbColumn[int],
+            models.Assignment.course_id,
+        ).in_(courses)
+    ).join(
+        models.AssignmentLinter,
+        sql.expression.and_(
+            models.Assignment.id == models.AssignmentLinter.assignment_id,
+            models.AssignmentLinter.name == 'MixedWhitespace'
+        ),
+        isouter=True
+    ).order_by(
+        t.cast(models.DbColumn[object], models.Assignment.created_at).desc()
+    )
+    if request.args.get('only_with_rubric',
+                        'false').lower() in {'', 't', 'true'}:
+        query = query.filter(
+            t.cast(models.DbColumn[object],
+                   models.Assignment.rubric_rows).any()
+        )
+
     if courses:
-        for assignment, has_linter in db.session.query(
-            models.Assignment,
-            t.cast(models.DbColumn[str],
-                   models.AssignmentLinter.id).isnot(None)
-        ).filter(
-            t.cast(
-                models.DbColumn[int],
-                models.Assignment.course_id,
-            ).in_(courses)
-        ).join(
-            models.AssignmentLinter,
-            sql.expression.and_(
-                models.Assignment.id == models.AssignmentLinter.assignment_id,
-                models.AssignmentLinter.name == 'MixedWhitespace'
-            ),
-            isouter=True
-        ).all():
+        for assignment, has_linter in query.all():
             has_perm = current_user.has_permission(
                 CPerm.can_see_hidden_assignments, assignment.course_id
             )
@@ -365,6 +376,10 @@ def get_assignment_rubric(assignment_id: int
     )
 
     auth.ensure_permission(CPerm.can_see_assignments, assig.course_id)
+    if assig.is_hidden:
+        auth.ensure_permission(
+            CPerm.can_see_hidden_assignments, assig.course_id
+        )
     if not assig.rubric_rows:
         raise APIException(
             'Assignment has no rubric',
@@ -406,6 +421,57 @@ def delete_rubric(assignment_id: int) -> EmptyResponse:
     db.session.commit()
 
     return make_empty_response()
+
+
+@api.route('/assignments/<int:assignment_id>/rubric', methods=['POST'])
+@features.feature_required(features.Feature.RUBRICS)
+def import_assignment_rubric(assignment_id: int
+                             ) -> JSONResponse[t.Sequence[models.RubricRow]]:
+    """Import a rubric from a different assignment.
+
+    .. :quickref: Assignment; Import a rubric from a different assignment.
+
+    :param assignment_id: The id of the assignment in which you want to import
+        the rubric. This assignment shouldn't have a rubric.
+    :>json old_assignment_id: The id of the assignment from which the rubric
+        should be imported. This assignment should have a rubric.
+
+    :returns: The rubric rows of the assignment in which the rubric was
+        imported, so the assignment with id ``assignment_id`` and not
+        ``old_assignment_id``.
+    """
+    assig = helpers.get_or_404(models.Assignment, assignment_id)
+    auth.ensure_permission(CPerm.manage_rubrics, assig.course_id)
+
+    content = ensure_json_dict(request.get_json())
+    ensure_keys_in_dict(content, [('old_assignment_id', int)])
+    old_assig = helpers.get_or_404(
+        models.Assignment, content['old_assignment_id']
+    )
+
+    auth.ensure_permission(CPerm.can_see_assignments, old_assig.course_id)
+    if old_assig.is_hidden:
+        auth.ensure_permission(
+            CPerm.can_see_hidden_assignments, old_assig.course_id
+        )
+
+    if assig.rubric_rows:
+        raise APIException(
+            'The given assignment already has a rubric',
+            'You cannot import a rubric into an assignment which has a rubric',
+            APICodes.OBJECT_ALREADY_EXISTS, 400
+        )
+    if not old_assig.rubric_rows:
+        raise APIException(
+            "The given old assignment doesn't have a rubric", (
+                "You cannot import a rubric from an assignment which doesn't"
+                " have a rubric"
+            ), APICodes.OBJECT_NOT_FOUND, 404
+        )
+
+    assig.rubric_rows = [row.copy() for row in old_assig.rubric_rows]
+    db.session.commit()
+    return jsonify(assig.rubric_rows)
 
 
 @api.route('/assignments/<int:assignment_id>/rubrics/', methods=['PUT'])
