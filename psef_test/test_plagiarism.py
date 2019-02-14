@@ -980,7 +980,7 @@ def test_get_plagiarism_providers(test_client):
                             'description': str,
                             'type': 'numbervalue',
                             'mandatory': bool,
-                            'placeholder': 25,
+                            'placeholder': 'default: 25',
                         }
                     ],
             },

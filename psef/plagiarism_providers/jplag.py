@@ -89,7 +89,7 @@ class JPlag(plag.PlagiarismProvider):
                 plag.OptionTypes.numbervalue,
                 False,
                 None,
-                placeholder=25,
+                placeholder='default: 25',
             ),
         ]
 

@@ -69,7 +69,7 @@ class Option:
     type: OptionTypes
     mandatory: bool
     possible_options: t.Optional[t.Sequence[str]]
-    placeholder: t.Optional[t.Union[str, int, float]] = None
+    placeholder: t.Optional[str] = None
 
     def __to_json__(self) -> t.Mapping[str, object]:
         res: t.Dict[str, object] = dataclasses.asdict(self)
