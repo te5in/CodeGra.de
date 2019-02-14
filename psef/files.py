@@ -55,6 +55,20 @@ SPECIAL_FILES = {
     '.cg-assignment-id',
     '.api-socket',
     '.cg-mode',
+    '.cg-members',
+    '.cg-test-output',
+    '.cg-assignee',
+    '.cg-linter-feedback',
+    '.cg-line-feedback',
+    '.cg-overview.csv',
+    '.cg-plagiarism',
+    '.cg-diff',
+    '.cg-student-diff',
+    '.cg-teacher-diff',
+    '.cg-grade-history',
+    '.cg-review',
+    '.cg-peer-review',
+    '.cg-allesreiniger',
 }
 
 SPECIAL_FILENAMES = {
