@@ -138,17 +138,25 @@
 
         <div class="row cat-wrapper"
              :class="{hidden: selectedCat !== 'Graders'}">
-            <div class="col-lg-6">
+            <div class="col-xl-6">
                 <b-card v-if="canAssignGraders" no-body>
                     <span slot="header">
                         Divide submissions
-                        <description-popover
-                            description="Divide this assignment. When dividing
-                                         users are assigned to submissions based on weights.
-                                         When new submissions are uploaded graders are
-                                         also automatically assigned. When graders assign
-                                         themselves the weights are not updated to
-                                         reflect this."/>
+                        <description-popover>
+                            <span slot="description">
+                                Divide this assignment. When dividing users are
+                                assigned to submissions based on weights.  When
+                                new submissions are uploaded graders are also
+                                automatically assigned. When graders assign
+                                themselves the weights are not updated to
+                                reflect this. To read more about dividing
+                                graders please read our
+                                documentation <a href="https://docs.codegra.de/user/management.html#dividing-submissions"
+                                                 target="_blank"
+                                                 class="inline-link"
+                                >here</a>.
+                            </span>
+                        </description-popover>
                     </span>
                     <loader class="text-center" v-if="gradersLoading && !gradersLoadedOnce"/>
                     <divide-submissions :assignment="assignment"
@@ -158,8 +166,10 @@
                 </b-card>
             </div>
 
-            <div class="col-lg-6">
-                <b-card v-if="canUpdateGradersStatus" no-body>
+            <div class="col-xl-6">
+                <b-card v-if="canUpdateGradersStatus"
+                        no-body
+                        class="finished-grading-card">
                     <span slot="header">
                         Finished grading
                         <description-popover
@@ -583,5 +593,9 @@ export default {
 
 .manage-assignment .header {
     z-index: 9;
+}
+
+.finished-grading-card .loader {
+    padding: 1rem;
 }
 </style>

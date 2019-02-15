@@ -9,6 +9,15 @@ import psef.models as m
 from psef.permissions import CoursePermission as CPerm
 
 
+def get_id(obj):
+    if isinstance(obj, dict):
+        return obj['id']
+    elif isinstance(obj, int):
+        return obj
+    else:
+        return obj.id
+
+
 def create_marker(marker):
     def outer(*vals, **kwargs):
         def inner(vals):
@@ -129,17 +138,17 @@ def create_group_set(
     return g_set
 
 
-def create_user_with_perms(session, perms, courses):
+def create_user_with_perms(session, perms, courses, name=None):
     if not isinstance(courses, list):
         courses = [courses]
     n_id = str(uuid.uuid4())
     new_role = m.Role(name=f'NEW_ROLE--{n_id}')
     user = m.User(
-        name=f'NEW_USER-{n_id}',
+        name=f'NEW_USER-{n_id}' if name is None else name,
         email=f'new_user-{n_id}@a.nl',
         password=n_id,
         active=True,
-        username=f'a-the-a-er-{n_id}',
+        username=f'a-the-a-er-{n_id}' if name is None else f'{name}{n_id}',
         role=new_role,
     )
     for course in courses:
@@ -176,4 +185,19 @@ def create_error_template():
         'code': str,
         'message': str,
         'description': str,
+    }
+
+
+def get_newest_submissions(test_client, assignment):
+    # When duplicate keys occur last wins in dict comprehensions so
+    # this makes sure we only have the latest submission for a user.
+    return {
+        s['user']['id']: s
+        for s in reversed(
+            test_client.req(
+                'get',
+                f'/api/v1/assignments/{get_id(assignment)}/submissions/',
+                200,
+            )
+        )
     }

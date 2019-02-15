@@ -60,7 +60,6 @@ import 'vue-awesome/icons/exclamation-triangle';
 import { parseWarningHeader, waitAtLeast } from '@/utils';
 
 import Toggle from './Toggle';
-import Loader from './Loader';
 import User from './User';
 
 export default {
@@ -165,7 +164,6 @@ export default {
     components: {
         Icon,
         Toggle,
-        Loader,
         User,
     },
 };

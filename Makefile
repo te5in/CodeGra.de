@@ -76,6 +76,9 @@ shrinkwrap:
 lint:
 	pylint psef --rcfile=setup.cfg
 
+mypy:
+	mypy --ignore-missing-imports --disallow-untyped-defs --check-untyped-defs --disallow-subclassing-any "$(PWD)/psef/"
+
 .PHONY: create_permission
 create_permission:
 	python ./.scripts/create_permission.py

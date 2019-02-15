@@ -799,6 +799,7 @@ def test_add_assignment(
                 'fixed_max_rubric_points': None,
                 'max_grade': None,
                 'group_set': None,
+                'division_parent_id': None,
             }
         )
 

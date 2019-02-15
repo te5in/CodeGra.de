@@ -374,6 +374,13 @@ textarea:disabled {
 
 .multiselect {
     .dark-multiselect-colors;
+    &.multiselect--disabled {
+        cursor: not-allowed !important;
+        pointer-events: auto;
+        .multiselect__select {
+            cursor: not-allowed !important;
+        }
+    }
 }
 
 .toasted-container .toasted .action {

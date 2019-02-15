@@ -703,6 +703,73 @@ def upload_work(assignment_id: int) -> ExtendedJSONResponse[models.Work]:
     return extended_jsonify(work, status_code=201, use_extended=models.Work)
 
 
+@api.route(
+    '/assignments/<int:assignment_id>/division_parent', methods=['PATCH']
+)
+def change_division_parent(assignment_id: int) -> EmptyResponse:
+    """Change the division parent of an assignment.
+
+    Set the division parent of this assignment. See the documentation about
+    dividing submissions for more information about division parents.
+
+    .. :quickref: Assignment; Change the division parent of an assignment.
+
+    :param assignment_id: The id of the assignment you want to change.
+    :<json parent_assignment_id: The id of the assignment that should be the
+        division parent of the given assignment. If this is set to ``null`` the
+        division parent of this assignment will be cleared.
+    :returns: An empty response with status code code 204.
+    """
+    assignment = helpers.get_or_404(
+        models.Assignment,
+        assignment_id,
+        options=[joinedload(models.Assignment.division_children)],
+    )
+
+    auth.ensure_permission(CPerm.can_assign_graders, assignment.course_id)
+
+    content = ensure_json_dict(request.get_json())
+
+    ensure_keys_in_dict(content, [('parent_id', (int, type(None)))])
+    parent_id = t.cast(t.Union[int, None], content['parent_id'])
+
+    if parent_id is None:
+        parent_assig = None
+    else:
+        parent_assig = helpers.filter_single_or_404(
+            models.Assignment,
+            models.Assignment.id == parent_id,
+            models.Assignment.course_id == assignment.course_id,
+        )
+    if (
+        parent_assig is not None and
+        parent_assig.division_parent_id is not None
+    ):
+        # The id is not None so the object itself can't None
+        assert parent_assig.division_parent is not None
+        raise APIException(
+            (
+                f'The division of {parent_assig.name} is already'
+                f' determined by {parent_assig.division_parent.name},'
+                f' so you cannot connect to this assignment.'
+            ), 'The division parent of {parent_assig.id} is already set',
+            APICodes.INVALID_STATE, 400
+        )
+    missed_work = assignment.connect_division(parent_assig)
+    db.session.commit()
+
+    if missed_work and parent_assig is not None:
+        helpers.add_warning(
+            (
+                f"Some submissions were not divided as they weren't"
+                f' assigned in {parent_assig.name}. Make sure you divide'
+                ' those manually.'
+            ), APIWarnings.UNASSIGNED_ASSIGNMENTS
+        )
+
+    return make_empty_response()
+
+
 @api.route('/assignments/<int:assignment_id>/divide', methods=['PATCH'])
 def divide_assignments(assignment_id: int) -> EmptyResponse:
     """Assign graders to all the latest :class:`.models.Work` objects of
@@ -735,11 +802,27 @@ def divide_assignments(assignment_id: int) -> EmptyResponse:
     :raises PermissionException: If the user is not allowed to divide
         submissions for this assignment.  (INCORRECT_PERMISSION)
     """
-    assignment = helpers.get_or_404(models.Assignment, assignment_id)
+    assignment = helpers.get_or_404(
+        models.Assignment,
+        assignment_id,
+        options=[joinedload(models.Assignment.division_children)],
+    )
 
     auth.ensure_permission(CPerm.can_assign_graders, assignment.course_id)
 
     content = ensure_json_dict(request.get_json())
+
+    if (
+        assignment.division_parent_id is not None or
+        assignment.division_children
+    ):
+        raise APIException(
+            'You cannot change the division of a connected assignment.', (
+                f'The assignment {assignment.id} is connect or a parent so you'
+                ' cannot change the grader weights'
+            ), APICodes.INVALID_STATE, 400
+        )
+
     ensure_keys_in_dict(content, [('graders', dict)])
     graders = {}
 
@@ -1121,9 +1204,7 @@ def post_submissions(assignment_id: int) -> EmptyResponse:
 
         if work.assigned_to is None:
             if missing:
-                work.assigned_to = max(
-                    missing.keys(), key=lambda k: missing[k]
-                )
+                work.assigned_to = max(missing.keys(), key=missing.get)
                 missing = recalc_missing(work.assigned_to)
                 sub_lookup[user.id] = work
 

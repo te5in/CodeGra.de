@@ -141,7 +141,24 @@ teaching assistant.
 Manually assigning submissions is possible via the submission list, by selecting
 the grader using the 'Assigned to' dropdown dialog.
 
-.. note:: When teachers manually assign themselves, weights are not updated to reflect this.
+It is also possible to link the divisions and assignees of multiple
+assignments. To do this you can select a parent assignment in the selector below
+the weights of the graders. When an assignment is connected to another
+assignment, the child assignment copies the settings and assignees of the parent
+assignment. After linking, the division settings of the parent and the child are
+frozen. Multiple assignments can be linked to the same parent, however a parent
+cannot be linked to another assignment as a child.
+
+When a student submits to a child or parent assignment CodeGrade tries to assign
+the student to the same assignee as in other assignments. It does this by first
+copying the assignee of the parent assignment for the submitting student, or if
+this is not possible selecting the most common assignee in the children
+assignments.
+
+.. note::
+
+    When teachers manually assign themselves, weights are not updated to reflect
+    this.
 
 Finished Grading and Notifications
 +++++++++++++++++++++++++++++++++++
