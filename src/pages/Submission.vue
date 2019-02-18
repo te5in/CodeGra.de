@@ -391,6 +391,14 @@ export default {
             if (newVal == null) {
                 return;
             }
+
+            if (!this.loadingPage && newVal.submissions == null) {
+                this.loadingPage = true;
+                this.loadSubmissions(this.assignmentId).then(() => {
+                    this.loadingPage = false;
+                });
+            }
+
             if (oldVal == null || oldVal.id !== newVal.id) {
                 this.$nextTick(this.updateTitle);
             }
