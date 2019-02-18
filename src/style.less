@@ -59,6 +59,8 @@ main {
 
 .btn {
     cursor: pointer;
+    transition: transitioncolor 0.15s ease-in-out, background-color 0.15s ease-in-out,
+        border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out, opacity 0.25s ease-in-out;
 
     &-primary {
         .primary-button-color;
@@ -69,11 +71,11 @@ main {
     }
 
     .fa-icon {
-        &:not(:first-child) {
+        &:not(:first-of-type) {
             margin-left: 0.66em;
         }
 
-        &:not(:last-child) {
+        &:not(:last-of-type) {
             margin-right: 0.66em;
         }
     }

@@ -22,7 +22,7 @@
                        placeholder="Key"
                        :value="item.item.key"
                        @input="snippetKeyChanged(item.item, $event.target.value)"
-                       @keyup.ctrl.enter="saveSnippet(item.item, item.index)"/>
+                       @keyup.ctrl.enter="clickSaveSnippet(item.index)"/>
             </b-form-group>
         </template>
 
@@ -33,23 +33,20 @@
                        placeholder="Value"
                        :value="item.item.value"
                        @input="snippetValueChanged(item.item, $event.target.value)"
-                       @keyup.ctrl.enter="saveSnippet(item.item, item.index)"/>
+                       @keyup.ctrl.enter="clickSaveSnippet(item.index)"/>
             </b-form-group>
         </template>
 
         <template slot="actions" slot-scope="item">
             <b-button-group class="button-wrapper">
-                <div class="save-button-wrapper"
-                     v-b-popover.top.hover="saveButtonPopover(item.item)">
-                    <submit-button size="sm"
-                                label=""
-                                :default="hasSnippetChanged(item.item) ? 'warning' : 'primary'"
-                                :ref="`snippetSaveButton-${item.index}`"
-                                :disabled="!canUpdateSnippet(item.item)"
-                                @click="saveSnippet(item.item, item.index)">
-                        <icon name="floppy-o"/>
-                    </submit-button>
-                </div>
+                <submit-button size="sm"
+                               :variant="hasSnippetChanged(item.item) ? 'warning' : 'primary'"
+                               :ref="`snippetSaveButton-${item.index}`"
+                               :disabled="!canUpdateSnippet(item.item)"
+                               :submit="() => saveSnippet(item.item)"
+                               v-b-popover.top.hover="saveButtonPopover(item.item)">
+                    <icon name="floppy-o"/>
+                </submit-button>
 
                 <b-btn v-if="hasSnippetChanged(item.item)"
                        size="sm"
@@ -58,23 +55,16 @@
                        v-b-popover.top.hover="'Reset changes'">
                     <icon name="reply"/>
                 </b-btn>
-                <submit-button v-else-if="item.item.id != null"
+
+                <submit-button v-else-if="item.item.id != null || item.index < allSnippets.length - 1"
                                size="sm"
-                               label=""
-                               default="danger"
-                               :ref="`snippetDeleteButton-${item.index}`"
+                               variant="danger"
                                confirm="Are you sure you want to delete this snippet?"
-                               @click="deleteSnippet(item.item, item.index)"
+                               :submit="() => deleteSnippet(item.item)"
+                               @after-success="afterDeleteSnippet(item.item, item.index)"
                                v-b-popover.top.hover="'Delete snippet'">
                     <icon name="times"/>
                 </submit-button>
-                <b-btn v-else-if="item.index < allSnippets.length - 1"
-                       size="sm"
-                       variant="danger"
-                       @click="deleteSnippet(item.item, item.index)"
-                       v-b-popover.top.hover="'Delete snippet'">
-                    <icon name="times"/>
-                </b-btn>
             </b-button-group>
         </template>
     </b-table>
@@ -89,7 +79,7 @@ import 'vue-awesome/icons/times';
 import 'vue-awesome/icons/floppy-o';
 import 'vue-awesome/icons/reply';
 
-import { cmpNoCase, waitAtLeast } from '@/utils';
+import { cmpNoCase } from '@/utils';
 
 import Loader from './Loader';
 import SubmitButton from './SubmitButton';
@@ -245,59 +235,46 @@ export default {
             }
         },
 
-        saveSnippet(snippet, index) {
+        clickSaveSnippet(index) {
+            this.$refs[`snippetSaveButton-${index}`].onClick();
+        },
+
+        saveSnippet(snippet) {
             if (!this.canUpdateSnippet(snippet)) {
-                this.$refs[`snippetSaveButton-${index}`].fail(this.saveButtonPopover(snippet));
-                return null;
+                throw new Error(this.saveButtonPopover(snippet));
             }
 
             const data = { key: snippet.key, value: snippet.value };
-            let req;
-            if (snippet.id == null) {
-                req = this.$http.put('/api/v1/snippet', data);
-            } else {
-                req = this.$http.patch(`/api/v1/snippets/${snippet.id}`, data);
-            }
-
-            req = this.$refs[`snippetSaveButton-${index}`].submit(
-                waitAtLeast(
-                    500,
-                    req.catch(err => {
-                        throw err.response.data.message;
-                    }),
-                ),
-            );
 
             if (snippet.id == null) {
-                return req.then(({ data: newSnippet }) => {
-                    const indexInNew = this.newSnippets.indexOf(snippet);
-                    if (indexInNew > -1) {
-                        this.newSnippets.splice(indexInNew, 1);
+                return this.$http.put('/api/v1/snippet', data).then(response => {
+                    const index = this.newSnippets.indexOf(snippet);
+                    if (index > -1) {
+                        this.newSnippets.splice(index, 1);
                     }
-                    this.addSnippetToStore(newSnippet);
+                    this.addSnippetToStore(response.data);
                 });
             } else {
-                return req.then(() => {
+                return this.$http.patch(`/api/v1/snippets/${snippet.id}`, data).then(() => {
                     this.updateSnippetInStore(snippet);
                 });
             }
         },
 
-        deleteSnippet(snippet, index) {
+        deleteSnippet(snippet) {
             if (snippet.id == null) {
-                if (index < this.allSnippets.length - 1) {
-                    this.newSnippets.splice(index, 1);
-                }
-                return null;
+                return Promise.resolve();
+            } else {
+                return this.$http.delete(`/api/v1/snippets/${snippet.id}`);
             }
+        },
 
-            const req = this.$http.delete(`/api/v1/snippets/${snippet.id}`).catch(err => {
-                throw err.response.data.message;
-            });
-
-            return this.$refs[`snippetDeleteButton-${index}`].submit(req).then(() => {
+        afterDeleteSnippet(snippet, index) {
+            if (snippet.id == null) {
+                this.newSnippets.splice(index - this.storedSnippets.length, 1);
+            } else {
                 this.deleteSnippetFromStore(snippet);
-            });
+            }
         },
 
         resetSnippet(snippet) {
@@ -332,11 +309,6 @@ export default {
 
 .form-group {
     margin-bottom: 0;
-}
-
-.save-button-wrapper:not(:last-child) .btn {
-    border-top-right-radius: 0;
-    border-bottom-right-radius: 0;
 }
 
 .global {

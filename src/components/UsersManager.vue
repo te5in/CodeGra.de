@@ -66,10 +66,10 @@
                         {{ role.name }}
                     </b-dropdown-item>
                 </b-dropdown>
-                <submit-button label="Add"
-                               ref="addUserButton"
-                               @click="addUser"
-                               class="add-user-button"
+                <submit-button class="add-user-button"
+                               label="Add"
+                               :submit="addUser"
+                               @success="afterAddUser"
                                :disabled="course.is_lti"/>
             </template>
         </b-input-group>
@@ -230,31 +230,22 @@ export default {
         },
 
         addUser() {
-            const btn = this.$refs.addUserButton;
-
             if (this.newRole === '') {
-                btn.fail('You have to select a role!');
+                throw new Error('You have to select a role!');
             } else if (this.newStudentUsername == null || this.newStudentUsername.username === '') {
-                btn.fail('You have to add a non empty username!');
-            } else {
-                btn.submit(
-                    this.$http
-                        .put(`/api/v1/courses/${this.courseId}/users/`, {
-                            username: this.newStudentUsername.username,
-                            role_id: this.newRole.id,
-                        })
-                        .then(
-                            ({ data }) => {
-                                this.newRole = '';
-                                this.newStudentUsername = null;
-                                this.users.push(data);
-                            },
-                            ({ response }) => {
-                                throw response.data.message;
-                            },
-                        ),
-                );
+                throw new Error('You have to add a non-empty username!');
             }
+
+            return this.$http.put(`/api/v1/courses/${this.courseId}/users/`, {
+                username: this.newStudentUsername.username,
+                role_id: this.newRole.id,
+            });
+        },
+
+        afterAddUser(response) {
+            this.newRole = '';
+            this.newStudentUsername = null;
+            this.users.push(response.data);
         },
     },
 

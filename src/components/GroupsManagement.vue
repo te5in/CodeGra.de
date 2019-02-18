@@ -46,7 +46,9 @@
         </p>
 
         <div class="button-wrapper" v-if="showAddButton && canCreate">
-            <submit-button label="Create new group" @click="addGroup" ref="addButton"/>
+            <submit-button label="Create new group"
+                           :submit="addGroup"
+                           @success="afterAddGroup"/>
         </div>
     </div>
 </div>
@@ -156,17 +158,13 @@ export default {
         },
 
         addGroup() {
-            const req = this.$http
-                .post(`/api/v1/group_sets/${this.groupSet.id}/group`, { member_ids: [] })
-                .then(
-                    ({ data }) => {
-                        this.groups.push(data);
-                    },
-                    err => {
-                        throw err.response.data.message;
-                    },
-                );
-            this.$refs.addButton.submit(req);
+            return this.$http.post(`/api/v1/group_sets/${this.groupSet.id}/group`, {
+                member_ids: [],
+            });
+        },
+
+        afterAddGroup(response) {
+            this.groups.push(response.data);
         },
 
         getGroups() {

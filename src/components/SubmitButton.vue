@@ -1,49 +1,90 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
-<b-button :disabled="pending || disabled"
+<b-button :id="btnId"
           class="submit-button"
-          :id="btnId"
-          :variant="variants[state]"
-          :size="size"
+          :class="`state-${state}`"
           :tabindex="tabindex"
-          style="height: 100%;"
-          @click="(event) => onClick(event, false)">
-    <span v-if="pending">
-        <slot name="pending">
+          :disabled="isDisabled"
+          :variant="currentVariant"
+          :size="size"
+          @click="onClick">
+
+    <span class="success-label">
+        <slot name="success-label">
+            <icon name="check"/>
+        </slot>
+    </span>
+    <span class="warning-label">
+        <slot name="warning-label">
+            <icon name="warning"/>
+        </slot>
+    </span>
+    <span class="error-label">
+        <slot name="error-label">
+            <icon name="times"/>
+        </slot>
+    </span>
+    <span class="pending-label">
+        <slot name="pending-label">
             <loader :scale="1" center/>
         </slot>
     </span>
-    <span v-else-if="label">{{ label }}</span>
-    <slot v-else/>
-
-    <b-popover :show="shouldShowMessage"
-               triggers=""
-               :target="btnId"
-               :placement="popoverPlacement"
-               @hide="reset">
-        <slot name="error" :messages="err">
-            <span>{{ err }}</span>
+    <span class="default-label">
+        <slot>
+            {{ label }}
         </slot>
+    </span>
+
+    <b-popover :placement="popoverPlacement"
+               :show="!!error"
+               :target="btnId"
+               triggers=""
+               @hide="onHideError">
+        <icon name="times"
+              class="hide-button"
+              @click.native="hideError"/>
+
+        <span v-if="error">
+            <slot name="error" :error="error">
+                {{ stringifiedError }}
+            </slot>
+        </span>
     </b-popover>
 
-    <b-popover v-if="confirm"
-               :show="showConfirm"
-               @hide="resetConfirm"
-               triggers=""
+    <b-popover :placement="popoverPlacement"
+               :show="!!warning"
                :target="btnId"
+               triggers=""
+               @hide="onHideWarning">
+        <icon name="times"
+              class="hide-button"
+              @click.native="hideWarning"/>
+
+        <span v-if="warning">
+            <slot name="warning" :warning="warning">
+                {{ warning }}
+            </slot>
+        </span>
+    </b-popover>
+
+    <b-popover v-if="confirm.length > 0"
                :placement="popoverPlacement"
-               ref="confirmPopover">
+               :show="confirmVisible"
+               :target="btnId"
+               triggers=""
+               @hide="resetConfirm">
         <p>{{ confirm }}</p>
 
         <b-button-toolbar justify>
-            <b-button variant="danger"
-                      size="sm"
-                      @click="(event) => confirmAction(event, true)"
-                      >
+            <b-button size="sm"
+                      variant="outline-primary"
+                      class="confirm-button"
+                      @click="acceptConfirm">
                 Yes
             </b-button>
-            <b-button variant="success"
-                      size="sm"
+            <div class="sep"/>
+            <b-button size="sm"
+                      variant="primary"
+                      class="confirm-button"
                       @click="resetConfirm">
                 No
             </b-button>
@@ -53,251 +94,299 @@
 </template>
 
 <script>
+import Icon from 'vue-awesome/components/Icon';
+import 'vue-awesome/icons/times';
+import 'vue-awesome/icons/check';
+import 'vue-awesome/icons/warning';
+
+import { parseWarningHeader, waitAtLeast } from '@/utils';
+
 import Loader from './Loader';
 
-let i = 0;
-
 export const SubmitButtonCancelled = Object.create(Error);
+
+let i = 0;
 
 export default {
     name: 'submit-button',
 
-    data() {
-        return {
-            pop: true,
-            err: '',
-            pending: false,
-            state: 'default',
-            cancelled: true,
-            btnId: this.id || `submitButton-i-${i++}`,
-            timeout: null,
-            showConfirm: false,
-            confirmEvent: null,
-            confirmAction: null,
-        };
-    },
-
-    computed: {
-        shouldShowMessage() {
-            return (
-                this.showError &&
-                (this.state === 'failure' || this.state === 'warning') &&
-                (Boolean(this.err) || this.showEmpty)
-            );
-        },
-
-        variants() {
-            return {
-                default: this.default,
-                success: this.success,
-                failure: this.failure,
-                warning: this.warning,
-            };
-        },
-    },
-
     props: {
+        label: {
+            type: String,
+            default: 'Submit',
+        },
+
+        submit: {
+            type: Function,
+            required: true,
+        },
+
+        filterSuccess: {
+            type: Function,
+            default: x => x,
+        },
+
+        filterError: {
+            type: Function,
+            default: x => {
+                throw x;
+            },
+        },
+
         id: {
             type: String,
             default: null,
         },
+
         tabindex: {
-            default: '0',
+            type: [Number, String],
+            default: 0,
+        },
+
+        disabled: {
+            type: Boolean,
+            default: false,
+        },
+
+        size: {
+            type: String,
+            default: 'md',
+        },
+
+        variant: {
+            type: String,
+            default: 'primary',
+        },
+
+        duration: {
+            type: Number,
+            default: 750,
+        },
+
+        confirm: {
+            type: String,
+            default: '',
         },
 
         popoverPlacement: {
             type: String,
             default: 'top',
         },
-        disabled: {
-            type: Boolean,
-            default: false,
-        },
-        label: {
-            type: [String, Boolean],
-            default: 'Submit',
-        },
-        size: {
-            type: String,
-            default: 'md',
-        },
-        delay: {
+
+        waitAtLeast: {
             type: Number,
-            default: 1000,
+            default: 250,
         },
-        default: {
-            type: String,
-            default: 'primary',
+    },
+
+    data() {
+        return {
+            state: 'default',
+            btnId: this.id || `submit-button-${i++}`,
+            error: null,
+            warning: null,
+            response: null,
+            confirmVisible: false,
+            confirmAccepted: false,
+            timeout: null,
+        };
+    },
+
+    computed: {
+        currentVariant() {
+            return {
+                default: this.variant,
+                pending: this.variant,
+                success: 'success',
+                error: 'danger',
+                warning: 'warning',
+            }[this.state];
         },
-        success: {
-            type: String,
-            default: 'success',
+
+        stringifiedError() {
+            let err = this.error;
+
+            if (err == null) {
+                return '';
+            } else if (err.response && err.response.data) {
+                err = err.response.data.message;
+            } else if (err instanceof Error) {
+                err = err.message;
+            } else {
+                err = err.toString();
+            }
+
+            return err || 'Something unknown went wrong';
         },
-        failure: {
-            type: String,
-            default: 'danger',
-        },
-        warning: {
-            type: String,
-            default: 'warning',
-        },
-        showEmpty: {
-            type: Boolean,
-            default: true,
-        },
-        showError: {
-            type: Boolean,
-            default: true,
-        },
-        confirm: {
-            type: String,
-            default: '',
-        },
-        mult: {
-            type: Number,
-            default: 1,
+
+        isDisabled() {
+            return this.disabled || this.state !== 'default' || this.confirmVisible;
         },
     },
 
     methods: {
-        submitFunction(func, extraOpts) {
-            const skipConfirm = !!(extraOpts && extraOpts.fromConfirm);
-
-            if (this.pending || (this.confirm && this.showConfirm && !skipConfirm)) {
-                // TODO: We should keep a queue of requests and handle them one after the other,
-                // instead of simply rejecting to initiate a request.
-                return Promise.reject();
-            }
-
-            if (this.confirm && !this.showConfirm && !skipConfirm) {
-                this.$refs.confirmPopover.$emit('open');
-                this.showConfirm = true;
-                return new Promise(resolve => {
-                    this.confirmAction = () => {
-                        this.resetConfirm();
-                        resolve(
-                            this.submitFunction(func, {
-                                fromConfirm: true,
-                            }),
-                        );
-                    };
-                });
-            } else {
-                return this.submit(func());
-            }
-        },
-
-        submit(promise) {
-            this.pending = true;
-            this.cancelled = false;
-            return Promise.resolve(promise).then(
-                res => !this.cancelled && this.succeed(res),
-                err => {
-                    if (this.cancelled) {
-                        throw SubmitButtonCancelled;
-                    } else {
-                        return this.fail(err || 'Something unknown went wrong');
-                    }
-                },
-            );
-        },
-
-        reset() {
-            this.cancelled = true;
-            if (this.timeout != null) {
-                clearTimeout(this.timeout);
-                this.timeout = null;
-            }
-
-            this.state = 'default';
-            this.err = '';
-            this.pending = false;
-        },
-
-        succeed(res) {
-            this.pending = false;
-            return this.update('success').then(() => res);
-        },
-
-        cancel() {
-            this.cancelled = true;
-        },
-
-        warn(err, mult = 3) {
-            this.pending = false;
-            this.err = err;
-            return this.update('warning', mult);
-        },
-
-        fail(err, mult = 3) {
-            this.pending = false;
-            this.err = err;
-            return this.update('failure', mult).then(() => {
-                throw err;
-            });
-        },
-
-        update(state, mult = 1) {
-            this.state = state;
-            return new Promise(resolve => {
-                if (this.timeout != null) {
-                    clearTimeout(this.timeout);
-                }
-                if (mult === 0) {
-                    resolve();
-                    return;
-                }
-                this.timeout = setTimeout(() => {
-                    this.reset();
-                    resolve();
-                }, this.delay * mult);
-            });
-        },
-
-        onClick(event, fromConfirm) {
-            if (this.pending) {
+        onClick() {
+            if (this.isDisabled) {
                 return;
             }
-            if (this.confirm && !this.showConfirm) {
-                event.stopImmediatePropagation();
-                this.$refs.confirmPopover.$emit('open');
-                this.showConfirm = true;
-                this.confirmAction = this.onClick;
-                this.confirmEvent = event;
-            } else if (this.confirm && this.showConfirm && !fromConfirm) {
-                // NOOP
+
+            if (this.confirm) {
+                this.showConfirm();
             } else {
-                this.$emit('click', this.confirmEvent || event, {
-                    fromConfirm,
-                });
-                this.resetConfirm();
+                this.doSubmit();
             }
+        },
+
+        doSubmit() {
+            this.state = 'pending';
+
+            waitAtLeast(this.waitAtLeast, Promise.resolve().then(this.submit))
+                .then(this.filterSuccess, this.filterError)
+                .then(this.onSuccess, this.onError);
+        },
+
+        onSuccess(data, fromWarning = false) {
+            if (!fromWarning && data && data.headers && data.headers.warning) {
+                this.onWarning(data);
+                return;
+            }
+
+            this.$emit('success', data);
+            this.state = 'success';
+
+            this.timeout = setTimeout(() => {
+                this.$emit('after-success', data);
+                this.state = 'default';
+            }, this.duration);
+        },
+
+        onWarning(data) {
+            this.$emit('warning', data);
+            this.state = 'warning';
+            this.warning = parseWarningHeader(data.headers.warning).text;
+            this.response = data;
+        },
+
+        hideWarning() {
+            this.warning = null;
+        },
+
+        onHideWarning() {
+            this.$emit('after-warning');
+            this.state = 'default';
+            this.warning = null;
+
+            const res = this.response;
+            this.response = null;
+            this.onSuccess(res, true);
+        },
+
+        onError(err) {
+            if (err === SubmitButtonCancelled) {
+                this.state = 'default';
+                return;
+            }
+
+            this.$emit('error', err);
+            this.state = 'error';
+            this.error = err;
+        },
+
+        hideError() {
+            this.error = null;
+        },
+
+        onHideError() {
+            this.$emit('after-error');
+            this.state = 'default';
+            this.error = null;
+        },
+
+        showConfirm() {
+            this.state = 'pending';
+            this.confirmVisible = true;
         },
 
         resetConfirm() {
-            this.showConfirm = false;
-            this.confirmAction = null;
-            this.confirmEvent = null;
+            if (!this.confirmAccepted) {
+                this.state = 'default';
+            }
+            this.confirmVisible = false;
+            this.confirmAccepted = false;
+        },
+
+        acceptConfirm() {
+            this.confirmVisible = false;
+            this.confirmAccepted = true;
+            this.doSubmit();
         },
     },
 
     components: {
+        Icon,
         Loader,
     },
 };
 </script>
 
 <style lang="less" scoped>
-.btn-toolbar {
-    width: 60%;
-    margin: 0 auto;
+.submit-button {
+    position: relative;
 }
 
-.btn .fa-icon {
-    margin-right: 0 !important;
+.default-label {
+    opacity: 0;
+
+    .state-default & {
+        opacity: 1;
+    }
 }
 
-.loader {
-    padding: 0.25em 0;
+.success-label,
+.warning-label,
+.error-label,
+.pending-label {
+    display: none;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    line-height: 1;
+    transform: translate(-50%, -50%);
+    .fa-icon {
+        transform: none;
+    }
+}
+
+.state-success .success-label,
+.state-warning .warning-label,
+.state-error .error-label,
+.state-pending .pending-label,
+.state-default .default-label {
+    display: initial;
+}
+
+.hide-button {
+    float: right;
+    cursor: pointer;
+    opacity: 0.75;
+    margin: 0 0 0.25rem 0.5rem;
+
+    &:hover {
+        opacity: 1;
+    }
+}
+
+.confirm-button {
+    flex: 1 1 auto;
+
+    & + .sep {
+        width: 0.75rem;
+    }
+}
+</style>
+
+<style lang="less">
+.submit-button .loader {
+    display: inline-block !important;
 }
 </style>

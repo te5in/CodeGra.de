@@ -9,10 +9,10 @@
             really sure?
         </p>
         <b-button-toolbar justify>
-            <submit-button ref="deleteButton"
-                           default="outline-danger"
-                           @click="deleteSubmission"
-                           label="Yes"/>
+            <submit-button label="Yes"
+                           variant="outline-danger"
+                           :submit="deleteSubmission"
+                           @after-success="afterDeleteSubmission"/>
             <b-btn class="text-center"
                    variant="success"
                    @click="$root.$emit('bv::hide::modal', `modal_delete`)">
@@ -553,27 +553,22 @@ export default {
         },
 
         deleteSubmission() {
-            const req = this.$http.delete(`/api/v1/submissions/${this.submissionId}`);
+            return this.$http.delete(`/api/v1/submissions/${this.submissionId}`);
+        },
 
-            this.$refs.deleteButton
-                .submit(
-                    req.catch(err => {
-                        throw err.response.data.message;
-                    }),
-                )
-                .then(() => {
-                    this.storeDeleteSubmission({
-                        assignmentId: this.assignmentId,
-                        submissionId: this.submissionId,
-                    });
-                    this.$router.push({
-                        name: 'assignment_submissions',
-                        params: {
-                            courseId: this.assignment.course.id,
-                            assignmentId: this.assignment.id,
-                        },
-                    });
-                });
+        afterDeleteSubmission() {
+            this.storeDeleteSubmission({
+                assignmentId: this.assignmentId,
+                submissionId: this.submissionId,
+            });
+
+            this.$router.replace({
+                name: 'assignment_submissions',
+                params: {
+                    courseId: this.assignment.course.id,
+                    assignmentId: this.assignmentId,
+                },
+            });
         },
 
         getSubmissionData() {

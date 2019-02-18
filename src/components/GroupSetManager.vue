@@ -39,14 +39,14 @@
                                type="number"
                                min="1"
                                v-model="editing[set.id].minimum_size"
-                               @keyup.ctrl.enter="submitSet(editing[set.id])"/>
+                               @keyup.ctrl.enter="clickSubmit(set)"/>
                     </td>
                     <td>
                         <input class="form-control"
                                v-model="editing[set.id].maximum_size"
                                type="number"
                                :min="editing[set.id].minimum_size"
-                               @keyup.ctrl.enter="submitSet(editing[set.id])"/>
+                               @keyup.ctrl.enter="clickSubmit(set)"/>
                     </td>
                     <td>
                         <span v-b-popover.top.hover="'Go the assignment management page to use this group set in an assignment'">
@@ -57,16 +57,15 @@
                     </td>
                     <td class="btns">
                         <b-button-group>
-                            <submit-button default="warning"
-                                           size="sm"
-                                           label
-                                           @click="$set(editing, set.id, null)"
-                                           v-b-popover.top.hover="'Revert'">
+                            <b-button variant="warning"
+                                      size="sm"
+                                      @click="$set(editing, set.id, null)"
+                                      v-b-popover.top.hover="'Revert'">
                                 <icon name="reply"/>
-                            </submit-button>
-                            <submit-button @click="submitSet(editing[set.id])"
-                                           size="sm"
-                                           label
+                            </b-button>
+                            <submit-button size="sm"
+                                           :submit="() => submitSet(editing[set.id])"
+                                           @after-success="(res) => afterSubmitSet(res, editing[set.id])"
                                            :ref="`saveSet-${set.id}`"
                                            v-b-popover.top.hover="'Save'">
                                 <icon name="floppy-o"/>
@@ -80,17 +79,16 @@
                     <td><span class="txt assigs">{{ formattedAssignments(set)}}</span></td>
                     <td class="btns">
                         <b-button-group>
-                            <submit-button size="sm"
-                                           label
-                                           @click="startEdit(set)"
-                                           v-b-popover.top.hover="'Edit group set'">
+                            <b-button variant="primary"
+                                      size="sm"
+                                      @click="startEdit(set)"
+                                      v-b-popover.top.hover="'Edit group set'">
                                 <icon name="pencil"/>
-                            </submit-button>
-                            <submit-button default="danger"
+                            </b-button>
+                            <submit-button variant="danger"
                                            size="sm"
-                                           label
-                                           @click="deleteSet(set)"
-                                           :ref="`deleteSet-${set.id}`"
+                                           :submit="() => deleteSet(set)"
+                                           @after-success="(res) => afterDeleteSet(res, set)"
                                            confirm="Are you sure you want to delete this group set?"
                                            v-b-popover.top.hover="'Delete group set'">
                                 <icon name="times"/>
@@ -102,10 +100,10 @@
         </tbody>
     </table>
 
-    <submit-button label="Add group set"
-                   class="add-btn"
-                   ref="addBtn"
-                   @click="addGroup"/>
+    <submit-button class="add-btn"
+                   label="Add group set"
+                   :submit="addGroup"
+                   @success="afterAddGroup"/>
 </div>
 </template>
 
@@ -141,27 +139,21 @@ export default {
         ...mapActions('courses', ['updateCourse', 'updateAssignment']),
 
         addGroup() {
-            this.$refs.addBtn.submit(
-                this.$http
-                    .put(`/api/v1/courses/${this.course.id}/group_sets/`, {
-                        minimum_size: 1,
-                        maximum_size: 1,
-                    })
-                    .then(
-                        ({ data }) => {
-                            this.updateCourse({
-                                courseId: this.course.id,
-                                courseProps: {
-                                    group_sets: [...this.groupSets, data],
-                                },
-                            });
-                            this.startEdit(data);
-                        },
-                        ({ response }) => {
-                            throw response.data.message;
-                        },
-                    ),
-            );
+            return this.$http.put(`/api/v1/courses/${this.course.id}/group_sets/`, {
+                minimum_size: 1,
+                maximum_size: 1,
+            });
+        },
+
+        afterAddGroup(response) {
+            this.updateCourse({
+                courseId: this.course.id,
+                courseProps: {
+                    group_sets: [...this.groupSets, response.data],
+                },
+            });
+
+            this.startEdit(response.data);
         },
 
         startEdit(groupSet) {
@@ -179,61 +171,51 @@ export default {
             );
         },
 
+        clickSubmit(groupSet) {
+            this.$refs[`saveSet-${groupSet.id}`][0].onClick();
+        },
+
         submitSet(groupSet) {
-            const btn = this.$refs[`saveSet-${groupSet.id}`][0];
-            btn
-                .submit(
-                    this.$http
-                        .put(`/api/v1/courses/${this.course.id}/group_sets/`, {
-                            id: groupSet.id,
-                            minimum_size: Number(groupSet.minimum_size),
-                            maximum_size: Number(groupSet.maximum_size),
-                        })
-                        .then(
-                            ({ data }) => {
-                                this.updateCourse({
-                                    courseId: this.course.id,
-                                    courseProps: {
-                                        group_sets: this.groupSets.map(
-                                            set => (set.id === groupSet.id ? data : set),
-                                        ),
-                                    },
-                                });
-                                data.assignment_ids.forEach(id => {
-                                    this.updateAssignment({
-                                        assignmentId: id,
-                                        assignmentProps: {
-                                            group_set: data,
-                                        },
-                                    });
-                                });
-                            },
-                            ({ response }) => {
-                                throw response.data.message;
-                            },
-                        ),
-                )
-                .then(() => {
-                    this.$set(this.editing, groupSet.id, undefined);
+            return this.$http.put(`/api/v1/courses/${this.course.id}/group_sets/`, {
+                id: groupSet.id,
+                minimum_size: Number(groupSet.minimum_size),
+                maximum_size: Number(groupSet.maximum_size),
+            });
+        },
+
+        afterSubmitSet(response, groupSet) {
+            const { data } = response;
+
+            this.updateCourse({
+                courseId: this.course.id,
+                courseProps: {
+                    group_sets: this.groupSets.map(set => (set.id === groupSet.id ? data : set)),
+                },
+            });
+
+            data.assignment_ids.forEach(id => {
+                this.updateAssignment({
+                    assignmentId: id,
+                    assignmentProps: {
+                        group_set: data,
+                    },
                 });
+            });
+
+            this.$set(this.editing, groupSet.id, undefined);
         },
 
         deleteSet(groupSet) {
-            const btn = this.$refs[`deleteSet-${groupSet.id}`][0];
-            btn
-                .submit(
-                    this.$http.delete(`/api/v1/group_sets/${groupSet.id}`).catch(({ response }) => {
-                        throw response.data.message;
-                    }),
-                )
-                .then(() => {
-                    this.updateCourse({
-                        courseId: this.course.id,
-                        courseProps: {
-                            group_sets: this.groupSets.filter(set => set.id !== groupSet.id),
-                        },
-                    });
-                });
+            return this.$http.delete(`/api/v1/group_sets/${groupSet.id}`);
+        },
+
+        afterDeleteSet(response, groupSet) {
+            this.updateCourse({
+                courseId: this.course.id,
+                courseProps: {
+                    group_sets: this.groupSets.filter(set => set.id !== groupSet.id),
+                },
+            });
         },
     },
 

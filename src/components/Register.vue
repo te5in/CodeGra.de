@@ -54,26 +54,15 @@
                     tabindex="5"/>
 
     <div class="text-center">
-        <submit-button label="Register"
-                       @click="submit"
-                       :delay="5000"
-                       tabindex="6"
-                       ref="submit"
-                       confirm="Please make sure you use a unique password, and at least different
-                                from the password you use for your LMS.">
-            <template slot="error" slot-scope="error">
-                <div class="error-message">
-                    <span>{{ error.messages.warning }}</span>
+        <submit-button tabindex="6"
+                       label="Register"
+                       :submit="submit"
+                       @after-success="afterSubmit"
+                       :confirm="PASSWORD_UNIQUE_MESSAGE"/>
+            Register
 
-                    <span v-if="error.messages.suggestions">
-                        <div style="margin-top: 1rem;"><b>Suggestions:</b></div>
-                        <ul>
-                            <li v-for="message in error.messages.suggestions">
-                                {{ message }}
-                            </li>
-                        </ul>
-                    </span>
-                </div>
+            <template slot="error" slot-scope="error" v-if="error.error">
+                <password-suggestions :error="error.error"/>
             </template>
         </submit-button>
     </div>
@@ -83,9 +72,12 @@
 <script>
 import { mapActions } from 'vuex';
 
+import { PASSWORD_UNIQUE_MESSAGE } from '@/constants';
+
 import SubmitButton from './SubmitButton';
 import DescriptionPopover from './DescriptionPopover';
 import PasswordInput from './PasswordInput';
+import PasswordSuggestions from './PasswordSuggestions';
 
 export default {
     name: 'register',
@@ -99,48 +91,38 @@ export default {
             showHelp: false,
             firstPw: '',
             secondPw: '',
+            PASSWORD_UNIQUE_MESSAGE,
         };
     },
 
     methods: {
         ...mapActions('user', ['updateAccessToken']),
 
-        submit(_, extraOpts) {
-            const button = this.$refs.submit;
-
+        submit() {
             if (this.firstPw !== this.secondPw) {
-                return button.fail('The two passwords do not match!');
+                throw new Error('The two passwords do not match!');
             } else if (this.firstEmail !== this.secondEmail) {
-                return button.fail('The two emails do not match!');
+                throw new Error('The two emails do not match!');
             }
 
-            return button.submitFunction(
-                () =>
-                    this.$http
-                        .post('/api/v1/user', {
-                            username: this.username,
-                            password: this.firstPw,
-                            email: this.firstEmail,
-                            name: this.name,
-                        })
-                        .then(
-                            async ({ data }) => {
-                                if (data.access_token) {
-                                    await this.updateAccessToken(data.access_token);
-                                    this.$router.push({
-                                        name: 'me',
-                                        query: { sbloc: 'm' },
-                                    });
-                                }
-                            },
-                            ({ response }) => {
-                                throw response.data.feedback || {
-                                    warning: response.data.message,
-                                };
-                            },
-                        ),
-                extraOpts,
-            );
+            return this.$http.post('/api/v1/user', {
+                username: this.username,
+                password: this.firstPw,
+                email: this.firstEmail,
+                name: this.name,
+            });
+        },
+
+        afterSubmit(response) {
+            const token = response.data.access_token;
+            if (token) {
+                this.updateAccessToken(token).then(() => {
+                    this.$router.push({
+                        name: 'home',
+                        query: { sbloc: 'm' },
+                    });
+                });
+            }
         },
     },
 
@@ -148,17 +130,7 @@ export default {
         SubmitButton,
         DescriptionPopover,
         PasswordInput,
+        PasswordSuggestions,
     },
 };
 </script>
-
-<style lang="less" scoped>
-.error-message {
-    text-align: left;
-
-    ul {
-        margin-bottom: 0;
-        padding-left: 1rem;
-    }
-}
-</style>

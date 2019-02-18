@@ -2,7 +2,7 @@
 <template>
 <div class="reset-password row justify-content-center">
     <b-form-fieldset class="col-sm-8 text-center"
-                     @keyup.native.ctrl.enter="submit">
+                     @keyup.native.ctrl.enter="$refs.btn.onClick">
         <h4>Reset your password</h4>
 
         <password-input label="New password"
@@ -11,24 +11,12 @@
                         v-model="confirmPw"/>
 
         <submit-button ref="btn"
-                       @click="submit"
+                       :submit="submit"
+                       @after-success="afterSubmit"
                        popover-placement="bottom"
-                       :delay="5000"
-                       confirm="Please make sure you use a unique password, and at least different
-                                from the password you use for your LMS.">
-            <template slot="error" slot-scope="error">
-                <div class="error-message">
-                    <span>{{ error.messages.warning }}</span>
-
-                    <span v-if="error.messages.suggestions">
-                        <div style="margin-top: 1rem;"><b>Suggestions:</b></div>
-                        <ul>
-                            <li v-for="message in error.messages.suggestions">
-                                {{ message }}
-                            </li>
-                        </ul>
-                    </span>
-                </div>
+                       :confirm="PASSWORD_UNIQUE_MESSAGE">
+            <template slot="error" slot-scope="error" v-if="error.error">
+                <password-suggestions :error="error.error"/>
             </template>
         </submit-button>
     </b-form-fieldset>
@@ -41,7 +29,9 @@ import 'vue-awesome/icons/eye';
 import 'vue-awesome/icons/eye-slash';
 import { mapActions } from 'vuex';
 
-import { SubmitButton, PasswordInput } from '@/components';
+import { PASSWORD_UNIQUE_MESSAGE } from '@/constants';
+
+import { SubmitButton, PasswordInput, PasswordSuggestions } from '@/components';
 
 export default {
     name: 'reset-password',
@@ -50,6 +40,7 @@ export default {
         return {
             newPw: '',
             confirmPw: '',
+            PASSWORD_UNIQUE_MESSAGE,
         };
     },
 
@@ -57,44 +48,33 @@ export default {
         Icon,
         SubmitButton,
         PasswordInput,
+        PasswordSuggestions,
     },
 
     methods: {
         ...mapActions('user', ['updateAccessToken']),
 
-        submit(_, extraOpts) {
-            const button = this.$refs.btn;
-
+        submit() {
             if (this.newPw !== this.confirmPw) {
-                return button.fail("The passwords don't match");
+                throw new Error("The passwords don't match");
             } else if (this.newPw === '') {
-                return button.fail('The new password may not be empty');
+                throw new Error('The new password may not be empty');
             }
 
-            return button.submitFunction(
-                () =>
-                    this.$http
-                        .patch('/api/v1/login?type=reset_password', {
-                            user_id: Number(this.$route.query.user),
-                            token: this.$route.query.token,
-                            new_password: this.newPw,
-                        })
-                        .then(
-                            async ({ data }) => {
-                                await this.updateAccessToken(data.access_token);
-                                this.$router.replace({
-                                    name: 'home',
-                                    query: { sbloc: 'm' },
-                                });
-                            },
-                            ({ response }) => {
-                                throw response.data.feedback || {
-                                    warning: response.data.message,
-                                };
-                            },
-                        ),
-                extraOpts,
-            );
+            return this.$http.patch('/api/v1/login?type=reset_password', {
+                user_id: Number(this.$route.query.user),
+                token: this.$route.query.token,
+                new_password: this.newPw,
+            });
+        },
+
+        async afterSubmit({ data }) {
+            await this.updateAccessToken(data.access_token);
+
+            this.$router.replace({
+                name: 'home',
+                query: { sblock: 'm' },
+            });
         },
     },
 };
@@ -107,14 +87,5 @@ export default {
 
 h4 {
     margin-bottom: 1rem;
-}
-
-.error-message {
-    text-align: left;
-
-    ul {
-        margin-bottom: 0;
-        padding-left: 1rem;
-    }
 }
 </style>

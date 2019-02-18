@@ -49,9 +49,10 @@
                         <input type="text"
                                class="form-control"
                                v-model="assignmentTempName"
-                               @keyup.ctrl.enter="updateName"/>
+                               @keyup.ctrl.enter="$refs.updateName.onClick"/>
                         <b-input-group-append>
-                            <submit-button @click="updateName"
+                            <submit-button :submit="submitName"
+                                           @success="updateName"
                                            ref="updateName"/>
                         </b-input-group-append>
                     </b-input-group>
@@ -61,11 +62,13 @@
                     <b-input-group prepend="Deadline">
                         <datetime-picker v-model="assignmentTempDeadline"/>
                         <b-input-group-append>
-                            <submit-button @click="updateDeadline"
+                            <submit-button :submit="submitDeadline"
+                                           @success="updateDeadline"
                                            ref="updateDeadline"/>
                         </b-input-group-append>
                     </b-input-group>
                 </b-form-fieldset>
+
                 <b-form-fieldset v-if="canEditMaxGrade">
                     <maximum-grade :assignment-id="assignmentId"/>
                 </b-form-fieldset>
@@ -440,57 +443,33 @@ export default {
             this.gradersLoadedOnce = true;
         },
 
-        updateName() {
-            const req = this.$http.patch(this.assignmentUrl, {
+        submitName() {
+            return this.$http.patch(this.assignmentUrl, {
                 name: this.assignmentTempName,
             });
+        },
 
-            this.$refs.updateName.submit(
-                req.then(
-                    () => {
-                        this.updateAssignment({
-                            courseId: this.assignment.course.id,
-                            assignmentId: this.assignment.id,
-                            assignmentProps: {
-                                name: this.assignmentTempName,
-                            },
-                        });
-                    },
-                    err => {
-                        throw err.response.data.message;
-                    },
-                ),
-            );
+        updateName() {
+            this.updateAssignment({
+                courseId: this.assignment.course.id,
+                assignmentId: this.assignment.id,
+                assignmentProps: {
+                    name: this.assignmentTempName,
+                },
+            });
+        },
+
+        submitDeadline() {
+            return this.$http.patch(this.assignmentUrl, {
+                deadline: convertToUTC(this.assignmentTempDeadline),
+            });
         },
 
         updateDeadline() {
-            const req = this.$http.patch(this.assignmentUrl, {
-                deadline: convertToUTC(this.assignmentTempDeadline),
-            });
-
-            this.$refs.updateDeadline.submit(
-                req.then(
-                    () => {
-                        this.updateAssignment({
-                            assignmentId: this.assignment.id,
-                            assignmentProps: {
-                                deadline: this.assignmentTempDeadline,
-                            },
-                        });
-                    },
-                    err => {
-                        throw err.response.data.message;
-                    },
-                ),
-            );
-        },
-
-        goToSubmissions() {
-            this.$router.push({
-                name: 'assignment_submissions',
-                params: {
-                    courseId: this.assignment.course.id,
-                    assignmentId: this.assignment.id,
+            this.updateAssignment({
+                assignmentId: this.assignment.id,
+                assignmentProps: {
+                    deadline: this.assignmentTempDeadline,
                 },
             });
         },

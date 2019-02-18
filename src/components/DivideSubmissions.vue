@@ -70,7 +70,8 @@
             <submit-button label="Divide"
                            :disabled="divisionChildren.length > 0 || invalidParentSelected"
                            style="height: inherit;"
-                           @click="divideAssignments"
+                           :submit="divideSubmissions"
+                           @success="afterDivideSubmissions"
                            ref="submitButton"/>
         </div>
         <b-popover triggers="click hover"
@@ -91,7 +92,6 @@
 <script>
 import { mapActions, mapGetters } from 'vuex';
 import Multiselect from 'vue-multiselect';
-import { parseWarningHeader } from '@/utils';
 
 import Loader from './Loader';
 import SubmitButton from './SubmitButton';
@@ -210,21 +210,17 @@ export default {
             field.focus();
         },
 
-        divideAssignments() {
-            let req = Promise.resolve();
-            const btn = this.$refs.submitButton;
+        divideSubmissions() {
             if (this.importAssignment) {
-                req = this.$http
-                    .patch(`/api/v1/assignments/${this.assignment.id}/division_parent`, {
+                return this.$http.patch(
+                    `/api/v1/assignments/${this.assignment.id}/division_parent`,
+                    {
                         parent_id: this.importAssignment.id,
-                    })
-                    .then(res => {
-                        if (res.headers.warning) {
-                            btn.cancel();
-                            btn.warn(parseWarningHeader(res.headers.warning).text);
-                        }
-                    });
+                    },
+                );
             } else {
+                let req = Promise.resolve();
+
                 if (this.currentDivisionParent != null) {
                     req = req.then(() =>
                         this.$http.patch(
@@ -235,7 +231,8 @@ export default {
                         ),
                     );
                 }
-                req = req.then(() =>
+
+                return req.then(() =>
                     this.$http.patch(`/api/v1/assignments/${this.assignment.id}/divide`, {
                         graders: Object.values(this.graders)
                             .filter(x => x.weight !== 0)
@@ -246,25 +243,17 @@ export default {
                     }),
                 );
             }
+        },
 
-            btn.submit(
-                req.then(
-                    () => {
-                        this.updateAssignment({
-                            assignmentId: this.assignment.id,
-                            assignmentProps: {
-                                division_parent_id:
-                                    this.importAssignment && this.importAssignment.id,
-                            },
-                        });
-                        this.forceLoadSubmissions(this.assignment.id);
-                        this.$emit('divided');
-                    },
-                    err => {
-                        throw err.response.data.message;
-                    },
-                ),
-            );
+        afterDivideSubmissions() {
+            this.updateAssignment({
+                assignmentId: this.assignment.id,
+                assignmentProps: {
+                    division_parent_id: this.importAssignment && this.importAssignment.id,
+                },
+            });
+            this.forceLoadSubmissions(this.assignment.id);
+            this.$emit('divided');
         },
     },
 

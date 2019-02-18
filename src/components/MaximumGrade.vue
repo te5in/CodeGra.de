@@ -19,21 +19,21 @@
                min="0"
                step="1"
                v-model.number="maxGrade"
-               @keydown.ctrl.enter="submit($refs.submitButton)"
+               @keydown.ctrl.enter="$refs.submitButton.onClick"
                class="form-control"
                placeholder="10"/>
         <b-input-group-append>
-            <submit-button @click="reset"
-                           ref="resetButton"
+            <submit-button :submit="reset"
+                           @success="afterSubmit"
                            :disabled="maxGrade == null"
                            v-b-popover.top.hover="maxGrade == null ? '' : 'Reset to the default value.'"
-                           :label="false"
-                           default="warning">
+                           variant="warning">
                 <icon name="reply"/>
             </submit-button>
         </b-input-group-append>
         <b-input-group-append>
-            <submit-button @click="submit($refs.submitButton)"
+            <submit-button :submit="submit"
+                           @success="afterSubmit"
                            ref="submitButton"/>
         </b-input-group-append>
     </b-input-group>
@@ -81,32 +81,27 @@ export default {
 
         reset() {
             this.maxGrade = null;
-            this.submit(this.$refs.resetButton);
+            return this.submit();
         },
 
-        submit(btn = null) {
+        submit() {
             const maxGrade =
                 this.maxGrade === '' || this.maxGrade == null ? null : Number(this.maxGrade);
 
-            const req = this.$http
+            return this.$http
                 .patch(`/api/v1/assignments/${this.assignment.id}`, {
                     max_grade: maxGrade,
                 })
-                .then(
-                    () => {
-                        this.maxGrade = maxGrade;
-                        this.updateAssignment({
-                            assignmentId: this.assignmentId,
-                            assignmentProps: {
-                                max_grade: this.maxGrade,
-                            },
-                        });
-                    },
-                    ({ response }) => {
-                        throw response.data.message;
-                    },
-                );
-            return btn.submit(req);
+                .then(() => maxGrade);
+        },
+
+        afterSubmit(maxGrade) {
+            this.updateAssignment({
+                assignmentId: this.assignmentId,
+                assignmentProps: {
+                    max_grade: maxGrade,
+                },
+            });
         },
     },
 

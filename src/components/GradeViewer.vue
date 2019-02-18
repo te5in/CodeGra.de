@@ -16,7 +16,9 @@
     <b-form-fieldset>
         <b-input-group>
             <b-input-group-prepend v-if="editable">
-                <submit-button @click="putGrade" ref="submitButton"/>
+                <submit-button ref="submitButton"
+                               :submit="putGrade"
+                               @success="gradeUpdated"/>
             </b-input-group-prepend>
 
             <input type="number"
@@ -26,7 +28,7 @@
                    :max="maxAllowedGrade"
                    :disabled="!editable"
                    placeholder="Grade"
-                   @keydown.enter="putGrade"
+                   @keydown.enter="$refs.submitButton.onClick"
                    v-model="grade"/>
 
             <b-input-group-append class="text-right rubric-score"
@@ -47,14 +49,12 @@
                            target="delete-grade-button">
                     {{ deleteButtonText }}
                 </b-popover>
-                <submit-button @click="deleteGrade"
-                               id="delete-grade-button"
-                               ref="deleteButton"
-                               default="danger"
-                               :disabled="!showDeleteButton"
+                <submit-button id="delete-grade-button"
                                class="delete-button"
-                               style="height: 100%;"
-                               label="">
+                               variant="danger"
+                               :disabled="!showDeleteButton"
+                               :submit="deleteGrade"
+                               @success="afterDeleteGrade">
                     <icon :name="rubricOverridden ? 'reply' : 'times'"/>
                 </submit-button>
             </b-input-group-append>
@@ -86,7 +86,7 @@ import 'vue-awesome/icons/refresh';
 import 'vue-awesome/icons/reply';
 import 'vue-awesome/icons/times';
 import { mapActions, mapGetters } from 'vuex';
-import { formatGrade } from '@/utils';
+import { formatGrade, isDecimalNumber } from '@/utils';
 import RubricViewer from './RubricViewer';
 import SubmitButton from './SubmitButton';
 
@@ -207,33 +207,31 @@ export default {
         },
 
         deleteGrade() {
-            let req;
             if (this.showRubric && !this.rubricOverridden) {
-                req = this.$refs.rubricViewer.clearSelected();
+                return this.$refs.rubricViewer.clearSelected();
             } else if (this.isRubricChanged()) {
                 // The object passed must be structured like this...
-                req = Promise.resolve({ data: {} });
                 this.grade = formatGrade(this.rubricPoints.grade);
+                return Promise.resolve({ data: {} });
             } else {
-                req = this.$http.patch(`/api/v1/submissions/${this.submission.id}`, {
+                return this.$http.patch(`/api/v1/submissions/${this.submission.id}`, {
                     grade: null,
                 });
             }
+        },
 
-            req.then(({ data }) => {
-                if (data.grade !== undefined) {
-                    this.grade = formatGrade(data.grade) || null;
-                    this.gradeUpdated();
-                }
-            });
-            this.$refs.deleteButton.submit(
-                req.catch(err => {
-                    throw err.response.data.message;
-                }),
-            );
+        afterDeleteGrade(response) {
+            if (response.data.grade !== undefined) {
+                this.grade = formatGrade(response.data.grade) || null;
+                this.gradeUpdated();
+            }
         },
 
         putGrade() {
+            if (!isDecimalNumber(this.grade)) {
+                throw new Error('Grade must be a number');
+            }
+
             const grade = parseFloat(this.grade);
             const normalGrade = this.rubricOverridden || !this.showRubric;
 
@@ -242,10 +240,7 @@ export default {
                 normalGrade &&
                 !Number.isNaN(grade)
             ) {
-                this.$refs.submitButton.fail(
-                    `Grade '${this.grade}' must be between 0 and ${this.maxAllowedGrade}`,
-                );
-                return;
+                throw new Error(`Grade must be between 0 and ${this.maxAllowedGrade}.`);
             }
 
             let req = Promise.resolve();
@@ -258,16 +253,7 @@ export default {
                 req = req.then(() => this.submitNormalGrade(grade));
             }
 
-            this.$refs.submitButton.submit(
-                req.then(
-                    () => {
-                        this.gradeUpdated();
-                    },
-                    err => {
-                        throw err.response.data.message;
-                    },
-                ),
-            );
+            return req;
         },
 
         submitNormalGrade(grade) {
@@ -348,12 +334,5 @@ textarea {
 <style lang="less">
 .grade-viewer .grade-submit .loader {
     height: 1.25rem;
-}
-
-.grade-viewer .delete-button-group > div {
-    height: 100%;
-    .delete-button button {
-        height: 100%;
-    }
 }
 </style>

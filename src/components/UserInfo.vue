@@ -2,7 +2,7 @@
 <template>
 <div class="userinfo">
     <loader class="col-md-12 text-center" v-if="loading"/>
-    <div @keyup.enter="submit" v-else>
+    <div @keyup.enter="$refs.submitButton.onClick" v-else>
         <b-form-fieldset>
             <b-input-group prepend="Username">
                 <div v-b-popover.top.hover="'You cannot change your username'"
@@ -61,8 +61,7 @@
                                   label="here"
                                   id="resetOnLtiButton-fixPopover"
                                   size="sm"
-                                  ref="resetOnLtiButton"
-                                  @click="resetEmailOnLti"
+                                  :submit="resetEmailOnLti"
                                   style="display: inline;"/>
                         <!-- The id for the submit button is needed as vue
                              reuses elements and if that is done here the
@@ -78,25 +77,12 @@
         <b-button-toolbar justify v-if="canEditInfo || canEditPw">
             <b-button variant="danger" @click="reset">Reset</b-button>
 
-            <submit-button @click="submit"
-                           ref="submitButton"
-                           :delay="5000"
+            <submit-button ref="submitButton"
+                           :submit="submit"
+                           @success="afterSubmit"
                            :confirm="confirmMessage">
-                <template slot="error" slot-scope="error">
-                    <div class="error-message">
-                        <span v-if="error.messages.warning">
-                            {{ error.messages.warning }}
-                        </span>
-
-                        <span v-if="error.messages.suggestions">
-                            <div style="margin-top: 1rem;"><b>Suggestions:</b></div>
-                            <ul>
-                                <li v-for="message in error.messages.suggestions">
-                                    {{ message }}
-                                </li>
-                            </ul>
-                        </span>
-                    </div>
+                <template slot="error" slot-scope="error" v-if="error.error">
+                    <password-suggestions :error="error.error"/>
                 </template>
             </submit-button>
         </b-button-toolbar>
@@ -114,10 +100,13 @@ import 'vue-awesome/icons/info';
 import 'vue-awesome/icons/eye-slash';
 import 'vue-awesome/icons/times';
 
+import { PASSWORD_UNIQUE_MESSAGE } from '@/constants';
+
 import Loader from './Loader';
 import DescriptionPopover from './DescriptionPopover';
 import SubmitButton from './SubmitButton';
 import PasswordInput from './PasswordInput';
+import PasswordSuggestions from './PasswordSuggestions';
 
 export default {
     name: 'user-info',
@@ -140,10 +129,7 @@ export default {
     computed: {
         confirmMessage() {
             if (this.newPw) {
-                return (
-                    'Please make sure you use a unique password, and at least ' +
-                    'different from the password you use for your LMS.'
-                );
+                return PASSWORD_UNIQUE_MESSAGE;
             } else {
                 return '';
             }
@@ -168,13 +154,7 @@ export default {
 
     methods: {
         resetEmailOnLti() {
-            const btn = this.$refs.resetOnLtiButton;
-            const req = this.$http.patch('/api/v1/login', {}, { params: { type: 'reset_on_lti' } });
-            btn.submit(
-                req.catch(err => {
-                    throw err.response.data.message;
-                }),
-            );
+            return this.$http.patch('/api/v1/login', {}, { params: { type: 'reset_on_lti' } });
         },
 
         reset() {
@@ -185,41 +165,25 @@ export default {
             this.confirmPw = '';
         },
 
-        submit(_, extraOpts = {}) {
-            const btn = this.$refs.submitButton;
-
+        submit() {
             if (this.newPw !== this.confirmPw) {
-                return btn.fail({
-                    warning: "New password doesn't match confirm password.",
-                });
-            }
-            if (!validator.validate(this.email)) {
-                return btn.fail({
-                    warning: 'The given email is not valid.',
-                });
+                throw new Error('New password does not match confirm password.');
             }
 
-            return btn.submitFunction(
-                () =>
-                    this.$store
-                        .dispatch('user/updateUserInfo', {
-                            name: this.name,
-                            email: this.email,
-                            oldPw: this.oldPw,
-                            newPw: this.newPw,
-                        })
-                        .then(
-                            () => {
-                                this.reset();
-                            },
-                            ({ response }) => {
-                                throw response.data.feedback || {
-                                    warning: response.data.message,
-                                };
-                            },
-                        ),
-                extraOpts,
-            );
+            if (!validator.validate(this.email)) {
+                throw new Error('The given email is not valid.');
+            }
+
+            return this.$store.dispatch('user/updateUserInfo', {
+                name: this.name,
+                email: this.email,
+                oldPw: this.oldPw,
+                newPw: this.newPw,
+            });
+        },
+
+        afterSubmit() {
+            this.reset();
         },
     },
 
@@ -229,17 +193,7 @@ export default {
         DescriptionPopover,
         SubmitButton,
         PasswordInput,
+        PasswordSuggestions,
     },
 };
 </script>
-
-<style lang="less" scoped>
-.error-message {
-    text-align: left;
-
-    ul {
-        margin-bottom: 0;
-        padding-left: 1rem;
-    }
-}
-</style>

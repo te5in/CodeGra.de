@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import Vue from 'vue';
 import axios from 'axios';
-import { parseWarningHeader } from '@/utils';
 import * as types from '../mutation-types';
 
 const UNLOADED_SNIPPETS = {};
@@ -25,29 +24,9 @@ const getters = {
 };
 
 const actions = {
-    login({ commit, state }, { username, password, onWarning }) {
-        state.jwtToken = null;
-        return new Promise((resolve, reject) => {
-            axios
-                .post('/api/v1/login', { username, password })
-                .then(async response => {
-                    // Allow the warning to be shown somewhere before actually
-                    // logging in.
-                    if (onWarning != null && response.headers.warning) {
-                        await onWarning(parseWarningHeader(response.headers.warning), response);
-                    }
-                    commit(types.LOGIN, response.data);
-                    resolve(response);
-                    actions.refreshSnippets({ commit });
-                })
-                .catch(err => {
-                    if (err.response) {
-                        reject(err.response.data);
-                    } else {
-                        reject(new Error('Login failed for a unknown reason!'));
-                    }
-                });
-        });
+    login({ commit }, response) {
+        commit(types.LOGIN, response.data);
+        actions.refreshSnippets({ commit });
     },
 
     addSnippet({ commit }, snippet) {

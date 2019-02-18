@@ -3,12 +3,19 @@
 <div class="group-management">
     <b-card class="group-card">
         <b-input-group v-if="editingGroup" class="title-edit card-header">
-            <input class="form-control" v-model="newTitle" @keyup.ctrl.enter="updateTitle"/>
+            <input class="form-control"
+                   v-model="newTitle"
+                   @keyup.ctrl.enter="$refs.submitTitle.onClick"/>
             <b-input-group-append>
-                <submit-button @click="cancelEditTitle" :label="false" default="warning">
+                <submit-button :submit="cancelEditTitle"
+                               variant="warning"
+                               v-b-popover.top.hover="'Cancel'">
                     <icon name="times"/>
                 </submit-button>
-                <submit-button ref="submitTitleButton" @click="updateTitle" :label="false">
+                <submit-button ref="submitTitle"
+                               :submit="updateTitle"
+                               @after-success="afterUpdateTitle"
+                               v-b-popover.top.hover="'Save'">
                     <icon name="check"/>
                 </submit-button>
             </b-input-group-append>
@@ -44,13 +51,12 @@
                 </div>
                 <submit-button v-if="canEdit && (myId === user.id || canEditOthers)"
                                class="delete"
-                               :label="false"
                                :delay="3000"
-                               @click="removeUser(i)"
-                               ref="deleteButton"
+                               :submit="() => removeUser(i)"
+                               @after-success="afterRemoveUser"
                                :confirm="`Are you sure you want to remove ${myId
                                          === user.id ? 'yourself' : user.name} from this group?`"
-                               >
+                               v-b-popover.top.hover="'Remove from group'">
                     <icon name="times"/>
                 </submit-button>
             </div>
@@ -61,19 +67,16 @@
         </span>
         <!-- Use a show so the ref is always available -->
         <div v-show="editingGroup"
-             v-b-popover.top.hover="deleteGroupDisabled ? 'You do not have permission to delete this group as it contains other users.' : ''"
-             >
+             v-b-popover.top.hover="deleteGroupDisabled ? 'You do not have permission to delete this group as it contains other users.' : ''">
             <b-input-group>
                 <submit-button label="Delete group"
                                :disabled="deleteGroupDisabled"
                                style="pointer-events: initial;"
-                               default="danger"
-                               :delay="3000"
+                               variant="danger"
                                confirm="Are you sure you want to delete this group?"
                                class="full-width-button"
-                               ref="deleteGroupButton"
-                               @click="deleteGroup"
-                           />
+                               :submit="deleteGroup"
+                               @after-success="afterDeleteGroup"/>
             </b-input-group>
         </div>
         <div v-b-popover.top.hover="groupFull ? 'This group is full' : ''"
@@ -87,19 +90,19 @@
                                :base-url="`/api/v1/courses/${course.id}/users/`"/>
                 <template slot="append">
                     <submit-button label="Add"
-                                   ref="submitButton"
-                                   :delay="3000"
                                    :disabled="groupFull || !newAuthor"
-                                   @click="addUser(newAuthor.username)"/>
+                                   :submit="() => addUser(newAuthor.username)"
+                                   @success="afterAddUser"/>
                 </template>
             </b-input-group>
-            <submit-button label="Join"
-                           v-else-if="canEditOwn && !selectedMembers.has(myId)"
-                           ref="submitButton"
-                           :delay="3000"
+            <submit-button v-else-if="canEditOwn && !selectedMembers.has(myId)"
+                           label="Join"
                            :disabled="groupFull"
                            class="full-width-button"
-                           @click="addUser(myUsername)"/>
+                           :submit="() => addUser(myUsername)"
+                           @success="afterAddUser">
+                Join
+            </submit-button>
         </div>
     </b-card>
 </div>
@@ -111,8 +114,6 @@ import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/times';
 import 'vue-awesome/icons/check';
 import 'vue-awesome/icons/pencil';
-
-import { waitAtLeast } from '@/utils';
 
 import SubmitButton from './SubmitButton';
 import Loader from './Loader';
@@ -264,49 +265,30 @@ action is required.${divEnd}`;
         cancelEditTitle() {
             this.editingGroup = false;
             this.newTitle = this.group.name;
+            return Promise.resolve();
         },
 
         updateTitle() {
-            const btn = this.$refs.submitTitleButton;
-            const req = this.$http
-                .post(`/api/v1/groups/${this.group.id}/name`, {
-                    name: this.newTitle,
-                })
-                .then(
-                    ({ data }) => {
-                        this.editingGroup = false;
-                        this.newTitle = data.name;
-                        this.group = data;
-                        this.$emit('input', this.group);
-                    },
-                    err => {
-                        throw err.response.data.message;
-                    },
-                );
+            return this.$http.post(`/api/v1/groups/${this.group.id}/name`, {
+                name: this.newTitle,
+            });
+        },
 
-            btn.submit(waitAtLeast(250, req));
+        afterUpdateTitle(response) {
+            this.editingGroup = false;
+            this.group = response.data;
+            this.newTitle = this.group.name;
+            this.$emit('input', this.group);
         },
 
         removeUser(i) {
-            let btn = this.$refs.deleteButton;
-            if (this.canEditOthers) {
-                btn = btn[i];
-            } else {
-                [btn] = btn;
-            }
             const user = this.group.members[i];
-            const req = this.$http
-                .delete(`/api/v1/groups/${this.group.id}/members/${user.id}`)
-                .catch(err => {
-                    throw err.response.data.message;
-                });
+            return this.$http.delete(`/api/v1/groups/${this.group.id}/members/${user.id}`);
+        },
 
-            btn.submit(
-                waitAtLeast(250, req).then(({ data }) => {
-                    this.group = data;
-                    this.$emit('input', this.group);
-                }),
-            );
+        afterRemoveUser(response) {
+            this.group = response.data;
+            this.$emit('input', this.group);
         },
 
         filterMembers(user) {
@@ -314,40 +296,22 @@ action is required.${divEnd}`;
         },
 
         addUser(username) {
-            const btn = this.$refs.submitButton;
-            const req = this.$http
-                .post(`/api/v1/groups/${this.group.id}/member`, {
-                    username,
-                })
-                .then(
-                    ({ data }) => {
-                        this.newAuthor = null;
-                        this.group = data;
-                        this.$emit('input', this.group);
-                    },
-                    err => {
-                        throw err.response.data.message;
-                    },
-                );
+            return this.$http.post(`/api/v1/groups/${this.group.id}/member`, { username });
+        },
 
-            btn.submit(waitAtLeast(250, req));
+        afterAddUser(response) {
+            this.newAuthor = null;
+            this.group = response.data;
+            this.$emit('input', this.group);
         },
 
         deleteGroup() {
-            const btn = this.$refs.deleteGroupButton;
+            return this.$http.delete(`/api/v1/groups/${this.group.id}`);
+        },
 
-            const req = this.$http.delete(`/api/v1/groups/${this.group.id}`).catch(err => {
-                throw err.response.data.message;
-            });
-
-            btn.submit(
-                waitAtLeast(250, req).then(() => {
-                    setTimeout(() => {
-                        this.group = undefined;
-                        this.$emit('input', undefined);
-                    }, 1000);
-                }),
-            );
+        afterDeleteGroup() {
+            this.group = undefined;
+            this.$emit('input', undefined);
         },
     },
 

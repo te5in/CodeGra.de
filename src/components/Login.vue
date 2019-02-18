@@ -7,21 +7,26 @@
                placeholder="Username"
                v-model="username"
                ref="username"
-               @keyup.enter="submit"/>
+               @keyup.enter="$refs.submit.onClick"/>
     </b-form-fieldset>
 
     <b-form-fieldset>
         <password-input v-model="password"
                         placeholder="Password"
-                        @keyup.native.enter="submit"/>
+                        @keyup.native.enter="$refs.submit.onClick"/>
     </b-form-fieldset>
 
     <div class="text-center">
-        <submit-button ref="submit"
-                       @click.native="submit"
-                       label="Login"
-                       :show-empty="false"
-                       :delay="2000"/>
+        <submit-button label="Login"
+                       ref="submit"
+                       :submit="submit"
+                       @success="success"
+                       :wait-at-least="0">
+            <template slot="warning" slot-scope="warning">
+                {{ warning.warning }}<br>
+                Close this message to continue.
+            </template>
+        </submit-button>
 
         <div class="login-links">
             <router-link :to="{ name: 'forgot' }">
@@ -64,31 +69,22 @@ export default {
     methods: {
         ...mapActions('user', ['login']),
 
-        submit(event) {
-            event.preventDefault();
-
-            const btn = this.$refs.submit;
-
+        submit() {
             if (!this.password || !this.username) {
-                btn.fail('Please enter a username and password.');
-                return;
+                return Promise.reject(new Error('Please enter a username and password.'));
             }
 
-            btn.submit(
-                this.login({
-                    username: this.username,
-                    password: this.password,
-                    onWarning: warning => btn.warn(warning.text),
-                }).then(
-                    () => {
-                        this.$router.replace({ name: 'home' });
-                        this.$emit('login');
-                    },
-                    reason => {
-                        throw reason ? reason.message : '';
-                    },
-                ),
-            );
+            return this.$http.post('/api/v1/login', {
+                username: this.username,
+                password: this.password,
+            });
+        },
+
+        success(response) {
+            this.login(response).then(() => {
+                this.$router.replace({ name: 'home' });
+                this.$emit('login');
+            });
         },
     },
 };

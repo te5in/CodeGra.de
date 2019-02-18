@@ -28,8 +28,6 @@ describe('FeedbackArea.vue', () => {
     let mockUpdate;
     let mockPut;
     let mockPatch;
-    let mockSubmit;
-    let mockFail;
     let updateSelection;
 
     function makeInstance(propsData = null) {
@@ -68,8 +66,6 @@ describe('FeedbackArea.vue', () => {
         mockUpdate = jest.fn();
         mockPut = jest.fn(() => Promise.resolve(true));
         mockPatch = jest.fn(() => Promise.resolve(true));
-        mockSubmit = jest.fn(() => Promise.resolve(true));
-        mockFail = jest.fn(() => Promise.resolve(false));
 
         updateSelection = () => {
             comp.$refs.field.selectionStart = comp.internalFeedback.length || 0;
@@ -228,53 +224,60 @@ describe('FeedbackArea.vue', () => {
     });
 
     describe('addSnippet', () => {
-        beforeEach(() => {
-            comp.$refs.addSnippetButton = {
-                fail: mockFail,
-                submit: mockSubmit,
-            };
-        });
-
         it('should fail if the snippet key is invalid', async () => {
+            let caught = 0;
+
             comp.snippetKey = 'key with spaces';
             comp.internalFeedback = 'feedback';
-            await comp.addSnippet();
+            try {
+                await comp.addSnippet();
+            } catch (e) {
+                caught += 1;
+                expect(e.message).toMatch('spaces');
+            };
+
             comp.snippetKey = '';
-            await comp.addSnippet();
-            expect(mockFail).toBeCalledTimes(2);
-            expect(mockSubmit).toBeCalledTimes(0);
+            try {
+                await comp.addSnippet();
+            } catch (e) {
+                caught += 1;
+                expect(e.message).toMatch('empty');
+            }
+
+            expect(caught).toBe(2);
         });
 
         it('should fail if the feedback is empty', async () => {
+            let caught = 0;
+
             comp.snippetKey = 'key';
             comp.internalFeedback = '';
-            await comp.addSnippet();
-            expect(mockFail).toBeCalledTimes(1);
-            expect(mockSubmit).toBeCalledTimes(0);
+            try {
+                await comp.addSnippet();
+            } catch (e) {
+                caught += 1;
+            }
+            expect(caught).toBe(1);
         });
 
         it('should update a snippet if the key already exists', async () => {
             comp.snippetKey = 'snippet';
             comp.internalFeedback = 'new value';
-            await comp.addSnippet();
-            expect(mockFail).toBeCalledTimes(0);
+            await comp.addSnippet().then(comp.afterAddSnippet);
             expect(mockAdd).toBeCalledTimes(0);
             expect(mockPut).toBeCalledTimes(0);
             expect(mockUpdate).toBeCalledTimes(1);
             expect(mockPatch).toBeCalledTimes(1);
-            expect(mockSubmit).toBeCalledTimes(1);
         });
 
         it('should add a new snippet if the key doesn\'t exist', async () => {
             comp.snippetKey = 'new_snippet';
             comp.internalFeedback = 'new value';
-            await comp.addSnippet();
-            expect(mockFail).toBeCalledTimes(0);
+            await comp.addSnippet().then(comp.afterAddSnippet);
             expect(mockAdd).toBeCalledTimes(1);
             expect(mockPut).toBeCalledTimes(1);
             expect(mockUpdate).toBeCalledTimes(0);
             expect(mockPatch).toBeCalledTimes(0);
-            expect(mockSubmit).toBeCalledTimes(1);
         });
     });
 

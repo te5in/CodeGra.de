@@ -19,9 +19,9 @@
                         <b-dropdown-item @click="clicked(true, 'Custom config')">Custom config</b-dropdown-item>
                     </b-dropdown>
                     <submit-button label="Run"
-                                   @click="run"
-                                   ref="submitBtn"
-                                   :disabled="Object.keys(options).length !== 0 && selectedOption === 'Select config file'"/>
+                                   :submit="run"
+                                   @after-success="afterRun"
+                                   :disabled="runButtonDisabled"/>
                 </b-button-toolbar>
 
                 <b-collapse :id="`sub_collapse_${name}_${assignment.id}`">
@@ -34,10 +34,10 @@
                 </b-collapse>
             </div>
 
-            <submit-button label="Run"
-                           ref="submitBtn"
-                           @click="run"
-                           v-else/>
+            <submit-button v-else
+                           label="Run"
+                           :submit="run"
+                           @after-success="afterRun"/>
         </div>
         <div v-else-if="state == 'running'">
             <b-progress v-model="done"
@@ -48,31 +48,17 @@
         </div>
         <div v-else>
             <div class="row justify-content-md-center">
-                <b-btn class="text-center margin btn delete"
-                       variant="danger"
-                       @click="$root.$emit('bv::show::modal',`modal_${name}_${assignment.id}`)">
-                    <span v-if="crashed > 0 || state === 'crashed'">Crashed! - </span>Remove output
-                </b-btn>
-                <b-modal :id="`modal_${name}_${assignment.id}`"
-                         title="Are you sure?"
-                         :hide-footer="true">
-                    <div class="row justify-content-md-center"
-                         v-if="deleting">
-                        <b-btn class="text-center" variant="outline-danger"><loader :scale="1"/></b-btn>
-                    </div>
-                    <div v-else>
-                        <b-btn class="text-center"
-                               variant="outline-danger"
-                               v-on:click="deleteFeedback">
-                            Yes, delete this data.
-                        </b-btn>
-                        <b-btn class="text-center right-float"
-                               variant="success"
-                               v-on:click="$root.$emit('bv::hide::modal', `modal_${name}_${assignment.id}`)">
-                            No!
-                        </b-btn>
-                    </div>
-                </b-modal>
+                <submit-button class="delete-button"
+                               variant="danger"
+                               confirm="Are you sure you want to delete the
+                               output?"
+                               :submit="deleteFeedback"
+                               @after-success="afterDeleteFeedback">
+                    <span v-if="crashed > 0 || state === 'crashed'">
+                        Crashed! -
+                    </span>
+                    Remove output
+                </submit-button>
             </div>
         </div>
     </div>
@@ -109,6 +95,12 @@ export default {
     computed: {
         description() {
             return this.serverDescription;
+        },
+
+        runButtonDisabled() {
+            return (
+                Object.keys(this.options).length > 0 && this.selectedOption === 'Select config file'
+            );
         },
     },
 
@@ -148,19 +140,13 @@ export default {
         },
 
         deleteFeedback() {
-            this.deleting = true;
-            this.$http.delete(`/api/v1/linters/${this.id}`).then(() => {
-                this.$root.$emit('bv::hide::modal', `modal_${this.name}_${this.assignment.id}`);
+            return this.$http.delete(`/api/v1/linters/${this.id}`);
+        },
 
-                this.selected = false;
-                this.deleting = false;
+        afterDeleteFeedback() {
+            // this.$root.$emit('collapse::toggle', `collapse_${this.name}_${this.assignment.id}`);
 
-                this.$root.$emit('collapse::toggle', `collapse_${this.name}_${this.assignment.id}`);
-
-                this.$nextTick(() => {
-                    this.state = 'new';
-                });
-            });
+            this.state = 'new';
         },
         startUpdateLoop() {
             this.$http.get(`/api/v1/linters/${this.id}`).then(({ data }) => this.updateData(data));
@@ -183,7 +169,7 @@ export default {
             }
         },
 
-        run(_, extraOpts) {
+        run() {
             let cfg;
             if (this.selectedOption === 'Custom config') {
                 cfg = this.config;
@@ -195,21 +181,14 @@ export default {
             this.working = 0;
             this.crashed = 0;
 
-            this.$refs.submitBtn.submitFunction(
-                () =>
-                    this.$http
-                        .post(`/api/v1/assignments/${this.assignment.id}/linter`, {
-                            name: this.name,
-                            cfg: cfg || '',
-                        })
-                        .then(({ data }) => {
-                            this.updateData(data);
-                        })
-                        .catch(({ response }) => {
-                            throw response.data.message;
-                        }),
-                extraOpts,
-            );
+            return this.$http.post(`/api/v1/assignments/${this.assignment.id}/linter`, {
+                name: this.name,
+                cfg: cfg || '',
+            });
+        },
+
+        afterRun(response) {
+            this.updateData(response.data);
         },
     },
 };
@@ -218,15 +197,6 @@ export default {
 <style lang="less" scoped>
 .margin {
     margin-bottom: 15px;
-}
-
-.large-btn {
-    margin-top: 1em;
-    padding: 15px 5em;
-}
-
-.right-float {
-    float: right;
 }
 
 .center-table {
@@ -248,9 +218,7 @@ export default {
     margin-bottom: 15px;
 }
 
-.btn.delete {
-    height: 3em;
-    margin-top: 0;
-    min-width: 14em;
+.delete-button {
+    margin-bottom: 1rem;
 }
 </style>

@@ -90,7 +90,7 @@ def login() -> ExtendedJSONResponse[t.Mapping[str, t.Union[models.User, str]]]:
         add_warning(
             (
                 'Your password does not meet the requirements, consider '
-                'changing it. You will be logged in after a few seconds.'
+                'changing it.'
             ),
             APIWarnings.WEAK_PASSWORD,
         )

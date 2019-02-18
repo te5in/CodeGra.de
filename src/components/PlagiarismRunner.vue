@@ -48,14 +48,13 @@
                             :scale="1"
                             v-b-popover.hover.top="'This job is running'"/>
                     <submit-button v-else-if="canManage"
-                                   default="danger"
+                                   variant="danger"
                                    size="sm"
-                                   :label="false"
                                    confirm="Are you sure you want to delete the results?"
-                                   @click="deleteRun(run, i)"
+                                   :submit="() => deleteRun(run)"
+                                   @after-success="afterDeleteRun(run)"
                                    @click.native.stop
-                                   v-b-popover.hover.top="'Delete results'"
-                                   ref="deleteRunButton">
+                                   v-b-popover.hover.top="'Delete results'">
                         <icon name="times"/>
                     </submit-button>
                 </td>
@@ -113,7 +112,7 @@
                             <input v-if="option.type == 'strvalue'"
                                    type="text"
                                    class="form-control"
-                                   @keydown.ctrl.enter="runPlagiarismChecker"
+                                   @keydown.ctrl.enter="$refs.runButton.onClick"
                                    :placeholder="option.placeholder"
                                    v-model="selectedOptions[option.name]"/>
                             <input v-else-if="option.type == 'numbervalue'"
@@ -123,7 +122,7 @@
                                    type="number"
                                    class="form-control"
                                    :placeholder="option.placeholder"
-                                   @keydown.ctrl.enter="runPlagiarismChecker"/>
+                                   @keydown.ctrl.enter="$refs.runButton.onClick"/>
                             <b-form-checkbox v-else-if="option.type == 'boolvalue'"
                                              v-model="selectedOptions[option.name]"/>
                             <b-form-select v-else-if="option.type == 'singleselect'"
@@ -161,14 +160,27 @@
                 </tbody>
             </table>
 
-            <submit-button label="Run"
-                           id="plagiarism-run-button"
+            <submit-button id="plagiarism-run-button"
                            class="run-button"
                            ref="runButton"
+                           label="Run"
                            :disabled="!allOptionsValid"
-                           @click="runPlagiarismChecker"
+                           :submit="runPlagiarismChecker"
+                           @success="afterRunPlagiarismChecker"
                            @mouseenter.native="!allOptionsValid && $refs.runButtonPopover.$emit('open')"
-                           @mouseleave.native="!allOptionsValid && $refs.runButtonPopover.$emit('close')"/>
+                           @mouseleave.native="!allOptionsValid && $refs.runButtonPopover.$emit('close')">
+                <template slot="error" slot-scope="error" v-if="error.error">
+                    <div class="invalid-options">
+                        {{ error.error.response.data.description }}
+
+                        <ul>
+                            <li v-for="option in error.error.response.data.invalid_options">
+                                {{ option }}
+                            </li>
+                        </ul>
+                    </div>
+                </template>
+            </submit-button>
             <b-popover target="plagiarism-run-button"
                        content="Not all mandatory options have been set!"
                        placement="left"
@@ -319,7 +331,7 @@ export default {
             });
         },
 
-        async runPlagiarismChecker() {
+        runPlagiarismChecker() {
             const selectedOptions = Object.assign({}, this.selectedOptions);
 
             if (this.selectedOptions.old_assignments == null) {
@@ -360,23 +372,13 @@ export default {
                 data = selectedOptions;
             }
 
-            const req = this.$http
-                .post(`/api/v1/assignments/${this.assignment.id}/plagiarism`, data)
-                .then(
-                    ({ data: run }) => {
-                        run.formatted_created_at = readableFormatDate(run.created_at);
-                        this.runs.push(run);
-                    },
-                    err => {
-                        let res = err.response.data.message;
-                        if (err.response.data.invalid_options) {
-                            res += ` (${err.response.data.invalid_options.join('. ')})`;
-                        }
-                        throw res;
-                    },
-                );
+            return this.$http.post(`/api/v1/assignments/${this.assignment.id}/plagiarism`, data);
+        },
 
-            return this.$refs.runButton.submit(req);
+        afterRunPlagiarismChecker(response) {
+            const run = response.data;
+            run.formatted_created_at = readableFormatDate(run.created_at);
+            this.runs.push(run);
         },
 
         async getOldAssignments() {
@@ -527,19 +529,12 @@ export default {
             }, 5000);
         },
 
-        deleteRun(run, i) {
-            this.$refs.deleteRunButton[i]
-                .submit(
-                    this.$http.delete(`/api/v1/plagiarism/${run.id}`).catch(({ response }) => {
-                        throw response.data.message;
-                    }),
-                )
-                .then(
-                    () => {
-                        this.runs.splice(i, 1);
-                    },
-                    () => {},
-                );
+        deleteRun(run) {
+            return this.$http.delete(`/api/v1/plagiarism/${run.id}`);
+        },
+
+        afterDeleteRun(run) {
+            this.runs = this.runs.filter(r => r.id !== run.id);
         },
     },
 
@@ -663,5 +658,14 @@ export default {
 .run-button {
     float: right;
     margin-right: 1rem;
+}
+
+.invalid-options {
+    text-align: left;
+
+    ul {
+        padding-left: 1.25rem;
+        margin-bottom: 0;
+    }
 }
 </style>
