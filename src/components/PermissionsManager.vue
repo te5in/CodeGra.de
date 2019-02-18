@@ -62,8 +62,21 @@
             <submit-button label="Add"
                            ref="addUserBtn"
                                @click="addRole"/>
-            </b-input-group>
-        </b-form-fieldset>
+        </b-input-group>
+    </b-form-fieldset>
+
+    <transition name="fade" appear>
+        <!-- v-if and show are used to make sure the transition works -->
+        <b-alert dismissible
+                 show
+                 v-if="!hideChanged && Object.values(changed).some(x => x)"
+                 @input="hideWarning"
+                 variant="info"
+                 class="perm-warning">
+            Reload the page using <kbd>Shift</kbd> + <kbd>F5</kbd> to apply the changes.
+        </b-alert>
+    </transition>
+
     </div>
 </template>
 
@@ -124,16 +137,26 @@ export default {
             fields: [],
             items: [],
             newRoleName: '',
+            hideChanged: false,
+            changed: {},
         };
     },
 
     watch: {
-        courseId() {
+        courseId(newVal, oldVal) {
+            if (newVal !== oldVal) {
+                this.hideChanged = false;
+                this.changed = {};
+            }
             this.loadData();
         },
     },
 
     methods: {
+        hideWarning() {
+            this.hideChanged = true;
+        },
+
         async loadData() {
             this.loading = true;
             await this.getAllPermissions();
@@ -201,6 +224,12 @@ export default {
                 permission: item.name,
             });
             waitAtLeast(500, req).then(() => {
+                this.hideChanged = false;
+                this.$set(
+                    this.changed,
+                    `${this.courseId}-${field.id}-${item.name}`,
+                    !this.changed[`${this.courseId}-${field.id}-${item.name}`],
+                );
                 item[field.key] = newValue;
                 this.$set(this.items, i, item);
             });
@@ -294,7 +323,26 @@ export default {
 </style>
 
 <style lang="less" scoped>
+@import '~mixins.less';
+
 .add-role {
     margin-top: 1rem;
+}
+
+.perm-warning {
+    position: fixed;
+    bottom: 1rem;
+    right: 1rem;
+    j-index: 8;
+    width: max-content;
+}
+
+.fade-enter-active,
+.fade-leave-active {
+    transition: opacity @transition-duration;
+}
+.fade-enter,
+.fade-leave-to {
+    opacity: 0;
 }
 </style>
