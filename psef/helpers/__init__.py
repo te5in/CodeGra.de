@@ -358,15 +358,16 @@ def get_or_404(
 
 
 def filter_users_by_name(
-    query: str, base: 'models._MyQuery[models.User]'
+    query: str, base: 'models._MyQuery[models.User]', *, limit: int = 25
 ) -> 'models._MyQuery[models.User]':
     """Find users from the given base query using the given query string.
 
     :param query: The string to filter usernames and names of users with.
     :param base: The query to filter.
+    :param limit: The amount of users to limit the search too.
     :returns: A new query with the users filtered.
     """
-    if len(query) < 3:
+    if len(re.sub(r'\s', '', query)) < 3:
         raise psef.errors.APIException(
             'The search string should be at least 3 chars',
             f'The search string "{query}" is not 3 chars or longer.',
@@ -383,7 +384,7 @@ def filter_users_by_name(
 
     return base.filter(or_(*likes)).order_by(
         t.cast(models.DbColumn[str], models.User.name)
-    )
+    ).limit(limit)
 
 
 def coerce_json_value_to_typeddict(

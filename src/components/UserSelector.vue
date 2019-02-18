@@ -20,8 +20,8 @@
              :class="{ disabled }"
              v-if="useSelector">
     <span class="caret" slot="caret"><icon name="search"/></span>
-    <span slot="noResult" v-if="searchQuery && searchQuery.length < 3" class="text-muted">
-        Please give a longer search string.
+    <span slot="noResult" v-if="queryTooSmall" class="text-muted">
+        Please give a search string with at least 3 non-whitespace characters.
     </span>
     <span slot="noResult" v-else class="text-muted">
         No results were found. You can search on name and username.
@@ -103,6 +103,12 @@ export default {
         },
     },
 
+    computed: {
+        queryTooSmall() {
+            return !this.searchQuery || this.searchQuery.replace(/\s/g, '').length < 3;
+        },
+    },
+
     methods: {
         onInput(newValue) {
             this.$emit('input', newValue);
@@ -130,10 +136,10 @@ export default {
             this.stopLoadingStudents();
             this.searchQuery = query;
 
-            if (query.length < 3 && this.value && this.queryMatches()) {
+            if (this.queryTooSmall && this.value && this.queryMatches()) {
                 this.students = [this.value];
                 this.loadingStudents = false;
-            } else if (query.length < 3) {
+            } else if (this.queryTooSmall) {
                 this.students = [];
                 this.loadingStudents = false;
             } else {
