@@ -1,191 +1,192 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div class="plagiarism-runner">
-    <loader :scale="2" v-if="(canView || canManage) && runs == null"/>
-    <table v-else-if="(canView || canManage) && runs.length"
-           class="table table-striped runs-table">
-        <thead>
-            <tr>
-                <th>Previous runs</th>
-                <th>Started</th>
-                <th :colspan="canManage ? 2 : 1">State</th>
-            </tr>
-        </thead>
+    <loader :scale="2" v-if="runs == null || providers == null"/>
+    <div v-else>
+        <table v-if="(canView || canManage) && runs.length"
+               class="table table-striped runs-table">
+            <thead>
+                <tr>
+                    <th>Previous runs</th>
+                    <th>Started</th>
+                    <th :colspan="canManage ? 2 : 1">State</th>
+                </tr>
+            </thead>
 
-        <tbody>
-            <tr v-for="run, i in runs"
-                :class="{ [`run-${run.state}`]: canView }"
-                @click="goToOverview(run)">
-                <td>
-                    <a v-if="canGoToOverview(run)"
-                       class="invisible-link"
-                       href="#"
-                       @click.prevent>
-                        {{ run.provider_name }}
-                    </a>
-                    <span v-else>
-                        {{ run.provider_name }}
-                    </span>
-                    <description-popover hug-text>
-                        <div slot="description" class="selected-options-popover">
-                            Selected options:
+            <tbody>
+                <tr v-for="run, i in runs"
+                    :class="{ [`run-${run.state}`]: canView }"
+                    @click="goToOverview(run)">
+                    <td>
+                        <a v-if="canGoToOverview(run)"
+                           class="invisible-link"
+                           href="#"
+                           @click.prevent>
+                            {{ run.provider_name }}
+                        </a>
+                        <span v-else>
+                            {{ run.provider_name }}
+                        </span>
+                        <description-popover hug-text>
+                            <div slot="description" class="selected-options-popover">
+                                Selected options:
+                                <ul>
+                                    <li v-for="config in run.config">
+                                        {{ translateOption(config[0], run) }}: {{ config[1] }}
+                                    </li>
+                                </ul>
+                            </div>
+                        </description-popover>
+                    </td>
+                    <td>
+                        {{ run.formatted_created_at }}
+                    </td>
+                    <td class="run-state">
+                        {{ run.state }}
+                    </td>
+                    <td class="run-delete">
+                        <loader v-if="run.state == 'running'"
+                                :scale="1"
+                                v-b-popover.hover.top="'This job is running'"/>
+                        <submit-button v-else-if="canManage"
+                                       variant="danger"
+                                       size="sm"
+                                       confirm="Are you sure you want to delete the results?"
+                                       :submit="() => deleteRun(run)"
+                                       @after-success="afterDeleteRun(run)"
+                                       @click.native.stop
+                                       v-b-popover.hover.top="'Delete results'">
+                            <icon name="times"/>
+                        </submit-button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div v-if="canManage">
+            <b-form-radio-group v-model="selectedProvider"
+                                v-if="providers.length > 1"
+                                class="provider-selectors">
+                <table class="table table-striped table-hover providers-table">
+                    <thead>
+                        <tr>
+                            <th>New run</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        <tr v-for="provider in providers"
+                            @click="selectedProvider = provider">
+                            <td>
+                                <b-form-radio :value="provider">
+                                    {{ provider.name }}
+                                </b-form-radio>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </b-form-radio-group>
+
+            <div v-if="selectedProvider != null">
+                <table class="table table-striped options-table">
+                    <thead>
+                        <tr>
+                            <th>Option</th>
+                            <th>Value</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        <tr v-for="option in selectedProvider.options">
+                            <td>
+                                {{ option.title }}
+                                <sup v-if="option.mandatory"
+                                     v-b-popover.hover.top="'This option is required'"
+                                     class="description">
+                                    *
+                                </sup>
+                                <description-popover hug-text
+                                                     :description="option.description"/>
+                            </td>
+                            <td>
+                                <input v-if="option.type == 'strvalue'"
+                                       type="text"
+                                       class="form-control"
+                                       @keydown.ctrl.enter="$refs.runButton.onClick"
+                                       :placeholder="option.placeholder"
+                                       v-model="selectedOptions[option.name]"/>
+                                <input v-else-if="option.type == 'numbervalue'"
+                                       @input="selectedOptions[option.name] = $event.target.value == '' ? undefined : (
+                                           isNaN(Number($event.target.value)) ? ($event.target.value)
+                                           : Number($event.target.value))"
+                                       type="number"
+                                       class="form-control"
+                                       :placeholder="option.placeholder"
+                                       @keydown.ctrl.enter="$refs.runButton.onClick"/>
+                                <b-form-checkbox v-else-if="option.type == 'boolvalue'"
+                                                 v-model="selectedOptions[option.name]"/>
+                                <b-form-select v-else-if="option.type == 'singleselect'"
+                                               :options="option.possible_options"
+                                               v-model="selectedOptions[option.name]"/>
+                                <multiselect v-else-if="option.type == 'multiselect'"
+                                             v-model="selectedOptions[option.name]"
+                                             :options="option.possible_options || []"
+                                             :searchable="true"
+                                             :multiple="true"
+                                             track-by="id"
+                                             label="label"
+                                             :close-on-select="false"
+                                             select-label=""
+                                             :hide-selected="true"
+                                             :internal-search="true"
+                                             :loading="option.possible_options == null">
+                                    <span slot="noResult">
+                                        No results were found.
+                                    </span>
+                                </multiselect>
+                                <div v-else-if="option.type === 'file'" style="display: flex;">
+                                    <b-form-file :class="`file-uploader-form ${option.name}`"
+                                                 :ref="`${selectedProvider.name}||${option.name}`"
+                                                 name="file"
+                                                 style="z-index: 0;"
+                                                 placeholder="Click here to choose a file..."
+                                                 v-model="selectedOptions[option.name]"/>
+                                    <b-btn variant="warning"
+                                           style="margin-left: 5px;"
+                                           @click="$refs[`${selectedProvider.name}||${option.name}`].map(a => a.reset())">Clear</b-btn>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <submit-button id="plagiarism-run-button"
+                               class="run-button"
+                               ref="runButton"
+                               label="Run"
+                               :disabled="!allOptionsValid"
+                               :submit="runPlagiarismChecker"
+                               @success="afterRunPlagiarismChecker"
+                               @mouseenter.native="!allOptionsValid && $refs.runButtonPopover.$emit('open')"
+                               @mouseleave.native="!allOptionsValid && $refs.runButtonPopover.$emit('close')">
+                    <template slot="error" slot-scope="error" v-if="error.error">
+                        <div class="invalid-options">
+                            {{ error.error.response.data.description }}
+
                             <ul>
-                                <li v-for="config in run.config">
-                                    {{ translateOption(config[0], run) }}: {{ config[1] }}
+                                <li v-for="option in error.error.response.data.invalid_options">
+                                    {{ option }}
                                 </li>
                             </ul>
                         </div>
-                    </description-popover>
-                </td>
-                <td>
-                    {{ run.formatted_created_at }}
-                </td>
-                <td class="run-state">
-                    {{ run.state }}
-                </td>
-                <td class="run-delete">
-                    <loader v-if="run.state == 'running'"
-                            :scale="1"
-                            v-b-popover.hover.top="'This job is running'"/>
-                    <submit-button v-else-if="canManage"
-                                   variant="danger"
-                                   size="sm"
-                                   confirm="Are you sure you want to delete the results?"
-                                   :submit="() => deleteRun(run)"
-                                   @after-success="afterDeleteRun(run)"
-                                   @click.native.stop
-                                   v-b-popover.hover.top="'Delete results'">
-                        <icon name="times"/>
-                    </submit-button>
-                </td>
-            </tr>
-        </tbody>
-    </table>
-
-    <loader :scale="2" v-if="canManage && providers == null"/>
-    <div v-else-if="canManage">
-        <b-form-radio-group v-model="selectedProvider"
-                            v-if="providers.length > 1"
-                            class="provider-selectors">
-            <table class="table table-striped table-hover providers-table">
-                <thead>
-                    <tr>
-                        <th>New run</th>
-                    </tr>
-                </thead>
-
-                <tbody>
-                    <tr v-for="provider in providers"
-                        @click="selectedProvider = provider">
-                        <td>
-                            <b-form-radio :value="provider">
-                                {{ provider.name }}
-                            </b-form-radio>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-        </b-form-radio-group>
-
-        <div v-if="selectedProvider != null">
-            <table class="table table-striped options-table">
-                <thead>
-                    <tr>
-                        <th>Option</th>
-                        <th>Value</th>
-                    </tr>
-                </thead>
-
-                <tbody>
-                    <tr v-for="option in selectedProvider.options">
-                        <td>
-                            {{ option.title }}
-                            <sup v-if="option.mandatory"
-                                 v-b-popover.hover.top="'This option is required'"
-                                 class="description">
-                                *
-                            </sup>
-                            <description-popover hug-text
-                                                 :description="option.description"/>
-                        </td>
-                        <td>
-                            <input v-if="option.type == 'strvalue'"
-                                   type="text"
-                                   class="form-control"
-                                   @keydown.ctrl.enter="$refs.runButton.onClick"
-                                   :placeholder="option.placeholder"
-                                   v-model="selectedOptions[option.name]"/>
-                            <input v-else-if="option.type == 'numbervalue'"
-                                   @input="selectedOptions[option.name] = $event.target.value == '' ? undefined : (
-                                           isNaN(Number($event.target.value)) ? ($event.target.value)
-                                           : Number($event.target.value))"
-                                   type="number"
-                                   class="form-control"
-                                   :placeholder="option.placeholder"
-                                   @keydown.ctrl.enter="$refs.runButton.onClick"/>
-                            <b-form-checkbox v-else-if="option.type == 'boolvalue'"
-                                             v-model="selectedOptions[option.name]"/>
-                            <b-form-select v-else-if="option.type == 'singleselect'"
-                                           :options="option.possible_options"
-                                           v-model="selectedOptions[option.name]"/>
-                            <multiselect v-else-if="option.type == 'multiselect'"
-                                         v-model="selectedOptions[option.name]"
-                                         :options="option.possible_options || []"
-                                         :searchable="true"
-                                         :multiple="true"
-                                         track-by="id"
-                                         label="label"
-                                         :close-on-select="false"
-                                         select-label=""
-                                         :hide-selected="true"
-                                         :internal-search="true"
-                                         :loading="option.possible_options == null">
-                                <span slot="noResult">
-                                    No results were found.
-                                </span>
-                            </multiselect>
-                            <div v-else-if="option.type === 'file'" style="display: flex;">
-                                <b-form-file :class="`file-uploader-form ${option.name}`"
-                                             :ref="`${selectedProvider.name}||${option.name}`"
-                                             name="file"
-                                             style="z-index: 0;"
-                                             placeholder="Click here to choose a file..."
-                                             v-model="selectedOptions[option.name]"/>
-                                <b-btn variant="warning"
-                                       style="margin-left: 5px;"
-                                       @click="$refs[`${selectedProvider.name}||${option.name}`].map(a => a.reset())">Clear</b-btn>
-                            </div>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-
-            <submit-button id="plagiarism-run-button"
-                           class="run-button"
-                           ref="runButton"
-                           label="Run"
-                           :disabled="!allOptionsValid"
-                           :submit="runPlagiarismChecker"
-                           @success="afterRunPlagiarismChecker"
-                           @mouseenter.native="!allOptionsValid && $refs.runButtonPopover.$emit('open')"
-                           @mouseleave.native="!allOptionsValid && $refs.runButtonPopover.$emit('close')">
-                <template slot="error" slot-scope="error" v-if="error.error">
-                    <div class="invalid-options">
-                        {{ error.error.response.data.description }}
-
-                        <ul>
-                            <li v-for="option in error.error.response.data.invalid_options">
-                                {{ option }}
-                            </li>
-                        </ul>
-                    </div>
-                </template>
-            </submit-button>
-            <b-popover target="plagiarism-run-button"
-                       content="Not all mandatory options have been set!"
-                       placement="left"
-                       ref="runButtonPopover"
-                       v-if="!allOptionsValid"/>
+                    </template>
+                </submit-button>
+                <b-popover target="plagiarism-run-button"
+                           content="Not all mandatory options have been set!"
+                           placement="left"
+                           ref="runButtonPopover"
+                           v-if="!allOptionsValid"/>
+            </div>
         </div>
     </div>
 </div>
@@ -567,6 +568,7 @@ export default {
 
 .plagiarism-runner > .loader {
     margin: 1rem;
+    margin-bottom: 0;
 }
 
 .runs-table {
