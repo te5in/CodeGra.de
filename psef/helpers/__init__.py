@@ -57,7 +57,7 @@ def init_app(app: 'psef.Flask') -> None:
 
     @app.after_request
     def __maybe_add_warning(res: flask.Response) -> flask.Response:
-        for warning in g.request_warnings:
+        for warning in getattr(g, 'request_warnings', []):
             logger.info('Added warning to response', warning=warning)
             res.headers.add('Warning', warning)
         return res
@@ -492,18 +492,12 @@ def ensure_json_dict(
 
 def _maybe_log_response(obj: object, response: t.Any, extended: bool) -> None:
     if not isinstance(obj, psef.errors.APIException):
-        if getattr(psef.current_app, 'debug', False) and not getattr(
-            psef.current_app, 'testing', False
-        ):  # pragma: no cover
-            to_log = response.get_json()
-            if len(str(to_log)) > 500:
-                logger.bind(truncated=True, truncated_size=len(str(to_log)))
-                to_log = '{:.500} ... [TRUNCATED]'.format(str(to_log))
-        else:
-            to_log = response.response
-            if len(to_log) > 1000:  # pragma: no cover
-                logger.bind(truncated=True, truncated_size=len(to_log))
-                to_log = '{:.1000} ... [TRUNCATED]'.format(to_log)
+        to_log = str(b''.join(response.response))
+        max_length = 1000
+        if len(to_log) > max_length:
+            logger.bind(truncated=True, truncated_size=len(to_log))
+            to_log = '{1:.{0}} ... [TRUNCATED]'.format(max_length, to_log)
+
         ext = 'extended ' if extended else ''
         logger.info(
             f'Created {ext}json return response',
