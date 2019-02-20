@@ -2,6 +2,7 @@
 <template>
 <div class="grade-viewer">
     <b-collapse id="rubric-collapse"
+                v-model="rubricOpen"
                 v-if="showRubric">
         <rubric-viewer
             v-model="rubricPoints"
@@ -13,12 +14,14 @@
             ref="rubricViewer"/>
     </b-collapse>
 
-    <b-form-fieldset>
+    <b-form-fieldset class="grade-fieldset">
         <b-input-group>
-            <b-input-group-prepend v-if="editable">
+            <b-input-group-prepend>
                 <submit-button ref="submitButton"
+                               v-if="editable"
                                :submit="putGrade"
                                @success="gradeUpdated"/>
+                <span class="input-group-text" v-else>Grade</span>
             </b-input-group-prepend>
 
             <input type="number"
@@ -26,7 +29,7 @@
                    step="any"
                    min="0"
                    :max="maxAllowedGrade"
-                   :disabled="!editable"
+                   :readonly="!editable"
                    placeholder="Grade"
                    @keydown.enter="$refs.submitButton.onClick"
                    v-model="grade"/>
@@ -43,7 +46,8 @@
                 <span v-else>{{ rubricScore }}</span>
             </b-input-group-append>
 
-            <b-input-group-append class="delete-button-group">
+            <b-input-group-append class="delete-button-group"
+                                  v-if="editable">
                 <b-popover :triggers="showDeleteButton ? 'hover' : ''"
                            placement="top"
                            target="delete-grade-button">
@@ -98,6 +102,10 @@ export default {
             type: Boolean,
             default: false,
         },
+        rubricStartOpen: {
+            type: Boolean,
+            default: false,
+        },
         assignment: {
             type: Object,
             default: {},
@@ -117,6 +125,7 @@ export default {
             grade: this.submission.grade,
             rubricPoints: {},
             rubricHasSelectedItems: false,
+            rubricOpen: this.rubricStartOpen,
         };
     },
 
@@ -293,12 +302,16 @@ export default {
 <style lang="less" scoped>
 @import '~mixins.less';
 
-input,
-textarea {
-    &:disabled {
+input {
+    &:read-only {
+        &:focus {
+            box-shadow: none !important;
+        }
         color: black;
         background-color: white;
         cursor: text;
+        pointer-events: all;
+        user-select: initial;
     }
 }
 
@@ -328,6 +341,10 @@ textarea {
         padding-bottom: 0;
         margin-bottom: 0;
     }
+}
+
+.grade-fieldset {
+    margin-bottom: 0;
 }
 </style>
 

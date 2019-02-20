@@ -105,10 +105,10 @@ export default {
 
 .container-fluid {
     display: flex;
-    flex-grow: 1;
-
-    .lti & {
-    }
+    flex-direction: column;
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
 
     main {
         position: relative;

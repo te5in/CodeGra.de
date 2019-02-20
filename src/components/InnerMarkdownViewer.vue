@@ -45,28 +45,30 @@ export default {
     },
 
     watch: {
-        async html() {
-            // Make sure html is rendered before we kick MathJax.
-            await this.$nextTick();
-            window.MathJax.Hub.Queue(['Typeset', window.MathJax.Hub, this.$el]);
+        html: {
+            async handler() {
+                // Make sure html is rendered before we kick MathJax.
+                await this.$nextTick();
+                window.MathJax.Hub.Queue(['Typeset', window.MathJax.Hub, this.$el]);
+            },
+            immediate: true,
         },
-    },
-
-    mounted() {
-        this.$nextTick(() => {
-            window.MathJax.Hub.Queue(['Typeset', window.MathJax.Hub, this.$el]);
-        });
     },
 };
 </script>
 
 <style lang="less">
-.inner-markdown-viewer pre {
-    margin-bottom: 0;
-    font-size: 100%;
-    white-space: pre-wrap;
-    word-wrap: break-word;
-    word-break: break-word;
-    hyphens: auto;
+.inner-markdown-viewer {
+    pre {
+        margin-bottom: 0;
+        font-size: 100%;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        word-break: break-word;
+        hyphens: auto;
+    }
+    .MathJax_SVG svg {
+        max-width: 100%;
+    }
 }
 </style>

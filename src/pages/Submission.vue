@@ -142,12 +142,20 @@
     </local-header>
 
     <loader center v-if="loadingInner"/>
-    <div class="row justify-content-center inner-container"
-         v-else
-         id="submission-page-inner">
-        <div class="code-and-grade"
-             :class="overviewMode ?  'overview col-lg-12' : 'col-lg-9'">
-
+    <component
+        :is="!overviewMode && $root.$isLargeWindow ? 'rs-panes' : 'div'"
+        allow-resize
+        v-else
+        split-to="columns"
+        :size="75"
+        :step="50"
+        units="percents"
+        class="code-grade-file-wrapper row justify-content-center"
+        id="submission-page-inner"
+        :min-size="30"
+        :max-size="85">
+        <div class="code-and-grade col-lg-12" slot="firstPane"
+             :class="overviewMode ?  'overview' : ''">
             <div v-if="!fileTree || !currentFile" class="no-file">
                 <loader/>
             </div>
@@ -174,16 +182,9 @@
                        :language="selectedLanguage"
                        :can-use-snippets="canUseSnippets"
                        />
-
-            <grade-viewer :assignment="assignment"
-                          :submission="submission"
-                          :rubric="rubric"
-                          :editable="editable"
-                          v-if="editable || assignment.state === assignmentState.DONE"
-                          @gradeUpdated="gradeUpdated"/>
         </div>
-
-        <div class="col-lg-3 file-tree-container" v-if="!overviewMode">
+        <div class="file-tree-container " v-if="!overviewMode"
+             slot="secondPane">
             <loader class="text-center"
                     :scale="3"
                     v-if="!fileTree"/>
@@ -195,7 +196,14 @@
                        :revision="selectedRevision"
                        @revision="revisionChanged"/>
         </div>
-    </div>
+    </component>
+    <grade-viewer :assignment="assignment"
+                  :submission="submission"
+                  :rubric="rubric"
+                  :editable="editable"
+                  :rubric-start-open="overviewMode"
+                  v-if="!loadingInner && (editable || assignment.state === assignmentState.DONE)"
+                  @gradeUpdated="gradeUpdated"/>
 </div>
 </template>
 
@@ -207,6 +215,7 @@ import 'vue-awesome/icons/times';
 import 'vue-awesome/icons/exclamation-triangle';
 import 'vue-awesome/icons/history';
 import 'vue-awesome/icons/binoculars';
+import ResSplitPane from 'vue-resize-split-pane';
 
 import { mapGetters, mapActions } from 'vuex';
 
@@ -796,6 +805,7 @@ export default {
         User,
         IpythonViewer,
         MarkdownViewer,
+        'rs-panes': ResSplitPane,
     },
 };
 </script>
@@ -812,26 +822,20 @@ export default {
     margin-bottom: 0 !important;
 }
 
-.inner-container {
-    flex: 1 1 auto;
-    flex-wrap: nowrap;
-    min-height: 0;
-
-    @media @media-no-large {
-        flex-direction: column;
-        justify-content: start !important;
-    }
-}
-
 .submission-nav-bar {
     flex: 1 1 auto;
 }
 
 .code-and-grade {
+    padding-left: 0;
     position: relative;
     display: flex;
     flex-direction: column;
     max-height: 100%;
+
+    @media @media-large {
+        height: 100%;
+    }
 
     @media @media-no-large {
         flex: 0 1 auto;
@@ -841,6 +845,7 @@ export default {
 .pdf-viewer {
     flex: 1 1 auto;
     min-height: 0;
+    height: 100%;
 
     @media @media-no-large {
         flex: 1 1 100vh;
@@ -880,18 +885,7 @@ export default {
 
 .grade-viewer {
     flex: 0 0 auto;
-}
-
-.no-file,
-.overview-mode,
-.code-viewer,
-.markdown-viewer,
-.ipython-viewer,
-.diff-viewer,
-.pdf-viewer,
-.image-viewer,
-.file-tree-container {
-    margin-bottom: 1rem;
+    padding-bottom: 1rem;
 }
 
 .overview-mode {
@@ -903,8 +897,16 @@ export default {
 .file-tree-container {
     max-height: 100%;
 
+    @media @media-large {
+        height: 100%;
+        width: 100%;
+        padding-left: 15px;
+    }
+
     @media @media-no-large {
         flex: 0 0 auto;
+        padding-right: 15px;
+        padding-top: 15px;
     }
 }
 
@@ -938,10 +940,61 @@ export default {
     min-width: 10rem;
     text-align: left;
 }
+
+.submission.page .code-grade-file-wrapper {
+    margin-bottom: 1rem;
+    margin-left: 0;
+    flex: 1 1 auto;
+    flex-wrap: nowrap;
+    min-height: 0;
+
+    @media @media-no-large {
+        flex-direction: column;
+        justify-content: start !important;
+    }
+
+    @media @media-large {
+        display: flex;
+        max-height: 100%;
+        position: relative;
+    }
+}
 </style>
 
 <style lang="less">
-#submission-page .popover {
-    max-width: 45em;
+@import '~mixins.less';
+
+#submission-page {
+    .popover {
+        max-width: 45em;
+    }
+    .Resizer.columns {
+        padding: 0 15px;
+    }
+
+    .Resizer.columns {
+        background-color: #ddd !important;
+        background-color: transparent !important;
+        border: none !important;
+        width: 8px !important;
+        transform: translateX(-4px);
+        margin: 0;
+        position: relative;
+        &:before {
+            display: block;
+            content: '';
+            width: 6px;
+            height: 16px;
+            position: absolute;
+            top: 50%;
+            transform: translateY(-8px);
+            left: 50%;
+            border-left: 2px dotted @color-primary;
+            border-right: 2px dotted @color-primary;
+            #app.dark & {
+                border-color: @text-color-dark;
+            }
+        }
+    }
 }
 </style>

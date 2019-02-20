@@ -15036,6 +15036,14 @@
       "resolved": "https://registry.npmjs.org/vue-multiselect/-/vue-multiselect-2.0.3.tgz",
       "integrity": "sha1-vsWPhFhgIvgsKjFpvhuGn22XFfw="
     },
+    "vue-resize-split-pane": {
+      "version": "0.1.3",
+      "resolved": "https://registry.npmjs.org/vue-resize-split-pane/-/vue-resize-split-pane-0.1.3.tgz",
+      "integrity": "sha512-PKuvXKJjIFptng85ny7rqJyCZJo20u5aur9fmK1BrTLPI9bg8cBv9+hJQQKmdE8RWGkjEky2M4bmitucooVKNA==",
+      "requires": {
+        "vue": "2.5.13"
+      }
+    },
     "vue-router": {
       "version": "3.0.1",
       "resolved": "https://registry.npmjs.org/vue-router/-/vue-router-3.0.1.tgz",
