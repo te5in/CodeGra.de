@@ -62,9 +62,14 @@ def app(request):
             4 * 2 ** 20,  # 4 mb
         'MAX_LARGE_UPLOAD_SIZE':
             100 * 2 ** 20,  # 100mb
-        'LTI_CONSUMER_KEY_SECRETS': {
-            'my_lti': '12345678'
-        },
+        'LTI_CONSUMER_KEY_SECRETS':
+            {
+                'my_lti': 'Canvas:12345678',
+                'no_secret': 'Canvas:',
+                'no_lms': ':12345678',
+                'no_colon': '12345678',
+                'unknown_lms': 'unknown:12345678',
+            },
         'LTI_SECRET_KEY':
             'hunter123',
         'SECRET_KEY':

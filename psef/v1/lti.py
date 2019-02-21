@@ -19,8 +19,8 @@ import structlog
 from psef import app
 
 from . import api
-from .. import auth, errors, models, helpers, features
-from ..lti import LTI, CanvasLTI
+from .. import lti, auth, errors, models, helpers, features
+from ..lti import LTI
 from ..models import db
 
 logger = structlog.get_logger()
@@ -33,8 +33,8 @@ def launch_lti() -> t.Any:
 
     .. :quickref: LTI; Do a LTI Launch.
     """
-    lti = {
-        'params': CanvasLTI.create_from_request(flask.request).launch_params,
+    data = {
+        'params': LTI.create_from_request(flask.request).launch_params,
         'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=1)
     }
     return flask.redirect(
@@ -42,7 +42,7 @@ def launch_lti() -> t.Any:
             host=app.config['EXTERNAL_URL'],
             jwt=urllib.parse.quote(
                 jwt.encode(
-                    lti,
+                    data,
                     app.config['LTI_SECRET_KEY'],
                     algorithm='HS512',
                 ).decode('utf8')
@@ -65,22 +65,14 @@ def get_lti_config() -> werkzeug.wrappers.Response:
     """
     helpers.ensure_keys_in_dict(flask.request.args, [('lms', str)])
     lms = flask.request.args.get('lms')
-    try:
-        cls = helpers.get_class_by_name(LTI, '{}LTI'.format(lms))
-    except ValueError:
+    cls = lti.lti_classes.get(lms)
+    if cls is None:
         raise errors.APIException(
             'The requested LMS is not supported',
             f'The LMS "{lms}" is not supported', errors.APICodes.INVALID_PARAM,
             400
         )
-    res = flask.make_response(
-        flask.render_template(
-            'lti_canvas_config.j2',
-            external_url=app.config['EXTERNAL_URL'],
-            properties=cls.get_lti_properties(),
-            custom_extensions=cls.get_custom_extensions(),
-        )
-    )
+    res = flask.make_response(cls.generate_xml())
     res.headers['Content-Type'] = 'application/xml; charset=utf-8'
     return res
 
@@ -130,15 +122,15 @@ def second_phase_lti_launch() -> helpers.JSONResponse[
             errors.APICodes.INVALID_PARAM,
             400,
         )
-    lti = CanvasLTI(launch_params)
+    inst = LTI.create_from_launch_params(launch_params)
 
-    user, new_token, updated_email = lti.ensure_lti_user()
+    user, new_token, updated_email = inst.ensure_lti_user()
     auth.set_current_user(user)
 
-    course = lti.get_course()
-    assig = lti.get_assignment(user, course)
-    lti.set_user_role(user)
-    new_role_created = lti.set_user_course_role(user, course)
+    course = inst.get_course()
+    assig = inst.get_assignment(user, course)
+    inst.set_user_role(user)
+    new_role_created = inst.set_user_course_role(user, course)
     db.session.commit()
 
     result: t.Mapping[str, t.Union[str, models.Assignment, bool]]

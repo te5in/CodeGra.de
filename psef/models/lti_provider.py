@@ -55,17 +55,6 @@ class LTIProvider(Base):
                 host=current_app.config['EXTERNAL_URL'],
             )
 
-    @property
-    def lti_class(self) -> t.Type['psef.lti.LTI']:
-        """This is the name of the provider.
-
-        .. note::
-
-            Currently this is hard coded to :class`.lti.CanvasLTI` but
-            could be extended to provide support for more additional LMS'ses
-        """
-        return psef.lti.CanvasLTI
-
     def __init__(self, key: str) -> None:
         super().__init__(key=key)
         public_id = str(uuid.uuid4())
@@ -85,4 +74,26 @@ class LTIProvider(Base):
         :setter: Impossible as all secrets are fixed during startup of
             codegra.de
         """
-        return current_app.config['LTI_CONSUMER_KEY_SECRETS'][self.key]
+        lms, _, sec = current_app.config['LTI_CONSUMER_KEY_SECRETS'][
+            self.key].partition(':')
+        assert lms and sec
+        return sec
+
+    @property
+    def lti_class(self) -> t.Type['psef.lti.LTI']:
+        """The name of the LTI class to be used for this LTIProvider.
+
+        :getter: Get the LTI class name.
+        :setter: Impossible as this is fixed during startup of CodeGrade.
+        """
+        lms, _, sec = current_app.config['LTI_CONSUMER_KEY_SECRETS'][
+            self.key].partition(':')
+        assert lms and sec
+        cls = psef.lti.lti_classes.get(lms)
+        if cls is None:
+            raise psef.errors.APIException(
+                'The requested LMS is not supported',
+                f'The LMS "{lms}" is not supported',
+                psef.errors.APICodes.INVALID_PARAM, 400
+            )
+        return cls
