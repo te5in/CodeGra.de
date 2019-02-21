@@ -24,7 +24,7 @@
         changelog <a href="https://docs.codegra.de/about/changelog.html"
         target="_blank" class="alert-link">here</a>.
     </b-alert>
-    <loader v-if="loadingCourses"/>
+    <loader v-if="loadingCourses" page-loader/>
     <div v-else-if="courses.length === 0">
         <span class="no-courses">You have no courses yet!</span>
     </div>
@@ -288,6 +288,12 @@ export default {
             display: none;
         }
     }
+}
+
+.home-grid {
+    display: flex;
+    flex-direction: column;
+    min-height: 100%;
 }
 
 .home-grid .outer-block {

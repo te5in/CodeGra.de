@@ -64,6 +64,14 @@ class Permission(Base, t.Generic[_T]):  # pylint: disable=unsubscriptable-object
     )
 
     @classmethod
+    def get_name_column(cls: t.Type['Permission[_T]']) -> DbColumn[str]:
+        """Get the name column in the database for the permissions.
+
+        :returns: The name column of permissions.
+        """
+        return t.cast(DbColumn[str], cls.__name)
+
+    @classmethod
     def get_all_permissions(
         cls: t.Type['Permission[_T]'], perm_type: t.Type[_T]
     ) -> 't.Sequence[Permission[_T]]':

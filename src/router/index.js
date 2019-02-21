@@ -18,7 +18,7 @@ import {
 } from '@/pages';
 
 import { PlagiarismOverview, PlagiarismDetail } from '@/components';
-
+import { NO_LOGIN_ALLOWED_ROUTES, NO_LOGIN_REQUIRED_ROUTES } from '@/constants';
 import { resetPageTitle } from '@/pages/title';
 
 Vue.use(Router);
@@ -109,9 +109,11 @@ const router = new Router({
 
 // Stores path of page that requires login when user is not
 // logged in, so we can restore it when the user logs in.
-let restorePath = '';
+let restoreRoute = null;
 
-const notLoggedInRoutes = new Set(['login', 'forgot', 'register', 'lti-launch', 'reset-password']);
+export function setRestoreRoute(route) {
+    restoreRoute = Object.assign({}, route);
+}
 
 router.beforeEach((to, from, next) => {
     // Unset page title. Pages will set title,
@@ -120,28 +122,19 @@ router.beforeEach((to, from, next) => {
 
     const loggedIn = store.getters['user/loggedIn'];
     if (loggedIn) {
-        if (restorePath) {
-            // Reset restorePath before calling (synchronous) next.
-            const path = restorePath;
-            restorePath = '';
-            next({ path });
-        } else if (to.name === 'login' || to.name === 'register') {
-            next('/home');
+        if (restoreRoute) {
+            // Reset restoreRoute before calling (synchronous) next.
+            const route = restoreRoute;
+            restoreRoute = null;
+            next(route);
+        } else if (NO_LOGIN_ALLOWED_ROUTES.has(to.name)) {
+            next('/');
         } else {
             next();
         }
-    } else if (!notLoggedInRoutes.has(to.name)) {
-        store.dispatch('user/verifyLogin').then(
-            () => {
-                next();
-            },
-            () => {
-                // Store path so we can go to the requested route
-                // when the user is logged in.
-                restorePath = to.path;
-                next('/login');
-            },
-        );
+    } else if (!NO_LOGIN_REQUIRED_ROUTES.has(to.name)) {
+        setRestoreRoute(to);
+        next('/login');
     } else {
         next();
     }

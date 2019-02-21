@@ -6,7 +6,6 @@ import 'vue-multiselect/dist/vue-multiselect.min.css';
 import '@/style.less';
 
 import Vue from 'vue';
-import { mapActions } from 'vuex';
 import BootstrapVue from 'bootstrap-vue';
 import axios from 'axios';
 import Toasted from 'vue-toasted';
@@ -16,11 +15,10 @@ import VueMasonry from 'vue-masonry-css';
 
 import '@/polyfills';
 import App from '@/App';
-import router from '@/router';
+import router, { setRestoreRoute } from '@/router';
 import { htmlEscape } from '@/utils';
 import store from './store';
 import * as mutationTypes from './store/mutation-types';
-import PermissionStore from './permissions';
 
 Vue.use(BootstrapVue);
 Vue.use(Toasted);
@@ -34,6 +32,73 @@ axios.defaults.transformRequest.push((data, headers) => {
     }
     return data;
 });
+
+// Fix axios automatically parsing all responses as JSON... WTF!!!
+axios.defaults.transformResponse = [
+    function defaultTransformResponse(data, headers) {
+        switch (headers['content-type']) {
+            case 'application/json':
+                return JSON.parse(data);
+            default:
+                return data;
+        }
+    },
+];
+
+axios.interceptors.response.use(
+    response => response,
+    (() => {
+        let toastVisible = false;
+        return error => {
+            const { config, response, request } = error;
+
+            if (!toastVisible && !response && request) {
+                toastVisible = true;
+                Vue.toasted.error(
+                    'There was an error connecting to the server... Please try again later',
+                    {
+                        position: 'bottom-center',
+                        closeOnSwipe: false,
+                        duration: 3000,
+                        onComplete: () => {
+                            toastVisible = false;
+                        },
+                    },
+                );
+            } else if (
+                config.method === 'get' &&
+                response.status === 401 &&
+                !config.url.match(/\/api\/v1\/login.*/)
+            ) {
+                if (router.currentRoute.name !== 'login') {
+                    setRestoreRoute(router.currentRoute);
+                    store.dispatch('user/logout').then(() => {
+                        router.push({ name: 'login' });
+                    });
+                }
+                if (!toastVisible) {
+                    toastVisible = true;
+                    Vue.toasted.error(
+                        'You are currently not logged in. Please log in to view this page.',
+                        {
+                            position: 'bottom-center',
+                            closeOnSwipe: false,
+                            action: {
+                                text: '✖',
+                                onClick(_, toastObject) {
+                                    toastObject.goAway(0);
+                                    toastVisible = false;
+                                },
+                            },
+                        },
+                    );
+                }
+            }
+
+            throw error;
+        };
+    })(),
+);
 
 Vue.prototype.$http = axios;
 
@@ -90,46 +155,25 @@ localforage.defineDriver(memoryStorageDriver).then(() => {
 
     Vue.prototype.$htmlEscape = htmlEscape;
 
-    // Fix axios automatically parsing all responses as JSON... WTF!!!
-    axios.defaults.transformResponse = [
-        function defaultTransformResponse(data, headers) {
-            switch (headers['content-type']) {
-                case 'application/json':
-                    return JSON.parse(data);
-                default:
-                    return data;
+    Vue.prototype.$hasPermission = (permission, courseId, asMap) => {
+        function makeResponse(map) {
+            if (typeof permission === 'string') {
+                return map[permission];
+            } else if (asMap) {
+                return map;
+            } else {
+                return permission.map(p => map[p]);
             }
-        },
-    ];
-
-    axios.interceptors.response.use(
-        response => response,
-        (() => {
-            let toastVisible = false;
-            return error => {
-                if (!error.response && error.request && !toastVisible) {
-                    toastVisible = true;
-                    Vue.toasted.error(
-                        'There was an error connecting to the server... Please try again later',
-                        {
-                            position: 'bottom-center',
-                            closeOnSwipe: false,
-                            duration: 3000,
-                            onComplete: () => {
-                                toastVisible = false;
-                            },
-                        },
-                    );
-                }
-                throw error;
-            };
-        })(),
-    );
-
-    const permissionStore = new PermissionStore(axios, { driver: DRIVERS });
-
-    Vue.prototype.$clearPermissions = (...args) => permissionStore.clearCache(...args);
-    Vue.prototype.$hasPermission = (...args) => permissionStore.hasPermission(...args);
+        }
+        if (courseId) {
+            return store.dispatch('courses/loadCourses').then(() => {
+                const map = store.getters['courses/courses'][courseId].permissions;
+                return makeResponse(map);
+            });
+        } else {
+            return Promise.resolve(makeResponse(store.getters['user/permissions']));
+        }
+    };
 
     /* eslint-disable no-new */
     const app = new Vue({
@@ -149,8 +193,6 @@ localforage.defineDriver(memoryStorageDriver).then(() => {
         },
 
         created() {
-            this.verifyLogin();
-
             window.addEventListener('resize', () => {
                 this.screenWidth = window.innerWidth;
             });
@@ -196,10 +238,6 @@ localforage.defineDriver(memoryStorageDriver).then(() => {
                 return ua.indexOf('MSIE ') > -1 || ua.indexOf('Trident/') > -1;
             },
         },
-
-        methods: {
-            ...mapActions('user', ['verifyLogin']),
-        },
     });
 
     // Clear some items in vuex store on CTRL-F5
@@ -217,7 +255,6 @@ localforage.defineDriver(memoryStorageDriver).then(() => {
 
             if (isF5 && (event.ctrlKey || event.shiftKey)) {
                 event.preventDefault();
-                await permissionStore.clearCache();
                 await app.$store.commit(`user/${mutationTypes.CLEAR_CACHE}`);
                 window.location.reload(true);
             }
