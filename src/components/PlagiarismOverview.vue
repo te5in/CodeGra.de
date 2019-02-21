@@ -17,6 +17,7 @@
         </template>
 
         <submit-button label="Download log"
+                       class="download-btn"
                        variant="secondary"
                        :submit="downloadLog"
                        @success="afterDownloadLog"/>
@@ -274,6 +275,12 @@ export default {
 .filter-input {
     flex: 1;
     width: auto;
+}
+
+.download-btn,
+.filter-input {
+    margin-top: 0.2rem;
+    margin-bottom: 0.2rem;
 }
 
 .description {

@@ -129,6 +129,19 @@ export default {
     color: @text-color;
 }
 
+@media @media-small {
+    .sidebar-toggle,
+    .back-button,
+    .extra-button {
+        margin-bottom: 0.2rem;
+        margin-top: 0.2rem;
+    }
+
+    .local-header {
+        padding-bottom: 0.8rem;
+        padding-top: 0.8rem;
+    }
+}
 @media @media-no-small {
     .sidebar-toggle {
         display: none;

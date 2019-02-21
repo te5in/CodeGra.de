@@ -5,10 +5,17 @@
         <template slot="title">
             Welcome {{ nameOfUser }}!
         </template>
-        <img class="large" src="/static/img/codegrade.svg" v-if="darkMode"/>
-        <img class="large" src="/static/img/codegrade-inv.svg" v-else/>
-        <img class="small" src="/static/img/logo.svg" v-if="darkMode"/>
-        <img class="small" src="/static/img/logo-inv.svg" v-else/>
+        <div class="search-logo-wrapper">
+            <input class="search form-control"
+                   v-model="searchString"
+                   ref="searchInput"
+                   v-if="!loadingCourses"
+                   placeholder="Type to search"/>
+            <img class="large" src="/static/img/codegrade.svg" v-if="darkMode"/>
+            <img class="large" src="/static/img/codegrade-inv.svg" v-else/>
+            <img class="small" src="/static/img/logo.svg" v-if="darkMode"/>
+            <img class="small" src="/static/img/logo-inv.svg" v-else/>
+        </div>
     </local-header>
     <b-alert show v-if="showReleaseNote" variant="info">
         A new version of CodeGrade has been released:
@@ -25,7 +32,7 @@
              :gutter="30"
              class="outer-block"
              v-else>
-        <div class="card-wrapper" v-for="course in courses" :key="course.id">
+        <div class="card-wrapper" v-for="course in filteredCourses" :key="course.id">
             <b-card no-body>
                 <b-card-header :class="`text-${getColorPair(course.name).color}`"
                                :style="{ backgroundColor: getColorPair(course.name).background }">
@@ -44,12 +51,13 @@
                         <table class="table table-hover assig-list"
                                v-if="course.assignments.length > 0">
                             <tbody>
-                                <router-link v-for="assig in course.assignments"
+                                <router-link v-for="assig in getAssignments(course)"
                                              :key="assig.id"
                                              :to="submissionsRoute(assig)"
+                                             :class="assig.assignmentFiltered ? 'super-text-muted' : ''"
                                              class="assig-list-item">
                                     <td>
-                                        {{ assig.name }}<br>
+                                        <span>{{ assig.name }}</span><br>
 
                                         <small>
                                             Due {{ moment(assig.deadline).from(now) }}
@@ -128,6 +136,7 @@ export default {
             moment,
             now: moment(),
             nowInterval: null,
+            searchString: '',
         };
     },
 
@@ -138,6 +147,20 @@ export default {
 
         courses() {
             return Object.values(this.unsortedCourses).sort((a, b) => cmpNoCase(a.name, b.name));
+        },
+
+        filteredCourses() {
+            if (!this.searchString) {
+                return this.courses;
+            }
+            const filter = (this.searchString || '').toLowerCase().split(' ');
+            return this.courses.filter(c =>
+                filter.every(
+                    sub =>
+                        c.name.toLowerCase().indexOf(sub) >= 0 ||
+                        c.assignments.some(a => a.name.toLowerCase().indexOf(sub) >= 0),
+                ),
+            );
         },
 
         showReleaseNote() {
@@ -151,6 +174,9 @@ export default {
     mounted() {
         this.loadCourses().then(() => {
             this.loadingCourses = false;
+            this.$nextTick(() => {
+                this.$refs.searchInput.focus();
+            });
         });
 
         this.nowInterval = setInterval(() => {
@@ -166,6 +192,33 @@ export default {
 
     methods: {
         ...mapActions('courses', ['loadCourses']),
+
+        getAssignments(course) {
+            if (!this.searchString) {
+                return course.assignments;
+            }
+            const filter = (this.searchString || '').toLowerCase().split(' ');
+            if (filter.every(sub => course.name.toLowerCase().indexOf(sub) >= 0)) {
+                return course.assignments;
+            }
+
+            // Make sure the assignments the user is searching for appear at the
+            // top
+            const filtered = [];
+            const nonFiltered = [];
+            course.assignments.forEach(a => {
+                if (filter.some(sub => a.name.toLowerCase().indexOf(sub) >= 0)) {
+                    nonFiltered.push(a);
+                } else {
+                    filtered.push(
+                        Object.assign({}, a, {
+                            assignmentFiltered: true,
+                        }),
+                    );
+                }
+            });
+            return [...nonFiltered, ...filtered];
+        },
 
         getColorPair(name) {
             const hash = hashString(name);
@@ -216,11 +269,8 @@ export default {
 @import '~mixins.less';
 
 .local-header img {
-    float: right;
-
     &.large {
         height: 1.3em;
-        margin-top: 0.5rem;
     }
 
     &.small {
@@ -374,5 +424,23 @@ a {
     #app.dark & {
         color: @color-light-gray;
     }
+}
+
+.search {
+    flex: 1 1 auto;
+}
+
+.search-logo-wrapper {
+    flex: 1 1 auto;
+    display: flex;
+    align-items: center;
+    img {
+        padding-left: 15px;
+    }
+}
+
+.super-text-muted,
+.super-text-muted a {
+    color: #ccc !important;
 }
 </style>

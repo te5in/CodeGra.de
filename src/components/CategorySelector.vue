@@ -100,6 +100,9 @@ export default {
     flex-direction: column;
 
     margin-bottom: -1rem;
+    @media @media-small {
+        margin-bottom: -0.8rem;
+    }
     line-height: 1rem;
     padding: 0 1rem;
     cursor: pointer;
