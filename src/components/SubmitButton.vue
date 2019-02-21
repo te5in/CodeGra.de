@@ -8,27 +8,27 @@
           :size="size"
           @click="onClick">
 
-    <span class="success-label">
+    <span class="label success">
         <slot name="success-label">
-            <icon name="check"/>
+            <icon name="check" :scale="iconScale"/>
         </slot>
     </span>
-    <span class="warning-label">
+    <span class="label warning">
         <slot name="warning-label">
-            <icon name="warning"/>
+            <icon name="warning" :scale="iconScale"/>
         </slot>
     </span>
-    <span class="error-label">
+    <span class="label error">
         <slot name="error-label">
-            <icon name="times"/>
+            <icon name="times" :scale="iconScale"/>
         </slot>
     </span>
-    <span class="pending-label">
+    <span class="label pending">
         <slot name="pending-label">
-            <loader :scale="1" center/>
+            <loader :scale="iconScale"/>
         </slot>
     </span>
-    <span class="default-label">
+    <span class="label default">
         <slot>
             {{ label }}
         </slot>
@@ -177,6 +177,11 @@ export default {
             type: Number,
             default: 250,
         },
+
+        iconScale: {
+            type: Number,
+            default: 1,
+        },
     },
 
     data() {
@@ -188,7 +193,6 @@ export default {
             response: null,
             confirmVisible: false,
             confirmAccepted: false,
-            timeout: null,
         };
     },
 
@@ -252,12 +256,18 @@ export default {
             }
 
             this.$emit('success', data);
-            this.state = 'success';
 
-            this.timeout = setTimeout(() => {
+            const done = () => {
                 this.$emit('after-success', data);
                 this.state = 'default';
-            }, this.duration);
+            };
+
+            if (this.duration) {
+                this.state = 'success';
+                setTimeout(done, this.duration);
+            } else {
+                done();
+            }
         },
 
         onWarning(data) {
@@ -334,7 +344,7 @@ export default {
     position: relative;
 }
 
-.default-label {
+.label.default {
     opacity: 0;
 
     .state-default & {
@@ -342,10 +352,10 @@ export default {
     }
 }
 
-.success-label,
-.warning-label,
-.error-label,
-.pending-label {
+.label.success,
+.label.warning,
+.label.error,
+.label.pending {
     display: none;
     position: absolute;
     top: 50%;
@@ -357,11 +367,11 @@ export default {
     }
 }
 
-.state-success .success-label,
-.state-warning .warning-label,
-.state-error .error-label,
-.state-pending .pending-label,
-.state-default .default-label {
+.state-success .label.success,
+.state-warning .label.warning,
+.state-error .label.error,
+.state-pending .label.pending,
+.state-default .label.default {
     display: initial;
 }
 
