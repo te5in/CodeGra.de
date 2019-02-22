@@ -842,63 +842,44 @@ class BlackboardLTI(LTI):
     # def get_custom_extensions() -> str:
     #     pass
 
-    # def has_assigment_points_possible(self) -> bool:
-    #     pass
+    @property
+    def username(self) -> str:
+        return self.launch_params['lis_person_sourcedid']
 
-    # @property
-    # def assigment_points_possible(self) -> float:
-    #     pass
+    @property
+    def course_name(self) -> str:
+        return self.launch_params['context_title']
 
-    # @property
-    # def username(self) -> str:
-    #     pass
+    @property
+    def course_id(self) -> str:
+        return self.launch_params['context_id']
 
-    # @property
-    # def course_name(self) -> str:
-    #     pass
+    @property
+    def assignment_id(self) -> str:
+        return self.launch_params['resource_link_title']
 
-    # @property
-    # def course_id(self) -> str:
-    #     pass
+    @property
+    def assignment_name(self) -> str:
+        return self.launch_params['resource_link_id']
 
-    # @property
-    # def assignment_id(self) -> str:
-    #     pass
+    @property
+    def outcome_service_url(self) -> str:
+        return self.launch_params['lis_outcome_service_url']
 
-    # @property
-    # def assignment_name(self) -> str:
-    #     pass
+    def has_outcome_service_url(self) -> bool:
+        return 'lis_outcome_service_url' in self.launch_params
 
-    # @property
-    # def outcome_service_url(self) -> str:
-    #     pass
+    @property
+    def result_sourcedid(self) -> str:
+        return self.launch_params['lis_result_sourcedid']
 
-    # def has_outcome_service_url(self) -> bool:
-    #     pass
+    def has_result_sourcedid(self) -> bool:
+        return 'lis_result_sourcedid' in self.launch_params
 
-    # @property
-    # def result_sourcedid(self) -> str:
-    #     pass
-
-    # def has_result_sourcedid(self) -> bool:
-    #     pass
-
-    # @classmethod
-    # def generate_xml(cls) -> str:
-    #     pass
-
-    # @property
-    # def assignment_state(self) -> models._AssignmentStateEnum:
-    #     pass
-
-    # @property
-    # def roles(self) -> t.Iterable[str]:
-    #     pass
-
-    # def get_assignment_deadline(
-    #     self, default: datetime.datetime = None
-    # ) -> datetime.datetime:
-    #     pass
+    @property
+    def roles(self) -> t.Iterable[str]:
+        for role in self.launch_params['roles'].split(','):
+            yield role.split('/')[-1].lower()
 
     @classmethod
     def passback_grade(
@@ -914,7 +895,34 @@ class BlackboardLTI(LTI):
         submission: models.Work,
         host: str,
     ) -> None:
-        pass
+        redirect = (
+            '/courses/{course_id}'
+            '/assignments/{assig_id}'
+            '/submissions/{sub_id}?inLTI=true'
+        ).format(
+            course_id=submission.assignment.course_id,
+            assig_id=submission.assignment_id,
+            sub_id=submission.id,
+        )
+        # TODO: Review this...
+        # Namespacing this get parameter is important as Canvas duplicates all
+        # get parameters in the body. This makes sure we won't override actual
+        # launch parameters. Also the url doesn't need to be quoted, as canvas
+        # does this for us.
+        url = f'{host}/api/v1/lti/launch/1?codegrade_redirect={redirect}'
+        super()._passback_grade(
+            key=key,
+            secret=secret,
+            grade=grade,
+            initial=initial,
+            service_url=service_url,
+            sourcedid=sourcedid,
+            lti_points_possible=lti_points_possible,
+            submission=submission,
+            use_submission_details=True,
+            url=url,
+        )
+
 
 #####################################
 # START OF MIT LICENSED COPIED WORK #
