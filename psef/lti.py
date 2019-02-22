@@ -821,6 +821,101 @@ class CanvasLTI(LTI):
         )
 
 
+@lti_classes.register('Blackboard')
+class BlackboardLTI(LTI):
+    """The LTI class used for the Blackboard LMS.
+    """
+
+    def __init__(self, params, provider = None):
+        super().__init__(params, provider)
+        print(params)
+
+    # @staticmethod
+    # def supports_lti_launch_as_result() -> bool:
+    #     pass
+
+    # @staticmethod
+    # def get_lti_properties() -> t.List[LTIProperty]:
+    #     pass
+
+    # @staticmethod
+    # def get_custom_extensions() -> str:
+    #     pass
+
+    # def has_assigment_points_possible(self) -> bool:
+    #     pass
+
+    # @property
+    # def assigment_points_possible(self) -> float:
+    #     pass
+
+    # @property
+    # def username(self) -> str:
+    #     pass
+
+    # @property
+    # def course_name(self) -> str:
+    #     pass
+
+    # @property
+    # def course_id(self) -> str:
+    #     pass
+
+    # @property
+    # def assignment_id(self) -> str:
+    #     pass
+
+    # @property
+    # def assignment_name(self) -> str:
+    #     pass
+
+    # @property
+    # def outcome_service_url(self) -> str:
+    #     pass
+
+    # def has_outcome_service_url(self) -> bool:
+    #     pass
+
+    # @property
+    # def result_sourcedid(self) -> str:
+    #     pass
+
+    # def has_result_sourcedid(self) -> bool:
+    #     pass
+
+    # @classmethod
+    # def generate_xml(cls) -> str:
+    #     pass
+
+    # @property
+    # def assignment_state(self) -> models._AssignmentStateEnum:
+    #     pass
+
+    # @property
+    # def roles(self) -> t.Iterable[str]:
+    #     pass
+
+    # def get_assignment_deadline(
+    #     self, default: datetime.datetime = None
+    # ) -> datetime.datetime:
+    #     pass
+
+    @classmethod
+    def passback_grade(
+        cls: t.Type[T_LTI],
+        *,
+        key: str,
+        secret: str,
+        grade: t.Union[float, None, int],
+        initial: bool,
+        service_url: str,
+        sourcedid: str,
+        lti_points_possible: t.Optional[float],
+        submission: models.Work,
+        host: str,
+    ) -> None:
+        pass
+
 #####################################
 # START OF MIT LICENSED COPIED WORK #
 #####################################
