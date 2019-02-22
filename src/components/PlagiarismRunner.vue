@@ -41,21 +41,34 @@
                     <td>
                         {{ run.formatted_created_at }}
                     </td>
-                    <td class="run-state">
-                        {{ run.state }}
+                    <td>
+                        <div v-if="showProgress(run)">
+                            <b-progress v-model="run.submissions_done"
+                                        :max="run.submissions_total"
+                                        :precision="1"
+                                        animated/>
+                            <span class="text-center progress-text">
+                                <span class="run-state">{{ run.state }}</span>
+                                {{ run.submissions_done }} out of {{ run.submissions_total }}
+                            </span>
+                        </div>
+                        <span class="run-state" v-else>
+                            {{ run.state }}
+                            <loader v-if="run.state != 'done' && run.state != 'crashed'"
+                                    :scale="1"
+                                    v-b-popover.hover.top="'This job is running'"/>
+                        </span>
                     </td>
                     <td class="run-delete">
-                        <loader v-if="run.state == 'running'"
-                                :scale="1"
-                                v-b-popover.hover.top="'This job is running'"/>
-                        <submit-button v-else-if="canManage"
-                                       variant="danger"
+                        <submit-button v-if="canManage"
+                                       :variant="canDelete(run) ? 'danger' : 'warning'"
                                        size="sm"
-                                       confirm="Are you sure you want to delete the results?"
+                                       :confirm="canDelete(run) ? 'Are you sure you want to delete the results?'
+                                                : 'Are you sure you want to cancel this run?'"
                                        :submit="() => deleteRun(run)"
                                        @after-success="afterDeleteRun(run)"
                                        @click.native.stop
-                                       v-b-popover.hover.top="'Delete results'">
+                                       v-b-popover.hover.top="canDelete(run) ? 'Delete results' : 'Cancel run'">
                             <icon name="times"/>
                         </submit-button>
                     </td>
@@ -295,6 +308,18 @@ export default {
     },
 
     methods: {
+        showProgress(run) {
+            const provider = this.providers.find(prov => prov.name === run.provider_name);
+            return (
+                (run.state === 'parsing' || run.state === 'running' || run.state === 'comparing') &&
+                provider.progress
+            );
+        },
+
+        canDelete(run) {
+            return run.state === 'done' || run.state === 'crashed';
+        },
+
         translateOption(optName, run) {
             const provName = run.provider_name;
             if (optName in this.translateOptionSpecialCases) {
@@ -520,14 +545,16 @@ export default {
 
         pollRuns() {
             this.runsPollingInterval = setInterval(() => {
-                const running = this.runs.filter(run => run.state === 'running');
+                const running = this.runs.filter(
+                    run => run.state !== 'done' && run.state !== 'crashed',
+                );
 
                 if (!running.length) {
                     return;
                 }
 
                 this.loadRuns();
-            }, 5000);
+            }, 1000);
         },
 
         deleteRun(run) {
@@ -618,11 +645,17 @@ export default {
 
     .run-state {
         text-transform: capitalize;
+        .loader {
+            display: inline-block;
+            margin-left: 0.5rem;
+            transform: translateY(2px);
+        }
     }
 
     .run-delete {
-        width: 1px;
         white-space: nowrap;
+        width: 1px;
+        vertical-align: top;
     }
 }
 
@@ -669,5 +702,8 @@ export default {
         padding-left: 1.25rem;
         margin-bottom: 0;
     }
+}
+.progress-text {
+    display: block;
 }
 </style>

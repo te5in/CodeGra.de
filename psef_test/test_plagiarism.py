@@ -17,6 +17,56 @@ from helpers import create_marker
 http_err = create_marker(pytest.mark.http_err)
 
 
+def make_popen_stub(callback, crash=False):
+    class PopenStub:
+        returncode = 1 if crash else 0
+
+        def __call__(self, call, **kwargs):
+            self.data_dir = call[3]
+            self.progress_prefix = call[call.index('-progress') + 1]
+            callback(call, **kwargs)
+            return self
+
+        def __init__(self):
+            self.data_dir = None
+            self.progress_prefix = None
+            self._next_poll = None
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            self.data_dir = None
+            self.progress_prefix = None
+
+        @property
+        def stdout(self):
+            outer_self = self
+
+            class Stdout:
+                def readline(self):
+                    return self.readlines()[0]
+
+                def readlines(self):
+                    amount = len(os.listdir(outer_self.data_dir))
+                    return [
+                        f'{outer_self.progress_prefix} 1 / {amount}',
+                        f'{outer_self.progress_prefix} 2 / {amount}',
+                        f'{outer_self.progress_prefix} {amount} / {amount}',
+                        f'{outer_self.progress_prefix} 1 / {amount}',
+                        f'{outer_self.progress_prefix} 1 / {amount}',
+                        'My log\0!',
+                    ]
+
+            return Stdout()
+
+        def poll(self):
+            res, self._next_poll = self._next_poll, 'NotNone'
+            return res
+
+    return PopenStub()
+
+
 def nCr(n, r):
     f = math.factorial
     return f(n) / f(r) / f(n - r)
@@ -97,7 +147,7 @@ def test_jplag(
     called_num = 0
     written_rows = None
 
-    def my_check_output(call, **kwargs):
+    def callback(call, **kwargs):
         nonlocal call_arguments, called_num, written_rows
         assert not kwargs['shell']
         assert '-bc' not in call, (
@@ -159,9 +209,8 @@ def test_jplag(
             ]
             for row in written_rows:
                 writer.writerow(row)
-        return b'My log!'
 
-    monkeypatch.setattr(subprocess, 'check_output', my_check_output)
+    monkeypatch.setattr(subprocess, 'Popen', make_popen_stub(callback))
 
     with logged_in(teacher_user):
         test_client.req(
@@ -205,6 +254,8 @@ def test_jplag(
                 'config': list,
                 'created_at': str,
                 'assignment': dict,
+                'submissions_done': 0,
+                'submissions_total': int,
             }
         )
         if code >= 400:
@@ -232,6 +283,9 @@ def test_jplag(
                 'config': list,
                 'created_at': str,
                 'assignment': dict,
+                'submissions_total': 3,
+                # This should be one as we output this in our Popen stub
+                'submissions_done': 1,
             }
         )
         test_client.req(
@@ -358,7 +412,7 @@ def test_jplag_old_assignments(
         f'../test_data/test_blackboard/{bb_tar_gz}'
     )
 
-    def my_check_output(call, **kwargs):
+    def callback(call, **kwargs):
         f_p = os.path.join(call[call.index('-r') + 1], 'computer_matches.csv')
         archive_dir = call[call.index('-a') + 1]
         data_dir = call[3]
@@ -389,9 +443,8 @@ def test_jplag_old_assignments(
                     ]
                 )
 
-        return b'Log!'
-
-    monkeypatch.setattr(subprocess, 'check_output', my_check_output)
+    monkeypatch.setattr(subprocess, 'Popen', make_popen_stub(callback))
+    print('next')
 
     with logged_in(teacher_user):
         test_client.req(
@@ -428,8 +481,11 @@ def test_jplag_old_assignments(
                 'config': list,
                 'created_at': str,
                 'assignment': dict,
+                'submissions_total': int,
+                'submissions_done': 0,
             }
         )
+        print('next2')
         plag = test_client.req(
             'get',
             f'/api/v1/plagiarism/{plag["id"]}?extended',
@@ -443,6 +499,8 @@ def test_jplag_old_assignments(
                 'cases': list,
                 'created_at': str,
                 'assignment': dict,
+                'submissions_total': int,
+                'submissions_done': 1,
             }
         )
         amount_subs = assignment.get_from_latest_submissions(
@@ -616,7 +674,7 @@ def test_jplag_old_submissions(
 
     code = 200
 
-    def my_check_output(call, **kwargs):
+    def callback(call, **kwargs):
         f_p = os.path.join(call[call.index('-r') + 1], 'computer_matches.csv')
         archive_dir = call[call.index('-a') + 1]
         data_dir = call[3]
@@ -647,9 +705,7 @@ def test_jplag_old_submissions(
                     ]
                 )
 
-        return b'Log!'
-
-    monkeypatch.setattr(subprocess, 'check_output', my_check_output)
+    monkeypatch.setattr(subprocess, 'Popen', make_popen_stub(callback))
 
     with logged_in(teacher_user):
         test_client.req(
@@ -701,6 +757,8 @@ def test_jplag_old_submissions(
                 'cases': list,
                 'created_at': str,
                 'assignment': dict,
+                'submissions_done': 1,
+                'submissions_total': int,
             }
         )
         for jcase in plag['cases']:
@@ -797,7 +855,7 @@ def test_jplag_base_code(
         f'../test_data/test_old_sumbissions/{base_code_tar_gz}'
     )
 
-    def my_check_output(call, **kwargs):
+    def callback(call, **kwargs):
         f_p = os.path.join(call[call.index('-r') + 1], 'computer_matches.csv')
         assert call[call.index('-bc') + 1].startswith('/tmp/')
         assert os.listdir(call[call.index('-bc') + 1]) == ['dir']
@@ -805,9 +863,8 @@ def test_jplag_base_code(
             os.listdir('{}/dir'.format(call[call.index('-bc') + 1]))
         ) > 1
         open(f_p, 'w').close()
-        return b'Done!'
 
-    monkeypatch.setattr(subprocess, 'check_output', my_check_output)
+    monkeypatch.setattr(subprocess, 'Popen', make_popen_stub(callback))
 
     with logged_in(teacher_user):
         test_client.req(
@@ -861,10 +918,12 @@ def test_jplag_base_code(
                 'state': 'done',
                 'provider_name': str,
                 'config': list,
-                'log': 'Done!',
+                'log': 'My log!',
                 'cases': list,
                 'created_at': str,
                 'assignment': dict,
+                'submissions_done': 1,
+                'submissions_total': int,
             }
         )
 
@@ -881,17 +940,10 @@ def test_chrased_jplag(
         f'../test_data/test_blackboard/{bb_tar_gz}'
     )
 
-    def my_check_output(call, **kwargs):
-        if not subprocess_exception:
-            raise Exception('ERR!')
-        raise subprocess.CalledProcessError(
-            returncode=1,
-            cmd=call,
-            output=b'Normal output\n',
-            stderr=b'Error output\n'
-        )
-
-    monkeypatch.setattr(subprocess, 'check_output', my_check_output)
+    monkeypatch.setattr(
+        subprocess, 'Popen',
+        make_popen_stub(lambda *_, **__: None, crash=True)
+    )
 
     with logged_in(teacher_user):
         test_client.req(
@@ -922,6 +974,8 @@ def test_chrased_jplag(
                 'config': list,
                 'created_at': str,
                 'assignment': dict,
+                'submissions_done': 0,
+                'submissions_total': int,
             }
         )
         plag = test_client.req(
@@ -938,10 +992,12 @@ def test_chrased_jplag(
                 'cases': [],
                 'created_at': str,
                 'assignment': dict,
+                'submissions_done': 1,
+                'submissions_total': int,
             }
         )
         if subprocess_exception:
-            assert plag['log'] == 'Normal output\nError output\n'
+            assert plag['log'] == 'My log!'
 
 
 def test_get_plagiarism_providers(test_client):
@@ -954,6 +1010,8 @@ def test_get_plagiarism_providers(test_client):
                 'name':
                     'JPlag',
                 'base_code':
+                    True,
+                'progress':
                     True,
                 'options':
                     [

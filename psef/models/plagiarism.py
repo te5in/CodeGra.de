@@ -9,6 +9,8 @@ import datetime
 
 from sqlalchemy import orm
 
+import psef
+
 from . import Base, db, _MyQuery
 from .. import auth
 from .assignment import Assignment
@@ -28,9 +30,14 @@ class PlagiarismState(enum.IntEnum):
     :param done: The provider has finished without crashing.
     :param crashed: The provider has crashed in some way.
     """
-    running: int = 1
+    starting: int = 1
     done: int = 2
     crashed: int = 3
+    started: int = 4
+    parsing: int = 5
+    running: int = 6
+    finalizing: int = 7
+    comparing: int = 8
 
 
 class PlagiarismRun(Base):
@@ -53,8 +60,14 @@ class PlagiarismRun(Base):
     state: PlagiarismState = db.Column(
         'state',
         db.Enum(PlagiarismState),
-        default=PlagiarismState.running,
+        default=PlagiarismState.starting,
         nullable=False
+    )
+    submissions_total: int = db.Column(
+        'submissions_total', db.Integer, default=0, nullable=True
+    )
+    submissions_done: int = db.Column(
+        'submissions_done', db.Integer, default=0, nullable=True
     )
     log: t.Optional[str] = orm.deferred(
         db.Column('log', db.Unicode, nullable=True)
@@ -95,6 +108,17 @@ class PlagiarismRun(Base):
         # This can never happen
         raise KeyError  # pragma: no cover
 
+    @property
+    def plagiarism_cls(self) -> t.Type['psef.plagiarism.PlagiarismProvider']:
+        """Get the class of the plagiarism provider of this run.
+
+        :returns: The class of this plagiarism provider run.
+        """
+        return psef.helpers.get_class_by_name(
+            psef.plagiarism.PlagiarismProvider,
+            self.provider_name,
+        )
+
     def __to_json__(self) -> t.Mapping[str, object]:
         """Creates a JSON serializable representation of this object.
 
@@ -107,6 +131,11 @@ class PlagiarismRun(Base):
                 'state': str, # The name of the current state this run is in.
                 'provider_name': str, # The name of the provider used in this
                                       # run.
+                'submissions_done': int, # The amount of submissions that have
+                                         # completed the current state.
+                'submissions_total': int, # The total amount of submissions
+                                          # that have to complete the current
+                                          # state.
                 'config': t.List[t.List[str]], # A sorted association list with
                                                # the config used for this run.
                 'created_at': str, # ISO UTC date.
@@ -118,6 +147,8 @@ class PlagiarismRun(Base):
         return {
             'id': self.id,
             'state': self.state.name,
+            'submissions_done': self.submissions_done,
+            'submissions_total': self.submissions_total,
             'provider_name': self.provider_name,
             'config': json.loads(self.json_config),
             'created_at': self.created_at.isoformat(),

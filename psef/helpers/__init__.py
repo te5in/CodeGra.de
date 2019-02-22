@@ -718,44 +718,59 @@ def defer(function: t.Callable[[], object]) -> t.Generator[None, None, None]:
         function()
 
 
-def call_external(call_args: t.List[str]) -> t.Tuple[bool, str, str]:
+def call_external(
+    call_args: t.List[str],
+    input_callback: t.Callable[[str], bool] = lambda _: False
+) -> t.Tuple[bool, str]:
     """Safely call an external program without any exceptions.
 
     .. note:: This function should not be used when you don't want to handle
         errors as it will silently fail.
 
-    :param call_args: The call passed to :py:func:`~subprocess.check_output`
+    :param call_args: The call passed to :py:func:`~subprocess.Popen`
         with ``shell`` set to ``False``.
+    :param input_callback: The callback that will be called for each line of
+        output. If the callback returns ``True`` the given line of output will
+        be skipped.
     :returns: A tuple with the first argument if the process crashed, the
-        second item is the ``stdout`` and the third and final item is the
-        ``stderr``.
+        second item is ``stdout`` and ``stderr`` interleaved.
     """
-    stdout = ''
-    stderr = ''
-    ok = True
+    output = []
+
+    def process_line(line: str) -> None:
+        nonlocal output
+        out = line.replace('\0', '')
+        if not input_callback(out):
+            output.append(out)
 
     try:
-        stdout = subprocess.check_output(
-            call_args, stderr=subprocess.STDOUT, shell=False
-        )
-    except subprocess.CalledProcessError as err:
-        logger.warning(
-            'External program crashed.', call_args=call_args, exc_info=True
-        )
-        stdout = (err.stdout or b'').decode('utf-8').replace('\0', '')
-        stderr = (err.stderr or b'').decode('utf-8').replace('\0', '')
-        ok = False
-    except Exception:  # pylint: disable=broad-except
-        logger.warning(
-            'External program crashed.', call_args=call_args, exc_info=True
-        )
-        stderr = 'Unknown crash!'
-        ok = False
-    else:
-        if isinstance(stdout, bytes):
-            stdout = stdout.decode('utf-8').replace('\0', '')
+        with subprocess.Popen(
+            call_args,
+            stderr=subprocess.STDOUT,
+            stdout=subprocess.PIPE,
+            shell=False,
+            universal_newlines=True,
+            bufsize=1,
+        ) as proc:
+            while proc.poll() is None:
+                process_line(proc.stdout.readline())
 
-    return (ok, stdout, stderr)
+            ok = proc.returncode == 0
+
+            # There still might be some output left
+            for line in proc.stdout.readlines():
+                process_line(line)
+    # pylint: disable=broad-except
+    except Exception:  # pragma: no cover
+        logger.warning(
+            'External program crashed in a strange way.',
+            call_args=call_args,
+            exc_info=True,
+        )
+        output.append('Unknown crash!')
+        ok = False
+
+    return ok, ''.join(output)
 
 
 def get_files_from_request(

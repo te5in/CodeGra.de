@@ -48,6 +48,23 @@ class JPlag(plag.PlagiarismProvider):
         return 'computer_matches.csv'
 
     @staticmethod
+    def supports_progress() -> bool:
+        return True
+
+    @staticmethod
+    def get_progress_from_line(prefix: str,
+                               line: str) -> t.Optional[t.Tuple[int, int]]:
+        line = line.rstrip()
+        if not line.startswith(prefix):
+            return None
+        try:
+            current, total, *_ = line[len(prefix) + 1:].split('/')
+            return int(current.strip()), int(total.strip())
+        # pylint: disable=broad-except
+        except Exception:  # pragma: no cover
+            return None
+
+    @staticmethod
     def get_options() -> t.Sequence[plag.Option]:
         """Get all possible options for JPlag.
 
@@ -130,6 +147,7 @@ class JPlag(plag.PlagiarismProvider):
             '-r', '{ result_dir }',
             '-m', f'{self.simil}%',
             '-a', '{ archive_dir }',
+            '-progress', '{ progress_prefix }',
         ]
         # yapf: enable
         if self.has_base_code:

@@ -7,6 +7,7 @@ the mapping of the variables at the bottom of this file.
 SPDX-License-Identifier: AGPL-3.0-only
 """
 import os
+import uuid
 import shutil
 import typing as t
 import datetime
@@ -332,7 +333,7 @@ def _send_grader_status_mail_1(
 
 
 @celery.task
-def _run_plagiarism_control_1(
+def _run_plagiarism_control_1(  # pylint: disable=too-many-branches,too-many-statements
     plagiarism_run_id: int,
     main_assignment_id: int,
     old_assignment_ids: t.List[int],
@@ -343,6 +344,11 @@ def _run_plagiarism_control_1(
     def at_end() -> None:
         if base_code_dir:
             shutil.rmtree(base_code_dir)
+
+    def set_state(state: p.models.PlagiarismState) -> None:
+        assert plagiarism_run
+        plagiarism_run.state = state
+        p.models.db.session.commit()
 
     with p.helpers.defer(
         at_end,
@@ -356,6 +362,10 @@ def _run_plagiarism_control_1(
                 plagiarism_run_id=plagiarism_run_id,
             )
             return
+        set_state(p.models.PlagiarismState.started)
+
+        supports_progress = plagiarism_run.plagiarism_cls.supports_progress()
+        progress_prefix = str(uuid.uuid4())
 
         archival_arg_present = '{ archive_dir }' in call_args
         if '{ restored_dir }' in call_args:
@@ -366,23 +376,28 @@ def _run_plagiarism_control_1(
             call_args[call_args.index('{ archive_dir }')] = archive_dir
         if base_code_dir:
             call_args[call_args.index('{ base_code_dir }')] = base_code_dir
+        if supports_progress:
+            call_args[call_args.index('{ progress_prefix }')] = progress_prefix
 
         file_lookup_tree: t.Dict[int, p.files.FileTree] = {}
-        submission_lookup = {}
-        old_subs = set()
+        submission_lookup: t.Dict[str, int] = {}
+        old_subs: t.Set[int] = set()
 
         assig_ids = [main_assignment_id, *old_assignment_ids]
-        assigs = p.models.Assignment.query.filter(
-            t.cast(p.models.DbColumn[int],
-                   p.models.Assignment.id).in_(assig_ids)
-        ).all()
-        # Make sure all assignments were found
-        assert len(assigs) == len(assig_ids)
+        assigs = p.helpers.get_in_or_error(
+            p.models.Assignment,
+            t.cast(p.models.DbColumn[int], p.models.Assignment.id),
+            assig_ids,
+        )
 
-        # The .all is needed for mypy
-        for sub in itertools.chain.from_iterable(
-            a.get_all_latest_submissions().all() for a in assigs
-        ):
+        chained: t.List[t.List[p.models.Work]] = []
+        for assig in assigs:
+            chained.append(assig.get_all_latest_submissions().all())
+            if assig.id == main_assignment_id:
+                plagiarism_run.submissions_total = len(chained[-1])
+                p.models.db.session.commit()
+
+        for sub in itertools.chain.from_iterable(chained):
             main_assig = sub.assignment_id == main_assignment_id
 
             dir_name = (
@@ -405,22 +420,56 @@ def _run_plagiarism_control_1(
                 'entries': [part_tree],
             }
 
-        ok, stdout, stderr = p.helpers.call_external(call_args)
-        plagiarism_run.log = stdout + stderr
+        if supports_progress:
+            set_state(p.models.PlagiarismState.parsing)
+        else:  # pragma: no cover
+            # We don't have any providers not supporting progress
+            set_state(p.models.PlagiarismState.running)
+
+        def got_output(line: str) -> bool:
+            if not supports_progress:  # pragma: no cover
+                return False
+
+            assert plagiarism_run is not None
+            new_val = plagiarism_run.plagiarism_cls.get_progress_from_line(
+                progress_prefix, line
+            )
+            if new_val is not None:
+                cur, tot = new_val
+                if (
+                    cur == tot and
+                    plagiarism_run.state == p.models.PlagiarismState.parsing
+                ):
+                    set_state(p.models.PlagiarismState.comparing)
+                    plagiarism_run.submissions_done = 0
+                else:
+                    val = cur + plagiarism_run.submissions_total - tot
+                    plagiarism_run.submissions_done = val
+                p.models.db.session.commit()
+                return True
+            return False
+
+        try:
+            ok, stdout = p.helpers.call_external(call_args, got_output)
+        # pylint: disable=broad-except
+        except Exception:  # pragma: no cover
+            set_state(p.models.PlagiarismState.crashed)
+            raise
+
+        set_state(p.models.PlagiarismState.finalizing)
+
+        plagiarism_run.log = stdout
         if ok:
             csv_file = os.path.join(result_dir, csv_location)
-            csv_file = p.helpers.get_class_by_name(
-                p.plagiarism.PlagiarismProvider,
-                plagiarism_run.provider_name,
-            ).transform_csv(csv_file)
+            csv_file = plagiarism_run.plagiarism_cls.transform_csv(csv_file)
 
             for case in p.plagiarism.process_output_csv(
                 submission_lookup, old_subs, file_lookup_tree, csv_file
             ):
                 plagiarism_run.cases.append(case)
-            plagiarism_run.state = p.models.PlagiarismState.done
+            set_state(p.models.PlagiarismState.done)
         else:
-            plagiarism_run.state = p.models.PlagiarismState.crashed
+            set_state(p.models.PlagiarismState.crashed)
         p.models.db.session.commit()
 
 
