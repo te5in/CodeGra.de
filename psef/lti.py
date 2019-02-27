@@ -1103,7 +1103,6 @@ class OutcomeRequest:
             method='POST',
             body=passback_body,
             headers={'Content-Type': 'application/xml'},
-            verify=False,
         )
 
         # Restore original function
