@@ -26,7 +26,7 @@ from ..models import db
 logger = structlog.get_logger()
 
 
-@api.route('/lti/launch/1', methods=['POST'])
+@api.route('/lti/launch/1', methods=['POST', 'HEAD'])
 @features.feature_required(features.Feature.LTI)
 def launch_lti() -> t.Any:
     """Do a LTI launch.
