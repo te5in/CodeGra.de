@@ -451,6 +451,7 @@ class LTI:  # pylint: disable=too-many-public-methods
         :rtype: None
         """
         if user.role is None:
+            logger.info('User roles', roles=self.roles)
             for role in self.roles:
                 if role not in LTI_ROLE_LOOKUPS:
                     continue
@@ -891,6 +892,7 @@ class BlackboardLTI(LTI):
     def get_assignment_deadline(
         self, default: datetime.datetime = None
     ) -> datetime.datetime:
+        # TODO: Fix this!!!
         return datetime.datetime.utcnow() + datetime.timedelta(days=365)
 
 
