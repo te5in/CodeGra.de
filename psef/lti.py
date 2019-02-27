@@ -451,7 +451,6 @@ class LTI:  # pylint: disable=too-many-public-methods
         :rtype: None
         """
         if user.role is None:
-            logger.info('User roles', roles=self.roles)
             for role in self.roles:
                 if role not in LTI_ROLE_LOOKUPS:
                     continue
@@ -1104,6 +1103,7 @@ class OutcomeRequest:
             method='POST',
             body=passback_body,
             headers={'Content-Type': 'application/xml'},
+            verify=False,
         )
 
         # Restore original function
