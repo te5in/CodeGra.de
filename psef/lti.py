@@ -522,7 +522,7 @@ class LTI:  # pylint: disable=too-many-public-methods
         """
         raise NotImplementedError
 
-    def has_assigment_points_possible(self) -> bool:
+    def has_assignment_points_possible(self) -> bool:
         """Check if the current LTI request has a ``pointsPossible`` field.
 
         :returns: A boolean indicating if a ``pointsPossible`` field was found.
@@ -698,7 +698,11 @@ class CanvasLTI(LTI):
     </blti:extensions>
         """.format(urlparse(app.config['EXTERNAL_URL']).netloc)
 
-    def has_assigment_points_possible(self) -> bool:
+    @staticmethod
+    def supports_max_points() -> bool:
+        return True
+
+    def has_assignment_points_possible(self) -> bool:
         return 'custom_canvas_points_possible' in self.launch_params
 
     @property
@@ -842,7 +846,11 @@ class BlackboardLTI(LTI):
     def get_custom_extensions() -> str:
         return ''
 
-    def has_assigment_points_possible(self) -> bool:
+    @staticmethod
+    def supports_max_points() -> bool:
+        return False
+
+    def has_assignment_points_possible(self) -> bool:
         return False
 
     @property

@@ -299,6 +299,13 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
         assig.cgignore = t.cast(str, content['ignore'])
 
     if 'max_grade' in content:
+        if not assig.course.lti_provider.lti_class.supports_max_grade():
+            raise APIException(
+                'LMS does not support setting the maximum grade',
+                'LMS does not support setting the maximum grade',
+                APICodes.UNSUPPORTED, 400
+            )
+
         auth.ensure_permission(CPerm.can_edit_maximum_grade, assig.course_id)
         ensure_keys_in_dict(content, [('max_grade', (float, int, type(None)))])
         max_grade = t.cast(t.Union[float, int, None], content['max_grade'])

@@ -51,6 +51,7 @@ class APICodes(IntEnum):
     INSUFFICIENT_GROUP_SIZE = 24
     ASSIGNMENT_RESULT_GROUP_NOT_READY = 25
     ASSIGNMENT_GROUP_FULL = 26
+    UNSUPPORTED = 27
 
 
 class InvalidAssignmentState(TypeError):
