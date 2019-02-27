@@ -830,37 +830,40 @@ class BlackboardLTI(LTI):
         super().__init__(params, provider)
         print(params)
 
-    # @staticmethod
-    # def supports_lti_launch_as_result() -> bool:
-    #     pass
+    @staticmethod
+    def supports_lti_launch_as_result() -> bool:
+        False
 
-    # @staticmethod
-    # def get_lti_properties() -> t.List[LTIProperty]:
-    #     pass
+    @staticmethod
+    def get_lti_properties() -> t.List[LTIProperty]:
+        return []
 
-    # @staticmethod
-    # def get_custom_extensions() -> str:
-    #     pass
+    @staticmethod
+    def get_custom_extensions() -> str:
+        return ''
+
+    def has_assigment_points_possible(self) -> bool:
+        return False
 
     @property
     def username(self) -> str:
         return self.launch_params['lis_person_sourcedid']
 
     @property
-    def course_name(self) -> str:
-        return self.launch_params['context_title']
-
-    @property
     def course_id(self) -> str:
         return self.launch_params['context_id']
 
     @property
+    def course_name(self) -> str:
+        return self.launch_params['context_title']
+
+    @property
     def assignment_id(self) -> str:
-        return self.launch_params['resource_link_title']
+        return self.launch_params['resource_link_id']
 
     @property
     def assignment_name(self) -> str:
-        return self.launch_params['resource_link_id']
+        return self.launch_params['resource_link_title']
 
     @property
     def outcome_service_url(self) -> str:
@@ -877,9 +880,19 @@ class BlackboardLTI(LTI):
         return 'lis_result_sourcedid' in self.launch_params
 
     @property
+    def assignment_state(self) -> models._AssignmentStateEnum:
+        return models._AssignmentStateEnum.open
+
+    @property
     def roles(self) -> t.Iterable[str]:
         for role in self.launch_params['roles'].split(','):
             yield role.split('/')[-1].lower()
+
+    def get_assignment_deadline(
+        self, default: datetime.datetime = None
+    ) -> datetime.datetime:
+        return datetime.datetime.utcnow() + datetime.timedelta(days=365)
+
 
     @classmethod
     def passback_grade(
