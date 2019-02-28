@@ -98,8 +98,7 @@ export default {
                             },
                         });
                     }
-                })
-                .catch(err => {
+                }, err => {
                     if (first && err.response && err.response.status === 401) {
                         this.logout()
                             .then(() => {

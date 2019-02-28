@@ -115,10 +115,10 @@ Object.defineProperty(Vue.prototype, '$inLTI', {
         return inLTI;
     },
     set(val) {
-        if (val === true) {
+        if (val) {
             inLTI = val;
         } else {
-            throw new TypeError('You can only set this to true');
+            throw new TypeError('You can only set this to a truthy value');
         }
     },
 });

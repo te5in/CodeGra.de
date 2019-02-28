@@ -264,7 +264,7 @@ class LTI:  # pylint: disable=too-many-public-methods
 
     def get_assignment_deadline(
         self, default: datetime.datetime = None
-    ) -> datetime.datetime:
+    ) -> t.Optional[datetime.datetime]:
         """Get the deadline of the current LTI assignment.
 
         :param default: The value to be returned of the assignment has no
@@ -780,7 +780,7 @@ class CanvasLTI(LTI):
 
     def get_assignment_deadline(
         self, default: datetime.datetime = None
-    ) -> datetime.datetime:
+    ) -> t.Optional[datetime.datetime]:
         try:
             deadline = dateutil.parser.parse(
                 self.launch_params['custom_canvas_assignment_due_at']
@@ -903,9 +903,8 @@ class BlackboardLTI(LTI):
 
     def get_assignment_deadline(
         self, default: datetime.datetime = None
-    ) -> datetime.datetime:
-        # TODO: Fix this!!!
-        return datetime.datetime.utcnow() + datetime.timedelta(days=365)
+    ) -> t.Optional[datetime.datetime]:
+        return default
 
 
     @classmethod
