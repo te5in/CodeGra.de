@@ -264,6 +264,13 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
         lti_class = None
 
     if 'state' in content:
+        if assig.is_lti && lti_class.supports_state_management():
+            raise APIException(
+                'The state of this assignment must be set in the LMS',
+                f'{assig.name} is an LTI assignment',
+                APICodes.UNSUPPORTED, 400
+            )
+
         auth.ensure_permission(CPerm.can_edit_assignment_info, assig.course_id)
         ensure_keys_in_dict(content, [('state', str)])
         state = t.cast(str, content['state'])
@@ -280,8 +287,8 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
     if 'name' in content:
         if assig.is_lti:
             raise APIException(
-                'The name of an LTI assignment may not be changed',
-                '{assig.name} is an LTI assignment',
+                'The name of this assignment should be changed in the LMS',
+                f'{assig.name} is an LTI assignment',
                 APICodes.UNSUPPORTED, 400
             )
 
@@ -303,7 +310,7 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
         if assig.is_lti and lti_class.supports_deadline():
             raise APIException(
                 'The deadline of this assignment should be set in the LMS.',
-                '{assig.name} is an LTI assignment',
+                f'{assig.name} is an LTI assignment',
                 APICodes.UNSUPPORTED, 400
             )
 

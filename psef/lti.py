@@ -179,6 +179,10 @@ class LTI:  # pylint: disable=too-many-public-methods
     def supports_deadline() -> bool:
         return False
 
+    @staticmethod
+    def supports_state_management() -> bool:
+        return True
+
     @property
     def assignment_points_possible(self) -> float:
         """The amount of points possible for the launched assignment.
@@ -716,6 +720,10 @@ class CanvasLTI(LTI):
 
     @staticmethod
     def supports_deadline() -> bool:
+        return True
+
+    @staticmethod
+    def supports_state_management() -> bool:
         return True
 
     def has_assignment_points_possible(self) -> bool:
