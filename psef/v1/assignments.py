@@ -300,7 +300,7 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
         assig.name = name
 
     if 'deadline' in content:
-        if assig.is_lti and not lti_class.supports_deadline():
+        if assig.is_lti and lti_class.supports_deadline():
             raise APIException(
                 'The deadline of this assignment should be set in the LMS.',
                 '{assig.name} is an LTI assignment',
