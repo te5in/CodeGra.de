@@ -115,7 +115,9 @@ const actions = {
 
     updateAccessToken({ dispatch, commit }, newToken) {
         return dispatch('logout').then(() => {
-            commit(types.SET_ACCESS_TOKEN, newToken);
+            return commit(types.SET_ACCESS_TOKEN, newToken);
+        }).then(() => {
+            return dispatch('verifyLogin');
         });
     },
 };
