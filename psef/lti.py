@@ -176,7 +176,7 @@ class LTI:  # pylint: disable=too-many-public-methods
         raise NotImplementedError
 
     @property
-    def assigment_points_possible(self) -> float:
+    def assignment_points_possible(self) -> float:
         """The amount of points possible for the launched assignment.
         """
         raise NotImplementedError
@@ -262,9 +262,8 @@ class LTI:  # pylint: disable=too-many-public-methods
         """
         raise NotImplementedError
 
-    def get_assignment_deadline(
-        self, default: datetime.datetime = None
-    ) -> t.Optional[datetime.datetime]:
+    def get_assignment_deadline(self, default: datetime.datetime = None
+                                ) -> t.Optional[datetime.datetime]:
         """Get the deadline of the current LTI assignment.
 
         :param default: The value to be returned of the assignment has no
@@ -422,7 +421,7 @@ class LTI:  # pylint: disable=too-many-public-methods
                 db.session.add(assig_res)
 
         if self.has_assignment_points_possible():
-            assignment.lti_points_possible = self.assigment_points_possible
+            assignment.lti_points_possible = self.assignment_points_possible
 
         if self.has_outcome_service_url():
             assignment.lti_outcome_service_url = self.outcome_service_url
@@ -715,7 +714,7 @@ class CanvasLTI(LTI):
         return 'custom_canvas_points_possible' in self.launch_params
 
     @property
-    def assigment_points_possible(self) -> float:
+    def assignment_points_possible(self) -> float:
         """The amount of points possible for the launched assignment.
         """
         return float(self.launch_params['custom_canvas_points_possible'])
@@ -778,9 +777,8 @@ class CanvasLTI(LTI):
         for role in self.launch_params['roles'].split(','):
             yield role.split('/')[-1].lower()
 
-    def get_assignment_deadline(
-        self, default: datetime.datetime = None
-    ) -> t.Optional[datetime.datetime]:
+    def get_assignment_deadline(self, default: datetime.datetime = None
+                                ) -> t.Optional[datetime.datetime]:
         try:
             deadline = dateutil.parser.parse(
                 self.launch_params['custom_canvas_assignment_due_at']
@@ -901,11 +899,9 @@ class BlackboardLTI(LTI):
         for role in self.launch_params['roles'].split(','):
             yield role.split('/')[-1].lower()
 
-    def get_assignment_deadline(
-        self, default: datetime.datetime = None
-    ) -> t.Optional[datetime.datetime]:
+    def get_assignment_deadline(self, default: datetime.datetime = None
+                                ) -> t.Optional[datetime.datetime]:
         return default
-
 
     @classmethod
     def passback_grade(

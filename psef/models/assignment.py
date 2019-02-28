@@ -608,9 +608,7 @@ class Assignment(Base):  # pylint: disable=too-many-public-methods
         if self.course.lti_provider is None:
             return None
 
-        return psef.lti.lti_classes.get_key(
-            self.course.lti_provider.lti_class
-        )
+        return psef.lti.lti_classes.get_key(self.course.lti_provider.lti_class)
 
     @property
     def max_rubric_points(self) -> t.Optional[float]:
