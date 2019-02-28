@@ -25,7 +25,7 @@ from . import work as work_models
 from . import group as group_models
 from . import linter as linter_models
 from . import _MyQuery
-from .. import auth, helpers
+from .. import lti, auth, helpers
 from .role import CourseRole
 from .rubric import RubricRow, RubricItem
 from .permission import Permission
@@ -604,6 +604,15 @@ class Assignment(Base):  # pylint: disable=too-many-public-methods
         return self.lti_outcome_service_url is not None
 
     @property
+    def lti_provider(self) -> t.Optional[str]:
+        if self.course.lti_provider is None:
+            return None
+
+        return lti.lti_classes.get_key(
+            self.course.lti_provider.lti_class
+        )
+
+    @property
     def max_rubric_points(self) -> t.Optional[float]:
         """Get the maximum amount of points possible for the rubric
 
@@ -733,6 +742,7 @@ class Assignment(Base):  # pylint: disable=too-many-public-methods
                 'deadline': str, # ISO UTC date.
                 'name': str, # Assignment name.
                 'is_lti': bool, # Is this an LTI assignment.
+                'lti_provider': str, # The LMS providing this LTI assignment.
                 'course': models.Course, # Course of this assignment.
                 'cgignore': str, # The cginore of this assignment.
                 'whitespace_linter': bool, # Has the whitespace linter
@@ -770,6 +780,7 @@ class Assignment(Base):  # pylint: disable=too-many-public-methods
             'deadline': self.deadline and self.deadline.isoformat(),
             'name': self.name,
             'is_lti': self.is_lti,
+            'lti_provider': self.lti_provider,
             'course': self.course,
             'cgignore': self.cgignore,
             'whitespace_linter': self.whitespace_linter,
