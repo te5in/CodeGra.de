@@ -322,7 +322,11 @@ export default {
         },
 
         canEditMaxGrade() {
-            return this.permissions.can_edit_maximum_grade;
+            const ltiProvider = ltiProviders[this.assignment.lti_provider];
+            return (
+                (!ltiProvider || ltiProvider.supportsBonusPoints) &&
+                this.permissions.can_edit_maximum_grade
+            );
         },
 
         canEditIgnoreFile() {
