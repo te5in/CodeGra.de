@@ -316,7 +316,7 @@ export default {
         canEditDeadline() {
             const ltiProvider = ltiProviders[this.assignment.lti_provider];
             return (
-                (!ltiProvider || ltiProvider.supportsDeadline) &&
+                (!ltiProvider || !ltiProvider.supportsDeadline) &&
                 this.permissions.can_edit_assignment_info
             );
         },
