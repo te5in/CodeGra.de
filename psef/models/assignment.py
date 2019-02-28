@@ -25,7 +25,7 @@ from . import work as work_models
 from . import group as group_models
 from . import linter as linter_models
 from . import _MyQuery
-from .. import lti, auth, helpers
+from .. import auth, helpers
 from .role import CourseRole
 from .rubric import RubricRow, RubricItem
 from .permission import Permission
@@ -608,7 +608,7 @@ class Assignment(Base):  # pylint: disable=too-many-public-methods
         if self.course.lti_provider is None:
             return None
 
-        return lti.lti_classes.get_key(
+        return psef.lti.lti_classes.get_key(
             self.course.lti_provider.lti_class
         )
 
