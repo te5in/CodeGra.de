@@ -299,7 +299,7 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
         assig.cgignore = t.cast(str, content['ignore'])
 
     if 'max_grade' in content:
-        if not assig.course.lti_provider.lti_class.supports_max_grade():
+        if not assig.course.lti_provider.lti_class.supports_max_points():
             raise APIException(
                 'LMS does not support setting the maximum grade',
                 'LMS does not support setting the maximum grade',

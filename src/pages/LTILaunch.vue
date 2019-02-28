@@ -37,8 +37,6 @@ export default {
         ...mapActions('plagiarism', { clearPlagiarismCases: 'clear' }),
 
         secondStep(first) {
-            this.$inLTI = true;
-
             setPageTitle('LTI is launching, please wait');
 
             this.$http
@@ -46,6 +44,8 @@ export default {
                     jwt_token: this.$route.query.jwt,
                 })
                 .then(async ({ data }) => {
+                    this.$inLTI = data.lms;
+
                     if (data.access_token) {
                         await this.updateAccessToken(data.access_token);
                     } else {

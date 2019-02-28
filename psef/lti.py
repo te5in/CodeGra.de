@@ -166,6 +166,15 @@ class LTI:  # pylint: disable=too-many-public-methods
         """
         raise NotImplementedError
 
+    @staticmethod
+    def supports_max_points() -> bool:
+        """Determine whether this LMS supports changing the max points.
+
+        :returns: A boolean indicating whether this LTI instance supports
+            changing the max points.
+        """
+        raise NotImplementedError
+
     @property
     def assigment_points_possible(self) -> float:
         """The amount of points possible for the launched assignment.
@@ -412,7 +421,7 @@ class LTI:  # pylint: disable=too-many-public-methods
                 )
                 db.session.add(assig_res)
 
-        if self.has_assigment_points_possible():
+        if self.has_assignment_points_possible():
             assignment.lti_points_possible = self.assigment_points_possible
 
         if self.has_outcome_service_url():
@@ -830,13 +839,9 @@ class BlackboardLTI(LTI):
     """The LTI class used for the Blackboard LMS.
     """
 
-    def __init__(self, params, provider = None):
-        super().__init__(params, provider)
-        print(params)
-
     @staticmethod
     def supports_lti_launch_as_result() -> bool:
-        False
+        return False
 
     @staticmethod
     def get_lti_properties() -> t.List[LTIProperty]:

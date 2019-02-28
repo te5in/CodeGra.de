@@ -123,6 +123,9 @@ def second_phase_lti_launch() -> helpers.JSONResponse[
             400,
         )
     inst = LTI.create_from_launch_params(launch_params)
+    lms = lti.lti_classes.get_key(inst.__class__)
+
+    assert inst and lms is not None
 
     user, new_token, updated_email = inst.ensure_lti_user()
     auth.set_current_user(user)
@@ -137,6 +140,7 @@ def second_phase_lti_launch() -> helpers.JSONResponse[
     result = {
         'assignment': assig,
         'new_role_created': new_role_created,
+        'lms': lms,
     }
     if new_token is not None:
         result['access_token'] = new_token
