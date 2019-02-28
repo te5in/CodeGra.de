@@ -173,7 +173,11 @@ class LTI:  # pylint: disable=too-many-public-methods
         :returns: A boolean indicating whether this LTI instance supports
             changing the max points.
         """
-        raise NotImplementedError
+        return False
+
+    @staticmethod
+    def supports_deadline() -> bool:
+        return False
 
     @property
     def assignment_points_possible(self) -> float:
@@ -710,6 +714,10 @@ class CanvasLTI(LTI):
     def supports_max_points() -> bool:
         return True
 
+    @staticmethod
+    def supports_deadline() -> bool:
+        return True
+
     def has_assignment_points_possible(self) -> bool:
         return 'custom_canvas_points_possible' in self.launch_params
 
@@ -848,10 +856,6 @@ class BlackboardLTI(LTI):
     @staticmethod
     def get_custom_extensions() -> str:
         return ''
-
-    @staticmethod
-    def supports_max_points() -> bool:
-        return False
 
     def has_assignment_points_possible(self) -> bool:
         return False

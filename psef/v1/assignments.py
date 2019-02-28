@@ -258,6 +258,11 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
     assig = helpers.get_or_404(models.Assignment, assignment_id)
     content = ensure_json_dict(request.get_json())
 
+    if assig.is_lti:
+        lti_class = assig.course.lti_provider.lti_class
+    else:
+        lti_class = None
+
     if 'state' in content:
         auth.ensure_permission(CPerm.can_edit_assignment_info, assig.course_id)
         ensure_keys_in_dict(content, [('state', str)])
@@ -273,6 +278,13 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
             )
 
     if 'name' in content:
+        if assig.is_lti:
+            raise APIException(
+                'The name of an LTI assignment may not be changed',
+                '{assig.name} is an LTI assignment',
+                APICodes.UNSUPPORTED, 400
+            )
+
         auth.ensure_permission(CPerm.can_edit_assignment_info, assig.course_id)
         ensure_keys_in_dict(content, [('name', str)])
         name = t.cast(str, content['name'])
@@ -288,6 +300,13 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
         assig.name = name
 
     if 'deadline' in content:
+        if assig.is_lti and not lti_class.supports_deadline():
+            raise APIException(
+                'The deadline of this assignment should be set in the LMS.',
+                '{assig.name} is an LTI assignment',
+                APICodes.UNSUPPORTED, 400
+            )
+
         auth.ensure_permission(CPerm.can_edit_assignment_info, assig.course_id)
         ensure_keys_in_dict(content, [('deadline', str)])
         deadline = t.cast(str, content['deadline'])
@@ -299,7 +318,7 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
         assig.cgignore = t.cast(str, content['ignore'])
 
     if 'max_grade' in content:
-        if not assig.course.lti_provider.lti_class.supports_max_points():
+        if assig.is_lti and not lti_class.supports_max_points():
             raise APIException(
                 'LMS does not support setting the maximum grade',
                 'LMS does not support setting the maximum grade',
