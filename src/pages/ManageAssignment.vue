@@ -315,6 +315,7 @@ export default {
 
         canEditDeadline() {
             const ltiProvider = ltiProviders[this.assignment.lti_provider];
+            console.log(ltiProvider);
             return (
                 (!ltiProvider || !ltiProvider.supportsDeadline) &&
                 this.permissions.can_edit_assignment_info
@@ -323,6 +324,7 @@ export default {
 
         canEditMaxGrade() {
             const ltiProvider = ltiProviders[this.assignment.lti_provider];
+            console.log(ltiProvider);
             return (
                 (!ltiProvider || ltiProvider.supportsBonusPoints) &&
                 this.permissions.can_edit_maximum_grade
