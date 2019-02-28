@@ -1,7 +1,14 @@
-const defaultLTIProvider = {
-    supportsDeadline: false,
-    supportsBonusPoints: false,
-};
+const defaultLTIProvider = Object.create(null, {
+    supportsDeadline: {
+        value: false,
+    },
+    supportsBonusPoints: {
+        value: false,
+    },
+    supportsStateManagement: {
+        value: false,
+    },
+});
 
 const blackboardProvider = Object.create(defaultLTIProvider);
 
@@ -10,6 +17,9 @@ const canvasProvider = Object.create(defaultLTIProvider, {
         value: true,
     },
     supportsBonusPoints: {
+        value: true,
+    },
+    supportsStateManagement: {
         value: true,
     },
 });

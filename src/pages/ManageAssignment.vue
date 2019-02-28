@@ -19,7 +19,7 @@
         </template>
         <assignment-state :assignment="assignment"
                           class="assignment-state"
-                          :editable="permissions.can_edit_assignment_info"
+                          :editable="canEditState"
                           size="sm"/>
         <template slot="extra">
             <category-selector
@@ -303,6 +303,10 @@ export default {
 
         assignmentUrl() {
             return `/api/v1/assignments/${this.assignment.id}`;
+        },
+
+        canEditState() {
+            return this.permissions.can_edit_assignment_info
         },
 
         canEditInfo() {
