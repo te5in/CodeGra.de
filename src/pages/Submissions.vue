@@ -133,7 +133,7 @@ export default {
 
         fileUploaderDisabledMessage() {
             if (this.assignment.is_lti && !this.$inLTI) {
-                return `You can only submit this assignment from within ${assignment.ltiProvider}.`;
+                return `You can only submit this assignment from within ${this.assignment.ltiProvider}.`;
             } else if (this.$inLTI && this.$LTIAssignmentId == null) {
                 return "You didn't launch the assignment using LTI, please navigate to the 'Assignments' page and submit your work there.";
             } else if (this.$inLTI && this.assignmentId !== this.$LTIAssignmentId) {

@@ -73,7 +73,8 @@
                                 </template>
                             </description-popover>
                         </b-input-group-prepend>
-                        <datetime-picker v-model="assignmentTempDeadline"/>
+                        <datetime-picker v-model="assignmentTempDeadline"
+                                         placeholder="None set"/>
                         <b-input-group-append>
                             <submit-button :submit="submitDeadline"
                                            @success="updateDeadline"
