@@ -29,8 +29,8 @@ from .. import auth, helpers
 from .role import CourseRole
 from .rubric import RubricRow, RubricItem
 from .permission import Permission
-from ..exceptions import PermissionException, InvalidAssignmentState
 from .link_tables import user_course, work_rubric_item, course_permissions
+from ..exceptions import PermissionException, InvalidAssignmentState
 from ..permissions import CoursePermission as CPerm
 
 if t.TYPE_CHECKING:  # pragma: no cover

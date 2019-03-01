@@ -240,9 +240,7 @@ def user_patch_handle_reset_password() -> JSONResponse[t.Mapping[str, str]]:
         replace_log=lambda k, v: '<PASSWORD>' if 'password' in k else v
     )
     ensure_keys_in_dict(
-        data, [('new_password', str),
-               ('token', str),
-               ('user_id', int)]
+        data, [('new_password', str), ('token', str), ('user_id', int)]
     )
     password = t.cast(str, data['new_password'])
     user_id = t.cast(int, data['user_id'])
@@ -288,9 +286,7 @@ def user_patch_handle_change_user_data() -> EmptyResponse:
 
     ensure_keys_in_dict(
         data, [
-            ('email', str),
-            ('old_password', str),
-            ('name', str),
+            ('email', str), ('old_password', str), ('name', str),
             ('new_password', str)
         ]
     )

@@ -34,8 +34,8 @@ def init_app(_: t.Any) -> None:
     pass
 
 
-_linter_handlers: register.Register[str, t.
-                                    Type['Linter']] = register.Register()
+_linter_handlers: register.Register[str, t.Type['Linter']] = register.Register(
+)
 
 
 def _read_config_file(config_cat: str, config_name: str) -> str:

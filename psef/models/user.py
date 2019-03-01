@@ -18,8 +18,8 @@ import psef
 from . import UUID_LENGTH, Base, DbColumn, db, course, _MyQuery
 from .role import Role, CourseRole
 from .permission import Permission
-from ..exceptions import APICodes, PermissionException
 from .link_tables import user_course, course_permissions
+from ..exceptions import APICodes, PermissionException
 from ..permissions import CoursePermission, GlobalPermission
 
 if t.TYPE_CHECKING and not getattr(t, 'SPHINX', False):  # pragma: no cover

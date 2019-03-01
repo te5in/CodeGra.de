@@ -85,6 +85,7 @@ PMD_MAVEN = open(
                 (
                     'Flake8', '', [
                         (1, 'W191'),
+                        (1, 'E117'),
                         (1, 'E211'),
                         (1, 'E201'),
                         (1, 'E202'),
@@ -194,6 +195,7 @@ PMD_MAVEN = open(
                 (
                     'Flake8', '', [
                         (1, 'W191'),
+                        (1, 'E117'),
                         (1, 'E211'),
                         (1, 'E201'),
                         (1, 'E202'),
@@ -485,7 +487,7 @@ def test_whitespace_linter(
 @pytest.mark.parametrize(
     'filename,exps',
     [
-        ('test_flake8.tar.gz', ['W191', 'E211', 'E201', 'E202']),
+        ('test_flake8.tar.gz', ['W191', 'E117', 'E211', 'E201', 'E202']),
     ],
 )
 def test_lint_later_submission(
@@ -631,7 +633,7 @@ def test_non_existing_linter(
 @pytest.mark.parametrize(
     'filename,exps',
     [
-        ('test_flake8.tar.gz', ['W191', 'E211', 'E201', 'E202']),
+        ('test_flake8.tar.gz', ['W191', 'E117', 'E211', 'E201', 'E202']),
     ],
 )
 def test_lint_later_submission_disabled_linters(

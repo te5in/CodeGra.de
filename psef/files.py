@@ -16,6 +16,7 @@ import typing as t
 import tarfile
 import zipfile
 import tempfile
+from dataclasses import dataclass
 
 import structlog
 import mypy_extensions
@@ -23,7 +24,6 @@ from werkzeug.utils import secure_filename
 from werkzeug.datastructures import FileStorage
 
 import psef.models as models
-from dataclasses import dataclass
 
 from . import app, archive, helpers, blackboard
 from .ignore import InvalidFile, IgnoreFilterManager

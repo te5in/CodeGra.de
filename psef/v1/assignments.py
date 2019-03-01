@@ -507,8 +507,7 @@ def add_assignment_rubric(assignment_id: int
 
     if 'max_points' in content:
         helpers.ensure_keys_in_dict(
-            content, [('max_points',
-                       (type(None), int, float))]
+            content, [('max_points', (type(None), int, float))]
         )
         max_points = t.cast(t.Optional[float], content['max_points'])
         if max_points is not None and max_points <= 0:
@@ -569,9 +568,7 @@ def process_rubric_row(row: JSONType) -> models.RubricRow:
     """
     row = ensure_json_dict(row)
     ensure_keys_in_dict(
-        row, [('description', str),
-              ('header', str),
-              ('items', list)]
+        row, [('description', str), ('header', str), ('items', list)]
     )
     header = t.cast(str, row['header'])
     desc = t.cast(str, row['description'])
@@ -842,9 +839,7 @@ def divide_assignments(assignment_id: int) -> EmptyResponse:
         )
     else:
         models.Work.query.filter_by(assignment_id=assignment.id).update(
-            {
-                'assigned_to': None
-            }
+            {'assigned_to': None}
         )
         assignment.assigned_graders = {}
         db.session.commit()
@@ -1445,10 +1440,8 @@ def start_plagiarism_check(
 
     ensure_keys_in_dict(
         content, [
-            ('provider', str),
-            ('old_assignments', list),
-            ('has_base_code', bool),
-            ('has_old_submissions', bool)
+            ('provider', str), ('old_assignments', list),
+            ('has_base_code', bool), ('has_old_submissions', bool)
         ]
     )
     provider_name = t.cast(str, content['provider'])

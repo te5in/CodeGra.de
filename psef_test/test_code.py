@@ -683,9 +683,7 @@ def test_update_code(
         assert adjust_code(code_id, 200) == code_id
 
         m.Assignment.query.filter_by(id=assignment.id).update(
-            {
-                'state': m._AssignmentStateEnum.done
-            }
+            {'state': m._AssignmentStateEnum.done}
         )
 
         adjust_code(code_id, 403)
@@ -709,9 +707,7 @@ def test_update_code(
         adjust_code(code_id, 403)
 
     m.Assignment.query.filter_by(id=assignment.id).update(
-        {
-            'state': m._AssignmentStateEnum.open
-        }
+        {'state': m._AssignmentStateEnum.open}
     )
     # Cannot adjust teacher rev as student
     with logged_in(student_user):
@@ -871,9 +867,7 @@ def test_rename_code(
         rename(files['entries'][0]['id'], '/multiple_dir_archive/dir3', 400)
 
         m.Assignment.query.filter_by(id=assignment.id).update(
-            {
-                'state': m._AssignmentStateEnum.done
-            }
+            {'state': m._AssignmentStateEnum.done}
         )
         rename(files['entries'][0]['id'], '/multiple_dir_archive/dir3', 403)
         rename(files['entries'][0]['id'], '/multiple_dir_archive/dir4', 403)

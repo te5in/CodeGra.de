@@ -107,8 +107,8 @@ def parse_info_file(file: str) -> SubmissionInfo:
 
             if bb_files:
                 files = [
-                    FileInfo(org, cur) for org, cur in _TXT_FILES_FMT.
-                    findall(bb_files.decode('utf-8'))
+                    FileInfo(org, cur) for org, cur in
+                    _TXT_FILES_FMT.findall(bb_files.decode('utf-8'))
                 ]
             else:
                 logger.debug(
