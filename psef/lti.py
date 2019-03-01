@@ -802,9 +802,7 @@ class CanvasLTI(LTI):
             deadline = deadline.astimezone(datetime.timezone.utc)
             return deadline.replace(tzinfo=None)
         except (KeyError, ValueError, OverflowError):
-            return (
-                datetime.datetime.utcnow() + datetime.timedelta(days=365)
-            ) if default is None else default
+            return default
 
     @classmethod
     def passback_grade(
