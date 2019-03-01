@@ -14,8 +14,26 @@
 
     <div v-if="canUpload">
         <b-alert show variant="warning"
+                 class="disabled-warning"
                  v-if="fileUploaderDisabledMessage">
-            {{ fileUploaderDisabledMessage }}
+            <p v-if="!assignment.deadline">
+                The deadline for this assignment has not yet been set.
+
+                <span v-if="canEditDeadline">
+                    You can update the deadline
+                    <router-link :to="manageAssigURL">here</router-link>.
+                </span>
+
+                </span v-else>
+                     Please ask your teacher to set a deadline before you
+                     can submit your work.
+                </span>
+            </p>
+
+            <p>
+                {{ fileUploaderDisabledMessage }}
+            </p>
+            </span>
         </b-alert>
 
         <span v-else>
@@ -48,7 +66,6 @@
 import { SubmissionList, Loader, SubmitButton, SubmissionUploader } from '@/components';
 import { mapGetters, mapActions } from 'vuex';
 
-import ltiProviders from '@/lti_providers';
 import * as assignmentState from '@/store/assignment-states';
 
 import { setPageTitle, pageTitleSep } from './title';
@@ -65,6 +82,7 @@ export default {
             canListUsers: null,
             canSeeAssignee: false,
             canAssignGrader: false,
+            canEditDeadline: false,
             wrongFiles: [],
         };
     },
@@ -108,21 +126,15 @@ export default {
         },
 
         fileUploaderDisabledMessage() {
-            const isLTI = this.assignment.is_lti;
-            const ltiProvider = this.assignment.lti_provider;
-            const { deadline } = this.assignment;
-
-            if (isLTI && !this.$inLTI) {
-                return 'You can only submit this assignment from within your LMS';
+            if (this.assignment.is_lti && !this.$inLTI) {
+                return 'You can only submit this assignment from within your LMS.';
             } else if (this.$inLTI && this.$LTIAssignmentId == null) {
                 return "You didn't launch the assignment using LTI, please navigate to the 'Assignments' page and submit your work there.";
             } else if (this.$inLTI && this.assignmentId !== this.$LTIAssignmentId) {
                 return 'You launched CodeGrade for a different assignment. Please retry opening the correct assignment.';
-            } else if (isLTI && !ltiProviders[ltiProvider].supportsDeadline && deadline != null) {
-                return 'The deadline for this assignment has not yet been set. Please ask your teacher to set a deadline before you can submit your work.';
-            } else {
-                return undefined;
             }
+
+            return '';
         },
 
         fileUploaderDisabled() {
@@ -135,6 +147,16 @@ export default {
             } else {
                 return false;
             }
+        },
+
+        manageAssigURL() {
+            return {
+                name: 'manage_assignment',
+                params: {
+                    courseId: this.courseId,
+                    assignmentId: this.assignmentId,
+                },
+            };
         },
     },
 
@@ -177,6 +199,7 @@ export default {
                         'can_see_grade_before_open',
                         'can_upload_after_deadline',
                         'can_list_course_users',
+                        'can_edit_assignment_info',
                     ],
                     this.courseId,
                 ),
@@ -192,6 +215,7 @@ export default {
                         before,
                         afterDeadline,
                         canList,
+                        canEditDeadline,
                     ],
                 ]) => {
                     setPageTitle(`${this.assignment.name} ${pageTitleSep} Submissions`);
@@ -211,6 +235,7 @@ export default {
                             this.canDownload = before;
                         }
                     }
+                    this.canEditDeadline = canEditDeadline;
 
                     this.loading = false;
                 },
@@ -255,5 +280,11 @@ export default {
 #wrong-files-modal ul {
     max-height: 50vh;
     overflow-y: auto;
+}
+
+.disabled-warning {
+    p:last-child {
+        margin-bottom: 0;
+    }
 }
 </style>
