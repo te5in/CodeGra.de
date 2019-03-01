@@ -121,11 +121,17 @@ class Course(Base):
         if psef.current_user.has_permission(
             CoursePermission.can_see_hidden_assignments, self.id
         ):
-            return sorted(self.assignments, key=lambda item: item.deadline)
+            return sorted(
+                self.assignments,
+                key=lambda item: item.deadline or datetime.datetime(200, 1, 1)
+            )
         else:
+            # TODO: find better solution than using a date long in the
+            # past.
             return sorted(
                 (a for a in self.assignments if not a.is_hidden),
-                key=lambda item: item.deadline
+                key=
+                lambda item: item.deadline or datetime.datetime(2000, 1, 1)
             )
 
     def get_all_users_in_course(self) -> '_MyQuery[t.Tuple[User, CourseRole]]':
