@@ -25,7 +25,8 @@
                 </span>
 
                 <span v-else-if="canEditDeadline">
-                    Please update the deadline in your LMS.
+                    Please update the deadline in
+                    {{ assignment.ltiProvider }}.
                 </span>
 
                 <span v-else>
@@ -132,7 +133,7 @@ export default {
 
         fileUploaderDisabledMessage() {
             if (this.assignment.is_lti && !this.$inLTI) {
-                return 'You can only submit this assignment from within your LMS.';
+                return `You can only submit this assignment from within ${assignment.ltiProvider}.`;
             } else if (this.$inLTI && this.$LTIAssignmentId == null) {
                 return "You didn't launch the assignment using LTI, please navigate to the 'Assignments' page and submit your work there.";
             } else if (this.$inLTI && this.assignmentId !== this.$LTIAssignmentId) {
