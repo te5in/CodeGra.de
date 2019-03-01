@@ -264,7 +264,7 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
         lti_class = None
 
     if 'state' in content:
-        if assig.is_lti && lti_class.supports_state_management():
+        if assig.is_lti and lti_class.supports_state_management():
             raise APIException(
                 'The state of this assignment must be set in the LMS',
                 f'{assig.name} is an LTI assignment',
