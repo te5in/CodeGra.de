@@ -18,7 +18,7 @@
             {{ fileUploaderDisabledMessage }}
         </b-alert>
 
-        <span v-else id="submission-file-uploader-wrapper">
+        <span v-else>
             <b-alert show variant="info" class="assignment-alert"
                         v-if="assignment.group_set">
                 This assignment is a group assignment.
@@ -29,9 +29,9 @@
                 <template v-else>
                     You don't have to be member of group to submit.
                 </template>
-                You can create or join
-                groups <router-link class="inline-link"
-                                    :to="groupSetPageLink">here</router-link>.
+                You can create or join groups
+                <router-link class="inline-link"
+                             :to="groupSetPageLink">here</router-link>.
                 When submitting you will always submit for your entire group.
             </b-alert>
             <submission-uploader :assignment="assignment"
