@@ -107,7 +107,7 @@ export default {
         },
 
         assignment() {
-            return this.assignments[this.assignmentId];
+            return Object.assign({}, this.assignments[this.assignmentId], { deadline: null });
         },
 
         submissions() {
