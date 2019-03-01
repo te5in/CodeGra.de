@@ -15,25 +15,28 @@
     <div v-if="canUpload">
         <b-alert show variant="warning"
                  class="disabled-warning"
-                 v-if="fileUploaderDisabledMessage">
+                 v-if="uploaderDisabled">
             <p v-if="!assignment.deadline">
                 The deadline for this assignment has not yet been set.
 
-                <span v-if="canEditDeadline">
+                <span v-if="canEditDeadline && deadlineEditable">
                     You can update the deadline
                     <router-link :to="manageAssigURL">here</router-link>.
                 </span>
 
-                </span v-else>
+                <span v-else-if="canEditDeadline">
+                    Please update the deadline in your LMS.
+                </span>
+
+                <span v-else>
                      Please ask your teacher to set a deadline before you
                      can submit your work.
                 </span>
             </p>
 
-            <p>
+            <p v-if="fileUploaderDisabledMessage">
                 {{ fileUploaderDisabledMessage }}
             </p>
-            </span>
         </b-alert>
 
         <span v-else>
@@ -66,6 +69,7 @@
 import { SubmissionList, Loader, SubmitButton, SubmissionUploader } from '@/components';
 import { mapGetters, mapActions } from 'vuex';
 
+import ltiProviders from '@/lti_providers';
 import * as assignmentState from '@/store/assignment-states';
 
 import { setPageTitle, pageTitleSep } from './title';
@@ -84,6 +88,7 @@ export default {
             canAssignGrader: false,
             canEditDeadline: false,
             wrongFiles: [],
+            ltiProviders,
         };
     },
 
@@ -157,6 +162,15 @@ export default {
                     assignmentId: this.assignmentId,
                 },
             };
+        },
+
+        uploaderDisabled() {
+            return this.fileUploaderDisabledMessage || !this.assignment.deadline;
+        },
+
+        deadlineEditable() {
+            const provider = this.assignment.lti_provider;
+            return provider ? !ltiProviders[provider].supportsDeadline : true;
         },
     },
 
