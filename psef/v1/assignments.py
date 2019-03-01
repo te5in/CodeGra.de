@@ -267,8 +267,7 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
         if assig.is_lti and lti_class.supports_state_management():
             raise APIException(
                 'The state of this assignment must be set in the LMS',
-                f'{assig.name} is an LTI assignment',
-                APICodes.UNSUPPORTED, 400
+                f'{assig.name} is an LTI assignment', APICodes.UNSUPPORTED, 400
             )
 
         auth.ensure_permission(CPerm.can_edit_assignment_info, assig.course_id)
@@ -288,8 +287,7 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
         if assig.is_lti:
             raise APIException(
                 'The name of this assignment should be changed in the LMS',
-                f'{assig.name} is an LTI assignment',
-                APICodes.UNSUPPORTED, 400
+                f'{assig.name} is an LTI assignment', APICodes.UNSUPPORTED, 400
             )
 
         auth.ensure_permission(CPerm.can_edit_assignment_info, assig.course_id)
@@ -310,8 +308,7 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
         if assig.is_lti and lti_class.supports_deadline():
             raise APIException(
                 'The deadline of this assignment should be set in the LMS.',
-                f'{assig.name} is an LTI assignment',
-                APICodes.UNSUPPORTED, 400
+                f'{assig.name} is an LTI assignment', APICodes.UNSUPPORTED, 400
             )
 
         auth.ensure_permission(CPerm.can_edit_assignment_info, assig.course_id)
@@ -665,6 +662,14 @@ def upload_work(assignment_id: int) -> ExtendedJSONResponse[models.Work]:
     )
     assig = helpers.get_or_404(models.Assignment, assignment_id)
     given_author = request.args.get('author', None)
+
+    if assig.deadline is None:
+        raise APIException(
+            'The deadline for this assignment has not yet been set. Please ask your teacher to set a deadline before you can submit your work.',
+            f'The deadline for assignment {assig.name} is unset.',
+            APICodes.ASSIGNMENT_DEADLINE_UNSET,
+            400,
+        )
 
     if given_author is None:
         author = current_user

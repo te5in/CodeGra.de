@@ -306,7 +306,7 @@ export default {
         },
 
         canEditState() {
-            return this.permissions.can_edit_assignment_info
+            return this.permissions.can_edit_assignment_info;
         },
 
         canEditInfo() {

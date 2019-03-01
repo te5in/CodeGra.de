@@ -138,8 +138,10 @@ export default {
         },
 
         canManageLTIState() {
-            return this.assignment.is_lti
-                && ltiProviders[this.assignment.lti_provider].supportsStateManagement;
+            return (
+                this.assignment.is_lti &&
+                ltiProviders[this.assignment.lti_provider].supportsStateManagement
+            );
         },
     },
 

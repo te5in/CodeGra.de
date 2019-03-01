@@ -13,15 +13,12 @@
         @assigneeUpdated="updateAssignee"/>
 
     <div v-if="canUpload">
-        <b-popover target="submission-file-uploader-wrapper"
-                   placement="top"
-                   v-if="fileUploaderDisabled"
-                   triggers="hover">
-            <span>
-                {{ fileUploaderDisabledMessage }}
-            </span>
-        </b-popover>
-        <span id="submission-file-uploader-wrapper">
+        <b-alert show variant="warning"
+                 v-if="fileUploaderDisabledMessage">
+            {{ fileUploaderDisabledMessage }}
+        </b-alert>
+
+        <span v-else id="submission-file-uploader-wrapper">
             <b-alert show variant="info" class="assignment-alert"
                         v-if="assignment.group_set">
                 This assignment is a group assignment.
@@ -51,7 +48,8 @@
 import { SubmissionList, Loader, SubmitButton, SubmissionUploader } from '@/components';
 import { mapGetters, mapActions } from 'vuex';
 
-import * as assignmentState from '../store/assignment-states';
+import ltiProviders from '@/lti_providers';
+import * as assignmentState from '@/store/assignment-states';
 
 import { setPageTitle, pageTitleSep } from './title';
 
@@ -110,12 +108,18 @@ export default {
         },
 
         fileUploaderDisabledMessage() {
-            if (this.assignment.is_lti && !this.$inLTI) {
+            const isLTI = this.assignment.is_lti;
+            const ltiProvider = this.assignment.lti_provider;
+            const { deadline } = this.assignment;
+
+            if (isLTI && !this.$inLTI) {
                 return 'You can only submit this assignment from within your LMS';
             } else if (this.$inLTI && this.$LTIAssignmentId == null) {
                 return "You didn't launch the assignment using LTI, please navigate to the 'Assignments' page and submit your work there.";
             } else if (this.$inLTI && this.assignmentId !== this.$LTIAssignmentId) {
                 return 'You launched CodeGrade for a different assignment. Please retry opening the correct assignment.';
+            } else if (isLTI && !ltiProviders[ltiProvider].supportsDeadline && deadline != null) {
+                return '';
             } else {
                 return undefined;
             }
