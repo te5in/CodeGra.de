@@ -119,7 +119,7 @@ export default {
             } else if (this.$inLTI && this.assignmentId !== this.$LTIAssignmentId) {
                 return 'You launched CodeGrade for a different assignment. Please retry opening the correct assignment.';
             } else if (isLTI && !ltiProviders[ltiProvider].supportsDeadline && deadline != null) {
-                return '';
+                return 'The deadline for this assignment has not yet been set. Please ask your teacher to set a deadline before you can submit your work.';
             } else {
                 return undefined;
             }
