@@ -59,7 +59,20 @@
                 </b-form-fieldset>
 
                 <b-form-fieldset v-if="canEditDeadline">
-                    <b-input-group prepend="Deadline">
+                    <b-input-group>
+                        <b-input-group-prepend is-text slot="prepend">
+                            Deadline
+
+                            <description-popover
+                                v-if="ltiProvider && !ltiProvider.supportsDeadline">
+                                <template slot="description">
+                                    The LMS did not pass this assignment's
+                                    deadline on to CodeGrade. Students will not
+                                    be able to submit their work until the
+                                    deadline is set here.
+                                </template>
+                            </description-popover>
+                        </b-input-group-prepend>
                         <datetime-picker v-model="assignmentTempDeadline"/>
                         <b-input-group-append>
                             <submit-button :submit="submitDeadline"
@@ -305,6 +318,12 @@ export default {
             return `/api/v1/assignments/${this.assignment.id}`;
         },
 
+        ltiProvider() {
+            const ltiProvider = this.assignment.lti_provider;
+
+            return ltiProvider ? ltiProviders[ltiProvider] : null;
+        },
+
         canEditState() {
             return this.permissions.can_edit_assignment_info;
         },
@@ -318,19 +337,15 @@ export default {
         },
 
         canEditDeadline() {
-            const ltiProvider = ltiProviders[this.assignment.lti_provider];
-            console.log(ltiProvider);
             return (
-                (!ltiProvider || !ltiProvider.supportsDeadline) &&
+                (!this.ltiProvider || !this.ltiProvider.supportsDeadline) &&
                 this.permissions.can_edit_assignment_info
             );
         },
 
         canEditMaxGrade() {
-            const ltiProvider = ltiProviders[this.assignment.lti_provider];
-            console.log(ltiProvider);
             return (
-                (!ltiProvider || ltiProvider.supportsBonusPoints) &&
+                (!this.ltiProvider || this.ltiProvider.supportsBonusPoints) &&
                 this.permissions.can_edit_maximum_grade
             );
         },
