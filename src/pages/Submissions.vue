@@ -12,7 +12,7 @@
         :can-assign-grader="canAssignGrader"
         @assigneeUpdated="updateAssignee"/>
 
-    <div v-if="canUpload">
+    <div v-if="canUpload || !assignment.deadline">
         <b-alert show variant="warning"
                  class="disabled-warning"
                  v-if="uploaderDisabled">
