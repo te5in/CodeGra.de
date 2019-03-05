@@ -6,7 +6,7 @@
                        v-if="canManageLTIState"
                        :size="size"
                        :variant="ltiHiddenOpenVariant"
-                       v-b-popover.window.top.hover="'Hidden or open, managed by LMS'"
+                       v-b-popover.window.top.hover="'Hidden or open, managed by ' . lmsName"
                        :submit="() => updateState(states.OPEN)"
                        @success="afterUpdateState"
                        :icon-scale="iconScale"
@@ -138,10 +138,11 @@ export default {
         },
 
         canManageLTIState() {
-            return (
-                this.assignment.is_lti &&
-                ltiProviders[this.assignment.lti_provider].supportsStateManagement
-            );
+            return this.assignment.is_lti && ltiProviders[this.lmsName].supportsStateManagement;
+        },
+
+        lmsName() {
+            return this.assignment.lti_provider;
         },
     },
 

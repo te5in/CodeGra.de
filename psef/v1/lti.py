@@ -137,6 +137,7 @@ def second_phase_lti_launch() -> helpers.JSONResponse[
     result = {
         'assignment': assig,
         'new_role_created': new_role_created,
+        'custom_lms_name': lti_classes.get_key(inst.__class__),
     }
     if new_token is not None:
         result['access_token'] = new_token

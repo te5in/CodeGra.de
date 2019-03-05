@@ -75,7 +75,9 @@ export default {
                             this.$toasted.info(
                                 `Your email was updated to "${
                                     data.updated_email
-                                }" which is the email registered with your LMS.`,
+                                }" which is the email registered with your ${
+                                    data.custom_lms_name
+                                }.`,
                                 {
                                     position: 'bottom-center',
                                     closeOnSwipe: false,

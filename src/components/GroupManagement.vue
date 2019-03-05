@@ -210,6 +210,10 @@ export default {
             return this.group.members.length >= this.groupSet.maximum_size;
         },
 
+        lmsName() {
+            return this.assignment.lti_provider;
+        },
+
         ltiTexts() {
             const divStart = '<div style="text-align: justify">';
             const divEnd = '</div>';
@@ -218,8 +222,8 @@ export default {
             const makeName = user => (myId === user.id ? 'You' : this.$htmlEscape(user.name));
 
             const loading = user => `${divStart}We cannot submit the
-submission. ${makeName(user)} should open the assignment through the LMS (like Canvas) to
-resolve this issue.${divEnd}`;
+submission. ${makeName(user)} should open the assignment through
+${this.lmsName} to resolve this issue.${divEnd}`;
 
             const done = () => `${divStart}We can submit the submission. No
 action is required.${divEnd}`;

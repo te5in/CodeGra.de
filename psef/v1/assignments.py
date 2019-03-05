@@ -260,13 +260,18 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
 
     if assig.is_lti:
         lti_class = assig.course.lti_provider.lti_class
+        lms_name = assig.course.lti_provider.lms_name
     else:
         lti_class = None
+        lms_name = None
 
     if 'state' in content:
         if lti_class is not None and lti_class.supports_state_management():
             raise APIException(
-                'The state of this assignment must be set in the LMS',
+                (
+                    'The state of this assignment must be set in '
+                    f'{lms_name}.'
+                ),
                 f'{assig.name} is an LTI assignment', APICodes.UNSUPPORTED, 400
             )
 
@@ -286,7 +291,10 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
     if 'name' in content:
         if assig.is_lti:
             raise APIException(
-                'The name of this assignment should be changed in the LMS',
+                (
+                    'The name of this assignment should be changed in '
+                    f'{lms_name}.'
+                ),
                 f'{assig.name} is an LTI assignment', APICodes.UNSUPPORTED, 400
             )
 
@@ -307,7 +315,10 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
     if 'deadline' in content:
         if assig.is_lti and lti_class.supports_deadline():
             raise APIException(
-                'The deadline of this assignment should be set in the LMS.',
+                (
+                    'The deadline of this assignment should be set in '
+                    f'{lms_name}.'
+                ),
                 f'{assig.name} is an LTI assignment', APICodes.UNSUPPORTED, 400
             )
 
@@ -324,8 +335,8 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
     if 'max_grade' in content:
         if assig.is_lti and not lti_class.supports_max_points():
             raise APIException(
-                'LMS does not support setting the maximum grade',
-                'LMS does not support setting the maximum grade',
+                f'{lms_name} does not support setting the maximum grade',
+                f'{lms_name} does not support setting the maximum grade',
                 APICodes.UNSUPPORTED, 400
             )
 
@@ -690,8 +701,9 @@ def upload_work(assignment_id: int) -> ExtendedJSONResponse[models.Work]:
             assig.id not in member.assignment_results
             for member in group.members
         ):
+            lms_name = assig.course.lti_provider.lms_name
             raise APIException(
-                "Some authors haven't opened the assignment in the LMS yet",
+                "Some authors haven't opened the assignment in {lms_name} yet",
                 'No assignment_results found for some authors in the group',
                 APICodes.ASSIGNMENT_RESULT_GROUP_NOT_READY,
                 400,
