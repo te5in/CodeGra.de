@@ -78,7 +78,11 @@ export function sortSubmissions(a, b, sortBy) {
         const ret2 = cmpOneNull(firstF, secondF);
         if (ret2 !== null) return ret2;
 
-        return firstF - secondF;
+        const res = firstF - secondF;
+        if (res) {
+            return res;
+        }
+        return sortSubmissions(a, b, 'user');
     }
 
     return 0;
@@ -113,12 +117,14 @@ export default class FilterSubmissionsManager {
         return false;
     }
 
-    filter(submissions, latest, mine, userId, filter, sortBy) {
+    filter(submissions, {
+        latest, mine, userId, filter, sortBy, asc,
+    } = {}) {
         this.query = filter;
         if (submissions.length === 0) {
             return [];
         }
-        return filterSubmissions(
+        const res = filterSubmissions(
             submissions,
             latest,
             mine,
@@ -126,5 +132,9 @@ export default class FilterSubmissionsManager {
             filter,
             this.checkReally.bind(this),
         ).sort((a, b) => sortSubmissions(a, b, sortBy));
+        if (!asc) {
+            res.reverse();
+        }
+        return res;
     }
 }
