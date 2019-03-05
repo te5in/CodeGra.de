@@ -740,7 +740,8 @@ class Assignment(Base):  # pylint: disable=too-many-public-methods
                 'deadline': str, # ISO UTC date.
                 'name': str, # Assignment name.
                 'is_lti': bool, # Is this an LTI assignment.
-                'lti_provider': str, # The LMS providing this LTI assignment.
+                'lti_provider': t.Optional[str], # The LMS providing this LTI
+                                                 # assignment.
                 'course': models.Course, # Course of this assignment.
                 'cgignore': str, # The cginore of this assignment.
                 'whitespace_linter': bool, # Has the whitespace linter

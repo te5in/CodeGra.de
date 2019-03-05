@@ -936,7 +936,6 @@ class BlackboardLTI(LTI):
             assig_id=submission.assignment_id,
             sub_id=submission.id,
         )
-        # TODO: Review this...
         # Namespacing this get parameter is important as Canvas duplicates all
         # get parameters in the body. This makes sure we won't override actual
         # launch parameters. Also the url doesn't need to be quoted, as canvas

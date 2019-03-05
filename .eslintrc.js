@@ -42,6 +42,7 @@ module.exports = {
         'no-bitwise': 'off',
         'no-mixed-operators': 'off',
         'arrow-parens': ['error', 'as-needed'],
+        'prefer-destructuring': 'off',
 
         // allow vuex
         'no-param-reassign': ["error", { 'props': false }],

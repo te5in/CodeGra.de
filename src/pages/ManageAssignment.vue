@@ -66,10 +66,10 @@
                             <description-popover
                                 v-if="ltiProvider && !ltiProvider.supportsDeadline">
                                 <template slot="description">
-                                    The LMS did not pass this assignment's
-                                    deadline on to CodeGrade. Students will not
-                                    be able to submit their work until the
-                                    deadline is set here.
+                                    The {{ lmsName }} did not pass this
+                                    assignment's deadline on to CodeGrade.
+                                    Students will not be able to submit their
+                                    work until the deadline is set here.
                                 </template>
                             </description-popover>
                         </b-input-group-prepend>
@@ -319,10 +319,13 @@ export default {
             return `/api/v1/assignments/${this.assignment.id}`;
         },
 
-        ltiProvider() {
-            const ltiProvider = this.assignment.lti_provider;
+        lmsName() {
+            return this.assignment.lti_provider;
+        },
 
-            return ltiProvider ? ltiProviders[ltiProvider] : null;
+        ltiProvider() {
+            const lms = this.lmsName;
+            return lms ? ltiProviders[lms] : null;
         },
 
         canEditState() {

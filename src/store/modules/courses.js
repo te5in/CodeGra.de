@@ -195,7 +195,7 @@ const mutations = {
             course.assignments.forEach(assignment => {
                 assignment.course = course;
 
-                let { deadline } = assignment;
+                let deadline = assignment.deadline;
 
                 if (deadline != null) {
                     deadline = moment.utc(assignment.deadline, moment.ISO_8601).local();

@@ -104,22 +104,19 @@ export default {
                         }
                     },
                     err => {
-                        if (first && err.response && err.response.status === 401) {
-                            this.logout()
-                                .then(() => {
-                                    this.secondStep(false);
-                                })
-                                .catch(() => {
-                                    this.error = true;
-                                });
-                        }
-                        try {
+                        this.error = true;
+                        if (err.response) {
                             this.errorMsg = err.response.data.message;
-                        } finally {
-                            this.error = true;
+                            if (first && err.response.status === 401) {
+                                return this.logout().then(() => this.secondStep(false));
+                            }
                         }
+                        return null;
                     },
-                );
+                )
+                .catch(() => {
+                    this.error = true;
+                });
         },
     },
 

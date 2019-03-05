@@ -25,8 +25,7 @@
                 </span>
 
                 <span v-else-if="canEditDeadline">
-                    Please update the deadline in
-                    {{ assignment.lti_provider }}.
+                    Please update the deadline in {{ lmsName }}.
                 </span>
 
                 <span v-else>
@@ -131,13 +130,24 @@ export default {
             return this.$route.params.courseId;
         },
 
+        lmsName() {
+            return this.assignment.lti_provider;
+        },
+
         fileUploaderDisabledMessage() {
             if (this.assignment.is_lti && !this.$inLTI) {
-                return `You can only submit this assignment from within ${this.assignment.lti_provider}.`;
+                return `You can only submit this assignment from within ${this.lmsName}.`;
             } else if (this.$inLTI && this.$LTIAssignmentId == null) {
-                return "You didn't launch the assignment using LTI, please navigate to the 'Assignments' page and submit your work there.";
+                return (
+                    "You didn't launch the assignment using LTI, please " +
+                    "navigate to the 'Assignments' page and submit your " +
+                    'work there.'
+                );
             } else if (this.$inLTI && this.assignmentId !== this.$LTIAssignmentId) {
-                return 'You launched CodeGrade for a different assignment. Please retry opening the correct assignment.';
+                return (
+                    'You launched CodeGrade for a different assignment. ' +
+                    'Please retry opening the correct assignment.'
+                );
             }
 
             return '';
@@ -170,8 +180,8 @@ export default {
         },
 
         deadlineEditable() {
-            const provider = this.assignment.lti_provider;
-            return provider ? !ltiProviders[provider].supportsDeadline : true;
+            const lms = this.lmsName;
+            return lms ? !ltiProviders[lms].supportsDeadline : true;
         },
     },
 
