@@ -12,9 +12,21 @@
                               :editable="false"
                               v-if="!small"
                               size="sm"/>
-            <small v-else class="deadline">Due {{ readableDeadline }}</small>
+            <small v-else-if="assignment.deadline" class="deadline">
+                Due {{ readableDeadline }}
+            </small>
+
+            <small v-else class="deadline text-muted">
+                <i>No deadline</i>
+            </small>
         </div>
-        <small v-if="!small" class="deadline">Due {{ readableDeadline }}</small>
+        <small v-if="!small && assignment.deadline" class="deadline">
+            Due {{ readableDeadline }}
+        </small>
+        <small v-else-if="!small" class="deadline text-muted">
+            <i>No deadline</i>
+        </small>
+
         <small v-if="!small" class="course">{{ assignment.course.name }}</small>
     </router-link>
     <router-link class="sidebar-item manage-link"
