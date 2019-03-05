@@ -394,8 +394,11 @@ export default {
             this.rubrics = serverRubrics.map(origRow => {
                 const row = Object.assign({}, origRow);
 
-                // We slice here so we have a complete new object to sort.
-                row.items = row.items.slice().sort((a, b) => a.points - b.points);
+                // We map and `Object.assign` here so we have a complete new
+                // object to sort.
+                row.items = row.items
+                    .map(item => Object.assign({}, item))
+                    .sort((a, b) => a.points - b.points);
                 if (this.editable) {
                     row.items.push(this.getEmptyItem());
                 }
