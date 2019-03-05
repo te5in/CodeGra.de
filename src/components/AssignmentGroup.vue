@@ -9,8 +9,7 @@
             <tr v-if="groupSets.length === 0"
                 :key="-2">
                 <td colspan="2">
-                    There are no group sets for this course, they can be created
-                    <router-link :to="manageLink" class="inline-link">here</router-link>.
+                    There are no group sets for this course.
                 </td>
             </tr>
             <tr v-else
