@@ -853,7 +853,7 @@ class BlackboardLTI(LTI):
 
     @staticmethod
     def supports_lti_launch_as_result() -> bool:
-        return False
+        return True
 
     @staticmethod
     def get_lti_properties() -> t.List[LTIProperty]:
@@ -1108,7 +1108,7 @@ class OutcomeRequest:
 
                 httplib2.Http.__init__(self, cache=cache, timeout=timeout, proxy_info=proxy_info, disable_ssl_certificate_validation=True)
 
-        client = oauth2.Client(consumer)
+        client = MyClient(consumer)
 
         # monkeypatch the _normalize function to ensures that the
         # ``Authorization`` header is NOT lower cased
