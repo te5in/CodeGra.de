@@ -853,7 +853,7 @@ class BlackboardLTI(LTI):
 
     @staticmethod
     def supports_lti_launch_as_result() -> bool:
-        return True
+        return False
 
     @staticmethod
     def get_lti_properties() -> t.List[LTIProperty]:
