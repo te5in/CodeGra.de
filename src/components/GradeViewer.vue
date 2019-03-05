@@ -173,7 +173,7 @@ export default {
                 const fval = parseFloat(val);
                 return fval
                     .toFixed(10)
-                    .replace(/[.,]([1-9]*)0+$/, '.$1')
+                    .replace(/[.,]([0-9]*?)0*$/, '.$1')
                     .replace(/\.$/, '');
             };
             const scored = toFixed(this.rubricPoints.selected);
