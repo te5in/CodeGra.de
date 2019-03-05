@@ -3,7 +3,9 @@
 <div class="manage-assignment loading" v-if="loading">
     <local-header>
         <template slot="title" v-if="assignment">
-            {{ assignment.name }} - <small>{{ formattedDeadline }}</small>
+            {{ assignment.name }}
+            <small v-if="formattedDeadline">- {{ formattedDeadline }}</small>
+            <small v-else class="text-muted"><i>- No deadline</i></small>
         </template>
         <template slot="title" v-else>
         </template>
@@ -15,7 +17,9 @@
     <local-header always-show-extra-slot
                   class="header">
         <template slot="title">
-            {{ assignment.name }} - <small>{{ formattedDeadline  }}</small>
+            {{ assignment.name }}
+            <small v-if="formattedDeadline">- {{ formattedDeadline  }}</small>
+            <small v-else class="text-muted"><i>- No deadline</i></small>
         </template>
         <assignment-state :assignment="assignment"
                           class="assignment-state"
