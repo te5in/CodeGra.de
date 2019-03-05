@@ -101,7 +101,8 @@ class LTIProvider(Base):
         :getter: Get the LTI class name.
         :setter: Impossible as this is fixed during startup of CodeGrade.
         """
-        cls = psef.lti.lti_classes.get(self.lms_name)
+        lms = self.lms_name
+        cls = psef.lti.lti_classes.get(lms)
         if cls is None:
             raise psef.errors.APIException(
                 'The requested LMS is not supported',

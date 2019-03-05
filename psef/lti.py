@@ -1094,21 +1094,7 @@ class OutcomeRequest:
             key=self.consumer_key, secret=self.consumer_secret
         )
 
-        class MyClient(oauth2.Client):
-            def __init__(self, consumer, token=None, cache=None, timeout=None, proxy_info=None):
-                if consumer is not None and not isinstance(consumer, oauth2.Consumer):
-                    raise ValueError("Invalid consumer.")
-
-                if token is not None and not isinstance(token, oauth2.Token):
-                    raise ValueError("Invalid token.")
-
-                self.consumer = consumer
-                self.token = token
-                self.method = oauth2.SignatureMethod_HMAC_SHA1()
-
-                httplib2.Http.__init__(self, cache=cache, timeout=timeout, proxy_info=proxy_info, disable_ssl_certificate_validation=True)
-
-        client = MyClient(consumer)
+        client = oauth2.Client(consumer)
 
         # monkeypatch the _normalize function to ensures that the
         # ``Authorization`` header is NOT lower cased
