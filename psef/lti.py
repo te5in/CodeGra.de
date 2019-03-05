@@ -853,7 +853,7 @@ class BlackboardLTI(LTI):
 
     @staticmethod
     def supports_lti_launch_as_result() -> bool:
-        return False
+        return True
 
     @staticmethod
     def get_lti_properties() -> t.List[LTIProperty]:
@@ -1093,6 +1093,20 @@ class OutcomeRequest:
         consumer = oauth2.Consumer(
             key=self.consumer_key, secret=self.consumer_secret
         )
+
+        class MyClient(oauth2.Client):
+            def __init__(self, consumer, token=None, cache=None, timeout=None, proxy_info=None):
+                if consumer is not None and not isinstance(consumer, oauth2.Consumer):
+                    raise ValueError("Invalid consumer.")
+
+                if token is not None and not isinstance(token, oauth2.Token):
+                    raise ValueError("Invalid token.")
+
+                self.consumer = consumer
+                self.token = token
+                self.method = oauth2.SignatureMethod_HMAC_SHA1()
+
+                httplib2.Http.__init__(self, cache=cache, timeout=timeout, proxy_info=proxy_info, disable_ssl_certificate_validation=True)
 
         client = oauth2.Client(consumer)
 
