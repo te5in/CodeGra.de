@@ -1542,7 +1542,7 @@ def start_plagiarism_check(
         base_code = helpers.get_files_from_request(
             max_size=current_app.max_large_file_size, keys=['base_code']
         )[0]
-        base_code_dir, _ = psef.files.extract_to_temp(
+        base_code_dir, _, __ = psef.files.extract_to_temp(
             base_code,
             psef.files.IgnoreFilterManager(None),
             max_size=current_app.max_large_file_size,

@@ -1370,29 +1370,19 @@ def test_upload_archive_with_many_files(
         )
 
 
+@pytest.mark.parametrize('ignored_files', ['keep', None, 'delete', 'error'])
 def test_upload_empty_archive(
-    student_user, test_client, error_template, logged_in, assignment
+    student_user, test_client, error_template, logged_in, assignment,
+    ignored_files
 ):
     filename = get_submission_archive('empty_submission.tar.gz')
     with logged_in(student_user):
+        url = f'/api/v1/assignments/{assignment.id}/submission'
+        if ignored_files is not None:
+            url = f'{url}?ignored_files={ignored_files}'
         res = test_client.req(
             'post',
-            f'/api/v1/assignments/{assignment.id}/submission',
-            400,
-            real_data={'file': (filename, 'ar.tar.gz')},
-            result=error_template
-        )
-        assert res['message'].startswith('No files found')
-
-
-def test_upload_empty_archive(
-    student_user, test_client, error_template, logged_in, assignment
-):
-    filename = get_submission_archive('empty_submission.tar.gz')
-    with logged_in(student_user):
-        res = test_client.req(
-            'post',
-            f'/api/v1/assignments/{assignment.id}/submission',
+            url,
             400,
             real_data={'file': (filename, 'ar.tar.gz')},
             result=error_template
