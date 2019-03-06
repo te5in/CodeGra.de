@@ -177,6 +177,13 @@ class LTI:  # pylint: disable=too-many-public-methods
 
     @staticmethod
     def supports_deadline() -> bool:
+        """Determines whether this LMS sends the deadline of an assignment
+        along with the lti launch request. If it does, the deadline for
+        that assignment cannot be changed from within CodeGrade.
+
+        :returns: A boolean indicating whether this LTI instance gives the
+            deadline to CodeGrade.
+        """
         return False
 
     @property
@@ -859,6 +866,10 @@ class BlackboardLTI(LTI):
         return False
 
     @property
+    def assignment_points_possible(self) -> float:
+        raise NotImplementedError
+
+    @property
     def username(self) -> str:
         return self.launch_params['lis_person_sourcedid']
 
@@ -894,6 +905,7 @@ class BlackboardLTI(LTI):
 
     @property
     def assignment_state(self) -> models._AssignmentStateEnum:
+        # pylint: disable=protected-access
         return models._AssignmentStateEnum.open
 
     @property

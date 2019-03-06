@@ -605,6 +605,11 @@ class Assignment(Base):  # pylint: disable=too-many-public-methods
 
     @property
     def lti_provider(self) -> t.Optional[str]:
+        """The LTI provider that provided this assignment.
+
+        :returns: The name of the LTI provider of this assignment or ``None``
+            if this is not an LTI assignment.
+        """
         if self.course.lti_provider is None:
             return None
 

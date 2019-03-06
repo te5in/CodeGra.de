@@ -224,6 +224,7 @@ def set_reminder(
 @api.route('/assignments/<int:assignment_id>', methods=['PATCH'])
 @auth.login_required
 def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
+    # pylint: disable=too-many-branches,too-many-statements
     """Update the given :class:`.models.Assignment` with new values.
 
     .. :quickref: Assignment; Update assignment information.
@@ -667,7 +668,11 @@ def upload_work(assignment_id: int) -> ExtendedJSONResponse[models.Work]:
 
     if assig.deadline is None:
         raise APIException(
-            'The deadline for this assignment has not yet been set. Please ask your teacher to set a deadline before you can submit your work.',
+            (
+                'The deadline for this assignment has not yet been set. ',
+                'Please ask your teacher to set a deadline before you can ',
+                'submit your work.'
+            ),
             f'The deadline for assignment {assig.name} is unset.',
             APICodes.ASSIGNMENT_DEADLINE_UNSET,
             400,
@@ -692,9 +697,9 @@ def upload_work(assignment_id: int) -> ExtendedJSONResponse[models.Work]:
             assig.id not in member.assignment_results
             for member in group.members
         ):
-            lms_name = assig.course.lti_provider.lms_name
+            lms = assig.course.lti_provider.lms_name
             raise APIException(
-                "Some authors haven't opened the assignment in {lms_name} yet",
+                f"Some authors haven't opened the assignment in {lms} yet",
                 'No assignment_results found for some authors in the group',
                 APICodes.ASSIGNMENT_RESULT_GROUP_NOT_READY,
                 400,
