@@ -85,6 +85,7 @@ PMD_MAVEN = open(
                 (
                     'Flake8', '', [
                         (1, 'W191'),
+                        (1, 'E117'),
                         (1, 'E211'),
                         (1, 'E201'),
                         (1, 'E202'),
@@ -104,17 +105,6 @@ PMD_MAVEN = open(
                         'Flake8',
                         '[flake8]\ndisable_noqa=Trues # This should crash', ''
                     )
-                ]
-            )
-        ),
-        run_error(crash='Flake8')(
-            (
-                'test_flake8.tar.gz', [
-                    (
-                        'Flake8',
-                        '[flake8]\ndisable_noqa=Trues # This should crash', ''
-                    ),
-                    ('Pylint', '', [(0, 'ERR')]),
                 ]
             )
         ),
@@ -171,6 +161,13 @@ PMD_MAVEN = open(
                 )
             ]
         ),
+        run_error(crash='Checkstyle')(
+            (
+                'test_invalid_java.tar.gz', [
+                    ('Checkstyle', CHECKSTYLE_GOOGLE, [])
+                ]
+            )
+        ),
         (
             'test_pylint.tar.gz', [
                 (
@@ -187,19 +184,24 @@ PMD_MAVEN = open(
                 )
             ]
         ),
-        ('test_flake8.tar.gz', [('Pylint', '', [(0, 'ERR')])]),
-        (
-            'test_flake8.tar.gz', [
-                ('Pylint', '', [(0, 'ERR')]),
-                (
-                    'Flake8', '', [
-                        (1, 'W191'),
-                        (1, 'E211'),
-                        (1, 'E201'),
-                        (1, 'E202'),
-                    ]
-                )
-            ]
+        run_error(crash='Pylint')(
+            ('test_flake8.tar.gz', [('Pylint', '', [])])
+        ),
+        run_error(crash='Pylint')(
+            (
+                'test_flake8.tar.gz', [
+                    ('Pylint', '', []),
+                    (
+                        'Flake8', '', [
+                            (1, 'W191'),
+                            (1, 'E117'),
+                            (1, 'E211'),
+                            (1, 'E201'),
+                            (1, 'E202'),
+                        ]
+                    )
+                ]
+            )
         ),
     ],
     indirect=['filename'],
@@ -252,6 +254,7 @@ def test_linters(
                         data=data,
                         result=error_template if run_err.get('error') else dict
                     )
+                    print(run_err.get('crash'), linter, res)
                     if run_err.get('crash') == linter and res['crashed'] == 3:
                         assert res['done'] == 0
                         assert res['working'] == 0
@@ -487,7 +490,7 @@ def test_whitespace_linter(
 @pytest.mark.parametrize(
     'filename,exps',
     [
-        ('test_flake8.tar.gz', ['W191', 'E211', 'E201', 'E202']),
+        ('test_flake8.tar.gz', ['W191', 'E117', 'E211', 'E201', 'E202']),
     ],
 )
 def test_lint_later_submission(
@@ -633,7 +636,7 @@ def test_non_existing_linter(
 @pytest.mark.parametrize(
     'filename,exps',
     [
-        ('test_flake8.tar.gz', ['W191', 'E211', 'E201', 'E202']),
+        ('test_flake8.tar.gz', ['W191', 'E117', 'E211', 'E201', 'E202']),
     ],
 )
 def test_lint_later_submission_disabled_linters(
@@ -689,3 +692,121 @@ def test_lint_later_submission_disabled_linters(
         ).all()
 
         assert not comments, "Make sure linter did not run"
+
+
+@pytest.mark.parametrize('filename', ['test_flake8.tar.gz'], indirect=True)
+def test_detail_of_linter(
+    teacher_user, student_user, test_client, logged_in, assignment_real_works,
+    request, error_template, session, monkeypatch_celery, monkeypatch
+):
+    assignment, single_work = assignment_real_works
+    assig_id = assignment.id
+
+    def error_run(*_, **__):
+        raise ValueError
+
+    monkeypatch.setattr(psef.linters.PMD, 'run', error_run)
+    monkeypatch.setattr(
+        psef.linters.PMD, 'validate_config', lambda *_, **__: None
+    )
+
+    with logged_in(teacher_user):
+        test_client.req(
+            'post',
+            f'/api/v1/assignments/{assig_id}/linter',
+            200,
+            data={
+                'name': 'Pylint',
+                'cfg': ''
+            },
+        )
+        test_client.req(
+            'post',
+            f'/api/v1/assignments/{assig_id}/linter',
+            200,
+            data={
+                'name': 'PMD',
+                'cfg': ''
+            },
+        )
+        test_client.req(
+            'post',
+            f'/api/v1/assignments/{assig_id}/linter',
+            200,
+            data={
+                'name': 'Flake8',
+                'cfg': ''
+            },
+        )
+        linter_result = test_client.req(
+            'get',
+            f'/api/v1/assignments/{assig_id}/linters/',
+            200,
+        )
+        pylint_seen = False
+        for linter in linter_result:
+            if 'id' not in linter:
+                continue
+            result = test_client.req(
+                'get',
+                f'/api/v1/linters/{linter["id"]}?extended',
+                200,
+                result={
+                    'id': str,
+                    'name': str,
+                    'tests': list,
+                }
+            )
+            if result['name'] == 'Pylint':
+                pylint_seen = True
+                assert all(t['state'] == 'crashed' for t in result['tests'])
+                with logged_in(student_user):
+                    test_client.req(
+                        'get',
+                        (
+                            f'/api/v1/linters/{linter["id"]}/linter_instances/'
+                            f'{result["tests"][0]["id"]}'
+                        ),
+                        403,
+                        result=error_template,
+                    )
+
+                inst = test_client.req(
+                    'get', (
+                        f'/api/v1/linters/{linter["id"]}/linter_instances/'
+                        f'{result["tests"][0]["id"]}'
+                    ),
+                    200,
+                    result={
+                        'id': str,
+                        'state': 'crashed',
+                        'work': dict,
+                        'error_summary': str,
+                        'stdout': str,
+                        'stderr': str,
+                    }
+                )
+                assert '`__init__`' in inst['error_summary']
+            else:
+                inst = test_client.req(
+                    'get', (
+                        f'/api/v1/linters/{linter["id"]}/linter_instances/'
+                        f'{result["tests"][0]["id"]}'
+                    ),
+                    200,
+                    result={
+                        'id': str,
+                        'state': str,
+                        'work': dict,
+                        'error_summary': str,
+                        '__allow_extra__': True,
+                    }
+                )
+                assert 'stdout' in inst
+                assert 'stderr' in inst
+                assert (result['name'] == 'PMD'
+                        ) == (inst['state'] == 'crashed')
+                assert bool(inst['error_summary']
+                            ) == (inst['state'] == 'crashed')
+
+        assert pylint_seen

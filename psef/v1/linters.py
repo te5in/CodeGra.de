@@ -5,11 +5,17 @@ of linters and their output.
 
 SPDX-License-Identifier: AGPL-3.0-only
 """
+import typing as t
+
+from sqlalchemy.orm import joinedload
 
 from . import api
 from .. import auth, models, helpers, features
 from ..models import db
-from ..helpers import JSONResponse, EmptyResponse, jsonify, make_empty_response
+from ..helpers import (
+    JSONResponse, EmptyResponse, ExtendedJSONResponse, jsonify,
+    make_empty_response
+)
 from ..permissions import CoursePermission as CPerm
 
 
@@ -43,7 +49,8 @@ def delete_linter_output(linter_id: str) -> EmptyResponse:
 
 @api.route('/linters/<linter_id>', methods=['GET'])
 @features.feature_required(features.Feature.LINTERS)
-def get_linter_state(linter_id: str) -> JSONResponse[models.AssignmentLinter]:
+def get_linter_state(linter_id: str) -> t.Union[ExtendedJSONResponse[
+    models.AssignmentLinter], JSONResponse[models.AssignmentLinter]]:
     """Get the state of the :class:`.models.AssignmentLinter` with the given
     id.
 
@@ -57,8 +64,53 @@ def get_linter_state(linter_id: str) -> JSONResponse[models.AssignmentLinter]:
                                  course attached to the linter with the given
                                  id. (INCORRECT_PERMISSION)
     """
-    linter = helpers.get_or_404(models.AssignmentLinter, linter_id)
+    options = None
+    if helpers.extended_requested():
+        options = [
+            joinedload(
+                models.AssignmentLinter.tests,
+            ).selectinload(
+                models.LinterInstance.work,
+            )
+        ]
+    linter = helpers.get_or_404(
+        models.AssignmentLinter, linter_id, options=options
+    )
 
     auth.ensure_permission(CPerm.can_use_linter, linter.assignment.course_id)
 
-    return jsonify(linter)
+    if helpers.extended_requested():
+        return helpers.extended_jsonify(
+            linter, use_extended=models.AssignmentLinter
+        )
+    else:
+        return jsonify(linter)
+
+
+@api.route(
+    '/linters/<linter_id>/linter_instances/<linter_instance_id>',
+    methods=['GET']
+)
+@features.feature_required(features.Feature.LINTERS)
+def get_linter_instance_state(linter_id: str, linter_instance_id: str
+                              ) -> ExtendedJSONResponse[models.LinterInstance]:
+    """Get the state of the :class:`.models.AssignmentLinter` with the given
+    id.
+
+    .. :quickref: Linter; Get the state of a given linter.
+
+    :param str linter_id: The id of the linter
+    :returns: A response containing the JSON serialized linter
+    """
+    linter_instance = helpers.filter_single_or_404(
+        models.LinterInstance, models.LinterInstance.id == linter_instance_id,
+        models.AssignmentLinter.id == linter_id
+    )
+
+    auth.ensure_permission(
+        CPerm.can_use_linter, linter_instance.work.assignment.course_id
+    )
+
+    return helpers.extended_jsonify(
+        linter_instance, use_extended=models.LinterInstance
+    )

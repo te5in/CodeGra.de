@@ -577,12 +577,11 @@ def test_delete_group(
     test_client, logged_in, prog_course, session, teacher_user, error_template
 ):
     user_only_own = create_user_with_perms(
-        session,
-        [CPerm.can_edit_own_groups, CPerm.can_submit_own_work], prog_course
+        session, [CPerm.can_edit_own_groups, CPerm.can_submit_own_work],
+        prog_course
     )
     user_other_too = create_user_with_perms(
-        session,
-        [CPerm.can_edit_others_groups], prog_course
+        session, [CPerm.can_edit_others_groups], prog_course
     )
 
     assig = [
@@ -657,12 +656,10 @@ def test_add_user_to_group(
     test_client, session, logged_in, teacher_user, prog_course, error_template
 ):
     user_only_own = create_user_with_perms(
-        session,
-        [CPerm.can_edit_own_groups], prog_course
+        session, [CPerm.can_edit_own_groups], prog_course
     )
     user_other_too = create_user_with_perms(
-        session,
-        [CPerm.can_edit_others_groups], prog_course
+        session, [CPerm.can_edit_others_groups], prog_course
     )
     nobody = create_user_with_perms(session, [], prog_course)
 
@@ -764,16 +761,13 @@ def test_submit_with_group(
     assignment
 ):
     user_full_group = create_user_with_perms(
-        session,
-        [CPerm.can_submit_own_work, CPerm.can_see_assignments], course
+        session, [CPerm.can_submit_own_work, CPerm.can_see_assignments], course
     )
     user_empty_group = create_user_with_perms(
-        session,
-        [CPerm.can_submit_own_work], course
+        session, [CPerm.can_submit_own_work], course
     )
     user_no_group = create_user_with_perms(
-        session,
-        [CPerm.can_submit_own_work], course
+        session, [CPerm.can_submit_own_work], course
     )
     user_no_perms = create_user_with_perms(session, [], course)
 
@@ -873,12 +867,10 @@ def test_submit_with_small_group(
     assignment
 ):
     user_no_group = create_user_with_perms(
-        session,
-        [CPerm.can_submit_own_work], course
+        session, [CPerm.can_submit_own_work], course
     )
     user_with_group = create_user_with_perms(
-        session,
-        [CPerm.can_submit_own_work], course
+        session, [CPerm.can_submit_own_work], course
     )
 
     with logged_in(teacher_user):
@@ -914,8 +906,8 @@ def test_remove_user_from_group(
 ):
     def make_user():
         return create_user_with_perms(
-            session,
-            [CPerm.can_edit_own_groups, CPerm.can_submit_own_work], prog_course
+            session, [CPerm.can_edit_own_groups, CPerm.can_submit_own_work],
+            prog_course
         )
 
     u1 = make_user()
@@ -1018,16 +1010,13 @@ def test_change_name_of_group(
             )
 
     u1 = create_user_with_perms(
-        session,
-        [CPerm.can_edit_own_groups], prog_course
+        session, [CPerm.can_edit_own_groups], prog_course
     )
     u2 = create_user_with_perms(
-        session,
-        [CPerm.can_edit_own_groups], prog_course
+        session, [CPerm.can_edit_own_groups], prog_course
     )
     u3 = create_user_with_perms(
-        session,
-        [CPerm.can_edit_own_groups], prog_course
+        session, [CPerm.can_edit_own_groups], prog_course
     )
 
     with logged_in(teacher_user):

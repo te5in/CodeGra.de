@@ -642,7 +642,7 @@ def create_new_file(submission_id: int) -> JSONResponse[t.Mapping[str, t.Any]]:
 
     ensure_keys_in_dict(request.args, [('path', str)])
 
-    pathname = request.args.get('path', None)
+    pathname: str = request.args.get('path', '')
     # `create_dir` means that the last file should be a dir or not.
     patharr, create_dir = psef.files.split_path(pathname)
 
@@ -775,8 +775,8 @@ def get_dir_contents(
     """
     work = helpers.get_or_404(models.Work, submission_id)
 
-    file_id = request.args.get('file_id', False)
-    path = request.args.get('path', False)
+    file_id: str = request.args.get('file_id', '')
+    path: str = request.args.get('path', '')
 
     exclude_owner = models.File.get_exclude_owner(
         request.args.get('owner', None),

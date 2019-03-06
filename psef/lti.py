@@ -12,6 +12,7 @@ import enum
 import typing as t
 import datetime
 import xml.etree.ElementTree
+from dataclasses import dataclass
 from urllib.parse import urlparse
 
 import flask
@@ -22,8 +23,6 @@ import structlog
 import flask_jwt_extended as flask_jwt
 from mypy_extensions import TypedDict
 from defusedxml.ElementTree import fromstring as defused_xml_fromstring
-
-from dataclasses import dataclass
 
 from . import (
     LTI_ROLE_LOOKUPS, app, auth, models, helpers, features, current_user
@@ -1194,8 +1193,7 @@ class OutcomeRequest:
             result = ET.SubElement(record, 'result')
 
             if isinstance(
-                self.lti_operation,
-                (
+                self.lti_operation, (
                     LTINormalReplaceResultOperation,
                     LTIRawReplaceResultOperation
                 )

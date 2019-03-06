@@ -517,8 +517,8 @@ def test_jplag_old_assignments(
         ), "The amount of cases should be the maximum"
         for jcase in plag['cases']:
             case = session.query(psef.models.PlagiarismCase).get(jcase['id'])
-            assert jcase['submissions'][0]['id'] != jcase['submissions'][1][
-                'id']
+            assert jcase['submissions'][0]['id'] != jcase['submissions'
+                                                          ][1]['id']
             if case.work1.assignment_id == case.work2.assignment_id:
                 assert case.work1.assignment_id == assignment.id
 
@@ -763,8 +763,8 @@ def test_jplag_old_submissions(
         )
         for jcase in plag['cases']:
             case = session.query(psef.models.PlagiarismCase).get(jcase['id'])
-            assert jcase['submissions'][0]['id'] != jcase['submissions'][1][
-                'id']
+            assert jcase['submissions'][0]['id'] != jcase['submissions'
+                                                          ][1]['id']
             if case.work1.assignment_id == case.work2.assignment_id:
                 assert case.work1.assignment_id == assignment.id
 

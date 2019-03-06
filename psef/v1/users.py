@@ -111,10 +111,7 @@ def register_user() -> JSONResponse[t.Mapping[str, str]]:
     content = ensure_json_dict(request.get_json())
     ensure_keys_in_dict(
         content,
-        [('username', str),
-         ('password', str),
-         ('email', str),
-         ('name', str)]
+        [('username', str), ('password', str), ('email', str), ('name', str)]
     )
     username = t.cast(str, content['username'])
     password = t.cast(str, content['password'])

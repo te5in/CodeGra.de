@@ -64,7 +64,7 @@ def get_lti_config() -> werkzeug.wrappers.Response:
     :returns: An xml that can be used as a config for the specified LMS.
     """
     helpers.ensure_keys_in_dict(flask.request.args, [('lms', str)])
-    lms = flask.request.args.get('lms')
+    lms: str = flask.request.args.get('lms', '')
     cls = lti.lti_classes.get(lms)
     if cls is not None:
         try:

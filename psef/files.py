@@ -16,6 +16,7 @@ import typing as t
 import tarfile
 import zipfile
 import tempfile
+from dataclasses import dataclass
 
 import structlog
 import mypy_extensions
@@ -23,10 +24,9 @@ from werkzeug.utils import secure_filename
 from werkzeug.datastructures import FileStorage
 
 import psef.models as models
-from dataclasses import dataclass
 
 from . import app, archive, helpers, blackboard
-from .ignore import InvalidFile, IgnoreFilterManager
+from .ignore import InvalidFile, DeletedFiles, IgnoreFilterManager
 from .exceptions import APICodes, APIWarnings, APIException
 
 logger = structlog.get_logger()
@@ -577,7 +577,7 @@ def extract_to_temp(
     handle_ignore: IgnoreHandling = IgnoreHandling.keep,
     archive_name: str = 'archive',
     parent_result_dir: t.Optional[str] = None,
-) -> t.Tuple[str, archive.FileSize]:
+) -> t.Tuple[str, archive.FileSize, DeletedFiles]:
     """Extracts the contents of file into a temporary directory.
 
     :param file: The archive to extract.
@@ -591,6 +591,7 @@ def extract_to_temp(
     """
     tmpfd, tmparchive = tempfile.mkstemp()
     size: archive.FileSize
+    deleted_files = DeletedFiles.not_deleted
 
     try:
         os.remove(tmparchive)
@@ -609,7 +610,7 @@ def extract_to_temp(
             else:
                 size = arch.extract(to_path=tmpdir, max_size=max_size)
                 if handle_ignore == IgnoreHandling.delete:
-                    ignore_filter.delete_from_dir(tmpdir)
+                    deleted_files = ignore_filter.delete_from_dir(tmpdir)
     except (
         tarfile.ReadError, zipfile.BadZipFile,
         archive.UnrecognizedArchiveFormat
@@ -636,7 +637,7 @@ def extract_to_temp(
         os.close(tmpfd)
         os.remove(tmparchive)
 
-    return tmpdir, size
+    return tmpdir, size, deleted_files
 
 
 def extract(
@@ -644,7 +645,7 @@ def extract(
     max_size: archive.FileSize,
     ignore_filter: t.Optional[IgnoreFilterManager] = None,
     handle_ignore: IgnoreHandling = IgnoreHandling.keep
-) -> ExtractFileTree:
+) -> t.Tuple[ExtractFileTree, DeletedFiles]:
     """Extracts all files in archive with random name to uploads folder.
 
     >>> extract(object(), max_size=5, ignore_filter=None, handle_ignore=IgnoreHandling.error)
@@ -673,7 +674,7 @@ def extract(
             'Invalid combination of `ignore_filter` and `ignore_handler`'
         )
 
-    tmpdir, size = extract_to_temp(
+    tmpdir, size, did_delete_files = extract_to_temp(
         file=file,
         ignore_filter=ignore_filter,
         handle_ignore=handle_ignore,
@@ -690,10 +691,12 @@ def extract(
         if len(res) == 1 and isinstance(res[0], ExtractFileTreeDirectory):
             return ExtractFileTree(
                 name=res[0].name, values=res[0].values, size=size
-            )
+            ), did_delete_files
         else:
             filename: str = file.filename.split('.')[0]
-            return ExtractFileTree(name=filename, values=res, size=size)
+            return ExtractFileTree(
+                name=filename, values=res, size=size
+            ), did_delete_files
     finally:
         shutil.rmtree(tmpdir)
 
@@ -739,6 +742,7 @@ def process_files(
     :returns: The tree of the files as is described by
         :py:func:`rename_directory_structure`
     """
+    did_delete_files = DeletedFiles.not_deleted
 
     def consider_archive(f: FileStorage) -> bool:
         return not force_txt and archive.Archive.is_archive(f.filename)
@@ -746,16 +750,19 @@ def process_files(
     T = t.TypeVar('T')
 
     def no_files_error() -> APIException:
-        if handle_ignore == IgnoreHandling.keep:
+        if did_delete_files:
             return APIException(
-                'No files found in archive',
-                'No files were in the given archive.',
+                (
+                    "All files are ignored by a rule in the assignment's"
+                    ' ignore file'
+                ),
+                'No files were in the given archive after filtering.',
                 APICodes.NO_FILES_SUBMITTED,
                 400,
             )
         return APIException(
-            "All files are ignored by a rule in the assignment's ignore file",
-            'No files were in the given archive after filtering.',
+            'No files found in archive',
+            'No files were in the given archive.',
             APICodes.NO_FILES_SUBMITTED,
             400,
         )
@@ -770,12 +777,14 @@ def process_files(
         res: t.List[ExtractFileTreeBase] = []
         for file in files:
             if consider_archive(file):
-                tree = extract(
+                tree, did_delete = extract(
                     file,
                     max_size=max_size,
                     ignore_filter=ignore_filter,
                     handle_ignore=handle_ignore
                 )
+                did_delete_files = did_delete_files or did_delete
+
                 res.append(tree)
                 total_size += tree.size
             else:
@@ -824,14 +833,13 @@ def process_files(
             name='top', values=res, size=archive.FileSize(total_size)
         )
     else:
-        tree = unwrap(
-            extract(
-                files[0],
-                max_size=max_size,
-                ignore_filter=ignore_filter,
-                handle_ignore=handle_ignore
-            )
+        tree, did_delete_files = extract(
+            files[0],
+            max_size=max_size,
+            ignore_filter=ignore_filter,
+            handle_ignore=handle_ignore
         )
+        tree = unwrap(tree)
 
     if not tree.contains_file:
         raise no_files_error()
@@ -870,7 +878,7 @@ def process_blackboard_zip(
             files.append(FileStorage(stream=stream, filename=name))
         return files
 
-    tmpdir, _ = extract_to_temp(
+    tmpdir, _, __ = extract_to_temp(
         blackboard_zip,
         max_size=max_size,
         ignore_filter=IgnoreFilterManager([]),

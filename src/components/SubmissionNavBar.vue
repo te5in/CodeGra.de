@@ -75,6 +75,10 @@ export default {
             return this.$route.query.search;
         },
 
+        sortAsc() {
+            return parseBool(this.$route.query.sortAsc);
+        },
+
         filterSubmissionsManager() {
             return new FilterSubmissionsManager(
                 this.submissionId,
@@ -85,14 +89,14 @@ export default {
         },
 
         filteredSubmissions() {
-            return this.filterSubmissionsManager.filter(
-                this.submissions,
-                this.latestOnly,
-                this.filterAssignee,
-                this.userId,
-                this.filter,
-                this.sortBy,
-            );
+            return this.filterSubmissionsManager.filter(this.submissions, {
+                latest: this.latestOnly,
+                mine: this.filterAssignee,
+                userId: this.userId,
+                filter: this.filter,
+                sortBy: this.sortBy,
+                asc: this.sortAsc,
+            });
         },
 
         optionIndex() {

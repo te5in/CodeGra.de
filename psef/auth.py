@@ -7,7 +7,7 @@ from functools import wraps
 
 import oauth2
 import flask_jwt_extended as flask_jwt
-from flask import _app_ctx_stack
+from flask import _app_ctx_stack  # type: ignore
 from werkzeug.local import LocalProxy
 from mypy_extensions import NoReturn
 
