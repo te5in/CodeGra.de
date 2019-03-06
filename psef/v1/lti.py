@@ -66,15 +66,20 @@ def get_lti_config() -> werkzeug.wrappers.Response:
     helpers.ensure_keys_in_dict(flask.request.args, [('lms', str)])
     lms = flask.request.args.get('lms')
     cls = lti.lti_classes.get(lms)
-    if cls is None:
-        raise errors.APIException(
-            'The requested LMS is not supported',
-            f'The LMS "{lms}" is not supported', errors.APICodes.INVALID_PARAM,
-            400
-        )
-    res = flask.make_response(cls.generate_xml())
-    res.headers['Content-Type'] = 'application/xml; charset=utf-8'
-    return res
+    if cls is not None:
+        try:
+            res = flask.make_response(cls.generate_xml())
+        except NotImplementedError:
+            pass
+        else:
+            res.headers['Content-Type'] = 'application/xml; charset=utf-8'
+            return res
+
+    raise errors.APIException(
+        'The requested LMS does not support XML configuration',
+        f'The LMS "{lms}" does not support XML configuration',
+        errors.APICodes.INVALID_PARAM, 400
+    )
 
 
 @api.route('/lti/launch/2', methods=['POST'])

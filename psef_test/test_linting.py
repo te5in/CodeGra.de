@@ -335,6 +335,8 @@ def test_linters(
         )
 
         for _, feedbacks in res:
+            print('xxx', feedbacks, linters)
+
             for name, linter_comm in feedbacks:
                 val = linters[name].pop(0)
                 assert val[0] == linter_comm['line']

@@ -148,6 +148,7 @@ def test_get_assignment(
                 'deadline': assignment.deadline.isoformat(),
                 'name': assignment.name,
                 'is_lti': False,
+                'lti_provider': None,
                 'cgignore': None,
                 'course': dict,
                 'whitespace_linter': False,

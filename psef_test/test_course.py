@@ -787,6 +787,7 @@ def test_add_assignment(
                 'name': name,
                 'created_at': str,
                 'is_lti': False,
+                'lti_provider': None,
                 'course': dict,
                 'state': 'hidden',
                 'deadline': str,

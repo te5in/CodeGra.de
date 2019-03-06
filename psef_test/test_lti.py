@@ -9,6 +9,7 @@ import oauth2
 import pytest
 import dateutil.parser
 
+import psef.lti as lti
 import psef.auth as auth
 import psef.models as m
 import psef.features as feats
@@ -49,7 +50,6 @@ def _get_parsed(xml):
     assert res is not None
     assert len(res)
     assert res.tag == 'imsx_POXEnvelopeRequest'
-    print(ET.tostring(res))
     return res
 
 
@@ -129,6 +129,7 @@ def test_lti_config(test_client, error_template):
     test_client.req(
         'get', '/api/v1/lti/?lms=unkown', 400, result=error_template
     )
+    test_client.req('get', '/api/v1/lti/?lms=Blackboard', 400, result=error_template)
     res = test_client.get('/api/v1/lti/?lms=Canvas')
     assert res.status_code == 200
     assert res.content_type.startswith('application/xml')
@@ -202,7 +203,7 @@ def test_lti_new_user_new_course(test_client, app, logged_in, ta_user):
             )
 
     assig, token = do_lti_launch(due='WOW, wrong')
-    assert (dateutil.parser.parse(assig['deadline']) - due_at).days == 363
+    assert assig['deadline'] is None
     out = get_user_info(token)
     assert out['name'] == 'A the A-er'
     assert out['username'] == 'a-the-a-er'
@@ -279,7 +280,7 @@ def test_lti_no_roles_found(test_client, app, logged_in, ta_user, monkeypatch):
                 'roles': '{},non_existing'.format(other_role),
                 'custom_canvas_user_login_id': username,
                 'custom_canvas_course_title': 'Common Lisp',
-                'custom_canvas_due_at': due_at.isoformat(),
+                'custom_canvas_assignment_due_at': due_at.isoformat(),
                 'custom_canvas_assignment_published': published,
                 'user_id': lti_id,
                 'lis_person_contact_email_primary': 'a@a.nl',
@@ -416,7 +417,7 @@ def test_lti_grade_passback(
                 'roles': 'administrator,instructor',
                 'custom_canvas_user_login_id': username,
                 'custom_canvas_course_title': 'Common Lisp',
-                'custom_canvas_due_at': due_at.isoformat(),
+                'custom_canvas_assignment_due_at': due_at.isoformat(),
                 'custom_canvas_assignment_published': published,
                 'user_id': lti_id,
                 'lis_person_contact_email_primary': 'a@a.nl',
@@ -926,7 +927,7 @@ def test_lti_grade_passback_with_groups(
                 'roles': 'administrator,instructor',
                 'custom_canvas_user_login_id': username,
                 'custom_canvas_course_title': 'Common Lisp',
-                'custom_canvas_due_at': due_at.isoformat(),
+                'custom_canvas_assignment_due_at': due_at.isoformat(),
                 'custom_canvas_assignment_published': 'true',
                 'user_id': lti_id,
                 'lis_person_contact_email_primary': 'a@a.nl',

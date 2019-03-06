@@ -266,15 +266,6 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
         lms_name = None
 
     if 'state' in content:
-        if lti_class is not None and lti_class.supports_state_management():
-            raise APIException(
-                (
-                    'The state of this assignment must be set in '
-                    f'{lms_name}.'
-                ),
-                f'{assig.name} is an LTI assignment', APICodes.UNSUPPORTED, 400
-            )
-
         auth.ensure_permission(CPerm.can_edit_assignment_info, assig.course_id)
         ensure_keys_in_dict(content, [('state', str)])
         state = t.cast(str, content['state'])
