@@ -285,8 +285,8 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
                 (
                     'The name of this assignment should be changed in '
                     f'{lms_name}.'
-                ),
-                f'{assig.name} is an LTI assignment', APICodes.UNSUPPORTED, 400
+                ), f'{assig.name} is an LTI assignment', APICodes.UNSUPPORTED,
+                400
             )
 
         auth.ensure_permission(CPerm.can_edit_assignment_info, assig.course_id)
@@ -309,8 +309,8 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
                 (
                     'The deadline of this assignment should be set in '
                     f'{lms_name}.'
-                ),
-                f'{assig.name} is an LTI assignment', APICodes.UNSUPPORTED, 400
+                ), f'{assig.name} is an LTI assignment', APICodes.UNSUPPORTED,
+                400
             )
 
         auth.ensure_permission(CPerm.can_edit_assignment_info, assig.course_id)

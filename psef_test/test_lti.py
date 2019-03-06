@@ -129,7 +129,9 @@ def test_lti_config(test_client, error_template):
     test_client.req(
         'get', '/api/v1/lti/?lms=unkown', 400, result=error_template
     )
-    test_client.req('get', '/api/v1/lti/?lms=Blackboard', 400, result=error_template)
+    test_client.req(
+        'get', '/api/v1/lti/?lms=Blackboard', 400, result=error_template
+    )
     res = test_client.get('/api/v1/lti/?lms=Canvas')
     assert res.status_code == 200
     assert res.content_type.startswith('application/xml')
@@ -679,31 +681,36 @@ def test_lti_assignment_create(
         assert assig['course']['name'] == course_name
 
 
-@pytest.mark.parametrize(('lms,extra_data'), [
-    ('Canvas', {
-        'custom_canvas_course_name': 'NEW_COURSE',
-        'custom_canvas_course_id': 'MY_COURSE_ID_100',
-        'custom_canvas_assignment_id': 'MY_ASSIG_ID_100',
-        'custom_canvas_assignment_title': 'MY_ASSIG_TITLE',
-        'custom_canvas_user_login_id': 'A the A-er',
-        'custom_canvas_course_title': 'Common Lisp',
-        'custom_canvas_assignment_published': 'false',
-        'context_id': 'NO_CONTEXT!!',
-        'context_title': 'WRONG_TITLE!!',
-        'oauth_consumer_key': 'my_lti',
-    }),
-    ('Blackboard', {
-        'context_id': 'MY_COURSE_ID_100',
-        'context_title': 'NEW_COURSE',
-        'resource_link_id': 'MY_ASSIG_ID_100',
-        'resource_link_title': 'MY_ASSIG_TITLE',
-        'lis_person_sourcedid': 'A the A-er',
-        'oauth_consumer_key': 'blackboard_lti',
-    }),
-])
+@pytest.mark.parametrize(
+    ('lms,extra_data'), [
+        (
+            'Canvas', {
+                'custom_canvas_course_name': 'NEW_COURSE',
+                'custom_canvas_course_id': 'MY_COURSE_ID_100',
+                'custom_canvas_assignment_id': 'MY_ASSIG_ID_100',
+                'custom_canvas_assignment_title': 'MY_ASSIG_TITLE',
+                'custom_canvas_user_login_id': 'A the A-er',
+                'custom_canvas_course_title': 'Common Lisp',
+                'custom_canvas_assignment_published': 'false',
+                'context_id': 'NO_CONTEXT!!',
+                'context_title': 'WRONG_TITLE!!',
+                'oauth_consumer_key': 'my_lti',
+            }
+        ),
+        (
+            'Blackboard', {
+                'context_id': 'MY_COURSE_ID_100',
+                'context_title': 'NEW_COURSE',
+                'resource_link_id': 'MY_ASSIG_ID_100',
+                'resource_link_title': 'MY_ASSIG_TITLE',
+                'lis_person_sourcedid': 'A the A-er',
+                'oauth_consumer_key': 'blackboard_lti',
+            }
+        ),
+    ]
+)
 def test_lti_assignment_update(
-    test_client, app, logged_in, ta_user, error_template,
-    lms, extra_data
+    test_client, app, logged_in, ta_user, error_template, lms, extra_data
 ):
     def do_lti_launch():
         with app.app_context():
@@ -734,7 +741,6 @@ def test_lti_assignment_update(
                 ).state == m._AssignmentStateEnum.open
             return lti_res['assignment'], lti_res.get('access_token', None)
 
-
     with app.app_context():
         assig, token = do_lti_launch()
         lti_class = lti.lti_classes.get(lms)
@@ -745,7 +751,7 @@ def test_lti_assignment_update(
             'patch',
             f'/api/v1/assignments/{assig["id"]}',
             400,
-            data={ 'name': 'wow' },
+            data={'name': 'wow'},
             headers={'Authorization': f'Bearer {token}'},
             result=error_template,
         )
@@ -761,7 +767,7 @@ def test_lti_assignment_update(
             'patch',
             f'/api/v1/assignments/{assig["id"]}',
             status,
-            data={ 'deadline': datetime.datetime.utcnow().isoformat() },
+            data={'deadline': datetime.datetime.utcnow().isoformat()},
             headers={'Authorization': f'Bearer {token}'},
             result=result,
         )
@@ -777,7 +783,7 @@ def test_lti_assignment_update(
             'patch',
             f'/api/v1/assignments/{assig["id"]}',
             status,
-            data={ 'max_grade': 100 },
+            data={'max_grade': 100},
             headers={'Authorization': f'Bearer {token}'},
             result=result,
         )
