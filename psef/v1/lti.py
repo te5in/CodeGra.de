@@ -85,7 +85,7 @@ def get_lti_config() -> werkzeug.wrappers.Response:
 @api.route('/lti/launch/2', methods=['POST'])
 @features.feature_required(features.Feature.LTI)
 def second_phase_lti_launch() -> helpers.JSONResponse[
-    t.Mapping[str, t.Union[str, models.Assignment, bool]]]:
+    t.Mapping[str, t.Union[str, models.Assignment, bool, None]]]:
     """Do the second part of an LTI launch.
 
     .. :quickref: LTI; Do the callback of a LTI launch.
@@ -138,7 +138,7 @@ def second_phase_lti_launch() -> helpers.JSONResponse[
     new_role_created = inst.set_user_course_role(user, course)
     db.session.commit()
 
-    result: t.Mapping[str, t.Union[str, models.Assignment, bool]]
+    result: t.Mapping[str, t.Union[str, models.Assignment, bool, None]]
     result = {
         'assignment': assig,
         'new_role_created': new_role_created,

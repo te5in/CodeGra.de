@@ -259,12 +259,14 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
     assig = helpers.get_or_404(models.Assignment, assignment_id)
     content = ensure_json_dict(request.get_json())
 
+    lti_class: t.Optional[t.Type[psef.lti.LTI]]
+
     if assig.is_lti:
         lti_class = assig.course.lti_provider.lti_class
         lms_name = assig.course.lti_provider.lms_name
     else:
         lti_class = None
-        lms_name = None
+        lms_name = ''
 
     if 'state' in content:
         auth.ensure_permission(CPerm.can_edit_assignment_info, assig.course_id)
@@ -305,7 +307,7 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
         assig.name = name
 
     if 'deadline' in content:
-        if assig.is_lti and lti_class.supports_deadline():
+        if lti_class is not None and lti_class.supports_deadline():
             raise APIException(
                 (
                     'The deadline of this assignment should be set in '
@@ -325,7 +327,7 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
         assig.cgignore = t.cast(str, content['ignore'])
 
     if 'max_grade' in content:
-        if assig.is_lti and not lti_class.supports_max_points():
+        if lti_class is not None and not lti_class.supports_max_points():
             raise APIException(
                 f'{lms_name} does not support setting the maximum grade',
                 f'{lms_name} does not support setting the maximum grade',
@@ -669,8 +671,8 @@ def upload_work(assignment_id: int) -> ExtendedJSONResponse[models.Work]:
     if assig.deadline is None:
         raise APIException(
             (
-                'The deadline for this assignment has not yet been set. ',
-                'Please ask your teacher to set a deadline before you can ',
+                'The deadline for this assignment has not yet been set. '
+                'Please ask your teacher to set a deadline before you can '
                 'submit your work.'
             ),
             f'The deadline for assignment {assig.name} is unset.',
