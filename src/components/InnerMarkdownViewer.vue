@@ -14,14 +14,19 @@ import markdownItSanitizer from 'markdown-it-sanitizer';
 
 import { highlightCode } from '@/utils';
 
-const md = markdownIt({
-    html: true,
-    typographer: false,
-    highlight(str, lang) {
-        return highlightCode(str.split('\n'), lang).join('<br>');
-    },
-});
+const makeMd = () =>
+    markdownIt({
+        html: true,
+        typographer: false,
+        highlight(str, lang) {
+            return highlightCode(str.split('\n'), lang).join('<br>');
+        },
+    });
+const md = makeMd();
+const mdNoMath = makeMd();
+
 md.use(markdownItMathjax()).use(markdownItSanitizer);
+mdNoMath.use(markdownItSanitizer);
 
 export default {
     name: 'inner-markdown-viewer',
@@ -34,22 +39,33 @@ export default {
 
         showCodeWhitespace: {
             type: Boolean,
-            required: true,
+            default: true,
+        },
+
+        disableMath: {
+            type: Boolean,
+            default: false,
         },
     },
 
     computed: {
         html() {
-            return md.render(this.markdown);
+            if (this.disableMath) {
+                return mdNoMath.render(this.markdown);
+            } else {
+                return md.render(this.markdown);
+            }
         },
     },
 
     watch: {
         html: {
             async handler() {
-                // Make sure html is rendered before we kick MathJax.
-                await this.$nextTick();
-                window.MathJax.Hub.Queue(['Typeset', window.MathJax.Hub, this.$el]);
+                if (!this.disableMath) {
+                    // Make sure html is rendered before we kick MathJax.
+                    await this.$nextTick();
+                    window.MathJax.Hub.Queue(['Typeset', window.MathJax.Hub, this.$el]);
+                }
             },
             immediate: true,
         },

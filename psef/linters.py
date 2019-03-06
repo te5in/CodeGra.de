@@ -29,6 +29,8 @@ logger = structlog.get_logger()
 
 T_LINTER = t.TypeVar('T_LINTER', bound='Linter')  # pylint: disable=invalid-name
 
+ProcessCompletedCallback = t.Callable[[subprocess.CompletedProcess], None]
+
 
 def init_app(_: t.Any) -> None:
     pass
@@ -49,6 +51,20 @@ def _read_config_file(config_cat: str, config_name: str) -> str:
         ), 'r'
     ) as f:
         return f.read()
+
+
+class LinterCrash(Exception):
+    """The exception to use that a linter has crashed.
+
+    This is a semi-controlled crash, so it should be used when the linter
+    process itself returned some unexpected code or invalid output. It should
+    not be used for programming errors within CodeGrade code processing the
+    output of the linter.
+    """
+
+    def __init__(self, error_summary: t.Optional[str] = None) -> None:
+        super().__init__()
+        self.error_summary = error_summary
 
 
 class Linter(abc.ABC):
@@ -87,16 +103,21 @@ class Linter(abc.ABC):
 
     @abc.abstractmethod
     def run(
-        self, tempdir: str, emit: t.Callable[[str, int, str, str], None]
+        self,
+        tempdir: str,
+        emit: t.Callable[[str, int, str, str], None],
+        process_completed: ProcessCompletedCallback,
     ) -> None:  # pragma: no cover
         """Run the linter on the code in `tempdir`.
 
         :param tempdir: The temp directory that should contain the code to
-                            run the linter on.
+            run the linter on.
         :param emit: A callback to emit a line of feedback, where the first
-                     argument is the filename, the second is the line number,
-                     the third is the code of the linter error, and the fourth
-                     and last is the message of the linter.
+            argument is the filename, the second is the line number, the third
+            is the code of the linter error, and the fourth and last is the
+            message of the linter.
+        :param process_completed: The callback that should be called, directly,
+            after the process has been completed.
         """
         raise NotImplementedError('A subclass should implement this function!')
 
@@ -114,7 +135,10 @@ class Pylint(Linter):
     }
 
     def run(
-        self, tempdir: str, emit: t.Callable[[str, int, str, str], None]
+        self,
+        tempdir: str,
+        emit: t.Callable[[str, int, str, str], None],
+        process_completed: ProcessCompletedCallback,
     ) -> None:
         """Run the pylinter.
 
@@ -130,20 +154,20 @@ class Pylint(Linter):
                     for part in app.config['PYLINT_PROGRAM']
                 ],
                 stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
                 text=True,
             )
+            process_completed(out)
 
         if out.returncode == 32:
-            raise ValueError(out.stdout)
+            raise LinterCrash
         if out.returncode == 1:
-            for dir_name, _, test_files in os.walk(tempdir):
-                for test_file in test_files:
-                    if test_file.endswith('.py'):
-                        emit(
-                            os.path.join(dir_name, test_file), 1, 'ERR',
-                            'No init file was found, pylint did not run!'
-                        )
-            return
+            raise LinterCrash(
+                error_summary=(
+                    'The submission is not a valid python module, it probably'
+                    ' lacks an `__init__` file.'
+                ),
+            )
 
         for err in json.loads(out.stdout):
             try:
@@ -169,7 +193,10 @@ class Flake8(Linter):
     }
 
     def run(
-        self, tempdir: str, emit: t.Callable[[str, int, str, str], None]
+        self,
+        tempdir: str,
+        emit: t.Callable[[str, int, str, str], None],
+        process_completed: ProcessCompletedCallback,
     ) -> None:
         # This is not guessable
         sep = uuid.uuid4()
@@ -184,11 +211,13 @@ class Flake8(Linter):
                     for part in app.config['FLAKE8_PROGRAM']
                 ],
                 stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
                 text=True,
             )
+            process_completed(out)
 
         if out.returncode != 0:
-            raise ValueError(out.stdout)
+            raise LinterCrash
 
         for line in out.stdout.split('\n'):
             args = line.split(str(sep))
@@ -210,7 +239,10 @@ class MixedWhitespace(Linter):
     RUN_LINTER: t.ClassVar[bool] = False
 
     def run(
-        self, tempdir: str, emit: t.Callable[[str, int, str, str], None]
+        self,
+        tempdir: str,
+        emit: t.Callable[[str, int, str, str], None],
+        process_completed: ProcessCompletedCallback,
     ) -> None:  # pragma: no cover
         # This method should never be called as ``RUN_LINTER`` is set to
         # ``false..
@@ -305,7 +337,10 @@ class Checkstyle(Linter):
             validate_func(sub_el)
 
     def run(
-        self, tempdir: str, emit: t.Callable[[str, int, str, str], None]
+        self,
+        tempdir: str,
+        emit: t.Callable[[str, int, str, str], None],
+        process_completed: ProcessCompletedCallback,
     ) -> None:
         """Run checkstyle
 
@@ -340,9 +375,15 @@ class Checkstyle(Linter):
                     for part in app.config['CHECKSTYLE_PROGRAM']
                 ],
                 stdout=subprocess.PIPE,
-                check=True,
+                stderr=subprocess.PIPE,
                 text=True,
             )
+            process_completed(out)
+            if out.returncode == 254:
+                raise LinterCrash(
+                    'The given submission could not be parsed as valid java',
+                )
+
             output: ET.Element = defused_xml_fromstring(out.stdout)
             assert output is not None
 
@@ -409,7 +450,10 @@ class PMD(Linter):
                 )
 
     def run(
-        self, tempdir: str, emit: t.Callable[[str, int, str, str], None]
+        self,
+        tempdir: str,
+        emit: t.Callable[[str, int, str, str], None],
+        process_completed: ProcessCompletedCallback,
     ) -> None:
         """Run PMD.
 
@@ -427,9 +471,11 @@ class PMD(Linter):
                     for part in app.config['PMD_PROGRAM']
                 ],
                 stdout=subprocess.PIPE,
-                check=True,
+                stderr=subprocess.PIPE,
                 text=True,
             )
+            process_completed(out)
+            assert out.returncode == 0
             output = csv.DictReader(StringIO(out.stdout))
             assert output is not None
 
@@ -471,33 +517,61 @@ class LinterRunner:
         :returns: Nothing
         """
         for linter_instance_id in linter_instance_ids:
-            linter_instance = db.session.query(models.LinterInstance
-                                               ).get(linter_instance_id)
+            linter_inst = db.session.query(models.LinterInstance
+                                           ).get(linter_instance_id)
 
             # This should never happen however it is better to check here.
-            if linter_instance is None:  # pragma: no cover
+            if linter_inst is None:  # pragma: no cover
                 continue
 
+            compl_proc: t.Optional[subprocess.CompletedProcess] = None
+
+            def set_proc(proc: subprocess.CompletedProcess) -> None:
+                nonlocal compl_proc
+                compl_proc = proc
+
             try:
-                self.test(linter_instance)
+                self.test(linter_inst, set_proc)
             # We want to catch all exceptions here as need to set our linter to
             # the crashed state.
-            except Exception:  # pylint: disable=broad-except
+            except LinterCrash as e:
                 logger.warning(
                     'The linter crashed',
-                    linter_instance_id=linter_instance.id,
+                    linter_instance_id=linter_inst.id,
                     exc_info=True,
                 )
-                linter_instance.state = models.LinterState.crashed
+                linter_inst.state = models.LinterState.crashed
+                linter_inst.error_summary = (
+                    e.error_summary or
+                    'The linter program exited unsuccessfully.'
+                )
+            except Exception:  # pylint: disable=broad-except
+                logger.warning(
+                    'The linter crashed unexpectedly',
+                    linter_instance_id=linter_inst.id,
+                    exc_info=True,
+                )
+                linter_inst.state = models.LinterState.crashed
+            finally:
+                if compl_proc is not None:
+                    linter_inst.stdout = compl_proc.stdout.replace('\0', '')
+                    linter_inst.stderr = compl_proc.stderr.replace('\0', '')
                 db.session.commit()
 
-    def test(self, linter_instance: models.LinterInstance) -> None:
+    def test(
+        self,
+        linter_instance: models.LinterInstance,
+        process_completed: ProcessCompletedCallback,
+    ) -> None:
         """Test the given code (:class:`.models.Work`) and add generated
         comments.
 
         :param linter_instance: The linter instance that will be run. This
             linter instance is linked to a work from which all files will be
             restored and the linter will be run on those files.
+        :param process_completed: The callback that should be called by the
+            linter instance after the process, like pylint or java, has been
+            completed.
         :returns: Nothing
         """
         temp_res: t.Dict[str, t.Dict[int, t.List[t.Tuple[str, str]]]]
@@ -522,7 +596,10 @@ class LinterRunner:
                 tmpdir,
             )
 
-            self.linter.run(os.path.join(tmpdir, tree_root['name']), __emit)
+            self.linter.run(
+                os.path.join(tmpdir, tree_root['name']), __emit,
+                process_completed
+            )
 
         del tmpdir
 

@@ -183,6 +183,29 @@ class AssignmentLinter(Base):
             tester_id=self.id, state=state
         ).count()
 
+    def __extended_to_json__(self) -> t.Mapping[str, t.Any]:
+        """Creates an extended JSON serializable representation of this
+        assignment linter.
+
+        This object will look like this:
+
+        .. code:: python
+
+            {
+                'tests': t.List[LinterInstance], # The tests done by this
+                                                 # assignment linter.
+                'id': str, # The id of this assignment linter.
+                'name': str, # The name.
+            }
+
+        :returns: An object as described above.
+        """
+        return {
+            'tests': self.tests,
+            'id': self.id,
+            'name': self.name,
+        }
+
     def __to_json__(self) -> t.Mapping[str, t.Any]:
         """Returns the JSON serializable representation of this class.
 
