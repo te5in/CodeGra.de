@@ -380,6 +380,60 @@ def test_lti_no_roles_found(test_client, app, logged_in, ta_user, monkeypatch):
     assert user.courses[course['id']].name == 'Teacher'
 
 
+@pytest.mark.parametrize(
+    'role', [
+        0,
+        'invalid',
+        'urn:lti:unknownrole:ims/lis/Unknown',
+    ]
+)
+def test_invalid_lti_role(
+    test_client,
+    app,
+    logged_in,
+    ta_user,
+    role,
+):
+    def do_lti_launch(
+        username='A the A-er',
+        lti_id='USER_ID',
+        source_id='',
+        published='false',
+        parse=True,
+        code=200
+    ):
+        with app.app_context():
+            data = {
+                'custom_canvas_course_name': 'NEW_COURSE',
+                'custom_canvas_course_id': 'MY_COURSE_ID',
+                'custom_canvas_assignment_id': 'MY_ASSIG_ID',
+                'custom_canvas_assignment_title': 'MY_ASSIG_TITLE',
+                'ext_roles': role,
+                'custom_canvas_user_login_id': username,
+                'custom_canvas_assignment_due_at': due_at.isoformat(),
+                'custom_canvas_assignment_published': published,
+                'user_id': lti_id,
+                'lis_person_contact_email_primary': 'a@a.nl',
+                'lis_person_name_full': username,
+                'context_id': 'NO_CONTEXT',
+                'context_title': 'WRONG_TITLE',
+                'oauth_consumer_key': 'my_lti',
+                'lis_outcome_service_url': source_id,
+            }
+            if source_id:
+                data['lis_result_sourcedid'] = source_id
+            res = test_client.post('/api/v1/lti/launch/1', data=data)
+
+            url = urllib.parse.urlparse(res.headers['Location'])
+            jwt = urllib.parse.parse_qs(url.query)['jwt'][0]
+            lti_res = test_client.req(
+                'post',
+                '/api/v1/lti/launch/2',
+                code,
+                data={'jwt_token': jwt},
+            )
+
+
 @pytest.mark.parametrize('patch', [True, False])
 @pytest.mark.parametrize('filename', [
     ('correct.tar.gz'),

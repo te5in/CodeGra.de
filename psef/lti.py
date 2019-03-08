@@ -69,6 +69,7 @@ class LTIRoleException(APIException):
     """Thrown when a role could not be parsed.
     """
 
+
 class LTIRoleKind(enum.IntEnum):
     """Kind of an LTI role.
     """
@@ -87,8 +88,7 @@ class LTIRoleKind(enum.IntEnum):
         except KeyError:
             raise LTIRoleException(
                 'The given role could not be parsed as an LTI role.',
-                f'The role kind {lti_kind} is invalid.',
-                INVALID_PARAM, 400
+                f'The role kind {lti_kind} is invalid.', INVALID_PARAM, 400
             )
 
 
