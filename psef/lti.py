@@ -24,9 +24,7 @@ import flask_jwt_extended as flask_jwt
 from mypy_extensions import TypedDict
 from defusedxml.ElementTree import fromstring as defused_xml_fromstring
 
-from . import (
-    app, auth, models, helpers, features, current_user
-)
+from . import app, auth, models, helpers, features, current_user
 from .auth import _user_active
 from .models import db
 from .helpers import register
@@ -47,7 +45,6 @@ ET = xml.etree.ElementTree
 LTI_NAMESPACES = {
     'xmlns': 'http://www.imsglobal.org/services/ltiv1p1/xsd/imsoms_v1p0'
 }
-
 
 LTI_ROLE_LOOKUPS: t.Mapping[str, str] = {
     'Administrator': 'Admin',
@@ -537,9 +534,7 @@ class LTI:  # pylint: disable=too-many-public-methods
                 if role.name not in LTI_ROLE_LOOKUPS:
                     continue
                 role_lookup = LTI_ROLE_LOOKUPS[role.name]
-                user.role = models.Role.query.filter_by(
-                    name=role_lookup
-                ).one()
+                user.role = models.Role.query.filter_by(name=role_lookup).one()
                 return
             user.role = models.Role.query.filter_by(
                 name=app.config['DEFAULT_ROLE']

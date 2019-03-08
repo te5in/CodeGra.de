@@ -277,21 +277,36 @@ def test_lti_no_roles_found(test_client, app, logged_in, ta_user, monkeypatch):
             else:
                 other_role = 'urn:lti:role:ims/lis/Instructor'
             data = {
-                'custom_canvas_course_name': 'NEW_COURSE',
-                'custom_canvas_course_id': 'MY_COURSE_ID',
-                'custom_canvas_assignment_id': 'MY_ASSIG_ID',
-                'custom_canvas_assignment_title': 'MY_ASSIG_TITLE',
-                'ext_roles': '{},urn:lti:role:ims/lis/non_existing'.format(other_role),
-                'custom_canvas_user_login_id': username,
-                'custom_canvas_assignment_due_at': due_at.isoformat(),
-                'custom_canvas_assignment_published': published,
-                'user_id': lti_id,
-                'lis_person_contact_email_primary': 'a@a.nl',
-                'lis_person_name_full': username,
-                'context_id': 'NO_CONTEXT',
-                'context_title': 'WRONG_TITLE',
-                'oauth_consumer_key': 'my_lti',
-                'lis_outcome_service_url': source_id,
+                'custom_canvas_course_name':
+                    'NEW_COURSE',
+                'custom_canvas_course_id':
+                    'MY_COURSE_ID',
+                'custom_canvas_assignment_id':
+                    'MY_ASSIG_ID',
+                'custom_canvas_assignment_title':
+                    'MY_ASSIG_TITLE',
+                'ext_roles':
+                    '{},urn:lti:role:ims/lis/non_existing'.format(other_role),
+                'custom_canvas_user_login_id':
+                    username,
+                'custom_canvas_assignment_due_at':
+                    due_at.isoformat(),
+                'custom_canvas_assignment_published':
+                    published,
+                'user_id':
+                    lti_id,
+                'lis_person_contact_email_primary':
+                    'a@a.nl',
+                'lis_person_name_full':
+                    username,
+                'context_id':
+                    'NO_CONTEXT',
+                'context_title':
+                    'WRONG_TITLE',
+                'oauth_consumer_key':
+                    'my_lti',
+                'lis_outcome_service_url':
+                    source_id,
             }
             if source_id:
                 data['lis_result_sourcedid'] = source_id
@@ -413,22 +428,38 @@ def test_lti_grade_passback(
         with app.app_context():
             last_xml = None
             data = {
-                'custom_canvas_course_name': 'NEW_COURSE',
-                'custom_canvas_course_id': canvas_id,
-                'custom_canvas_assignment_id': f'{canvas_id}_ASSIG_1',
-                'custom_canvas_assignment_title': 'MY_ASSIG_TITLE',
-                'ext_roles': 'urn:lti:sysrole:ims/lis/Administrator,urn:lti:role:ims/lis/Instructor',
-                'custom_canvas_user_login_id': username,
-                'custom_canvas_assignment_due_at': due_at.isoformat(),
-                'custom_canvas_assignment_published': published,
-                'user_id': lti_id,
-                'lis_person_contact_email_primary': 'a@a.nl',
-                'lis_person_name_full': username,
-                'context_id': 'NO_CONTEXT!!',
-                'context_title': 'WRONG_TITLE!!',
-                'oauth_consumer_key': 'my_lti',
-                'lis_outcome_service_url': source_id,
-                'custom_canvas_points_possible': lti_max_points,
+                'custom_canvas_course_name':
+                    'NEW_COURSE',
+                'custom_canvas_course_id':
+                    canvas_id,
+                'custom_canvas_assignment_id':
+                    f'{canvas_id}_ASSIG_1',
+                'custom_canvas_assignment_title':
+                    'MY_ASSIG_TITLE',
+                'ext_roles':
+                    'urn:lti:sysrole:ims/lis/Administrator,urn:lti:role:ims/lis/Instructor',
+                'custom_canvas_user_login_id':
+                    username,
+                'custom_canvas_assignment_due_at':
+                    due_at.isoformat(),
+                'custom_canvas_assignment_published':
+                    published,
+                'user_id':
+                    lti_id,
+                'lis_person_contact_email_primary':
+                    'a@a.nl',
+                'lis_person_name_full':
+                    username,
+                'context_id':
+                    'NO_CONTEXT!!',
+                'context_title':
+                    'WRONG_TITLE!!',
+                'oauth_consumer_key':
+                    'my_lti',
+                'lis_outcome_service_url':
+                    source_id,
+                'custom_canvas_points_possible':
+                    lti_max_points,
             }
             if source_id:
                 data['lis_result_sourcedid'] = source_id
@@ -620,20 +651,34 @@ def test_lti_assignment_create(
     ):
         with app.app_context():
             data = {
-                'custom_canvas_course_name': course_name,
-                'custom_canvas_course_id': 'MY_COURSE_ID_100',
-                'custom_canvas_assignment_id': 'MY_ASSIG_ID_100',
-                'custom_canvas_assignment_title': assig_name,
-                'ext_roles': 'urn:lti:sysrole:ims/lis/Administrator,urn:lti:role:ims/lis/Instructor',
-                'custom_canvas_user_login_id': username,
-                'custom_canvas_assignment_published': published,
-                'user_id': lti_id,
-                'lis_person_contact_email_primary': 'a@a.nl',
-                'lis_person_name_full': username,
-                'context_id': 'NO_CONTEXT!!',
-                'context_title': 'WRONG_TITLE!!',
-                'oauth_consumer_key': 'my_lti',
-                'lis_outcome_service_url': source_id,
+                'custom_canvas_course_name':
+                    course_name,
+                'custom_canvas_course_id':
+                    'MY_COURSE_ID_100',
+                'custom_canvas_assignment_id':
+                    'MY_ASSIG_ID_100',
+                'custom_canvas_assignment_title':
+                    assig_name,
+                'ext_roles':
+                    'urn:lti:sysrole:ims/lis/Administrator,urn:lti:role:ims/lis/Instructor',
+                'custom_canvas_user_login_id':
+                    username,
+                'custom_canvas_assignment_published':
+                    published,
+                'user_id':
+                    lti_id,
+                'lis_person_contact_email_primary':
+                    'a@a.nl',
+                'lis_person_name_full':
+                    username,
+                'context_id':
+                    'NO_CONTEXT!!',
+                'context_title':
+                    'WRONG_TITLE!!',
+                'oauth_consumer_key':
+                    'my_lti',
+                'lis_outcome_service_url':
+                    source_id,
             }
             if source_id:
                 data['lis_result_sourcedid'] = source_id
@@ -684,25 +729,40 @@ def test_lti_assignment_create(
     ('lms,extra_data'), [
         (
             'Canvas', {
-                'custom_canvas_course_name': 'NEW_COURSE',
-                'custom_canvas_course_id': 'MY_COURSE_ID_100',
-                'custom_canvas_assignment_id': 'MY_ASSIG_ID_100',
-                'custom_canvas_assignment_title': 'MY_ASSIG_TITLE',
-                'custom_canvas_user_login_id': 'A the A-er',
-                'custom_canvas_assignment_published': 'false',
-                'ext_roles': 'urn:lti:sysrole:ims/lis/Administrator,urn:lti:role:ims/lis/Instructor',
-                'oauth_consumer_key': 'my_lti',
+                'custom_canvas_course_name':
+                    'NEW_COURSE',
+                'custom_canvas_course_id':
+                    'MY_COURSE_ID_100',
+                'custom_canvas_assignment_id':
+                    'MY_ASSIG_ID_100',
+                'custom_canvas_assignment_title':
+                    'MY_ASSIG_TITLE',
+                'custom_canvas_user_login_id':
+                    'A the A-er',
+                'custom_canvas_assignment_published':
+                    'false',
+                'ext_roles':
+                    'urn:lti:sysrole:ims/lis/Administrator,urn:lti:role:ims/lis/Instructor',
+                'oauth_consumer_key':
+                    'my_lti',
             }
         ),
         (
             'Blackboard', {
-                'context_id': 'MY_COURSE_ID_100',
-                'context_title': 'NEW_COURSE',
-                'resource_link_id': 'MY_ASSIG_ID_100',
-                'resource_link_title': 'MY_ASSIG_TITLE',
-                'lis_person_sourcedid': 'A the A-er',
-                'roles': 'urn:lti:sysrole:ims/lis/Administrator,urn:lti:role:ims/lis/Instructor',
-                'oauth_consumer_key': 'blackboard_lti',
+                'context_id':
+                    'MY_COURSE_ID_100',
+                'context_title':
+                    'NEW_COURSE',
+                'resource_link_id':
+                    'MY_ASSIG_ID_100',
+                'resource_link_title':
+                    'MY_ASSIG_TITLE',
+                'lis_person_sourcedid':
+                    'A the A-er',
+                'roles':
+                    'urn:lti:sysrole:ims/lis/Administrator,urn:lti:role:ims/lis/Instructor',
+                'oauth_consumer_key':
+                    'blackboard_lti',
             }
         ),
     ]
@@ -1024,22 +1084,38 @@ def test_lti_grade_passback_with_groups(
     ):
         with app.app_context():
             data = {
-                'custom_canvas_course_name': 'NEW_COURSE',
-                'custom_canvas_course_id': canvas_id,
-                'custom_canvas_assignment_id': f'{canvas_id}_ASSIG_1',
-                'custom_canvas_assignment_title': 'MY_ASSIG_TITLE',
-                'ext_roles': 'urn:lti:sysrole:ims/lis/Administrator,urn:lti:role:ims/lis/Instructor',
-                'custom_canvas_user_login_id': username,
-                'custom_canvas_assignment_due_at': due_at.isoformat(),
-                'custom_canvas_assignment_published': 'true',
-                'user_id': lti_id,
-                'lis_person_contact_email_primary': 'a@a.nl',
-                'lis_person_name_full': username,
-                'context_id': 'NO_CONTEXT!!',
-                'context_title': 'WRONG_TITLE!!',
-                'oauth_consumer_key': 'my_lti',
-                'lis_outcome_service_url': source_id,
-                'custom_canvas_points_possible': lti_max_points,
+                'custom_canvas_course_name':
+                    'NEW_COURSE',
+                'custom_canvas_course_id':
+                    canvas_id,
+                'custom_canvas_assignment_id':
+                    f'{canvas_id}_ASSIG_1',
+                'custom_canvas_assignment_title':
+                    'MY_ASSIG_TITLE',
+                'ext_roles':
+                    'urn:lti:sysrole:ims/lis/Administrator,urn:lti:role:ims/lis/Instructor',
+                'custom_canvas_user_login_id':
+                    username,
+                'custom_canvas_assignment_due_at':
+                    due_at.isoformat(),
+                'custom_canvas_assignment_published':
+                    'true',
+                'user_id':
+                    lti_id,
+                'lis_person_contact_email_primary':
+                    'a@a.nl',
+                'lis_person_name_full':
+                    username,
+                'context_id':
+                    'NO_CONTEXT!!',
+                'context_title':
+                    'WRONG_TITLE!!',
+                'oauth_consumer_key':
+                    'my_lti',
+                'lis_outcome_service_url':
+                    source_id,
+                'custom_canvas_points_possible':
+                    lti_max_points,
             }
             if source_id:
                 data['lis_result_sourcedid'] = source_id
