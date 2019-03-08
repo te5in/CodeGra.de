@@ -355,7 +355,7 @@ def db(app, request):
         os.unlink(TESTDB_PATH)
 
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def session(app, db):
     """Creates a new database session for a test."""
     connection = db.engine.connect()

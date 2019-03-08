@@ -388,50 +388,49 @@ def test_lti_no_roles_found(test_client, app, logged_in, ta_user, monkeypatch):
     ]
 )
 def test_invalid_lti_role(
-    test_client,
-    app,
-    logged_in,
-    ta_user,
-    role,
+    test_client, app, role, session
 ):
-    def do_lti_launch(
-        username='A the A-er',
-        lti_id='USER_ID',
-        source_id='',
-        published='false',
-        parse=True,
-        code=200
-    ):
-        with app.app_context():
-            data = {
-                'custom_canvas_course_name': 'NEW_COURSE',
-                'custom_canvas_course_id': 'MY_COURSE_ID',
-                'custom_canvas_assignment_id': 'MY_ASSIG_ID',
-                'custom_canvas_assignment_title': 'MY_ASSIG_TITLE',
-                'ext_roles': role,
-                'custom_canvas_user_login_id': username,
-                'custom_canvas_assignment_due_at': due_at.isoformat(),
-                'custom_canvas_assignment_published': published,
-                'user_id': lti_id,
-                'lis_person_contact_email_primary': 'a@a.nl',
-                'lis_person_name_full': username,
-                'context_id': 'NO_CONTEXT',
-                'context_title': 'WRONG_TITLE',
-                'oauth_consumer_key': 'my_lti',
-                'lis_outcome_service_url': source_id,
-            }
-            if source_id:
-                data['lis_result_sourcedid'] = source_id
-            res = test_client.post('/api/v1/lti/launch/1', data=data)
+    due_at = datetime.datetime.utcnow() + datetime.timedelta(days=1)
 
-            url = urllib.parse.urlparse(res.headers['Location'])
-            jwt = urllib.parse.parse_qs(url.query)['jwt'][0]
-            lti_res = test_client.req(
-                'post',
-                '/api/v1/lti/launch/2',
-                code,
-                data={'jwt_token': jwt},
-            )
+    with app.app_context():
+        data = {
+            'custom_canvas_course_name': 'NEW_COURSE',
+            'custom_canvas_course_id': 'MY_COURSE_ID',
+            'custom_canvas_assignment_id': 'MY_ASSIG_ID',
+            'custom_canvas_assignment_title': 'MY_ASSIG_TITLE',
+            'ext_roles': role,
+            'custom_canvas_user_login_id': 'bla-the-bla-er',
+            'custom_canvas_assignment_due_at': due_at.isoformat(),
+            'custom_canvas_assignment_published': 'false',
+            'user_id': 'USER_ID2',
+            'lis_person_contact_email_primary': 'a@a.nl',
+            'lis_person_name_full': 'Bla the Bla-er',
+            'context_id': 'NO_CONTEXT',
+            'context_title': 'WRONG_TITLE',
+            'oauth_consumer_key': 'my_lti',
+            'lis_outcome_service_url': '',
+        }
+
+        res = test_client.post('/api/v1/lti/launch/1', data=data)
+        assert res.status_code < 400
+
+        url = urllib.parse.urlparse(res.headers['Location'])
+        jwt = urllib.parse.parse_qs(url.query)['jwt'][0]
+        res = test_client.req(
+            'post',
+            '/api/v1/lti/launch/2',
+            200,
+            data={'jwt_token': jwt},
+        )
+        assig, token = res['assignment'], res.get('access_token', None)
+        out = test_client.req(
+            'get',
+            '/api/v1/login?extended',
+            200,
+            headers={'Authorization': f'Bearer {token}'} if token else {}
+        )
+        user = m.User.query.get(out['id'])
+        assert user.courses[assig['course']['id']].name == 'New LTI Role'
 
 
 @pytest.mark.parametrize('patch', [True, False])
@@ -794,7 +793,7 @@ def test_lti_assignment_create(
                 'custom_canvas_assignment_title':
                     'MY_ASSIG_TITLE',
                 'custom_canvas_user_login_id':
-                    'A the A-er',
+                    'a the a-er',
                 'custom_canvas_assignment_published':
                     'false',
                 'ext_roles':
@@ -814,7 +813,7 @@ def test_lti_assignment_create(
                 'resource_link_title':
                     'MY_ASSIG_TITLE',
                 'lis_person_sourcedid':
-                    'A the A-er',
+                    'a the a-er',
                 'roles':
                     'urn:lti:sysrole:ims/lis/Administrator,urn:lti:role:ims/lis/Instructor',
                 'oauth_consumer_key':
@@ -970,6 +969,7 @@ def test_reset_lti_email(test_client, app, logged_in, ta_user, session):
 
     assig, token = do_lti_launch('orig@example.com')
     out = get_user_info(token)
+    print(out)
     assert out['name'] == 'A the A-er'
     assert out['username'] == 'a-the-a-er'
     old_id = out['id']

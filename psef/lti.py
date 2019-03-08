@@ -88,7 +88,8 @@ class LTIRoleKind(enum.IntEnum):
         except KeyError:
             raise LTIRoleException(
                 'The given role could not be parsed as an LTI role.',
-                f'The role kind {lti_kind} is invalid.', INVALID_PARAM, 400
+                f'The role kind {lti_kind} is invalid.',
+                APICodes.INVALID_PARAM, 400
             )
 
 
@@ -179,6 +180,7 @@ class LTI:  # pylint: disable=too-many-public-methods
         :returns: A fresh LTI instance.
         """
         params = req.form.copy()
+        print(params)
 
         lti_provider = models.LTIProvider.query.filter_by(
             key=params['oauth_consumer_key'],
@@ -349,7 +351,6 @@ class LTI:  # pylint: disable=too-many-public-methods
             try:
                 yield LTIRole(role)
             except LTIRoleException as e:
-                print('zzz', e)
                 pass
 
     def get_assignment_deadline(self, default: datetime.datetime = None

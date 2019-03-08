@@ -10,6 +10,10 @@ test_setup:
 	mkdir -p /tmp/psef/uploads
 	mkdir -p /tmp/psef/mirror_uploads
 
+.PHONY: test_quick_slow
+test_quick_slow: test_setup
+	DEBUG=on env/bin/pytest --cov psef --cov-report term-missing $(TEST_FILE) -vvvvv -x $(TEST_FLAGS)
+
 .PHONY: test_quick
 test_quick: test_setup
 	DEBUG=on env/bin/pytest -n auto --cov psef --cov-report term-missing $(TEST_FILE) -vvvvv -x $(TEST_FLAGS)
