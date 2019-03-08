@@ -20,8 +20,8 @@ from .file import File, FileOwner
 from .linter import LinterState, LinterComment, LinterInstance
 from .rubric import RubricItem
 from .comment import Comment
-from ..exceptions import PermissionException
 from .link_tables import work_rubric_item
+from ..exceptions import PermissionException
 from ..permissions import CoursePermission
 
 if t.TYPE_CHECKING:  # pragma: no cover
@@ -305,9 +305,7 @@ class Work(Base):
 
             db.session.query(GradeHistory).filter(
                 GradeHistory.id == newest_grade_history_id.as_scalar(),
-            ).update({
-                'passed_back': True
-            }, synchronize_session='fetch')
+            ).update({'passed_back': True}, synchronize_session='fetch')
 
     def select_rubric_items(
         self,

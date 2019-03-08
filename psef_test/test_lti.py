@@ -1073,18 +1073,15 @@ def test_lti_grade_passback_with_groups(
     with logged_in(teacher_user):
         assig, token = do_lti_launch()
         u1 = create_user_with_perms(
-            session,
-            [CPerm.can_submit_own_work],
+            session, [CPerm.can_submit_own_work],
             m.Course.query.get(assig['course']['id'])
         )
         u2 = create_user_with_perms(
-            session,
-            [CPerm.can_submit_own_work],
+            session, [CPerm.can_submit_own_work],
             m.Course.query.get(assig['course']['id'])
         )
         u3 = create_user_with_perms(
-            session,
-            [CPerm.can_submit_own_work],
+            session, [CPerm.can_submit_own_work],
             m.Course.query.get(assig['course']['id'])
         )
         u1_lti_id = str(uuid.uuid4())

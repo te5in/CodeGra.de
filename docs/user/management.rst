@@ -187,16 +187,21 @@ Linters
 ~~~~~~~~~
 CodeGrade provides several linters (e.g. Pylint, Checkstyle). A linter analyses
 submissions to flag programming errors, bugs, stylistic errors, or suspicious
-constructs, depending on the linter's characteristics. After selecting the right
-linter and optionally writing a config file (custom config files can be given,
-however using an empty config file is recommended, please consult the specific
-linter's documentation for details on writing config files), the linter can be
-run using the 'Run' button.
+constructs, depending on the linter's characteristics. After selecting a linter
+and optionally writing a config file (custom configuration can be given, please
+consult the specific linter's documentation for details on writing
+configuration files), the linter can be run using the 'Run' button.
+
+When the linter has run on all submissions, a list can be shown with the status
+for each submission by clicking 'Show more information'. The submissions are
+sorted such that ones that crashed the linter appear at the top of the list.
+Logs of the runs that crashed can be downloaded individually per submission by
+clicking the 'Download' button.
 
 The output of the linter will be displayed in the :ref:`Codeviewer
 <codeviewer-chapter>` and indicated by red line numbers that display the linter
-output by hovering over. Linters can often be useful to provide a quick overview
-of stylistic errors or bad constructs.
+output when hovering over. Linters can often be useful to provide a quick
+overview of stylistic errors or bad constructs.
 
 The version of the linters doesn't have to be the same for each CodeGrade
 instance. However, official CodeGrade instances always try to run the latest

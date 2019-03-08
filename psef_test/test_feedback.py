@@ -26,12 +26,8 @@ only_own = create_marker(pytest.mark.only_own)
     'data', [
         data_error('err'),
         data_error({}),
-        data_error({
-            'sr': 'err'
-        }),
-        data_error({
-            'comment': 5
-        }),
+        data_error({'sr': 'err'}),
+        data_error({'comment': 5}),
         {
             'comment': 'correct'
         },

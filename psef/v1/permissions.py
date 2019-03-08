@@ -75,8 +75,8 @@ def get_course_or_global_permissions(
         return jsonify(
             {
                 course_id: CPerm.create_map(v)
-                for course_id, v in current_user.
-                get_all_permissions_in_courses().items()
+                for course_id, v in
+                current_user.get_all_permissions_in_courses().items()
             }
         )
     else:

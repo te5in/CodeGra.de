@@ -7,6 +7,8 @@ import enum
 import uuid
 import typing as t
 
+from sqlalchemy import orm
+
 from . import UUID_LENGTH, Base, db, _MyQuery
 
 if t.TYPE_CHECKING:  # pragma: no cover
@@ -90,6 +92,15 @@ class LinterInstance(Base):
     tester_id: str = db.Column(
         'tester_id', db.Unicode, db.ForeignKey('AssignmentLinter.id')
     )
+    stdout: t.Optional[str] = orm.deferred(
+        db.Column('stdout', db.Unicode, nullable=True)
+    )
+    stderr: t.Optional[str] = orm.deferred(
+        db.Column('stderr', db.Unicode, nullable=True)
+    )
+    _error_summary: t.Optional[str] = db.Column(
+        'error_summary', db.Unicode, nullable=True
+    )
 
     tester: 'assignment.AssignmentLinter' = db.relationship(
         "AssignmentLinter", back_populates="tests"
@@ -99,6 +110,24 @@ class LinterInstance(Base):
     comments: LinterComment = db.relationship(
         "LinterComment", back_populates="linter", cascade='all,delete'
     )
+
+    @property
+    def error_summary(self) -> str:
+        """The summary of the error the linter encountered.
+
+        :returns: A summary of the error the linter encountered. This will
+            probably be empty when the state is not ``crashed``.
+        """
+        if self._error_summary:
+            return self._error_summary
+        elif self.state == LinterState.crashed:
+            return 'The linter crashed for some unknown reason.'
+        else:
+            return ''
+
+    @error_summary.setter
+    def error_summary(self, new_value: str) -> None:
+        self._error_summary = new_value
 
     def __init__(
         self, work: 'work_models.Work', tester: 'assignment.AssignmentLinter'
@@ -113,6 +142,54 @@ class LinterInstance(Base):
             new_id = str(uuid.uuid4())
 
         self.id = new_id
+
+    def __extended_to_json__(self) -> t.Mapping[str, object]:
+        """Creates an extended JSON serializable representation of this linter
+        instance.
+
+        This object will look like this:
+
+        .. code:: python
+
+            {
+                'stdout': str, # The stdout produced by the linter.
+                'stderr': str, # The stderr produced by the linter.
+                **self.__to_json__(), # Other keys are the same as the normal
+                                      # json serialization.
+            }
+
+        :returns: An object as described above.
+        """
+        return {
+            **self.__to_json__(),
+            'stdout': self.stdout,
+            'stderr': self.stderr,
+        }
+
+    def __to_json__(self) -> t.Mapping[str, object]:
+        """Creates a JSON serializable representation of this linter instance.
+
+        This object will look like this:
+
+        .. code:: python
+
+            {
+                'id': str, # The id of this linter instance.
+                'state': str, # The state of this linter instance.
+                'work': Work, # The submission this instance has linted.
+                'error_summary': str, # The summary of the error this linter
+                                      # has encountered. This will be an empty
+                                      # string if no error has occurred.
+            }
+
+        :returns: An object as described above.
+        """
+        return {
+            'id': self.id,
+            'state': self.state.name,
+            'work': self.work,
+            'error_summary': self.error_summary,
+        }
 
     def add_comments(
         self,

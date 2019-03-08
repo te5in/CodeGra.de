@@ -367,7 +367,7 @@ def get_all_course_users(
 
         @limiter.limit('1 per second', key_func=lambda: str(current_user.id))
         def get_users_in_course() -> t.List[models.User]:
-            query = request.args.get('q')
+            query: str = request.args.get('q', '')
             base = course.get_all_users_in_course().from_self(models.User)
             return helpers.filter_users_by_name(query, base).all()
 

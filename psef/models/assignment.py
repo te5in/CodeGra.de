@@ -29,8 +29,8 @@ from .. import auth, helpers
 from .role import CourseRole
 from .rubric import RubricRow, RubricItem
 from .permission import Permission
-from ..exceptions import PermissionException, InvalidAssignmentState
 from .link_tables import user_course, work_rubric_item, course_permissions
+from ..exceptions import PermissionException, InvalidAssignmentState
 from ..permissions import CoursePermission as CPerm
 
 if t.TYPE_CHECKING:  # pragma: no cover
@@ -182,6 +182,29 @@ class AssignmentLinter(Base):
         return linter_models.LinterInstance.query.filter_by(
             tester_id=self.id, state=state
         ).count()
+
+    def __extended_to_json__(self) -> t.Mapping[str, t.Any]:
+        """Creates an extended JSON serializable representation of this
+        assignment linter.
+
+        This object will look like this:
+
+        .. code:: python
+
+            {
+                'tests': t.List[LinterInstance], # The tests done by this
+                                                 # assignment linter.
+                'id': str, # The id of this assignment linter.
+                'name': str, # The name.
+            }
+
+        :returns: An object as described above.
+        """
+        return {
+            'tests': self.tests,
+            'id': self.id,
+            'name': self.name,
+        }
 
     def __to_json__(self) -> t.Mapping[str, t.Any]:
         """Returns the JSON serializable representation of this class.

@@ -104,14 +104,9 @@ def test_get_all_assignments(
             for assig in assigs:
                 ensure_keys_in_dict(
                     assig, [
-                        ('id', int),
-                        ('state', str),
-                        ('description', str),
-                        ('created_at', str),
-                        ('name', str),
-                        ('deadline', str),
-                        ('is_lti', bool),
-                        ('whitespace_linter', bool),
+                        ('id', int), ('state', str), ('description', str),
+                        ('created_at', str), ('name', str), ('deadline', str),
+                        ('is_lti', bool), ('whitespace_linter', bool),
                         ('course', dict)
                     ]
                 )
@@ -427,8 +422,8 @@ def test_update_rubric_row(
         if marker is None:
             assert len(data) == len(rubric)
             assert data[0]['header'] == row_header or rubric[0]['header']
-            assert data[0]['description'] == row_description or rubric[0][
-                'description']
+            assert data[0]['description'
+                           ] == row_description or rubric[0]['description']
             assert len(data[0]['items']) == 2
             assert data[0]['items'][0]['id'] > 0
             assert data[0]['items'][0]['points'] == item_points
@@ -1251,7 +1246,9 @@ def test_incorrect_ingore_files_value(
 
 @pytest.mark.parametrize(
     'get_data_func', [
-        lambda: {'file': (io.BytesIO(b'0' * 2 * 2 ** 20), 'filename')},
+        lambda: {
+            'file': (io.BytesIO(b'0' * 2 * 2 ** 20), 'filename')
+        },
         lambda: {
             'file1': (io.BytesIO(b'0' * int(0.9 * 2 ** 20)), 'filename1'),
             'file2': (io.BytesIO(b'0' * int(0.9 * 2 ** 20)), 'filename2'),
@@ -1266,42 +1263,46 @@ def test_incorrect_ingore_files_value(
             'file4': (get_submission_archive('larger_file.zip'), 'f4.zip'),
             'file5': (get_submission_archive('larger_file.zip'), 'f5.zip'),
         },
-        lambda: {'file': (
-            get_submission_archive('too_large.tar.gz'),
-            'l.tar.gz'
-        )},
-        lambda: {'file': (
-            get_submission_archive('too_large.zip'),
-            'l.zip'
-        )},
-        lambda: {'file': (
-            get_submission_archive('too_large.7z'),
-            'l.7z'
-        )},
-        lambda: {'file': (
-            get_submission_archive('many_larger_files.tar.gz'),
-            'l.tar.gz'
-        )},
-        lambda: {'file': (
-            get_submission_archive('many_larger_files.zip'),
-            'l.zip'
-        )},
-        lambda: {'file': (
-            get_submission_archive('many_larger_files.7z'),
-            'l.7z'
-        )},
-        lambda: {'file': (
-            get_submission_archive('archive_with_large_file.tar.gz'),
-            'l.tar.gz'
-        )},
-        lambda: {'file': (
-            get_submission_archive('archive_with_large_file.zip'),
-            'l.zip'
-        )},
-        lambda: {'file': (
-            get_submission_archive('archive_with_large_file.7z'),
-            'l.7z'
-        )},
+        lambda: {
+            'file': (get_submission_archive('too_large.tar.gz'), 'l.tar.gz')
+        },
+        lambda: {
+            'file': (get_submission_archive('too_large.zip'), 'l.zip')
+        },
+        lambda: {
+            'file': (get_submission_archive('too_large.7z'), 'l.7z')
+        },
+        lambda: {
+            'file':
+                (
+                    get_submission_archive('many_larger_files.tar.gz'),
+                    'l.tar.gz'
+                )
+        },
+        lambda: {
+            'file': (get_submission_archive('many_larger_files.zip'), 'l.zip')
+        },
+        lambda: {
+            'file': (get_submission_archive('many_larger_files.7z'), 'l.7z')
+        },
+        lambda: {
+            'file':
+                (
+                    get_submission_archive('archive_with_large_file.tar.gz'),
+                    'l.tar.gz'
+                )
+        },
+        lambda: {
+            'file':
+                (
+                    get_submission_archive('archive_with_large_file.zip'),
+                    'l.zip'
+                )
+        },
+        lambda: {
+            'file':
+                (get_submission_archive('archive_with_large_file.7z'), 'l.7z')
+        },
     ]
 )
 def test_upload_too_large_file(
@@ -1370,29 +1371,19 @@ def test_upload_archive_with_many_files(
         )
 
 
+@pytest.mark.parametrize('ignored_files', ['keep', None, 'delete', 'error'])
 def test_upload_empty_archive(
-    student_user, test_client, error_template, logged_in, assignment
+    student_user, test_client, error_template, logged_in, assignment,
+    ignored_files
 ):
     filename = get_submission_archive('empty_submission.tar.gz')
     with logged_in(student_user):
+        url = f'/api/v1/assignments/{assignment.id}/submission'
+        if ignored_files is not None:
+            url = f'{url}?ignored_files={ignored_files}'
         res = test_client.req(
             'post',
-            f'/api/v1/assignments/{assignment.id}/submission',
-            400,
-            real_data={'file': (filename, 'ar.tar.gz')},
-            result=error_template
-        )
-        assert res['message'].startswith('No files found')
-
-
-def test_upload_empty_archive(
-    student_user, test_client, error_template, logged_in, assignment
-):
-    filename = get_submission_archive('empty_submission.tar.gz')
-    with logged_in(student_user):
-        res = test_client.req(
-            'post',
-            f'/api/v1/assignments/{assignment.id}/submission',
+            url,
             400,
             real_data={'file': (filename, 'ar.tar.gz')},
             result=error_template
@@ -1961,9 +1952,7 @@ def test_upload_blackboard_zip(
             ).filter(m.user_course.c.course_id == crole.id).delete(False)
             session.commit()
             session.query(m.User).filter_by(name='Student1').update(
-                {
-                    'username': result['Student1']['username']
-                }
+                {'username': result['Student1']['username']}
             )
             assert get_student_users() == set()
 
@@ -2939,9 +2928,7 @@ def test_warning_grader_done(
 
         session.query(m.Work).filter_by(
             assigned_to=grader_done, assignment_id=assig_id
-        ).update({
-            '_grade': 6
-        })
+        ).update({'_grade': 6})
         session.commit()
         _, rv = test_client.req(
             'post',
@@ -3634,8 +3621,7 @@ def test_division_parent(
 
     def make_new_grader():
         return create_user_with_perms(
-            session,
-            [
+            session, [
                 CPerm.can_submit_own_work, CPerm.can_see_assignments,
                 CPerm.can_upload_after_deadline, CPerm.can_grade_work
             ],
@@ -3919,8 +3905,7 @@ def test_duplicating_rubric(
         new_assignment = create_assignment(test_client, state='open')
 
     user = create_user_with_perms(
-        session,
-        [CPerm.can_see_assignments],
+        session, [CPerm.can_see_assignments],
         courses=[
             base_assignment['course'],
             new_assignment['course'],
@@ -3945,8 +3930,7 @@ def test_duplicating_rubric(
     ]:
         with logged_in(
             create_user_with_perms(
-                session,
-                [
+                session, [
                     CPerm.manage_rubrics, CPerm.can_see_assignments,
                     CPerm.can_see_hidden_assignments
                 ],
@@ -4022,8 +4006,7 @@ def test_get_all_assignments_with_rubric(
         assig_perms_no_rubric = create_assignment(test_client, state='open')
         assig_perms_rubric = create_assignment(test_client, state='open')
     user = create_user_with_perms(
-        session,
-        [CPerm.can_see_assignments, CPerm.manage_rubrics],
+        session, [CPerm.can_see_assignments, CPerm.manage_rubrics],
         courses=[
             assig_perms_no_rubric['course'],
             assig_perms_rubric['course'],

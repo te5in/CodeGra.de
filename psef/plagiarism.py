@@ -11,10 +11,9 @@ import abc
 import csv
 import enum
 import typing as t
+import dataclasses
 
 import structlog
-
-import dataclasses
 
 from . import files, errors, models, helpers
 

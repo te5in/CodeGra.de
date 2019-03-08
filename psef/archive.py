@@ -34,12 +34,11 @@ import typing as t
 import tarfile
 import zipfile
 import contextlib
+import dataclasses
 from os import path
 
 import py7zlib
 import structlog
-
-import dataclasses
 
 from . import app
 from .helpers import register, add_warning
