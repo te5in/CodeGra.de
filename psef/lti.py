@@ -66,15 +66,24 @@ class LTIProperty:
 
 
 class LTIRoleKind(enum.IntEnum):
+    """Kind of an LTI role.
+    """
     SYSROLE = enum.auto()
     INSTROLE = enum.auto()
     ROLE = enum.auto()
 
 
 class LTIRole:
+    """LTI role, parsed from a role urn. The urn must be of the form
+    urn:lti:{kind}:ims/lis/{name}/{subname}.
+
+    :ivar kind: Kind of the role.
+    :ivar name: Primary role name.
+    :ivar subnames: Secondary role names.
+    """
     kind: LTIRoleKind
     name: str
-    subname: t.Optional[str]
+    subnames: t.Sequence[str]
 
     def __init__(self, urn: str) -> None:
         # try:
@@ -89,12 +98,9 @@ class LTIRole:
         path = rest[1]
         assert path.startswith('ims/lis/')
         _, __, *names = path.split('/')
-        assert len(names)
+        assert names
         self.name = names[0]
-        if len(names) > 1:
-            self.subname = names[1]
-        else:
-            self.subname = None
+        self.subnames = names[1:]
         # except AssertionError:
         #     raise APIException(
         #         'The given role could not be parsed as an LTI role.',
@@ -104,9 +110,7 @@ class LTIRole:
 
     def __repr__(self) -> str:
         kind = self.kind.name.lower()
-        name = self.name
-        if self.subname:
-            name += f'/{self.subname}'
+        name = '/'.join([self.name, *self.subnames])
         return f'urn:lti:{kind}:ims/lis/{name}'
 
 
@@ -132,7 +136,6 @@ class LTI:  # pylint: disable=too-many-public-methods
         params: t.Mapping[str, str],
         lti_provider: models.LTIProvider = None
     ) -> None:
-        print('xxx', params)
         self.launch_params = params
 
         if lti_provider is not None:
