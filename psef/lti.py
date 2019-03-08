@@ -65,12 +65,31 @@ class LTIProperty:
     external: str
 
 
+class LTIRoleException(APIException):
+    """Thrown when a role could not be parsed.
+    """
+
 class LTIRoleKind(enum.IntEnum):
     """Kind of an LTI role.
     """
-    SYSROLE = enum.auto()
-    INSTROLE = enum.auto()
-    ROLE = enum.auto()
+    system = enum.auto()
+    institution = enum.auto()
+    course = enum.auto()
+
+    @classmethod
+    def get_kind(cls, lti_kind: str) -> 'LTIRoleKind':
+        try:
+            return {
+                'sysrole': cls.system,
+                'instrole': cls.institution,
+                'role': cls.course,
+            }[lti_kind]
+        except KeyError:
+            raise LTIRoleException(
+                'The given role could not be parsed as an LTI role.',
+                f'The role kind {lti_kind} is invalid.',
+                INVALID_PARAM, 400
+            )
 
 
 class LTIRole:
@@ -86,32 +105,31 @@ class LTIRole:
     subnames: t.Sequence[str]
 
     def __init__(self, urn: str) -> None:
-        # try:
-        assert urn.startswith('urn:lti:')
+        self._urn = urn
+        self._role_assert(urn.startswith('urn:lti:'))
         _, __, *rest = urn.split(':')
-        assert len(rest) >= 2
-
-        kind = rest[0].upper()
-        assert hasattr(LTIRoleKind, kind)
-        self.kind = getattr(LTIRoleKind, kind)
+        self._role_assert(len(rest) >= 2)
+        self.kind = LTIRoleKind.get_kind(rest[0])
 
         path = rest[1]
-        assert path.startswith('ims/lis/')
+        self._role_assert(path.startswith('ims/lis/'))
         _, __, *names = path.split('/')
-        assert names
+        self._role_assert(names)
         self.name = names[0]
         self.subnames = names[1:]
-        # except AssertionError:
-        #     raise APIException(
-        #         'The given role could not be parsed as an LTI role.',
-        #         'The role {urn} could not be parsed as an LTI role.',
-        #         APICodes.INVALID_PARAM, 400
-        #     )
 
     def __repr__(self) -> str:
         kind = self.kind.name.lower()
         name = '/'.join([self.name, *self.subnames])
-        return f'urn:lti:{kind}:ims/lis/{name}'
+        return f'{kind}:{name}'
+
+    def _role_assert(self, x: bool) -> None:
+        if not x:
+            raise LTIRoleException(
+                'The given role could not be parsed as an LTI role.',
+                f'The role {self._urn} could not be parsed as an LTI role.',
+                APICodes.INVALID_PARAM, 400
+            )
 
 
 T_LTI = t.TypeVar('T_LTI', bound='LTI')  # pylint: disable=invalid-name
@@ -330,7 +348,8 @@ class LTI:  # pylint: disable=too-many-public-methods
         for role in self.launch_params[key].split(','):
             try:
                 yield LTIRole(role)
-            except AssertionError:
+            except LTIRoleException as e:
+                print('zzz', e)
                 pass
 
     def get_assignment_deadline(self, default: datetime.datetime = None
@@ -532,7 +551,7 @@ class LTI:  # pylint: disable=too-many-public-methods
         if user.role is None:
             for role in self.roles:
                 # Ignore course roles.
-                if role.kind == LTIRoleKind.ROLE:
+                if role.kind == LTIRoleKind.course:
                     continue
                 if role.name not in LTI_ROLE_LOOKUPS:
                     continue
@@ -559,7 +578,7 @@ class LTI:  # pylint: disable=too-many-public-methods
             unkown_roles = []
             for role in self.roles:
                 # Ignore system roles.
-                if role.kind != LTIRoleKind.ROLE:
+                if role.kind != LTIRoleKind.course:
                     continue
                 if role.name not in LTI_ROLE_LOOKUPS:
                     unkown_roles.append(role.name)

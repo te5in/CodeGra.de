@@ -286,7 +286,7 @@ def test_lti_no_roles_found(test_client, app, logged_in, ta_user, monkeypatch):
                 'custom_canvas_assignment_title':
                     'MY_ASSIG_TITLE',
                 'ext_roles':
-                    '{},urn:lti:role:ims/lis/non_existing'.format(other_role),
+                    'urn:lti:role:ims/lis/non_existing,{}'.format(other_role),
                 'custom_canvas_user_login_id':
                     username,
                 'custom_canvas_assignment_due_at':
@@ -370,12 +370,14 @@ def test_lti_no_roles_found(test_client, app, logged_in, ta_user, monkeypatch):
     assert res['message'].startswith('The given LTI role could not')
 
     no_course_role = False
-    _, token, __ = do_lti_launch(
+    assig, token, __ = do_lti_launch(
         username='NEW_USER1233', lti_id='6', code=200, parse=True
     )
+    course = assig['course']
     out = get_user_info(token)
     assert out['username'] == 'NEW_USER1233'
-    assert m.User.query.get(out['id']).role is not None
+    user = m.User.query.get(out['id'])
+    assert user.courses[course['id']].name == 'Teacher'
 
 
 @pytest.mark.parametrize('patch', [True, False])
