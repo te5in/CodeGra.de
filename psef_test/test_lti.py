@@ -159,9 +159,8 @@ def test_lti_new_user_new_course(test_client, app, logged_in, ta_user):
                 'custom_canvas_course_id': 'MY_COURSE_ID',
                 'custom_canvas_assignment_id': 'MY_ASSIG_ID',
                 'custom_canvas_assignment_title': 'MY_ASSIG_TITLE',
-                'roles': 'instructor',
+                'ext_roles': 'urn:lti:role:ims/lis/Instructor',
                 'custom_canvas_user_login_id': username,
-                'custom_canvas_course_title': 'Common Lisp',
                 'custom_canvas_assignment_due_at': due_date,
                 'custom_canvas_assignment_published': published,
                 'user_id': lti_id,
@@ -273,15 +272,17 @@ def test_lti_no_roles_found(test_client, app, logged_in, ta_user, monkeypatch):
         code=200
     ):
         with app.app_context():
-            other_role = 'administrator' if no_course_role else 'instructor'
+            if no_course_role:
+                other_role = 'urn:lti:sysrole:ims/lis/Administrator'
+            else:
+                other_role = 'urn:lti:role:ims/lis/Instructor'
             data = {
                 'custom_canvas_course_name': 'NEW_COURSE',
                 'custom_canvas_course_id': 'MY_COURSE_ID',
                 'custom_canvas_assignment_id': 'MY_ASSIG_ID',
                 'custom_canvas_assignment_title': 'MY_ASSIG_TITLE',
-                'roles': '{},non_existing'.format(other_role),
+                'ext_roles': '{},urn:lti:role:ims/lis/non_existing'.format(other_role),
                 'custom_canvas_user_login_id': username,
-                'custom_canvas_course_title': 'Common Lisp',
                 'custom_canvas_assignment_due_at': due_at.isoformat(),
                 'custom_canvas_assignment_published': published,
                 'user_id': lti_id,
@@ -351,7 +352,7 @@ def test_lti_no_roles_found(test_client, app, logged_in, ta_user, monkeypatch):
     assert not res['new_role_created']
 
     res = do_lti_launch(username='NEW_USER', lti_id='5', code=400, parse=False)
-    assert res['message'].startswith('The given LTI role was not')
+    assert res['message'].startswith('The given LTI role could not')
 
     no_course_role = False
     _, token, __ = do_lti_launch(
@@ -416,9 +417,8 @@ def test_lti_grade_passback(
                 'custom_canvas_course_id': canvas_id,
                 'custom_canvas_assignment_id': f'{canvas_id}_ASSIG_1',
                 'custom_canvas_assignment_title': 'MY_ASSIG_TITLE',
-                'roles': 'administrator,instructor',
+                'ext_roles': 'urn:lti:sysrole:ims/lis/Administrator,urn:lti:role:ims/lis/Instructor',
                 'custom_canvas_user_login_id': username,
-                'custom_canvas_course_title': 'Common Lisp',
                 'custom_canvas_assignment_due_at': due_at.isoformat(),
                 'custom_canvas_assignment_published': published,
                 'user_id': lti_id,
@@ -624,9 +624,8 @@ def test_lti_assignment_create(
                 'custom_canvas_course_id': 'MY_COURSE_ID_100',
                 'custom_canvas_assignment_id': 'MY_ASSIG_ID_100',
                 'custom_canvas_assignment_title': assig_name,
-                'roles': 'administrator,instructor',
+                'ext_roles': 'urn:lti:sysrole:ims/lis/Administrator,urn:lti:role:ims/lis/Instructor',
                 'custom_canvas_user_login_id': username,
-                'custom_canvas_course_title': 'Common Lisp',
                 'custom_canvas_assignment_published': published,
                 'user_id': lti_id,
                 'lis_person_contact_email_primary': 'a@a.nl',
@@ -690,10 +689,8 @@ def test_lti_assignment_create(
                 'custom_canvas_assignment_id': 'MY_ASSIG_ID_100',
                 'custom_canvas_assignment_title': 'MY_ASSIG_TITLE',
                 'custom_canvas_user_login_id': 'A the A-er',
-                'custom_canvas_course_title': 'Common Lisp',
                 'custom_canvas_assignment_published': 'false',
-                'context_id': 'NO_CONTEXT!!',
-                'context_title': 'WRONG_TITLE!!',
+                'ext_roles': 'urn:lti:sysrole:ims/lis/Administrator,urn:lti:role:ims/lis/Instructor',
                 'oauth_consumer_key': 'my_lti',
             }
         ),
@@ -704,6 +701,7 @@ def test_lti_assignment_create(
                 'resource_link_id': 'MY_ASSIG_ID_100',
                 'resource_link_title': 'MY_ASSIG_TITLE',
                 'lis_person_sourcedid': 'A the A-er',
+                'roles': 'urn:lti:sysrole:ims/lis/Administrator,urn:lti:role:ims/lis/Instructor',
                 'oauth_consumer_key': 'blackboard_lti',
             }
         ),
@@ -715,7 +713,6 @@ def test_lti_assignment_update(
     def do_lti_launch():
         with app.app_context():
             data = {
-                'roles': 'administrator,instructor',
                 'user_id': 'USER_ID',
                 'lis_person_name_full': 'A the A-er',
                 'lis_person_contact_email_primary': 'a@a.nl',
@@ -811,9 +808,8 @@ def test_reset_lti_email(test_client, app, logged_in, ta_user, session):
                 'custom_canvas_course_id': 'MY_COURSE_ID',
                 'custom_canvas_assignment_id': 'MY_ASSIG_ID',
                 'custom_canvas_assignment_title': 'MY_ASSIG_TITLE',
-                'roles': 'instructor',
+                'ext_roles': 'urn:lti:role:ims/lis/Instructor',
                 'custom_canvas_user_login_id': username,
-                'custom_canvas_course_title': 'Common Lisp',
                 'custom_canvas_assignment_due_at': due_date,
                 'custom_canvas_assignment_published': published,
                 'user_id': lti_id,
@@ -905,9 +901,8 @@ def test_invalid_jwt(test_client, app, logged_in, session, error_template):
             'custom_canvas_course_id': 'MY_COURSE_ID',
             'custom_canvas_assignment_id': 'MY_ASSIG_ID',
             'custom_canvas_assignment_title': 'MY_ASSIG_TITLE',
-            'roles': 'instructor',
+            'ext_roles': 'urn:lti:role:ims/lis/Instructor',
             'custom_canvas_user_login_id': username,
-            'custom_canvas_course_title': 'Common Lisp',
             'custom_canvas_assignment_due_at': due_date,
             'custom_canvas_assignment_published': published,
             'user_id': lti_id,
@@ -963,9 +958,8 @@ def test_invalid_lms(
             'custom_canvas_course_id': 'MY_COURSE_ID',
             'custom_canvas_assignment_id': 'MY_ASSIG_ID',
             'custom_canvas_assignment_title': 'MY_ASSIG_TITLE',
-            'roles': 'instructor',
+            'ext_roles': 'urn:lti:role:ims/lis/Instructor',
             'custom_canvas_user_login_id': username,
-            'custom_canvas_course_title': 'Common Lisp',
             'custom_canvas_assignment_due_at': due_date,
             'custom_canvas_assignment_published': published,
             'user_id': lti_id,
@@ -1034,9 +1028,8 @@ def test_lti_grade_passback_with_groups(
                 'custom_canvas_course_id': canvas_id,
                 'custom_canvas_assignment_id': f'{canvas_id}_ASSIG_1',
                 'custom_canvas_assignment_title': 'MY_ASSIG_TITLE',
-                'roles': 'administrator,instructor',
+                'ext_roles': 'urn:lti:sysrole:ims/lis/Administrator,urn:lti:role:ims/lis/Instructor',
                 'custom_canvas_user_login_id': username,
-                'custom_canvas_course_title': 'Common Lisp',
                 'custom_canvas_assignment_due_at': due_at.isoformat(),
                 'custom_canvas_assignment_published': 'true',
                 'user_id': lti_id,

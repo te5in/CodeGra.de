@@ -26,7 +26,7 @@ from defusedxml.ElementTree import fromstring as defused_xml_fromstring
 from dataclasses import dataclass
 
 from . import (
-    LTI_ROLE_LOOKUPS, app, auth, models, helpers, features, current_user
+    app, auth, models, helpers, features, current_user
 )
 from .auth import _user_active
 from .models import db
@@ -50,6 +50,14 @@ LTI_NAMESPACES = {
 }
 
 
+LTI_ROLE_LOOKUPS: t.Mapping[str, str] = {
+    'Administrator': 'Admin',
+    'Learner': 'Student',
+    'Instructor': 'Teacher',
+    'TeachingAssistant': 'TA',
+}
+
+
 @dataclass
 class LTIProperty:
     """An LTI property.
@@ -59,6 +67,51 @@ class LTIProperty:
     """
     internal: str
     external: str
+
+
+class LTIRoleKind(enum.IntEnum):
+    SYSROLE = enum.auto()
+    INSTROLE = enum.auto()
+    ROLE = enum.auto()
+
+
+class LTIRole:
+    kind: LTIRoleKind
+    name: str
+    subname: t.Optional[str]
+
+    def __init__(self, urn: str) -> None:
+        # try:
+        assert urn.startswith('urn:lti:')
+        _, __, *rest = urn.split(':')
+        assert len(rest) >= 2
+
+        kind = rest[0].upper()
+        assert hasattr(LTIRoleKind, kind)
+        self.kind = getattr(LTIRoleKind, kind)
+
+        path = rest[1]
+        assert path.startswith('ims/lis/')
+        _, __, *names = path.split('/')
+        assert len(names)
+        self.name = names[0]
+        if len(names) > 1:
+            self.subname = names[1]
+        else:
+            self.subname = None
+        # except AssertionError:
+        #     raise APIException(
+        #         'The given role could not be parsed as an LTI role.',
+        #         'The role {urn} could not be parsed as an LTI role.',
+        #         APICodes.INVALID_PARAM, 400
+        #     )
+
+    def __repr__(self) -> str:
+        kind = self.kind.name.lower()
+        name = self.name
+        if self.subname:
+            name += f'/{self.subname}'
+        return f'urn:lti:{kind}:ims/lis/{name}'
 
 
 T_LTI = t.TypeVar('T_LTI', bound='LTI')  # pylint: disable=invalid-name
@@ -83,6 +136,7 @@ class LTI:  # pylint: disable=too-many-public-methods
         params: t.Mapping[str, str],
         lti_provider: models.LTIProvider = None
     ) -> None:
+        print('xxx', params)
         self.launch_params = params
 
         if lti_provider is not None:
@@ -268,10 +322,17 @@ class LTI:  # pylint: disable=too-many-public-methods
         raise NotImplementedError
 
     @property
-    def roles(self) -> t.Iterable[str]:
+    def roles(self) -> t.Iterable[LTIRole]:
         """The normalized roles of the current LTI user.
         """
         raise NotImplementedError
+
+    def _roles(self, key: str) -> t.Iterable[LTIRole]:
+        for role in self.launch_params[key].split(','):
+            try:
+                yield LTIRole(role)
+            except AssertionError:
+                pass
 
     def get_assignment_deadline(self, default: datetime.datetime = None
                                 ) -> t.Optional[datetime.datetime]:
@@ -471,13 +532,14 @@ class LTI:  # pylint: disable=too-many-public-methods
         """
         if user.role is None:
             for role in self.roles:
-                if role not in LTI_ROLE_LOOKUPS:
+                # Ignore course roles.
+                if role.kind == LTIRoleKind.ROLE:
                     continue
-                role_lookup = LTI_ROLE_LOOKUPS[role]
-                if role_lookup['course_role']:  # This is a course role
+                if role.name not in LTI_ROLE_LOOKUPS:
                     continue
+                role_lookup = LTI_ROLE_LOOKUPS[role.name]
                 user.role = models.Role.query.filter_by(
-                    name=role_lookup['role']
+                    name=role_lookup
                 ).one()
                 return
             user.role = models.Role.query.filter_by(
@@ -499,23 +561,23 @@ class LTI:  # pylint: disable=too-many-public-methods
         if course.id not in user.courses:
             unkown_roles = []
             for role in self.roles:
-                if role not in LTI_ROLE_LOOKUPS:
-                    unkown_roles.append(role)
+                # Ignore system roles.
+                if role.kind != LTIRoleKind.ROLE:
                     continue
-                role_lookup = LTI_ROLE_LOOKUPS[role]
-                if not role_lookup['course_role']:  # This is not a course role
+                if role.name not in LTI_ROLE_LOOKUPS:
+                    unkown_roles.append(role.name)
                     continue
-
+                role_lookup = LTI_ROLE_LOOKUPS[role.name]
                 crole = models.CourseRole.query.filter_by(
-                    course_id=course.id, name=role_lookup['role']
+                    course_id=course.id, name=role_lookup
                 ).one()
                 user.courses[course.id] = crole
                 return False
 
             if not features.has_feature(features.Feature.AUTOMATIC_LTI_ROLE):
                 raise APIException(
-                    'The given LTI role was not valid found, please '
-                    'ask your instructor or site admin.',
+                    'The given LTI role could not be found or was not valid. '
+                    'Please ask your instructor or site administrator.',
                     f'No role in "{list(self.roles)}" is a known LTI role',
                     APICodes.INVALID_STATE, 400
                 )
@@ -788,9 +850,8 @@ class CanvasLTI(LTI):
             return models._AssignmentStateEnum.hidden
 
     @property
-    def roles(self) -> t.Iterable[str]:
-        for role in self.launch_params['roles'].split(','):
-            yield role.split('/')[-1].lower()
+    def roles(self) -> t.Iterable[LTIRole]:
+        return self._roles('ext_roles')
 
     def get_assignment_deadline(self, default: datetime.datetime = None
                                 ) -> t.Optional[datetime.datetime]:
@@ -909,9 +970,8 @@ class BlackboardLTI(LTI):
         return models._AssignmentStateEnum.open
 
     @property
-    def roles(self) -> t.Iterable[str]:
-        for role in self.launch_params['roles'].split(','):
-            yield role.split('/')[-1].lower()
+    def roles(self) -> t.Iterable[LTIRole]:
+        return self._roles('roles')
 
     def get_assignment_deadline(self, default: datetime.datetime = None
                                 ) -> t.Optional[datetime.datetime]:
