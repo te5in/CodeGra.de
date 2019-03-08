@@ -4,19 +4,20 @@
         <thead>
             <td>
                 Minimum size
-                <description-popover
-                    hug-text
-                    description="The minimum size a group should be before it
-                                 can submit for an assignment. If the value is 1
-                                 a user that is not in a group is also able to
-                                 submit assignments. The value should be 1 or
-                                 higher."/>
+                <description-popover hug-text>
+                    <template slot="description">
+                        The minimum size of a group before it can submit for an
+                        assignment. If the value is 1, groupless users are also able to
+                        submit assignments individually. The value should be 1 or
+                        higher.
+                    </template>
+                </description-popover>
             </td>
             <td>
                 Maximum size
                 <description-popover
                     hug-text
-                    description="The maximum size a group can be. This value
+                    description="The maximum possible group size. This value
                                  should be equal or greater than the minimum
                                  size."/>
             </td>
@@ -24,7 +25,7 @@
                 Assignments
                 <description-popover
                     hug-text
-                    description="The assignments this group set is used."/>
+                    description="The assignments that use this group set."/>
             </td>
             <td class="btns">Actions</td>
         </thead>

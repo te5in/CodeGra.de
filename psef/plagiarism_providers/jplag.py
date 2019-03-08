@@ -83,10 +83,11 @@ class JPlag(plag.PlagiarismProvider):
                 "suffixes",
                 "Suffixes to include",
                 (
-                    "A comma separated list of suffixes. A file is only parsed"
-                    " if it ends with one of the given suffixes exactly, no"
-                    " regex is supported. If this value is left empty suitable"
-                    " suffixes will be selected for the selected language."
+                    "A comma separated list of suffixes to include. A file is"
+                    " only parsed if it ends with one of the given suffixes"
+                    " exactly, regexes are not supported. If this value is"
+                    " left empty, suitable suffixes will be selected for the"
+                    " selected language automatically."
                 ),
                 plag.OptionTypes.strvalue,
                 False,
@@ -97,11 +98,12 @@ class JPlag(plag.PlagiarismProvider):
                 "simil",
                 "Minimal similarity",
                 (
-                    "The minimal average similarity needed before a pair is "
-                    "considered plagiarism. If this is set to 100 both "
-                    "assignments need to be completely the same, when set to"
-                    " 50 both submissions need to be 50% the same, or one 25%"
-                    " and the other 75%. The default is 25"
+                    "The minimal average similarity needed before a submission"
+                    " pair is considered plagiarism. If this is set to 100,"
+                    " both submissions need to be completely similar. When set"
+                    " to 50 both submissions need to be 50% similar, or one"
+                    " 25% and the other 75%. The default average similarity is"
+                    " 25."
                 ),
                 plag.OptionTypes.numbervalue,
                 False,

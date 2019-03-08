@@ -178,14 +178,12 @@
                 <b-input-group-prepend is-text>
                     Max points<description-popover
                                   placement="top"
-                                  description="The maximum amount of
-                                               points a user can get for
-                                               this rubric. You can set
-                                               this to a higher or lower
-                                               value manually, by
-                                               default it is the sum of
-                                               the max value in each
-                                               category."/>
+                                  description="The maximum amount of points a
+                                               user can get for this rubric. You
+                                               can set this to a higher or lower
+                                               value manually, by default this
+                                               is the sum of the max value of
+                                               each category."/>
                 </b-input-group-prepend>
                 <input type="number"
                        min="0"

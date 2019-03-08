@@ -44,21 +44,22 @@
                                      title="What is my current password?">
                     <p slot="description"
                        style="text-align: left; margin-bottom: 0.25rem;">
-                        If your account was created by using an
-                        <span title="Learning Management System, e.g. Canvas or Blackboard"
-                              style="cursor: help; border-bottom: 1px dotted currentColor;">
-                            LMS</span>
-                        it can happen that you don't know this password. In
-                        this case you should use the
-                        <router-link :to="{ name: 'forgot' }" target="_blank">
-                            reset password</router-link>
-                        page.<br><br>
+                        If your account was automatically created by
+                        your,<span title="Learning Management System,
+                                          e.g. Canvas or Blackboard"
+                                   style="cursor: help;
+                                          border-bottom: 1px dotted currentColor;">
+                            LMS</span> you will not have a password yet. In this
+                        case you should use the <router-link :to="{ name: 'forgot' }"
+                                                             target="_blank">
+                            reset password</router-link> page to set this up.
+                        <br><br>
 
                         However this does require that your email is correct.
                         If this is not the case you can force CodeGrade to copy
                         the email that your LMS gives us the next time you use
-                        CodeGrade within your LMS. To do this please
-                        press <submit-button
+                        CodeGrade within your LMS. To do this please press
+                        <submit-button
                                   label="here"
                                   id="resetOnLtiButton-fixPopover"
                                   size="sm"

@@ -21,12 +21,13 @@
     <div>
         <b-form-checkbox v-model="finished">
             <b>Finished</b>
-            <description-popover
-                description="Toggle this checkbox to send the given email
-                             address a reminder when the grading is done. You
-                             can select multiple address in the same as in your
-                             email client."
-                placement="right"/>
+            <description-popover placement="right">
+                <template slot="description">
+                    Toggle this checkbox to send a reminder to the given email
+                    address when the grading is done. You can enter multiple email
+                    addresses separated by ";".
+                </template>
+            </description-popover>
         </b-form-checkbox>
         <b-collapse :visible="finished" :id="`collapse-${Math.random()}`">
             <b-input-group prepend="Send to"
@@ -98,13 +99,13 @@ export default {
                     text: 'Assigned graders only',
                     value: 'assigned_only',
                     help: `
-Only send to graders that have work assigned to them. This can be because they were
-divided or because they were assigned work manually.`,
+Only send to graders that have submissions assigned (manually or automatically
+divided) to them.`,
                 },
                 {
                     text: 'All graders',
                     value: 'all_graders',
-                    help: 'Send a reminder e-mail to all graders.',
+                    help: 'Send a reminder email to all graders.',
                 },
             ],
         };

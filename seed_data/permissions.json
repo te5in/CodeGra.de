@@ -21,7 +21,7 @@
     "default_value": false,
     "course_permission": true,
     "short_description": "Edit others work",
-    "long_description": "Users with this permission can edit files in the submissions of this course. Usually TAs and teachers have this permission, so they can change files in the CodeGra.de filesystem if code doesn't compile, for example."
+    "long_description": "Users with this permission can edit files in the submissions of this course. Usually TAs and teachers have this permission, so they can, for example, change files in the CodeGrade Filesystem if code does not compile."
   },
   "can_grade_work": {
     "default_value": false,
@@ -57,7 +57,7 @@
     "default_value": true,
     "course_permission": false,
     "short_description": "Snippets",
-    "long_description": "Users with this permission can use the snippets feature on the website."
+    "long_description": "Users with this permission can use snippets."
   },
   "can_edit_own_info": {
     "default_value": true,
@@ -136,7 +136,7 @@
     "default_value": false,
     "course_permission": true,
     "short_description": "See assignee",
-    "long_description": "Users with this permission can see who is assigned to assess a submission."
+    "long_description": "Users with this permission can see who is assigned to grade a submission."
   },
   "manage_rubrics": {
     "default_value": false,
@@ -178,13 +178,13 @@
     "default_value": false,
     "course_permission": true,
     "short_description": "Update course notifications",
-    "long_description": "Users with this permission can change the all notifications that are configured for this course. This includes when to send them and who to send them to."
+    "long_description": "Users with this permission can change all notifications that are configured for this course. This includes when to send them and who to send them to."
   },
   "can_search_users": {
     "default_value": true,
     "course_permission": false,
     "short_description": "Search users",
-    "long_description": "Users with this permission can search for users on the side, this means they can see all other users on the site."
+    "long_description": "Users with this permission can search for users on the site, this means they can see all other users on the site."
   },
   "can_edit_maximum_grade": {
     "default_value": false,
@@ -215,25 +215,25 @@
     "default_value": true,
     "course_permission": true,
     "short_description": "Edit own groups",
-    "long_description": "Users with this permission can edit groups they are in. This means they can join groups, add users to groups they are in and change the name of groups they are in. They cannot remove users from groups they are in, except for themselves."
+    "long_description": "Users with this permission can edit groups they are in. This means they can join, add users and change the name of groups they are in. They cannot remove users from groups they are in, except for themselves."
   },
   "can_edit_others_groups": {
     "default_value": false,
     "course_permission": true,
     "short_description": "Edit others groups",
-    "long_description": "Users with this permission can edit groups they are not in, they can add users, remove users and rename all groups. Users with this permission can also edit groups they are in."
+    "long_description": "Users with this permission can edit groups they are not in, they can add users, remove users and rename all groups. Users with this permission can also automatically edit groups they are in."
   },
   "can_edit_groups_after_submission": {
     "default_value": false,
     "course_permission": true,
     "short_description": "Edit groups after first submission",
-    "long_description": "Users with this permission can edit groups which handed in a submission. Users with this permission cannot automatically edit groups, they also need either \"Edit own groups\" or \"Edit others groups\"."
+    "long_description": "Users with this permission can edit groups even after a submission was handed in by that group. Users with this permission cannot automatically edit groups, but also need either \"Edit own groups\" or \"Edit others groups\"."
   },
   "can_view_others_groups": {
     "default_value": true,
     "course_permission": true,
     "short_description": "View others groups",
-    "long_description": "Users with this permission can view groups they are not in, and the members of these groups."
+    "long_description": "Users with this permission can view groups they are not in, and display the members in these groups."
   },
   "can_edit_group_assignment": {
     "default_value": false,

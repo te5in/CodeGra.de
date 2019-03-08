@@ -70,10 +70,10 @@
                             <description-popover
                                 v-if="ltiProvider && !ltiProvider.supportsDeadline">
                                 <template slot="description">
-                                    The {{ lmsName }} did not pass this
-                                    assignment's deadline on to CodeGrade.
-                                    Students will not be able to submit their
-                                    work until the deadline is set here.
+                                    {{ lmsName }} did not send this assignment's
+                                    deadline to CodeGrade. Students will not be
+                                    able to submit their work until the deadline
+                                    is set here.
                                 </template>
                             </description-popover>
                         </b-input-group-prepend>
@@ -97,11 +97,14 @@
                     <span slot="header">
                         CGIgnore
                         <description-popover
-                            description="This file enables you to filter files
-                                         from submissions. Its format is the
-                                         same as `.gitignore`. If a file should
-                                         be excluded according to this list a
-                                         user will get a warning popup when
+                            description="The cgignore file enables you to filter
+                                         files from submissions. Its format is
+                                         the same as `.gitignore`: an entry per
+                                         line and usual patterns, such as,
+                                         *.class to filter out all files with
+                                         the class extension. If a file should
+                                         be excluded according to this list
+                                         users will get a warning popup when
                                          submitting."/>
                     </span>
                     <c-g-ignore-file :assignment-id="assignmentId"/>
@@ -131,9 +134,11 @@
                     <span slot="header">
                         Upload submission
                         <description-popover
-                            description="Upload work for this assignment. With the
-                                         author field you can select who should be the author. This
-                                         function can be used to submit work for a student."/>
+                            description="Upload work for this assignment. With
+                                         the author field you can select who
+                                         should be the author. This function can
+                                         be used to submit work for a
+                                         student."/>
                     </span>
                     <submission-uploader :assignment="assignment" for-others
                                          :can-list-users="permissions.can_list_course_users"/>
@@ -165,17 +170,16 @@
                         Divide submissions
                         <description-popover>
                             <span slot="description">
-                                Divide this assignment. When dividing users are
-                                assigned to submissions based on weights.  When
-                                new submissions are uploaded graders are also
+                                Divide this assignment. When dividing, users are
+                                assigned to submissions based on weights. When
+                                new submissions are uploaded, graders are
                                 automatically assigned. When graders assign
-                                themselves the weights are not updated to
+                                themselves, the weights are not updated to
                                 reflect this. To read more about dividing
-                                graders please read our
-                                documentation <a href="https://docs.codegra.de/user/management.html#dividing-submissions"
-                                                 target="_blank"
-                                                 class="inline-link"
-                                >here</a>.
+                                graders please read our documentation
+                                <a href="https://docs.codegra.de/user/management.html#dividing-submissions"
+                                   target="_blank"
+                                   class="inline-link">here</a>.
                             </span>
                         </description-popover>
                     </span>
@@ -209,9 +213,9 @@
                     <span slot="header">
                         Notifications
                         <description-popover
-                            description="Send a reminder e-mail to the selected
-                                         graders on the selected time if they have not yet
-                                         finished grading."/>
+                            description="Manage email notification settings: set
+                                         up grader reminders or set up finished
+                                         grading notifications."/>
                     </span>
                     <notifications :assignment="assignment"
                                    class="reminders"/>
@@ -232,9 +236,6 @@
             <b-card v-if="canUsePlagiarism" no-body>
                 <span slot="header">
                     Plagiarism checking
-                    <description-popover
-                        description="Run a plagiarism checker or view
-                                     the results."/>
                 </span>
                 <plagiarism-runner :assignment="assignment"
                                    :hidden="selectedCat !== 'Plagiarism'"

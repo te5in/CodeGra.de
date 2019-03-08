@@ -1,8 +1,8 @@
 Name,Description
 **Add users**,Users with this permission can add other users to the website.
-**Snippets** \*,Users with this permission can use the snippets feature on the website.
+**Snippets** \*,Users with this permission can use snippets.
 **Edit user info** \*,Users with this permission can edit their own personal information.
 **Edit password** \*,Users with this permission can edit their own password.
 **Create course**,Users with this permission can create new courses.
 **Manage site users**,Users with this permission can change the global permissions for other users on the site.
-**Search users** \*,"Users with this permission can search for users on the side, this means they can see all other users on the site."
+**Search users** \*,"Users with this permission can search for users on the site, this means they can see all other users on the site."

@@ -105,12 +105,12 @@ class GlobalPermission(BasePermission):
       "generate_permissions_py.py".
 
     :ivar can_add_users: Users with this permission can add other users to the website.
-    :ivar can_use_snippets: Users with this permission can use the snippets feature on the website.
+    :ivar can_use_snippets: Users with this permission can use snippets.
     :ivar can_edit_own_info: Users with this permission can edit their own personal information.
     :ivar can_edit_own_password: Users with this permission can edit their own password.
     :ivar can_create_courses: Users with this permission can create new courses.
     :ivar can_manage_site_users: Users with this permission can change the global permissions for other users on the site.
-    :ivar can_search_users: Users with this permission can search for users on the side, this means they can see all other users on the site.
+    :ivar can_search_users: Users with this permission can search for users on the site, this means they can see all other users on the site.
     """
 
     @staticmethod
@@ -137,7 +137,7 @@ class CoursePermission(BasePermission):
 
     :ivar can_submit_others_work: Users with this permission can submit work to an assignment for other users. This means they can submit work that will have another user as the author.
     :ivar can_submit_own_work: Users with this permission can submit their work to assignments of this course. Usually only students have this permission.
-    :ivar can_edit_others_work: Users with this permission can edit files in the submissions of this course. Usually TAs and teachers have this permission, so they can change files in the CodeGra.de filesystem if code doesn't compile, for example.
+    :ivar can_edit_others_work: Users with this permission can edit files in the submissions of this course. Usually TAs and teachers have this permission, so they can, for example, change files in the CodeGrade Filesystem if code does not compile.
     :ivar can_grade_work: Users with this permission can grade submissions.
     :ivar can_see_grade_before_open: Users with this permission can see the grade for a submission before an assignment is set to "done".
     :ivar can_see_others_work: Users with this permission can see submissions of other users of this course.
@@ -152,21 +152,21 @@ class CoursePermission(BasePermission):
     :ivar can_edit_course_users: Users with this permission can add users to this course and assign roles to those users.
     :ivar can_create_assignment: Users with this permission can create new assignments for this course.
     :ivar can_upload_after_deadline: Users with this permission can submit their work after the deadline of an assignment.
-    :ivar can_see_assignee: Users with this permission can see who is assigned to assess a submission.
+    :ivar can_see_assignee: Users with this permission can see who is assigned to grade a submission.
     :ivar manage_rubrics: Users with this permission can update the rubrics for the assignments of this course.
     :ivar can_view_own_teacher_files: Users with this permission can view the teacher's revision of their submitted work.
     :ivar can_see_grade_history: Users with this permission can see the grade history of an assignment.
     :ivar can_delete_submission: Users with this permission can delete submissions.
     :ivar can_update_grader_status: Users with this permission can change the status of graders for this course, whether they are done grading their assigned submissions or not.
-    :ivar can_update_course_notifications: Users with this permission can change the all notifications that are configured for this course. This includes when to send them and who to send them to.
+    :ivar can_update_course_notifications: Users with this permission can change all notifications that are configured for this course. This includes when to send them and who to send them to.
     :ivar can_edit_maximum_grade: Users with this permission can edit the maximum grade possible, and therefore also determine if getting a 'bonus' for an assignment is also possible.
     :ivar can_view_plagiarism: Users with this permission can view the summary of a plagiarism check and see details of a plagiarism case. To view a plagiarism case between this and another course, the user must also have either this permission, or both "See assignments" and "See other's work" in the other course.
     :ivar can_manage_plagiarism: Users with this permission can add and delete plagiarism runs.
     :ivar can_list_course_users: Users with this permission can see all users of this course including the name of their role.
-    :ivar can_edit_own_groups: Users with this permission can edit groups they are in. This means they can join groups, add users to groups they are in and change the name of groups they are in. They cannot remove users from groups they are in, except for themselves.
-    :ivar can_edit_others_groups: Users with this permission can edit groups they are not in, they can add users, remove users and rename all groups. Users with this permission can also edit groups they are in.
-    :ivar can_edit_groups_after_submission: Users with this permission can edit groups which handed in a submission. Users with this permission cannot automatically edit groups, they also need either "Edit own groups" or "Edit others groups".
-    :ivar can_view_others_groups: Users with this permission can view groups they are not in, and the members of these groups.
+    :ivar can_edit_own_groups: Users with this permission can edit groups they are in. This means they can join, add users and change the name of groups they are in. They cannot remove users from groups they are in, except for themselves.
+    :ivar can_edit_others_groups: Users with this permission can edit groups they are not in, they can add users, remove users and rename all groups. Users with this permission can also automatically edit groups they are in.
+    :ivar can_edit_groups_after_submission: Users with this permission can edit groups even after a submission was handed in by that group. Users with this permission cannot automatically edit groups, but also need either "Edit own groups" or "Edit others groups".
+    :ivar can_view_others_groups: Users with this permission can view groups they are not in, and display the members in these groups.
     :ivar can_edit_group_assignment: Users with this permission can change an assignment into a group assignment, and change the minimum and maximum required group size.
     :ivar can_edit_group_set: Users with this permissions can create, delete and edit group sets.
     :ivar can_create_groups: Users with this permission can create new groups in group assignments.
