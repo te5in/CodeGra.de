@@ -1,7 +1,10 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
-<div class="reset-password row justify-content-center">
-    <b-form-fieldset class="col-sm-8 text-center"
+<div class="reset-password justify-content-center">
+    <img class="standalone-logo" src="/static/img/codegrade.svg" v-if="darkMode"/>
+    <img class="standalone-logo" src="/static/img/codegrade-inv.svg" v-else/>
+
+    <b-form-fieldset class="col-sm-8 text-center form-wrapper"
                      @keyup.native.ctrl.enter="$refs.btn.onClick">
         <h4>Reset your password</h4>
 
@@ -27,7 +30,7 @@
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/eye';
 import 'vue-awesome/icons/eye-slash';
-import { mapActions } from 'vuex';
+import { mapActions, mapGetters } from 'vuex';
 
 import { PASSWORD_UNIQUE_MESSAGE } from '@/constants';
 
@@ -49,6 +52,10 @@ export default {
         SubmitButton,
         PasswordInput,
         PasswordSuggestions,
+    },
+
+    computed: {
+        ...mapGetters('pref', ['darkMode']),
     },
 
     methods: {
@@ -81,11 +88,14 @@ export default {
 </script>
 
 <style lang="less" scoped>
-.reset-password {
-    margin-top: 1rem;
-}
-
 h4 {
     margin-bottom: 1rem;
+    font-weight: normal;
+}
+
+.form-wrapper {
+    margin: 0 auto;
+    max-width: 25rem;
+    padding: 0;
 }
 </style>

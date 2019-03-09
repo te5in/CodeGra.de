@@ -2,8 +2,8 @@
 <template>
 <div class="forgot-password">
     <div class="forgot-password-wrapper">
-        <img class="logo" src="static/img/codegrade.svg" v-if="darkMode"/>
-        <img class="logo" src="static/img/codegrade-inv.svg" v-else/>
+        <img class="standalone-logo" src="static/img/codegrade.svg" v-if="darkMode"/>
+        <img class="standalone-logo" src="static/img/codegrade-inv.svg" v-else/>
     <forgot-password class="forgot-password"/>
 </div>
 </div>
@@ -40,18 +40,9 @@ export default {
     margin: 2em auto;
 
     .forgot-password {
-        @media @media-medium {
-            max-width: 768px;
-            margin: 0 auto;
-        }
+        margin: 0 auto;
+        max-width: 25rem;
+        text-align: justify;
     }
-}
-
-.logo {
-    display: block;
-    margin-left: auto;
-    margin-right: auto;
-    width: 50%;
-    margin-bottom: 1em;
 }
 </style>

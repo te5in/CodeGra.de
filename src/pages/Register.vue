@@ -2,8 +2,9 @@
 <template>
 <div class="register">
     <div class="register-wrapper">
-        <img class="logo" src="static/img/codegrade.svg" v-if="darkMode"/>
-        <img class="logo" src="static/img/codegrade-inv.svg" v-else/>
+        <img class="standalone-logo" src="static/img/codegrade.svg" v-if="darkMode"/>
+        <img class="standalone-logo" src="static/img/codegrade-inv.svg" v-else/>
+        <h4>Register</h4>
         <register class="register"/>
     </div>
 </div>
@@ -34,24 +35,14 @@ export default {
 </script>
 
 <style lang="less" scoped>
-@import '~mixins.less';
-
-.page.register .register-wrapper {
-    margin: 2em auto;
-
-    .register {
-        @media @media-medium {
-            max-width: 768px;
-            margin: 0 auto;
-        }
-    }
+h4 {
+    margin-bottom: 1rem;
+    font-weight: normal;
+    text-align: center;
 }
 
-.logo {
-    display: block;
-    margin-left: auto;
-    margin-right: auto;
-    width: 50%;
-    margin-bottom: 1em;
+.page.register .register-wrapper {
+    margin: 0 auto;
+    max-width: 25rem;
 }
 </style>

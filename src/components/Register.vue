@@ -2,7 +2,7 @@
 <template>
 <div class="register">
     <b-form-fieldset>
-        <b-input-group prepend="Your username">
+        <b-input-group prepend="Username">
             <input type="text"
                    class="form-control"
                    v-model="username"
@@ -10,6 +10,7 @@
                    ref="username"/>
             <b-input-group-append is-text>
                 <description-popover
+                    placement="top"
                     description="You cannot change this after registration!"
                     :show="showHelp"/>
             </b-input-group-append>
@@ -17,7 +18,7 @@
     </b-form-fieldset>
 
     <b-form-fieldset>
-        <b-input-group prepend="Your full name">
+        <b-input-group prepend="Full name">
             <input type="text"
                    class="form-control"
                    v-model="name"
@@ -27,7 +28,7 @@
     </b-form-fieldset>
 
     <b-form-fieldset>
-        <b-input-group prepend="Your email">
+        <b-input-group prepend="Email">
             <input type="email"
                    class="form-control"
                    v-model="firstEmail"
@@ -59,7 +60,6 @@
                        :submit="submit"
                        @after-success="afterSubmit"
                        :confirm="PASSWORD_UNIQUE_MESSAGE"/>
-            Register
 
             <template slot="error" slot-scope="error" v-if="error.error">
                 <password-suggestions :error="error.error"/>
