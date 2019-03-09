@@ -145,6 +145,7 @@ const mutations = {
         state.canSeeHidden = false;
         state.jwtToken = null;
         state.username = null;
+        state.permissions = null;
     },
 
     [types.NEW_SNIPPET](state, { id, key, value }) {
