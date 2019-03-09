@@ -43,14 +43,28 @@
 
             <div class="sidebar-bottom">
                 <router-link :to="{ name: 'admin' }"
-                class="sidebar-bottom-item"
-                v-b-popover.hover.top="'Manage site'">
+                             class="sidebar-bottom-item"
+                             v-b-popover.hover.top="'Manage site'">
                     <icon name="tachometer"/>
                 </router-link>
             </div>
         </div>
 
         <hr class="separator"/>
+
+        <div v-if="canManageCurrentLtiAssignment">
+            <div class="sidebar-bottom">
+                <router-link :to="Object.assign({}, $route)" target="_blank"
+                                class="new-tab-link sidebar-bottom-item"
+                                v-b-popover.top.hover="'Open this page in a new tab'">
+                    <div class="new-tab-wrapper">
+                        <icon name="share-square-o" :scale="1"/>
+                        <small class="name new-tab">New tab</small>
+                    </div>
+                </router-link>
+            </div>
+            <hr class="separator"/>
+        </div>
 
         <div class="sidebar-bottom">
             <a :href="`https://docs.codegra.de/?v=${version}`"
@@ -73,6 +87,7 @@
          :class="{ 'use-space': dimmingUseSpace, }"
          ref="subMenuContainer"
          v-if="subMenus.length">
+
         <div class="submenus">
             <div v-for="subMenu, i in subMenus"
                  class="submenu"
@@ -140,6 +155,7 @@ import 'vue-awesome/icons/refresh';
 import 'vue-awesome/icons/search';
 import 'vue-awesome/icons/files-o';
 import 'vue-awesome/icons/users';
+import 'vue-awesome/icons/share-square-o';
 
 import { Loader } from '@/components';
 
@@ -235,18 +251,7 @@ export default {
                         return assig ? assig.course.name : 'Assignments';
                     },
                     component: 'assignment-list',
-                    condition: () => {
-                        if (this.loggedIn && this.$inLTI && this.$LTIAssignmentId) {
-                            const assig = this.assignments[this.$LTIAssignmentId];
-                            if (assig) {
-                                return (
-                                    assig.course.canManage ||
-                                    assig.course.assignments.some(a => a.canManage)
-                                );
-                            }
-                        }
-                        return false;
-                    },
+                    condition: () => this.canManageCurrentLtiAssignment,
                     reload: true,
                     data: () => {
                         const assig = this.assignments[this.$LTIAssignmentId];
@@ -306,6 +311,18 @@ export default {
 
         canManageSite() {
             return MANAGE_SITE_PERIMSSIONS.every(x => this.globalPermissions[x]);
+        },
+
+        canManageCurrentLtiAssignment() {
+            if (this.loggedIn && this.$inLTI && this.$LTIAssignmentId) {
+                const assig = this.assignments[this.$LTIAssignmentId];
+                if (assig) {
+                    return (
+                        assig.course.canManage || assig.course.assignments.some(a => a.canManage)
+                    );
+                }
+            }
+            return false;
         },
 
         courseId() {
@@ -766,6 +783,15 @@ export default {
     bottom: 0;
     left: 0;
     z-index: -2;
+}
+
+.main-menu .new-tab-link.sidebar-bottom-item {
+    padding: 0.5rem;
+}
+
+.new-tab-wrapper {
+    display: flex;
+    justify-content: space-evenly;
 }
 </style>
 
