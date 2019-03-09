@@ -286,10 +286,7 @@ export default {
         ...mapGetters('courses', ['assignments']),
 
         formattedDeadline() {
-            if (!this.assignment || !this.assignment.deadline) {
-                return '';
-            }
-            return readableFormatDate(this.assignment.deadline);
+            return (this.assignment && this.assignment.formatted_deadline) || '';
         },
 
         assignmentId() {
@@ -470,6 +467,7 @@ export default {
                 assignmentId: this.assignment.id,
                 assignmentProps: {
                     deadline: this.assignmentTempDeadline,
+                    formatted_deadline: readableFormatDate(this.assignmentTempDeadline),
                 },
             });
         },

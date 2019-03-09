@@ -201,6 +201,7 @@ const mutations = {
                 }
 
                 assignment.course = course;
+                assignment.formatted_deadline = utils.readableFormatDate(assignment.deadline);
                 assignment.deadline = utils.formatDate(assignment.deadline);
                 assignment.created_at = utils.formatDate(assignment.created_at);
                 assignment.canManage = manageAssigs[course.id];
