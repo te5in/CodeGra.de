@@ -54,21 +54,21 @@
                         </div>
                         <span class="run-state" v-else>
                             {{ run.state }}
-                            <loader v-if="run.state != 'done' && run.state != 'crashed'"
+                            <loader v-if="!runIsFinished(run)"
                                     :scale="1"
                                     v-b-popover.hover.top="'This job is running'"/>
                         </span>
                     </td>
                     <td class="run-delete">
                         <submit-button v-if="canManage"
-                                       :variant="canDelete(run) ? 'danger' : 'warning'"
+                                       :variant="runIsFinished(run) ? 'danger' : 'warning'"
                                        size="sm"
-                                       :confirm="canDelete(run) ? 'Are you sure you want to delete the results?'
+                                       :confirm="runIsFinished(run) ? 'Are you sure you want to delete the results?'
                                                 : 'Are you sure you want to cancel this run?'"
                                        :submit="() => deleteRun(run)"
                                        @after-success="afterDeleteRun(run)"
                                        @click.native.stop
-                                       v-b-popover.hover.top="canDelete(run) ? 'Delete results' : 'Cancel run'">
+                                       v-b-popover.hover.top="runIsFinished(run) ? 'Delete results' : 'Cancel run'">
                             <icon name="times"/>
                         </submit-button>
                     </td>
@@ -316,10 +316,6 @@ export default {
             );
         },
 
-        canDelete(run) {
-            return run.state === 'done' || run.state === 'crashed';
-        },
-
         translateOption(optName, run) {
             const provName = run.provider_name;
             if (optName in this.translateOptionSpecialCases) {
@@ -496,8 +492,12 @@ export default {
             }
         },
 
+        runIsFinished(run) {
+            return run.state === 'done' || run.state === 'crashed';
+        },
+
         canGoToOverview(run) {
-            return this.canView && run.state !== 'running';
+            return this.canView && this.runIsFinished(run);
         },
 
         goToOverview(run) {
@@ -545,9 +545,7 @@ export default {
 
         pollRuns() {
             this.runsPollingInterval = setInterval(() => {
-                const running = this.runs.filter(
-                    run => run.state !== 'done' && run.state !== 'crashed',
-                );
+                const running = this.runs.filter(run => !this.runIsFinished(run));
 
                 if (!running.length) {
                     return;
