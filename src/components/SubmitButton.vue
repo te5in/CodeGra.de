@@ -396,7 +396,18 @@ export default {
 </style>
 
 <style lang="less">
+@import '~mixins.less';
+
 .submit-button .loader {
     display: inline-block !important;
+}
+
+#app.dark ~ .popover .confirm-button:first-child {
+    background-color: white;
+
+    &:hover {
+        background-color: @color-lighter-gray;
+        color: @color-primary;
+    }
 }
 </style>
