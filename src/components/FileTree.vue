@@ -38,7 +38,7 @@
             --><icon name="folder-open" class="dir-icon" v-else/><!--
             --><span>{{ tree.name }}</span>
             <sup v-if="depth > 0 && hasRevision(tree)"
-                    v-b-popover.hover.top="'This directory has a file with a teacher\'s revision'"
+                    v-b-popover.hover.top.window="'This directory has a file with a teacher\'s revision'"
                     class="rev-popover">
                 modified
             </sup>
@@ -53,21 +53,22 @@
                        :revision-cache="internalRevisionCache"
                        :depth="depth + 1"
                         v-if="f.entries"/>
-            <router-link :to="getFileRoute(f)"
-                         class="label"
-                         :title="f.name"
-                         v-else>
-                <icon name="file" class="file-icon"/>{{ f.name }}
-            </router-link>
-            <sup v-if="fileHasRevision(f)"
-                 v-b-popover.hover.top="revisionPopover(f)"
-                 class="rev-popover">
-                <router-link :to="revisedFileRoute(f)"
-                             :title="f.name"
-                             @click="$emit('revision', 'diff')">
-                    diff <code><small>(</small>{{ diffLabels[diffAction(f)] }}<small>)</small></code>
+            <div v-else
+                 class="label">
+                <router-link :to="getFileRoute(f)"
+                             :title="f.name">
+                    <icon name="file" class="file-icon"/>{{ f.name }}
                 </router-link>
-            </sup>
+                <sup v-if="fileHasRevision(f)"
+                    v-b-popover.hover.top.window="revisionPopover(f)"
+                    class="rev-popover">
+                    <router-link :to="revisedFileRoute(f)"
+                                :title="f.name"
+                                @click="$emit('revision', 'diff')">
+                        diff <code><small>(</small>{{ diffLabels[diffAction(f)] }}<small>)</small></code>
+                    </router-link>
+                </sup>
+            </div>
         </li>
     </ol>
 </div>
@@ -385,6 +386,7 @@ export default {
 
     .rev-popover {
         display: inline;
+        font-weight: normal;
     }
 }
 
