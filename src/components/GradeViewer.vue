@@ -58,7 +58,8 @@
                                variant="danger"
                                :disabled="!showDeleteButton"
                                :submit="deleteGrade"
-                               @success="afterDeleteGrade">
+                               @success="afterDeleteGrade"
+                               :confirm="deleteConfirmText">
                     <icon :name="rubricOverridden ? 'reply' : 'times'"/>
                 </submit-button>
             </b-input-group-append>
@@ -138,10 +139,24 @@ export default {
             if (this.showRubric) {
                 if (this.rubricOverridden) {
                     return 'Reset the grade to the grade from the rubric';
+                } else {
+                    return 'Clear the rubric';
                 }
-                return 'Clear the rubric';
+            } else {
+                return 'Delete grade';
             }
-            return 'Delete grade';
+        },
+
+        deleteConfirmText() {
+            if (this.showRubric) {
+                if (this.rubricOverridden) {
+                    return 'Are you sure you want to reset the grade?';
+                } else {
+                    return 'Are you sure you want to clear the rubric?';
+                }
+            } else {
+                return 'Are you sure you want to clear the grade?';
+            }
         },
 
         showDeleteButton() {
