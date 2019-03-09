@@ -6,9 +6,11 @@
             <submit-button :disabled="this.file === null"
                            :id="buttonId"
                            class="file-uploader-button"
-                           @click.prevent="submit"
-                           :show-error="showError"
-                           ref="submitButton"/>
+                           :confirm="confirm"
+                           :submit="submit"
+                           :filter-error="maybeCancelSubmit"
+                           @success="$emit('response', $event)"
+                           @after-success="clearForm"/>
         </b-input-group-prepend>
         <b-input-group-prepend v-if="$slots.default">
             <slot/>
@@ -24,7 +26,6 @@
 </template>
 
 <script>
-import { parseWarningHeader } from '@/utils';
 import SubmitButton, { SubmitButtonCancelled } from './SubmitButton';
 
 export default {
@@ -39,11 +40,11 @@ export default {
             type: Boolean,
             default: false,
         },
-        showError: {
-            type: Boolean,
-            default: true,
+        confirm: {
+            type: String,
+            default: '',
         },
-        beforeUpload: {
+        maybeHandleError: {
             type: Function,
             default: () => false,
         },
@@ -68,50 +69,27 @@ export default {
 
     methods: {
         submit() {
-            let stopped = false;
             if (this.disabled) {
-                return this.$refs.submitButton.fail('This uploader is disabled');
+                throw new Error('This uploader is disabled');
             }
 
-            const req = Promise.resolve(this.beforeUpload()).then(stop => {
-                if (stop) {
-                    stopped = true;
-                    this.$refs.submitButton.reset();
-                    return null;
-                }
-                return this.$http.post(this.url, this.requestData).then(
-                    res => {
-                        if (res.headers.warning) {
-                            const { text } = parseWarningHeader(res.headers.warning);
-                            return this.$refs.submitButton.warn(text, 20).then(() => {
-                                this.$emit('response', res);
-                            });
-                        }
-                        this.$emit('response', res);
-                        return null;
-                    },
-                    ({ response }) => {
-                        this.$emit('error', response);
-                        throw response.data.message;
-                    },
-                );
-            });
+            return this.$http.post(this.url, this.requestData);
+        },
 
-            return this.$refs.submitButton.submit(req).then(
-                () => {
-                    if (!stopped) {
-                        this.$emit('clear');
-                        if (this.$refs.formFile) {
-                            this.$refs.formFile.reset();
-                        }
-                    }
-                },
-                err => {
-                    if (err !== SubmitButtonCancelled) {
-                        throw err;
-                    }
-                },
-            );
+        maybeCancelSubmit(err) {
+            if (this.maybeHandleError(err)) {
+                this.$emit('error', err);
+                throw SubmitButtonCancelled;
+            } else {
+                throw err;
+            }
+        },
+
+        clearForm() {
+            this.$emit('clear');
+            if (this.$refs.formFile) {
+                this.$refs.formFile.reset();
+            }
         },
     },
 

@@ -17,13 +17,11 @@
                    placeholder="Type to search"/>
         </b-form-fieldset>
 
-        <submit-button @click="reload"
+        <submit-button :submit="reload"
                        variant="secondary"
-                       ref="refreshButton"
-                       :label="false"
                        v-b-popover.bottom.hover="'Reload groups'">
             <icon name="refresh"/>
-            <icon name="refresh" spin slot="pending"/>
+            <icon name="refresh" spin slot="pending-label"/>
         </submit-button>
     </local-header>
 
@@ -113,9 +111,7 @@ export default {
         },
 
         reload() {
-            this.$refs.refreshButton.submit(
-                waitAtLeast(250, this.$refs.groups.loadData(), this.reloadCourses()),
-            );
+            return waitAtLeast(250, this.$refs.groups.loadData(), this.reloadCourses());
         },
 
         filterGroup(group) {

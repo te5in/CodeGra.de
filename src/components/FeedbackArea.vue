@@ -18,12 +18,14 @@
             <b-input-group class="input-snippet-group">
                 <input class="input form-control"
                        v-model="snippetKey"
-                       @keydown.ctrl.enter="addSnippet"/>
+                       :disabled="snippetDisabled"
+                       @keydown.ctrl.enter="$refs.addSnippetButton.onClick"/>
                 <b-input-group-append>
                     <submit-button ref="addSnippetButton"
                                    class="add-snippet-btn"
-                                   label=""
-                                   @click="addSnippet">
+                                   :submit="addSnippet"
+                                   @after-success="afterAddSnippet"
+                                   @error="snippetDisabled = false">
                         <icon :scale="1" name="check"/>
                     </submit-button>
                 </b-input-group-append>
@@ -42,8 +44,7 @@
                     v-if="possibleSnippets.length > 0">
                 <span slot="header"
                       class="snippet-header">Snippets (press <kbd>Tab</kbd> to select the next item)</span>
-                <ul
-                    :class="{ 'snippet-list': true, inline: line + 6 >= totalAmountLines, }">
+                <ul :class="{ 'snippet-list': true, inline: line + 6 >= totalAmountLines, }">
                     <li class="snippet-item"
                         v-for="snippet, i in possibleSnippets"
                         :class="{ selected: snippetSelected === i }"
@@ -57,12 +58,13 @@
             <textarea ref="field"
                       v-model="internalFeedback"
                       class="form-control editable-feedback-area"
+                      :disabled="feedbackDisabled"
                       @keydown.esc.prevent="stopSnippets"
                       @keydown.exact.tab.prevent="maybeSelectNextSnippet(false)"
                       @keydown.exact.shift.tab.prevent="maybeSelectNextSnippet(true)"
                       @keydown="beforeKeyPress"
                       @keyup="updatePossibleSnippets"
-                      @keydown.ctrl.enter.prevent="submitFeedback"/>
+                      @keydown.ctrl.enter.prevent="doSubmit"/>
         </div>
         <div class="minor-buttons btn-group-vertical">
                 <b-btn class="snippet-btn"
@@ -74,18 +76,22 @@
                           aria-hidden="true"
                           :class="{ rotated: showSnippetDialog }"/>
                 </b-btn>
-                <submit-button @click="cancelFeedback"
-                               ref="deleteFeedbackButton"
-                               default="danger"
-                               :label="false"
+                <submit-button :submit="deleteFeedback"
+                               :filter-error="deleteFilter"
+                               :duration="300"
+                               @after-success="afterDeleteFeedback"
+                               @error="deleteFeedbackError"
+                               variant="danger"
+                               ref="deleteButton"
                                v-b-popover.top.hover="'Delete feedback'">
                     <icon name="times" aria-hidden="true"/>
                 </submit-button>
             </div>
             <b-input-group-append class="submit-feedback">
-                <submit-button @click="submitFeedback"
-                               ref="addFeedbackButton"
-                               :label="false"
+                <submit-button :submit="submitFeedback"
+                               @success="afterSubmitFeedback"
+                               @error="feedbackDisabled = false"
+                               ref="submitButton"
                                v-b-popover.top.hover="'Save feedback'">
                     <icon name="check" aria-hidden="true"/>
                 </submit-button>
@@ -103,7 +109,7 @@ import 'vue-awesome/icons/plus';
 
 import { mapActions, mapGetters } from 'vuex';
 
-import { waitAtLeast, nameOfUser } from '@/utils';
+import { nameOfUser } from '@/utils';
 import SubmitButton from './SubmitButton';
 
 export default {
@@ -166,9 +172,11 @@ export default {
             snippetSelected: null,
             snippetKeySelected: null,
             snippetOldKey: null,
+            snippetDisabled: false,
             possibleSnippets: [],
             ignoreSnippets: null,
             showSnippetDialog: false,
+            feedbackDisabled: false,
         };
     },
 
@@ -393,63 +401,86 @@ export default {
             });
         },
 
+        doSubmit() {
+            if (this.internalFeedback === '' || this.internalFeedback == null) {
+                this.$refs.deleteButton.onClick();
+            } else {
+                this.$refs.submitButton.onClick();
+            }
+        },
+
         submitFeedback() {
             if (this.internalFeedback === '' || this.internalFeedback == null) {
-                this.cancelFeedback();
+                return this.deleteFeedback();
+            }
+
+            this.feedbackDisabled = true;
+
+            const feedback = this.internalFeedback;
+            return this.$http
+                .put(`/api/v1/code/${this.fileId}/comments/${this.line}`, {
+                    comment: feedback,
+                })
+                .then(() => feedback);
+        },
+
+        afterSubmitFeedback(feedback) {
+            if (feedback === '' || feedback == null) {
+                this.afterDeleteFeedback();
                 return;
             }
 
-            const submitted = this.internalFeedback;
-
-            const req = this.$http
-                .put(`/api/v1/code/${this.fileId}/comments/${this.line}`, {
-                    comment: submitted,
-                })
-                .catch(err => {
-                    throw err.response.data.message;
-                });
-
-            this.$refs.addFeedbackButton.submit(req).then(() => {
-                this.internalFeedback = submitted;
-                this.serverFeedback = submitted;
-                this.snippetKey = '';
-                this.$emit('feedbackChange', {
-                    line: this.line,
-                    msg: submitted,
-                    author: { name: this.nameCurrentUser },
-                });
+            this.serverFeedback = feedback;
+            this.feedbackDisabled = false;
+            this.snippetKey = '';
+            this.$emit('feedbackChange', {
+                line: this.line,
+                msg: feedback,
+                author: { name: this.nameCurrentUser },
             });
+        },
+
+        submitFeedabckError() {
+            this.feedbackDisabled = false;
         },
 
         newlines(value) {
             return value.replace(/\n/g, '<br>');
         },
 
-        cancelFeedback() {
+        deleteFeedback() {
+            this.feedbackDisabled = true;
             this.snippetKey = '';
 
-            const emitRemove = () => {
-                this.$emit('feedbackChange', {
-                    line: this.line,
-                    msg: null,
-                    author: null,
-                });
-            };
-
-            if (this.feedback !== '') {
-                const req = this.$http
+            if (this.serverFeedback !== '') {
+                return this.$http
                     .delete(`/api/v1/code/${this.fileId}/comments/${this.line}`)
-                    .catch(err => {
-                        // Don't error for a 404 as the comment was deleted.
-                        if (err.response.status !== 404) {
-                            throw err.response.data.message;
-                        }
-                    });
-
-                this.$refs.deleteFeedbackButton.submit(req).then(emitRemove);
+                    .then(() => null);
             } else {
-                emitRemove();
+                return Promise.resolve();
             }
+        },
+
+        deleteFilter(err) {
+            if (err.response && err.response.status === 404) {
+                return err;
+            } else {
+                throw err;
+            }
+        },
+
+        afterDeleteFeedback() {
+            this.feedbackDisabled = false;
+
+            this.$emit('feedbackChange', {
+                line: this.line,
+                msg: null,
+                author: null,
+            });
+        },
+
+        deleteFeedbackError() {
+            this.feedbackDisabled = false;
         },
 
         confirmSnippet() {
@@ -494,44 +525,33 @@ export default {
             const value = this.internalFeedback;
 
             if (key.match(/\s/)) {
-                this.$refs.addSnippetButton.fail('No spaces allowed!');
-                return null;
+                throw new Error('No spaces allowed!');
             } else if (!key) {
-                this.$refs.addSnippetButton.fail('Snippet key cannot be empty');
-                return null;
+                throw new Error('Snippet key cannot be empty');
             } else if (!value) {
-                this.$refs.addSnippetButton.fail('Snippet value cannot be empty');
-                return null;
+                throw new Error('Snippet value cannot be empty');
             }
 
-            let req;
+            this.snippetDisabled = true;
+
             if (key in this.snippets) {
                 const { id } = this.snippets[key];
-                req = this.$http.patch(`/api/v1/snippets/${id}`, { key, value }).then(() => {
+                return this.$http.patch(`/api/v1/snippets/${id}`, { key, value }).then(() => {
                     this.updateSnippetInStore({ id, key, value });
                 });
             } else {
-                req = this.$http
+                return this.$http
                     .put('/api/v1/snippet', { key, value })
                     .then(({ data: newSnippet }) => {
                         this.addSnippetToStore(newSnippet);
                     });
             }
+        },
 
-            return this.$refs.addSnippetButton
-                .submit(
-                    waitAtLeast(
-                        500,
-                        req.catch(err => {
-                            throw err.response.data.message;
-                        }),
-                    ),
-                )
-                .then(success => {
-                    if (success) {
-                        this.$root.$emit('collapse::toggle', `collapse${this.line}`);
-                    }
-                });
+        afterAddSnippet() {
+            this.snippetDisabled = false;
+
+            this.$root.$emit('bv::toggle::collapse', `collapse${this.line}`);
         },
 
         findSnippet() {

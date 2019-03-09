@@ -43,14 +43,28 @@
 
             <div class="sidebar-bottom">
                 <router-link :to="{ name: 'admin' }"
-                class="sidebar-bottom-item"
-                v-b-popover.hover.top="'Manage site'">
+                             class="sidebar-bottom-item"
+                             v-b-popover.hover.top="'Manage site'">
                     <icon name="tachometer"/>
                 </router-link>
             </div>
         </div>
 
         <hr class="separator"/>
+
+        <div v-if="canManageCurrentLtiAssignment">
+            <div class="sidebar-bottom">
+                <router-link :to="Object.assign({}, $route)" target="_blank"
+                                class="new-tab-link sidebar-bottom-item"
+                                v-b-popover.top.hover="'Open this page in a new tab'">
+                    <div class="new-tab-wrapper">
+                        <icon name="share-square-o" :scale="1"/>
+                        <small class="name new-tab">New tab</small>
+                    </div>
+                </router-link>
+            </div>
+            <hr class="separator"/>
+        </div>
 
         <div class="sidebar-bottom">
             <a :href="`https://docs.codegra.de/?v=${version}`"
@@ -73,6 +87,7 @@
          :class="{ 'use-space': dimmingUseSpace, }"
          ref="subMenuContainer"
          v-if="subMenus.length">
+
         <div class="submenus">
             <div v-for="subMenu, i in subMenus"
                  class="submenu"
@@ -140,6 +155,8 @@ import 'vue-awesome/icons/refresh';
 import 'vue-awesome/icons/search';
 import 'vue-awesome/icons/files-o';
 import 'vue-awesome/icons/users';
+import 'vue-awesome/icons/share-square-o';
+import 'vue-awesome/icons/sign-in';
 
 import { Loader } from '@/components';
 
@@ -160,16 +177,7 @@ const floatingRoutes = new Set([
     'plagiarism_overview',
     'plagiarism_detail',
 ]);
-const hideRoutes = floatingRoutes;
-
-Icon.register({
-    'bolt-o': {
-        width: 1792,
-        height: 1792,
-        raw:
-            '<path d="m 1175.6954,707.84 q 11.52,12.8 4.48,28.16 l -345.60002,740.48 q -8.32,16 -26.88,16 -2.56,0 -8.96,-1.28 -10.88,-3.2 -16.32,-12.16 -5.44,-8.96 -2.88,-19.2 l 126.08,-517.12 -259.84,64.64 q -2.56,0.64 -7.68,0.64 -11.52,0 -19.84,-7.04 -11.52,-9.6 -8.32,-24.96 l 128.64,-528 q 2.56,-8.96 10.24,-14.72 7.68,-5.76 17.92,-5.76 h 209.92 q 12.16,0 20.48,8 8.32002,8 8.32002,18.88 0,5.12 -3.2,11.52 L 892.81538,762.24 1146.2554,699.52 q 5.12,-1.28 7.68,-1.28 12.16,0 21.76,9.6 z" style="stroke-width:0.63999999" /> <circle cx="896" cy="896" style="fill:none;stroke:#ffffff;stroke-width:150.50743103;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1" r="800.24628" />',
-    },
-});
+const hideRoutes = new Set([...floatingRoutes, 'login', 'register', 'reset-password']);
 
 export default {
     name: 'sidebar',
@@ -178,11 +186,10 @@ export default {
         return {
             loading: true,
             loaded: false,
-            canManageSite: false,
             entries: [
                 {
                     name: 'login',
-                    icon: 'bolt-o',
+                    icon: 'sign-in',
                     iconStyle: 'border: 3px solid; border-radius: 50%;',
                     title: 'Login',
                     condition: () => !this.loggedIn,
@@ -236,18 +243,7 @@ export default {
                         return assig ? assig.course.name : 'Assignments';
                     },
                     component: 'assignment-list',
-                    condition: () => {
-                        if (this.loggedIn && this.$inLTI && this.$LTIAssignmentId) {
-                            const assig = this.assignments[this.$LTIAssignmentId];
-                            if (assig) {
-                                return (
-                                    assig.course.canManage ||
-                                    assig.course.assignments.some(a => a.canManage)
-                                );
-                            }
-                        }
-                        return false;
-                    },
+                    condition: () => this.canManageCurrentLtiAssignment,
                     reload: true,
                     data: () => {
                         const assig = this.assignments[this.$LTIAssignmentId];
@@ -295,7 +291,7 @@ export default {
             subMenus: [],
             mobileVisible: false,
             dimmingUseSpace: true,
-            version: UserConfig.version,
+            version: UserConfig.release.version,
         };
     },
 
@@ -303,6 +299,23 @@ export default {
         ...mapGetters('courses', ['courses', 'assignments']),
 
         ...mapGetters('user', ['loggedIn', 'name']),
+        ...mapGetters('user', { globalPermissions: 'permissions' }),
+
+        canManageSite() {
+            return MANAGE_SITE_PERIMSSIONS.every(x => this.globalPermissions[x]);
+        },
+
+        canManageCurrentLtiAssignment() {
+            if (this.loggedIn && this.$inLTI && this.$LTIAssignmentId) {
+                const assig = this.assignments[this.$LTIAssignmentId];
+                if (assig) {
+                    return (
+                        assig.course.canManage || assig.course.assignments.some(a => a.canManage)
+                    );
+                }
+            }
+            return false;
+        },
 
         courseId() {
             return Number(this.$route.params.courseId);
@@ -361,16 +374,6 @@ export default {
     },
 
     watch: {
-        loggedIn(newVal) {
-            if (newVal) {
-                this.$hasPermission(MANAGE_SITE_PERIMSSIONS).then(perms => {
-                    this.canManageSite = perms.every(x => x);
-                });
-            } else {
-                this.canManageSite = false;
-            }
-        },
-
         $route(newVal, oldVal) {
             if (newVal.name === oldVal.name) {
                 return;
@@ -391,12 +394,7 @@ export default {
         this.fixAppMargin();
 
         if (this.loggedIn) {
-            const [, perms] = await Promise.all([
-                this.loadCourses(),
-                this.$hasPermission(MANAGE_SITE_PERIMSSIONS),
-            ]);
-
-            this.canManageSite = perms.every(x => x);
+            await this.loadCourses();
         }
 
         this.$root.$on('sidebar::show', submenu => {
@@ -777,6 +775,15 @@ export default {
     bottom: 0;
     left: 0;
     z-index: -2;
+}
+
+.main-menu .new-tab-link.sidebar-bottom-item {
+    padding: 0.5rem;
+}
+
+.new-tab-wrapper {
+    display: flex;
+    justify-content: space-evenly;
 }
 </style>
 

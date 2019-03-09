@@ -10,30 +10,28 @@
 </div>
 <loader v-else-if="loadingData || assignment == null || run == null"/>
 <div class="plagiarism-overview" v-else>
-    <local-header :back-route="{ name: 'manage_assignment' }"
+    <local-header :back-route="{ name: 'manage_assignment', hash: '#Plagiarism' }"
                   back-popover="Go back to manage assignment page">
         <template slot="title">
             Plagiarism overview for assignment &quot;{{assignment.name}}&quot; of &quot;{{assignment.course.name}}&quot;
         </template>
 
-        <b-btn v-b-modal.run-log style="margin-left: 15px;">
-            Show log
-        </b-btn>
-        <b-modal ref="runModal"
-                 id="run-log"
-                 title="Log"
-                 hide-footer
-                 v-model="modalDisplayed">
-            <pre style="overflow: auto" v-if="modalDisplayed">
-                {{ run.log }}
-            </pre>
-        </b-modal>
+        <submit-button label="Download log"
+                       class="download-btn"
+                       variant="secondary"
+                       :submit="downloadLog"
+                       @success="afterDownloadLog"/>
         <input v-model="filter"
                class="filter-input form-control"
                placeholder="Filter students"/>
     </local-header>
 
+    <div v-if="run.state === 'crashed'"
+          class="text-muted text-center">
+        The run crashed. Please check the logs for more details.
+    </div>
     <b-table :fields="tableFields"
+             v-else
              striped
              show-empty
              :sort-compare="sortCompareTable"
@@ -79,7 +77,7 @@
 <script>
 import { mapActions, mapGetters } from 'vuex';
 
-import { Loader, LocalHeader, DescriptionPopover, User } from '@/components';
+import { SubmitButton, Loader, LocalHeader, DescriptionPopover, User } from '@/components';
 
 import { getOtherAssignmentPlagiarismDesc, nameOfUser } from '@/utils';
 
@@ -90,7 +88,6 @@ export default {
         return {
             getOtherAssignmentPlagiarismDesc,
             filter: '',
-            modalDisplayed: false,
             tableFields: [
                 {
                     key: 'user1',
@@ -166,12 +163,6 @@ export default {
                 this.loadRun();
             }
         },
-
-        run(run) {
-            if (run && run.state === 'crashed') {
-                this.modalDisplayed = true;
-            }
-        },
     },
 
     methods: {
@@ -179,6 +170,21 @@ export default {
         ...mapActions('plagiarism', {
             loadPlagiarismRun: 'loadRun',
         }),
+
+        downloadLog() {
+            return this.$http.post('/api/v1/files/', this.run.log);
+        },
+
+        afterDownloadLog(response) {
+            const params = new URLSearchParams();
+            params.append('not_as_attachment', '');
+            const filename = `Plagiarism log for ${this.assignment.name}.txt`;
+            window.open(
+                `/api/v1/files/${response.data}/${encodeURIComponent(
+                    filename,
+                )}?${params.toString()}`,
+            );
+        },
 
         rowClicked(item) {
             if (!item.canView) {
@@ -256,6 +262,7 @@ export default {
     },
 
     components: {
+        SubmitButton,
         LocalHeader,
         Loader,
         DescriptionPopover,
@@ -268,7 +275,12 @@ export default {
 .filter-input {
     flex: 1;
     width: auto;
-    margin-left: 1rem;
+}
+
+.download-btn,
+.filter-input {
+    margin-top: 0.2rem;
+    margin-bottom: 0.2rem;
 }
 
 .description {

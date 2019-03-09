@@ -161,6 +161,7 @@ def get_plag_opts() -> JSONResponse[t.List[t.Dict[str, object]]]:
                 'name': cls.__name__,
                 'options': cls.get_options(),
                 'base_code': cls.supports_base_code(),
+                'progress': cls.supports_progress(),
             } for cls in sorted(
                 helpers.get_all_subclasses(plagiarism.PlagiarismProvider),
                 key=lambda o: o.__name__

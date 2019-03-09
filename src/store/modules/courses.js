@@ -135,29 +135,20 @@ const actions = {
     },
 
     async reloadCourses({ commit }) {
-        const params = new URLSearchParams();
-        params.append('type', 'course');
-        MANAGE_ASSIGNMENT_PERMISSIONS.forEach(perm => {
-            params.append('permission', perm);
-        });
-        MANAGE_GENERAL_COURSE_PERMISSIONS.forEach(perm => {
-            params.append('permission', perm);
-        });
-        params.append('permission', 'can_create_assignment');
-
         let courses;
         let perms;
 
         try {
             [{ data: courses }, { data: perms }] = await Promise.all([
                 axios.get('/api/v1/courses/?extended=true'),
-                axios.get('/api/v1/permissions/', {
-                    params,
-                }),
+                axios.get('/api/v1/permissions/?type=course'),
             ]);
         } catch (_) {
             return commit(types.CLEAR_COURSES);
         }
+        courses.forEach(c => {
+            c.permissions = perms[c.id];
+        });
 
         const [manageCourses, manageAssigs, createAssigs] = Object.entries(perms).reduce(
             ([course, assig, create], [key, val]) => {
@@ -210,6 +201,7 @@ const mutations = {
                 }
 
                 assignment.course = course;
+                assignment.formatted_deadline = utils.readableFormatDate(assignment.deadline);
                 assignment.deadline = utils.formatDate(assignment.deadline);
                 assignment.created_at = utils.formatDate(assignment.created_at);
                 assignment.canManage = manageAssigs[course.id];

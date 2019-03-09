@@ -7,11 +7,25 @@ This code is almost copied verbatim from dulwich.
 SPDX-License-Identifier: AGPL-3.0-only
 """
 import re
+import enum
 import shutil
 import typing as t
 import os.path
 
 from . import archive
+
+
+class DeletedFiles(enum.Enum):
+    """Enum representing if a file was deleted using a ignore filter.
+
+    :ivar deleted: A file was deleted.
+    :ivar not_deleted: A file was not deleted.
+    """
+    deleted = True
+    not_deleted = False
+
+    def __bool__(self) -> bool:
+        return self.value
 
 
 class InvalidFile(ValueError):
@@ -224,7 +238,7 @@ class IgnoreFilterManager:
 
         return None, None
 
-    def delete_from_dir(self, top: str) -> None:
+    def delete_from_dir(self, top: str) -> DeletedFiles:
         """Delete all files from the given archive.
 
         .. warning::
@@ -235,6 +249,8 @@ class IgnoreFilterManager:
             files from.
         :returns: Nothing.
         """
+        res = DeletedFiles.not_deleted
+
         for root, dirs, files in os.walk(top):
             new_root = root[len(top) + 1:]
 
@@ -244,6 +260,7 @@ class IgnoreFilterManager:
                     to_remove = os.path.join(top, sub_dir)
                     assert to_remove.startswith(top)
                     shutil.rmtree(to_remove)
+                    res = DeletedFiles.deleted
 
             for sub_file in files:
                 sub_file = os.path.join(new_root, sub_file)
@@ -251,6 +268,8 @@ class IgnoreFilterManager:
                     to_remove = os.path.join(top, sub_file)
                     assert to_remove.startswith(top)
                     os.unlink(to_remove)
+                    res = DeletedFiles.deleted
+        return res
 
     def get_ignored_files_in_archive(
         self,

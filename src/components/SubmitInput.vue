@@ -1,22 +1,22 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
-<div class="submit-input">
-    <div @keyup.ctrl.enter="submit">
-        <b-form-fieldset>
-            <b-input-group>
-                <input type="text"
-                       class="form-control"
-                       :placeholder="placeholder"
-                       v-model="name"/>
-                <b-button-group>
-                    <submit-button ref="submit"
-                                   @click="submit"
-                                   label="Add"
-                                   popover-placement="top"/>
-                </b-button-group>
-            </b-input-group>
-        </b-form-fieldset>
-    </div>
+<div class="submit-input"
+     @keyup.ctrl.enter="$refs.submitButton.onClick">
+    <b-form-fieldset>
+        <b-input-group>
+            <input type="text"
+                    class="form-control"
+                    :disabled="disabled"
+                    :placeholder="placeholder"
+                    v-model="name"/>
+            <b-button-group>
+                <submit-button ref="submitButton"
+                                label="Add"
+                                :submit="submit"
+                                @after-success="afterSubmit"/>
+            </b-button-group>
+        </b-input-group>
+    </b-form-fieldset>
 </div>
 </template>
 
@@ -36,7 +36,7 @@ export default {
     data() {
         return {
             name: '',
-            submitted: false,
+            disabled: false,
         };
     },
     components: {
@@ -46,20 +46,20 @@ export default {
 
     methods: {
         submit() {
-            const button = this.$refs.submit;
-
             if (this.name === '' || this.name == null) {
-                button.fail('Please give a name');
-                return;
+                throw new Error('Please give a name');
             }
 
-            const req = new Promise((resolve, reject) => {
-                this.$emit('create', this.name, resolve, reject);
-            }).then(() => {
-                this.name = '';
-            });
+            this.disabled = true;
 
-            button.submit(req);
+            return new Promise((resolve, reject) => {
+                this.$emit('create', this.name, resolve, reject);
+            });
+        },
+
+        afterSubmit() {
+            this.name = '';
+            this.disabled = false;
         },
     },
 };

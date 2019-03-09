@@ -1,179 +1,205 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div class="plagiarism-runner">
-    <loader :scale="2" v-if="(canView || canManage) && runs == null"/>
-    <table v-else-if="(canView || canManage) && runs.length"
-           class="table table-striped runs-table">
-        <thead>
-            <tr>
-                <th>Previous runs</th>
-                <th>Started</th>
-                <th :colspan="canManage ? 2 : 1">State</th>
-            </tr>
-        </thead>
+    <loader :scale="2" v-if="runs == null || providers == null"/>
+    <div v-else>
+        <table v-if="(canView || canManage) && runs.length"
+               class="table table-striped runs-table">
+            <thead>
+                <tr>
+                    <th>Previous runs</th>
+                    <th>Started</th>
+                    <th :colspan="canManage ? 2 : 1">State</th>
+                </tr>
+            </thead>
 
-        <tbody>
-            <tr v-for="run, i in runs"
-                :class="{ [`run-${run.state}`]: canView }"
-                @click="goToOverview(run)">
-                <td>
-                    <a v-if="canGoToOverview(run)"
-                       class="invisible-link"
-                       href="#"
-                       @click.prevent>
-                        {{ run.provider_name }}
-                    </a>
-                    <span v-else>
-                        {{ run.provider_name }}
-                    </span>
-                    <description-popover hug-text>
-                        <div slot="description" class="selected-options-popover">
-                            Selected options:
+            <tbody>
+                <tr v-for="run, i in runs"
+                    :class="{ [`run-${run.state}`]: canView }"
+                    @click="goToOverview(run)">
+                    <td>
+                        <a v-if="canGoToOverview(run)"
+                           class="invisible-link"
+                           href="#"
+                           @click.prevent>
+                            {{ run.provider_name }}
+                        </a>
+                        <span v-else>
+                            {{ run.provider_name }}
+                        </span>
+                        <description-popover hug-text>
+                            <div slot="description" class="selected-options-popover">
+                                Selected options:
+                                <ul>
+                                    <li v-for="config in run.config">
+                                        {{ translateOption(config[0], run) }}: {{ config[1] }}
+                                    </li>
+                                </ul>
+                            </div>
+                        </description-popover>
+                    </td>
+                    <td>
+                        {{ run.formatted_created_at }}
+                    </td>
+                    <td>
+                        <div v-if="showProgress(run)">
+                            <b-progress v-model="run.submissions_done"
+                                        :max="run.submissions_total"
+                                        :precision="1"
+                                        animated/>
+                            <span class="text-center progress-text">
+                                <span class="run-state">{{ run.state }}</span>
+                                {{ run.submissions_done }} out of {{ run.submissions_total }}
+                            </span>
+                        </div>
+                        <span class="run-state" v-else>
+                            {{ run.state }}
+                            <loader v-if="!runIsFinished(run)"
+                                    :scale="1"
+                                    v-b-popover.hover.top="'This job is running'"/>
+                        </span>
+                    </td>
+                    <td class="run-delete">
+                        <submit-button v-if="canManage"
+                                       :variant="runIsFinished(run) ? 'danger' : 'warning'"
+                                       size="sm"
+                                       :confirm="runIsFinished(run) ? 'Are you sure you want to delete the results?'
+                                                : 'Are you sure you want to cancel this run?'"
+                                       :submit="() => deleteRun(run)"
+                                       @after-success="afterDeleteRun(run)"
+                                       @click.native.stop
+                                       v-b-popover.hover.top="runIsFinished(run) ? 'Delete results' : 'Cancel run'">
+                            <icon name="times"/>
+                        </submit-button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div v-if="canManage">
+            <b-form-radio-group v-model="selectedProvider"
+                                v-if="providers.length > 1"
+                                class="provider-selectors">
+                <table class="table table-striped table-hover providers-table">
+                    <thead>
+                        <tr>
+                            <th>New run</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        <tr v-for="provider in providers"
+                            @click="selectedProvider = provider">
+                            <td>
+                                <b-form-radio :value="provider">
+                                    {{ provider.name }}
+                                </b-form-radio>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </b-form-radio-group>
+
+            <div v-if="selectedProvider != null">
+                <table class="table table-striped options-table">
+                    <thead>
+                        <tr>
+                            <th>Option</th>
+                            <th>Value</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        <tr v-for="option in selectedProvider.options">
+                            <td>
+                                {{ option.title }}
+                                <sup v-if="option.mandatory"
+                                     v-b-popover.hover.top="'This option is required'"
+                                     class="description">
+                                    *
+                                </sup>
+                                <description-popover hug-text
+                                                     :description="option.description"/>
+                            </td>
+                            <td>
+                                <input v-if="option.type == 'strvalue'"
+                                       type="text"
+                                       class="form-control"
+                                       @keydown.ctrl.enter="$refs.runButton.onClick"
+                                       :placeholder="option.placeholder"
+                                       v-model="selectedOptions[option.name]"/>
+                                <input v-else-if="option.type == 'numbervalue'"
+                                       @input="selectedOptions[option.name] = $event.target.value == '' ? undefined : (
+                                           isNaN(Number($event.target.value)) ? ($event.target.value)
+                                           : Number($event.target.value))"
+                                       type="number"
+                                       class="form-control"
+                                       :placeholder="option.placeholder"
+                                       @keydown.ctrl.enter="$refs.runButton.onClick"/>
+                                <b-form-checkbox v-else-if="option.type == 'boolvalue'"
+                                                 v-model="selectedOptions[option.name]"/>
+                                <b-form-select v-else-if="option.type == 'singleselect'"
+                                               :options="option.possible_options"
+                                               v-model="selectedOptions[option.name]"/>
+                                <multiselect v-else-if="option.type == 'multiselect'"
+                                             v-model="selectedOptions[option.name]"
+                                             :options="option.possible_options || []"
+                                             :searchable="true"
+                                             :multiple="true"
+                                             track-by="id"
+                                             label="label"
+                                             :close-on-select="false"
+                                             select-label=""
+                                             :hide-selected="true"
+                                             :internal-search="true"
+                                             :loading="option.possible_options == null">
+                                    <span slot="noResult">
+                                        No results were found.
+                                    </span>
+                                </multiselect>
+                                <div v-else-if="option.type === 'file'" style="display: flex;">
+                                    <b-form-file :class="`file-uploader-form ${option.name}`"
+                                                 :ref="`${selectedProvider.name}||${option.name}`"
+                                                 name="file"
+                                                 style="z-index: 0;"
+                                                 placeholder="Click here to choose a file..."
+                                                 v-model="selectedOptions[option.name]"/>
+                                    <b-btn variant="warning"
+                                           style="margin-left: 5px;"
+                                           @click="$refs[`${selectedProvider.name}||${option.name}`].map(a => a.reset())">Clear</b-btn>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <submit-button id="plagiarism-run-button"
+                               class="run-button"
+                               ref="runButton"
+                               label="Run"
+                               :disabled="!allOptionsValid"
+                               :submit="runPlagiarismChecker"
+                               @success="afterRunPlagiarismChecker"
+                               @mouseenter.native="!allOptionsValid && $refs.runButtonPopover.$emit('open')"
+                               @mouseleave.native="!allOptionsValid && $refs.runButtonPopover.$emit('close')">
+                    <template slot="error" slot-scope="error" v-if="error.error">
+                        <div class="invalid-options">
+                            {{ error.error.response.data.description }}
+
                             <ul>
-                                <li v-for="config in run.config">
-                                    {{ translateOption(config[0], run) }}: {{ config[1] }}
+                                <li v-for="option in error.error.response.data.invalid_options">
+                                    {{ option }}
                                 </li>
                             </ul>
                         </div>
-                    </description-popover>
-                </td>
-                <td>
-                    {{ run.formatted_created_at }}
-                </td>
-                <td class="run-state">
-                    {{ run.state }}
-                </td>
-                <td class="run-delete">
-                    <loader v-if="run.state == 'running'"
-                            :scale="1"
-                            v-b-popover.hover.top="'This job is running'"/>
-                    <submit-button v-else-if="canManage"
-                                   default="danger"
-                                   size="sm"
-                                   :label="false"
-                                   confirm="Are you sure you want to delete the results?"
-                                   @click="deleteRun(run, i)"
-                                   @click.native.stop
-                                   v-b-popover.hover.top="'Delete results'"
-                                   ref="deleteRunButton">
-                        <icon name="times"/>
-                    </submit-button>
-                </td>
-            </tr>
-        </tbody>
-    </table>
-
-    <loader :scale="2" v-if="canManage && providers == null"/>
-    <div v-else-if="canManage">
-        <b-form-radio-group v-model="selectedProvider"
-                            v-if="providers.length > 1"
-                            class="provider-selectors">
-            <table class="table table-striped table-hover providers-table">
-                <thead>
-                    <tr>
-                        <th>New run</th>
-                    </tr>
-                </thead>
-
-                <tbody>
-                    <tr v-for="provider in providers"
-                        @click="selectedProvider = provider">
-                        <td>
-                            <b-form-radio :value="provider">
-                                {{ provider.name }}
-                            </b-form-radio>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-        </b-form-radio-group>
-
-        <div v-if="selectedProvider != null">
-            <table class="table table-striped options-table">
-                <thead>
-                    <tr>
-                        <th>Option</th>
-                        <th>Value</th>
-                    </tr>
-                </thead>
-
-                <tbody>
-                    <tr v-for="option in selectedProvider.options">
-                        <td>
-                            {{ option.title }}
-                            <sup v-if="option.mandatory"
-                                 v-b-popover.hover.top="'This option is required'"
-                                 class="description">
-                                *
-                            </sup>
-                            <description-popover hug-text
-                                                 :description="option.description"/>
-                        </td>
-                        <td>
-                            <input v-if="option.type == 'strvalue'"
-                                   type="text"
-                                   class="form-control"
-                                   @keydown.ctrl.enter="runPlagiarismChecker"
-                                   :placeholder="option.placeholder"
-                                   v-model="selectedOptions[option.name]"/>
-                            <input v-else-if="option.type == 'numbervalue'"
-                                   @input="selectedOptions[option.name] = $event.target.value == '' ? undefined : (
-                                           isNaN(Number($event.target.value)) ? ($event.target.value)
-                                           : Number($event.target.value))"
-                                   type="number"
-                                   class="form-control"
-                                   :placeholder="option.placeholder"
-                                   @keydown.ctrl.enter="runPlagiarismChecker"/>
-                            <b-form-checkbox v-else-if="option.type == 'boolvalue'"
-                                             v-model="selectedOptions[option.name]"/>
-                            <b-form-select v-else-if="option.type == 'singleselect'"
-                                           :options="option.possible_options"
-                                           v-model="selectedOptions[option.name]"/>
-                            <multiselect v-else-if="option.type == 'multiselect'"
-                                         v-model="selectedOptions[option.name]"
-                                         :options="option.possible_options || []"
-                                         :searchable="true"
-                                         :multiple="true"
-                                         track-by="id"
-                                         label="label"
-                                         :close-on-select="false"
-                                         select-label=""
-                                         :hide-selected="true"
-                                         :internal-search="true"
-                                         :loading="option.possible_options == null">
-                                <span slot="noResult">
-                                    No results were found.
-                                </span>
-                            </multiselect>
-                            <div v-else-if="option.type === 'file'" style="display: flex;">
-                                <b-form-file :class="`file-uploader-form ${option.name}`"
-                                             :ref="`${selectedProvider.name}||${option.name}`"
-                                             name="file"
-                                             style="z-index: 0;"
-                                             placeholder="Click here to choose a file..."
-                                             v-model="selectedOptions[option.name]"/>
-                                <b-btn variant="warning"
-                                       style="margin-left: 5px;"
-                                       @click="$refs[`${selectedProvider.name}||${option.name}`].map(a => a.reset())">Clear</b-btn>
-                            </div>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-
-            <submit-button label="Run"
-                           id="plagiarism-run-button"
-                           class="run-button"
-                           ref="runButton"
-                           :disabled="!allOptionsValid"
-                           @click="runPlagiarismChecker"
-                           @mouseenter.native="!allOptionsValid && $refs.runButtonPopover.$emit('open')"
-                           @mouseleave.native="!allOptionsValid && $refs.runButtonPopover.$emit('close')"/>
-            <b-popover target="plagiarism-run-button"
-                       content="Not all mandatory options have been set!"
-                       placement="left"
-                       ref="runButtonPopover"
-                       v-if="!allOptionsValid"/>
+                    </template>
+                </submit-button>
+                <b-popover target="plagiarism-run-button"
+                           content="Not all mandatory options have been set!"
+                           placement="left"
+                           ref="runButtonPopover"
+                           v-if="!allOptionsValid"/>
+            </div>
         </div>
     </div>
 </div>
@@ -208,6 +234,11 @@ export default {
             type: Boolean,
             required: true,
         },
+
+        hidden: {
+            type: Boolean,
+            default: true,
+        },
     },
 
     data() {
@@ -216,7 +247,7 @@ export default {
             selectedProvider: null,
             selectedOptionsMap: new WeakMap(),
             selectedOptions: null,
-            allOldAssignments: [],
+            allOldAssignments: null,
             runs: null,
             oldSubmissions: null,
             runsPollingInterval: null,
@@ -244,6 +275,15 @@ export default {
     },
 
     watch: {
+        hidden: {
+            immediate: true,
+            handler() {
+                if (!this.hidden && this.allOldAssignments === null) {
+                    this.getOldAssignments();
+                }
+            },
+        },
+
         selectedProvider(provider) {
             if (provider == null) {
                 return;
@@ -255,9 +295,8 @@ export default {
 
             this.selectedOptions = this.selectedOptionsMap.get(provider);
 
-            if (this.allOldAssignments.length === 0) {
-                this.getOldAssignments();
-            }
+            // Old assignments are loaded using the watcher on `hidden`. That
+            // should probably be changed when we have more than one provider.
         },
 
         $route(oldRoute, newRoute) {
@@ -269,6 +308,14 @@ export default {
     },
 
     methods: {
+        showProgress(run) {
+            const provider = this.providers.find(prov => prov.name === run.provider_name);
+            return (
+                (run.state === 'parsing' || run.state === 'running' || run.state === 'comparing') &&
+                provider.progress
+            );
+        },
+
         translateOption(optName, run) {
             const provName = run.provider_name;
             if (optName in this.translateOptionSpecialCases) {
@@ -306,7 +353,7 @@ export default {
             });
         },
 
-        async runPlagiarismChecker() {
+        runPlagiarismChecker() {
             const selectedOptions = Object.assign({}, this.selectedOptions);
 
             if (this.selectedOptions.old_assignments == null) {
@@ -347,23 +394,13 @@ export default {
                 data = selectedOptions;
             }
 
-            const req = this.$http
-                .post(`/api/v1/assignments/${this.assignment.id}/plagiarism`, data)
-                .then(
-                    ({ data: run }) => {
-                        run.formatted_created_at = readableFormatDate(run.created_at);
-                        this.runs.push(run);
-                    },
-                    err => {
-                        let res = err.response.data.message;
-                        if (err.response.data.invalid_options) {
-                            res += ` (${err.response.data.invalid_options.join('. ')})`;
-                        }
-                        throw res;
-                    },
-                );
+            return this.$http.post(`/api/v1/assignments/${this.assignment.id}/plagiarism`, data);
+        },
 
-            return this.$refs.runButton.submit(req);
+        afterRunPlagiarismChecker(response) {
+            const run = response.data;
+            run.formatted_created_at = readableFormatDate(run.created_at);
+            this.runs.push(run);
         },
 
         async getOldAssignments() {
@@ -455,8 +492,12 @@ export default {
             }
         },
 
+        runIsFinished(run) {
+            return run.state === 'done' || run.state === 'crashed';
+        },
+
         canGoToOverview(run) {
-            return this.canView && run.state !== 'running';
+            return this.canView && this.runIsFinished(run);
         },
 
         goToOverview(run) {
@@ -504,29 +545,22 @@ export default {
 
         pollRuns() {
             this.runsPollingInterval = setInterval(() => {
-                const running = this.runs.filter(run => run.state === 'running');
+                const running = this.runs.filter(run => !this.runIsFinished(run));
 
                 if (!running.length) {
                     return;
                 }
 
                 this.loadRuns();
-            }, 5000);
+            }, 1000);
         },
 
-        deleteRun(run, i) {
-            this.$refs.deleteRunButton[i]
-                .submit(
-                    this.$http.delete(`/api/v1/plagiarism/${run.id}`).catch(({ response }) => {
-                        throw response.data.message;
-                    }),
-                )
-                .then(
-                    () => {
-                        this.runs.splice(i, 1);
-                    },
-                    () => {},
-                );
+        deleteRun(run) {
+            return this.$http.delete(`/api/v1/plagiarism/${run.id}`);
+        },
+
+        afterDeleteRun(run) {
+            this.runs = this.runs.filter(r => r.id !== run.id);
         },
     },
 
@@ -559,6 +593,7 @@ export default {
 
 .plagiarism-runner > .loader {
     margin: 1rem;
+    margin-bottom: 0;
 }
 
 .runs-table {
@@ -608,11 +643,17 @@ export default {
 
     .run-state {
         text-transform: capitalize;
+        .loader {
+            display: inline-block;
+            margin-left: 0.5rem;
+            transform: translateY(2px);
+        }
     }
 
     .run-delete {
-        width: 1px;
         white-space: nowrap;
+        width: 1px;
+        vertical-align: top;
     }
 }
 
@@ -650,5 +691,17 @@ export default {
 .run-button {
     float: right;
     margin-right: 1rem;
+}
+
+.invalid-options {
+    text-align: left;
+
+    ul {
+        padding-left: 1.25rem;
+        margin-bottom: 0;
+    }
+}
+.progress-text {
+    display: block;
 }
 </style>

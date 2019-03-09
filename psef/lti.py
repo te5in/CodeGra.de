@@ -12,6 +12,7 @@ import enum
 import typing as t
 import datetime
 import xml.etree.ElementTree
+from dataclasses import dataclass
 from urllib.parse import urlparse
 
 import flask
@@ -23,13 +24,12 @@ import flask_jwt_extended as flask_jwt
 from mypy_extensions import TypedDict
 from defusedxml.ElementTree import fromstring as defused_xml_fromstring
 
-from dataclasses import dataclass
-
 from . import (
     LTI_ROLE_LOOKUPS, app, auth, models, helpers, features, current_user
 )
 from .auth import _user_active
 from .models import db
+from .helpers import register
 from .exceptions import APICodes, APIException
 
 logger = structlog.get_logger()
@@ -61,6 +61,8 @@ class LTIProperty:
 
 
 T_LTI = t.TypeVar('T_LTI', bound='LTI')  # pylint: disable=invalid-name
+
+lti_classes: register.Register[str, t.Type['LTI']] = register.Register()
 
 
 # TODO: This class has so many public methods as they are properties. A lot of
@@ -94,8 +96,8 @@ class LTI:  # pylint: disable=too-many-public-methods
         self.key = self.lti_provider.key
         self.secret = self.lti_provider.secret
 
-    @classmethod
-    def create_from_request(cls: t.Type['LTI'], req: flask.Request) -> 'LTI':
+    @staticmethod
+    def create_from_request(req: flask.Request) -> 'LTI':
         """Create an instance from a flask request.
 
         The request should have a ``form`` variable that has all the right
@@ -107,7 +109,7 @@ class LTI:  # pylint: disable=too-many-public-methods
         params = req.form.copy()
 
         lti_provider = models.LTIProvider.query.filter_by(
-            key=params['oauth_consumer_key']
+            key=params['oauth_consumer_key'],
         ).first()
         if lti_provider is None:
             lti_provider = models.LTIProvider(key=params['oauth_consumer_key'])
@@ -123,11 +125,29 @@ class LTI:  # pylint: disable=too-many-public-methods
             if not key.startswith('oauth'):
                 launch_params[key] = value
 
+        cls = lti_provider.lti_class
         self = cls(launch_params, lti_provider)
+        launch_params['lti_class'] = lti_classes.get_key(cls)
+        assert launch_params['lti_class'] is not None
 
         auth.ensure_valid_oauth(self.key, self.secret, req)
 
         return self
+
+    @staticmethod
+    def create_from_launch_params(params: t.Mapping[str, str]) -> 'LTI':
+        """Create an instance from launch params.
+
+        The params should have an ``lti_class`` key with the name of the class
+        to be instantiated.
+
+        :param params: The launch params to create the LTI instance from.
+        :returns: A fresh LTI instance.
+        """
+        lms = params['lti_class']
+        cls = lti_classes.get(lms)
+        assert cls is not None
+        return cls(params)
 
     @staticmethod
     def get_lti_properties() -> t.List[LTIProperty]:
@@ -508,8 +528,8 @@ class LTI:  # pylint: disable=too-many-public-methods
         """
         raise NotImplementedError
 
-    @staticmethod
-    def generate_xml() -> str:
+    @classmethod
+    def generate_xml(cls) -> str:
         """Generate a config XML for this LTI consumer.
         """
         raise NotImplementedError
@@ -617,6 +637,7 @@ class LTI:  # pylint: disable=too-many-public-methods
         ).post_outcome_request()
 
 
+@lti_classes.register('Canvas')
 class CanvasLTI(LTI):
     """The LTI class used for the Canvas LMS.
     """
@@ -719,13 +740,16 @@ class CanvasLTI(LTI):
     def has_result_sourcedid(self) -> bool:
         return 'lis_result_sourcedid' in self.launch_params
 
-    @staticmethod
-    def generate_xml() -> str:
+    @classmethod
+    def generate_xml(cls) -> str:
         """Generate a config XML for this LTI consumer.
-
-        .. todo:: Implement this function
         """
-        raise NotImplementedError
+        return flask.render_template(
+            'lti_canvas_config.j2',
+            external_url=app.config['EXTERNAL_URL'],
+            properties=cls.get_lti_properties(),
+            custom_extensions=cls.get_custom_extensions(),
+        )
 
     @property
     def assignment_state(self) -> models._AssignmentStateEnum:
@@ -1031,8 +1055,7 @@ class OutcomeRequest:
             result = ET.SubElement(record, 'result')
 
             if isinstance(
-                self.lti_operation,
-                (
+                self.lti_operation, (
                     LTINormalReplaceResultOperation,
                     LTIRawReplaceResultOperation
                 )

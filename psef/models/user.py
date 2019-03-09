@@ -18,8 +18,8 @@ import psef
 from . import UUID_LENGTH, Base, DbColumn, db, course, _MyQuery
 from .role import Role, CourseRole
 from .permission import Permission
-from ..exceptions import APICodes, PermissionException
 from .link_tables import user_course, course_permissions
+from ..exceptions import APICodes, PermissionException
 from ..permissions import CoursePermission, GlobalPermission
 
 if t.TYPE_CHECKING and not getattr(t, 'SPHINX', False):  # pragma: no cover
@@ -219,6 +219,40 @@ class User(Base):
                 return self.courses[course_id].has_permission(permission)
             return False
 
+    def get_all_permissions_in_courses(
+        self,
+    ) -> t.Mapping[int, t.Mapping[CoursePermission, bool]]:
+        """Get all permissions for all courses the current user is enrolled in
+
+        :returns: A mapping from course id to a mapping from
+            :py:class:`.CoursePermission` to a boolean indicating if the
+            current user has this permission.
+        """
+        permission_links = db.session.query(
+            user_course.c.course_id, Permission.get_name_column()
+        ).join(User, User.id == user_course.c.user_id).filter(
+            user_course.c.user_id == self.id
+        ).join(
+            course_permissions,
+            course_permissions.c.course_role_id == user_course.c.course_id
+        ).join(
+            Permission,
+            course_permissions.c.permission_id == Permission.id,
+            isouter=True
+        )
+        lookup: t.Mapping[int, t.Set[str]] = defaultdict(set)
+        for course_role_id, perm_name in permission_links:
+            lookup[course_role_id].add(perm_name)
+
+        out: t.MutableMapping[int, t.Mapping[CoursePermission, bool]] = {}
+        for course_id, course_role in self.courses.items():
+            perms = lookup[course_role.id]
+            out[course_id] = {
+                p: (p.name in perms) ^ p.value.default_value
+                for p in CoursePermission
+            }
+        return out
+
     def get_permissions_in_courses(
         self,
         wanted_perms: t.Sequence[CoursePermission],
@@ -314,7 +348,7 @@ class User(Base):
             'group': self.group,
         }
 
-    def __extended_to_json__(self) -> t.Mapping[str, t.Any]:
+    def __extended_to_json__(self) -> t.MutableMapping[str, t.Any]:
         """Create a extended JSON serializable representation of this object.
 
         This object will look like this:

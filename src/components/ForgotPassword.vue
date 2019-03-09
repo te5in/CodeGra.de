@@ -7,7 +7,7 @@
                 placeholder="Username"
                 v-model="username"
                 ref="username"
-                @keyup.enter="submit"/>
+                @keyup.enter="$refs.btn.onClick"/>
     </b-form-fieldset>
 
     <p>
@@ -17,10 +17,9 @@
     </p>
 
     <b-form-fieldset class="text-center">
-        <submit-button ref="submit"
-                    @click="submit"
-                    label="Request email"
-                    :show-empty="false"/>
+        <submit-button label="Request email"
+                       ref="btn"
+                       :submit="submit"/>
 
         <!-- This happens when a logged in user wants to reset its password -->
         <div class="login-links" v-if="!loggedIn">
@@ -63,23 +62,12 @@ export default {
     },
 
     methods: {
-        submit(event) {
-            event.preventDefault();
-
+        submit() {
             if (!this.username) {
-                this.$refs.submit.fail('Please enter a username.');
-                return;
+                throw new Error('Please enter a username.');
             }
 
-            this.$refs.submit.submit(
-                this.$http
-                    .patch('/api/v1/login?type=reset_email', {
-                        username: this.username,
-                    })
-                    .catch(err => {
-                        throw err.response.data.message;
-                    }),
-            );
+            return this.$http.patch('/api/v1/login?type=reset_email', { username: this.username });
         },
     },
 };

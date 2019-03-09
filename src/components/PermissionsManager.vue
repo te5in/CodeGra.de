@@ -45,10 +45,11 @@
                                  v-else/>
             </b-input-group>
             <b-input-group v-else-if="showDeleteRole">
-                <submit-button :ref="`delete-perm-${i}`"
-                               label="Remove"
-                               default="danger"
-                               @click="removeRole(i)"/>
+                <submit-button label="Remove"
+                               :ref="`delete-perm-${i}`"
+                               variant="danger"
+                               :submit="() => removeRole(i)"
+                               @after-success="afterRemoveRole(i)"/>
             </b-input-group>
         </template>
     </b-table>
@@ -57,14 +58,28 @@
             <input v-model="newRoleName"
                    class="form-control"
                    placeholder="Name of new role"
-                   @keyup.ctrl.enter="addRole"/>
+                   @keyup.ctrl.enter="$refs.addUserBtn.onClick"/>
 
             <submit-button label="Add"
                            ref="addUserBtn"
-                               @click="addRole"/>
-            </b-input-group>
-        </b-form-fieldset>
-    </div>
+                           :submit="addRole"
+                           @after-success="afterAddRole"/>
+        </b-input-group>
+    </b-form-fieldset>
+
+    <transition name="fade" appear>
+        <!-- v-if and show are used to make sure the transition works -->
+        <b-alert dismissible
+                 show
+                 v-if="!hideChanged && Object.values(changed).some(x => x)"
+                 @input="hideWarning"
+                 variant="info"
+                 class="perm-warning">
+            Reload the page to apply the changes.
+        </b-alert>
+    </transition>
+
+</div>
 </template>
 
 <script>
@@ -124,16 +139,26 @@ export default {
             fields: [],
             items: [],
             newRoleName: '',
+            hideChanged: false,
+            changed: {},
         };
     },
 
     watch: {
-        courseId() {
+        courseId(newVal, oldVal) {
+            if (newVal !== oldVal) {
+                this.hideChanged = false;
+                this.changed = {};
+            }
             this.loadData();
         },
     },
 
     methods: {
+        hideWarning() {
+            this.hideChanged = true;
+        },
+
         async loadData() {
             this.loading = true;
             await this.getAllPermissions();
@@ -201,6 +226,12 @@ export default {
                 permission: item.name,
             });
             waitAtLeast(500, req).then(() => {
+                this.hideChanged = false;
+                this.$set(
+                    this.changed,
+                    `${this.courseId}-${field.id}-${item.name}`,
+                    !this.changed[`${this.courseId}-${field.id}-${item.name}`],
+                );
                 item[field.key] = newValue;
                 this.$set(this.items, i, item);
             });
@@ -208,41 +239,30 @@ export default {
 
         removeRole(index) {
             const perm = this.fields[index];
-            const button = this.$refs[`delete-perm-${index}`][0];
-
-            const req = this.$http
+            return this.$http
                 .delete(this.getDeleteRoleUrl(this.courseId, perm.id))
-                .catch(({ response }) => {
-                    throw response.data.message;
-                });
+                .then(() => index);
+        },
 
-            button.submit(req).then(() => {
-                this.fields.splice(index, 1);
-            });
+        afterRemoveRole(index) {
+            this.fields.splice(index, 1);
         },
 
         addRole() {
-            const button = this.$refs.addUserBtn;
             if (this.newRoleName === '') {
-                button.fail('The name cannot be empty!');
-            } else {
-                const req = this.$http
-                    .post(`/api/v1/courses/${this.courseId}/roles/`, {
-                        name: this.newRoleName,
-                    })
-                    .then(
-                        () => {
-                            this.getAllPermissions().then(() => {
-                                this.newRole = '';
-                                this.newRoleName = '';
-                            });
-                        },
-                        ({ response }) => {
-                            throw response.data.message;
-                        },
-                    );
-                button.submit(req);
+                throw new Error('The name cannot be empty!');
             }
+
+            return this.$http.post(`/api/v1/courses/${this.courseId}/roles/`, {
+                name: this.newRoleName,
+            });
+        },
+
+        afterAddRole() {
+            this.getAllPermissions().then(() => {
+                this.newRole = '';
+                this.newRoleName = '';
+            });
         },
     },
 
@@ -294,7 +314,26 @@ export default {
 </style>
 
 <style lang="less" scoped>
+@import '~mixins.less';
+
 .add-role {
     margin-top: 1rem;
+}
+
+.perm-warning {
+    position: fixed;
+    bottom: 0;
+    right: 1rem;
+    z-index: 8;
+    width: max-content;
+}
+
+.fade-enter-active,
+.fade-leave-active {
+    transition: opacity @transition-duration;
+}
+.fade-enter,
+.fade-leave-to {
+    opacity: 0;
 }
 </style>

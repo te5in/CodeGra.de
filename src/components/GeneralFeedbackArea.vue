@@ -6,13 +6,14 @@
               :rows="10"
               ref="field"
               v-model="feedback"
-              @keydown.ctrl.enter.prevent="putFeedback"
+              @keydown.ctrl.enter.prevent="$refs.submitButton.onClick"
               @keydown.native.tab.capture="expandSnippet"
               v-if="editable"/>
     <pre class="feedback-field"
          v-else>{{ feedback || 'No feedback given :(' }}</pre>
     <submit-button ref="submitButton"
-                   @click="putFeedback"
+                   :submit="submitFeedback"
+                   @success="afterSubmitFeedback"
                    v-if="editable"
                    style="margin: 15px 0; float: right;"/>
 </div>
@@ -63,28 +64,24 @@ export default {
     methods: {
         ...mapActions('courses', ['updateSubmission']),
 
-        putFeedback() {
+        submitFeedback() {
             const data = { feedback: this.feedback || '' };
 
-            const req = this.$http.patch(`/api/v1/submissions/${this.submission.id}`, data).then(
-                () =>
-                    this.updateSubmission({
-                        assignmentId: this.assignment.id,
-                        submissionId: this.submission.id,
-                        submissionProps: {
-                            comment: data.feedback,
-                            comment_author: {
-                                name: this.nameCurrentUser,
-                                id: this.userId,
-                            },
-                        },
-                    }),
-                err => {
-                    throw err.response.data.message;
-                },
-            );
+            return this.$http.patch(`/api/v1/submissions/${this.submission.id}`, data);
+        },
 
-            this.$refs.submitButton.submit(req);
+        afterSubmitFeedback() {
+            this.updateSubmission({
+                assignmentId: this.assignment.id,
+                submissionId: this.submission.id,
+                submissionProps: {
+                    comment: this.feedback || '',
+                    comment_author: {
+                        name: this.nameCurrentUser,
+                        id: this.userId,
+                    },
+                },
+            });
         },
 
         expandSnippet(event) {

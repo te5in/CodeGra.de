@@ -822,6 +822,60 @@ def test_invalid_jwt(test_client, app, logged_in, session, error_template):
         )
 
 
+@pytest.mark.parametrize(
+    'oauth_key,err', [
+        ('no_secret', 500),
+        ('no_lms', 500),
+        ('no_colon', 500),
+        ('unknown_lms', 400),
+    ]
+)
+def test_invalid_lms(
+    test_client, app, logged_in, session, error_template, oauth_key, err
+):
+    due_at = datetime.datetime.utcnow() + datetime.timedelta(
+        days=1, hours=1, minutes=2
+    )
+    due_at = due_at.replace(second=0, microsecond=0)
+
+    email = 'thomas@example.com'
+    name = 'A the A-er'
+    lti_id = 'USER_ID'
+    source_id = ''
+    published = 'false'
+    username = 'a-the-a-er'
+    due = None
+    with app.app_context():
+        due_date = due or due_at.isoformat() + 'Z'
+        data = {
+            'custom_canvas_course_name': 'NEW_COURSE',
+            'custom_canvas_course_id': 'MY_COURSE_ID',
+            'custom_canvas_assignment_id': 'MY_ASSIG_ID',
+            'custom_canvas_assignment_title': 'MY_ASSIG_TITLE',
+            'roles': 'instructor',
+            'custom_canvas_user_login_id': username,
+            'custom_canvas_course_title': 'Common Lisp',
+            'custom_canvas_assignment_due_at': due_date,
+            'custom_canvas_assignment_published': published,
+            'user_id': lti_id,
+            'lis_person_contact_email_primary': email,
+            'lis_person_name_full': name,
+            'context_id': 'NO_CONTEXT',
+            'context_title': 'WRONG_TITLE',
+            'oauth_consumer_key': oauth_key,
+            'lis_outcome_service_url': source_id,
+        }
+        if source_id:
+            data['lis_result_sourcedid'] = source_id
+        res = test_client.req(
+            'post',
+            '/api/v1/lti/launch/1',
+            err,
+            real_data=data,
+            result=error_template,
+        )
+
+
 @pytest.mark.parametrize('filename', [
     ('correct.tar.gz'),
 ])
@@ -915,18 +969,15 @@ def test_lti_grade_passback_with_groups(
     with logged_in(teacher_user):
         assig, token = do_lti_launch()
         u1 = create_user_with_perms(
-            session,
-            [CPerm.can_submit_own_work],
+            session, [CPerm.can_submit_own_work],
             m.Course.query.get(assig['course']['id'])
         )
         u2 = create_user_with_perms(
-            session,
-            [CPerm.can_submit_own_work],
+            session, [CPerm.can_submit_own_work],
             m.Course.query.get(assig['course']['id'])
         )
         u3 = create_user_with_perms(
-            session,
-            [CPerm.can_submit_own_work],
+            session, [CPerm.can_submit_own_work],
             m.Course.query.get(assig['course']['id'])
         )
         u1_lti_id = str(uuid.uuid4())

@@ -23,7 +23,6 @@ describe('PlagiarismRunner.vue', () => {
     let mockGet;
     let runs;
     let providers;
-    let mockSubmit;
     let remount;
 
     beforeEach(() => {
@@ -46,7 +45,6 @@ describe('PlagiarismRunner.vue', () => {
             },
         ];
 
-        mockSubmit = jest.fn(() => Promise.resolve(true));
         mockPost = jest.fn(() => Promise.resolve({ data: { state: 'running', provider_name: 'testProvider' } }));
         mockGet = jest.fn((route) => {
             let res = null;
@@ -158,9 +156,8 @@ describe('PlagiarismRunner.vue', () => {
 
         it('should work in the most simple case', async () => {
             comp.selectedProvider = comp.providers[0];
-            comp.$refs = { runButton: { submit: mockSubmit } };
             comp.selectedOptions = { hello: 'goodbye' };
-            await comp.runPlagiarismChecker();
+            await comp.runPlagiarismChecker().then(comp.afterRunPlagiarismChecker);
 
             expect(mockPost).toBeCalledTimes(1);
             expect(mockPost).toBeCalledWith('/api/v1/assignments/0/plagiarism', {
@@ -169,7 +166,6 @@ describe('PlagiarismRunner.vue', () => {
                 has_base_code: false,
                 has_old_submissions: false,
             });
-            expect(mockSubmit).toBeCalledTimes(1);
 
             expect(comp.runs[comp.runs.length - 1]).toEqual(
                 await mockPost.mock.results[0].value.then(a => a.data),
@@ -181,10 +177,9 @@ describe('PlagiarismRunner.vue', () => {
             const oldSubs = '__OLDSUB__OLDSUB__';
 
             comp.selectedProvider = comp.providers[0];
-            comp.$refs = { runButton: { submit: mockSubmit } };
             comp.selectedOptions = { hello: 'goodbye', 'base_code': base, 'old_submissions': oldSubs };
 
-            await comp.runPlagiarismChecker();
+            await comp.runPlagiarismChecker().then(comp.afterRunPlagiarismChecker);
             expect(mockPost).toBeCalledTimes(1);
             expect(mockPost).toBeCalledWith('/api/v1/assignments/0/plagiarism', expect.any(FormData));
             const form = mockPost.mock.calls[0][1];
@@ -207,8 +202,6 @@ describe('PlagiarismRunner.vue', () => {
 
             expect(form.has('base_code')).toBe(true);
             expect(form.get('base_code')).toBe(base);
-
-            expect(mockSubmit).toBeCalledTimes(1);
 
             expect(comp.runs[comp.runs.length - 1]).toEqual(
                 await mockPost.mock.results[0].value.then(a => a.data),

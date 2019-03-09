@@ -54,7 +54,8 @@
         <submit-button ref="submitButton"
                        style="height: inherit;"
                        v-if="groupSets.length > 0"
-                       @click="submit"/>
+                       :submit="submit"
+                       @success="afterSubmit"/>
     </b-button-toolbar>
 </div>
 </template>
@@ -64,8 +65,6 @@ import { mapActions, mapGetters } from 'vuex';
 
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/pencil';
-
-import { waitAtLeast } from '@/utils';
 
 import SubmitButton from './SubmitButton';
 import DescriptionPopover from './DescriptionPopover';
@@ -135,43 +134,37 @@ export default {
         },
 
         submit() {
-            const btn = this.$refs.submitButton;
-            const props = { group_set_id: null };
+            const props = {
+                group_set_id: this.selected || null,
+            };
 
-            if (this.selected) {
-                props.group_set_id = this.selected;
-            }
-            const req = this.$http.patch(this.assignmentUrl, props).then(
-                ({ data }) => {
-                    const newSet = data.group_set || {};
-                    const oldSet = this.assignment.group_set || {};
+            return this.$http.patch(this.assignmentUrl, props);
+        },
 
-                    this.updateAssignment({
-                        assignmentId: this.assignment.id,
-                        assignmentProps: { group_set: newSet },
-                    });
-                    this.updateCourse({
-                        courseId: this.assignment.course.id,
-                        courseProps: {
-                            group_sets: this.assignment.course.group_sets.map(set => {
-                                if (set.id === newSet.id) {
-                                    return newSet;
-                                } else if (set.id === oldSet.id) {
-                                    set.assignment_ids = set.assignment_ids.filter(
-                                        id => id !== this.assignment.id,
-                                    );
-                                }
-                                return set;
-                            }),
-                        },
-                    });
+        afterSubmit(response) {
+            const newSet = response.data.group_set || {};
+            const oldSet = this.assignment.group_set || {};
+
+            this.updateAssignment({
+                assignmentId: this.assignment.id,
+                assignmentProps: { group_set: newSet },
+            });
+
+            this.updateCourse({
+                courseId: this.assignment.course.id,
+                courseProps: {
+                    group_sets: this.assignment.course.group_sets.map(set => {
+                        if (set.id === newSet.id) {
+                            return newSet;
+                        } else if (set.id === oldSet.id) {
+                            set.assignment_ids = set.assignment_ids.filter(
+                                id => id !== this.assignment.id,
+                            );
+                        }
+                        return set;
+                    }),
                 },
-                err => {
-                    throw err.response.data.message;
-                },
-            );
-
-            btn.submit(waitAtLeast(500, req));
+            });
         },
 
         manageGroupsLink(groupSet) {

@@ -52,6 +52,8 @@ def get_all_assignments() -> JSONResponse[t.Sequence[models.Assignment]]:
     .. :quickref: Assignment; Get all assignments.
 
     :returns: An array of :py:class:`.models.Assignment` items encoded in JSON.
+    :query only_with_rubric: When this parameter is given only assignments that
+        have a rubric will be loaded.
 
     :raises PermissionException: If there is no logged in user. (NOT_LOGGED_IN)
     """
@@ -63,24 +65,33 @@ def get_all_assignments() -> JSONResponse[t.Sequence[models.Assignment]]:
 
     res = []
 
+    query = db.session.query(
+        models.Assignment,
+        t.cast(models.DbColumn[str], models.AssignmentLinter.id).isnot(None)
+    ).filter(
+        t.cast(
+            models.DbColumn[int],
+            models.Assignment.course_id,
+        ).in_(courses)
+    ).join(
+        models.AssignmentLinter,
+        sql.expression.and_(
+            models.Assignment.id == models.AssignmentLinter.assignment_id,
+            models.AssignmentLinter.name == 'MixedWhitespace'
+        ),
+        isouter=True
+    ).order_by(
+        t.cast(models.DbColumn[object], models.Assignment.created_at).desc()
+    )
+    if request.args.get('only_with_rubric',
+                        'false').lower() in {'', 't', 'true'}:
+        query = query.filter(
+            t.cast(models.DbColumn[object],
+                   models.Assignment.rubric_rows).any()
+        )
+
     if courses:
-        for assignment, has_linter in db.session.query(
-            models.Assignment,
-            t.cast(models.DbColumn[str],
-                   models.AssignmentLinter.id).isnot(None)
-        ).filter(
-            t.cast(
-                models.DbColumn[int],
-                models.Assignment.course_id,
-            ).in_(courses)
-        ).join(
-            models.AssignmentLinter,
-            sql.expression.and_(
-                models.Assignment.id == models.AssignmentLinter.assignment_id,
-                models.AssignmentLinter.name == 'MixedWhitespace'
-            ),
-            isouter=True
-        ).all():
+        for assignment, has_linter in query.all():
             has_perm = current_user.has_permission(
                 CPerm.can_see_hidden_assignments, assignment.course_id
             )
@@ -365,6 +376,10 @@ def get_assignment_rubric(assignment_id: int
     )
 
     auth.ensure_permission(CPerm.can_see_assignments, assig.course_id)
+    if assig.is_hidden:
+        auth.ensure_permission(
+            CPerm.can_see_hidden_assignments, assig.course_id
+        )
     if not assig.rubric_rows:
         raise APIException(
             'Assignment has no rubric',
@@ -408,6 +423,57 @@ def delete_rubric(assignment_id: int) -> EmptyResponse:
     return make_empty_response()
 
 
+@api.route('/assignments/<int:assignment_id>/rubric', methods=['POST'])
+@features.feature_required(features.Feature.RUBRICS)
+def import_assignment_rubric(assignment_id: int
+                             ) -> JSONResponse[t.Sequence[models.RubricRow]]:
+    """Import a rubric from a different assignment.
+
+    .. :quickref: Assignment; Import a rubric from a different assignment.
+
+    :param assignment_id: The id of the assignment in which you want to import
+        the rubric. This assignment shouldn't have a rubric.
+    :>json old_assignment_id: The id of the assignment from which the rubric
+        should be imported. This assignment should have a rubric.
+
+    :returns: The rubric rows of the assignment in which the rubric was
+        imported, so the assignment with id ``assignment_id`` and not
+        ``old_assignment_id``.
+    """
+    assig = helpers.get_or_404(models.Assignment, assignment_id)
+    auth.ensure_permission(CPerm.manage_rubrics, assig.course_id)
+
+    content = ensure_json_dict(request.get_json())
+    ensure_keys_in_dict(content, [('old_assignment_id', int)])
+    old_assig = helpers.get_or_404(
+        models.Assignment, content['old_assignment_id']
+    )
+
+    auth.ensure_permission(CPerm.can_see_assignments, old_assig.course_id)
+    if old_assig.is_hidden:
+        auth.ensure_permission(
+            CPerm.can_see_hidden_assignments, old_assig.course_id
+        )
+
+    if assig.rubric_rows:
+        raise APIException(
+            'The given assignment already has a rubric',
+            'You cannot import a rubric into an assignment which has a rubric',
+            APICodes.OBJECT_ALREADY_EXISTS, 400
+        )
+    if not old_assig.rubric_rows:
+        raise APIException(
+            "The given old assignment doesn't have a rubric", (
+                "You cannot import a rubric from an assignment which doesn't"
+                " have a rubric"
+            ), APICodes.OBJECT_NOT_FOUND, 404
+        )
+
+    assig.rubric_rows = [row.copy() for row in old_assig.rubric_rows]
+    db.session.commit()
+    return jsonify(assig.rubric_rows)
+
+
 @api.route('/assignments/<int:assignment_id>/rubrics/', methods=['PUT'])
 @features.feature_required(features.Feature.RUBRICS)
 def add_assignment_rubric(assignment_id: int
@@ -441,8 +507,7 @@ def add_assignment_rubric(assignment_id: int
 
     if 'max_points' in content:
         helpers.ensure_keys_in_dict(
-            content, [('max_points',
-                       (type(None), int, float))]
+            content, [('max_points', (type(None), int, float))]
         )
         max_points = t.cast(t.Optional[float], content['max_points'])
         if max_points is not None and max_points <= 0:
@@ -503,9 +568,7 @@ def process_rubric_row(row: JSONType) -> models.RubricRow:
     """
     row = ensure_json_dict(row)
     ensure_keys_in_dict(
-        row, [('description', str),
-              ('header', str),
-              ('items', list)]
+        row, [('description', str), ('header', str), ('items', list)]
     )
     header = t.cast(str, row['header'])
     desc = t.cast(str, row['description'])
@@ -637,6 +700,73 @@ def upload_work(assignment_id: int) -> ExtendedJSONResponse[models.Work]:
     return extended_jsonify(work, status_code=201, use_extended=models.Work)
 
 
+@api.route(
+    '/assignments/<int:assignment_id>/division_parent', methods=['PATCH']
+)
+def change_division_parent(assignment_id: int) -> EmptyResponse:
+    """Change the division parent of an assignment.
+
+    Set the division parent of this assignment. See the documentation about
+    dividing submissions for more information about division parents.
+
+    .. :quickref: Assignment; Change the division parent of an assignment.
+
+    :param assignment_id: The id of the assignment you want to change.
+    :<json parent_assignment_id: The id of the assignment that should be the
+        division parent of the given assignment. If this is set to ``null`` the
+        division parent of this assignment will be cleared.
+    :returns: An empty response with status code code 204.
+    """
+    assignment = helpers.get_or_404(
+        models.Assignment,
+        assignment_id,
+        options=[joinedload(models.Assignment.division_children)],
+    )
+
+    auth.ensure_permission(CPerm.can_assign_graders, assignment.course_id)
+
+    content = ensure_json_dict(request.get_json())
+
+    ensure_keys_in_dict(content, [('parent_id', (int, type(None)))])
+    parent_id = t.cast(t.Union[int, None], content['parent_id'])
+
+    if parent_id is None:
+        parent_assig = None
+    else:
+        parent_assig = helpers.filter_single_or_404(
+            models.Assignment,
+            models.Assignment.id == parent_id,
+            models.Assignment.course_id == assignment.course_id,
+        )
+    if (
+        parent_assig is not None and
+        parent_assig.division_parent_id is not None
+    ):
+        # The id is not None so the object itself can't None
+        assert parent_assig.division_parent is not None
+        raise APIException(
+            (
+                f'The division of {parent_assig.name} is already'
+                f' determined by {parent_assig.division_parent.name},'
+                f' so you cannot connect to this assignment.'
+            ), 'The division parent of {parent_assig.id} is already set',
+            APICodes.INVALID_STATE, 400
+        )
+    missed_work = assignment.connect_division(parent_assig)
+    db.session.commit()
+
+    if missed_work and parent_assig is not None:
+        helpers.add_warning(
+            (
+                f"Some submissions were not divided as they weren't"
+                f' assigned in {parent_assig.name}. Make sure you divide'
+                ' those manually.'
+            ), APIWarnings.UNASSIGNED_ASSIGNMENTS
+        )
+
+    return make_empty_response()
+
+
 @api.route('/assignments/<int:assignment_id>/divide', methods=['PATCH'])
 def divide_assignments(assignment_id: int) -> EmptyResponse:
     """Assign graders to all the latest :class:`.models.Work` objects of
@@ -669,11 +799,27 @@ def divide_assignments(assignment_id: int) -> EmptyResponse:
     :raises PermissionException: If the user is not allowed to divide
         submissions for this assignment.  (INCORRECT_PERMISSION)
     """
-    assignment = helpers.get_or_404(models.Assignment, assignment_id)
+    assignment = helpers.get_or_404(
+        models.Assignment,
+        assignment_id,
+        options=[joinedload(models.Assignment.division_children)],
+    )
 
     auth.ensure_permission(CPerm.can_assign_graders, assignment.course_id)
 
     content = ensure_json_dict(request.get_json())
+
+    if (
+        assignment.division_parent_id is not None or
+        assignment.division_children
+    ):
+        raise APIException(
+            'You cannot change the division of a connected assignment.', (
+                f'The assignment {assignment.id} is connect or a parent so you'
+                ' cannot change the grader weights'
+            ), APICodes.INVALID_STATE, 400
+        )
+
     ensure_keys_in_dict(content, [('graders', dict)])
     graders = {}
 
@@ -693,9 +839,7 @@ def divide_assignments(assignment_id: int) -> EmptyResponse:
         )
     else:
         models.Work.query.filter_by(assignment_id=assignment.id).update(
-            {
-                'assigned_to': None
-            }
+            {'assigned_to': None}
         )
         assignment.assigned_graders = {}
         db.session.commit()
@@ -1055,9 +1199,7 @@ def post_submissions(assignment_id: int) -> EmptyResponse:
 
         if work.assigned_to is None:
             if missing:
-                work.assigned_to = max(
-                    missing.keys(), key=lambda k: missing[k]
-                )
+                work.assigned_to = max(missing.keys(), key=missing.get)
                 missing = recalc_missing(work.assigned_to)
                 sub_lookup[user.id] = work
 
@@ -1298,10 +1440,8 @@ def start_plagiarism_check(
 
     ensure_keys_in_dict(
         content, [
-            ('provider', str),
-            ('old_assignments', list),
-            ('has_base_code', bool),
-            ('has_old_submissions', bool)
+            ('provider', str), ('old_assignments', list),
+            ('has_base_code', bool), ('has_old_submissions', bool)
         ]
     )
     provider_name = t.cast(str, content['provider'])
@@ -1402,7 +1542,7 @@ def start_plagiarism_check(
         base_code = helpers.get_files_from_request(
             max_size=current_app.max_large_file_size, keys=['base_code']
         )[0]
-        base_code_dir, _ = psef.files.extract_to_temp(
+        base_code_dir, _, __ = psef.files.extract_to_temp(
             base_code,
             psef.files.IgnoreFilterManager(None),
             max_size=current_app.max_large_file_size,

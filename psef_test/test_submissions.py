@@ -1043,9 +1043,7 @@ def test_get_teacher_zip_file(
         name="single_file_work",
     ).filter(
         m.File.parent != None,
-    ).update({
-        'fileowner': m.FileOwner.student
-    })
+    ).update({'fileowner': m.FileOwner.student})
     assert get_files(ta_user, False) == set(
         [
             'multiple_dir_archive/',
@@ -1056,10 +1054,7 @@ def test_get_teacher_zip_file(
     m.Assignment.query.filter_by(
         id=m.Work.query.get(work_id).assignment_id,
     ).update(
-        {
-            'deadline': datetime.datetime.utcnow() -
-                        datetime.timedelta(days=1)
-        },
+        {'deadline': datetime.datetime.utcnow() - datetime.timedelta(days=1)},
     )
     get_files(student_user, 403)
 

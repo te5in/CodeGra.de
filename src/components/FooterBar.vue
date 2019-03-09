@@ -2,7 +2,9 @@
 <template>
     <footer class="footer">
         <small>
-            &copy; {{ new Date().getFullYear() }} - CodeGrade ({{ version }}) - Made with ❤️ &amp; 🍺 -
+            &copy; {{ new Date().getFullYear() }} -
+            CodeGrade (<a href="https://docs.codegra.de/about/changelog.html" target="_blank">{{ version }}</a>) -
+            <a href="https://codegra.de/about" target="_blank">Made with ❤️ &amp; 🍺 </a> -
             <a :href="`mailto:${email}`">{{ email }}</a> -
             <a class="privacy-statement" @click="showModal = !showModal">Privacy statement</a>
         </small>
@@ -24,7 +26,7 @@ export default {
         return {
             showModal: false,
             email: UserConfig.email,
-            version: UserConfig.version,
+            version: UserConfig.release.version,
         };
     },
 

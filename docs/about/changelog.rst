@@ -1,6 +1,110 @@
 Changelog
 ==========
 
+Version 1.3.29 (Izanami.1)
+--------------------------
+
+**Released**: March 09th, 2019
+
+Along with many UI improvements and bug fixes, you can connect grading divisions
+between assignments and import rubrics from previous assignments.
+
+**Features & Updates**
+
+- Make it possible to connect assignment divisions  `(#794)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/794>`__: This makes it possible
+  to have the same TAs grade the same students over the duration of the entire
+  course.
+- Make it possible to import rubrics from other assignments `(#788)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/788>`__.
+- Improve UI/UX for running linters `(#814)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/814>`__: Logs of the linter
+  runs on the individual submissions can now be viewed.
+- Enable use of multiple LTI providers `(#811)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/811>`__: Soon we will be able
+  to connect with Blackboard, Moodle, Brightspace, and others!
+- Make it possible to resize the filetree `(#804)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/804>`__
+  `(#834) <https://github.com/CodeGra-de/CodeGra.de/pull/834>`__.
+
+**Minor fixes**
+
+- Make it impossible to list all users on the system by searching `(#798)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/798>`__: All users on the
+  system could be listed by almost anyone.
+- Confirm clearing a rubric `(#833)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/833>`__: Instead of requiring
+  the user to click the submit button for the grade to reset a rubric, the new
+  submit button confirmation popover is used to confirm the action.
+- Rewrite SubmitButton component `(#790)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/790>`__
+  `(#828) <https://github.com/CodeGra-de/CodeGra.de/pull/828>`__
+  `(#806) <https://github.com/CodeGra-de/CodeGra.de/pull/806>`__: Buttons will
+  not change size anymore, and when an error occurs the button will wait for
+  the user to close the message, instead of the error message disappearing
+  after a few seconds, not giving the user a chance to read the entire thing.
+- Change sidebar login icon `(#830)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/830>`__: The icon was ugly and
+  its meaning not very obvious.
+- Add button to open in new tab in LTI `(#826)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/826>`__: It was unclear that
+  the logo in the sidebar would open CodeGrade in a new tab, so an extra button
+  has been added.
+- Remove show password button `(#825)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/825>`__: The button on the
+  right side of the password inputs has been removed, as it is not very useful.
+- Show progress for plagiarism runs `(#813)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/813>`__: Plagiarism runs could
+  take quite some time but didn't show the progress until they quit
+  successfully or crashed.
+- Make it possible to search the homegrid `(#812)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/812>`__.
+- Make it possible to download the plagiarism log `(#802)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/802>`__.
+- Add warning on permission management page `(#801)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/801>`__: When permissions are
+  changed it shows a notification that the page must be reloaded for the
+  changes to take effect.
+- Add a release notifier on the home grid `(#787)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/787>`__: Whenever a new version
+  of CodeGrade is installed, a notification will be shown on the home page with
+  a link to this changelog.
+
+**Fixes**
+
+- Add formatted_deadline property to the course store for assignments `(#835)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/835>`__.
+- Make sure permissions are removed on logout `(#832)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/832>`__.
+- Add smaller logo on standalone pages `(#831)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/831>`__.
+- Make sure only plagiarism runs which have finished can be viewed `(#827)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/827>`__.
+- Make sure password reset works and logs in user `(#829)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/829>`__.
+- Make sure error message is correct when empty archive is uploaded `(#819)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/819>`__.
+- Make sure we don't mutate store objects in the rubric editor `(#818)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/818>`__.
+- Make sure order of submissions is stable `(#816)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/816>`__.
+- Fix large amount of trailing zeros in the rubric viewer `(#817)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/817>`__.
+- Prevent error in console when not logged in on page load `(#809)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/809>`__.
+- Make sure 500 never occur because of ``__maybe_add_warning`` function `(#807)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/807>`__.
+- Merge the loaders of the plagiarism runner `(#805)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/805>`__.
+- Fix bug when reloading assignments on submission page `(#799)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/799>`__.
+- Add link to about us page in the footer `(#800)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/800>`__.
+- Clearer plagiarism similarity placeholder `(#792)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/792>`__.
+- Reserve some extra special filenames `(#793)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/793>`__.
+
 Version 1.2.19 (Izanami)
 ------------------------
 

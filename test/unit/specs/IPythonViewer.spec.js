@@ -103,7 +103,7 @@ describe('Submission.vue', () => {
         });
 
         it('should join test in sources', async () => {
-            await setData([
+            setData([
                 {
                     cell_type: 'markdown',
                     source: ['hello'],
@@ -120,28 +120,29 @@ describe('Submission.vue', () => {
                     cell_type: 'markdown',
                     source: 'bye',
                 },
-            ]);
-            expect(comp.outputCells).toEqual([
-                {
-                    cell_type: 'markdown',
-                    source: 'hello',
-                    feedback_offset: 0,
-                },
-                {
-                    cell_type: 'markdown',
-                    source: 'hellobye',
-                    feedback_offset: 1,
-                },
-                {
-                    cell_type: 'markdown',
-                    source: 'bye',
-                    feedback_offset: 2,
-                },
-            ]);
+            ]).then(() => {
+                expect(comp.outputCells).toEqual([
+                    {
+                        cell_type: 'markdown',
+                        source: 'hello',
+                        feedback_offset: 0,
+                    },
+                    {
+                        cell_type: 'markdown',
+                        source: 'hellobye',
+                        feedback_offset: 1,
+                    },
+                    {
+                        cell_type: 'markdown',
+                        source: 'bye',
+                        feedback_offset: 2,
+                    },
+                ]);
+            });
         });
 
         it('should work with code', async () => {
-            setData([
+            await setData([
                 {
                     cell_type: 'markdown',
                     source: ['hello'],

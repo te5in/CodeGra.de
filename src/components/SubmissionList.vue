@@ -30,13 +30,11 @@
                           v-b-popover.bottom.hover="'Manage assignment'">
                     <icon name="gear"/>
                 </b-button>
-                <submit-button @click="submitForceLoadSubmissions"
-                               variant="secondary"
-                               ref="refreshButton"
-                               :label="false"
+                <submit-button :wait-at-least="500"
+                               :submit="submitForceLoadSubmissions"
                                v-b-popover.bottom.hover="'Reload submissions'">
                     <icon name="refresh"/>
-                    <icon name="refresh" spin slot="pending"/>
+                    <icon name="refresh" spin slot="pending-label"/>
                 </submit-button>
             </b-button-group>
         </b-input-group>
@@ -44,10 +42,11 @@
         <div slot="extra" class="clearfix">
             <div id="show-rubric-button-wrapper"
                  style="float: right;">
-                <submit-button label="Show Rubric"
-                               @click="showRubricModal = !showRubricModal"
-                               default="secondary"
-                               :disabled="!rubric"/>
+                <b-button variant="secondary"
+                          @click="showRubricModal = !showRubricModal"
+                          :disabled="!rubric">
+                    Show rubric
+                </b-button>
             </div>
             <b-popover target="show-rubric-button-wrapper"
                        content="There is no rubric for this assignment"
@@ -135,7 +134,7 @@ import 'vue-awesome/icons/gear';
 import 'vue-awesome/icons/refresh';
 import 'vue-awesome/icons/clock-o';
 
-import { formatGrade, parseBool, waitAtLeast, nameOfUser } from '@/utils';
+import { waitAtLeast, formatGrade, parseBool, nameOfUser } from '@/utils';
 import { filterSubmissions, sortSubmissions } from '@/utils/FilterSubmissionsManager';
 
 import * as assignmentState from '@/store/assignment-states';
@@ -306,13 +305,7 @@ export default {
         ...mapActions('courses', ['forceLoadSubmissions']),
 
         submitForceLoadSubmissions() {
-            const req = waitAtLeast(
-                500,
-                this.forceLoadSubmissions(this.assignment.id).catch(err => {
-                    throw err.response.data.message;
-                }),
-            );
-            this.$refs.refreshButton.submit(req);
+            return this.forceLoadSubmissions(this.assignment.id);
         },
 
         updateAssigneeFilter() {
@@ -407,7 +400,7 @@ export default {
                 res = this.$http.delete(`/api/v1/submissions/${submission.id}/grader`);
             }
 
-            res.then(
+            waitAtLeast(250, res).then(
                 () => {
                     this.$set(this.assigneeUpdating, submission.id, false);
                     let newAssignee;
@@ -485,8 +478,12 @@ export default {
     }
 }
 
-.submissions-table td .loader {
-    padding: 0.7rem;
+.submissions-table td {
+    vertical-align: middle;
+
+    .loader {
+        padding: 0.33rem;
+    }
 }
 
 .submission-list .modal-dialog.modal-md {

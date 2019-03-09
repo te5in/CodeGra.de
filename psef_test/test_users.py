@@ -26,7 +26,10 @@ data_error = create_marker(pytest.mark.data_error)
         ('UdeNt', ['student{}'.format(i) for i in range(1, 5)]),
         ('s chap', ['thomas']),
         ('s%chap', []),
-        http_error(error=400)(('ko', []))  # Too short
+        http_error(error=400)(('ko', [])),  # Too short
+        http_error(error=400)(('            ', [])),  # Too short
+        http_error(error=400)(('ko ', [])),  # Too short
+        http_error(error=400)(('\t\t   ', [])),  # Too short
     ]
 )
 def test_searching_users(

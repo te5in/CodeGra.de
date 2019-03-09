@@ -1,9 +1,10 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div id="app" :class="{ dark: hasDarkMode, lti: $inLTI }">
+    <loader v-if="loading" page-loader/>
     <sidebar ref="sidebar"
-             v-if="showSidebar"/>
-    <div class="container-fluid">
+             v-if="!loading && showSidebar"/>
+    <div class="container-fluid" v-if="!loading">
         <main class="row justify-content-center" id="main-content">
             <b-alert class="ie-banner"
                      :show="$root.isIE"
@@ -21,7 +22,11 @@
 </template>
 
 <script>
-import { FooterBar, Sidebar } from '@/components';
+import { mapActions } from 'vuex';
+
+import { setRestoreRoute } from '@/router';
+import { Loader, FooterBar, Sidebar } from '@/components';
+import { NO_LOGIN_ALLOWED_ROUTES, NO_LOGIN_REQUIRED_ROUTES } from '@/constants';
 
 export default {
     name: 'app',
@@ -42,6 +47,16 @@ export default {
                 this.$route.name !== 'plagiarism_detail'
             );
         },
+    },
+
+    data() {
+        return {
+            loading: true,
+        };
+    },
+
+    methods: {
+        ...mapActions('user', ['verifyLogin']),
     },
 
     created() {
@@ -87,7 +102,32 @@ export default {
         );
     },
 
+    async mounted() {
+        await this.verifyLogin()
+            .then(
+                () => {
+                    const route = this.$route.name;
+
+                    if (NO_LOGIN_ALLOWED_ROUTES.has(route)) {
+                        this.$router.push({ name: 'home' });
+                    }
+                },
+                () => {
+                    const route = this.$route.name;
+
+                    if (!route || !NO_LOGIN_REQUIRED_ROUTES.has(route)) {
+                        setRestoreRoute(this.$route);
+                        this.$router.push({ name: 'login' });
+                    }
+                },
+            )
+            .then(() => {
+                this.loading = false;
+            });
+    },
+
     components: {
+        Loader,
         FooterBar,
         Sidebar,
     },
@@ -105,10 +145,10 @@ export default {
 
 .container-fluid {
     display: flex;
-    flex-grow: 1;
-
-    .lti & {
-    }
+    flex-direction: column;
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
 
     main {
         position: relative;

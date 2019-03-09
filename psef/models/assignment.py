@@ -10,9 +10,10 @@ import datetime
 from random import shuffle
 from operator import itemgetter
 from itertools import cycle
-from collections import defaultdict
+from collections import Counter, defaultdict
 
 from sqlalchemy.orm import validates
+from mypy_extensions import DefaultArg
 from sqlalchemy.sql.expression import and_, func
 from sqlalchemy.orm.collections import attribute_mapped_collection
 
@@ -28,8 +29,8 @@ from .. import auth, helpers
 from .role import CourseRole
 from .rubric import RubricRow, RubricItem
 from .permission import Permission
-from ..exceptions import PermissionException, InvalidAssignmentState
 from .link_tables import user_course, work_rubric_item, course_permissions
+from ..exceptions import PermissionException, InvalidAssignmentState
 from ..permissions import CoursePermission as CPerm
 
 if t.TYPE_CHECKING:  # pragma: no cover
@@ -182,6 +183,29 @@ class AssignmentLinter(Base):
             tester_id=self.id, state=state
         ).count()
 
+    def __extended_to_json__(self) -> t.Mapping[str, t.Any]:
+        """Creates an extended JSON serializable representation of this
+        assignment linter.
+
+        This object will look like this:
+
+        .. code:: python
+
+            {
+                'tests': t.List[LinterInstance], # The tests done by this
+                                                 # assignment linter.
+                'id': str, # The id of this assignment linter.
+                'name': str, # The name.
+            }
+
+        :returns: An object as described above.
+        """
+        return {
+            'tests': self.tests,
+            'id': self.id,
+            'name': self.name,
+        }
+
     def __to_json__(self) -> t.Mapping[str, t.Any]:
         """Returns the JSON serializable representation of this class.
 
@@ -259,7 +283,7 @@ class AssignmentResult(Base):
     __table_args__ = (db.PrimaryKeyConstraint(assignment_id, user_id), )
 
 
-class Assignment(Base):
+class Assignment(Base):  # pylint: disable=too-many-public-methods
     """This class describes a :class:`.course_models.Course` specific assignment.
 
     :ivar ~.Assignment.name: The name of the assignment.
@@ -345,10 +369,29 @@ class Assignment(Base):
     assigned_graders: t.MutableMapping[
         int, AssignmentAssignedGrader] = db.relationship(
             'AssignmentAssignedGrader',
-            cascade='delete-orphan, delete',
+            cascade='delete-orphan, delete, save-update',
             collection_class=attribute_mapped_collection('user_id'),
             backref=db.backref('assignment', lazy='select')
         )
+    division_parent_id: t.Optional[int] = db.Column(
+        'division_parent_id',
+        db.Integer,
+        db.ForeignKey('Assignment.id'),
+        nullable=True,
+    )
+    division_parent = db.relationship(
+        'Assignment',
+        back_populates='division_children',
+        foreign_keys=division_parent_id,
+        remote_side=[id],
+        lazy='select',
+    )  # type: t.Optional[Assignment]
+    division_children = db.relationship(
+        "Assignment",
+        back_populates="division_parent",
+        uselist=True,
+        lazy='select',
+    )  # type: t.MutableSequence[Assignment]
 
     finished_graders = db.relationship(
         'AssignmentGraderDone',
@@ -759,21 +802,23 @@ class Assignment(Base):
             'fixed_max_rubric_points': self.fixed_max_rubric_points,
             'max_grade': self._max_grade,
             'group_set': self.group_set,
+            'division_parent_id': None,
         }
 
-        try:
-            auth.ensure_permission(
-                CPerm.can_grade_work,
-                self.course_id,
-            )
+        if psef.current_user.has_permission(
+            CPerm.can_grade_work,
+            self.course_id,
+        ):
             if self.done_email is not None:
                 res['done_email'] = self.done_email
             if self.done_type is not None:
                 res['done_type'] = self.done_type.name
             if self.reminder_email_time is not None:
                 res['reminder_time'] = self.reminder_email_time.isoformat()
-        except PermissionException:
-            pass
+        if psef.current_user.has_permission(
+            CPerm.can_see_assignee, self.course_id
+        ):
+            res['division_parent_id'] = self.division_parent_id
 
         return res
 
@@ -834,7 +879,7 @@ class Assignment(Base):
 
     def get_divided_amount_missing(
         self
-    ) -> t.Tuple[t.Mapping[int, float], t.Callable[[int], t.
+    ) -> t.Tuple[t.Mapping[int, float], t.Callable[[int, DefaultArg(bool)], t.
                                                    Mapping[int, float]]]:
         """Get a mapping between user and the amount of submissions that they
         should be assigned but are not.
@@ -856,7 +901,7 @@ class Assignment(Base):
             that was assigned a submission.
         """
         if not self.assigned_graders:
-            return {}, lambda _: {}
+            return {}, lambda _, __=False: {}
 
         total_weight = sum(w.weight for w in self.assigned_graders.values())
 
@@ -876,10 +921,12 @@ class Assignment(Base):
             missing[user_id] = (assigned.weight / total_weight *
                                 amount_subs) - divided_amount[user_id]
 
-        def __recalculate(user_id: int) -> t.MutableMapping[int, float]:
+        def __recalculate(user_id: int, increment_sub_amount: bool = True
+                          ) -> t.MutableMapping[int, float]:
             nonlocal amount_subs
 
-            amount_subs += 1
+            if increment_sub_amount:
+                amount_subs += 1
             divided_amount[user_id] += 1
             missing = {}
 
@@ -930,7 +977,9 @@ class Assignment(Base):
             assigned to a single user.
         :returns: Nothing.
         """
-        # First check if there were changes in the weights
+        # If the weights are not changed we should not divide anything as that
+        # would mean that pressing the button again on accident might change
+        # the (custom) division.
         if not self._weights_changed(user_weights):
             return
 
@@ -992,6 +1041,144 @@ class Assignment(Base):
                     weight=weight, user_id=user.id, assignment=self
                 )
             )
+
+    def get_assignee_from_division_children(self, student_id: int
+                                            ) -> t.Optional[int]:
+        """Get id of the most common grader for a student in the division
+        children of this assignment.
+
+        If this is tied a user is chosen arbitrarily from the most common
+        graders. If the student is not present in the children ``None`` is
+        returned.
+
+        :param student_id: The id of the student you want to get the assignee
+            for.
+        :returns: The id of the assignee, or ``None`` if there is none.
+        """
+        assert self.division_children
+        assert not self.division_parent_id
+
+        shuffled_children = list(self.division_children)
+        shuffle(shuffled_children)
+        latest = Counter(
+            child.get_from_latest_submissions(work_models.Work.assigned_to).
+            filter(work_models.Work.user_id == student_id).limit(1).scalar()
+            for child in shuffled_children
+        )
+        del latest[None]
+        if latest:
+            return latest.most_common(1)[0][0]
+        return None
+
+    def get_assignee_for_submission(
+        self, sub: 'work_models.Work', *, from_divided: bool = True
+    ) -> t.Optional[int]:
+        """Get the id of the default assignee for a given submission.
+
+        This checks if a user has handed in a submission to this assignment
+        before. In that is the case the same assignee is returned. Otherwise,
+        if the assignment has a division parent it checks for an assignee
+        there, and uses the value if it is not ``None``.
+
+        If the assignment doesn't have a submission by the same user and is a
+        parent it will search through the children. There the most common
+        assignee for the submitting user is found. If such an assignee exists
+        this value is returned.
+
+        Finally if ``from_divided`` is enabled it finds a assignee among the
+        divided graders. If no assignee is found ``None`` is returned.
+
+        :param sub: The submission you want to get the assignee for.
+        :param from_divided: Get a grader from the divided graders if all other
+            methods fail.
+        :returns: The id of the assignee or ``None`` if no assignee was found.
+        """
+        user = self.get_from_latest_submissions(
+            work_models.Work.assigned_to
+        ).filter(work_models.Work.user_id == sub.user_id).limit(1).scalar()
+        if user is not None:
+            return user
+
+        if self.division_parent is not None:
+            user = self.division_parent.get_assignee_for_submission(
+                sub, from_divided=False
+            )
+            if user is not None:
+                return user
+        elif self.division_children:
+            most_common = self.get_assignee_from_division_children(sub.user_id)
+            if most_common is not None:
+                return most_common
+
+        if from_divided:
+            missing, _ = self.get_divided_amount_missing()
+            if missing:
+                return max(missing.keys(), key=missing.get)
+        return None
+
+    def connect_division(self, parent: t.Optional['Assignment']
+                         ) -> t.List['work_models.Work']:
+        """Set the division parent of this assignment.
+
+        :param parent: The assignment that should be the new division parent of
+            this assignment. Set this to ``None`` to remove the division parent
+            of this assignment.
+        :returns: A list of submissions that couldn't be assigned and are left
+            unassigned.
+        """
+        # If we unset the division parent we don't touch the divisions at all.
+        if parent is None:
+            self.division_parent = None
+            return []
+
+        assert parent.division_parent is None
+        assert parent.course_id == self.course_id
+        if self.division_parent_id == parent.id:
+            return []
+
+        # We first empty this value. This is needed as
+        # `AssignmentAssignedGrader` objects have a primary key constraint on
+        # the tuple `(assignment_id, user_id)`. If a assignee only changes
+        # weight sqlalchemy gets confused as this tuple doesn't change. This is
+        # a bit slower (as the flush does a db roundtrip) but fixes that issue.
+        # TODO: Investigate if this is possible without the db.session.flush()
+        self.assigned_graders = {}
+        db.session.flush()
+        self.assigned_graders = {
+            key: AssignmentAssignedGrader(
+                weight=value.weight,
+                user_id=value.user_id,
+                assignment_id=self.id
+            )
+            for key, value in parent.assigned_graders.items()
+        }
+        self.division_parent = parent
+        user_sub = {s.user_id: s for s in self.get_all_latest_submissions()}
+        todo = {}
+        for sub in user_sub.values():
+            sub.assigned_to = None
+            todo[sub.id] = sub
+
+        for user_id, assigned_to in parent.get_from_latest_submissions(  # type: ignore
+            work_models.Work.user_id,
+            work_models.Work.assigned_to,
+        ):
+            if user_id in user_sub:
+                user_sub[user_id].assigned_to = assigned_to
+                if user_sub[user_id].assigned_to:
+                    del todo[user_sub[user_id].id]
+
+        db.session.flush()
+        missing, recalc = self.get_divided_amount_missing()
+        for sub in list(todo.values()):
+            other = parent.get_assignee_from_division_children(sub.user_id)
+            if other is None and missing:
+                other = max(missing.keys(), key=missing.get)
+            sub.assigned_to = other
+            if sub.assigned_to is not None:
+                recalc(sub.assigned_to, False)
+                del todo[sub.id]
+        return list(todo.values())
 
     def get_all_graders(
         self, sort: bool = True

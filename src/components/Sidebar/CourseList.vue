@@ -173,22 +173,24 @@ export default {
                 .post('/api/v1/courses/', {
                     name,
                 })
-                .then(({ data: course }) => {
-                    this.$emit('loading');
-                    resolve();
-                    return this.reloadCourses().then(() => {
-                        this.$emit('loaded');
-                        this.$router.push({
-                            name: 'manage_course',
-                            params: {
-                                courseId: course.id,
-                            },
+                .then(
+                    ({ data: course }) => {
+                        this.$emit('loading');
+                        resolve();
+                        return this.reloadCourses().then(() => {
+                            this.$emit('loaded');
+                            this.$router.push({
+                                name: 'manage_course',
+                                params: {
+                                    courseId: course.id,
+                                },
+                            });
                         });
-                    });
-                })
-                .catch(err => {
-                    reject(err.response.data.message);
-                });
+                    },
+                    err => {
+                        reject(err);
+                    },
+                );
         },
     },
 

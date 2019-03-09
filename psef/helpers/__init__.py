@@ -57,7 +57,7 @@ def init_app(app: 'psef.Flask') -> None:
 
     @app.after_request
     def __maybe_add_warning(res: flask.Response) -> flask.Response:
-        for warning in g.request_warnings:
+        for warning in getattr(g, 'request_warnings', []):
             logger.info('Added warning to response', warning=warning)
             res.headers.add('Warning', warning)
         return res
@@ -65,6 +65,25 @@ def init_app(app: 'psef.Flask') -> None:
 
 def add_warning(warning: str, code: psef.exceptions.APIWarnings) -> None:
     g.request_warnings.append(psef.errors.make_warning(warning, code))
+
+
+def add_deprecate_warning(warning: str) -> None:
+    """Add a deprecation warning to the request.
+
+    :param warning: Explanation about what api is deprecated.
+    :returns: Nothing
+    """
+    logger.info(
+        'A deprecated api was used',
+        deprecation_warning=True,
+        warning_msg=warning,
+    )
+    g.request_warnings.append(
+        psef.errors.make_warning(
+            f'This API is deprecated: {warning}',
+            psef.exceptions.APIWarnings.DEPRECATED,
+        )
+    )
 
 
 class Comparable(Protocol):  # pragma: no cover
@@ -358,15 +377,16 @@ def get_or_404(
 
 
 def filter_users_by_name(
-    query: str, base: 'models._MyQuery[models.User]'
+    query: str, base: 'models._MyQuery[models.User]', *, limit: int = 25
 ) -> 'models._MyQuery[models.User]':
     """Find users from the given base query using the given query string.
 
     :param query: The string to filter usernames and names of users with.
     :param base: The query to filter.
+    :param limit: The amount of users to limit the search too.
     :returns: A new query with the users filtered.
     """
-    if len(query) < 3:
+    if len(re.sub(r'\s', '', query)) < 3:
         raise psef.errors.APIException(
             'The search string should be at least 3 chars',
             f'The search string "{query}" is not 3 chars or longer.',
@@ -383,7 +403,7 @@ def filter_users_by_name(
 
     return base.filter(or_(*likes)).order_by(
         t.cast(models.DbColumn[str], models.User.name)
-    )
+    ).limit(limit)
 
 
 def coerce_json_value_to_typeddict(
@@ -491,18 +511,12 @@ def ensure_json_dict(
 
 def _maybe_log_response(obj: object, response: t.Any, extended: bool) -> None:
     if not isinstance(obj, psef.errors.APIException):
-        if getattr(psef.current_app, 'debug', False) and not getattr(
-            psef.current_app, 'testing', False
-        ):  # pragma: no cover
-            to_log = response.get_json()
-            if len(str(to_log)) > 500:
-                logger.bind(truncated=True, truncated_size=len(str(to_log)))
-                to_log = '{:.500} ... [TRUNCATED]'.format(str(to_log))
-        else:
-            to_log = response.response
-            if len(to_log) > 1000:  # pragma: no cover
-                logger.bind(truncated=True, truncated_size=len(to_log))
-                to_log = '{:.1000} ... [TRUNCATED]'.format(to_log)
+        to_log = str(b''.join(response.response))
+        max_length = 1000
+        if len(to_log) > max_length:
+            logger.bind(truncated=True, truncated_size=len(to_log))
+            to_log = '{1:.{0}} ... [TRUNCATED]'.format(max_length, to_log)
+
         ext = 'extended ' if extended else ''
         logger.info(
             f'Created {ext}json return response',
@@ -704,44 +718,59 @@ def defer(function: t.Callable[[], object]) -> t.Generator[None, None, None]:
         function()
 
 
-def call_external(call_args: t.List[str]) -> t.Tuple[bool, str, str]:
+def call_external(
+    call_args: t.List[str],
+    input_callback: t.Callable[[str], bool] = lambda _: False
+) -> t.Tuple[bool, str]:
     """Safely call an external program without any exceptions.
 
     .. note:: This function should not be used when you don't want to handle
         errors as it will silently fail.
 
-    :param call_args: The call passed to :py:func:`~subprocess.check_output`
+    :param call_args: The call passed to :py:func:`~subprocess.Popen`
         with ``shell`` set to ``False``.
+    :param input_callback: The callback that will be called for each line of
+        output. If the callback returns ``True`` the given line of output will
+        be skipped.
     :returns: A tuple with the first argument if the process crashed, the
-        second item is the ``stdout`` and the third and final item is the
-        ``stderr``.
+        second item is ``stdout`` and ``stderr`` interleaved.
     """
-    stdout = ''
-    stderr = ''
-    ok = True
+    output = []
+
+    def process_line(line: str) -> None:
+        nonlocal output
+        out = line.replace('\0', '')
+        if not input_callback(out):
+            output.append(out)
 
     try:
-        stdout = subprocess.check_output(
-            call_args, stderr=subprocess.STDOUT, shell=False
-        )
-    except subprocess.CalledProcessError as err:
-        logger.warning(
-            'External program crashed.', call_args=call_args, exc_info=True
-        )
-        stdout = (err.stdout or b'').decode('utf-8').replace('\0', '')
-        stderr = (err.stderr or b'').decode('utf-8').replace('\0', '')
-        ok = False
-    except Exception:  # pylint: disable=broad-except
-        logger.warning(
-            'External program crashed.', call_args=call_args, exc_info=True
-        )
-        stderr = 'Unknown crash!'
-        ok = False
-    else:
-        if isinstance(stdout, bytes):
-            stdout = stdout.decode('utf-8').replace('\0', '')
+        with subprocess.Popen(
+            call_args,
+            stderr=subprocess.STDOUT,
+            stdout=subprocess.PIPE,
+            shell=False,
+            universal_newlines=True,
+            bufsize=1,
+        ) as proc:
+            while proc.poll() is None:
+                process_line(proc.stdout.readline())
 
-    return (ok, stdout, stderr)
+            ok = proc.returncode == 0
+
+            # There still might be some output left
+            for line in proc.stdout.readlines():
+                process_line(line)
+    # pylint: disable=broad-except
+    except Exception:  # pragma: no cover
+        logger.warning(
+            'External program crashed in a strange way.',
+            call_args=call_args,
+            exc_info=True,
+        )
+        output.append('Unknown crash!')
+        ok = False
+
+    return ok, ''.join(output)
 
 
 def get_files_from_request(

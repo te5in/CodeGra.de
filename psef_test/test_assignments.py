@@ -11,10 +11,14 @@ import pytest
 
 import psef
 import psef.models as m
-from helpers import create_marker
+from helpers import (
+    get_id, create_course, create_marker, create_assignment, create_submission,
+    create_user_with_perms, get_newest_submissions
+)
 from psef.errors import APICodes, APIWarnings
 from psef.helpers import ensure_keys_in_dict
-from psef.permissions import CoursePermission
+from psef.permissions import CoursePermission as CPerm
+from psef.permissions import GlobalPermission as GPerm
 
 # http_err = pytest.mark.http_err
 perm_error = create_marker(pytest.mark.perm_error)
@@ -100,14 +104,9 @@ def test_get_all_assignments(
             for assig in assigs:
                 ensure_keys_in_dict(
                     assig, [
-                        ('id', int),
-                        ('state', str),
-                        ('description', str),
-                        ('created_at', str),
-                        ('name', str),
-                        ('deadline', str),
-                        ('is_lti', bool),
-                        ('whitespace_linter', bool),
+                        ('id', int), ('state', str), ('description', str),
+                        ('created_at', str), ('name', str), ('deadline', str),
+                        ('is_lti', bool), ('whitespace_linter', bool),
                         ('course', dict)
                     ]
                 )
@@ -153,6 +152,7 @@ def test_get_assignment(
                 'fixed_max_rubric_points': None,
                 'max_grade': None,
                 'group_set': None,
+                'division_parent_id': None,
             }
         else:
             res = error_template
@@ -421,8 +421,8 @@ def test_update_rubric_row(
         if marker is None:
             assert len(data) == len(rubric)
             assert data[0]['header'] == row_header or rubric[0]['header']
-            assert data[0]['description'] == row_description or rubric[0][
-                'description']
+            assert data[0]['description'
+                           ] == row_description or rubric[0]['description']
             assert len(data[0]['items']) == 2
             assert data[0]['items'][0]['id'] > 0
             assert data[0]['items'][0]['points'] == item_points
@@ -1073,8 +1073,7 @@ def test_upload_files(
             assert res['message'].startswith('No file in HTTP')
 
             if assignment.is_open or named_user.has_permission(
-                psef.permissions.CoursePermission.can_upload_after_deadline,
-                assignment.course_id
+                CPerm.can_upload_after_deadline, assignment.course_id
             ):
                 res = test_client.req(
                     'post',
@@ -1210,7 +1209,7 @@ def test_upload_for_other(
         code = 403
         res = error_template
         named_user.courses[assignment.course_id].set_permission(
-            CoursePermission.can_upload_after_deadline, False
+            CPerm.can_upload_after_deadline, False
         )
 
     with logged_in(named_user):
@@ -1246,7 +1245,9 @@ def test_incorrect_ingore_files_value(
 
 @pytest.mark.parametrize(
     'get_data_func', [
-        lambda: {'file': (io.BytesIO(b'0' * 2 * 2 ** 20), 'filename')},
+        lambda: {
+            'file': (io.BytesIO(b'0' * 2 * 2 ** 20), 'filename')
+        },
         lambda: {
             'file1': (io.BytesIO(b'0' * int(0.9 * 2 ** 20)), 'filename1'),
             'file2': (io.BytesIO(b'0' * int(0.9 * 2 ** 20)), 'filename2'),
@@ -1261,42 +1262,46 @@ def test_incorrect_ingore_files_value(
             'file4': (get_submission_archive('larger_file.zip'), 'f4.zip'),
             'file5': (get_submission_archive('larger_file.zip'), 'f5.zip'),
         },
-        lambda: {'file': (
-            get_submission_archive('too_large.tar.gz'),
-            'l.tar.gz'
-        )},
-        lambda: {'file': (
-            get_submission_archive('too_large.zip'),
-            'l.zip'
-        )},
-        lambda: {'file': (
-            get_submission_archive('too_large.7z'),
-            'l.7z'
-        )},
-        lambda: {'file': (
-            get_submission_archive('many_larger_files.tar.gz'),
-            'l.tar.gz'
-        )},
-        lambda: {'file': (
-            get_submission_archive('many_larger_files.zip'),
-            'l.zip'
-        )},
-        lambda: {'file': (
-            get_submission_archive('many_larger_files.7z'),
-            'l.7z'
-        )},
-        lambda: {'file': (
-            get_submission_archive('archive_with_large_file.tar.gz'),
-            'l.tar.gz'
-        )},
-        lambda: {'file': (
-            get_submission_archive('archive_with_large_file.zip'),
-            'l.zip'
-        )},
-        lambda: {'file': (
-            get_submission_archive('archive_with_large_file.7z'),
-            'l.7z'
-        )},
+        lambda: {
+            'file': (get_submission_archive('too_large.tar.gz'), 'l.tar.gz')
+        },
+        lambda: {
+            'file': (get_submission_archive('too_large.zip'), 'l.zip')
+        },
+        lambda: {
+            'file': (get_submission_archive('too_large.7z'), 'l.7z')
+        },
+        lambda: {
+            'file':
+                (
+                    get_submission_archive('many_larger_files.tar.gz'),
+                    'l.tar.gz'
+                )
+        },
+        lambda: {
+            'file': (get_submission_archive('many_larger_files.zip'), 'l.zip')
+        },
+        lambda: {
+            'file': (get_submission_archive('many_larger_files.7z'), 'l.7z')
+        },
+        lambda: {
+            'file':
+                (
+                    get_submission_archive('archive_with_large_file.tar.gz'),
+                    'l.tar.gz'
+                )
+        },
+        lambda: {
+            'file':
+                (
+                    get_submission_archive('archive_with_large_file.zip'),
+                    'l.zip'
+                )
+        },
+        lambda: {
+            'file':
+                (get_submission_archive('archive_with_large_file.7z'), 'l.7z')
+        },
     ]
 )
 def test_upload_too_large_file(
@@ -1365,29 +1370,19 @@ def test_upload_archive_with_many_files(
         )
 
 
+@pytest.mark.parametrize('ignored_files', ['keep', None, 'delete', 'error'])
 def test_upload_empty_archive(
-    student_user, test_client, error_template, logged_in, assignment
+    student_user, test_client, error_template, logged_in, assignment,
+    ignored_files
 ):
     filename = get_submission_archive('empty_submission.tar.gz')
     with logged_in(student_user):
+        url = f'/api/v1/assignments/{assignment.id}/submission'
+        if ignored_files is not None:
+            url = f'{url}?ignored_files={ignored_files}'
         res = test_client.req(
             'post',
-            f'/api/v1/assignments/{assignment.id}/submission',
-            400,
-            real_data={'file': (filename, 'ar.tar.gz')},
-            result=error_template
-        )
-        assert res['message'].startswith('No files found')
-
-
-def test_upload_empty_archive(
-    student_user, test_client, error_template, logged_in, assignment
-):
-    filename = get_submission_archive('empty_submission.tar.gz')
-    with logged_in(student_user):
-        res = test_client.req(
-            'post',
-            f'/api/v1/assignments/{assignment.id}/submission',
+            url,
             400,
             real_data={'file': (filename, 'ar.tar.gz')},
             result=error_template
@@ -1956,9 +1951,7 @@ def test_upload_blackboard_zip(
             ).filter(m.user_course.c.course_id == crole.id).delete(False)
             session.commit()
             session.query(m.User).filter_by(name='Student1').update(
-                {
-                    'username': result['Student1']['username']
-                }
+                {'username': result['Student1']['username']}
             )
             assert get_student_users() == set()
 
@@ -2853,7 +2846,7 @@ def test_cgignore_permission(
     teacher_user, session, test_client, error_template, assignment, logged_in
 ):
     teacher_user.courses[assignment.course_id].set_permission(
-        psef.permissions.CoursePermission.can_edit_cgignore,
+        CPerm.can_edit_cgignore,
         False,
     )
 
@@ -2934,9 +2927,7 @@ def test_warning_grader_done(
 
         session.query(m.Work).filter_by(
             assigned_to=grader_done, assignment_id=assig_id
-        ).update({
-            '_grade': 6
-        })
+        ).update({'_grade': 6})
         session.commit()
         _, rv = test_client.req(
             'post',
@@ -3107,9 +3098,7 @@ def test_grader_done(
 
     if not err:
         new_user = m.User.query.filter_by(name='Student1').first()
-        new_user.courses[course_id].set_permission(
-            CoursePermission.can_grade_work, True
-        )
+        new_user.courses[course_id].set_permission(CPerm.can_grade_work, True)
         session.commit()
 
         with logged_in(new_user):
@@ -3515,7 +3504,7 @@ def test_notification_permission(
 ):
     assig_id = assignment.id
     teacher_user.courses[assignment.course_id].set_permission(
-        CoursePermission.can_update_course_notifications,
+        CPerm.can_update_course_notifications,
         False,
     )
     with logged_in(teacher_user):
@@ -3529,4 +3518,520 @@ def test_notification_permission(
                 'done_email': 'thomas@example.com'
             },
             result=error_template,
+        )
+
+
+def test_division_parent(
+    test_client, session, teacher_user, logged_in, error_template
+):
+    def handin(user, assig, new, new_grader=False):
+        with logged_in(user):
+            if new:
+                assert get_id(user) not in get_newest_submissions(
+                    test_client, assig
+                )
+            else:
+                assert get_id(user) in get_newest_submissions(
+                    test_client, assig
+                )
+
+            sub = create_submission(test_client, get_id(assig))
+            if new_grader:
+                set_grader(sub, make_new_grader())
+            return sub
+
+    def assert_sub_grader(sub, grader):
+        with logged_in(teacher_user):
+            sub_id = get_id(sub)
+
+            sub = test_client.req('get', f'/api/v1/submissions/{sub_id}', 200)
+            if grader is None:
+                assert sub['assignee'] is None
+            else:
+                assert sub['assignee'] is not None
+                assert isinstance(sub['assignee'], dict)
+
+                assert sub['assignee']['id'] == get_id(grader)
+
+    def assert_all_subs_same_grader(
+        assig1, assig2, exceptions=None, complete=True
+    ):
+        if exceptions is None:
+            exceptions = set()
+        with logged_in(teacher_user):
+            subs1 = get_newest_submissions(test_client, assig1)
+            subs2 = get_newest_submissions(test_client, assig2)
+
+            for user, s1 in subs1.items():
+                # If this user handed in anything it should be assigned to the
+                # same user.
+                if user in subs2:
+                    assert (
+                        (subs2[user]['assignee'] !=
+                         s1['assignee']) == (user in exceptions)
+                    ), 'The grader of {} is not correct'.format(
+                        s1['user']['name']
+                    )
+                    del subs2[user]
+            # This shouldn't be possible but just to make sure
+            assert not any(u in subs1 for u in subs2)
+
+            if complete:
+                assert not subs2
+
+    def set_grader(sub, grader):
+        with logged_in(teacher_user):
+            test_client.req(
+                'patch',
+                f'/api/v1/submissions/{get_id(sub)}/grader',
+                204,
+                data={'user_id': get_id(grader)},
+            )
+
+    def connect_divisions(first, second):
+        with logged_in(teacher_user):
+            parent_id = None if second is None else get_id(second)
+            test_client.req(
+                'patch',
+                f'/api/v1/assignments/{get_id(first)}/division_parent',
+                204,
+                data={'parent_id': parent_id}
+            )
+            test_client.req(
+                'get',
+                f'/api/v1/assignments/{get_id(first)}',
+                200,
+                result={
+                    'division_parent_id': parent_id,
+                    '__allow_extra__': True,
+                }
+            )
+
+    def make_new_student(name):
+        return create_user_with_perms(
+            session,
+            [
+                CPerm.can_submit_own_work, CPerm.can_see_assignments,
+                CPerm.can_upload_after_deadline
+            ],
+            courses=[course],
+            name=name,
+        )
+
+    def make_new_grader():
+        return create_user_with_perms(
+            session, [
+                CPerm.can_submit_own_work, CPerm.can_see_assignments,
+                CPerm.can_upload_after_deadline, CPerm.can_grade_work
+            ],
+            courses=[course]
+        )
+
+    teacher_user.role.set_permission(GPerm.can_create_courses, True)
+    with logged_in(teacher_user):
+        course = create_course(test_client)
+        assigs = [
+            create_assignment(test_client, get_id(course), state='open')
+            for _ in range(9)
+        ]
+        a1, a2, a3, a4, a5, a6, a7, a8, a9 = assigs
+
+        jan = make_new_student('jan')
+        piet = make_new_student('piet')
+        klaas = make_new_student('klaas')
+        all_subs = defaultdict(dict)
+
+        for assig in assigs:
+            for user in [jan, piet, klaas]:
+                all_subs[get_id(assig)][get_id(user)] = handin(
+                    user, assig, new=True
+                )
+
+    # Set some random graders are assignment 1 (the master)
+    for sub in all_subs[get_id(a1)].values():
+        set_grader(sub, make_new_grader())
+
+    connect_divisions(a2, a1)
+    assert_all_subs_same_grader(a1, a2)
+
+    # Jan already handed in an assignment so the grader should be the same as
+    # for a1
+    handin(jan, a2, new=False)
+    assert_all_subs_same_grader(a1, a2)
+
+    # Make sure karijn gets the same grader in the parent as for the child.
+    karijn = make_new_student('karijn')
+    handin(karijn, a2, new=True)
+    handin(karijn, a1, new=True)
+    assert_all_subs_same_grader(a1, a2)
+
+    # Even though peggy didn't hand in anything for assignment 1 the grader for
+    # a3 should be the same as for a2
+    peggy = make_new_student('peggy')
+    handin(peggy, a2, new=True, new_grader=True)
+    handin(peggy, a3, new=True)
+    handin(karijn, a3, new=True)
+    connect_divisions(a3, a1)
+    assert_all_subs_same_grader(a2, a3)
+
+    achmed = make_new_student('achmed')
+    connect_divisions(a4, a1)
+
+    # The most common grader should be used when there is are duplicates among
+    # the children.
+    connect_divisions(a5, a1)
+    sub1 = handin(achmed, a2, new=True)
+    sub2 = handin(achmed, a3, new=True)
+    sub3 = handin(achmed, a4, new=True)
+    g1 = make_new_grader()
+    g2 = make_new_grader()
+    set_grader(sub1, g1)
+    set_grader(sub2, g2)
+    set_grader(sub3, g2)
+    sub4 = handin(achmed, a5, new=True)
+    assert_sub_grader(sub4, g2)
+
+    don = make_new_student('don')
+    sub4 = handin(don, a6, new=True)
+    connect_divisions(a6, a1)
+    # Shouldn't be auto assigned as no weights are set
+    assert_sub_grader(sub4, None)
+
+    # After connecting again we shouldn't copy graders
+    g3 = make_new_grader()
+    set_grader(sub4, g3)
+    sub5 = handin(klaas, a6, new=False)
+    set_grader(sub5, g3)
+    connect_divisions(a6, a1)
+    assert_sub_grader(sub4, g3)
+    assert_sub_grader(sub5, g3)
+
+    # After disconnecting we shouldn't copy graders
+    connect_divisions(a6, None)
+    sub6 = handin(don, a1, new=True)
+    assert_sub_grader(sub4, g3)
+    assert_sub_grader(sub6, None)
+
+    assigned_graders = [make_new_grader() for _ in range(2)]
+    with logged_in(teacher_user):
+        test_client.req(
+            'patch',
+            f'/api/v1/assignments/{get_id(a7)}/divide',
+            204,
+            result=None,
+            data={'graders': {get_id(g): 1
+                              for g in assigned_graders}}
+        )
+    connect_divisions(a8, a7)
+    assert_all_subs_same_grader(a7, a8)
+
+    # The next tests could pass just by chance so we run them a few times to be
+    # more sure that this isn't the case.
+    for _ in range(10):
+        connect_divisions(a9, None)
+
+        # Connecting an automatically divided assignment should mean that the
+        # weights are also copied. So if we let grader[0] have more work and we
+        # have a 'unknown' submission in the child this unknown submission
+        # should be assigned to other grader.
+        for i in range(3):
+            temp_user = make_new_student(f'temp_user{i}')
+            handin(temp_user, a9, new=True)
+            set_grader(handin(temp_user, a7, new=True), assigned_graders[0])
+        fatima = make_new_student('fatima')
+        sub7 = handin(fatima, a9, new=True)
+        connect_divisions(a9, a7)
+        assert_sub_grader(sub7, assigned_graders[1])
+
+        # The balance is still biased towards assigned_graders[0] so a new
+        # assignment to a9 should be assigned to assigned_graders[1]
+        saskia = make_new_student('saskia')
+        sub8 = handin(saskia, a9, new=True)
+        assert_sub_grader(sub8, assigned_graders[1])
+
+        # This should still be copied from its children
+        sub9 = handin(saskia, a8, new=True)
+        assert_sub_grader(sub9, assigned_graders[1])
+
+
+def test_division_connect_error_conditions(
+    test_client, session, admin_user, logged_in, error_template
+):
+    with logged_in(admin_user):
+        course = create_course(test_client)
+        assigs = [
+            create_assignment(test_client, get_id(course), state='open')
+            for _ in range(9)
+        ]
+
+        students = [
+            create_user_with_perms(
+                session,
+                [
+                    CPerm.can_submit_own_work, CPerm.can_see_assignments,
+                    CPerm.can_upload_after_deadline
+                ],
+                courses=[course],
+            ) for _ in range(10)
+        ]
+
+    for stud in students:
+        for assig in assigs:
+            with logged_in(stud):
+                create_submission(test_client, get_id(assig))
+
+    with logged_in(students[0]):
+        test_client.req(
+            'patch',
+            f'/api/v1/assignments/{get_id(assigs[0])}/division_parent',
+            403,
+            data={'parent_id': get_id(assigs[1])},
+            result=error_template,
+        )
+
+        test_client.req(
+            'patch',
+            f'/api/v1/assignments/{get_id(assigs[0])}/division_parent',
+            403,
+            data={'parent_id': None},
+            result=error_template,
+        )
+
+    with logged_in(admin_user):
+        for a in assigs:
+            # The default should be None for all assignments
+            test_client.req(
+                'patch',
+                f'/api/v1/assignments/{get_id(a)}',
+                200,
+                data={
+                    'division_parent_id': None,
+                    '__allow_extra__': True,
+                }
+            )
+        test_client.req(
+            'patch',
+            f'/api/v1/assignments/{get_id(assigs[1])}/division_parent',
+            204,
+            data={'parent_id': get_id(assigs[0])}
+        )
+
+        # The teacher should be able to see this
+        test_client.req(
+            'patch',
+            f'/api/v1/assignments/{get_id(assigs[1])}',
+            200,
+            data={
+                'division_parent_id': get_id(assigs[0]),
+                '__allow_extra__': True,
+            }
+        )
+        with logged_in(students[0]):
+            # However the student should not be
+            test_client.req(
+                'patch',
+                f'/api/v1/assignments/{get_id(assigs[1])}',
+                200,
+                data={
+                    'division_parent_id': None,
+                    '__allow_extra__': True,
+                }
+            )
+
+        # You shouldn't be able to change the divide settings for parents nor
+        # children.
+        test_client.req(
+            'patch',
+            f'/api/v1/assignments/{get_id(assigs[0])}/divide',
+            400,
+            result=error_template,
+            data={'graders': {
+                get_id(admin_user): 1
+            }}
+        )
+        test_client.req(
+            'patch',
+            f'/api/v1/assignments/{get_id(assigs[1])}/divide',
+            400,
+            result=error_template,
+            data={'graders': {
+                get_id(admin_user): 1
+            }}
+        )
+
+        # The parent of a parent can be set to None
+        test_client.req(
+            'patch',
+            f'/api/v1/assignments/{get_id(assigs[0])}/division_parent',
+            204,
+            data={'parent_id': None}
+        )
+        # The parent of a parent cannot be set to an actual value
+        test_client.req(
+            'patch',
+            f'/api/v1/assignments/{get_id(assigs[0])}/division_parent',
+            400,
+            data={'parent_id': get_id(assigs[1])},
+            result=error_template,
+        )
+
+    with logged_in(admin_user):
+        _, response = test_client.req(
+            'patch',
+            f'/api/v1/assignments/{get_id(assigs[2])}/division_parent',
+            204,
+            data={'parent_id': get_id(assigs[0])},
+            include_response=True,
+        )
+        assert 'warning' in response.headers
+        assert 'Some submissions were not' in response.headers['warning']
+
+
+def test_duplicating_rubric(
+    test_client, session, error_template, admin_user, logged_in,
+    original_rubric_data
+):
+    with logged_in(admin_user):
+        base_assignment = create_assignment(test_client, state='open')
+        base_assignment_no_rubric = create_assignment(
+            test_client, base_assignment['course']['id'], state='open'
+        )
+        base_assignment_hidden = create_assignment(
+            test_client, base_assignment['course']['id'], state='hidden'
+        )
+        no_permission_assignment = create_assignment(test_client, state='open')
+
+        new_assignment = create_assignment(test_client, state='open')
+
+    user = create_user_with_perms(
+        session, [CPerm.can_see_assignments],
+        courses=[
+            base_assignment['course'],
+            new_assignment['course'],
+        ]
+    )
+    user.courses[new_assignment['course']['id']].set_permission(
+        CPerm.manage_rubrics, True
+    )
+    session.commit()
+
+    def assert_rubric_empty():
+        with logged_in(user):
+            test_client.req(
+                'get', f'/api/v1/assignments/{new_assignment["id"]}/rubrics/',
+                404
+            )
+
+    assert_rubric_empty()
+
+    for assig in [
+        no_permission_assignment, base_assignment, base_assignment_hidden
+    ]:
+        with logged_in(
+            create_user_with_perms(
+                session, [
+                    CPerm.manage_rubrics, CPerm.can_see_assignments,
+                    CPerm.can_see_hidden_assignments
+                ],
+                courses=[assig['course']]
+            )
+        ):
+            test_client.req(
+                'put',
+                f'/api/v1/assignments/{assig["id"]}/rubrics/',
+                200,
+                data=original_rubric_data
+            )
+            test_client.req(
+                'get', f'/api/v1/assignments/{assig["id"]}/rubrics/', 200
+            )
+
+    with logged_in(user):
+        for assig, code in [
+            (base_assignment_no_rubric, 404), (base_assignment_hidden, 403),
+            (no_permission_assignment, 403), (new_assignment, 404)
+        ]:
+            test_client.req(
+                'get', f'/api/v1/assignments/{assig["id"]}/rubrics/', code
+            )
+            test_client.req(
+                'post',
+                f'/api/v1/assignments/{new_assignment["id"]}/rubric',
+                code,
+                data={'old_assignment_id': assig["id"]}
+            )
+            assert_rubric_empty()
+
+        result = test_client.req(
+            'post',
+            f'/api/v1/assignments/{new_assignment["id"]}/rubric',
+            200,
+            data={'old_assignment_id': base_assignment["id"]},
+            result=[
+                {
+                    'header':
+                        original_rubric_data['rows'][0]['header'],
+                    'description':
+                        original_rubric_data['rows'][0]['description'],
+                    'id':
+                        int,
+                    'items':
+                        list,
+                }
+            ]
+        )
+        test_client.req(
+            'get',
+            f'/api/v1/assignments/{new_assignment["id"]}/rubrics/',
+            200,
+            result=result
+        )
+
+        # You cannot import into an assignment which has a rubric.
+        test_client.req(
+            'post',
+            f'/api/v1/assignments/{new_assignment["id"]}/rubric',
+            400,
+            data={'old_assignment_id': base_assignment["id"]}
+        )
+
+
+def test_get_all_assignments_with_rubric(
+    test_client, session, error_template, admin_user, logged_in,
+    original_rubric_data
+):
+    with logged_in(admin_user):
+        assig_no_perms = create_assignment(test_client, state='open')
+        assig_perms_no_rubric = create_assignment(test_client, state='open')
+        assig_perms_rubric = create_assignment(test_client, state='open')
+    user = create_user_with_perms(
+        session, [CPerm.can_see_assignments, CPerm.manage_rubrics],
+        courses=[
+            assig_perms_no_rubric['course'],
+            assig_perms_rubric['course'],
+        ]
+    )
+    with logged_in(user):
+        test_client.req(
+            'put',
+            f'/api/v1/assignments/{assig_perms_rubric["id"]}/rubrics/',
+            200,
+            data=original_rubric_data
+        )
+
+        test_client.req(
+            'get',
+            '/api/v1/assignments/',
+            200,
+            result=[
+                assig_perms_rubric,
+                assig_perms_no_rubric,
+            ]
+        )
+
+        test_client.req(
+            'get',
+            '/api/v1/assignments/?only_with_rubric',
+            200,
+            result=[assig_perms_rubric]
         )

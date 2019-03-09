@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import Vue from 'vue';
 import axios from 'axios';
-import { parseWarningHeader } from '@/utils';
 import * as types from '../mutation-types';
 
 const UNLOADED_SNIPPETS = {};
@@ -14,6 +13,7 @@ const getters = {
     name: state => state.name,
     username: state => state.username,
     canSeeHidden: state => state.canSeeHidden,
+    permissions: state => state.permissions || {},
     findSnippetsByPrefix(state) {
         let values = [];
         if (state && state.snippets !== UNLOADED_SNIPPETS) {
@@ -25,29 +25,9 @@ const getters = {
 };
 
 const actions = {
-    login({ commit, state }, { username, password, onWarning }) {
-        state.jwtToken = null;
-        return new Promise((resolve, reject) => {
-            axios
-                .post('/api/v1/login', { username, password })
-                .then(async response => {
-                    // Allow the warning to be shown somewhere before actually
-                    // logging in.
-                    if (onWarning != null && response.headers.warning) {
-                        await onWarning(parseWarningHeader(response.headers.warning), response);
-                    }
-                    commit(types.LOGIN, response.data);
-                    resolve(response);
-                    actions.refreshSnippets({ commit });
-                })
-                .catch(err => {
-                    if (err.response) {
-                        reject(err.response.data);
-                    } else {
-                        reject(new Error('Login failed for a unknown reason!'));
-                    }
-                });
-        });
+    login({ commit }, response) {
+        commit(types.LOGIN, response.data);
+        actions.refreshSnippets({ commit });
     },
 
     addSnippet({ commit }, snippet) {
@@ -103,7 +83,7 @@ const actions = {
     verifyLogin({ commit, state, dispatch }) {
         return new Promise((resolve, reject) => {
             axios
-                .get('/api/v1/login?type=extended')
+                .get('/api/v1/login?type=extended&with_permissions')
                 .then(response => {
                     // We are already logged in. Update state to logged in state
                     commit(types.LOGIN, {
@@ -134,9 +114,9 @@ const actions = {
     },
 
     updateAccessToken({ dispatch, commit }, newToken) {
-        return dispatch('logout').then(() => {
-            commit(types.SET_ACCESS_TOKEN, newToken);
-        });
+        return dispatch('logout')
+            .then(() => commit(types.SET_ACCESS_TOKEN, newToken))
+            .then(() => dispatch('verifyLogin'));
     },
 };
 
@@ -150,6 +130,7 @@ const mutations = {
         state.name = userdata.name;
         state.canSeeHidden = userdata.hidden;
         state.username = userdata.username;
+        state.permissions = userdata.permissions;
     },
 
     [types.SNIPPETS](state, snippets) {
@@ -164,7 +145,7 @@ const mutations = {
         state.canSeeHidden = false;
         state.jwtToken = null;
         state.username = null;
-        Vue.prototype.$clearPermissions();
+        state.permissions = null;
     },
 
     [types.NEW_SNIPPET](state, { id, key, value }) {
@@ -205,6 +186,7 @@ export default {
         email: '',
         name: '',
         snippets: UNLOADED_SNIPPETS,
+        permissions: null,
         canSeeHidden: false,
         username: '',
     },

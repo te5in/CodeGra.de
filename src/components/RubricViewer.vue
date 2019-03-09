@@ -165,28 +165,22 @@ export default {
         },
 
         clearSelected() {
-            const clear = () => {
-                this.selected = {};
-                this.selectedPoints = 0;
-                this.selectedRows = {};
-                this.$emit('input', {
-                    selected: 0,
-                    max: this.maxPoints,
-                    grade: null,
+            return this.$http
+                .patch(`/api/v1/submissions/${this.submission.id}/rubricitems/`, {
+                    items: [],
+                })
+                .then(() => {
+                    this.selected = {};
+                    this.selectedPoints = 0;
+                    this.selectedRows = {};
+                    this.origSelected = [];
+                    this.$emit('input', {
+                        selected: 0,
+                        max: this.maxPoints,
+                        grade: null,
+                    });
+                    return { data: { grade: null } };
                 });
-                return { data: { grade: null } };
-            };
-
-            if (UserConfig.features.incremental_rubric_submission) {
-                return this.$http
-                    .patch(`/api/v1/submissions/${this.submission.id}/rubricitems/`, {
-                        items: [],
-                    })
-                    .then(clear);
-            } else {
-                clear();
-                return Promise.resolve({ data: {} });
-            }
         },
 
         submitAllItems() {

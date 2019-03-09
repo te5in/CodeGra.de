@@ -2,8 +2,8 @@
 <template>
 <div class="login">
     <div class="login-wrapper">
-        <img class="logo" src="static/img/codegrade.svg" v-if="darkMode"/>
-        <img class="logo" src="static/img/codegrade-inv.svg" v-else/>
+        <img class="standalone-logo" src="static/img/codegrade.svg" v-if="darkMode"/>
+        <img class="standalone-logo" src="static/img/codegrade-inv.svg" v-else/>
         <login class="login"/>
     </div>
 </div>
@@ -40,18 +40,8 @@ export default {
     margin: 2em auto;
 
     .login {
-        @media @media-medium {
-            max-width: 768px;
-            margin: 0 auto;
-        }
+        max-width: 25rem;
+        margin: 0 auto;
     }
-}
-
-.logo {
-    display: block;
-    margin-left: auto;
-    margin-right: auto;
-    width: 50%;
-    margin-bottom: 1em;
 }
 </style>

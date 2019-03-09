@@ -49,9 +49,10 @@
                         <input type="text"
                                class="form-control"
                                v-model="assignmentTempName"
-                               @keyup.ctrl.enter="updateName"/>
+                               @keyup.ctrl.enter="$refs.updateName.onClick"/>
                         <b-input-group-append>
-                            <submit-button @click="updateName"
+                            <submit-button :submit="submitName"
+                                           @success="updateName"
                                            ref="updateName"/>
                         </b-input-group-append>
                     </b-input-group>
@@ -61,11 +62,13 @@
                     <b-input-group prepend="Deadline">
                         <datetime-picker v-model="assignmentTempDeadline"/>
                         <b-input-group-append>
-                            <submit-button @click="updateDeadline"
+                            <submit-button :submit="submitDeadline"
+                                           @success="updateDeadline"
                                            ref="updateDeadline"/>
                         </b-input-group-append>
                     </b-input-group>
                 </b-form-fieldset>
+
                 <b-form-fieldset v-if="canEditMaxGrade">
                     <maximum-grade :assignment-id="assignmentId"/>
                 </b-form-fieldset>
@@ -138,17 +141,25 @@
 
         <div class="row cat-wrapper"
              :class="{hidden: selectedCat !== 'Graders'}">
-            <div class="col-lg-6">
+            <div class="col-xl-6">
                 <b-card v-if="canAssignGraders" no-body>
                     <span slot="header">
                         Divide submissions
-                        <description-popover
-                            description="Divide this assignment. When dividing
-                                         users are assigned to submissions based on weights.
-                                         When new submissions are uploaded graders are
-                                         also automatically assigned. When graders assign
-                                         themselves the weights are not updated to
-                                         reflect this."/>
+                        <description-popover>
+                            <span slot="description">
+                                Divide this assignment. When dividing users are
+                                assigned to submissions based on weights.  When
+                                new submissions are uploaded graders are also
+                                automatically assigned. When graders assign
+                                themselves the weights are not updated to
+                                reflect this. To read more about dividing
+                                graders please read our
+                                documentation <a href="https://docs.codegra.de/user/management.html#dividing-submissions"
+                                                 target="_blank"
+                                                 class="inline-link"
+                                >here</a>.
+                            </span>
+                        </description-popover>
                     </span>
                     <loader class="text-center" v-if="gradersLoading && !gradersLoadedOnce"/>
                     <divide-submissions :assignment="assignment"
@@ -158,8 +169,10 @@
                 </b-card>
             </div>
 
-            <div class="col-lg-6">
-                <b-card v-if="canUpdateGradersStatus" no-body>
+            <div class="col-xl-6">
+                <b-card v-if="canUpdateGradersStatus"
+                        no-body
+                        class="finished-grading-card">
                     <span slot="header">
                         Finished grading
                         <description-popover
@@ -206,6 +219,7 @@
                                      the results."/>
                 </span>
                 <plagiarism-runner :assignment="assignment"
+                                   :hidden="selectedCat !== 'Plagiarism'"
                                    :can-manage="permissions.can_manage_plagiarism"
                                    :can-view="permissions.can_view_plagiarism"/>
             </b-card>
@@ -214,6 +228,7 @@
         <div class="cat-wrapper" :class="{hidden: selectedCat !== 'Rubric'}">
             <b-card header="Rubric" v-if="canUseRubrics">
                 <rubric-editor :assignment="assignment"
+                               :hidden="selectedCat !== 'Rubric'"
                                ref="rubricEditor"
                                editable/>
 
@@ -271,10 +286,7 @@ export default {
         ...mapGetters('courses', ['assignments']),
 
         formattedDeadline() {
-            if (!this.assignment || !this.assignment.deadline) {
-                return '';
-            }
-            return readableFormatDate(this.assignment.deadline);
+            return (this.assignment && this.assignment.formatted_deadline) || '';
         },
 
         assignmentId() {
@@ -428,57 +440,34 @@ export default {
             this.gradersLoadedOnce = true;
         },
 
-        updateName() {
-            const req = this.$http.patch(this.assignmentUrl, {
+        submitName() {
+            return this.$http.patch(this.assignmentUrl, {
                 name: this.assignmentTempName,
             });
+        },
 
-            this.$refs.updateName.submit(
-                req.then(
-                    () => {
-                        this.updateAssignment({
-                            courseId: this.assignment.course.id,
-                            assignmentId: this.assignment.id,
-                            assignmentProps: {
-                                name: this.assignmentTempName,
-                            },
-                        });
-                    },
-                    err => {
-                        throw err.response.data.message;
-                    },
-                ),
-            );
+        updateName() {
+            this.updateAssignment({
+                courseId: this.assignment.course.id,
+                assignmentId: this.assignment.id,
+                assignmentProps: {
+                    name: this.assignmentTempName,
+                },
+            });
+        },
+
+        submitDeadline() {
+            return this.$http.patch(this.assignmentUrl, {
+                deadline: convertToUTC(this.assignmentTempDeadline),
+            });
         },
 
         updateDeadline() {
-            const req = this.$http.patch(this.assignmentUrl, {
-                deadline: convertToUTC(this.assignmentTempDeadline),
-            });
-
-            this.$refs.updateDeadline.submit(
-                req.then(
-                    () => {
-                        this.updateAssignment({
-                            assignmentId: this.assignment.id,
-                            assignmentProps: {
-                                deadline: this.assignmentTempDeadline,
-                            },
-                        });
-                    },
-                    err => {
-                        throw err.response.data.message;
-                    },
-                ),
-            );
-        },
-
-        goToSubmissions() {
-            this.$router.push({
-                name: 'assignment_submissions',
-                params: {
-                    courseId: this.assignment.course.id,
-                    assignmentId: this.assignment.id,
+            this.updateAssignment({
+                assignmentId: this.assignment.id,
+                assignmentProps: {
+                    deadline: this.assignmentTempDeadline,
+                    formatted_deadline: readableFormatDate(this.assignmentTempDeadline),
                 },
             });
         },
@@ -562,7 +551,6 @@ export default {
 
 .cat-wrapper {
     transition: opacity 0.25s ease-out;
-    overflow-y: auto;
     padding-top: 5px;
 
     &.hidden {
@@ -570,6 +558,7 @@ export default {
         transition: none;
         opacity: 0;
         max-height: 0;
+        overflow-y: hidden;
     }
 }
 
@@ -581,5 +570,9 @@ export default {
 
 .manage-assignment .header {
     z-index: 9;
+}
+
+.finished-grading-card .loader {
+    padding: 1rem;
 }
 </style>

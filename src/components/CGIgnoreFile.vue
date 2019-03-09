@@ -4,10 +4,11 @@
         <textarea class="form-control"
                   rows="6"
                   v-model="content"
-                  @keyup.ctrl.enter.prevent="updateIgnore"/>
+                  @keyup.ctrl.enter.prevent="$refs.submitBtn.onClick"/>
         <submit-button label="Update"
                        ref="submitBtn"
-                       @click="updateIgnore"/>
+                       :submit="updateIgnore"
+                       @success="afterUpdateIgnore"/>
     </div>
 </template>
 
@@ -48,25 +49,22 @@ export default {
         ...mapActions('courses', ['updateAssignment']),
 
         updateIgnore() {
-            this.$refs.submitBtn.submit(
-                this.$http
-                    .patch(`/api/v1/assignments/${this.assignment.id}`, {
-                        ignore: this.content,
-                    })
-                    .then(
-                        () => {
-                            this.updateAssignment({
-                                assignmentId: this.assignmentId,
-                                assignmentProps: {
-                                    cgignore: this.content,
-                                },
-                            });
-                        },
-                        ({ response }) => {
-                            throw response.data.message;
-                        },
-                    ),
-            );
+            const newContent = this.content;
+
+            return this.$http
+                .patch(`/api/v1/assignments/${this.assignment.id}`, {
+                    ignore: newContent,
+                })
+                .then(() => newContent);
+        },
+
+        afterUpdateIgnore(newContent) {
+            this.updateAssignment({
+                assignmentId: this.assignmentId,
+                assignmentProps: {
+                    cgignore: newContent,
+                },
+            });
         },
     },
 

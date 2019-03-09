@@ -1,48 +1,54 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div class="assignment-state" v-if="editable">
-    <b-button-group @click="updateState">
-        <b-button class="state-button larger"
-                  v-if="assignment.is_lti"
-                  :size="size"
-                  value="open"
-                  :variant="ltiHiddenOpenVariant"
-                  v-b-popover.window.top.hover="'Hidden or open, managed by LTI'">
-            <loader v-if="isLoadingLTIHiddenOpen" :scale="0.75"/>
-            <span v-else>
-                <icon :name="icons[states.HIDDEN]" :scale="0.75"/>
-                <icon :name="icons[states.OPEN]" :scale="0.75"/>
-            </span>
-        </b-button>
+    <b-button-group>
+        <submit-button class="state-button larger"
+                       v-if="assignment.is_lti"
+                       :size="size"
+                       :variant="ltiHiddenOpenVariant"
+                       v-b-popover.window.top.hover="'Hidden or open, managed by LMS'"
+                       :submit="() => updateState(states.OPEN)"
+                       @success="afterUpdateState"
+                       :icon-scale="iconScale"
+                       :duration="0">
+            <icon :name="icons[states.HIDDEN]" :scale="iconScale"/>
+            <icon :name="icons[states.OPEN]" :scale="iconScale"/>
+        </submit-button>
 
         <b-button-group v-else>
-            <b-button class="state-button"
-                      :size="size"
-                      value="hidden"
-                      :variant="hiddenVariant"
-                      v-b-popover.window.top.hover="labels[states.HIDDEN]">
-                <loader v-if="isLoadingHidden" :scale="0.75"/>
-                <icon :name="icons[states.HIDDEN]" :scale="0.75" v-else/>
-            </b-button>
+            <submit-button class="state-button"
+                           :size="size"
+                           :variant="hiddenVariant"
+                           v-b-popover.window.top.hover="labels[states.HIDDEN]"
+                           :submit="() => updateState(states.HIDDEN)"
+                           @success="afterUpdateState"
+                           :icon-scale="iconScale"
+                           :duration="0">
+                <icon :name="icons[states.HIDDEN]" :scale="iconScale"/>
+            </submit-button>
 
-            <b-button class="state-button"
-                      :size="size"
-                      value="open"
-                      :variant="openVariant"
-                      v-b-popover.window.top.hover="labels[states.OPEN]">
-                <loader v-if="isLoadingOpen" :scale="0.75"/>
-                <icon :name="icons[states.OPEN]" :scale="0.75" v-else/>
-            </b-button>
+            <submit-button class="state-button"
+                           :size="size"
+                           :variant="openVariant"
+                           v-b-popover.window.top.hover="labels[states.OPEN]"
+                           :submit="() => updateState(states.OPEN)"
+                           @success="afterUpdateState"
+                           :icon-scale="iconScale"
+                           :duration="0">
+                <icon :name="icons[states.OPEN]" :scale="iconScale"/>
+            </submit-button>
         </b-button-group>
 
-        <b-button class="state-button"
-                  :size="size"
-                  value="done"
-                  :variant="doneVariant"
-                  v-b-popover.window.top.hover="labels[states.DONE]">
-            <loader v-if="isLoadingDone" :scale="0.75"/>
-            <icon :name="icons[states.DONE]" :scale="0.75" v-else/>
-        </b-button>
+        <submit-button class="state-button"
+                       :size="size"
+                       :variant="doneVariant"
+                       v-b-popover.window.top.hover="labels[states.DONE]"
+                       :submit="() => updateState(states.DONE)"
+                       @success="afterUpdateState"
+                       :icon-scale="iconScale"
+                       :duration="0">
+            <icon :name="icons[states.DONE]" :scale="iconScale"/>
+        </submit-button>
     </b-button-group>
 </div>
 <icon :name="icons[assignment.state]"
@@ -62,9 +68,8 @@ import 'vue-awesome/icons/check';
 
 import * as states from '../store/assignment-states';
 
-import { waitAtLeast } from '../utils';
-
 import Loader from './Loader';
+import SubmitButton from './SubmitButton';
 
 export default {
     name: 'assignment-state',
@@ -88,7 +93,6 @@ export default {
 
     data() {
         return {
-            pendingState: '',
             states,
             labels: {
                 [states.HIDDEN]: 'Hidden',
@@ -104,6 +108,7 @@ export default {
                 [states.OPEN]: 'clock-o',
                 [states.DONE]: 'check',
             },
+            iconScale: 0.75,
         };
     },
 
@@ -129,61 +134,33 @@ export default {
             const st = this.assignment.state;
             return st === states.DONE ? 'success' : 'outline-success';
         },
-
-        isLoadingLTIHiddenOpen() {
-            return this.assignment.is_lti && this.pendingState === states.OPEN;
-        },
-
-        isLoadingHidden() {
-            return this.pendingState === states.HIDDEN;
-        },
-
-        isLoadingOpen() {
-            const st = this.pendingState;
-            return st === states.SUBMITTING || st === states.GRADING || st === states.OPEN;
-        },
-
-        isLoadingDone() {
-            return this.pendingState === states.DONE;
-        },
     },
 
     methods: {
         ...mapActions('courses', ['updateAssignment']),
 
-        updateState({ target }) {
-            const button = target.closest('.state-button');
-            if (!button) return;
+        updateState(pendingState) {
+            return this.$http
+                .patch(`/api/v1/assignments/${this.assignment.id}`, {
+                    state: pendingState,
+                })
+                .then(() => pendingState);
+        },
 
-            this.pendingState = button.getAttribute('value');
-
-            waitAtLeast(
-                500,
-                this.$http.patch(`/api/v1/assignments/${this.assignment.id}`, {
-                    state: this.pendingState,
-                }),
-            ).then(
-                () => {
-                    this.updateAssignment({
-                        assignmentId: this.assignment.id,
-                        assignmentProps: {
-                            state: this.pendingState,
-                        },
-                    });
-                    this.pendingState = '';
+        afterUpdateState(pendingState) {
+            this.updateAssignment({
+                assignmentId: this.assignment.id,
+                assignmentProps: {
+                    state: pendingState,
                 },
-                err => {
-                    // TODO: visual feedback
-                    // eslint-disable-next-line
-                    console.dir(err);
-                },
-            );
+            });
         },
     },
 
     components: {
         Icon,
         Loader,
+        SubmitButton,
     },
 };
 </script>

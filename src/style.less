@@ -59,6 +59,8 @@ main {
 
 .btn {
     cursor: pointer;
+    transition: transitioncolor 0.15s ease-in-out, background-color 0.15s ease-in-out,
+        border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out, opacity 0.25s ease-in-out;
 
     &-primary {
         .primary-button-color;
@@ -69,11 +71,11 @@ main {
     }
 
     .fa-icon {
-        &:not(:first-child) {
+        &:not(:first-of-type) {
             margin-left: 0.66em;
         }
 
-        &:not(:last-child) {
+        &:not(:last-of-type) {
             margin-right: 0.66em;
         }
     }
@@ -309,6 +311,7 @@ textarea:disabled {
 
 .whitespace {
     color: rgba(0, 0, 0, 0.2);
+    display: inline-block;
 
     #app.dark & {
         color: @color-secondary-text;
@@ -374,6 +377,13 @@ textarea:disabled {
 
 .multiselect {
     .dark-multiselect-colors;
+    &.multiselect--disabled {
+        cursor: not-allowed !important;
+        pointer-events: auto;
+        .multiselect__select {
+            cursor: not-allowed !important;
+        }
+    }
 }
 
 .toasted-container .toasted .action {
@@ -396,4 +406,14 @@ textarea:disabled {
 .pop-in-leave {
     transform: scale(1);
     opacity: 1;
+}
+
+.toasted-container .toasted .action {
+    color: white !important;
+}
+
+.standalone-logo {
+    display: block;
+    margin: 3rem auto 2rem;
+    max-width: 25rem;
 }

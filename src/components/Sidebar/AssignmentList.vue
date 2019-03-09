@@ -239,23 +239,25 @@ export default {
                 .post(`/api/v1/courses/${this.currentCourse.id}/assignments/`, {
                     name,
                 })
-                .then(({ data: assig }) => {
-                    this.$emit('loading');
-                    resolve();
-                    return this.reloadCourses().then(() => {
-                        this.$emit('loaded');
-                        this.$router.push({
-                            name: 'manage_assignment',
-                            params: {
-                                courseId: this.currentCourse.id,
-                                assignmentId: assig.id,
-                            },
+                .then(
+                    ({ data: assig }) => {
+                        this.$emit('loading');
+                        resolve();
+                        return this.reloadCourses().then(() => {
+                            this.$emit('loaded');
+                            this.$router.push({
+                                name: 'manage_assignment',
+                                params: {
+                                    courseId: this.currentCourse.id,
+                                    assignmentId: assig.id,
+                                },
+                            });
                         });
-                    });
-                })
-                .catch(err => {
-                    reject(err.response.data.message);
-                });
+                    },
+                    err => {
+                        reject(err);
+                    },
+                );
         },
     },
 

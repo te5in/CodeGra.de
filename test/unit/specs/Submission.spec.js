@@ -214,6 +214,9 @@ describe('Submission.vue', () => {
     describe('Watchers', () => {
         it('submission should be watched', async () => {
             await comp.$nextTick();
+            for (let i = 0; i < 10 && comp.loadingInner; i++) {
+                await comp.$nextTick();
+            }
             expect(comp.loadingInner).toBe(false);
 
             comp.matchFiles = jest.fn(() => ({}));
@@ -230,12 +233,12 @@ describe('Submission.vue', () => {
             expect(mockGet).toBeCalledWith('/api/v1/submissions/2/files/');
             expect(mockGet).toBeCalledWith('/api/v1/submissions/2/files/', {params: {owner: 'teacher'}});
             expect(comp.studentTree.isStudent).toBe(true);
-            delete comp.studentTree.isStudent;
-            expect(comp.studentTree).toEqual(tree1);
+            expect(comp.studentTree).toMatchObject(tree1);
 
             expect(comp.teacherTree.isTeacher).toBe(true);
-            delete comp.teacherTree.isTeacher;
-            expect(comp.teacherTree).toEqual(tree2);
+            expect(comp.teacherTree).toMatchObject(tree2);
+
+            await comp.$nextTick();
             expect(comp.matchFiles).toBeCalledTimes(1);
 
             expect(mockGet).toBeCalledWith('/api/v1/submissions/2/rubrics/');

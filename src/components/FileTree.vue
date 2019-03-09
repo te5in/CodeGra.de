@@ -30,14 +30,15 @@
     </div>
 
     <div class="directory" :class="{ faded: depth > 0 && diffMode && !hasRevision(tree) }" @click.stop="toggle()">
-        <span class="label">
-            <icon name="caret-right" class="caret-icon" v-if="isCollapsed"/>
-            <icon name="caret-down" class="caret-icon" v-else/>
-            <icon name="folder" class="dir-icon" v-if="isCollapsed"/>
-            <icon name="folder-open" class="dir-icon" v-else/>
-            {{ tree.name }}
+        <span class="label"
+              :title="tree.name">
+            <icon name="caret-right" class="caret-icon" v-if="isCollapsed"/><!--
+            --><icon name="caret-down" class="caret-icon" v-else/><!--
+            --><icon name="folder" class="dir-icon" v-if="isCollapsed"/><!--
+            --><icon name="folder-open" class="dir-icon" v-else/><!--
+            --><span>{{ tree.name }}</span>
             <sup v-if="depth > 0 && hasRevision(tree)"
-                    v-b-popover.hover.top="'This directory has a file with a teacher\'s revision'"
+                    v-b-popover.hover.top.window="'This directory has a file with a teacher\'s revision'"
                     class="rev-popover">
                 modified
             </sup>
@@ -52,19 +53,22 @@
                        :revision-cache="internalRevisionCache"
                        :depth="depth + 1"
                         v-if="f.entries"/>
-            <router-link :to="getFileRoute(f)"
-                         class="label"
-                         v-else>
-                <icon name="file" class="file-icon"/>{{ f.name }}
-            </router-link>
-            <sup v-if="fileHasRevision(f)"
-                 v-b-popover.hover.top="revisionPopover(f)"
-                 class="rev-popover">
-                <router-link :to="revisedFileRoute(f)"
-                             @click="$emit('revision', 'diff')">
-                    diff <code><small>(</small>{{ diffLabels[diffAction(f)] }}<small>)</small></code>
+            <div v-else
+                 class="label">
+                <router-link :to="getFileRoute(f)"
+                             :title="f.name">
+                    <icon name="file" class="file-icon"/>{{ f.name }}
                 </router-link>
-            </sup>
+                <sup v-if="fileHasRevision(f)"
+                    v-b-popover.hover.top.window="revisionPopover(f)"
+                    class="rev-popover">
+                    <router-link :to="revisedFileRoute(f)"
+                                :title="f.name"
+                                @click="$emit('revision', 'diff')">
+                        diff <code><small>(</small>{{ diffLabels[diffAction(f)] }}<small>)</small></code>
+                    </router-link>
+                </sup>
+            </div>
         </li>
     </ol>
 </div>
@@ -335,6 +339,14 @@ export default {
         text-decoration: underline;
     }
 
+    .label {
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        overflow-x: hidden;
+        display: block;
+        max-width: 100%;
+    }
+
     .directory .label:hover {
         cursor: pointer;
     }
@@ -374,6 +386,7 @@ export default {
 
     .rev-popover {
         display: inline;
+        font-weight: normal;
     }
 }
 

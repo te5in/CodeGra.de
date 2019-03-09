@@ -23,7 +23,7 @@
                         </b-input-group-prepend>
                         <input class="form-control"
                                placeholder="Category name"
-                               @keydown.ctrl.enter="submit"
+                               @keydown.ctrl.enter="clickSubmit"
                                v-model="rubric.header"/>
                         <b-input-group-append>
                             <b-btn size="sm" variant="danger" class="float-right" @click="(e)=>deleteRow(i, e)">
@@ -35,7 +35,7 @@
                               placeholder="Category description"
                               :tabindex="currentCategory === i ? null: -1"
                               v-model="rubric.description"
-                              @keydown.ctrl.enter.prevent="submit"
+                              @keydown.ctrl.enter.prevent="clickSubmit"
                               v-if="editable"/>
                     <p v-else>{{ rubric.description }}</p>
                 </div>
@@ -52,7 +52,7 @@
                                    placeholder="Points"
                                    @change="item.points = parseFloat(item.points)"
                                    @keydown="addItem(i, j)"
-                                   @keydown.ctrl.enter="submit"
+                                   @keydown.ctrl.enter="clickSubmit"
                                    v-model="item.points"/>
                             <span v-else
                                   class="item-points input disabled">
@@ -64,7 +64,7 @@
                                    placeholder="Header"
                                    :tabindex="currentCategory === i ? null: -1"
                                    @keydown="addItem(i, j)"
-                                   @keydown.ctrl.enter="submit"
+                                   @keydown.ctrl.enter="clickSubmit"
                                    v-model="item.header"/>
                             <span v-else class="input item-header disabled">
                                 {{ item.header }}
@@ -86,7 +86,7 @@
                                   :rows="8"
                                   :tabindex="currentCategory === i ? null: -1"
                                   @keydown="addItem(i, j)"
-                                  @keydown.ctrl.enter.prevent="submit"
+                                  @keydown.ctrl.enter.prevent="clickSubmit"
                                   placeholder="Description"/>
                         <p v-else
                            class="form-control input item-description disabled">
@@ -98,7 +98,41 @@
         </b-tab>
 
         <div slot="empty" class="text-center text-muted empty" v-if="editable">
-            This assignment does not have rubric yet. Click the '+' to add a category.
+            <p>This assignment does not have rubric yet. Click the '+' to add a category.</p>
+            <hr>
+
+            <p>You can also import a rubric from a different assignment:</p>
+            <b-alert v-if="loadAssignmentsFailed"
+                     variant="danger"
+                     show>
+                Loading assignments failed.
+            </b-alert>
+            <b-input-group v-else>
+                <multiselect
+                    class="assignment-selector"
+                    v-model="importAssignment"
+                    :options="assignments || []"
+                    :searchable="true"
+                    :custom-label="a => `${a.course.name} - ${a.name}`"
+                    :multiple="false"
+                    track-by="id"
+                    label="label"
+                    :close-on-select="true"
+                    :hide-selected="false"
+                    placeholder="Select old assignment"
+                    :internal-search="true"
+                    :loading="loadingAssignments">
+                    <span slot="noResult">
+                        No results were found.
+                    </span>
+                </multiselect>
+                <template slot="append">
+                    <submit-button ref="importBtn"
+                                   :disabled="!importAssignment"
+                                   :submit="loadOldRubric"
+                                   @after-success="afterLoadOldRubric"/>
+                </template>
+            </b-input-group>
         </div>
     </b-tabs>
 
@@ -108,10 +142,11 @@
             lost forever! So are you really sure?
         </p>
         <b-button-toolbar justify>
-            <submit-button default="outline-danger"
-                           label="Yes"
-                           ref="deleteButton"
-                           @click="deleteRubric"/>
+            <submit-button label="Yes"
+                           variant="outline-danger"
+                           :submit="deleteRubric"
+                           :filter-error="deleteFilter"
+                           @after-success="afterDeleteRubric"/>
             <b-btn class="text-center"
                    variant="success"
                    @click="$root.$emit('bv::hide::modal', 'modal_delete_rubric')">
@@ -122,21 +157,22 @@
 
     <b-card class="button-bar" v-if="editable">
         <b-button-group class="danger-buttons">
-            <submit-button default="danger"
-                           :label="false"
-                           v-b-popover.top.hover="'Delete rubric'"
-                           @click="$root.$emit('bv::show::modal','modal_delete_rubric')">
+            <b-button variant="danger"
+                      v-b-popover.top.hover="'Delete rubric'"
+                      @click="showDeleteModal"
+                      :disabled="rubrics.length === 0">
                 <icon name="times"/>
-            </submit-button>
-            <submit-button class="reset-button"
-                           default="danger"
-                           :label="false"
-                           ref="resetButton"
-                           @click="resetRubric"
-                           v-b-popover.top.hover="'Reset rubric'">
+            </b-button>
+
+            <submit-button variant="danger"
+                           v-b-popover.top.hover="'Reset rubric'"
+                           :submit="resetRubric"
+                           confirm="Are you sure you want to revert your changes?"
+                           :disabled="rubrics.length === 0">
                 <icon name="reply"/>
-        </submit-button>
+            </submit-button>
         </b-button-group>
+
         <div class="override-checkbox">
             <b-input-group>
                 <b-input-group-prepend is-text>
@@ -155,24 +191,21 @@
                        min="0"
                        step="1"
                        v-model="internalFixedMaxPoints"
-                       @keydown.ctrl.enter="submitMaxPoints"
                        class="form-control"
                        :placeholder="curMaxPoints"/>
                 <b-input-group-append>
-                    <submit-button @click="resetFixedMaxPoints()"
+                    <submit-button :submit="resetFixedMaxPoints"
+                                   @success="afterResetFixedMaxPoints"
                                    class="round"
-                                   ref="maxPointsButton"
                                    :disabled="internalFixedMaxPoints == null"
                                    v-b-popover.top.hover="internalFixedMaxPoints == null ? '' : 'Reset to the default value.'"
-                                   :label="false"
-                                   default="warning">
+                                   variant="warning">
                         <icon name="reply"/>
                     </submit-button>
                 </b-input-group-append>
             </b-input-group>
         </div>
-        <submit-button ref="submitButton"
-                       @click="submit"/>
+        <submit-button ref="submitButton" :submit="submit"/>
     </b-card>
     <b-card class="extra-bar" v-else>
         <span>
@@ -186,6 +219,7 @@
 </template>
 
 <script>
+import Multiselect from 'vue-multiselect';
 import { mapActions } from 'vuex';
 
 import Icon from 'vue-awesome/components/Icon';
@@ -198,7 +232,6 @@ import arrayToSentence from 'array-to-sentence';
 import SubmitButton from './SubmitButton';
 import Loader from './Loader';
 import DescriptionPopover from './DescriptionPopover';
-import { waitAtLeast } from '../utils';
 
 export default {
     name: 'rubric-editor',
@@ -210,6 +243,10 @@ export default {
             currentCategory: 0,
             assignmentId: this.assignment.id,
             internalFixedMaxPoints: this.assignment.fixed_max_rubric_points,
+            assignments: null,
+            importAssignment: null,
+            loadingAssignments: false,
+            loadAssignmentsFailed: false,
         };
     },
 
@@ -231,11 +268,25 @@ export default {
         defaultRubric: {
             default: null,
         },
+
+        hidden: {
+            type: Boolean,
+            default: false,
+        },
     },
 
     watch: {
         assignmentId() {
             this.getAndSetRubrics();
+        },
+
+        hidden: {
+            immediate: true,
+            handler() {
+                if (!this.hidden && this.assignments === null && this.rubrics.length === 0) {
+                    this.loadAssignments();
+                }
+            },
         },
     },
 
@@ -267,6 +318,32 @@ export default {
     methods: {
         ...mapActions('courses', ['forceLoadSubmissions', 'forceLoadRubric', 'setRubric']),
 
+        loadOldRubric() {
+            return this.$http.post(`/api/v1/assignments/${this.assignmentId}/rubric`, {
+                old_assignment_id: this.importAssignment.id,
+            });
+        },
+
+        afterLoadOldRubric(response) {
+            this.importAssignment = null;
+            this.setRubricData(response.data);
+        },
+
+        loadAssignments() {
+            this.loadingAssignments = true;
+            this.assignments = [];
+            this.$http.get('/api/v1/assignments/?only_with_rubric').then(
+                ({ data }) => {
+                    this.assignments = data;
+                    this.loadingAssignments = false;
+                },
+                () => {
+                    this.loadAssignmentsFailed = true;
+                    this.loadingAssignments = false;
+                },
+            );
+        },
+
         getEmptyItem() {
             return {
                 points: '',
@@ -277,7 +354,19 @@ export default {
 
         resetFixedMaxPoints() {
             this.internalFixedMaxPoints = null;
-            this.submitMaxPoints();
+            this.ensureFixedMaxPoints();
+
+            return this.$http.put(`/api/v1/assignments/${this.assignmentId}/rubrics/`, {
+                max_points: this.internalFixedMaxPoints,
+            });
+        },
+
+        afterResetFixedMaxPoints(response) {
+            this.setRubric({
+                assignmentId: this.assignmentId,
+                rubric: response.data,
+                maxPoints: this.internalFixedMaxPoints,
+            });
         },
 
         getEmptyRow() {
@@ -289,12 +378,15 @@ export default {
         },
 
         resetRubric() {
-            const btn = this.$refs.resetButton;
             this.loading = true;
-            btn.submit(
-                this.getAndSetRubrics().then(() => {
+            return this.getAndSetRubrics().then(
+                () => {
                     this.loading = false;
-                }),
+                },
+                err => {
+                    this.loading = false;
+                    throw err;
+                },
             );
         },
 
@@ -302,8 +394,11 @@ export default {
             this.rubrics = serverRubrics.map(origRow => {
                 const row = Object.assign({}, origRow);
 
-                // We slice here so we have a complete new object to sort.
-                row.items = row.items.slice().sort((a, b) => a.points - b.points);
+                // We map and `Object.assign` here so we have a complete new
+                // object to sort.
+                row.items = row.items
+                    .map(item => Object.assign({}, item))
+                    .sort((a, b) => a.points - b.points);
                 if (this.editable) {
                     row.items.push(this.getEmptyItem());
                 }
@@ -327,46 +422,45 @@ export default {
             this.rubrics.push(this.getEmptyRow());
         },
 
-        deleteRubric() {
-            const success = () => {
-                this.rubrics = [];
-                setTimeout(() => {
-                    this.$root.$emit('bv::hide::modal', 'modal_delete_rubric');
-                }, 1000);
-                this.setRubric({
-                    assignmentId: this.assignmentId,
-                    rubric: null,
-                    maxPoints: null,
-                });
-            };
-
-            const req = this.$http
-                .delete(`/api/v1/assignments/${this.assignmentId}/rubrics/`)
-                .then(() => {
-                    success();
-                });
-
-            this.$refs.deleteButton.submit(
-                req.catch(({ response }) => {
-                    if (response.status === 404) {
-                        success();
-                    } else {
-                        throw response.data.message;
-                    }
-                }),
-            );
+        showDeleteModal() {
+            this.$root.$emit('bv::show::modal', 'modal_delete_rubric');
         },
 
-        checkFixedMaxPoints() {
+        deleteRubric() {
+            return this.$http.delete(`/api/v1/assignments/${this.assignmentId}/rubrics/`);
+        },
+
+        deleteFilter(err) {
+            if (err.response && err.response.status === 404) {
+                return err;
+            } else {
+                throw err;
+            }
+        },
+
+        afterDeleteRubric() {
+            this.loadAssignments();
+            this.rubrics = [];
+
+            this.$root.$emit('bv::hide::modal', 'modal_delete_rubric');
+
+            this.setRubric({
+                assignmentId: this.assignmentId,
+                rubric: null,
+                maxPoints: null,
+            });
+        },
+
+        ensureFixedMaxPoints() {
             if (this.internalFixedMaxPoints === '' || this.internalFixedMaxPoints == null) {
                 this.internalFixedMaxPoints = null;
             } else if (Number.isNaN(Number(this.internalFixedMaxPoints))) {
-                return `The given max points "${this.internalFixedMaxPoints}" is not a number`;
+                throw new Error(
+                    `The given max points "${this.internalFixedMaxPoints}" is not a number`,
+                );
             } else {
                 this.internalFixedMaxPoints = Number(this.internalFixedMaxPoints);
             }
-
-            return undefined;
         },
 
         getCheckedRubricRows() {
@@ -410,58 +504,32 @@ export default {
             }
 
             if (hasUnnamedCategories) {
-                this.$refs.submitButton.fail('There are unnamed categories!');
-                return undefined;
+                throw new Error('There are unnamed categories!');
             }
 
             if (wrongItems.length > 0) {
                 const multiple = wrongItems.length > 2;
-                this.$refs.submitButton.fail(`
+                throw new Error(`
 For the following item${multiple ? 's' : ''} please make sure "points" is
 a number: ${arrayToSentence(wrongItems)}.`);
-                return undefined;
             }
 
             if (wrongCategories.length > 0) {
                 const multiple = wrongCategories.length > 2;
-                this.$refs.submitButton.fail(`
+                throw new Error(`
 The following categor${multiple ? 'ies have' : 'y has'} a no items:
 ${arrayToSentence(wrongCategories)}.`);
-                return undefined;
             }
 
             if (rows.length === 0) {
-                this.$refs.submitButton.fail('You cannot submit an empty rubric.');
-                return undefined;
+                throw new Error('You cannot submit an empty rubric.');
             }
 
             return rows;
         },
 
-        submitMaxPoints() {
-            const err = this.checkFixedMaxPoints();
-            if (err) {
-                this.$refs.maxPointsButton.fail(err);
-                return;
-            }
-
-            const req = this.$http
-                .put(`/api/v1/assignments/${this.assignmentId}/rubrics/`, {
-                    max_points: this.internalFixedMaxPoints,
-                })
-                .then(({ data: rubric }) => {
-                    this.setRubric({
-                        assignmentId: this.assignmentId,
-                        rubric,
-                        maxPoints: this.internalFixedMaxPoints,
-                    });
-                });
-
-            this.$refs.maxPointsButton.submit(
-                waitAtLeast(500, req).catch(({ response }) => {
-                    throw response.data.message;
-                }),
-            );
+        clickSubmit() {
+            this.$refs.submitButton.onClick();
         },
 
         submit() {
@@ -470,39 +538,22 @@ ${arrayToSentence(wrongCategories)}.`);
             }
 
             const rows = this.getCheckedRubricRows();
+            this.ensureFixedMaxPoints();
 
-            const err = this.checkFixedMaxPoints();
-            if (err) {
-                this.$refs.maxPointsButton.fail(err);
-                return;
-            }
+            return this.$http.put(`/api/v1/assignments/${this.assignmentId}/rubrics/`, {
+                rows,
+                max_points: this.internalFixedMaxPoints,
+            });
+        },
 
-            if (rows == null) {
-                return;
-            }
-
-            const req = this.$http
-                .put(`/api/v1/assignments/${this.assignmentId}/rubrics/`, {
-                    rows,
-                    max_points: this.internalFixedMaxPoints,
-                })
-                .then(({ data: rubric }) => {
-                    this.setRubricData(rubric);
-                    this.setRubric({
-                        assignmentId: this.assignmentId,
-                        rubric,
-                        maxPoints: this.internalFixedMaxPoints,
-                    });
-                });
-            this.$refs.submitButton
-                .submit(
-                    req.catch(({ response }) => {
-                        throw response.data.message;
-                    }),
-                )
-                .then(() => {
-                    this.forceLoadSubmissions(this.assignmentId);
-                });
+        afterSubmit(response) {
+            this.setRubricData(response.data);
+            this.setRubric({
+                assignmentId: this.assignmentId,
+                rubric: response.data,
+                maxPoints: this.internalFixedMaxPoints,
+            });
+            this.forceLoadSubmissions(this.assignmentId);
         },
 
         addRubricRow() {
@@ -566,6 +617,7 @@ ${arrayToSentence(wrongCategories)}.`);
         SubmitButton,
         Loader,
         DescriptionPopover,
+        Multiselect,
     },
 };
 </script>
@@ -786,6 +838,10 @@ ${arrayToSentence(wrongCategories)}.`);
         border-color: @color-primary;
     }
 }
+
+.alert {
+    margin-bottom: 0;
+}
 </style>
 
 <style lang="less">
@@ -826,6 +882,15 @@ ${arrayToSentence(wrongCategories)}.`);
         border-top: 0;
         border-bottom-right-radius: 0.25rem;
         border-bottom-left-radius: 0.25rem;
+    }
+
+    .assignment-selector {
+        z-index: 8;
+        flex: 1;
+        .multiselect__tags {
+            border-bottom-right-radius: 0;
+            border-top-right-radius: 0;
+        }
     }
 }
 </style>

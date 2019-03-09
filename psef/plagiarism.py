@@ -11,10 +11,9 @@ import abc
 import csv
 import enum
 import typing as t
+import dataclasses
 
 import structlog
-
-import dataclasses
 
 from . import files, errors, models, helpers
 
@@ -69,7 +68,7 @@ class Option:
     type: OptionTypes
     mandatory: bool
     possible_options: t.Optional[t.Sequence[str]]
-    placeholder: t.Optional[t.Union[str, int, float]] = None
+    placeholder: t.Optional[str] = None
 
     def __to_json__(self) -> t.Mapping[str, object]:
         res: t.Dict[str, object] = dataclasses.asdict(self)
@@ -216,6 +215,35 @@ class PlagiarismProvider(metaclass=abc.ABCMeta):
             :func:`process_output_csv`.
         """
         return csvfile
+
+    @staticmethod
+    @abc.abstractmethod
+    def supports_progress() -> bool:
+        """Does this provider support showing progress to the user.
+
+        :returns: ``True`` if this provider supports progress detection.
+        """
+        raise NotImplementedError
+
+    @staticmethod
+    @abc.abstractmethod
+    def get_progress_from_line(prefix: str,
+                               line: str) -> t.Optional[t.Tuple[int, int]]:
+        """Get the progress of the plagiarism provider.
+
+        This function is called for every line of output produced by the
+        provider. This should return two values, the first value should be the
+        amount of submissions processed and the second the total amount. These
+        values first indicate that this many submissions have been parsed. When
+        the first value is equal to the second value it means that all
+        submissions have been parsed and that comparing has started.
+
+        You should return ``None`` if the given line doesn't contain progress
+        information.
+
+        :returns: Two values or ``None`` as described above.
+        """
+        raise NotImplementedError
 
     @staticmethod
     @abc.abstractmethod

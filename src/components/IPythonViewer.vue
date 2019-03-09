@@ -76,7 +76,7 @@
                                 </span>
                             </span>
                             <pre v-else-if="out.output_type === 'stream'">{{ out.text }}</pre>
-                            <pre v-else-if="out.output_type === 'error'">{{ out.text.traceback.join("\n") }}</pre>
+                            <pre v-else-if="out.output_type === 'error'">{{ out.traceback.join("\n") }}</pre>
                             <span v-else style="color: red;">
                                 <b>Unknown output type:</b> {{ out.output_type }}
                             </span>

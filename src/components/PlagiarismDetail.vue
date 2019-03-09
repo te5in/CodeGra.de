@@ -50,11 +50,13 @@
             </tbody>
         </table>
         <b-button-toolbar justify style="margin-top: 1em;">
-            <submit-button ref="submitExport"
-                           label="Export"
-                           @click="exportToLatex"/>
-            <submit-button label="Cancel" default="outline-primary"
-                           @click="$root.$emit('bv::hide::modal', 'plagiarism-export');"/>
+            <submit-button label="Export"
+                           :submit="exportToLatex"
+                           @after-success="afterExportToLatex"/>
+            <b-button variant="outline-primary"
+                      @click="$root.$emit('bv::hide::modal', 'plagiarism-export');">
+                Cancel
+            </b-button>
         </b-button-toolbar>
     </b-modal>
 
@@ -515,27 +517,20 @@ export default {
         },
 
         exportToLatex() {
-            const btn = this.$refs.submitExport;
             const matches = this.matchesSortedByRange.filter(a => this.exportMatches[a.id]);
+
             if (matches.length === 0) {
-                btn.fail('Select at least one case.');
-                return;
+                throw new Error('Select at least one case.');
             }
-            btn.submit(
-                this.getTexFile(matches).then(text => {
-                    this.$http.post('/api/v1/files/', text).then(response => {
-                        this.exportMatches = {};
-                        const [user1, user2] = this.detail.users;
-                        const fileName = `plagiarism_case_${nameOfUser(user1)}+${nameOfUser(
-                            user2,
-                        )}.tex`;
-                        window.open(
-                            `/api/v1/files/${response.data}/${encodeURIComponent(fileName)}`,
-                            '_blank',
-                        );
-                    });
-                }),
-            );
+
+            return this.getTexFile(matches).then(text => this.$http.post('/api/v1/files/', text));
+        },
+
+        afterExportToLatex(response) {
+            this.exportMatches = {};
+            const [user1, user2] = this.detail.users;
+            const fileName = `plagiarism_case_${nameOfUser(user1)}+${nameOfUser(user2)}.tex`;
+            window.open(`/api/v1/files/${response.data}/${encodeURIComponent(fileName)}`, '_blank');
         },
     },
 

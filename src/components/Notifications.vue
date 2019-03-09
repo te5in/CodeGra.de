@@ -32,7 +32,7 @@
             <b-input-group prepend="Send to"
                            class="extra-box">
                 <input type="text"
-                       @keyup.ctrl.enter="updateReminder"
+                       @keyup.ctrl.enter="$refs.updateReminder.onClick"
                        class="form-control"
                        v-model="doneEmail"/>
             </b-input-group>
@@ -56,7 +56,9 @@
         <hr style="width: 100%"/>
     </b-collapse>
 
-    <submit-button ref="updateReminder" @click="updateReminder"/>
+    <submit-button ref="updateReminder"
+                   :submit="updateReminder"
+                   @success="afterUpdateReminder"/>
 </div>
 </template>
 
@@ -64,7 +66,7 @@
 import { mapActions } from 'vuex';
 import moment from 'moment';
 
-import { convertToUTC, parseWarningHeader } from '@/utils';
+import { convertToUTC } from '@/utils';
 
 import SubmitButton from './SubmitButton';
 import DescriptionPopover from './DescriptionPopover';
@@ -126,53 +128,46 @@ divided or because they were assigned work manually.`,
         ...mapActions('courses', ['updateAssignment']),
 
         updateReminder() {
-            const type = this.graders || this.finished ? String(this.doneType) : null;
-            const time = this.graders ? convertToUTC(this.reminderTime) : null;
-            const email = this.finished ? this.doneEmail : null;
-            const button = this.$refs.updateReminder;
-
-            if ((this.graders || this.finished) && !type) {
+            if ((this.graders || this.finished) && !this.doneType) {
                 let msg =
                     'Please select when grading on this assignment should be considered finished.';
                 if (this.graders) {
                     msg +=
                         ' This also indicates who should get a notification when they are not yet done grading.';
                 }
-                button.fail(msg);
-                return;
+                throw new Error(msg);
             }
 
             const props = {
-                done_type: type,
+                done_type: this.doneType,
+                done_email: this.finished ? this.doneEmail : null,
+                reminder_time: this.graders ? convertToUTC(this.reminderTime) : null,
+            };
+
+            return this.$http.patch(this.assignmentUrl, props);
+        },
+
+        afterUpdateReminder() {
+            const time = this.graders ? convertToUTC(this.reminderTime) : null;
+            const email = this.finished ? this.doneEmail : null;
+
+            const props = {
+                done_type: this.doneType,
                 done_email: email,
                 reminder_time: time,
             };
 
-            const req = this.$http.patch(this.assignmentUrl, props).then(
-                res => {
-                    if (type != null) {
-                        props.reminder_time = moment
-                            .utc(time)
-                            .local()
-                            .format('YYYY-MM-DDTHH:mm');
-                    }
+            if (this.graders || this.finished) {
+                props.reminder_time = moment
+                    .utc(time)
+                    .local()
+                    .format('YYYY-MM-DDTHH:mm');
+            }
 
-                    this.updateAssignment({
-                        assignmentId: this.assignment.id,
-                        assignmentProps: props,
-                    });
-
-                    if (res.headers.warning) {
-                        button.cancel();
-                        button.warn(parseWarningHeader(res.headers.warning).text);
-                    }
-                },
-                err => {
-                    throw err.response.data.message;
-                },
-            );
-
-            button.submit(req);
+            this.updateAssignment({
+                assignmentId: this.assignment.id,
+                assignmentProps: props,
+            });
         },
     },
 

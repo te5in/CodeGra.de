@@ -26,8 +26,6 @@ describe('SnippetManager.vue', () => {
     let mockPut;
     let mockPatch;
     let mockDelete;
-    let mockSubmit;
-    let mockFail;
 
     function snippetIndex(snippet) {
         return comp.allSnippets.indexOf(snippet);
@@ -41,8 +39,6 @@ describe('SnippetManager.vue', () => {
         mockPut = jest.fn(() => Promise.resolve(true));
         mockPatch = jest.fn(() => Promise.resolve(true));
         mockDelete = jest.fn(() => Promise.resolve(true));
-        mockSubmit = jest.fn(() => Promise.resolve(true));
-        mockFail = jest.fn(() => Promise.resolve(false));
 
         store = new Vuex.Store({
             modules: {
@@ -267,46 +263,57 @@ describe('SnippetManager.vue', () => {
         });
 
         it('should not save if the snippet hasn\'t changed', async () => {
+            let caught = 0;
+
             for (let i = 0; i < comp.allSnippets.length; i++) {
                 const snippet = comp.allSnippets[i];
-                comp.$refs = { [`snippetSaveButton-${i}`]: { fail: mockFail } };
                 comp.snippetKeyChanged(snippet, snippet.origKey);
                 comp.snippetValueChanged(snippet, snippet.origValue);
-                await comp.saveSnippet(snippet, i);
+                try {
+                    await comp.saveSnippet(snippet, i);
+                } catch (e) {
+                    caught += 1;
+                }
             }
 
-            expect(mockFail).toBeCalledTimes(comp.allSnippets.length);
+            expect(caught).toBe(comp.allSnippets.length);
             expect(mockAdd).toBeCalledTimes(0);
             expect(mockUpdate).toBeCalledTimes(0);
             expect(mockPut).toBeCalledTimes(0);
             expect(mockPatch).toBeCalledTimes(0);
-            expect(mockSubmit).toBeCalledTimes(0);
         });
 
         it('should not save if the snippet has an invalid key or value', async () => {
+            let caught = 0;
+
             const snippet = comp.newSnippets[0];
             const index = snippetIndex(snippet);
-            comp.$refs = { [`snippetSaveButton-${index}`]: { fail: mockFail } };
             comp.snippetKeyChanged(snippet, '');
             comp.snippetValueChanged(snippet, 'value');
-            await comp.saveSnippet(snippet, index);
+            try {
+                await comp.saveSnippet(snippet, index);
+            } catch (e) {
+                caught += 1;
+            }
 
             comp.snippetKeyChanged(snippet, 'key');
             comp.snippetValueChanged(snippet, '');
-            await comp.saveSnippet(snippet, index);
+            try {
+                await comp.saveSnippet(snippet, index);
+            } catch (e) {
+                caught += 1;
+            }
 
-            expect(mockFail).toBeCalledTimes(2);
+            expect(caught).toBe(2);
             expect(mockAdd).toBeCalledTimes(0);
             expect(mockUpdate).toBeCalledTimes(0);
             expect(mockPut).toBeCalledTimes(0);
             expect(mockPatch).toBeCalledTimes(0);
-            expect(mockSubmit).toBeCalledTimes(0);
         });
 
         it('should add a new snippet if the snippet has no id', async () => {
             const snippet = comp.newSnippets[0];
             const index = snippetIndex(snippet);
-            comp.$refs = { [`snippetSaveButton-${index}`]: { submit: mockSubmit } }
             snippet.id = null;
             comp.snippetKeyChanged(snippet, 'key');
             comp.snippetValueChanged(snippet, 'value');
@@ -316,7 +323,6 @@ describe('SnippetManager.vue', () => {
             expect(mockUpdate).toBeCalledTimes(0);
             expect(mockPut).toBeCalledTimes(1);
             expect(mockPatch).toBeCalledTimes(0);
-            expect(mockSubmit).toBeCalledTimes(1);
 
             const newSnippet = comp.newSnippets[0];
             expect(newSnippet.key).toBe('');
@@ -324,8 +330,6 @@ describe('SnippetManager.vue', () => {
         });
 
         it('should update a snippet if the snippet has an id', async () => {
-            comp.$refs = { ['snippetSaveButton-0']: { submit: mockSubmit } }
-
             const snippet = comp.allSnippets[0];
             comp.snippetKeyChanged(snippet, 'key');
             comp.snippetValueChanged(snippet, 'value');
@@ -335,7 +339,6 @@ describe('SnippetManager.vue', () => {
             expect(mockUpdate).toBeCalledTimes(1);
             expect(mockPut).toBeCalledTimes(0);
             expect(mockPatch).toBeCalledTimes(1);
-            expect(mockSubmit).toBeCalledTimes(1);
         });
     });
 
@@ -359,19 +362,20 @@ describe('SnippetManager.vue', () => {
             const snippet = comp.newSnippets[0];
             comp.snippetKeyChanged(snippet, 'key');
             comp.snippetKeyChanged(snippet, '');
-            await comp.deleteSnippet(snippet, snippetIndex(snippet));
+            await comp.deleteSnippet(snippet).then(() => {
+                comp.afterDeleteSnippet(snippet, snippetIndex(snippet));
+            });
             expect(comp.newSnippets.length).toBe(1);
         });
 
         it('should delete a snippet with an id from the store', async () => {
-            comp.$refs = { ['snippetDeleteButton-0']: { submit: mockSubmit } };
-
             const snippet = comp.allSnippets[0];
             comp.snippetKeyChanged(snippet, 'key');
-            await comp.deleteSnippet(snippet, snippetIndex(snippet));
+            await comp.deleteSnippet(snippet).then(() => {
+                comp.afterDeleteSnippet(snippet, snippetIndex(snippet));
+            });
             expect(mockRemove).toBeCalledTimes(1);
             expect(mockDelete).toBeCalledTimes(1);
-            expect(mockSubmit).toBeCalledTimes(1);
         });
     });
 

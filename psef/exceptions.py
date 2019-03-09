@@ -17,6 +17,7 @@ class APIWarnings(IntEnum):
     SYMLINK_IN_ARCHIVE = 3
     INVALID_FILENAME = 4
     WEAK_PASSWORD = 5
+    UNASSIGNED_ASSIGNMENTS = 6
 
 
 @unique

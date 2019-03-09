@@ -19,9 +19,9 @@
                         <b-dropdown-item @click="clicked(true, 'Custom config')">Custom config</b-dropdown-item>
                     </b-dropdown>
                     <submit-button label="Run"
-                                   @click="run"
-                                   ref="submitBtn"
-                                   :disabled="Object.keys(options).length !== 0 && selectedOption === 'Select config file'"/>
+                                   :submit="run"
+                                   @after-success="afterRun"
+                                   :disabled="runButtonDisabled"/>
                 </b-button-toolbar>
 
                 <b-collapse :id="`sub_collapse_${name}_${assignment.id}`">
@@ -34,46 +34,103 @@
                 </b-collapse>
             </div>
 
-            <submit-button label="Run"
-                           ref="submitBtn"
-                           @click="run"
-                           v-else/>
+            <submit-button v-else
+                           label="Run"
+                           :submit="run"
+                           @after-success="afterRun"/>
         </div>
-        <div v-else-if="state == 'running'">
-            <b-progress v-model="done"
+        <div v-else-if="state != 'new' && working > 0">
+            <b-progress :value="done + crashed"
                         :max="done + working + crashed"
-                        :precision="1"
                         animated/>
-            <span class="text-center progress-text">{{ done }} out of {{ working + done }}</span>
+            <span class="text-center progress-text">{{ done + crashed }} out of {{ working + crashed + done }}</span>
         </div>
-        <div v-else>
-            <div class="row justify-content-md-center">
-                <b-btn class="text-center margin btn delete"
-                       variant="danger"
-                       @click="$root.$emit('bv::show::modal',`modal_${name}_${assignment.id}`)">
-                    <span v-if="crashed > 0 || state === 'crashed'">Crashed! - </span>Remove output
-                </b-btn>
-                <b-modal :id="`modal_${name}_${assignment.id}`"
-                         title="Are you sure?"
-                         :hide-footer="true">
-                    <div class="row justify-content-md-center"
-                         v-if="deleting">
-                        <b-btn class="text-center" variant="outline-danger"><loader :scale="1"/></b-btn>
-                    </div>
-                    <div v-else>
-                        <b-btn class="text-center"
-                               variant="outline-danger"
-                               v-on:click="deleteFeedback">
-                            Yes, delete this data.
-                        </b-btn>
-                        <b-btn class="text-center right-float"
-                               variant="success"
-                               v-on:click="$root.$emit('bv::hide::modal', `modal_${name}_${assignment.id}`)">
-                            No!
-                        </b-btn>
-                    </div>
-                </b-modal>
-            </div>
+        <div v-if="state !== 'new'" class="info-wrapper">
+            <b-button-toolbar justify>
+                <submit-button class="delete-button"
+                               :disabled="state === 'new'"
+                               variant="danger"
+                               confirm="Are you sure you want to delete the
+                                        output?"
+                               :submit="deleteFeedback"
+                               @after-success="afterDeleteFeedback">
+                    Remove output
+                </submit-button>
+                <div v-b-popover.top.hover="hasCrashedRuns && !showMoreInfo ? 'Some runs did not exit successfully.' : ''">
+                    <submit-button
+                        label="moreInformation"
+                        :submit="getInformation"
+                        @success="showMoreInfo = !showMoreInfo"
+                        :duration="0"
+                        variant="secondary">
+                        <span v-if="showMoreInfo">Hide more information</span>
+                        <span v-else>
+                            <icon v-if="hasCrashedRuns" name="exclamation-triangle"/>
+                            Show more information
+                        </span>
+                    </submit-button>
+                </div>
+            </b-button-toolbar>
+            <b-collapse :id="`linter-more-info-${compId}`"
+                        class="info-collapse"
+                        v-model="showMoreInfo">
+                <!-- Null is used as initial value, so we want to show the loader
+                if the data is not loaded yet -->
+                <input class="form-control"
+                       placeholder="Type to search runs"
+                       v-model="infoFilter"/>
+                <div class="table-wrapper">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th class="col-xs-9">Student</th>
+                                <th class="col-xs-9">Status</th>
+                                <th/>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="test in sortedFilteredTests">
+                                <td class="col-xs-9 detail-run-user"><user :user="test.work.user"/></td>
+                                <td class="state col-xs-3">
+                                    <span class="detail-run-state">{{ test.state }}</span>
+                                    <loader :center="false"
+                                            class="detail-run-loader"
+                                            v-if="test.state === 'running'"
+                                            :scale="1"/>
+                                    <icon class="detail-run-crashed"
+                                          :id="`detail-linter-crash-button-${test.id}`"
+                                          v-else-if="test.state === 'crashed'"
+                                          name="exclamation-triangle"/>
+                                    <b-popover v-if="test.state === 'crashed'"
+                                               triggers="click"
+                                               title="The linter crashed!"
+                                               :target="`detail-linter-crash-button-${test.id}`">
+                                        <inner-markdown-viewer :markdown="test.error_summary"
+                                                               class="linter-error-summary"
+                                                               disable-math/>
+                                    </b-popover>
+                                </td>
+                                <td>
+                                    <div v-b-popover.top.hover="'Download the output of the linter.'"
+                                         v-if="test.state === 'crashed'">
+                                        <submit-button size="sm"
+                                                    :submit="() => downloadLog(test)"
+                                                    @success="afterDownloadLog"
+                                                    class="download-log-btn">
+                                            <icon name="download"/>
+                                        </submit-button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr v-if="sortedFilteredTests.length === 0">
+                                <td colspan="3" class="text-muted text-center">
+                                    No runs found
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </b-collapse>
         </div>
     </div>
 </div>
@@ -81,11 +138,17 @@
 
 <script>
 import Icon from 'vue-awesome/components/Icon';
-import 'vue-awesome/icons/check';
-import 'vue-awesome/icons/times';
+import 'vue-awesome/icons/exclamation-triangle';
+import 'vue-awesome/icons/download';
+
+import { nameOfUser } from '@/utils';
 
 import SubmitButton from './SubmitButton';
+import InnerMarkdownViewer from './InnerMarkdownViewer';
 import Loader from './Loader';
+import User from './User';
+
+let compId = 0;
 
 export default {
     name: 'linter',
@@ -103,12 +166,69 @@ export default {
             done: 0,
             working: 0,
             crashed: 0,
+            compId: compId++,
+            showMoreInfo: false,
+            destroyed: false,
+            infoFilter: '',
+            tests: null,
         };
+    },
+
+    beforeDestroy() {
+        this.destroyed = true;
     },
 
     computed: {
         description() {
             return this.serverDescription;
+        },
+
+        hasCrashedRuns() {
+            return this.state === 'crashed' || this.crashed > 0;
+        },
+
+        runButtonDisabled() {
+            return (
+                Object.keys(this.options).length > 0 && this.selectedOption === 'Select config file'
+            );
+        },
+
+        sortedFilteredTests() {
+            const done = [];
+            const crashed = [];
+            const running = [];
+
+            let tests = this.tests || [];
+            if (this.infoFilter) {
+                const filter = this.infoFilter.toLowerCase().split(' ');
+                tests = tests.filter(t =>
+                    filter.every(
+                        f =>
+                            t.state.indexOf(f) >= 0 ||
+                            nameOfUser(t.work.user)
+                                .toLowerCase()
+                                .indexOf(f) >= 0,
+                    ),
+                );
+            }
+
+            tests
+                .sort((a, b) => {
+                    const nameA = nameOfUser(a.work.user);
+                    const nameB = nameOfUser(b.work.user);
+                    return nameA.localeCompare(nameB);
+                })
+                .forEach(test => {
+                    if (test.state === 'running') {
+                        running.push(test);
+                    } else if (test.state === 'crashed') {
+                        crashed.push(test);
+                    } else {
+                        done.push(test);
+                    }
+                });
+
+            return [...running, ...crashed, ...done];
         },
     },
 
@@ -124,12 +244,48 @@ export default {
         Loader,
         Icon,
         SubmitButton,
+        User,
+        InnerMarkdownViewer,
     },
 
     methods: {
-        strState() {
-            return this.state.charAt(0).toUpperCase() + this.state.slice(1);
+        getInformation() {
+            if (!this.showMoreInfo && this.tests == null) {
+                return this.$http.get(`/api/v1/linters/${this.id}?extended`).then(({ data }) => {
+                    this.updateData(data);
+                });
+            } else {
+                return Promise.resolve();
+            }
         },
+
+        downloadLog(test) {
+            return this.$http
+                .get(`/api/v1/linters/${this.id}/linter_instances/${test.id}`)
+                .then(({ data }) =>
+                    this.$http
+                        .post(
+                            '/api/v1/files/',
+                            `${data.error_summary}\n${data.stdout}\n${data.stderr}`,
+                        )
+                        .then(res => ({
+                            data: res.data,
+                            user: test.work.user,
+                        })),
+                );
+        },
+
+        afterDownloadLog(response) {
+            const params = new URLSearchParams();
+            params.append('not_as_attachment', '');
+            const filename = `Linter log for ${nameOfUser(response.user)}.txt`;
+            window.open(
+                `/api/v1/files/${response.data}/${encodeURIComponent(
+                    filename,
+                )}?${params.toString()}`,
+            );
+        },
+
         changeSubCollapse(state) {
             if (Boolean(this.collapseState) !== state) {
                 this.$root.$emit(
@@ -148,42 +304,58 @@ export default {
         },
 
         deleteFeedback() {
-            this.deleting = true;
-            this.$http.delete(`/api/v1/linters/${this.id}`).then(() => {
-                this.$root.$emit('bv::hide::modal', `modal_${this.name}_${this.assignment.id}`);
-
-                this.selected = false;
-                this.deleting = false;
-
-                this.$root.$emit('collapse::toggle', `collapse_${this.name}_${this.assignment.id}`);
-
-                this.$nextTick(() => {
-                    this.state = 'new';
-                });
-            });
+            return this.$http.delete(`/api/v1/linters/${this.id}`);
         },
+
+        afterDeleteFeedback() {
+            this.showMoreInfo = false;
+            this.tests = null;
+            this.state = 'new';
+        },
+
         startUpdateLoop() {
-            this.$http.get(`/api/v1/linters/${this.id}`).then(({ data }) => this.updateData(data));
+            if (!this.destroyed) {
+                let url = `/api/v1/linters/${this.id}`;
+                if (this.tests != null) {
+                    url += '?extended';
+                }
+                this.$http.get(url).then(({ data }) => this.updateData(data));
+            }
         },
+
         updateData(data) {
-            this.done = data.done;
-            this.working = data.working;
-            this.crashed = data.crashed;
+            if (data.tests != null) {
+                this.done = 0;
+                this.working = 0;
+                this.crashed = 0;
+                data.tests.forEach(test => {
+                    if (test.state === 'running') {
+                        this.working += 1;
+                    } else if (test.state === 'done') {
+                        this.done += 1;
+                    } else if (test.state === 'crashed') {
+                        this.crashed += 1;
+                    }
+                });
+                this.tests = data.tests;
+            } else {
+                this.done = data.done;
+                this.working = data.working;
+                this.crashed = data.crashed;
+            }
             this.id = data.id;
 
-            if (this.crashed > 0) {
-                this.state = 'crashed';
-            } else if (this.working === 0) {
+            if (this.working === 0) {
                 this.state = 'done';
             } else {
-                this.state = 'running';
+                this.state = this.crashed > 0 ? 'crashed' : 'running';
                 this.$nextTick(() => {
-                    setTimeout(() => this.startUpdateLoop(), 1000);
+                    setTimeout(this.startUpdateLoop, data.tests == null ? 1000 : 5000);
                 });
             }
         },
 
-        run(_, extraOpts) {
+        run() {
             let cfg;
             if (this.selectedOption === 'Custom config') {
                 cfg = this.config;
@@ -195,21 +367,14 @@ export default {
             this.working = 0;
             this.crashed = 0;
 
-            this.$refs.submitBtn.submitFunction(
-                () =>
-                    this.$http
-                        .post(`/api/v1/assignments/${this.assignment.id}/linter`, {
-                            name: this.name,
-                            cfg: cfg || '',
-                        })
-                        .then(({ data }) => {
-                            this.updateData(data);
-                        })
-                        .catch(({ response }) => {
-                            throw response.data.message;
-                        }),
-                extraOpts,
-            );
+            return this.$http.post(`/api/v1/assignments/${this.assignment.id}/linter`, {
+                name: this.name,
+                cfg: cfg || '',
+            });
+        },
+
+        afterRun(response) {
+            this.updateData(response.data);
         },
     },
 };
@@ -218,15 +383,6 @@ export default {
 <style lang="less" scoped>
 .margin {
     margin-bottom: 15px;
-}
-
-.large-btn {
-    margin-top: 1em;
-    padding: 15px 5em;
-}
-
-.right-float {
-    float: right;
 }
 
 .center-table {
@@ -248,9 +404,58 @@ export default {
     margin-bottom: 15px;
 }
 
-.btn.delete {
-    height: 3em;
-    margin-top: 0;
-    min-width: 14em;
+.info-wrapper {
+    margin-bottom: 1rem;
+}
+
+.info-collapse {
+    margin-top: 1rem;
+}
+
+.table-wrapper {
+    margin-top: 1rem;
+    max-height: 20rem;
+    overflow-y: auto;
+    width: 100%;
+    display: block;
+    border: 1px solid #dee2e6;
+    border-radius: 0.25rem;
+    .table {
+        margin-bottom: 0;
+    }
+    .table thead th {
+        border-top: none;
+    }
+    td {
+        vertical-align: middle;
+    }
+    td:not(:first-child) {
+        width: 1px;
+        white-space: nowrap;
+    }
+}
+
+.state {
+    text-transform: capitalize;
+}
+
+.detail-run-loader,
+.detail-run-crashed {
+    margin-left: 5px;
+    vertical-align: middle;
+}
+
+.detail-run-crashed {
+    cursor: help;
+}
+
+.detail-loader {
+    margin: 0 1rem;
+}
+</style>
+
+<style>
+.linter-error-summary p {
+    margin-bottom: 0;
 }
 </style>

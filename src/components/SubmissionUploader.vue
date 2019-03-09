@@ -21,14 +21,22 @@
             present in these files before you delete them!
         </p>
         <b-button-toolbar justify>
-            <submit-button ref="submitDelete"
-                           label="Delete files" default="danger"
-                           @click="overrideSubmit('delete', $refs.submitDelete)"/>
-            <submit-button ref="submitKeep"
-                           label="Keep files" default="warning"
-                           @click="overrideSubmit('keep', $refs.submitKeep)"/>
-            <submit-button label="Cancel submission"
-                           @click="$root.$emit('bv::hide::modal', 'wrong-files-modal');"/>
+            <submit-button label="Delete files"
+                           variant="danger"
+                           :submit="() => overrideSubmit('delete')"
+                           @after-success="afterOverrideSubmit"
+                           @error="$emit('error', $event)"/>
+
+            <submit-button label="Keep files"
+                           variant="warning"
+                           :submit="() => overrideSubmit('keep')"
+                           @after-success="afterOverrideSubmit"
+                           @error="$emit('error', $event)"/>
+
+            <b-button variant="outline-primary"
+                      @click="$root.$emit('bv::hide::modal', 'wrong-files-modal')">
+                Cancel submission
+            </b-button>
         </b-button-toolbar>
     </b-modal>
 
@@ -78,38 +86,29 @@
         </div>
 
         <b-button-toolbar justify>
-            <submit-button label="Cancel submission"
-                           default="danger"
-                           @click="$root.$emit('bv::hide::modal', 'group-manage-modal');"
-                           />
+            <b-button variant="danger"
+                      @click="$root.$emit('bv::hide::modal', 'group-manage-modal')">
+                Cancel submission
+            </b-button>
+
             <submit-button label="Try again"
-                           @click="trySubmitAgain($refs.tryAgainButton)"
-                           ref="tryAgainButton"
                            :disabled="groupSubmitPossible"
+                           :submit="trySubmitAgain"
+                           @success="afterTrySubmitAgain"
+                           @error="trySubmitAgainError"
                            />
         </b-button-toolbar>
     </b-modal>
 
-    <b-popover :show.sync="showWarn"
-               :target="uploaderId"
-               placement="top"
-               :disabled="!showWarn"
-               @hidden="$emit('warn-popover-hidden')">
-        <p>You are now submitting with yourself as author, are you sure you want to continue?</p>
-        <b-button-toolbar justify>
-            <b-btn variant="danger" @click="rejectWarn">Stop</b-btn>
-            <b-btn variant="success" @click="acceptWarn">Ok</b-btn>
-        </b-button-toolbar>
-    </b-popover>
     <file-uploader ref="uploader"
                    :button-id="uploaderId"
                    :url="getUploadUrl()"
-                   :show-empty="true"
                    :disabled="disabled"
-                   :before-upload="checkUpload"
+                   :confirm="confirmationMessage"
                    @error="uploadError"
                    @clear="author = null"
-                   @response="response">
+                   @response="response"
+                   :maybe-handle-error="handleUploadError">
         <user-selector v-model="author"
                        select-label=""
                        :disabled="disabled"
@@ -158,14 +157,6 @@ export default {
         },
     },
 
-    watch: {
-        showWarn(newVal, oldVal) {
-            if (oldVal && !newVal && this.rejectWarn) {
-                this.rejectWarn(true);
-            }
-        },
-    },
-
     computed: {
         ...mapGetters('user', { myUsername: 'username', myName: 'name' }),
 
@@ -180,16 +171,23 @@ export default {
             );
         },
 
-        warnForSelf() {
-            return this.forOthers;
-        },
-
         differentAuthor() {
             return !!(this.forOthers && this.author);
         },
 
         currentAuthor() {
             return this.differentAuthor ? this.author : this.defaultAuthor;
+        },
+
+        confirmationMessage() {
+            if (
+                this.forOthers &&
+                (this.author == null || this.defaultAuthor.username === this.author.username)
+            ) {
+                return 'You are now submitting with yourself as author, are you sure you want to continue?';
+            } else {
+                return '';
+            }
         },
     },
 
@@ -198,9 +196,6 @@ export default {
             emptySet: new Set(),
             wrongFiles: [],
             author: null,
-            showWarn: false,
-            rejectWarn: null,
-            acceptWarn: null,
             // This variable is a haxxxy optimization: Rendering a modal is SLOW
             // (!!) as it forces an entire reflow even when it is still
             // hidden. I most cases the modal on this page is never shown (it is
@@ -237,70 +232,36 @@ export default {
             this.currentGroup = null;
         },
 
+        isArchiveError(err) {
+            const { code } = err.response.data;
+            return code === 'INVALID_FILE_IN_ARCHIVE';
+        },
+
         isGroupError(err) {
-            const { code } = err.data;
+            const { code } = err.response.data;
             return (
                 code === 'INSUFFICIENT_GROUP_SIZE' || code === 'ASSIGNMENT_RESULT_GROUP_NOT_READY'
             );
         },
 
+        handleUploadError(err) {
+            return this.isArchiveError(err) || this.isGroupError(err);
+        },
+
         async uploadError(err) {
-            const { code } = err.data;
+            const { data } = err.response;
 
-            const done = async () => {
-                // We need the double next ticks as next ticks are executed before
-                // data updates of the next tick.
-                await this.$nextTick();
-                await this.$nextTick();
-                this.$refs.uploader.$refs.submitButton.reset();
-            };
-
-            if (code === 'INVALID_FILE_IN_ARCHIVE') {
-                this.wrongFiles = err.data.invalid_files;
+            if (this.isArchiveError(err)) {
+                this.wrongFiles = data.invalid_files;
                 this.showWrongFileModal = true;
                 await this.$nextTick();
                 this.$root.$emit('bv::show::modal', 'wrong-files-modal');
-                done();
             } else if (this.isGroupError(err)) {
-                this.currentGroup = err.data.group;
+                this.currentGroup = data.group;
                 this.showGroupModal = true;
                 await this.$nextTick();
                 this.$root.$emit('bv::show::modal', 'group-manage-modal');
-                done();
             }
-        },
-
-        checkUpload() {
-            if (
-                this.warnForSelf &&
-                (this.author == null || this.defaultAuthor.username === this.author.username)
-            ) {
-                this.showWarn = true;
-                return new Promise(resolve => {
-                    const resetData = () => {
-                        this.showWarn = false;
-                        this.acceptWarn = null;
-                        this.rejectWarn = null;
-                        // eslint-disable-next-line
-                        this.$off('warn-popover-hidden', continueUpload);
-                    };
-
-                    const continueUpload = () => {
-                        resetData();
-                        resolve(false);
-                    };
-                    const stopUpload = () => {
-                        resetData();
-                        resolve(true);
-                    };
-
-                    this.acceptWarn = continueUpload;
-                    this.rejectWarn = stopUpload;
-                    this.$on('warn-popover-hidden', stopUpload);
-                });
-            }
-
-            return Promise.resolve();
         },
 
         getUploadUrl(ignored = 'error') {
@@ -313,47 +274,46 @@ export default {
             return res;
         },
 
-        overrideSubmit(type, btn) {
+        overrideSubmit(type) {
             const { requestData } = this.$refs.uploader;
             const url = this.getUploadUrl(type);
 
-            btn.submit(
-                this.$http.post(url, requestData).then(
-                    ({ data: submission }) => {
-                        this.addSubmission({
-                            assignmentId: this.assignment.id,
-                            submission,
-                        });
-                        this.$emit('created', submission);
-                        this.$root.$emit('bv::hide::modal', 'wrong-files-modal');
-                    },
-                    ({ response }) => {
-                        this.$emit('error', response);
-                        throw response.data.message;
-                    },
-                ),
-            );
+            return this.$http.post(url, requestData);
         },
 
-        trySubmitAgain(btn) {
+        afterOverrideSubmit(response) {
+            const submission = response.data;
+
+            this.addSubmission({
+                assignmentId: this.assignment.id,
+                submission,
+            });
+            this.$emit('created', submission);
+            this.$root.$emit('bv::hide::modal', 'wrong-files-modal');
+        },
+
+        trySubmitAgain() {
             const { requestData } = this.$refs.uploader;
             const url = this.getUploadUrl();
 
-            btn.submit(this.$http.post(url, requestData)).then(
-                ({ data: submission }) => {
-                    this.addSubmission({ assignmentId: this.assignment.id, submission });
-                    this.$emit('created', submission);
-                    this.$root.$emit('bv::hide::modal', 'wrong-files-modal');
-                    this.$root.$emit('bv::hide::modal', 'group-manage-modal');
-                },
-                ({ response }) => {
-                    this.$emit('error', response);
-                    if (!this.isGroupError(response)) {
-                        this.uploadError(response);
-                    }
-                    throw response.data.message;
-                },
-            );
+            return this.$http.post(url, requestData);
+        },
+
+        afterTrySubmitAgain(response) {
+            const submission = response.data;
+
+            this.addSubmission({ assignmentId: this.assignment.id, submission });
+            this.$emit('created', submission);
+            this.$root.$emit('bv::hide::modal', 'wrong-files-modal');
+            this.$root.$emit('bv::hide::modal', 'group-manage-modal');
+        },
+
+        trySubmitAgainError(response) {
+            this.$emit('error', response);
+
+            if (!this.isGroupError(response)) {
+                this.uploadError(response);
+            }
         },
 
         response({ data: submission }) {

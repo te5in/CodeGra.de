@@ -20,8 +20,8 @@ from .file import File, FileOwner
 from .linter import LinterState, LinterComment, LinterInstance
 from .rubric import RubricItem
 from .comment import Comment
-from ..exceptions import PermissionException
 from .link_tables import work_rubric_item
+from ..exceptions import PermissionException
 from ..permissions import CoursePermission
 
 if t.TYPE_CHECKING:  # pragma: no cover
@@ -175,19 +175,14 @@ class Work(Base):
 
         :returns: Nothing
         """
-        self.assigned_to = self.assignment.get_from_latest_submissions(
-            Work.assigned_to
-        ).filter(Work.user_id == self.user_id).limit(1).scalar()
+        self.assigned_to = self.assignment.get_assignee_for_submission(self)
 
-        if self.assigned_to is None:
-            missing, _ = self.assignment.get_divided_amount_missing()
-            if missing:
-                self.assigned_to = max(missing.keys(), key=missing.get)
-                self.assignment.set_graders_to_not_done(
-                    [self.assigned_to],
-                    send_mail=True,
-                    ignore_errors=True,
-                )
+        if self.assigned_to is not None:
+            self.assignment.set_graders_to_not_done(
+                [self.assigned_to],
+                send_mail=True,
+                ignore_errors=True,
+            )
 
     def run_linter(self) -> None:
         """Run all linters for the assignment on this work.
@@ -310,9 +305,7 @@ class Work(Base):
 
             db.session.query(GradeHistory).filter(
                 GradeHistory.id == newest_grade_history_id.as_scalar(),
-            ).update({
-                'passed_back': True
-            }, synchronize_session='fetch')
+            ).update({'passed_back': True}, synchronize_session='fetch')
 
     def select_rubric_items(
         self,

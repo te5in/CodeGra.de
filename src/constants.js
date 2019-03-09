@@ -27,3 +27,16 @@ export const MANAGE_COURSE_PERMISSIONS = Object.freeze([
 ]);
 
 export const MANAGE_SITE_PERIMSSIONS = Object.freeze(['can_manage_site_users']);
+
+export const PASSWORD_UNIQUE_MESSAGE =
+    'Please make sure you use a unique password, and at least different from the password you use for your LMS.';
+
+export const NO_LOGIN_ALLOWED_ROUTES = new Set(['login', 'register']);
+
+export const NO_LOGIN_REQUIRED_ROUTES = new Set([
+    'login',
+    'forgot',
+    'reset-password',
+    'register',
+    'lti-launch',
+]);
