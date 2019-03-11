@@ -37,7 +37,7 @@
         <password-input v-model="oldPw"
                         v-if="canEditPw || canEditInfo">
             <b-input-group-prepend is-text slot="prepend">
-                Old Password
+                Current Password
                 <description-popover hug-text
                                      placement="right"
                                      triggers="click"
