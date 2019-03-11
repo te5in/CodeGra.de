@@ -8,7 +8,9 @@ import {
     hashString,
     getExtension,
     waitAtLeast,
-    highlightCode
+    highlightCode,
+    nameOfUser,
+    groupMembers,
 } from '@/utils';
 
 import * as visualize from '@/utils/visualize';
@@ -225,6 +227,58 @@ describe('utils.js', () => {
             expect(highlightCode(code, 'python')).toEqual(result);
             expect(mockVisul).toHaveBeenCalledTimes(code.length);
             expect(mockGetLang).toHaveBeenCalledTimes(1);
+        });
+    });
+
+    describe('nameOfUser', () => {
+        const obj = {};
+
+        it('should work for normal users', () => {
+            expect(nameOfUser({
+                name: obj
+            })).toBe(obj);
+        });
+
+        it('should work for groups', () => {
+            const groupName = `The name ${Math.random()}`;
+            expect(nameOfUser({
+                name: obj,
+                group: { name: groupName },
+            })).toEqual(`Group "${groupName}"`);
+        });
+
+        it('should work for empty objects', () => {
+            expect(nameOfUser(null)).toEqual('');
+            expect(nameOfUser({})).toEqual('');
+        });
+    });
+
+    describe('groupMembers', () => {
+        it('should work for normal users', () => {
+            expect(groupMembers({
+                name: 'hello'
+            })).toEqual([]);
+        });
+
+        it('should work for groups', () => {
+            const name1 = Math.random();
+            const name2 = Math.random();
+
+            const groupName = `The name ${Math.random()}`;
+            expect(groupMembers({
+                name: 'HALLO',
+                group: {
+                    members: [
+                        { name: name1 },
+                        { name: name2 },
+                    ],
+                },
+            })).toEqual([name1, name2]);
+        });
+
+        it('should work for empty objects', () => {
+            expect(groupMembers(null)).toEqual([]);
+            expect(groupMembers({})).toEqual([]);
         });
     });
 });
