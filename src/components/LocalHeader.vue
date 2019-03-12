@@ -127,6 +127,10 @@ export default {
     .default-footer-colors;
     box-shadow: 0 0 4px rgba(0, 0, 0, 0.75);
     color: @text-color;
+
+    #app.dark & {
+        color: @text-color-dark;
+    }
 }
 
 @media @media-small {
