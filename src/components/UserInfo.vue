@@ -43,20 +43,21 @@
                                      triggers="click"
                                      title="What is my current password?">
                     <p slot="description"
-                       style="text-align: left; margin-bottom: 0;">
-                        If your account was created by using your LMS
-                        (Canvas, blackboard or another) it can happen
-                        that you don't know this password. In this case
-                        you should use the
-                        <router-link :to="{ name: 'forgot' }"
-                                     target="_blank">
-                            reset password</router-link> page.<br><br>
+                       style="text-align: left; margin-bottom: 0.25rem;">
+                        If your account was created by using an
+                        <span title="Learning Management System, e.g. Canvas or Blackboard"
+                              style="cursor: help; border-bottom: 1px dotted currentColor;">
+                            LMS</span>
+                        it can happen that you don't know this password. In
+                        this case you should use the
+                        <router-link :to="{ name: 'forgot' }" target="_blank">
+                            reset password</router-link>
+                        page.<br><br>
 
-                        However this does require
-                        that your email is correct. If this is not the
-                        case you can force CodeGrade to copy the email
-                        that your LMS gives us the next time you use
-                        CodeGra.de within your LMS. To do this please
+                        However this does require that your email is correct.
+                        If this is not the case you can force CodeGrade to copy
+                        the email that your LMS gives us the next time you use
+                        CodeGrade within your LMS. To do this please
                         press <submit-button
                                   label="here"
                                   id="resetOnLtiButton-fixPopover"

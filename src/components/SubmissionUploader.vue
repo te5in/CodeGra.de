@@ -62,13 +62,13 @@
                 </span>
             </p>
             <p v-if="assignment.is_lti">
-                This assignment is coupled to an assignment in your LMS (like
-                Canvas). This means that every user has to open the assignment
-                at least once through this LMS. Every user below <b>without</b>
-                a check-mark next to their name should try to (re)open the
-                assignment. If this issue persists, please contact CodeGrade
-                support. You cannot submit while there are still members without
-                a check-mark next to their name.
+                This assignment is connected to an assignment in your
+                {{ lmsName }}. This means that every user has to open the
+                assignment at least once through {{ lmsName }}. Every user
+                below <b>without</b> a check-mark next to their name should try
+                to (re)open the assignment. If this issue persists, please
+                contact CodeGrade support. You cannot submit while there are
+                still members without a check-mark next to their name.
             </p>
 
             <div class="group-modal-body">
@@ -80,8 +80,7 @@
                                                        ((group) => currentGroup.id === group.id) :
                                                        (() => false)"
                                    @groups-changed="groupsChanged"
-                                   :show-add-button="!currentGroup"
-                                   />
+                                   :show-add-button="!currentGroup"/>
             </div>
         </div>
 
@@ -188,6 +187,10 @@ export default {
             } else {
                 return '';
             }
+        },
+
+        lmsName() {
+            return this.assignment.lms_name;
         },
     },
 

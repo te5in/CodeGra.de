@@ -29,8 +29,8 @@ from .. import auth, helpers
 from .role import CourseRole
 from .rubric import RubricRow, RubricItem
 from .permission import Permission
-from .link_tables import user_course, work_rubric_item, course_permissions
 from ..exceptions import PermissionException, InvalidAssignmentState
+from .link_tables import user_course, work_rubric_item, course_permissions
 from ..permissions import CoursePermission as CPerm
 
 if t.TYPE_CHECKING:  # pragma: no cover
@@ -756,6 +756,8 @@ class Assignment(Base):  # pylint: disable=too-many-public-methods
                 'deadline': str, # ISO UTC date.
                 'name': str, # Assignment name.
                 'is_lti': bool, # Is this an LTI assignment.
+                'lms_name': t.Optional[str], # The LMS providing this LTI
+                                             # assignment.
                 'course': models.Course, # Course of this assignment.
                 'cgignore': str, # The cginore of this assignment.
                 'whitespace_linter': bool, # Has the whitespace linter
@@ -804,6 +806,11 @@ class Assignment(Base):  # pylint: disable=too-many-public-methods
             'group_set': self.group_set,
             'division_parent_id': None,
         }
+
+        if self.course.lti_provider is not None:
+            res['lms_name'] = self.course.lti_provider.lms_name
+        else:
+            res['lms_name'] = None
 
         if psef.current_user.has_permission(
             CPerm.can_grade_work,

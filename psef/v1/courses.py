@@ -6,7 +6,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 """
 
 import typing as t
-import datetime
 
 from flask import request
 from sqlalchemy.orm import selectinload
@@ -15,7 +14,7 @@ from mypy_extensions import TypedDict
 import psef.auth as auth
 import psef.models as models
 import psef.helpers as helpers
-from psef import LTI_ROLE_LOOKUPS, limiter, current_user
+from psef import limiter, current_user
 from psef.errors import APICodes, APIException
 from psef.models import db
 from psef.helpers import (
@@ -25,6 +24,7 @@ from psef.helpers import (
 
 from . import api
 from .. import features
+from ..lti import LTI_COURSEROLE_LOOKUPS
 from ..permissions import CoursePermMap
 from ..permissions import CoursePermission as CPerm
 from ..permissions import GlobalPermission as GPerm
@@ -68,11 +68,12 @@ def delete_role(course_id: int, role_id: int) -> EmptyResponse:
     )
 
     if course.lti_provider is not None:
-        if any(r['role'] == role.name for r in LTI_ROLE_LOOKUPS.values()):
+        if any(r == role.name for r in LTI_COURSEROLE_LOOKUPS.values()):
+            lms = course.lti_provider.lms_name
             raise APIException(
-                'You cannot delete default LTI roles for a LTI course', (
-                    'The course "{}" is an LTI course '
-                    'so it is impossible to delete role {}'
+                f'You cannot delete default {lms} roles', (
+                    'The course "{}" is an LTI course so it is impossible to '
+                    'delete role {}'
                 ).format(course.id, role.id), APICodes.INCORRECT_PERMISSION,
                 403
             )
@@ -446,14 +447,16 @@ def create_new_assignment(course_id: int) -> JSONResponse[models.Assignment]:
     )
 
     if course.lti_course_id is not None:
+        lms = course.lti_provider.lms_name
         raise APIException(
-            'You cannot add assignments to a LTI course',
+            f'You cannot add assignments to a {lms} course',
             f'The course "{course_id}" is a LTI course',
             APICodes.INVALID_STATE, 400
         )
 
     assig = models.Assignment(
-        name=name, course=course, deadline=datetime.datetime.utcnow()
+        name=name,
+        course=course,
     )
     db.session.add(assig)
     db.session.commit()

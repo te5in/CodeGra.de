@@ -23,3 +23,4 @@ config.ini
 /.dir-locals.el
 .cov2emacs.log
 /coverage/
+/pmd/

@@ -143,6 +143,7 @@ def test_get_assignment(
                 'deadline': assignment.deadline.isoformat(),
                 'name': assignment.name,
                 'is_lti': False,
+                'lms_name': None,
                 'cgignore': None,
                 'course': dict,
                 'whitespace_linter': False,
@@ -3631,8 +3632,13 @@ def test_division_parent(
     with logged_in(teacher_user):
         course = create_course(test_client)
         assigs = [
-            create_assignment(test_client, get_id(course), state='open')
-            for _ in range(9)
+            create_assignment(
+                test_client,
+                get_id(course),
+                state='open',
+                deadline=datetime.datetime.utcnow() +
+                datetime.timedelta(days=1)
+            ) for _ in range(9)
         ]
         a1, a2, a3, a4, a5, a6, a7, a8, a9 = assigs
 
@@ -3760,8 +3766,13 @@ def test_division_connect_error_conditions(
     with logged_in(admin_user):
         course = create_course(test_client)
         assigs = [
-            create_assignment(test_client, get_id(course), state='open')
-            for _ in range(9)
+            create_assignment(
+                test_client,
+                get_id(course),
+                state='open',
+                deadline=datetime.datetime.utcnow() +
+                datetime.timedelta(days=1)
+            ) for _ in range(9)
         ]
 
         students = [
@@ -4034,4 +4045,28 @@ def test_get_all_assignments_with_rubric(
             '/api/v1/assignments/?only_with_rubric',
             200,
             result=[assig_perms_rubric]
+        )
+
+
+def test_prevent_submitting_to_assignment_without_deadline(
+    test_client, session, assignment, logged_in, admin_user, student_user,
+    error_template
+):
+    with logged_in(admin_user):
+        course = create_course(test_client)
+        assig = create_assignment(test_client, get_id(course), state='open')
+
+    with logged_in(student_user):
+        test_client.req(
+            'post',
+            f'/api/v1/assignments/{assig["id"]}/submission',
+            400,
+            real_data={
+                'file':
+                    (
+                        f'{os.path.dirname(__file__)}/../test_data/'
+                        'test_submissions/multiple_dir_archive.zip', 'f.zip'
+                    )
+            },
+            result=error_template,
         )

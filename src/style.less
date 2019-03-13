@@ -417,3 +417,15 @@ textarea:disabled {
     margin: 3rem auto 2rem;
     max-width: 25rem;
 }
+
+.input-group-append.warning .input-group-text,
+.input-group-prepend.warning .input-group-text {
+    background-color: @color-warning;
+    border-color: @color-warning;
+
+    #app.dark & {
+        background-color: @color-warning-dark;
+        border-color: @color-warning-dark;
+        color: @text-color;
+    }
+}

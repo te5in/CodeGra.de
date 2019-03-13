@@ -193,23 +193,41 @@ const mutations = {
 
         state.courses = courses.reduce((res, course) => {
             course.assignments.forEach(assignment => {
-                const deadline = moment.utc(assignment.deadline, moment.ISO_8601).local();
-                const reminderTime = moment.utc(assignment.reminder_time, moment.ISO_8601).local();
-                let defaultReminderTime = deadline.clone().add(7, 'days');
-                if (defaultReminderTime.isBefore(moment())) {
-                    defaultReminderTime = moment().add(3, 'days');
+                assignment.course = course;
+
+                let deadline = assignment.deadline;
+
+                if (deadline != null) {
+                    deadline = moment.utc(assignment.deadline, moment.ISO_8601).local();
+                    assignment.deadline = utils.formatDate(assignment.deadline);
+                }
+
+                let reminderTime = moment.utc(assignment.reminder_time, moment.ISO_8601).local();
+
+                assignment.has_reminder_time = reminderTime.isValid();
+
+                if (!assignment.has_reminder_time) {
+                    if (deadline != null) {
+                        reminderTime = deadline.clone().add(7, 'days');
+                        if (reminderTime.isBefore(moment())) {
+                            reminderTime = moment().add(3, 'days');
+                        }
+                    } else {
+                        reminderTime = moment().add(2, 'weeks');
+                    }
                 }
 
                 assignment.course = course;
-                assignment.formatted_deadline = utils.readableFormatDate(assignment.deadline);
-                assignment.deadline = utils.formatDate(assignment.deadline);
+                if (assignment.deadline != null) {
+                    assignment.formatted_deadline = utils.readableFormatDate(assignment.deadline);
+                    assignment.deadline = utils.formatDate(assignment.deadline);
+                } else {
+                    assignment.formatted_deadline = null;
+                }
                 assignment.created_at = utils.formatDate(assignment.created_at);
                 assignment.canManage = manageAssigs[course.id];
                 assignment.has_reminder_time = reminderTime.isValid();
-                assignment.reminder_time = (reminderTime.isValid()
-                    ? reminderTime
-                    : defaultReminderTime
-                ).format('YYYY-MM-DDTHH:mm');
+                assignment.reminder_time = reminderTime.format('YYYY-MM-DDTHH:mm');
             });
 
             course.permissions = perms[course.id];

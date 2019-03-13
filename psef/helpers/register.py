@@ -74,26 +74,3 @@ class Register(t.Generic[T, V]):  # pylint: disable=unsubscriptable-object
 
     def get_all(self) -> t.Iterable[t.Tuple[T, V]]:
         return self.__map.items()
-
-    def get_key(self, obj: V) -> t.Optional[T]:
-        """Get one of the keys mapping to the given object.
-
-        :param obj: Object to match the key with.
-        :returns: A key corresponding to the given object, or ``None`` if no
-            matching object is found. There may be more than one key, the first
-            one matching the object will be returned.
-
-        >>> reg = Register()
-        >>> @reg.register('hello')
-        ... def test_func(): pass
-        >>> reg.get_key(test_func)
-        'hello'
-        >>> def test_func2(): pass
-        >>> reg.get_key(test_func2) is None
-        True
-        """
-        for key, value in self.__map.items():
-            if obj == value:
-                return key
-
-        return None

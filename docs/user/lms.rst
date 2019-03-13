@@ -3,10 +3,44 @@
 LMS Integration
 =================
 
-CodeGrade works together with learning management systems with the LTI
-(*Learning Tools Interoperability*) standard. This chapter explains integrating
-CodeGrade into your LMS and CodeGrade's behaviour when working together with
-your LMS.
+CodeGrade works together with learning management systems (LMS) with the
+*Learning Tools Interoperability* (LTI) standard. This chapter explains
+integrating CodeGrade into your LMS and CodeGrade's behaviour when working
+together with your LMS.
+
+Blackboard Integration
+------------------------
+CodeGrade integrates with the `Blackboard Learn
+<https://www.blackboard.com/blackboard-learn/index.html>`__ learning management
+system through LTI. New CodeGrade assignments can then be created from within
+Blackboard.
+
+CodeGrade must be added as an external LTI Tool Provider to your Blackboard
+instance. Please consult the `Blackboard configuration guide <...>`__ for
+instructions.
+
+To create a CodeGrade assignment in Blackboard, go to a course's *Content* page
+and select *CodeGrade* from the *Build Content* menu.
+
+.. warning::
+
+    For the new assignment, do **not** turn off the *Enable Evaluation*
+    option, and make sure that *Points Possible* is set to a number greater
+    than 0, otherwise grades will not appear in Blackboard's grade center.
+
+    Also, do **not** set a deadline for the assignment in Blackboard.
+    Blackboard will mark all submissions *late*. Instead, immediately after
+    creation of the new assignment, visit the assignment in CodeGrade and
+    set the deadline there.
+
+.. note::
+
+    When CodeGrade is connected to Blackboard, all assignments should be
+    graded on a scale from 0 to 10 in CodeGrade. When the maximum points
+    that can be achieved should be something other than 10, the *Points
+    Possible* option can be set in Blackboard for the assignment.
+    Blackboard will then scale the grade it received from CodeGrade
+    linearly to this value.
 
 Canvas Integration
 --------------------
@@ -29,18 +63,6 @@ in the *Find* menu.
     more *screen-space* is be used for grading. Your are automatically logged in
     to this environment with a linked CodeGrade account after opening CodeGrade
     through Canvas.
-
-BlackBoard Integration
-------------------------
-BlackBoard is supported in CodeGrade, however BlackBoard support is still an
-experimental feature and only tested for BlackBoard 9.
-
-CodeGrade allows the uploading of BlackBoard assignment archives. In this way,
-the handing in and administration processes are done using BlackBoard, but
-grading and reviewing feedback can be done in the CodeGrade stand-alone website.
-
-More information on BlackBoard integration can be found :ref:`here
-<upload-blackboard-zip>`.
 
 Other LMS
 -----------

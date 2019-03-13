@@ -708,7 +708,7 @@ def test_delete_lti_courseroles(
         error = False
 
     course = session.query(m.Course).filter_by(name=course_n).one()
-    course.lti_provider = m.LTIProvider('NO_ACTUAL_KEY')
+    course.lti_provider = m.LTIProvider('my_lti')
     session.commit()
 
     with logged_in(teacher_user):
@@ -787,9 +787,10 @@ def test_add_assignment(
                 'name': name,
                 'created_at': str,
                 'is_lti': False,
+                'lms_name': None,
                 'course': dict,
                 'state': 'hidden',
-                'deadline': str,
+                'deadline': None,
                 'description': str,
                 'whitespace_linter': False,
                 'cgignore': None,

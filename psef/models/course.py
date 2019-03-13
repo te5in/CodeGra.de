@@ -16,7 +16,7 @@ from .assignment import Assignment
 from .link_tables import user_course
 from ..permissions import CoursePermission
 
-if t.TYPE_CHECKING:
+if t.TYPE_CHECKING:  # pragma: no cover
     # pylint: disable=unused-import,cyclic-import
     from .lti_provider import LTIProvider
     from .group import GroupSet
@@ -118,15 +118,14 @@ class Course(Base):
 
         :returns: A list of assignments the currently logged in user may see.
         """
-        if psef.current_user.has_permission(
+        assigs: t.Iterable[Assignment] = self.assignments
+        if not psef.current_user.has_permission(
             CoursePermission.can_see_hidden_assignments, self.id
         ):
-            return sorted(self.assignments, key=lambda item: item.deadline)
-        else:
-            return sorted(
-                (a for a in self.assignments if not a.is_hidden),
-                key=lambda item: item.deadline
-            )
+            assigs = (a for a in assigs if not a.is_hidden)
+        return sorted(
+            assigs, key=lambda item: item.deadline or datetime.datetime.max
+        )
 
     def get_all_users_in_course(self) -> '_MyQuery[t.Tuple[User, CourseRole]]':
         """Get a query that returns all users in the current course and their

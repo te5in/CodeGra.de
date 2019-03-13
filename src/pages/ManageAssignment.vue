@@ -2,12 +2,12 @@
 <template>
 <div class="manage-assignment loading" v-if="loading">
     <local-header>
-        <template slot="title" v-if="assignment">
-            {{ assignment.name }} - <small>{{ formattedDeadline }}</small>
+        <template slot="title" v-if="assignment && Object.keys(assignment).length">
+            {{ assignment.name }}
+            <small v-if="formattedDeadline">- {{ formattedDeadline }}</small>
+            <small v-else class="text-muted"><i>- No deadline</i></small>
         </template>
-        <template slot="title" v-else>
-        </template>
-        <loader :scale="1.9"/>
+        <loader :scale="1"/>
     </local-header>
     <loader page-loader/>
 </div>
@@ -15,11 +15,13 @@
     <local-header always-show-extra-slot
                   class="header">
         <template slot="title">
-            {{ assignment.name }} - <small>{{ formattedDeadline  }}</small>
+            {{ assignment.name }}
+            <small v-if="formattedDeadline">- {{ formattedDeadline  }}</small>
+            <small v-else class="text-muted"><i>- No deadline</i></small>
         </template>
         <assignment-state :assignment="assignment"
                           class="assignment-state"
-                          :editable="permissions.can_edit_assignment_info"
+                          :editable="canEditState"
                           size="sm"/>
         <template slot="extra">
             <category-selector
@@ -42,9 +44,9 @@
 
         <div :class="{hidden: selectedCat !== 'General'}"
              class="row cat-wrapper">
-            <div v-if="canEditInfo || canEditMaxGrade"
+            <div v-if="canEditInfo"
                  class="col-lg-12">
-                <b-form-fieldset v-if="canEditInfo">
+                <b-form-fieldset v-if="canEditName">
                     <b-input-group prepend="Name">
                         <input type="text"
                                class="form-control"
@@ -58,9 +60,28 @@
                     </b-input-group>
                 </b-form-fieldset>
 
-                <b-form-fieldset v-if="canEditInfo">
-                    <b-input-group prepend="Deadline">
-                        <datetime-picker v-model="assignmentTempDeadline"/>
+                <b-form-fieldset v-if="canEditDeadline">
+                    <b-input-group>
+                        <b-input-group-prepend is-text slot="prepend"
+                                               :class="{ 'warning': assignment.deadline === null }">
+                            Deadline
+
+                            <description-popover placement="top">
+                                <template v-if="ltiProvider && !ltiProvider.supportsDeadline"
+                                          slot="description">
+                                    {{ lmsName }} did not pass this assignment's deadline on to
+                                    CodeGrade.  Students will not be able to submit their work
+                                    until the deadline is set here.
+                                </template>
+                                <template v-else
+                                          slot="description">
+                                    Students will not be able to submit work unless a deadline has
+                                    been set.
+                                </template>
+                            </description-popover>
+                        </b-input-group-prepend>
+                        <datetime-picker v-model="assignmentTempDeadline"
+                                         placeholder="None set"/>
                         <b-input-group-append>
                             <submit-button :submit="submitDeadline"
                                            @success="updateDeadline"
@@ -243,6 +264,7 @@ import { mapActions, mapGetters } from 'vuex';
 
 import { convertToUTC, readableFormatDate } from '@/utils';
 import { MANAGE_COURSE_PERMISSIONS } from '@/constants';
+import ltiProviders from '@/lti_providers';
 
 import {
     AssignmentState,
@@ -301,12 +323,39 @@ export default {
             return `/api/v1/assignments/${this.assignment.id}`;
         },
 
+        lmsName() {
+            return this.assignment.lms_name;
+        },
+
+        ltiProvider() {
+            const lms = this.lmsName;
+            return lms ? ltiProviders[lms] : null;
+        },
+
+        canEditState() {
+            return this.permissions.can_edit_assignment_info;
+        },
+
         canEditInfo() {
+            return this.canEditName || this.canEditDeadline || this.canEditMaxGrade;
+        },
+
+        canEditName() {
             return !this.assignment.is_lti && this.permissions.can_edit_assignment_info;
         },
 
+        canEditDeadline() {
+            return (
+                (!this.ltiProvider || !this.ltiProvider.supportsDeadline) &&
+                this.permissions.can_edit_assignment_info
+            );
+        },
+
         canEditMaxGrade() {
-            return this.permissions.can_edit_maximum_grade;
+            return (
+                (!this.ltiProvider || this.ltiProvider.supportsBonusPoints) &&
+                this.permissions.can_edit_maximum_grade
+            );
         },
 
         canEditIgnoreFile() {
@@ -355,7 +404,6 @@ export default {
                     name: 'General',
                     enabled:
                         this.canEditInfo ||
-                        this.canEditMaxGrade ||
                         this.canEditIgnoreFile ||
                         this.canEditGroups ||
                         this.canSubmitWork ||

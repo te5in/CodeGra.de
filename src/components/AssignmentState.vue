@@ -3,10 +3,10 @@
 <div class="assignment-state" v-if="editable">
     <b-button-group>
         <submit-button class="state-button larger"
-                       v-if="assignment.is_lti"
+                       v-if="canManageLTIState"
                        :size="size"
                        :variant="ltiHiddenOpenVariant"
-                       v-b-popover.window.top.hover="'Hidden or open, managed by LMS'"
+                       v-b-popover.window.top.hover="`Hidden or open, managed by ${lmsName}`"
                        :submit="() => updateState(states.OPEN)"
                        @success="afterUpdateState"
                        :icon-scale="iconScale"
@@ -46,7 +46,10 @@
                        :submit="() => updateState(states.DONE)"
                        @success="afterUpdateState"
                        :icon-scale="iconScale"
-                       :duration="0">
+                       :duration="0"
+                       confirm="When the assignment is set to done, all
+                       students will be able to see their grade. Are you
+                       sure?">
             <icon :name="icons[states.DONE]" :scale="iconScale"/>
         </submit-button>
     </b-button-group>
@@ -65,6 +68,8 @@ import 'vue-awesome/icons/eye-slash';
 import 'vue-awesome/icons/clock-o';
 import 'vue-awesome/icons/pencil';
 import 'vue-awesome/icons/check';
+
+import ltiProviders from '@/lti_providers';
 
 import * as states from '../store/assignment-states';
 
@@ -133,6 +138,14 @@ export default {
         doneVariant() {
             const st = this.assignment.state;
             return st === states.DONE ? 'success' : 'outline-success';
+        },
+
+        canManageLTIState() {
+            return this.assignment.is_lti && ltiProviders[this.lmsName].supportsStateManagement;
+        },
+
+        lmsName() {
+            return this.assignment.lms_name;
         },
     },
 

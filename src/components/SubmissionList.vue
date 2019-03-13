@@ -9,13 +9,18 @@
                    @keyup.enter="submit"
                    @keyup="submitDelayed"/>
 
-            <b-input-group-append v-if="latest.length !== submissions.length" is-text>
-                <b-form-checkbox v-model="latestOnly" @change="submit">
+            <b-input-group-append is-text
+                                  v-if="latest.length !== submissions.length"
+                                  v-b-popover.bottom.hover="'Show only the latest submission of each student.'">
+                <b-form-checkbox v-model="latestOnly"
+                                 @change="submit">
                     Latest only
                 </b-form-checkbox>
             </b-input-group-append>
 
-            <b-input-group-append v-if="assigneeFilter" is-text>
+            <b-input-group-append is-text
+                                  v-if="assigneeFilter"
+                                  v-b-popover.bottom.hover="'Show only subbmissions assigned to me.'">
                 <b-form-checkbox v-model="mineOnly" @change="submit">
                     Assigned to me
                 </b-form-checkbox>

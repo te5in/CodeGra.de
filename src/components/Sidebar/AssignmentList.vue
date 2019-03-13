@@ -16,7 +16,7 @@
         </li>
 
         <assignment-list-item v-for="assignment in topAssignments"
-                              :small="true"
+                              small
                               :key="`top-assignment-${assignment.id}`"
                               v-if="showTopAssignments"
                               :current-id="currentAssignment && currentAssignment.id"
@@ -140,7 +140,8 @@ export default {
 
         topAssignments() {
             const lookup = this.assignments.reduce((res, cur) => {
-                res[cur.id] = Math.abs(moment(cur.deadline).diff(this.now));
+                const deadline = cur.deadline || this.now;
+                res[cur.id] = Math.abs(moment(deadline).diff(this.now));
                 return res;
             }, {});
 

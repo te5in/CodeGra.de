@@ -20,8 +20,8 @@ from .file import File, FileOwner
 from .linter import LinterState, LinterComment, LinterInstance
 from .rubric import RubricItem
 from .comment import Comment
-from .link_tables import work_rubric_item
 from ..exceptions import PermissionException
+from .link_tables import work_rubric_item
 from ..permissions import CoursePermission
 
 if t.TYPE_CHECKING:  # pragma: no cover

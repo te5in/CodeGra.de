@@ -216,10 +216,11 @@ export default {
             const { myId } = this;
 
             const makeName = user => (myId === user.id ? 'You' : this.$htmlEscape(user.name));
+            const lmsName = this.$htmlEscape(this.assignment.lms_name);
 
             const loading = user => `${divStart}We cannot submit the
-submission. ${makeName(user)} should open the assignment through the LMS (like Canvas) to
-resolve this issue.${divEnd}`;
+submission. ${makeName(user)} should open the assignment through
+${lmsName} to resolve this issue.${divEnd}`;
 
             const done = () => `${divStart}We can submit the submission. No
 action is required.${divEnd}`;
