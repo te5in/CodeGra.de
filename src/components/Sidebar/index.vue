@@ -38,18 +38,6 @@
             </transition>
         </div>
 
-        <div v-if="canManageSite">
-            <hr class="separator"/>
-
-            <div class="sidebar-bottom">
-                <router-link :to="{ name: 'admin' }"
-                             class="sidebar-bottom-item"
-                             v-b-popover.hover.top="'Manage site'">
-                    <icon name="tachometer"/>
-                </router-link>
-            </div>
-        </div>
-
         <hr class="separator"/>
 
         <div v-if="canManageCurrentLtiAssignment">
@@ -63,6 +51,19 @@
                     </div>
                 </router-link>
             </div>
+
+            <hr class="separator"/>
+        </div>
+
+        <div v-if="canManageSite">
+            <div class="sidebar-bottom">
+                <router-link :to="{ name: 'admin' }"
+                             class="sidebar-bottom-item"
+                             v-b-popover.hover.top="'Manage site'">
+                    <icon name="tachometer"/>
+                </router-link>
+            </div>
+
             <hr class="separator"/>
         </div>
 
