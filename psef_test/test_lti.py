@@ -134,15 +134,21 @@ def monkeypatch_oauth_check(monkeypatch):
 def test_lti_config(test_client, error_template):
     test_client.req('get', '/api/v1/lti/', 400, result=error_template)
     test_client.req(
-        'get', '/api/v1/lti/?lms=unkown', 400, result=error_template
+        'get', '/api/v1/lti/?lms=unknown', 404, result=error_template
     )
     test_client.req(
         'get', '/api/v1/lti/?lms=Blackboard', 400, result=error_template
     )
+
     res = test_client.get('/api/v1/lti/?lms=Canvas')
     assert res.status_code == 200
     assert res.content_type.startswith('application/xml')
     assert '$Canvas' in res.get_data(as_text=True)
+
+    res = test_client.get('/api/v1/lti/?lms=Moodle')
+    assert res.status_code == 200
+    assert res.content_type.startswith('application/xml')
+    assert '$Canvas' not in res.get_data(as_text=True)
 
 
 def test_lti_new_user_new_course(test_client, app, logged_in, ta_user):
@@ -1045,6 +1051,24 @@ def test_lti_assignment_create(
                     'blackboard_lti',
             }
         ),
+        (
+            'Moodle', {
+                'context_id':
+                    'MY_COURSE_ID_100',
+                'context_title':
+                    'NEW_COURSE',
+                'resource_link_id':
+                    'MY_ASSIG_ID_100',
+                'resource_link_title':
+                    'MY_ASSIG_TITLE',
+                'ext_user_username':
+                    'a the a-er',
+                'roles':
+                    'NOT_VALID_ROLE,urn:lti:sysrole:ims/lis/Administrator,Instructor',
+                'oauth_consumer_key':
+                    'moodle_lti',
+            }
+        ),
     ]
 )
 def test_lti_assignment_update(
@@ -1054,10 +1078,10 @@ def test_lti_assignment_update(
         with app.app_context():
             data = {
                 'user_id': 'USER_ID',
-                'lis_person_name_full': 'A the A-er',
-                'lis_person_contact_email_primary': 'a@a.nl',
                 'lis_result_sourcedid': 'NON_EXISTING2',
                 'lis_outcome_service_url': 'NON_EXISTING2',
+                'lis_person_name_full': 'A the A-er',
+                'lis_person_contact_email_primary': 'a@a.nl',
             }
             data.update(extra_data)
             res = test_client.post('/api/v1/lti/launch/1', data=data)
@@ -1530,3 +1554,175 @@ def test_lti_grade_passback_with_groups(
                 False,
                 created_at=sub['created_at']
             )
+
+
+@pytest.mark.parametrize('patch', [True, False])
+@pytest.mark.parametrize('filename', [
+    ('correct.tar.gz'),
+])
+def test_lti_grade_passback_moodle(
+    test_client, app, logged_in, ta_user, filename, monkeypatch, patch,
+    monkeypatch_celery, error_template, session
+):
+    due_at = datetime.datetime.utcnow() + datetime.timedelta(days=1)
+    assig_max_points = 8
+    last_xml = None
+
+    class Patch:
+        def __init__(self):
+            self._called = False
+
+        @property
+        def called(self):
+            old = self._called
+            self._called = False
+            return old
+
+        def __call__(self, uri, method, body, headers):
+            nonlocal last_xml
+            self._called = True
+            assert method == 'POST'
+            assert isinstance(headers, dict)
+            assert headers['Content-Type'] == 'application/xml'
+            assert isinstance(body, bytes)
+            last_xml = body.decode('utf-8')
+            return '', SUCCESS_XML
+
+    if patch:
+        monkeypatch.setitem(app.config, '_USING_SQLITE', True)
+
+    patch_request = Patch()
+    monkeypatch.setattr(oauth2.Client, 'request', patch_request)
+
+    def do_lti_launch(
+        username='A the A-er',
+        lti_id='USER_ID',
+        source_id='NON_EXISTING2!',
+        published='false',
+        canvas_id='MY_COURSE_ID_100',
+    ):
+        nonlocal last_xml
+        with app.app_context():
+            last_xml = None
+            data = {
+                'context_title': 'NEW_COURSE',
+                'context_id': canvas_id,
+                'resource_link_id': f'{canvas_id}_ASSIG_1',
+                'resource_link_title': 'MY_ASSIG_TITLE',
+                'roles': 'urn:lti:sysrole:ims/lis/Administrator,Instructor',
+                'ext_user_username': username,
+                'user_id': lti_id,
+                'lis_person_name_full': username,
+                'lis_person_contact_email_primary': 'a@a.nl',
+                'oauth_consumer_key': 'moodle_lti',
+                'lis_outcome_service_url': source_id,
+            }
+            if source_id:
+                data['lis_result_sourcedid'] = source_id
+            patch_request.source_id = source_id
+            res = test_client.post('/api/v1/lti/launch/1', data=data)
+
+            url = urllib.parse.urlparse(res.headers['Location'])
+            jwt = urllib.parse.parse_qs(url.query)['jwt'][0]
+            lti_res = test_client.req(
+                'post',
+                '/api/v1/lti/launch/2',
+                200,
+                data={'jwt_token': jwt},
+            )
+            test_client.req(
+                'patch',
+                f'/api/v1/assignments/{lti_res["assignment"]["id"]}',
+                200,
+                data={
+                    'deadline':
+                        (
+                            datetime.datetime.utcnow() +
+                            datetime.timedelta(days=1)
+                        ).isoformat(),
+                },
+            )
+            assert m.Assignment.query.get(
+                lti_res['assignment']['id']
+            ).state == m._AssignmentStateEnum.open
+            assert lti_res['assignment']['course']['name'] == 'NEW_COURSE'
+            return lti_res['assignment'], lti_res.get('access_token', None)
+
+    def get_upload_file(token, assig_id):
+        full_filename = (
+            f'{os.path.dirname(__file__)}/'
+            f'../test_data/test_blackboard/{filename}'
+        )
+        with app.app_context():
+            test_client.req(
+                'post',
+                f'/api/v1/assignments/{assig_id}/submission',
+                201,
+                real_data={'file': (full_filename, 'bb.tar.gz')},
+                headers={'Authorization': f'Bearer {token}'},
+            )
+            res = test_client.req(
+                'get', f'/api/v1/assignments/{assig_id}/submissions/', 200
+            )
+            assert len(res) == 1
+            return res[0]
+
+    def set_grade(token, grade, work_id):
+        test_client.req(
+            'patch',
+            f'/api/v1/submissions/{work_id}',
+            200,
+            data={
+                'grade': grade,
+                'feedback': 'feedback'
+            },
+            headers={'Authorization': f'Bearer {token}'},
+        )
+
+    assig, token = do_lti_launch()
+    work = get_upload_file(token, assig['id'])
+    # The initial passback is a grade delete in Moodle
+    assert patch_request.called
+    assert_grade_deleted(last_xml, patch_request.source_id)
+
+    # Assignment is not done so it should not passback the grade
+    set_grade(token, 5.0, work['id'])
+    assert not patch_request.called
+
+    test_client.req(
+        'patch',
+        f'/api/v1/assignments/{assig["id"]}',
+        200,
+        data={
+            'state': 'done',
+        },
+        headers={'Authorization': f'Bearer {token}'},
+    )
+
+    # After setting assignment open it should passback the grades.
+    assert patch_request.called
+    assert_grade_set_to(
+        last_xml,
+        patch_request.source_id,
+        10,
+        5.0,
+        raw=False,
+        created_at=None,
+    )
+
+    # Updating while open should passback straight away
+    set_grade(token, 6, work['id'])
+    assert patch_request.called
+    assert_grade_set_to(
+        last_xml,
+        patch_request.source_id,
+        10,
+        6,
+        raw=False,
+        created_at=None,
+    )
+
+    # Setting grade to ``None`` should do a delete request
+    set_grade(token, None, work['id'])
+    assert patch_request.called
+    assert_grade_deleted(last_xml, patch_request.source_id)

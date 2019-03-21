@@ -8,16 +8,16 @@ CodeGrade works together with learning management systems (LMS) with the
 integrating CodeGrade into your LMS and CodeGrade's behaviour when working
 together with your LMS.
 
-Blackboard Integration
-------------------------
+For exact details on how to add CodeGrade as an external tool in your LMS, which
+should be done by the system administrator of the LMS, please
+:ref:`contact us<contact-chapter>`.
+
+Blackboard
+------------
 CodeGrade integrates with the `Blackboard Learn
 <https://www.blackboard.com/blackboard-learn/index.html>`__ learning management
 system through LTI. New CodeGrade assignments can then be created from within
 Blackboard.
-
-CodeGrade must be added as an external LTI Tool Provider to your Blackboard
-instance. Please consult the `Blackboard configuration guide <...>`__ for
-instructions.
 
 To create a CodeGrade assignment in Blackboard, go to a course's *Content* page
 and select *CodeGrade* from the *Build Content* menu.
@@ -42,18 +42,13 @@ and select *CodeGrade* from the *Build Content* menu.
     Blackboard will then scale the grade it received from CodeGrade
     linearly to this value.
 
-Canvas Integration
---------------------
+Canvas
+--------
 CodeGrade works together with the popular open-source learning management system
 `Canvas <https://www.canvaslms.com/>`__ through LTI. By integrating CodeGrade as
 an external app in Canvas, CodeGrade assignments can be created.
 
-CodeGrade can be added as an external app in Canvas using an XML file provided
-by CodeGrade. Please consult the Canvas
-`Documentation <https://community.canvaslms.com/docs/DOC-12601-421474560>`__
-for instructions on adding external apps with XML.
-
-It is now possible to create CodeGrade assignments in your Canvas course now.
+It is now possible to create CodeGrade assignments in your Canvas course.
 Choose the *External Tool* option as *Submission Type* and select CodeGrade
 in the *Find* menu.
 
@@ -63,6 +58,24 @@ in the *Find* menu.
     more *screen-space* is be used for grading. Your are automatically logged in
     to this environment with a linked CodeGrade account after opening CodeGrade
     through Canvas.
+
+Moodle
+--------
+CodeGrade integrates with the `Moodle <https://moodle.org/>`__ learning management
+system through LTI. New CodeGrade assignments can then be created from within
+Moodle.
+
+.. warning::
+
+    Setting a deadline, or other visibility rules in Moodle, do **not** sync to
+    CodeGrade. You should set a deadline in CodeGrade after creating an
+    assignment, as otherwise students will not be able to submit their work.
+
+.. note::
+
+    When CodeGrade is connected to Moodle, all assignments should be
+    graded on a scale from 0 to 10 in CodeGrade. Scaling, and maximum points can
+    be set in Moodle.
 
 Other LMS
 -----------

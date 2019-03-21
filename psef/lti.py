@@ -46,6 +46,8 @@ LTI_NAMESPACES = {
     'xmlns': 'http://www.imsglobal.org/services/ltiv1p1/xsd/imsoms_v1p0'
 }
 
+T_LTI_ROLE = t.TypeVar('T_LTI_ROLE', bound='LTIRole')  # pylint: disable=invalid-name
+
 LTI_SYSROLE_LOOKUPS: t.Mapping[str, str] = {
     # LIS standard System Roles
     'SysAdmin': 'Admin',
@@ -134,36 +136,48 @@ class LTIRole:
     :ivar name: Primary role name.
     :ivar subnames: Secondary role names.
     """
-    kind: LTIRoleKind
-    name: str
-    subnames: t.Sequence[str]
 
-    def __init__(self, urn: str) -> None:
-        self._urn = urn
-        self._role_assert(urn.startswith('urn:lti:'))
+    @classmethod
+    def parse(cls: t.Type[T_LTI_ROLE], urn: str) -> T_LTI_ROLE:
+        """Parse a LTI role from a IMS urn.
+
+        :param urn: The string to parse.
+        :returns: The parsed LTI role.
+        :raises LTIRoleException: If the role is not valid.
+        """
+
+        def role_assert(should_not_raise: bool) -> None:
+            if not should_not_raise:
+                raise LTIRoleException(
+                    'The given role could not be parsed as an LTI role.',
+                    f'The role {urn} could not be parsed as an LTI role.',
+                    APICodes.INVALID_PARAM, 400
+                )
+
+        role_assert(urn.startswith('urn:lti:'))
         _, __, *rest = urn.split(':')
-        self._role_assert(len(rest) >= 2)
-        self.kind = LTIRoleKind.get_kind(rest[0])
+        role_assert(len(rest) >= 2)
+        kind = LTIRoleKind.get_kind(rest[0])
 
         path = rest[1]
-        self._role_assert(path.startswith('ims/lis/'))
+        role_assert(path.startswith('ims/lis/'))
         _, __, *names = path.split('/')
-        self._role_assert(len(names) > 0)
-        self.name = names[0]
-        self.subnames = names[1:]
+        role_assert(len(names) > 0)
+        name = names[0]
+        subnames = names[1:]
+        return cls(kind=kind, name=name, subnames=subnames)
+
+    def __init__(
+        self, *, kind: LTIRoleKind, name: str, subnames: t.Sequence[str]
+    ) -> None:
+        self.kind = kind
+        self.name = name
+        self.subnames = subnames
 
     def __repr__(self) -> str:
         kind = self.kind.name.lower()
         name = '/'.join([self.name, *self.subnames])
         return f'{kind}:{name}'
-
-    def _role_assert(self, should_raise: bool) -> None:
-        if not should_raise:
-            raise LTIRoleException(
-                'The given role could not be parsed as an LTI role.',
-                f'The role {self._urn} could not be parsed as an LTI role.',
-                APICodes.INVALID_PARAM, 400
-            )
 
 
 T_LTI = t.TypeVar('T_LTI', bound='LTI')  # pylint: disable=invalid-name
@@ -180,6 +194,17 @@ class LTI:  # pylint: disable=too-many-public-methods
     @staticmethod
     def supports_lti_launch_as_result() -> bool:  # pragma: no cover
         """Does this LTI consumer support the ``ltiLaunchUrl`` as result field.
+        """
+        return False
+
+    @staticmethod
+    def supports_lti_common_cartridge() -> bool:
+        """Does this LMS support configuration using a Common Cartridge
+            [common_cartridge]_.
+
+        .. [common_cartridge] See `here
+            <http://www.imsglobal.org/cc/ccv1p3/imscc_Overview-v1p3.html>`_ for
+            more information.
         """
         return False
 
@@ -260,7 +285,7 @@ class LTI:  # pylint: disable=too-many-public-methods
 
         :returns: The extension properties needed.
         """
-        raise NotImplementedError
+        return []
 
     @staticmethod
     def get_custom_extensions() -> str:
@@ -268,7 +293,7 @@ class LTI:  # pylint: disable=too-many-public-methods
 
         :returns: A string used as extension
         """
-        raise NotImplementedError
+        return ''
 
     @staticmethod
     def supports_max_points() -> bool:
@@ -291,8 +316,11 @@ class LTI:  # pylint: disable=too-many-public-methods
         return False
 
     @property
-    def assignment_points_possible(self) -> float:
+    def assignment_points_possible(self) -> t.Optional[float]:
         """The amount of points possible for the launched assignment.
+
+        :returns: The possible points or ``None`` if this option is not
+            supported or if the data is not present.
         """
         raise NotImplementedError
 
@@ -346,7 +374,7 @@ class LTI:  # pylint: disable=too-many-public-methods
 
     @property
     def outcome_service_url(self) -> str:
-        """The url used to passback grades to Canvas.
+        """The url used to passback grades to the LMS.
         """
         raise NotImplementedError
 
@@ -380,7 +408,7 @@ class LTI:  # pylint: disable=too-many-public-methods
     def _roles(self, key: str) -> t.Iterable[LTIRole]:
         for role in self.launch_params[key].split(','):
             try:
-                yield LTIRole(role)
+                yield LTIRole.parse(role)
             except LTIRoleException:
                 pass
 
@@ -542,7 +570,7 @@ class LTI:  # pylint: disable=too-many-public-methods
                 )
                 db.session.add(assig_res)
 
-        if self.has_assignment_points_possible():
+        if self.assignment_points_possible is not None:
             assignment.lti_points_possible = self.assignment_points_possible
 
         if self.has_outcome_service_url():
@@ -653,18 +681,16 @@ class LTI:  # pylint: disable=too-many-public-methods
         """
         raise NotImplementedError
 
-    def has_assignment_points_possible(self) -> bool:
-        """Check if the current LTI request has a ``pointsPossible`` field.
-
-        :returns: A boolean indicating if a ``pointsPossible`` field was found.
-        """
-        raise NotImplementedError
-
     @classmethod
     def generate_xml(cls) -> str:
         """Generate a config XML for this LTI consumer.
         """
-        raise NotImplementedError
+        return flask.render_template(
+            'lti_common_cartridge.j2',
+            external_url=app.config['EXTERNAL_URL'],
+            properties=cls.get_lti_properties(),
+            custom_extensions=cls.get_custom_extensions(),
+        )
 
     @classmethod
     @abc.abstractmethod
@@ -774,7 +800,26 @@ class CanvasLTI(LTI):
     """
 
     @staticmethod
+    def get_custom_extensions() -> str:
+        """Get a string that will be used verbatim in the LTI xml.
+
+        :returns: A string used as extension
+        """
+        return """
+    <blti:extensions platform="canvas.instructure.com">
+      <lticm:property name="tool_id">codegrade</lticm:property>
+      <lticm:property name="privacy_level">public</lticm:property>
+      <lticm:property name="domain">{}</lticm:property>
+    </blti:extensions>
+        """.format(urlparse(app.config['EXTERNAL_URL']).netloc)
+
+    @staticmethod
     def supports_lti_launch_as_result() -> bool:
+        return True
+
+    @staticmethod
+    def supports_lti_common_cartridge() -> bool:
+        """Canvas supports common cartridges"""
         return True
 
     @staticmethod
@@ -815,20 +860,6 @@ class CanvasLTI(LTI):
         ]
 
     @staticmethod
-    def get_custom_extensions() -> str:
-        """Get the custom extension use by Canvas.
-
-        :returns: The extension used by canvas.
-        """
-        return """
-    <blti:extensions platform="canvas.instructure.com">
-      <lticm:property name="tool_id">codegrade</lticm:property>
-      <lticm:property name="privacy_level">public</lticm:property>
-      <lticm:property name="domain">{}</lticm:property>
-    </blti:extensions>
-        """.format(urlparse(app.config['EXTERNAL_URL']).netloc)
-
-    @staticmethod
     def supports_max_points() -> bool:
         return True
 
@@ -836,14 +867,14 @@ class CanvasLTI(LTI):
     def supports_deadline() -> bool:
         return True
 
-    def has_assignment_points_possible(self) -> bool:
-        return 'custom_canvas_points_possible' in self.launch_params
-
     @property
-    def assignment_points_possible(self) -> float:
+    def assignment_points_possible(self) -> t.Optional[float]:
         """The amount of points possible for the launched assignment.
         """
-        return float(self.launch_params['custom_canvas_points_possible'])
+        try:
+            return float(self.launch_params['custom_canvas_points_possible'])
+        except (ValueError, KeyError):
+            return None
 
     @property
     def username(self) -> str:
@@ -878,17 +909,6 @@ class CanvasLTI(LTI):
 
     def has_result_sourcedid(self) -> bool:
         return 'lis_result_sourcedid' in self.launch_params
-
-    @classmethod
-    def generate_xml(cls) -> str:
-        """Generate a config XML for this LTI consumer.
-        """
-        return flask.render_template(
-            'lti_canvas_config.j2',
-            external_url=app.config['EXTERNAL_URL'],
-            properties=cls.get_lti_properties(),
-            custom_extensions=cls.get_custom_extensions(),
-        )
 
     @property
     def assignment_state(self) -> models._AssignmentStateEnum:
@@ -955,21 +975,17 @@ class CanvasLTI(LTI):
         )
 
 
-@lti_classes.register('Blackboard')
-class BlackboardLTI(LTI):
-    """The LTI class used for the Blackboard LMS.
+class BareBonesLTIProvider(LTI):
+    """The LTI class that implements LTI a for simple "bare bones" LMS.
     """
 
     @staticmethod
     def supports_lti_launch_as_result() -> bool:
         return False
 
-    def has_assignment_points_possible(self) -> bool:
-        return False
-
     @property
-    def assignment_points_possible(self) -> float:
-        raise NotImplementedError
+    def assignment_points_possible(self) -> t.Optional[float]:
+        return None
 
     @property
     def username(self) -> str:
@@ -1033,11 +1049,87 @@ class BlackboardLTI(LTI):
         host: str,
     ) -> None:
         if initial:
-            # Blackboard doesn't support passbacks without a grade (which
-            # happens for initial passbacks). Users shouldn't set a due date on
-            # LTI assignments in blackboard, as all submissions will be
-            # considered late.
+            # Bare bones lti providers (like Blackboard) don't support
+            # passbacks without a grade (which happens for initial
+            # passbacks). Users shouldn't set a due date on LTI assignments in
+            # blackboard, as all submissions will be considered late.
             return
+
+        url = (
+            '{host}'
+            '/courses/{course_id}'
+            '/assignments/{assig_id}'
+            '/submissions/{sub_id}?inLTI=true'
+        ).format(
+            host=host,
+            course_id=submission.assignment.course_id,
+            assig_id=submission.assignment_id,
+            sub_id=submission.id,
+        )
+        cls._passback_grade(
+            key=key,
+            secret=secret,
+            grade=grade,
+            initial=False,
+            service_url=service_url,
+            sourcedid=sourcedid,
+            lti_points_possible=lti_points_possible,
+            submission=submission,
+            use_submission_details=False,
+            url=url,
+        )
+
+
+@lti_classes.register('Blackboard')
+class BlackboardLTI(BareBonesLTIProvider):
+    """The LTI class used for the Blackboard LMS.
+    """
+
+
+@lti_classes.register('Moodle')
+class MoodleLTI(BareBonesLTIProvider):
+    """The LTI class used for the Moodle LMS.
+    """
+
+    @property
+    def username(self) -> str:
+        """The username of the current LTI user.
+        """
+        return self.launch_params['ext_user_username']
+
+    @staticmethod
+    def supports_lti_common_cartridge() -> bool:
+        """Moodle supports common cartridges"""
+        return True
+
+    def _roles(self, key: str) -> t.Iterable[LTIRole]:
+        for role in self.launch_params[key].split(','):
+            # Moodle is strange, it gives these two roles as course roles
+            if role in {'Instructor', 'Learner'}:
+                yield LTIRole(kind=LTIRoleKind.course, name=role, subnames=[])
+            try:
+                yield LTIRole.parse(role)
+            except LTIRoleException:
+                pass
+
+    @classmethod
+    def passback_grade(
+        cls: t.Type[T_LTI],
+        *,
+        key: str,
+        secret: str,
+        grade: t.Union[float, None, int],
+        initial: bool,
+        service_url: str,
+        sourcedid: str,
+        lti_points_possible: t.Optional[float],
+        submission: models.Work,
+        host: str,
+    ) -> None:
+        if initial:
+            # Moodle registers a grade delete as setting the grade to zero.
+            initial = False
+            grade = None
 
         url = (
             '{host}'

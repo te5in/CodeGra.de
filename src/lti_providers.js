@@ -12,6 +12,8 @@ const defaultLTIProvider = Object.create(null, {
 
 const blackboardProvider = Object.create(defaultLTIProvider);
 
+const moodleProvider = Object.create(defaultLTIProvider);
+
 const canvasProvider = Object.create(defaultLTIProvider, {
     supportsDeadline: {
         value: true,
@@ -27,4 +29,5 @@ const canvasProvider = Object.create(defaultLTIProvider, {
 export default {
     Blackboard: blackboardProvider,
     Canvas: canvasProvider,
+    Moodle: moodleProvider,
 };

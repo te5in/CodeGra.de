@@ -61,6 +61,7 @@ def app(request):
                 'no_colon': '12345678',
                 'unknown_lms': 'unknown:12345678',
                 'blackboard_lti': 'Blackboard:12345678',
+                'moodle_lti': 'Moodle:12345678',
             },
         'LTI_SECRET_KEY': 'hunter123',
         'SECRET_KEY': 'hunter321',

@@ -66,20 +66,23 @@ def get_lti_config() -> werkzeug.wrappers.Response:
     helpers.ensure_keys_in_dict(flask.request.args, [('lms', str)])
     lms: str = flask.request.args.get('lms', '')
     cls = lti.lti_classes.get(lms)
-    if cls is not None:
-        try:
-            res = flask.make_response(cls.generate_xml())
-        except NotImplementedError:
-            pass
-        else:
-            res.headers['Content-Type'] = 'application/xml; charset=utf-8'
-            return res
+    if cls is None:
+        raise errors.APIException(
+            f'The given LMS "{lms}" was not found',
+            f'The LMS "{lms}" is not yet supported by CodeGrade',
+            errors.APICodes.OBJECT_NOT_FOUND, 404
+        )
 
-    raise errors.APIException(
-        f'{lms} does not support XML configuration',
-        f'The LMS "{lms}" does not support XML configuration',
-        errors.APICodes.INVALID_PARAM, 400
-    )
+    if cls.supports_lti_common_cartridge():
+        res = flask.make_response(cls.generate_xml())
+        res.headers['Content-Type'] = 'application/xml; charset=utf-8'
+        return res
+    else:
+        raise errors.APIException(
+            f'{lms} does not support Common Cartridge configuration',
+            f'The LMS "{lms}" does not support Common Cartridge configuration',
+            errors.APICodes.INVALID_PARAM, 400
+        )
 
 
 @api.route('/lti/launch/2', methods=['POST'])
