@@ -4,33 +4,36 @@
    contain the root `toctree` directive.
 .. rst-class:: fa fa-fontawesome
 
-Welcome to CodeGrade
+The CodeGrade Documentation
 ======================================
 
-.. include:: about/codegradefeatures.rst
+The CodeGrade Documentation offers **user guides** to quickly get things done,
+**comprehensive user documentation** and **documentation for developers**.
 
-The code of CodeGrade, the Filesystem and the numerous editor plugins is
-open-source and available on `Github <https://github.com/CodeGra-de>`_. More
-information on getting started with CodeGrade at your institute can be found on
-`CodeGrade <https://codegra.de>`_.
+At CodeGrade, we believe in open source software. That's why we make all code of
+CodeGrade, Filesystem and other related software available on
+`Github <https://github.com/CodeGra-de>`_.
 
-The documentation of CodeGrade consists of a developer documentation and a user
-documentation:
+Not using CodeGrade yet at your institution? Find more information and contact
+details on `the CodeGrade website <https://codegrade.com>`_.
 
+.. _user-guides:
 
-.. only:: not latex
+.. toctree::
+   :maxdepth: 2
+   :caption: User Guides
 
-    .. toctree::
-        :maxdepth: 1
-        :caption: About CodeGrade
-
-        about/whatis
-        about/changelog
-        about/history
-        about/authors
-        about/technologies
-        about/contributing
-        about/contact
+   guides/getting-started-with-codegrade
+   guides/creating-an-assignment
+   guides/creating-managing-and-using-snippets
+   guides/checking-for-plagiarism
+   guides/set-up-group-assignment
+   guides/pass-back-grades-to-canvas-blackboard-moodle-brightspace
+   guides/setup-password-for-codegrade-account
+   guides/set-up-a-rubric-for-an-assignment
+   guides/using-shortcuts
+   guides/dividing-submissions
+   guides/cannot-find-feature-in-codegrade
 
 .. _user-docs:
 
@@ -38,7 +41,6 @@ documentation:
    :maxdepth: 2
    :caption: User Documentation
 
-   user/quickstart.rst
    user/overview.rst
    user/codeviewer.rst
    user/management.rst
@@ -49,29 +51,13 @@ documentation:
    Filesystem <https://fs-docs.codegra.de>
    user/lms.rst
 
+.. only:: not latex
 
-.. only:: latex
+   .. toctree::
+       :maxdepth: 1
+       :caption: About CodeGrade
 
-    .. toctree::
-        :maxdepth: 1
-        :caption: About CodeGrade
-
-        about/whatis
-        about/changelog
-        about/history
-        about/authors
-        about/technologies
-        about/contributing
-        about/contact
-
-.. only:: latex
-
-    .. toctree::
-        :maxdepth: 1
-        :caption: Developer Documentation
-
-        building
-        running
+       about/about
 
 .. only:: not latex
 
@@ -79,7 +65,4 @@ documentation:
         :maxdepth: 1
         :caption: Developer Documentation
 
-        building
-        running
-        api
-        code
+        developerdocs

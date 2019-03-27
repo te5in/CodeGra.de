@@ -6,15 +6,8 @@ your LMS. The following chapters apply to both situations. Please consult the
 :ref:`LMS Integration <lms-chapter>` chapter for detailed information of
 integrating CodeGrade into your Learning Management System.
 
-Brief Overview
----------------
-
-CodeGra.de is a blended learning application designed especially for programming
-education.  It makes grading and handing in programming exercises more
-insightful and effective for students and more efficient for teachers. This
-chapter provides a brief overview of the components and navigation in
-CodeGrade. The following chapters will provide more in-depth documentation on
-all individual components and their uses.
+This chapter provides a brief overview of the components and navigation in
+CodeGrade.
 
 .. note::
 
@@ -22,7 +15,7 @@ all individual components and their uses.
     that may allow certain features to be disabled on your CodeGrade account.
 
 General Site
-~~~~~~~~~~~~~
+-------------
 
 CodeGrade allows for the :ref:`creation of courses and assignments
 <management-chapter>`.
@@ -50,7 +43,7 @@ altered by site administrators too. All users on CodeGrade can set
 <preferences-chapter>`.
 
 Filesystem
-~~~~~~~~~~~
+-----------
 
 The `CodeGrade Filesystem <https://fs-docs.codegra.de>`__ (or CodeGra.fs) can be
 used in combination with the web application.  It can mount a local CodeGrade
