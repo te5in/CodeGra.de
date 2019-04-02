@@ -72,7 +72,9 @@
                :target="btnId"
                triggers=""
                @hide="resetConfirm">
-        <p>{{ confirm }}</p>
+        <p class="confirm-message">
+            {{ confirm }}
+        </p>
 
         <b-button-toolbar justify>
             <b-button size="sm"
@@ -384,6 +386,10 @@ export default {
     &:hover {
         opacity: 1;
     }
+}
+
+.confirm-message {
+    text-align: justify;
 }
 
 .confirm-button {
