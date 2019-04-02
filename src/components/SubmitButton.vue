@@ -210,19 +210,20 @@ export default {
         },
 
         stringifiedError() {
-            let err = this.error;
+            const err = this.error;
+            let msg;
 
             if (err == null) {
                 return '';
             } else if (err.response && err.response.data) {
-                err = err.response.data.message;
+                msg = err.response.data.message;
             } else if (err instanceof Error) {
-                err = err.message;
+                msg = err.message;
             } else {
-                err = err.toString();
+                msg = err.toString();
             }
 
-            return err || 'Something unknown went wrong';
+            return msg || 'Something unknown went wrong';
         },
 
         isDisabled() {
@@ -295,6 +296,7 @@ export default {
 
         onError(err) {
             if (err === SubmitButtonCancelled) {
+                this.$emit('cancel', err);
                 this.state = 'default';
                 return;
             }
@@ -302,6 +304,9 @@ export default {
             this.$emit('error', err);
             this.state = 'error';
             this.error = err;
+
+            // eslint-disable-next-line
+            console.error(err);
         },
 
         hideError() {
