@@ -129,7 +129,7 @@
             </div>
 
             <div :class="canSubmitBbZip ? 'col-xl-6' : 'col-xl-12'">
-                <b-card v-if="canSubmitWork">
+                <b-card v-if="canSubmitWork" no-body>
                     <span slot="header">
                         Upload submission
                         <description-popover
@@ -137,7 +137,9 @@
                                          author field you can select who should be the author. This
                                          function can be used to submit work for a student."/>
                     </span>
-                    <submission-uploader :assignment="assignment" for-others
+                    <submission-uploader :assignment="assignment"
+                                         for-others
+                                         no-border
                                          :can-list-users="permissions.can_list_course_users"/>
                 </b-card>
             </div>

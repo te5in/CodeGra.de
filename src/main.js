@@ -12,6 +12,7 @@ import Toasted from 'vue-toasted';
 import localforage from 'localforage';
 import memoryStorageDriver from 'localforage-memoryStorageDriver';
 import VueMasonry from 'vue-masonry-css';
+import moment from 'moment';
 
 import '@/polyfills';
 import App from '@/App';
@@ -189,6 +190,7 @@ localforage.defineDriver(memoryStorageDriver).then(() => {
                 smallWidth: 628,
                 mediumWidth: 768,
                 largeWidth: 992,
+                now: moment(),
             };
         },
 
@@ -196,6 +198,10 @@ localforage.defineDriver(memoryStorageDriver).then(() => {
             window.addEventListener('resize', () => {
                 this.screenWidth = window.innerWidth;
             });
+
+            setTimeout(() => {
+                this.now = moment();
+            }, 60000);
         },
 
         computed: {
@@ -236,6 +242,10 @@ localforage.defineDriver(memoryStorageDriver).then(() => {
                 // ua = 'Mozilla/5.0 (Windows NT 6.3; Trident/7.0; rv:11.0) like Gecko';
 
                 return ua.indexOf('MSIE ') > -1 || ua.indexOf('Trident/') > -1;
+            },
+
+            $now() {
+                return this.now;
             },
         },
     });
