@@ -101,6 +101,7 @@ Uploading Submissions
 +++++++++++++++++++++++
 Submissions can be uploaded via the assignment management page too. Using the *Upload submission* tool submissions can be uploaded as
 any requested user: hand in submissions for students or hand in as administrator by selecting a user via the search bar.
+Submissions can be uploaded as an archive, which is automatically extracted by CodeGrade, or as multiple individual files.
 
 .. _upload-blackboard-zip:
 

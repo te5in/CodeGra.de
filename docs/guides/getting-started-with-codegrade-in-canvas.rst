@@ -169,7 +169,8 @@ submissions from within our website and allows students to intuitively see
 their feedback displayed in their code.
 
 *Submissions* handed in as archives are *automatically* extracted and displayed
-in the file-tree next to the *Code Viewer*. The Code Viewer supports over **175
+in the file-tree next to the *Code Viewer*. Of course, multiple individual files
+can also be uploaded in CodeGrade. The Code Viewer supports over **175
 programming languages**, **Jupyter Notebooks**, **PDF-files** and **images**.
 
 Inline feedback
