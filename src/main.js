@@ -111,25 +111,41 @@ const DRIVERS = [
 ];
 
 let inLTI = false;
-Object.defineProperty(Vue.prototype, '$inLTI', {
-    get() {
-        return inLTI;
-    },
-    set(val) {
+Vue.util.defineReactive(
+    Vue.prototype,
+    '$inLTI',
+    inLTI,
+    val => {
         if (val === true) {
             inLTI = val;
         } else {
-            throw new TypeError('You can only set this to true');
+            throw new TypeError('You can only set $inLTI to true');
         }
     },
-});
+    true,
+);
+
+let ltiProvider = null;
+Vue.util.defineReactive(
+    Vue.prototype,
+    '$ltiProvider',
+    ltiProvider,
+    val => {
+        if (ltiProvider === null) {
+            ltiProvider = val;
+        } else {
+            throw new TypeError('You can only set $ltiProvider once');
+        }
+    },
+    true,
+);
 
 let LTIAssignmentId = null;
-Object.defineProperty(Vue.prototype, '$LTIAssignmentId', {
-    get() {
-        return LTIAssignmentId;
-    },
-    set(val) {
+Vue.util.defineReactive(
+    Vue.prototype,
+    '$LTIAssignmentId',
+    LTIAssignmentId,
+    val => {
         if (val == null) {
             throw new TypeError('You cannot set this to null or undefined');
         }
@@ -139,7 +155,8 @@ Object.defineProperty(Vue.prototype, '$LTIAssignmentId', {
             throw new TypeError('You cannot change this property once it is set');
         }
     },
-});
+    true,
+);
 
 Vue.prototype.$userConfig = UserConfig;
 
