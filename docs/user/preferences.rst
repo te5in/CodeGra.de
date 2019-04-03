@@ -59,9 +59,10 @@ on the usage of snippets in the Codeviewer can be found :ref:`here
 <codeviewer-snippets>`.
 
 The snippet manager allows you to edit (using the :fa:`pencil` button), delete
-(using the red :fa:`times` button) and add snippets. When in edit mode, be
-sure to save your snippet using the :fa:`save` button to apply your changes or
-cancel your edit using the :fa:`ban` button.
+(using the red :fa:`times` button) and create snippets, furthermore it displays
+a list of all your personal snippets. Use the :fa:`plus` icon to create a new
+snippet. For existing snippets, use the :fa:`times` icon to delete and the
+:fa:`pencil` icon to edit snippets. 
 
 .. note:: Use the search bar to search for (parts of) snippet names or full comments.
 

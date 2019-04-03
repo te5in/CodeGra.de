@@ -22,7 +22,7 @@ Code Viewer
 
 4. In the field that will appear above the inline feedback field, type your **snippet shortcut**.
 
-5. Press the :fa:`check` icon or press **CTRL+Enter** to save your snippet.
+5. Press the :fa:`check` icon or press :kbd:`Ctrl+Enter` to save your snippet.
 
 6. Your snippet is now ready to use anywhere.
 
@@ -35,9 +35,9 @@ Profile page
 
 3. Press the :fa:`plus` icon to add a new snippet.
 
-4. Type your **snippet shortcut** and **snippet contents**.
+4. In the dialog, type your **snippet name** (*shortcut*) and **snippet replacement text** (*content of feedback*).
 
-5. Press the :fa:`check` icon or press **CTRL+Enter** to save your snippet.
+5. Press the **Save** button or press :kbd:`Ctrl+Enter` to save your snippet.
 
 6. Your snippet is now ready to use anywhere.
 
@@ -51,9 +51,9 @@ Using snippets
 
 3. Your snippet will appear in the autocomplete list below.
 
-4. Press **TAB** to cycle through this list and select the snippet.
+4. Press :kbd:`Tab` to cycle through this list and select the snippet.
 
-5. Press **CTRL+Enter** to save the inline feedback.
+5. Press :kbd:`Ctrl+Enter` to save the inline feedback.
 
 Managing snippets
 --------------------
@@ -70,4 +70,6 @@ Code Viewer
 Profile page
 ~~~~~~~~~~~~~~
 
-Use the :fa:`floppy-o` or :fa:`times` icons to edit or delete the snippet.
+A list of your personal snippets are found at the bottom of the profile
+(:fa:`user-circle-o`) page. Use the :fa:`times` icon next to a snippet to
+permanently delete this snippet. Use the :fa:`pencil` icon to edit the snippet.

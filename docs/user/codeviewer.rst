@@ -55,7 +55,7 @@ New snippets can be added through the :ref:`profile page <preferences-chapter>`
 and via the :fa:`plus` button in the line of line feedback dialog. The latter
 makes it possible to save existing line for line feedback comments. After
 clicking this button the snippet can be named and saved for future use. To use
-your saved snippet, simply type in the given name and press the TAB keyboard key
+your saved snippet, simply type in the given name and press the :kbd:`Tab` keyboard key
 to autocomplete it to the saved comment.
 
 .. note:: It is in most cases recommended to use a short keyword for the snippet.

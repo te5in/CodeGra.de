@@ -184,7 +184,7 @@ typing your feedback, click the :fa:`check` button to save the feedback or press
 :fa:`cross` button to delete.
 
 .. note::
-    Pro tip: press **CTRL+Enter** to save feedback efficiently.
+    Pro tip: press :kbd:`Ctrl+Enter` to save feedback efficiently.
 
 Snippets
 ~~~~~~~~~
@@ -193,7 +193,7 @@ Experience tells us that the same lines of feedback are oftentimes given
 multiple times to multiple students. We introduced **snippets** to make grading
 with inline feedback **more efficient**. Click the :fa:`plus` icon when entering line
 feedback to save the comment as a snippet. This snippet can now be re-used
-in the future by **typing its short name** and pressing **TAB** to autocomplete.
+in the future by **typing its short name** and pressing :kbd:`Tab` to autocomplete.
 
 Full management of snippets can be done in the **“Profile Page"** (:fa:`user-circle-o`),
 snippets are personal and can be used over multiple assignments and courses.
