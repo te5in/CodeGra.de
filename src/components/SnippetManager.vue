@@ -46,6 +46,17 @@
                     </b-button-group>
                 </td>
             </tr>
+
+            <tr v-if="filteredSnippets.length === 0">
+                <td class="no-snippets text-muted" colspan="3">
+                    <template v-if="this.snippets.length === 0">
+                        You have not created any snippets yet!
+                    </template>
+                    <template v-else>
+                        No snippets found!
+                    </template>
+                </td>
+            </tr>
         </tbody>
     </table>
 
@@ -330,6 +341,11 @@ export default {
     .snippet-actions {
         width: 0px;
         white-space: nowrap;
+    }
+
+    .no-snippets {
+        padding: 1.5rem;
+        text-align: center;
     }
 }
 
