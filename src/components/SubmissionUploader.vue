@@ -604,6 +604,10 @@ export default {
     margin-bottom: 0.95rem;
     padding: 0.95rem;
     min-height: 50vh;
+
+    #app.dark & {
+        border-color: @color-primary-darker;
+    }
 }
 
 .group-modal-body .groups-management {
@@ -821,10 +825,14 @@ export default {
                 font-size: 1rem;
                 transition: all 250ms;
                 color: @color-primary;
+
+                #app.dark & {
+                    color: @text-color-dark;
+                }
             }
 
             &:hover::after {
-                color: @color-danger;
+                color: @color-danger !important;
             }
         }
 

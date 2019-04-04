@@ -167,6 +167,11 @@ class Course(Base):
 
         :returns: A list of assignments the currently logged in user may see.
         """
+        if not psef.current_user.has_permission(
+            CoursePermission.can_see_assignments, self.id
+        ):
+            return []
+
         assigs: t.Iterable[Assignment] = self.assignments
         if not psef.current_user.has_permission(
             CoursePermission.can_see_hidden_assignments, self.id

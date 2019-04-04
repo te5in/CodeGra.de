@@ -177,11 +177,10 @@
                        :show-whitespace="showWhitespace"
                        :is-diff="diffMode"
                        :file="currentFile"
-                       :editable="editable"
+                       :editable="canGiveLineFeedback"
                        @new-lang="languageChanged"
                        :language="selectedLanguage"
-                       :can-use-snippets="canUseSnippets"
-                       />
+                       :can-use-snippets="canUseSnippets"/>
         </div>
         <div class="file-tree-container " v-if="!overviewMode"
              slot="secondPane">
@@ -392,6 +391,10 @@ export default {
             }
 
             return file;
+        },
+
+        canGiveLineFeedback() {
+            return this.editable && this.selectedRevision === 'student';
         },
     },
 

@@ -255,6 +255,9 @@ export default {
                         (this.assignment.state === assignmentState.SUBMITTING ||
                             (afterDeadline && this.assignment.state !== assignmentState.HIDDEN));
 
+                    this.canSeeOthersWork = false;
+                    this.canDownload = false;
+
                     if (others) {
                         this.canSeeOthersWork = true;
 

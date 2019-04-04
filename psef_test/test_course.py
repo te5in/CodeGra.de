@@ -30,7 +30,12 @@ missing_error = create_marker(pytest.mark.missing_error)
     indirect=['named_user']
 )
 def test_get_all_courses(
-    named_user, test_client, logged_in, request, expected, error_template
+    named_user,
+    test_client,
+    logged_in,
+    request,
+    expected,
+    error_template,
 ):
     perm_err = request.node.get_closest_marker('perm_error')
     if perm_err:
@@ -58,7 +63,7 @@ def test_get_all_courses(
             assert len(found) == len(res) == len(expected)
 
 
-def test_get_all_extended_courses(ta_user, test_client, logged_in):
+def test_get_all_extended_courses(ta_user, test_client, logged_in, session):
     with logged_in(ta_user):
         res = test_client.req(
             'get',
@@ -73,6 +78,20 @@ def test_get_all_extended_courses(ta_user, test_client, logged_in):
             assert isinstance(item['assignments'], list)
             assert 'group_sets' in item
             assert isinstance(item['group_sets'], list)
+
+    u = create_user_with_perms(session, [], res)
+    with logged_in(u):
+        test_client.req(
+            'get',
+            '/api/v1/courses/',
+            200,
+            query={'extended': 'true'},
+            result=[{
+                **c,
+                'assignments': [],
+                'role': str,
+            } for c in res]
+        )
 
 
 @pytest.mark.parametrize('add_lti', [True, False])

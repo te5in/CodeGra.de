@@ -164,8 +164,9 @@ export default {
             if (!this.filter) {
                 return this.snippets;
             } else {
+                const filter = this.filter.toLowerCase();
                 return this.snippets.filter(
-                    s => s.key.match(this.filter) || s.value.match(this.filter),
+                    s => s.key.toLowerCase().match(filter) || s.value.toLowerCase().match(filter),
                 );
             }
         },

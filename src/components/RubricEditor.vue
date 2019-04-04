@@ -286,25 +286,25 @@ export default {
             this.getAndSetRubrics();
         },
 
-        hidden: {
-            immediate: true,
-            handler() {
-                if (!this.hidden && this.assignments === null && this.rubrics.length === 0) {
-                    this.loadAssignments();
-                }
-            },
+        hidden() {
+            this.maybeLoadOtherAssignments();
+        },
+
+        editable() {
+            this.maybeLoadOtherAssignments();
         },
     },
 
-    mounted() {
+    async mounted() {
         if (this.defaultRubric) {
             this.setRubricData(this.defaultRubric);
             this.loading = false;
         } else {
-            this.getAndSetRubrics().then(() => {
+            await this.getAndSetRubrics().then(() => {
                 this.loading = false;
             });
         }
+        this.maybeLoadOtherAssignments();
     },
 
     computed: {
@@ -344,6 +344,17 @@ export default {
 
     methods: {
         ...mapActions('courses', ['forceLoadSubmissions', 'forceLoadRubric', 'setRubric']),
+
+        maybeLoadOtherAssignments() {
+            if (
+                this.editable &&
+                !this.hidden &&
+                this.assignments === null &&
+                this.rubrics.length === 0
+            ) {
+                this.loadAssignments();
+            }
+        },
 
         loadOldRubric() {
             return this.$http.post(`/api/v1/assignments/${this.assignmentId}/rubric`, {

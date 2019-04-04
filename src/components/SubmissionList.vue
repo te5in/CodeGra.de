@@ -136,7 +136,8 @@
         </template>
     </b-table>
 
-    <div class="submission-count">
+    <div v-if="canSeeOthersWork"
+         class="submission-count">
         Showing {{ filteredSubmissions.length }} of a total of {{ submissions.length }}
         submissions by {{ numFilteredStudents }} out of {{ numStudents }}
         students.
@@ -508,6 +509,10 @@ export default {
 <style lang="less" scoped>
 @import '~mixins.less';
 
+.submission-list {
+    margin-bottom: 1rem;
+}
+
 .separator.top-separator {
     margin: 0.5rem 0;
 }
@@ -535,7 +540,6 @@ export default {
 
 .submission-count {
     padding: 0.75rem;
-    margin-bottom: 1rem;
     border: 1px solid #dee2e6;
     border-right-width: 0;
     border-left-width: 0;
