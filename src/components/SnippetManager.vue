@@ -83,7 +83,7 @@
                 <textarea rows="10"
                           class="form-control"
                           placeholder="Replacement text"
-                          @keydown.ctrl.enter="clickSave"
+                          @keydown.ctrl.enter.prevent="clickSave"
                           v-model="editingSnippet.value"
                           ref="valueInput"/>
             </b-input-group>
