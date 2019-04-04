@@ -2,6 +2,7 @@
 
 SPDX-License-Identifier: AGPL-3.0-only
 """
+import copy
 import uuid
 import typing as t
 import datetime
@@ -164,7 +165,7 @@ class Course(Base):
             name=f'Virtual assignment - {tree.name}', course=self
         )
         self.assignments.append(assig)
-        for child in tree.values:
+        for child in copy.copy(tree.values):
             # This is done before we wrap single files to get better author
             # names.
             work = Work(
@@ -174,8 +175,10 @@ class Course(Base):
             subdir: psef.files.ExtractFileTreeBase
             if isinstance(child, psef.files.ExtractFileTreeFile):
                 subdir = psef.files.ExtractFileTreeDirectory(
-                    name='top', values=[child]
+                    name='top', values=[child], parent=None
                 )
+                tree.forget_child(child)
+                subdir.add_child(child)
             else:
                 assert isinstance(child, psef.files.ExtractFileTreeDirectory)
                 subdir = child

@@ -5,34 +5,104 @@
     <b-modal id="wrong-files-modal"
              v-if="showWrongFileModal"
              hide-footer
-             title="Probably superfluous files found!">
-        <p>
-            The following files should not be in your archive according to
-            the <code style="margin: 0 0.25rem;">.cgignore</code> file. This
-            means the following files are probably not necessary to hand
-            in:
-        </p>
-        <ul class="wrong-files-list">
-            <li style="margin-right: 2px; padding: 0.5em;" v-for="file in wrongFiles">
-                <code style="margin-right: 0.25rem">{{ file[0] }}</code> is ignored by <code>{{ file[1] }}</code>
-            </li>
-        </ul>
-        <p>
-            This could be a mistake so please make sure no necessary code is
-            present in these files before you delete them!
-        </p>
+             title="Your submission does not follow the hand-in instruction required by your teacher!">
+        <div v-if="oldIgnoreFormat">
+            <p>
+                The following files should not be in your archive according to
+                the <code style="margin: 0 0.25rem;">.cgignore</code> file. This
+                means the following files are probably not necessary to hand
+                in:
+            </p>
+            <ul class="wrong-files-list">
+                <li style="margin-right: 2px; padding: 0.5em;" v-for="file in wrongFiles">
+                    <code style="margin-right: 0.25rem">{{ file[0] }}</code> is ignored by <code>{{ file[1] }}</code>
+                </li>
+            </ul>
+            <p>
+                This could be a mistake so please make sure no necessary code is
+                present in these files before you delete them!
+            </p>
+        </div>
+        <div v-else class="wrong-files-modal-content">
+            <b-tabs no-fade class="missing-required-files-tabs"
+                    content-class="missing-required-files-content">
+                <b-tab title="Missing files" class="ignore-tab" :disabled="wrongFileError.missing_files.length === 0">
+                    <b-card class="ignore-card missing-card" no-body>
+                        <p class="explanation">
+                            The following files were required by your teacher, but
+                            were not found in your submission.
+                        </p>
+                        <ul class="striped-list">
+                            <li v-for="missing in wrongFileError.missing_files"
+                                :key="missing.name">
+                                <file-rule :value="missing"
+                                           policy=""
+                                           :editable="false"
+                                           :all-rules="[]"
+                                           :editing="false"
+                                           hide-rule-type/>
+                            </li>
+                        </ul>
+                    </b-card>
+                </b-tab>
+                <b-tab title="Denied files" class="ignore-tab"
+                       :disabled="wrongFileError.removed_files.every(x => x.deletion_type === 'leading_directory')">
+                    <b-card class="ignore-card denied-files" no-body>
+                        <file-tree :tree="deheadedFileTree"
+                                   :collapsed="false"
+                                   :collapse-function="expandFileTree"
+                                   no-links>
+                            <template slot="file-slot"
+                                      slot-scope="f">
+                                <span class="deleted-file"
+                                      v-b-popover.hover.top.window="'This file is denied.'"
+                                      v-if="fileDeletionRule(f.fullFilename)"
+                                      >{{ f.filename }}</span>
+                                <span class="not-denied-file" v-else>{{ f.filename }}</span>
+                            </template>
+                            <template slot="dir-slot"
+                                      slot-scope="f">
+                                <span class="deleted-file"
+                                      v-if="fileDeletionRule(f.fullFilename)"
+                                      v-b-popover.top.hover.window="'This directory and all its files are denied.'"
+                                      >{{ f.filename }}</span>
+                                <span v-else-if="f.depth > 1 && dirContainsDeletions(f.fullFilename)"
+                                      v-b-popover.top.hover.window="'This directory contains files which are denied.'"
+                                      class="dir-with-deletions"
+                                      >{{ f.filename }}</span>
+                                <span :class="f.depth > 1 ? 'not-denied-file' : ''" v-else>{{ f.filename }}</span>
+                            </template>
+                        </file-tree>
+                    </b-card>
+                </b-tab>
+                <b-tab title="Hand-in instructions" class="ignore-tab">
+                    <b-card class="ignore-card" no-body>
+                        <c-g-ignore-file :assignment-id="assignment.id"
+                                         summary-mode
+                                         :editable="false"/>
+                    </b-card>
+                </b-tab>
+            </b-tabs>
+        </div>
         <b-button-toolbar justify>
-            <submit-button label="Delete files"
-                           variant="danger"
-                           :submit="() => overrideSubmit('delete')"
-                           @after-success="afterOverrideSubmit"
-                           @error="$emit('error', $event)"/>
+            <div v-b-popover.top.hover="canDeleteFiles ? '' : 'You are missing required files.'">
+                <submit-button label="Delete files"
+                            variant="danger"
+                            :submit="() => overrideSubmit('delete')"
+                            :disabled="!canDeleteFiles"
+                            @after-success="afterOverrideSubmit"
+                            @error="$emit('error', $event)"/>
+            </div>
 
-            <submit-button label="Keep files"
-                           variant="warning"
-                           :submit="() => overrideSubmit('keep')"
-                           @after-success="afterOverrideSubmit"
-                           @error="$emit('error', $event)"/>
+            <div v-b-popover.top.hover="canOverrideIgnore ? '' : (canDeleteFiles ? 'You are not allowed to override the hand-in requirements.' : 'You are missing required files.')">
+                <submit-button label="Override"
+                            variant="warning"
+                            v-b-popover.top.hover="'hello'"
+                            :submit="() => overrideSubmit('keep')"
+                            :disabled="!canOverrideIgnore"
+                            @after-success="afterOverrideSubmit"
+                            @error="$emit('error', $event)"/>
+            </div>
 
             <b-button variant="outline-primary"
                       @click="$root.$emit('bv::hide::modal', 'wrong-files-modal')">
@@ -158,6 +228,11 @@ import SubmitButton, { SubmitButtonCancelled } from './SubmitButton';
 import UserSelector from './UserSelector';
 import GroupManagement from './GroupManagement';
 import GroupsManagement from './GroupsManagement';
+import FileRule from './FileRule';
+import CGIgnoreFile from './CGIgnoreFile';
+import FileTree from './FileTree';
+
+let uploaderIndex = 0;
 
 export default {
     name: 'submission-uploader',
@@ -226,22 +301,52 @@ export default {
             return this.assignment.lms_name;
         },
 
+        oldIgnoreFormat() {
+            return (
+                this.assignment.cgignore_version == null ||
+                this.assignment.cgignore_version !== 'SubmissionValidator'
+            );
+        },
+
+        canDeleteFiles() {
+            return this.oldIgnoreFormat || this.wrongFileError.missing_files.length === 0;
+        },
+
+        canOverrideIgnore() {
+            return (
+                this.oldIgnoreFormat ||
+                (this.wrongFileError.missing_files.length === 0 &&
+                    this.assignment.cgignore.options.some(
+                        opt => opt.key === 'allow_override' && opt.value,
+                    ))
+            );
+        },
+
+        deheadedFileTree() {
+            if (this.oldIgnoreFormat || !this.wrongFileError) {
+                return {};
+            } else if (
+                this.wrongFileError.removed_files.length === 0 ||
+                this.wrongFileError.removed_files[0].deletion_type !== 'leading_directory'
+            ) {
+                return this.wrongFileError.original_tree;
+            } else {
+                const tree = this.wrongFileError.original_tree;
+                while (tree.entries.length === 1 && tree.entries[0].entries != null) {
+                    tree.entries = tree.entries[0].entries;
+                }
+                return tree;
+            }
+        },
+
         uploadUrl() {
-            let res = `${window.location.protocol}//${window.location.host}/api/v1/assignments/${
-                this.assignment.id
-            }/submission?ignored_files=${this.ignored}`;
+            let res = `/api/v1/assignments/${this.assignment.id}/submission?ignored_files=${
+                this.ignored
+            }`;
             if (this.differentAuthor) {
                 res += `&author=${this.author.username}`;
             }
             return res;
-        },
-
-        requestData() {
-            const data = new FormData();
-            this.$refs.submissionUploader.getAcceptedFiles().forEach((f, i) => {
-                data.append(`file${i}`, f);
-            });
-            return data;
         },
 
         dropzoneOptions() {
@@ -262,6 +367,7 @@ export default {
     data() {
         return {
             wrongFiles: [],
+            wrongFileError: null,
             author: null,
             // This variable is a haxxxy optimization: Rendering a modal is SLOW
             // (!!) as it forces an entire reflow even when it is still
@@ -273,12 +379,20 @@ export default {
             // `false` as doing so f*cks the entire animation.
             showWrongFileModal: false,
             showGroupModal: false,
-            currentGroup: null,
             ignored: 'error',
             showDropzoneOverlay: 0,
             dropzoneHovered: 0,
             amountOfFiles: 0,
+            uploaderId: `submission-uploader-${uploaderIndex++}`,
+            currentGroup: null,
+            ruleCache: {},
         };
+    },
+
+    watch: {
+        wrongFileError() {
+            this.ruleCache = {};
+        },
     },
 
     mounted() {
@@ -300,13 +414,49 @@ export default {
     methods: {
         ...mapActions('courses', ['addSubmission']),
 
+        getRequestData() {
+            const data = new FormData();
+            this.$refs.submissionUploader.getAcceptedFiles().forEach((f, i) => {
+                data.append(`file${i}`, f);
+            });
+            return data;
+        },
+
+        expandFileTree(f) {
+            return !(this.dirContainsDeletions(f) && !this.fileDeletionRule(f));
+        },
+
+        dirContainsDeletions(f) {
+            const name = f.slice(this.deheadedFileTree.name.length + 2, f.length);
+            // Extra slash to make sure we don't have name clashes in the cache.
+            return this.fileDeletionRule(`${f}//`, other => other.startsWith(name));
+        },
+
+        fileDeletionRule(f, equals = (deletedFile, self) => deletedFile === self) {
+            const name = f.slice(this.deheadedFileTree.name.length + 2, f.length);
+            if (this.ruleCache[name] === undefined) {
+                this.ruleCache[name] = null;
+                for (let i = 0; i < this.wrongFileError.removed_files.length; ++i) {
+                    const removed = this.wrongFileError.removed_files[i];
+                    if (
+                        removed.deletion_type !== 'leading_directory' &&
+                        equals(removed.fullname, name)
+                    ) {
+                        this.ruleCache[name] = removed;
+                    }
+                }
+            }
+
+            return this.ruleCache[name];
+        },
+
         resetDragOverlay() {
             this.dropzoneHovered = 0;
             this.showDropzoneOverlay = 0;
         },
 
         uploadFiles() {
-            return this.$http.post(this.uploadUrl, this.requestData);
+            return this.$http.post(this.uploadUrl, this.getRequestData());
         },
 
         afterUploadFiles({ data: submission }) {
@@ -353,9 +503,11 @@ export default {
 
         async uploadError(err) {
             const { data } = err.response;
+            this.ruleCache = {};
 
             if (this.isArchiveError(err)) {
                 this.wrongFiles = data.invalid_files;
+                this.wrongFileError = data;
                 this.showWrongFileModal = true;
                 await this.$nextTick();
                 this.$root.$emit('bv::show::modal', 'wrong-files-modal');
@@ -422,7 +574,10 @@ export default {
         GroupsManagement,
         SubmitButton,
         UserSelector,
+        FileRule,
         Loader,
+        CGIgnoreFile,
+        FileTree,
         VueDropzone,
         Icon,
     },
@@ -430,6 +585,8 @@ export default {
 </script>
 
 <style lang="less" scoped>
+@import '~mixins.less';
+
 .form-group {
     margin-bottom: 0;
 }
@@ -456,6 +613,56 @@ export default {
 
 .btn-toolbar {
     flex: 0 0 auto;
+}
+
+.missing-card .explanation {
+    padding: 0 0.75rem;
+}
+
+.ignore-card {
+    padding-top: 0.75rem;
+    border-top-right-radius: 0;
+    border-top-left-radius: 0;
+    border-top: 0;
+    overflow-y: auto;
+}
+
+.ignore-tab {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    height: 100%;
+}
+
+.missing-required-files-tabs {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.wrong-files-modal-content {
+    overflow-y: hidden;
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 1rem;
+}
+
+.deleted-file {
+    color: @color-diff-removed-dark;
+    text-decoration: underline wavy;
+}
+
+.dir-with-deletions {
+    text-decoration: underline wavy @color-diff-removed-dark;
+}
+
+.not-denied-file {
+    opacity: 0.6;
+}
+
+.denied-files .file-tree {
+    padding: 0.75rem;
+    padding-top: 0;
 }
 
 .submit-file-button {
@@ -650,17 +857,24 @@ export default {
         border-top-right-radius: 0;
     }
 
-    .modal-dialog {
+    #wrong-files-modal .modal-dialog {
         display: flex;
         flex-direction: column;
         height: auto;
         max-height: 75vh;
         min-width: 75vw;
         margin: 12.5vh auto;
+        max-width: 768px;
 
         @media @media-small {
             max-height: ~'calc(100vh - 2rem)';
             margin: 1rem auto;
+        }
+
+        .missing-required-files-content {
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
         }
     }
 
