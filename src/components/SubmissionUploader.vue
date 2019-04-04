@@ -856,6 +856,10 @@ export default {
         border-top-right-radius: 0;
     }
 
+    #group-manage-modal .modal-dialog {
+        max-width: 768px;
+    }
+
     #wrong-files-modal .modal-dialog {
         display: flex;
         flex-direction: column;
