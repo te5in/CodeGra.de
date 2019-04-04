@@ -199,13 +199,14 @@ def ensure_can_submit_work(
         ensure_permission(CPerm.can_upload_after_deadline, assig.course_id)
 
     if assig.is_lti and assig.id not in author.assignment_results:
+        lms_name = assig.course.lti_provider.lms_name
         raise APIException(
             (
-                "This assignment is a LTI assignment and it seems we "
-                "don't have the possibility to passback the grade to the "
-                "LMS. Please {}visit the assignment on the LMS again, if "
-                "this issue persist please contact your administrator."
-            ).format('let the given author ' if submit_self else ''),
+                f'This is a {lms_name} assignment and it seems we do not have '
+                'the possibility to pass back the grade. Please {}visit the '
+                f'assignment again on {lms_name}. If this issue persists, '
+                'please contact your system administrator.'
+            ).format('ask the given author to ' if submit_self else ''),
             (
                 f'The assignment {assig.id} is not present in the '
                 f'user {author.id} `assignment_results`'

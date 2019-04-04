@@ -9,14 +9,16 @@
                :target="compId"
                :boundary="boundary"
                :title="title">
-        <span class="description-popover-content">
+        <div class="description-popover-content">
             <slot name="description">{{ description }}</slot>
-        </span>
+        </div>
     </b-popover>
     <component :is="hugText ? 'sup' : 'span'"
                class="desc-pop-span"
                :id="compId">
-        <icon :name="icon" scale="0.75"/>
+        <span :title="spanTitle">
+            <icon :name="icon" scale="0.75"/>
+        </span>
     </component>
 </span>
 </template>
@@ -39,6 +41,10 @@ export default {
     props: {
         description: {
             type: String,
+        },
+
+        spanTitle: {
+            default: 'Click to show help',
         },
 
         triggers: {
@@ -95,7 +101,6 @@ export default {
 }
 
 .description-popover-content {
-    display: inline-block;
     text-align: justify;
     hyphens: auto;
 }

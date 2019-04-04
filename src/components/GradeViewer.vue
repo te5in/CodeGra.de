@@ -35,7 +35,7 @@
                    v-model="grade"/>
 
             <b-input-group-append class="text-right rubric-score"
-                                  :class="{'grade-warning': rubricOverridden}"
+                                  :class="{warning: rubricOverridden, 'help-cursor': rubricOverridden}"
                                   style="text-align: center !important; display: inline;"
                                   v-if="showRubric"
                                   is-text>
@@ -72,7 +72,7 @@
                 </b-button>
             </b-input-group-append>
 
-            <b-input-group-append class="text-right rubric-score grade-warning"
+            <b-input-group-append class="text-right rubric-score warning help-cursor"
                                   v-if="isRubricChanged()"
                                   is-text
                                   v-b-popover.hover.top="'Press the submit button to submit the changes.'">
@@ -330,15 +330,6 @@ input {
     }
 }
 
-.grade-warning .input-group-text {
-    background: fade(#f0ad4e, 50%) !important;
-    cursor: help;
-
-    #app.dark & {
-        color: @text-color;
-    }
-}
-
 .out-of-sync-alert {
     max-height: 3.2em;
     overflow-x: hidden;
@@ -360,6 +351,10 @@ input {
 
 .grade-fieldset {
     margin-bottom: 0;
+}
+
+.help-cursor {
+    cursor: help;
 }
 </style>
 

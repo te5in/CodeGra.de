@@ -3,51 +3,54 @@
 <div class="assignment-state" v-if="editable">
     <b-button-group>
         <submit-button class="state-button larger"
-                       v-if="assignment.is_lti"
-                       :size="size"
+                       v-if="canManageLTIState"
                        :variant="ltiHiddenOpenVariant"
-                       v-b-popover.window.top.hover="'Hidden or open, managed by LMS'"
+                       v-b-popover.window.top.hover="`Hidden or open, managed by ${lmsName}`"
                        :submit="() => updateState(states.OPEN)"
                        @success="afterUpdateState"
-                       :icon-scale="iconScale"
-                       :duration="0">
-            <icon :name="icons[states.HIDDEN]" :scale="iconScale"/>
-            <icon :name="icons[states.OPEN]" :scale="iconScale"/>
+                       :duration="0"
+                       confirm="Students will not be able to see their grade.
+                       whether they can see the assignment at all is determined
+                       by the assignment's state in ${lmsName}.">
+            <icon :name="icons[states.HIDDEN]"/>
+            <icon :name="icons[states.OPEN]"/>
         </submit-button>
 
         <b-button-group v-else>
             <submit-button class="state-button"
-                           :size="size"
                            :variant="hiddenVariant"
                            v-b-popover.window.top.hover="labels[states.HIDDEN]"
                            :submit="() => updateState(states.HIDDEN)"
                            @success="afterUpdateState"
-                           :icon-scale="iconScale"
-                           :duration="0">
-                <icon :name="icons[states.HIDDEN]" :scale="iconScale"/>
+                           :duration="0"
+                           confirm="Students will not be able to view the
+                           assignment. Are you sure?">
+                <icon :name="icons[states.HIDDEN]"/>
             </submit-button>
 
             <submit-button class="state-button"
-                           :size="size"
                            :variant="openVariant"
                            v-b-popover.window.top.hover="labels[states.OPEN]"
                            :submit="() => updateState(states.OPEN)"
                            @success="afterUpdateState"
-                           :icon-scale="iconScale"
-                           :duration="0">
-                <icon :name="icons[states.OPEN]" :scale="iconScale"/>
+                           :duration="0"
+                           confirm="Students will be able to see the assignment
+                           and submit work if the deadline has not passed yet,
+                           but they will not be able to see their grade. Are
+                           you sure?">
+                <icon :name="icons[states.OPEN]"/>
             </submit-button>
         </b-button-group>
 
         <submit-button class="state-button"
-                       :size="size"
                        :variant="doneVariant"
                        v-b-popover.window.top.hover="labels[states.DONE]"
                        :submit="() => updateState(states.DONE)"
                        @success="afterUpdateState"
-                       :icon-scale="iconScale"
-                       :duration="0">
-            <icon :name="icons[states.DONE]" :scale="iconScale"/>
+                       :duration="0"
+                       confirm="Students will be able to see their grade. Are
+                       you sure?">
+            <icon :name="icons[states.DONE]"/>
         </submit-button>
     </b-button-group>
 </div>
@@ -66,6 +69,8 @@ import 'vue-awesome/icons/clock-o';
 import 'vue-awesome/icons/pencil';
 import 'vue-awesome/icons/check';
 
+import ltiProviders from '@/lti_providers';
+
 import * as states from '../store/assignment-states';
 
 import Loader from './Loader';
@@ -83,11 +88,6 @@ export default {
         editable: {
             type: Boolean,
             default: false,
-        },
-
-        size: {
-            type: String,
-            default: 'md',
         },
     },
 
@@ -108,7 +108,6 @@ export default {
                 [states.OPEN]: 'clock-o',
                 [states.DONE]: 'check',
             },
-            iconScale: 0.75,
         };
     },
 
@@ -133,6 +132,14 @@ export default {
         doneVariant() {
             const st = this.assignment.state;
             return st === states.DONE ? 'success' : 'outline-success';
+        },
+
+        canManageLTIState() {
+            return this.assignment.is_lti && ltiProviders[this.lmsName].supportsStateManagement;
+        },
+
+        lmsName() {
+            return this.assignment.lms_name;
         },
     },
 
@@ -166,6 +173,10 @@ export default {
 </script>
 
 <style lang="less" scoped>
+.state-button .fa-icon {
+    transform: translateY(1px) !important;
+}
+
 .state-button.larger {
     width: 4em;
 

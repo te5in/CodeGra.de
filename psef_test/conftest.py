@@ -39,29 +39,20 @@ def pytest_addoption(parser):
 def app(request):
     """Session-wide test `Flask` application."""
     settings_override = {
-        'TESTING':
-            True,
-        'DEBUG':
-            True,
-        'UPLOAD_DIR':
-            f'/tmp/psef/uploads',
-        'RATELIMIT_STRATEGY':
-            'moving-window',
-        'RATELIMIT_HEADERS_ENABLED':
-            True,
+        'TESTING': True,
+        'DEBUG': True,
+        'UPLOAD_DIR': f'/tmp/psef/uploads',
+        'RATELIMIT_STRATEGY': 'moving-window',
+        'RATELIMIT_HEADERS_ENABLED': True,
         'CELERY_CONFIG':
             {
                 'BROKER_URL': 'redis:///',
                 'BACKEND_URL': 'redis:///'
             },
-        'MIRROR_UPLOAD_DIR':
-            f'/tmp/psef/mirror_uploads',
-        'MAX_FILE_SIZE':
-            2 ** 20,  # 1mb
-        'MAX_NORMAL_UPLOAD_SIZE':
-            4 * 2 ** 20,  # 4 mb
-        'MAX_LARGE_UPLOAD_SIZE':
-            100 * 2 ** 20,  # 100mb
+        'MIRROR_UPLOAD_DIR': f'/tmp/psef/mirror_uploads',
+        'MAX_FILE_SIZE': 2 ** 20,  # 1mb
+        'MAX_NORMAL_UPLOAD_SIZE': 4 * 2 ** 20,  # 4 mb
+        'MAX_LARGE_UPLOAD_SIZE': 100 * 2 ** 20,  # 100mb
         'LTI_CONSUMER_KEY_SECRETS':
             {
                 'my_lti': 'Canvas:12345678',
@@ -69,13 +60,12 @@ def app(request):
                 'no_lms': ':12345678',
                 'no_colon': '12345678',
                 'unknown_lms': 'unknown:12345678',
+                'blackboard_lti': 'Blackboard:12345678',
+                'moodle_lti': 'Moodle:12345678',
             },
-        'LTI_SECRET_KEY':
-            'hunter123',
-        'SECRET_KEY':
-            'hunter321',
-        'HEALTH_KEY':
-            'uuyahdsdsdiufhaiwueyrriu2h3',
+        'LTI_SECRET_KEY': 'hunter123',
+        'SECRET_KEY': 'hunter321',
+        'HEALTH_KEY': 'uuyahdsdsdiufhaiwueyrriu2h3',
         'CHECKSTYLE_PROGRAM':
             [
                 "java",
@@ -105,7 +95,8 @@ def app(request):
                 '-shortnames',
                 '-rulesets',
                 '{config}',
-            ]
+            ],
+        'MIN_PASSWORD_SCORE': 3,
     }
     if request.config.getoption('--postgresql'):
         print('Running with postgres!')
@@ -126,6 +117,10 @@ def app(request):
     )
     app.config['__S_FEATURES']['GROUPS'] = True
     app.config['FEATURES'][psef.features.Feature.GROUPS] = True
+
+    app.config['__S_FEATURES']['INCREMENTAL_RUBRIC_SUBMISSION'] = True
+    app.config['FEATURES'][psef.features.Feature.INCREMENTAL_RUBRIC_SUBMISSION
+                           ] = True
 
     psef.tasks.celery.conf.update(
         {
@@ -354,7 +349,7 @@ def db(app, request):
         os.unlink(TESTDB_PATH)
 
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def session(app, db):
     """Creates a new database session for a test."""
     connection = db.engine.connect()

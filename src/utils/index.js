@@ -111,6 +111,12 @@ export function last(arr) {
 }
 
 export function range(start, end) {
+    if (end == null) {
+        // eslint-disable-next-line
+        end = start;
+        // eslint-disable-next-line
+        start = 0;
+    }
     const len = end - start;
     const res = Array(len);
     for (let i = 0; i < len; ++i) {
@@ -165,8 +171,13 @@ export function getOtherAssignmentPlagiarismDesc(item, index) {
 
 export function nameOfUser(user) {
     if (!user) return '';
-    if (user.group) return `Group "${user.group.name}"`;
-    else return user.name;
+    else if (user.group) return `Group "${user.group.name}"`;
+    else return user.name || '';
+}
+
+export function groupMembers(user) {
+    if (!user || !user.group) return [];
+    return user.group.members.map(nameOfUser);
 }
 
 export function highlightCode(sourceArr, language, maxLen = 5000) {
@@ -199,4 +210,15 @@ export function loadCodeAndFeedback(http, fileId) {
             throw message;
         },
     );
+}
+
+export function getProps(object, defaultValue, ...props) {
+    let res = object;
+    for (let i = 0; res !== undefined && i < props.length; ++i) {
+        res = res[props[i]];
+    }
+    if (res === undefined) {
+        res = defaultValue;
+    }
+    return res;
 }

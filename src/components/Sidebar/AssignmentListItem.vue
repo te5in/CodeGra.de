@@ -12,10 +12,23 @@
                               :editable="false"
                               v-if="!small"
                               size="sm"/>
-            <small v-else class="deadline">Due {{ readableDeadline }}</small>
+            <small v-else-if="assignment.deadline" class="deadline">
+                Due {{ readableDeadline }}
+            </small>
+
+            <small v-else class="deadline text-muted">
+                <i>No deadline</i>
+            </small>
         </div>
-        <small v-if="!small" class="deadline">Due {{ readableDeadline }}</small>
+
         <small v-if="!small" class="course">{{ assignment.course.name }}</small>
+
+        <small v-if="!small && assignment.deadline" class="deadline">
+            Due {{ readableDeadline }}
+        </small>
+        <small v-else-if="!small" class="deadline text-muted">
+            <i>No deadline</i>
+        </small>
     </router-link>
     <router-link class="sidebar-item manage-link"
                  v-if="assignment.canManage && !small"
@@ -52,11 +65,6 @@ export default {
             default: null,
         },
 
-        now: {
-            type: Object,
-            default: null,
-        },
-
         sbloc: {
             default: undefined,
         },
@@ -76,7 +84,7 @@ export default {
         },
 
         readableDeadline() {
-            return moment(this.assignment.deadline).from(this.now);
+            return moment(this.assignment.deadline).from(this.$root.$now);
         },
     },
 

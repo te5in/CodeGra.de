@@ -11,12 +11,14 @@
     <blti:title>CodeGrade</blti:title>
     <blti:description>Programming education made intuitive!</blti:description>
     <blti:icon>{{ external_url }}/static/favicon/android-chrome-512x512.png</blti:icon>
+    <blti:secure_icon>{{ external_url }}/static/favicon/android-chrome-512x512.png</blti:secure_icon>
     <blti:launch_url>{{ external_url }}/api/v1/lti/launch/1</blti:launch_url>
-      <blti:custom>
+    <blti:secure_launch_url>{{ external_url }}/api/v1/lti/launch/1</blti:secure_launch_url>
+    <blti:custom>
         {% for prop in properties %}
             <lticm:property name="{{ prop.internal }}">{{ prop.external }}</lticm:property>
         {% endfor %}
-      </blti:custom>
+    </blti:custom>
     {% autoescape false %}
         {{ custom_extensions }}
     {% endautoescape %}

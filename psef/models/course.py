@@ -2,6 +2,7 @@
 
 SPDX-License-Identifier: AGPL-3.0-only
 """
+import copy
 import uuid
 import typing as t
 import datetime
@@ -16,10 +17,49 @@ from .assignment import Assignment
 from .link_tables import user_course
 from ..permissions import CoursePermission
 
-if t.TYPE_CHECKING:
+if t.TYPE_CHECKING:  # pragma: no cover
     # pylint: disable=unused-import,cyclic-import
     from .lti_provider import LTIProvider
     from .group import GroupSet
+
+
+class CourseSnippet(Base):
+    """Describes a mapping from a keyword to a replacement text that is shared
+    amongst the teachers and TAs of the course.
+    """
+    if t.TYPE_CHECKING:  # pragma: no cover
+        query: t.ClassVar[_MyQuery['CourseSnippet']] = Base.query
+    __tablename__ = 'CourseSnippet'
+    id: int = db.Column('id', db.Integer, primary_key=True)
+    key: str = db.Column('key', db.Unicode, nullable=False)
+    value: str = db.Column('value', db.Unicode, nullable=False)
+    course_id: int = db.Column(
+        'course_id', db.Integer, db.ForeignKey('Course.id'), nullable=False
+    )
+    created_at: datetime.datetime = db.Column(
+        'created_at',
+        db.DateTime,
+        default=datetime.datetime.utcnow,
+        nullable=False,
+    )
+
+    course: 'Course' = db.relationship(
+        'Course',
+        foreign_keys=course_id,
+        back_populates='snippets',
+        innerjoin=True,
+    )
+
+    __table_args__ = (db.UniqueConstraint(course_id, key), )
+
+    def __to_json__(self) -> t.Mapping[str, t.Any]:
+        """Creates a JSON serializable representation of this object.
+        """
+        return {
+            'key': self.key,
+            'value': self.value,
+            'id': self.id,
+        }
 
 
 class Course(Base):
@@ -59,6 +99,15 @@ class Course(Base):
         cascade='all,delete',
         uselist=True,
         order_by='GroupSet.created_at'
+    )
+
+    snippets: t.MutableSequence['CourseSnippet'] = db.relationship(
+        'CourseSnippet',
+        back_populates='course',
+        cascade='all,delete',
+        uselist=True,
+        lazy='select',
+        order_by='CourseSnippet.created_at',
     )
 
     assignments = db.relationship(
@@ -118,15 +167,19 @@ class Course(Base):
 
         :returns: A list of assignments the currently logged in user may see.
         """
-        if psef.current_user.has_permission(
+        if not psef.current_user.has_permission(
+            CoursePermission.can_see_assignments, self.id
+        ):
+            return []
+
+        assigs: t.Iterable[Assignment] = self.assignments
+        if not psef.current_user.has_permission(
             CoursePermission.can_see_hidden_assignments, self.id
         ):
-            return sorted(self.assignments, key=lambda item: item.deadline)
-        else:
-            return sorted(
-                (a for a in self.assignments if not a.is_hidden),
-                key=lambda item: item.deadline
-            )
+            assigs = (a for a in assigs if not a.is_hidden)
+        return sorted(
+            assigs, key=lambda item: item.deadline or datetime.datetime.max
+        )
 
     def get_all_users_in_course(self) -> '_MyQuery[t.Tuple[User, CourseRole]]':
         """Get a query that returns all users in the current course and their
@@ -165,7 +218,7 @@ class Course(Base):
             name=f'Virtual assignment - {tree.name}', course=self
         )
         self.assignments.append(assig)
-        for child in tree.values:
+        for child in copy.copy(tree.values):
             # This is done before we wrap single files to get better author
             # names.
             work = Work(
@@ -175,8 +228,10 @@ class Course(Base):
             subdir: psef.files.ExtractFileTreeBase
             if isinstance(child, psef.files.ExtractFileTreeFile):
                 subdir = psef.files.ExtractFileTreeDirectory(
-                    name='top', values=[child]
+                    name='top', values=[child], parent=None
                 )
+                tree.forget_child(child)
+                subdir.add_child(child)
             else:
                 assert isinstance(child, psef.files.ExtractFileTreeDirectory)
                 subdir = child

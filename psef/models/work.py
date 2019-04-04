@@ -20,8 +20,8 @@ from .file import File, FileOwner
 from .linter import LinterState, LinterComment, LinterInstance
 from .rubric import RubricItem
 from .comment import Comment
-from .link_tables import work_rubric_item
 from ..exceptions import PermissionException
+from .link_tables import work_rubric_item
 from ..permissions import CoursePermission
 
 if t.TYPE_CHECKING:  # pragma: no cover
@@ -524,7 +524,7 @@ class Work(Base):
         new_top = File(
             work=self,
             is_directory=True,
-            name=psef.files.escape_logical_filename(tree.name),
+            name=tree.name,
             parent=top,
         )
 
@@ -534,7 +534,7 @@ class Work(Base):
             elif isinstance(child, psef.files.ExtractFileTreeFile):
                 File(
                     work=self,
-                    name=psef.files.escape_logical_filename(child.name),
+                    name=child.name,
                     filename=child.disk_name,
                     is_directory=False,
                     parent=new_top,

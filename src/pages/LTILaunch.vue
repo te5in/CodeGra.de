@@ -15,6 +15,7 @@
 import 'vue-awesome/icons/times';
 import { Loader } from '@/components';
 import { mapActions } from 'vuex';
+import ltiProviders from '@/lti_providers';
 
 import { setPageTitle } from './title';
 
@@ -45,75 +46,81 @@ export default {
                 .post('/api/v1/lti/launch/2', {
                     jwt_token: this.$route.query.jwt,
                 })
-                .then(async ({ data }) => {
-                    if (data.access_token) {
-                        await this.updateAccessToken(data.access_token);
-                    } else {
-                        this.clearPlagiarismCases();
-                    }
+                .then(
+                    async ({ data }) => {
+                        if (data.access_token) {
+                            await this.updateAccessToken(data.access_token);
+                        } else {
+                            this.clearPlagiarismCases();
+                        }
 
-                    this.$LTIAssignmentId = data.assignment.id;
-                    if (data.new_role_created) {
-                        this.$toasted.info(
-                            `You do not have any permissions yet, please ask your teacher to enable them for your role "${
-                                data.new_role_created
-                            }".`,
-                            {
-                                position: 'bottom-center',
-                                closeOnSwipe: false,
-                                action: {
-                                    text: '✖',
-                                    onClick: (e, toastObject) => {
-                                        toastObject.goAway(0);
+                        this.$ltiProvider = ltiProviders[data.custom_lms_name];
+
+                        this.$LTIAssignmentId = data.assignment.id;
+                        if (data.new_role_created) {
+                            this.$toasted.info(
+                                `You do not have any permissions yet, please ask your teacher to enable them for your role "${
+                                    data.new_role_created
+                                }".`,
+                                {
+                                    position: 'bottom-center',
+                                    closeOnSwipe: false,
+                                    action: {
+                                        text: '✖',
+                                        onClick: (e, toastObject) => {
+                                            toastObject.goAway(0);
+                                        },
                                     },
                                 },
-                            },
-                        );
-                    }
-                    if (data.updated_email) {
-                        this.$toasted.info(
-                            `Your email was updated to "${
-                                data.updated_email
-                            }" which is the email registered with your LMS.`,
-                            {
-                                position: 'bottom-center',
-                                closeOnSwipe: false,
-                                action: {
-                                    text: '✖',
-                                    onClick: (e, toastObject) => {
-                                        toastObject.goAway(0);
+                            );
+                        }
+                        if (data.updated_email) {
+                            this.$toasted.info(
+                                `Your email was updated to "${
+                                    data.updated_email
+                                }" which is the email registered with your ${
+                                    data.custom_lms_name
+                                }.`,
+                                {
+                                    position: 'bottom-center',
+                                    closeOnSwipe: false,
+                                    action: {
+                                        text: '✖',
+                                        onClick: (e, toastObject) => {
+                                            toastObject.goAway(0);
+                                        },
                                     },
                                 },
-                            },
-                        );
-                    }
-                    if (this.$route.query.redirect && this.$route.query.redirect.startsWith('/')) {
-                        this.$router.replace(this.$route.query.redirect);
-                    } else {
-                        this.$router.replace({
-                            name: 'assignment_submissions',
-                            params: {
-                                courseId: data.assignment.course.id,
-                                assignmentId: data.assignment.id,
-                            },
-                        });
-                    }
-                })
-                .catch(err => {
-                    if (first && err.response && err.response.status === 401) {
-                        this.logout()
-                            .then(() => {
-                                this.secondStep(false);
-                            })
-                            .catch(() => {
-                                this.error = true;
+                            );
+                        }
+                        if (
+                            this.$route.query.redirect &&
+                            this.$route.query.redirect.startsWith('/')
+                        ) {
+                            this.$router.replace(this.$route.query.redirect);
+                        } else {
+                            this.$router.replace({
+                                name: 'assignment_submissions',
+                                params: {
+                                    courseId: data.assignment.course.id,
+                                    assignmentId: data.assignment.id,
+                                },
                             });
-                    }
-                    try {
-                        this.errorMsg = err.response.data.message;
-                    } finally {
+                        }
+                    },
+                    err => {
                         this.error = true;
-                    }
+                        if (err.response) {
+                            this.errorMsg = err.response.data.message;
+                            if (first && err.response.status === 401) {
+                                return this.logout().then(() => this.secondStep(false));
+                            }
+                        }
+                        return null;
+                    },
+                )
+                .catch(() => {
+                    this.error = true;
                 });
         },
     },

@@ -79,15 +79,16 @@ const actions = {
             }
 
             await Promise.all([
-                axios
-                    .get(`/api/v1/assignments/${assignmentId}/submissions/?extended`)
-                    .then(({ data: submissions }) => {
+                axios.get(`/api/v1/assignments/${assignmentId}/submissions/?extended`).then(
+                    ({ data: submissions }) => {
                         submissions.forEach(sub => {
                             sub.formatted_created_at = utils.readableFormatDate(sub.created_at);
                             sub.grade = utils.formatGrade(sub.grade);
                         });
                         return submissions;
-                    }),
+                    },
+                    () => [],
+                ),
                 axios
                     .get(`/api/v1/assignments/${assignmentId}/rubrics/`)
                     .then(({ data }) => data, () => null),
@@ -193,23 +194,42 @@ const mutations = {
 
         state.courses = courses.reduce((res, course) => {
             course.assignments.forEach(assignment => {
-                const deadline = moment.utc(assignment.deadline, moment.ISO_8601).local();
-                const reminderTime = moment.utc(assignment.reminder_time, moment.ISO_8601).local();
-                let defaultReminderTime = deadline.clone().add(7, 'days');
-                if (defaultReminderTime.isBefore(moment())) {
-                    defaultReminderTime = moment().add(3, 'days');
+                assignment.course = course;
+                assignment.canManage = manageAssigs[course.id];
+
+                // WARNING: This code is complex. If you change it, it will
+                // probably be wrong...
+
+                let reminderTime = moment.utc(assignment.reminder_time, moment.ISO_8601).local();
+                // This indicates if we got a valid reminder time from the
+                // server. We set it to something useful as a default if this is
+                // not the case.
+                assignment.has_reminder_time = reminderTime.isValid();
+                if (!assignment.has_reminder_time) {
+                    let baseTime = null;
+
+                    if (assignment.deadline) {
+                        baseTime = moment.utc(assignment.deadline, moment.ISO_8601).local();
+
+                        if (!reminderTime.isValid() || reminderTime.isBefore(moment())) {
+                            baseTime = moment();
+                        }
+                    } else {
+                        baseTime = moment();
+                    }
+
+                    reminderTime = baseTime.clone().add(1, 'weeks');
+                }
+                assignment.reminder_time = reminderTime.format('YYYY-MM-DDTHH:mm');
+
+                if (assignment.deadline) {
+                    assignment.formatted_deadline = utils.readableFormatDate(assignment.deadline);
+                    assignment.deadline = utils.formatDate(assignment.deadline);
+                } else {
+                    assignment.formatted_deadline = null;
                 }
 
-                assignment.course = course;
-                assignment.formatted_deadline = utils.readableFormatDate(assignment.deadline);
-                assignment.deadline = utils.formatDate(assignment.deadline);
                 assignment.created_at = utils.formatDate(assignment.created_at);
-                assignment.canManage = manageAssigs[course.id];
-                assignment.has_reminder_time = reminderTime.isValid();
-                assignment.reminder_time = (reminderTime.isValid()
-                    ? reminderTime
-                    : defaultReminderTime
-                ).format('YYYY-MM-DDTHH:mm');
             });
 
             course.permissions = perms[course.id];

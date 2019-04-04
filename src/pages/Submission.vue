@@ -177,11 +177,10 @@
                        :show-whitespace="showWhitespace"
                        :is-diff="diffMode"
                        :file="currentFile"
-                       :editable="editable"
+                       :editable="canGiveLineFeedback"
                        @new-lang="languageChanged"
                        :language="selectedLanguage"
-                       :can-use-snippets="canUseSnippets"
-                       />
+                       :can-use-snippets="canUseSnippets"/>
         </div>
         <div class="file-tree-container " v-if="!overviewMode"
              slot="secondPane">
@@ -392,6 +391,10 @@ export default {
             }
 
             return file;
+        },
+
+        canGiveLineFeedback() {
+            return this.editable && this.selectedRevision === 'student';
         },
     },
 
@@ -968,8 +971,9 @@ export default {
     .popover {
         max-width: 45em;
     }
-    .Resizer.columns {
-        padding: 0 15px;
+
+    .Resizer {
+        z-index: 0;
     }
 
     .Resizer.columns {
@@ -979,7 +983,9 @@ export default {
         width: 8px !important;
         transform: translateX(-4px);
         margin: 0;
+        padding: 0 15px;
         position: relative;
+
         &:before {
             display: block;
             content: '';
@@ -991,6 +997,7 @@ export default {
             left: 50%;
             border-left: 2px dotted @color-primary;
             border-right: 2px dotted @color-primary;
+
             #app.dark & {
                 border-color: @text-color-dark;
             }

@@ -68,19 +68,27 @@ def get_lti_config() -> werkzeug.wrappers.Response:
     cls = lti.lti_classes.get(lms)
     if cls is None:
         raise errors.APIException(
-            'The requested LMS is not supported',
-            f'The LMS "{lms}" is not supported', errors.APICodes.INVALID_PARAM,
-            400
+            f'The given LMS "{lms}" was not found',
+            f'The LMS "{lms}" is not yet supported by CodeGrade',
+            errors.APICodes.OBJECT_NOT_FOUND, 404
         )
-    res = flask.make_response(cls.generate_xml())
-    res.headers['Content-Type'] = 'application/xml; charset=utf-8'
-    return res
+
+    if cls.supports_lti_common_cartridge():
+        res = flask.make_response(cls.generate_xml())
+        res.headers['Content-Type'] = 'application/xml; charset=utf-8'
+        return res
+    else:
+        raise errors.APIException(
+            f'{lms} does not support Common Cartridge configuration',
+            f'The LMS "{lms}" does not support Common Cartridge configuration',
+            errors.APICodes.INVALID_PARAM, 400
+        )
 
 
 @api.route('/lti/launch/2', methods=['POST'])
 @features.feature_required(features.Feature.LTI)
 def second_phase_lti_launch() -> helpers.JSONResponse[
-    t.Mapping[str, t.Union[str, models.Assignment, bool]]]:
+    t.Mapping[str, t.Union[str, models.Assignment, bool, None]]]:
     """Do the second part of an LTI launch.
 
     .. :quickref: LTI; Do the callback of a LTI launch.
@@ -115,8 +123,8 @@ def second_phase_lti_launch() -> helpers.JSONResponse[
         )
         raise errors.APIException(
             (
-                'Decoding given JWT token failed, LTI is probably '
-                'not configured right. Please contact your site admin.'
+                f'Decoding given JWT token failed, LTI is probably '
+                'not configured correctly. Please contact your site admin.'
             ),
             f'The decoding of "{flask.request.headers.get("Jwt")}" failed.',
             errors.APICodes.INVALID_PARAM,
@@ -133,10 +141,11 @@ def second_phase_lti_launch() -> helpers.JSONResponse[
     new_role_created = inst.set_user_course_role(user, course)
     db.session.commit()
 
-    result: t.Mapping[str, t.Union[str, models.Assignment, bool]]
+    result: t.Mapping[str, t.Union[str, models.Assignment, bool, None]]
     result = {
         'assignment': assig,
         'new_role_created': new_role_created,
+        'custom_lms_name': inst.lti_provider.lms_name,
     }
     if new_token is not None:
         result['access_token'] = new_token

@@ -67,6 +67,24 @@ class LTIProvider(Base):
         self.id = public_id
 
     @property
+    def _lms_and_secret(self) -> t.Tuple[str, str]:
+        """Return the OAuth consumer secret and the name of the LMS.
+        """
+        lms, _, sec = current_app.config['LTI_CONSUMER_KEY_SECRETS'][
+            self.key].partition(':')
+        assert lms and sec
+        return lms, sec
+
+    @property
+    def lms_name(self) -> str:
+        """The name of the LMS for this LTIProvider.
+
+        :getter: Get the LMS name.
+        :setter: Impossible as this is fixed during startup of CodeGrade.
+        """
+        return self._lms_and_secret[0]
+
+    @property
     def secret(self) -> str:
         """The OAuth consumer secret for this LTIProvider.
 
@@ -74,10 +92,7 @@ class LTIProvider(Base):
         :setter: Impossible as all secrets are fixed during startup of
             codegra.de
         """
-        lms, _, sec = current_app.config['LTI_CONSUMER_KEY_SECRETS'][
-            self.key].partition(':')
-        assert lms and sec
-        return sec
+        return self._lms_and_secret[1]
 
     @property
     def lti_class(self) -> t.Type['psef.lti.LTI']:
@@ -86,9 +101,7 @@ class LTIProvider(Base):
         :getter: Get the LTI class name.
         :setter: Impossible as this is fixed during startup of CodeGrade.
         """
-        lms, _, sec = current_app.config['LTI_CONSUMER_KEY_SECRETS'][
-            self.key].partition(':')
-        assert lms and sec
+        lms = self.lms_name
         cls = psef.lti.lti_classes.get(lms)
         if cls is None:
             raise psef.errors.APIException(

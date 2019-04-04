@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
-import { cmpOneNull, cmpNoCase, nameOfUser } from '@/utils';
+import { cmpOneNull, cmpNoCase, nameOfUser, groupMembers } from '@/utils';
 
 export function filterSubmissions(
     submissions,
@@ -38,6 +38,7 @@ export function filterSubmissions(
             (item.grade || 0).toString(),
             item.formatted_created_at,
             nameOfUser(item.assignee).toLowerCase() || '-',
+            ...groupMembers(item.user).map(n => n.toLowerCase()),
         ];
         const out = (filter || '')
             .toLowerCase()

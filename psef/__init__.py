@@ -84,35 +84,6 @@ logger = structlog.get_logger()
 
 app: 'PsefFlask' = current_app  # pylint: disable=invalid-name
 
-LTI_ROLE_LOOKUPS = {
-}  # type: t.Mapping[str, t.Mapping[str, t.Union[str, bool]]]
-"""A LTI role to psef role lookup dictionary.
-
-.. note::
-    The roles are both course and user roles.
-"""
-
-
-def _seed_lti_lookups() -> None:
-    """Seed the lti lookups.
-
-    This is done by reading the ``lti_lookups.json`` file and setting its
-    result in ``LTI_ROLE_LOOKUPS``. You should not call this function from
-    application code, this code is only for the first initialization.
-    """
-    # Global is necessary here as we cannot set the variable otherwise
-    global LTI_ROLE_LOOKUPS  # pylint: disable=global-statement
-    _seed_data_path = os.path.join(
-        os.path.dirname(os.path.realpath(__file__)), '..', 'seed_data',
-        'lti_lookups.json'
-    )
-    with open(_seed_data_path, 'r') as f:
-        # We freeze this map as changing it is probably never correct.
-        LTI_ROLE_LOOKUPS = types.MappingProxyType(system_json.load(f))
-
-
-_seed_lti_lookups()
-
 if t.TYPE_CHECKING:  # pragma: no cover
     import psef.models
     current_user: 'psef.models.User' = t.cast('psef.models.User', None)

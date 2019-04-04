@@ -127,6 +127,10 @@ export default {
     .default-footer-colors;
     box-shadow: 0 0 4px rgba(0, 0, 0, 0.75);
     color: @text-color;
+
+    #app.dark & {
+        color: @text-color-dark;
+    }
 }
 
 @media @media-small {
@@ -154,7 +158,7 @@ export default {
 }
 
 .title {
-    flex: 2;
+    flex: 2 1 auto;
     margin-bottom: 0;
     text-align: left;
     line-height: 1;
@@ -162,6 +166,7 @@ export default {
 
 .toolbar {
     flex: 1 0 auto;
+    flex-wrap: nowrap;
     align-items: center;
 }
 

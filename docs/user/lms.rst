@@ -3,23 +3,52 @@
 LMS Integration
 =================
 
-CodeGrade works together with learning management systems with the LTI
-(*Learning Tools Interoperability*) standard. This chapter explains integrating
-CodeGrade into your LMS and CodeGrade's behaviour when working together with
-your LMS.
+CodeGrade works together with learning management systems (LMS) with the
+*Learning Tools Interoperability* (LTI) standard. This chapter explains
+integrating CodeGrade into your LMS and CodeGrade's behaviour when working
+together with your LMS.
 
-Canvas Integration
---------------------
+For exact details on how to add CodeGrade as an external tool in your LMS, which
+should be done by the system administrator of the LMS, please
+:ref:`contact us<contact-chapter>`.
+
+Blackboard
+------------
+CodeGrade integrates with the `Blackboard Learn
+<https://www.blackboard.com/blackboard-learn/index.html>`__ learning management
+system through LTI. New CodeGrade assignments can then be created from within
+Blackboard.
+
+To create a CodeGrade assignment in Blackboard, go to a course's *Content* page
+and select *CodeGrade* from the *Build Content* menu.
+
+.. warning::
+
+    For the new assignment, do **not** turn off the *Enable Evaluation*
+    option, and make sure that *Points Possible* is set to a number greater
+    than 0, otherwise grades will not appear in Blackboard's grade center.
+
+    Also, do **not** set a deadline for the assignment in Blackboard.
+    Blackboard will mark all submissions *late*. Instead, immediately after
+    creation of the new assignment, visit the assignment in CodeGrade and
+    set the deadline there.
+
+.. note::
+
+    When CodeGrade is connected to Blackboard, all assignments should be
+    graded on a scale from 0 to 10 in CodeGrade. When the maximum points
+    that can be achieved should be something other than 10, the *Points
+    Possible* option can be set in Blackboard for the assignment.
+    Blackboard will then scale the grade it received from CodeGrade
+    linearly to this value.
+
+Canvas
+--------
 CodeGrade works together with the popular open-source learning management system
 `Canvas <https://www.canvaslms.com/>`__ through LTI. By integrating CodeGrade as
 an external app in Canvas, CodeGrade assignments can be created.
 
-CodeGrade can be added as an external app in Canvas using an XML file provided
-by CodeGrade. Please consult the Canvas
-`Documentation <https://community.canvaslms.com/docs/DOC-12601-421474560>`__
-for instructions on adding external apps with XML.
-
-It is now possible to create CodeGrade assignments in your Canvas course now.
+It is now possible to create CodeGrade assignments in your Canvas course.
 Choose the *External Tool* option as *Submission Type* and select CodeGrade
 in the *Find* menu.
 
@@ -30,17 +59,23 @@ in the *Find* menu.
     to this environment with a linked CodeGrade account after opening CodeGrade
     through Canvas.
 
-BlackBoard Integration
-------------------------
-BlackBoard is supported in CodeGrade, however BlackBoard support is still an
-experimental feature and only tested for BlackBoard 9.
+Moodle
+--------
+CodeGrade integrates with the `Moodle <https://moodle.org/>`__ learning management
+system through LTI. New CodeGrade assignments can then be created from within
+Moodle.
 
-CodeGrade allows the uploading of BlackBoard assignment archives. In this way,
-the handing in and administration processes are done using BlackBoard, but
-grading and reviewing feedback can be done in the CodeGrade stand-alone website.
+.. warning::
 
-More information on BlackBoard integration can be found :ref:`here
-<upload-blackboard-zip>`.
+    Setting a deadline, or other visibility rules in Moodle, do **not** sync to
+    CodeGrade. You should set a deadline in CodeGrade after creating an
+    assignment, as otherwise students will not be able to submit their work.
+
+.. note::
+
+    When CodeGrade is connected to Moodle, all assignments should be
+    graded on a scale from 0 to 10 in CodeGrade. Scaling, and maximum points can
+    be set in Moodle.
 
 Other LMS
 -----------

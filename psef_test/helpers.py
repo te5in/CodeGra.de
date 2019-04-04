@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 import os
 import uuid
+import datetime
 
 import pytest
 from werkzeug.local import LocalProxy
@@ -49,7 +50,9 @@ def create_course(test_client):
     )
 
 
-def create_assignment(test_client, course_id=None, state='hidden'):
+def create_assignment(
+    test_client, course_id=None, state='hidden', deadline=None
+):
     name = f'__NEW_ASSIGNMENT__-{uuid.uuid4()}'
     if course_id is None:
         course_id = create_course(test_client)['id']
@@ -65,15 +68,19 @@ def create_assignment(test_client, course_id=None, state='hidden'):
             '__allow_extra__': True,
         }
     )
+    data = {}
     if state != 'hidden':
-        res = test_client.req(
-            'patch',
-            f'/api/v1/assignments/{res["id"]}',
-            200,
-            data={
-                'state': state,
-            }
-        )
+        data['state'] = state
+    if deadline is not None:
+        if isinstance(deadline, datetime.datetime):
+            deadline = deadline.isoformat()
+        data['deadline'] = deadline
+    res = test_client.req(
+        'patch',
+        f'/api/v1/assignments/{res["id"]}',
+        200,
+        data=data,
+    )
     return res
 
 

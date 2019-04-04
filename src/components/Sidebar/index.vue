@@ -8,13 +8,7 @@
                      :to="{ name: 'home' }"
                      :target="$inLTI ? '_blank' : undefined"
                      @click.native="closeSubMenu(true)">
-            <img src="/static/img/CodeGrade_christmas.svg"
-                 v-if="isChristmas && showRegularLogo"/>
-            <img src="/static/img/CodeGrade_christmas_dark.svg"
-                 v-else-if="isChristmas && showInvertedLogo"/>
-            <img src="/static/img/logo.svg" v-else-if="showRegularLogo"/>
-            <img src="/static/img/logo-inv.svg" v-else-if="showInvertedLogo"/>
-            <img src="/static/img/codegrade.svg" v-else/>
+            <img :src="logoSrc"/>
         </router-link>
         <hr class="separator">
         <div class="sidebar-top">
@@ -38,18 +32,6 @@
             </transition>
         </div>
 
-        <div v-if="canManageSite">
-            <hr class="separator"/>
-
-            <div class="sidebar-bottom">
-                <router-link :to="{ name: 'admin' }"
-                             class="sidebar-bottom-item"
-                             v-b-popover.hover.top="'Manage site'">
-                    <icon name="tachometer"/>
-                </router-link>
-            </div>
-        </div>
-
         <hr class="separator"/>
 
         <div v-if="canManageCurrentLtiAssignment">
@@ -63,6 +45,19 @@
                     </div>
                 </router-link>
             </div>
+
+            <hr class="separator"/>
+        </div>
+
+        <div v-if="canManageSite">
+            <div class="sidebar-bottom">
+                <router-link :to="{ name: 'admin' }"
+                             class="sidebar-bottom-item"
+                             v-b-popover.hover.top="'Manage site'">
+                    <icon name="tachometer"/>
+                </router-link>
+            </div>
+
             <hr class="separator"/>
         </div>
 
@@ -82,6 +77,8 @@
             </a>
         </div>
     </div>
+
+    <div class="shadow"/>
 
     <div class="submenu-container"
          :class="{ 'use-space': dimmingUseSpace, }"
@@ -140,7 +137,6 @@
 
 <script>
 import { mapActions, mapGetters } from 'vuex';
-import moment from 'moment';
 
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/arrow-left';
@@ -301,6 +297,8 @@ export default {
         ...mapGetters('user', ['loggedIn', 'name']),
         ...mapGetters('user', { globalPermissions: 'permissions' }),
 
+        ...mapGetters('pref', ['darkMode']),
+
         canManageSite() {
             return MANAGE_SITE_PERIMSSIONS.every(x => this.globalPermissions[x]);
         },
@@ -333,12 +331,8 @@ export default {
             return (this.assignments || {})[this.assignmentId];
         },
 
-        now() {
-            return moment();
-        },
-
         isChristmas() {
-            return this.now.month() === 11 && this.now.date() <= 26;
+            return this.$root.$now.month() === 11 && this.$root.$now.date() <= 26;
         },
 
         floating() {
@@ -364,12 +358,22 @@ export default {
             return this.$inLTI || !this.$root.$isMediumWindow || hideRoutes.has(route);
         },
 
-        showRegularLogo() {
-            return !(this.mobileVisible || (this.$inLTI && !this.$store.getters['pref/darkMode']));
-        },
+        logoSrc() {
+            let logo;
 
-        showInvertedLogo() {
-            return !this.mobileVisible && this.$inLTI && !this.$store.getters['pref/darkMode'];
+            if (this.isChristmas) {
+                logo = 'CodeGrade_christmas';
+            } else if (!this.mobileVisible) {
+                logo = 'logo';
+            } else {
+                logo = 'codegrade';
+            }
+
+            if (!this.darkMode && this.$inLTI) {
+                logo += '-inv';
+            }
+
+            return `/static/img/${logo}.svg`;
         },
     },
 
@@ -601,22 +605,23 @@ export default {
 }
 
 .main-menu {
+    @main-menu-width: 6rem;
+
     display: flex;
     flex-direction: column;
-    min-width: 6rem;
+    min-width: @main-menu-width;
     height: 100%;
-
     color: white;
     background-color: @color-primary;
-    @{lti-colors} & {
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+
+    #app.lti:not(.dark) & {
         background-color: white;
         color: @text-color;
     }
 
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-
     @media @media-no-small {
-        width: 6em;
+        width: @main-menu-width;
     }
 
     @media @media-small {
@@ -627,9 +632,27 @@ export default {
         &.show {
             transform: translateX(100%);
         }
+    }
 
-        &:not(.show) {
-            box-shadow: none;
+    // Draw a box shadow around the main menu. This can't be done with the
+    // box-shadow property on .main-class, because the z-indices of
+    // .main-menu and .submenu must be equal, so that modals spawned in the
+    // latter can have a higher z-index than .main-menu.
+    & + .shadow {
+        position: absolute;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+        z-index: 1;
+        pointer-events: none;
+
+        @media @media-no-small {
+            width: @main-menu-width;
+        }
+
+        @media @media-small {
+            right: 0;
         }
     }
 
@@ -696,7 +719,6 @@ export default {
 }
 
 .submenu-container {
-    z-index: -1;
     width: 16rem;
     height: 100%;
 
@@ -750,19 +772,35 @@ export default {
         width: 100%;
         height: 100%;
 
-        background-color: @color-primary;
-        color: white;
-        @{lti-colors} & {
-            background-color: white;
-            color: @color-primary;
-        }
+        background-color: white;
+        color: @color-primary;
 
-        &:last-child {
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.75);
+        #app.dark & {
+            background-color: @color-primary;
+            color: white;
         }
 
         &:not(:last-child) {
             display: none;
+        }
+
+        // Draw a box shadow around the submenu. This can't be done with the
+        // box-shadow property on .submenu, because the z-indices of
+        // .main-menu and .submenu must be equal, so that modals spawned in the
+        // latter can have a higher z-index than .main-menu.
+        &::after {
+            @shadow-size: 10px;
+
+            content: '';
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: -1;
+            pointer-events: none;
+            box-shadow: 0 0 @shadow-size rgba(0, 0, 0, 0.75);
         }
     }
 }
@@ -813,27 +851,27 @@ export default {
         border-radius: 0;
 
         background-color: transparent !important;
-        color: @text-color-dark;
+        color: @text-color;
+
+        #app.dark & {
+            color: @text-color-dark;
+        }
 
         &:hover {
-            background-color: @color-primary-darker !important;
+            background-color: @color-light-gray !important;
 
-            @{lti-colors} & {
-                background-color: @color-light-gray !important;
+            #app.dark & {
+                background-color: @color-primary-darker !important;
             }
         }
 
-        @{lti-colors} & {
-            color: @text-color;
-        }
-
         &.active {
-            background-color: white !important;
-            color: @color-primary !important;
+            background-color: @color-primary !important;
+            color: white !important;
 
-            @{lti-colors} & {
-                background-color: @color-primary !important;
-                color: white !important;
+            #app.dark & {
+                background-color: white !important;
+                color: @color-primary !important;
             }
         }
     }
@@ -856,8 +894,7 @@ export default {
     }
 
     & &-list-section-header {
-        padding: 0 0.75rem;
-        color: @color-light-gray;
+        padding: 0 0.75rem 0.25rem;
     }
 
     & &-list-item {
@@ -866,19 +903,21 @@ export default {
     }
 
     & &-top-item,
-    & &-bottom-item,
-    & &-list-item {
+    & &-bottom-item {
         cursor: pointer;
 
         &:hover {
             background-color: lighten(@color-primary-darker, 2%);
-            @{lti-colors} & {
+
+            #app.lti:not(.dark) & {
                 background-color: @color-lighter-gray;
             }
         }
+
         &:not(.light-selected) a:hover {
             background-color: @color-primary-darkest;
-            @{lti-colors} & {
+
+            #app.lti:not(.dark) & {
                 background-color: @color-light-gray;
             }
         }
@@ -886,14 +925,15 @@ export default {
         &.light-selected {
             background-color: lightgray;
             color: @color-primary;
-            @{lti-colors} & {
+
+            #app.lti:not(.dark) & {
                 background-color: lighten(@color-primary, 5%);
                 color: white;
             }
 
             a:hover:not(.selected) {
                 background-color: darken(lightgray, 7.9%);
-                @{lti-colors} & {
+                #app.lti:not(.dark) & {
                     background-color: @color-primary-darkest;
                 }
             }
@@ -903,7 +943,8 @@ export default {
         &.selected {
             background-color: white;
             color: @color-primary;
-            @{lti-colors} & {
+
+            #app.lti:not(.dark) & {
                 color: white;
                 background-color: @color-primary;
             }
@@ -912,9 +953,70 @@ export default {
             a:hover {
                 background-color: darken(white, 7.9%);
                 color: @color-primary;
-                @{lti-colors} & {
+
+                #app.lti:not(.dark) & {
                     background-color: darken(@color-primary, 2%);
                     color: white;
+                }
+            }
+        }
+    }
+
+    & &-list-item {
+        cursor: pointer;
+
+        &:hover {
+            background-color: @color-lighter-gray;
+
+            #app.dark & {
+                background-color: lighten(@color-primary-darker, 2%);
+            }
+        }
+
+        &:not(.light-selected) a:hover {
+            background-color: @color-light-gray;
+
+            #app.dark & {
+                background-color: @color-primary-darkest;
+            }
+        }
+
+        &.light-selected {
+            background-color: lighten(@color-primary, 5%);
+            color: white;
+
+            #app.dark & {
+                background-color: lightgray;
+                color: @color-primary;
+            }
+
+            a:hover:not(.selected) {
+                background-color: @color-primary-darkest;
+
+                #app.dark & {
+                    background-color: darken(lightgray, 7.9%);
+                }
+            }
+        }
+
+        .selected,
+        &.selected {
+            color: white;
+            background-color: @color-primary;
+
+            #app.dark & {
+                background-color: white;
+                color: @color-primary;
+            }
+
+            &:hover,
+            a:hover {
+                background-color: darken(@color-primary, 2%);
+                color: white;
+
+                #app.dark & {
+                    background-color: darken(white, 7.9%);
+                    color: @color-primary;
                 }
             }
         }

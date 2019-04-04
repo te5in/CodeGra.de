@@ -9,7 +9,6 @@
             <input class="search form-control"
                    v-model="searchString"
                    ref="searchInput"
-                   v-if="!loadingCourses"
                    placeholder="Type to search"/>
             <img class="large" src="/static/img/codegrade.svg" v-if="darkMode"/>
             <img class="large" src="/static/img/codegrade-inv.svg" v-else/>
@@ -437,7 +436,7 @@ a {
 }
 
 .search-logo-wrapper {
-    flex: 1 1 auto;
+    flex: 0 0 auto;
     display: flex;
     align-items: center;
     img {

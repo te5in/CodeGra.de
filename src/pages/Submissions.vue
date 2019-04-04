@@ -10,18 +10,37 @@
         :graders="graders"
         :can-see-assignee="canSeeAssignee"
         :can-assign-grader="canAssignGrader"
+        :can-see-others-work="canSeeOthersWork"
         @assigneeUpdated="updateAssignee"/>
 
-    <div v-if="canUpload">
-        <b-popover target="submission-file-uploader-wrapper"
-                   placement="top"
-                   v-if="fileUploaderDisabled"
-                   triggers="hover">
-            <span>
+    <div v-if="canUpload || !assignment.deadline">
+        <b-alert show variant="warning"
+                 class="disabled-warning"
+                 v-if="uploaderDisabled">
+            <p v-if="!assignment.deadline">
+                The deadline for this assignment has not yet been set.
+
+                <span v-if="canEditDeadline && deadlineEditable">
+                    You can update the deadline
+                    <router-link :to="manageAssigURL" class="inline-link">here</router-link>.
+                </span>
+
+                <span v-else-if="canEditDeadline">
+                    Please update the deadline in {{ lmsName }}.
+                </span>
+
+                <span v-else>
+                     Please ask your teacher to set a deadline before you
+                     can submit your work.
+                </span>
+            </p>
+
+            <p v-if="fileUploaderDisabledMessage">
                 {{ fileUploaderDisabledMessage }}
-            </span>
-        </b-popover>
-        <span id="submission-file-uploader-wrapper">
+            </p>
+        </b-alert>
+
+        <span v-else>
             <b-alert show variant="info" class="assignment-alert"
                         v-if="assignment.group_set">
                 This assignment is a group assignment.
@@ -32,9 +51,9 @@
                 <template v-else>
                     You don't have to be member of group to submit.
                 </template>
-                You can create or join
-                groups <router-link class="inline-link"
-                                    :to="groupSetPageLink">here</router-link>.
+                You can create or join groups
+                <router-link class="inline-link"
+                             :to="groupSetPageLink">here</router-link>.
                 When submitting you will always submit for your entire group.
             </b-alert>
             <submission-uploader :assignment="assignment"
@@ -51,7 +70,8 @@
 import { SubmissionList, Loader, SubmitButton, SubmissionUploader } from '@/components';
 import { mapGetters, mapActions } from 'vuex';
 
-import * as assignmentState from '../store/assignment-states';
+import ltiProviders from '@/lti_providers';
+import * as assignmentState from '@/store/assignment-states';
 
 import { setPageTitle, pageTitleSep } from './title';
 
@@ -67,7 +87,10 @@ export default {
             canListUsers: null,
             canSeeAssignee: false,
             canAssignGrader: false,
+            canSeeOthersWork: false,
+            canEditDeadline: false,
             wrongFiles: [],
+            ltiProviders,
         };
     },
 
@@ -109,16 +132,27 @@ export default {
             return this.$route.params.courseId;
         },
 
+        lmsName() {
+            return this.assignment.lms_name;
+        },
+
         fileUploaderDisabledMessage() {
             if (this.assignment.is_lti && !this.$inLTI) {
-                return 'You can only submit this assignment from within your LMS';
+                return `You can only submit this assignment from within ${this.lmsName}.`;
             } else if (this.$inLTI && this.$LTIAssignmentId == null) {
-                return "You didn't launch the assignment using LTI, please navigate to the 'Assignments' page and submit your work there.";
+                return (
+                    "You didn't launch the assignment using LTI, please " +
+                    "navigate to the 'Assignments' page and submit your " +
+                    'work there.'
+                );
             } else if (this.$inLTI && this.assignmentId !== this.$LTIAssignmentId) {
-                return 'You launched CodeGrade for a different assignment. Please retry opening the correct assignment.';
-            } else {
-                return undefined;
+                return (
+                    'You launched CodeGrade for a different assignment. ' +
+                    'Please retry opening the correct assignment.'
+                );
             }
+
+            return '';
         },
 
         fileUploaderDisabled() {
@@ -131,6 +165,25 @@ export default {
             } else {
                 return false;
             }
+        },
+
+        manageAssigURL() {
+            return {
+                name: 'manage_assignment',
+                params: {
+                    courseId: this.courseId,
+                    assignmentId: this.assignmentId,
+                },
+            };
+        },
+
+        uploaderDisabled() {
+            return this.fileUploaderDisabledMessage || !this.assignment.deadline;
+        },
+
+        deadlineEditable() {
+            const lms = this.lmsName;
+            return lms ? !ltiProviders[lms].supportsDeadline : true;
         },
     },
 
@@ -173,6 +226,7 @@ export default {
                         'can_see_grade_before_open',
                         'can_upload_after_deadline',
                         'can_list_course_users',
+                        'can_edit_assignment_info',
                     ],
                     this.courseId,
                 ),
@@ -188,6 +242,7 @@ export default {
                         before,
                         afterDeadline,
                         canList,
+                        canEditDeadline,
                     ],
                 ]) => {
                     setPageTitle(`${this.assignment.name} ${pageTitleSep} Submissions`);
@@ -200,13 +255,19 @@ export default {
                         (this.assignment.state === assignmentState.SUBMITTING ||
                             (afterDeadline && this.assignment.state !== assignmentState.HIDDEN));
 
+                    this.canSeeOthersWork = false;
+                    this.canDownload = false;
+
                     if (others) {
+                        this.canSeeOthersWork = true;
+
                         if (this.assignment.state === assignmentState.DONE) {
                             this.canDownload = true;
                         } else {
                             this.canDownload = before;
                         }
                     }
+                    this.canEditDeadline = canEditDeadline;
 
                     this.loading = false;
                 },
@@ -251,5 +312,11 @@ export default {
 #wrong-files-modal ul {
     max-height: 50vh;
     overflow-y: auto;
+}
+
+.disabled-warning {
+    p:last-child {
+        margin-bottom: 0;
+    }
 }
 </style>

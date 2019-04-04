@@ -75,6 +75,7 @@ shrinkwrap:
 
 lint:
 	pylint psef --rcfile=setup.cfg
+	npm run lint
 
 mypy:
 	mypy --ignore-missing-imports --disallow-untyped-defs --check-untyped-defs --disallow-subclassing-any "$(PWD)/psef/"
