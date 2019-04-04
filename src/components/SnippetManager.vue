@@ -16,6 +16,7 @@
                 <th>Replacement text</th>
                 <th>
                     <b-button variant="primary"
+                              v-if="editable"
                               class="add-button"
                               @click="editSnippet(null)"
                               v-b-popover.hover.top="'New snippet'">
@@ -29,9 +30,10 @@
                 <td class="snippet-key">{{ snippet.key }}</td>
                 <td class="snippet-value">{{ snippet.value }}</td>
                 <td class="snippet-actions">
-                    <b-button-group>
+                    <b-button-group v-b-popover.top.hover="editable ? '' : 'You are not allowed to edit snippets.'">
                         <submit-button variant="danger"
                                        confirm="Are you sure you want to delete this snippet?"
+                                       :disabled="!editable"
                                        :submit="() => deleteSnippet(snippet)"
                                        @after-success="afterDeleteSnippet(snippet)"
                                        v-b-popover.hover.top="'Delete snippet'">
@@ -39,6 +41,7 @@
                         </submit-button>
 
                         <b-button variant="primary"
+                                  :disabled="!editable"
                                   @click="editSnippet(snippet)"
                                   v-b-popover.hover.top="'Edit snippet'">
                             <icon name="pencil"/>
@@ -61,7 +64,8 @@
     </table>
 
     <b-modal :title="modalTitle"
-             ref="modal">
+             ref="modal"
+             @shown="focusInput">
         <b-form-group v-if="!!editingSnippet">
             <b-input-group>
                 <input type="text"
@@ -69,7 +73,8 @@
                        placeholder="Name"
                        @input="setSaveConfirmMessage"
                        @keydown.ctrl.enter="clickSave"
-                       v-model="editingSnippet.key"/>
+                       v-model="editingSnippet.key"
+                       ref="keyInput"/>
             </b-input-group>
         </b-form-group>
 
@@ -79,7 +84,8 @@
                           class="form-control"
                           placeholder="Replacement text"
                           @keydown.ctrl.enter="clickSave"
-                          v-model="editingSnippet.value"/>
+                          v-model="editingSnippet.value"
+                          ref="valueInput"/>
             </b-input-group>
         </b-form-group>
 
@@ -119,6 +125,18 @@ import SubmitButton from './SubmitButton';
 export default {
     name: 'snippet-manager',
 
+    props: {
+        course: {
+            type: Object,
+            default: null,
+        },
+
+        editable: {
+            type: Boolean,
+            default: true,
+        },
+    },
+
     data() {
         return {
             loading: true,
@@ -131,8 +149,16 @@ export default {
 
     computed: {
         ...mapGetters('user', {
-            storeSnippets: 'snippets',
+            userStoreSnippets: 'snippets',
         }),
+
+        storeSnippets() {
+            if (this.course) {
+                return this.course.snippets;
+            } else {
+                return this.userStoreSnippets;
+            }
+        },
 
         filteredSnippets() {
             if (!this.filter) {
@@ -147,17 +173,29 @@ export default {
         modalTitle() {
             if (!this.editingSnippet) {
                 return '';
+            } else if (this.editingSnippet.id == null) {
+                return 'Add snippet';
+            } else {
+                return 'Edit snippet';
             }
-            return this.editingSnippet.id == null ? 'Add snippet' : 'Edit snippet';
+        },
+
+        baseUrl() {
+            if (this.course == null) {
+                return '/api/v1/';
+            } else {
+                return `/api/v1/courses/${this.course.id}/`;
+            }
         },
     },
 
     methods: {
         ...mapActions({
-            refreshSnippets: 'user/refreshSnippets',
+            refreshUserSnippets: 'user/refreshSnippets',
             addSnippetToStore: 'user/addSnippet',
             updateSnippetInStore: 'user/updateSnippet',
             deleteSnippetFromStore: 'user/deleteSnippet',
+            updateCourse: 'courses/updateCourse',
         }),
 
         editSnippet(snippet) {
@@ -247,30 +285,63 @@ export default {
         },
 
         addSnippet(snippet) {
-            return this.$http.put('/api/v1/snippet', snippet).then(response => {
+            return this.$http.put(this.getSnippetRoute('snippet'), snippet).then(response => {
                 snippet.id = response.data.id;
-                this.addSnippetToStore(snippet);
+                if (this.course) {
+                    this.updateCourse({
+                        courseId: this.course.id,
+                        courseProps: {
+                            snippets: [...this.course.snippets, snippet],
+                        },
+                    });
+                } else {
+                    this.addSnippetToStore(snippet);
+                }
                 this.snippets.push(snippet);
             });
         },
 
         updateSnippet(snippet) {
-            return this.$http.patch(`/api/v1/snippets/${snippet.id}`, snippet).then(() => {
-                const idx = this.findSnippetIndex(snippet);
-                this.updateSnippetInStore(snippet);
-                this.snippets.splice(idx, 1, snippet);
-            });
+            return this.$http
+                .patch(this.getSnippetRoute(`snippets/${snippet.id}`), snippet)
+                .then(() => {
+                    const idx = this.findSnippetIndex(snippet);
+                    if (this.course) {
+                        this.updateCourse({
+                            courseId: this.course.id,
+                            courseProps: {
+                                snippets: this.course.snippets.map(
+                                    snip => (snip.id === snippet.id ? snippet : snip),
+                                ),
+                            },
+                        });
+                    } else {
+                        this.updateSnippetInStore(snippet);
+                    }
+                    this.snippets.splice(idx, 1, snippet);
+                });
         },
 
         deleteSnippet(snippet) {
-            return this.$http.delete(`/api/v1/snippets/${snippet.id}`).then(() => snippet);
+            return this.$http
+                .delete(this.getSnippetRoute(`snippets/${snippet.id}`))
+                .then(() => snippet);
         },
 
         afterDeleteSnippet(snippet) {
             const idx = this.findSnippetIndex(snippet);
 
             this.snippets.splice(idx, 1);
-            this.deleteSnippetFromStore(snippet);
+            if (this.course) {
+                this.updateCourse({
+                    courseId: this.course.id,
+                    courseProps: {
+                        snippets: this.course.snippets.filter(snip => snip.id !== snippet.id),
+                    },
+                });
+            } else {
+                this.deleteSnippetFromStore(snippet);
+            }
         },
 
         setSaveConfirmMessage() {
@@ -295,13 +366,48 @@ export default {
                 this.saveConfirmMessage = '';
             }
         },
+
+        getSnippetRoute(routeEnd) {
+            return `${this.baseUrl}${routeEnd}`;
+        },
+
+        refreshSnippets() {
+            if (this.course) {
+                return this.$http.get(`/api/v1/courses/${this.course.id}/snippets/`, ({ data }) => {
+                    this.updateCourse({
+                        courseId: this.course.id,
+                        courseProps: data,
+                    });
+                    return data;
+                });
+            } else {
+                return this.refreshUserSnippets();
+            }
+        },
+
+        focusInput() {
+            if (this.editingSnippet.id == null) {
+                if (this.$refs.keyInput) {
+                    this.$refs.keyInput.focus();
+                }
+            } else if (this.$refs.valueInput) {
+                this.$refs.valueInput.focus();
+            }
+        },
     },
 
-    async mounted() {
-        await this.refreshSnippets();
-        this.loading = false;
+    watch: {
+        course: {
+            async handler() {
+                await this.refreshSnippets();
+                this.loading = false;
 
-        this.snippets = Object.values(this.storeSnippets).sort((a, b) => cmpNoCase(a.key, b.key));
+                this.snippets = Object.values(this.storeSnippets).sort((a, b) =>
+                    cmpNoCase(a.key, b.key),
+                );
+            },
+            immediate: true,
+        },
     },
 
     components: {
