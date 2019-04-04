@@ -97,7 +97,6 @@
             <div v-b-popover.top.hover="canOverrideIgnore ? '' : (canDeleteFiles ? 'You are not allowed to override the hand-in requirements.' : 'You are missing required files.')">
                 <submit-button label="Override"
                             variant="warning"
-                            v-b-popover.top.hover="'hello'"
                             :submit="() => overrideSubmit('keep')"
                             :disabled="!canOverrideIgnore"
                             @after-success="afterOverrideSubmit"
