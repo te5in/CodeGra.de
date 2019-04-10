@@ -234,7 +234,7 @@ class Group(Base):
     members: t.MutableSequence['user_models.User'] = db.relationship(
         'User',
         secondary=users_groups,
-        lazy='joined',
+        lazy='selectin',
         order_by='User.name',
     )
     virtual_user: 'user_models.User' = db.relationship(

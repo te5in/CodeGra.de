@@ -1129,9 +1129,27 @@ def get_all_works_for_assignment(
 
     obj = models.Work.query.filter_by(
         assignment_id=assignment_id,
-    ).options(joinedload(
-        models.Work.selected_items,
-    )).order_by(t.cast(t.Any, models.Work.created_at).desc())
+    ).options(
+        joinedload(
+            models.Work.selected_items,
+        ),
+        # We want to load all users directly. We do this by loading the user,
+        # which might be a group. For such groups we also load all users.
+        # The users in this group will never be a group, so the last
+        # `selectinload` here might be seen as strange. However, during the
+        # serialization of a group we access `User.group`, which checks if a
+        # user is really not a group. To prevent these last queries the last
+        # `selectinload` is needed here.
+        selectinload(
+            models.Work.user,
+        ).selectinload(
+            models.User.group,
+        ).selectinload(
+            models.Group.members,
+        ).selectinload(
+            models.User.group,
+        )
+    ).order_by(t.cast(t.Any, models.Work.created_at).desc())
 
     if not current_user.has_permission(
         CPerm.can_see_others_work, course_id=assignment.course_id
