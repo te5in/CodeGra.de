@@ -25,11 +25,16 @@ assignment:
     - **Delete leading directories**: If enabled, automatically delete superfluous leading directories (i.e. top-level directories in which all files / subdirectories are located).
     - **Allow overrides by students**: If enabled, the student can, after being shown a warning, still force hand in the submission even if it violates the hand-in requirements.
 
-4. Subsequently, rules to complement the set policy can be given in the **Exceptions and requirements** section. The following rules can be created:
+4. Subsequently, rules to make exceptions for the set policy can be given in the **Exceptions and requirements** section. The following rules can be created:
 
     - **Required**: This rule is available to both default policies and can be used to require students to hand in certain files.
     - **Allowed**: This rule is available if all files are *denied* by default and can be used to make exceptions to this policy. Files and folders indicated as allowed are allowed to be handed in.
     - **Denied**: This rule is available if all files are *allowed* by default and can be used to make exceptions to this policy. Files and folders indicated as denied cannot be handed in.
+
+.. warning::
+
+    The exceptions and requirements are individual rules that act as exceptions
+    to the chosen policy. There is no ordering between rules.
 
 .. note::
 

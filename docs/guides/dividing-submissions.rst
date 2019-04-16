@@ -1,6 +1,6 @@
 .. _dividing-submissions:
 
-Dividing submissions over graders
+Divide submissions over graders
 ==================================
 CodeGrade offers multiple tools to divide submissions over the graders in your
 course. Graders can be divided manually or randomly. Additionally, divisions
