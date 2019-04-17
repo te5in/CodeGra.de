@@ -259,6 +259,16 @@
 
             </b-card>
         </div>
+
+        <div class="cat-wrapper" :class="{hidden: selectedCat !== 'AutoTest'}">
+            <b-card header="AutoTest">
+                <auto-test :assignment="assignment"
+                           :hidden="selectedCat !== 'AutoTest'"
+                           ref="autoTest"
+                           editable/>
+
+            </b-card>
+        </div>
     </div>
 </div>
 </template>
@@ -289,6 +299,7 @@ import {
     AssignmentGroup,
     CategorySelector,
     DatetimePicker,
+    AutoTest,
 } from '@/components';
 
 export default {
@@ -432,6 +443,10 @@ export default {
                     name: 'Rubric',
                     enabled: this.canUseRubrics,
                 },
+                {
+                    name: 'AutoTest',
+                    enabled: true,
+                },
             ];
         },
 
@@ -544,6 +559,7 @@ export default {
         AssignmentGroup,
         CategorySelector,
         DatetimePicker,
+        AutoTest,
     },
 };
 </script>

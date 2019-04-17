@@ -222,3 +222,53 @@ export function getProps(object, defaultValue, ...props) {
     }
     return res;
 }
+
+export const getUniqueId = (() => {
+    let testSuiteId = 0;
+    return () => testSuiteId++;
+})();
+
+export function deepCopy(value, maxDepth = 10, depth = 1) {
+    if (depth > maxDepth) {
+        throw new Error('Max depth reached');
+    }
+
+    if (Array.isArray(value)) {
+        return value.map(v => deepCopy(v, maxDepth, depth + 1));
+    } else if (value && typeof value === 'object') {
+        return Object.entries(value).reduce((res, [k, v]) => {
+            res[k] = deepCopy(v, maxDepth, depth + 1);
+            return res;
+        }, {});
+    } else {
+        return value;
+    }
+}
+
+export function capitalize(str) {
+    if (str.length === 0) return str;
+    return str[0].toUpperCase() + str.substr(1);
+}
+
+export function titleCase(str) {
+    return str.split(' ').map(capitalize).join(' ');
+}
+
+export function withOrdinalSuffix(i) {
+    const endsWith = i % 10;
+    const mod100 = i % 100;
+    const isTeen = mod100 >= 10 && mod100 < 20;
+    let suffix = 'th';
+
+    if (endsWith === 1 && !isTeen) {
+        suffix = 'st';
+    }
+    if (endsWith === 2 && !isTeen) {
+        suffix = 'nd';
+    }
+    if (endsWith === 3 && !isTeen) {
+        suffix = 'rd';
+    }
+
+    return `${i}${suffix}`;
+}

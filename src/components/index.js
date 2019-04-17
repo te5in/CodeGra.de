@@ -53,3 +53,4 @@ export { default as GroupSetManager } from './GroupSetManager';
 export { default as IpythonViewer } from './IPythonViewer';
 export { default as MarkdownViewer } from './MarkdownViewer';
 export { default as DatetimePicker } from './DatetimePicker';
+export { default as AutoTest } from './AutoTest';

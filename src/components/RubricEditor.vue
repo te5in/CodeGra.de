@@ -217,7 +217,9 @@
             </submit-button>
         </b-button-group>
 
-        <submit-button ref="submitButton" :submit="submit"/>
+        <submit-button ref="submitButton"
+                       :submit="submit"
+                       @after-success="afterSubmit"/>
     </b-card>
 </div>
 </template>

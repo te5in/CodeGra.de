@@ -502,7 +502,7 @@
     #app.dark & {
         background-color: @color-primary;
         .dropdown-item {
-            color: @text-color-dark;
+            color: @text-color-dark !important;
             border-color: @color-primary-darker;
             outline: none !important;
             &:hover,
@@ -518,6 +518,10 @@
         .dropdown-header {
             color: @color-secondary-text-lighter;
         }
+    }
+
+    .dropdown-item:active {
+        background-color: darken(@background-color, 10%);
     }
 }
 

@@ -247,8 +247,12 @@ export default {
         doSubmit() {
             this.state = 'pending';
 
-            waitAtLeast(this.waitAtLeast, Promise.resolve().then(this.submit))
-                .then(this.filterSuccess, this.filterError)
+            let promise = Promise.resolve().then(this.submit);
+            if (this.waitAtLeast > 0) {
+                promise = waitAtLeast(this.waitAtLeast, promise);
+            }
+
+            promise.then(this.filterSuccess, this.filterError)
                 .then(this.onSuccess, this.onError);
         },
 
