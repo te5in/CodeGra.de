@@ -224,8 +224,8 @@ export function getProps(object, defaultValue, ...props) {
 }
 
 export const getUniqueId = (() => {
-    let testSuiteId = 0;
-    return () => testSuiteId++;
+    let id = 0;
+    return () => id++;
 })();
 
 export function deepCopy(value, maxDepth = 10, depth = 1) {

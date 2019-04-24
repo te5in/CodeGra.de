@@ -182,7 +182,7 @@
                                 documentation <a href="https://docs.codegra.de/user/management.html#dividing-submissions"
                                                  target="_blank"
                                                  class="inline-link"
-                                >here</a>.
+                                                 >here</a>.
                             </span>
                         </description-popover>
                     </span>
@@ -261,13 +261,10 @@
         </div>
 
         <div class="cat-wrapper" :class="{hidden: selectedCat !== 'AutoTest'}">
-            <b-card header="AutoTest">
-                <auto-test :assignment="assignment"
-                           :hidden="selectedCat !== 'AutoTest'"
-                           ref="autoTest"
-                           editable/>
-
-            </b-card>
+            <auto-test :assignment="assignment"
+                       :hidden="selectedCat !== 'AutoTest'"
+                       ref="autoTest"
+                       editable/>
         </div>
     </div>
 </div>

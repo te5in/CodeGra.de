@@ -36,6 +36,7 @@
 
     <b-popover :placement="popoverPlacement"
                :show="!!error"
+               :container="container"
                :target="btnId"
                triggers=""
                @hide="onHideError">
@@ -68,6 +69,7 @@
 
     <b-popover v-if="confirm.length > 0"
                :placement="popoverPlacement"
+               :container="container"
                :show="confirmVisible"
                :target="btnId"
                triggers=""
@@ -183,6 +185,10 @@ export default {
         iconScale: {
             type: Number,
             default: 1,
+        },
+
+        container: {
+            default: undefined,
         },
     },
 

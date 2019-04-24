@@ -62,6 +62,7 @@
 
         <b-button-toolbar class="add-step-btns-wrapper">
             <b-btn v-for="stepType in stepTypes"
+                   :key="stepType.value"
                    @click="addStep(stepType)"
                    class="add-step-btn text-muted"
                    v-b-popover.top.hover="`Add a new ${stepType.name} step`"
@@ -90,7 +91,7 @@
                         <template v-for="err in caseErrors.general">
                             {{ err }}
                         </template>
-                        <template v-if="caseErrors.steps">
+                        <template v-if="caseErrors.steps.length > 0">
                             Some steps are not valid:
                             <ul>
                                 <li v-for="[step, errs], i in caseErrors.steps"
