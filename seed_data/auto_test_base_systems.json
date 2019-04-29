@@ -1,0 +1,38 @@
+[
+  {
+    "group": "python",
+    "id": 0,
+    "docker_config": "halksdjflkajsdfkl",
+    "name": "Python 2.7"
+  },
+  {
+    "group": "python",
+    "id": 1,
+    "name": "Python 3.5"
+  },
+  {
+    "group": "python",
+    "id": 2,
+    "name": "Python 3.6"
+  },
+  {
+    "group": "python",
+    "id": 3,
+    "name": "Python 3.7"
+  },
+  {
+    "group": "java",
+    "id": 4,
+    "name": "Java 1.6"
+  },
+  {
+    "group": "java",
+    "id": 5,
+    "name": "Java 1.7"
+  },
+  {
+    "group": "r",
+    "id": 6,
+    "name": "R"
+  }
+]

@@ -251,7 +251,10 @@ export function capitalize(str) {
 }
 
 export function titleCase(str) {
-    return str.split(' ').map(capitalize).join(' ');
+    return str
+        .split(' ')
+        .map(capitalize)
+        .join(' ');
 }
 
 export function withOrdinalSuffix(i) {

@@ -9,69 +9,74 @@
                 <icon name="chevron-down"/>
             </div>
             <div class="step-type header-item"
-                 :style="{ 'background-color': stepType.color }">
-                {{ stepType.name }}
+                 :style="{ 'background-color': typeColor }">
+                {{ stepName }}
             </div>
             <b-input-group prepend="Name"
                            class="name-input header-item"
-                           v-if="!stepType.metaTest">
+                           v-if="!value.metaTest">
                 <input class="form-control"
                        ref="nameInput"
                        :value="value.name"
-                       @input="updateValue('name', $event.target.value)"/>
+                       @input="updateName($event.target.value)"/>
             </b-input-group>
             <b-input-group prepend="Weight"
                            class="points-input header-item"
                            v-b-popover.top.hover="weightPopoverText"
-                           v-if="!stepType.metaTest">
+                           v-if="!value.metaTest">
                 <input class="form-control"
                        type="number"
-                       :disabled="stepType.value === 'io_test'"
+                       :disabled="value.type === 'io_test'"
                        :value="value.weight"
                        @input="updateValue('weight', $event.target.value)"/>
             </b-input-group>
 
-            <div v-if="stepType.metaTest"
-                 class="flex-padding-element"/>
+            <b-button-group class="header-item">
+                <b-btn class="hide-header" :variant="value.hidden ? 'primary' : 'secondary'"
+                    @click="updateHidden(!value.hidden)"
+                    v-b-popover.top.hover="'Should the contents of this test be hidden from the student?'">
+                    <icon :name="value.hidden ? 'eye-slash' : 'eye'"/>
+                </b-btn>
 
-            <submit-button
-                :disabled="disableDelete"
-                class="delete-btn header-item"
-                :submit="() => {}"
-                :wait-at-least="0"
-                v-b-popover.top.hover="'Delete this step'"
-                @after-success="$emit('delete')"
-                confirm="Are you sure you want to delete this step?"
-                variant="danger">
-                <icon name="times"/>
-            </submit-button>
+                <submit-button
+                    :disabled="disableDelete"
+                    class="delete-btn"
+                    :submit="() => null"
+                    :wait-at-least="0"
+                    v-b-popover.top.hover="'Delete this step'"
+                    @after-success="$emit('delete')"
+                    confirm="Are you sure you want to delete this step?"
+                    variant="danger">
+                    <icon name="times"/>
+                </submit-button>
+            </b-button-group>
         </div>
 
         <b-collapse :visible="value.opened"
-                    @input="updateValue('opened', $event)"
+                    @input="updateCollapse"
                     :id="collapseId"
                     v-if="!value.metatest">
             <div class="io-test-wrapper card-body">
-                <template v-if="!stepType.metaTest">
+                <template v-if="!value.metaTest">
                     <label :for="programNameId">
                         Program to test
                     </label>
                     <input class="form-control"
-                           :value="value.program"
+                           :value="value.data.program"
                            :id="programNameId"
                            @input="updateValue('program', $event.target.value)"/>
                 </template>
-                <template v-else-if="stepType.value === 'check_points'">
+                <template v-else-if="value.type === 'check_points'">
                     <label>
                         Stop test suite if amount of points is below
                     </label>
                     <input class="form-control min-points-input"
                            type="number"
-                           :value="value.minPoints"
-                           @input="updateValue('minPoints', $event.target.value)"/>
+                           :value="value.data.min_points"
+                           @input="updateValue('min_points', $event.target.value)"/>
                 </template>
 
-                <template v-if="stepType.value === 'custom_output'">
+                <template v-if="value.type === 'custom_output'">
                     <hr/>
 
                     <label :for="regexId">
@@ -84,12 +89,12 @@
                             regex captures a single float.
                         </description-popover>
                     </label>
-                    <input :value="value.regex"
+                    <input :value="value.data.regex"
                            :id="regexId"
                            class="form-control"
                            @input="updateValue('regex', $event.target.value)">
                 </template>
-                <template v-else-if="stepType.value === 'io_test'">
+                <template v-else-if="value.type === 'io_test'">
                     <hr/>
 
                     <div v-for="input, index in inputs"
@@ -155,7 +160,7 @@
                             <b-btn variant="danger"
                                    v-b-popover.top.hover="'Delete this input and output case.'"
                                    @click="deleteInput(index)"
-                                   :disabled="value.inputs.length < 2">
+                                   :disabled="value.data.inputs.length < 2">
                                 <icon name="times"/>
                             </b-btn>
                         </div>
@@ -195,27 +200,27 @@
 <tbody v-else-if="value.type === 'check_points'">
     <tr>
         <td>{{ index }}</td>
-        <td colspan="2">Stop when you got less than {{ value.minPoints }} points.</td>
+        <td colspan="2">Stop when you got less than {{ value.data.min_points }} points.</td>
     </tr>
 </tbody>
 <tbody v-else-if="value.type === 'run_program'">
     <tr>
         <td>{{ index }}</td>
-        <td>{{ value.name }}: Run <code>{{ value.program }}</code> and check for successful completion.</td>
+        <td>{{ stepName }}: Run <code>{{ value.data.program }}</code> and check for successful completion.</td>
         <td>{{ value.weight }}</td>
     </tr>
 </tbody>
 <tbody v-else-if="value.type === 'custom_output'">
     <tr>
         <td>{{ index }}</td>
-        <td>{{ value.name }}: Run <code>{{ value.program }}</code> and parse its output.</td>
+        <td>{{ stepName }}: Run <code>{{ value.data.program }}</code> and parse its output.</td>
         <td>{{ value.weight }}</td>
     </tr>
 </tbody>
 <tbody v-else-if="value.type === 'io_test'">
     <tr>
         <td><b>{{ index }}</b></td>
-        <td><b>{{ value.name }}</b></td>
+        <td><b>{{ stepName }}</b></td>
         <td><b>{{ value.weight }}</b></td>
     </tr>
     <tr v-for="input, i in inputs"
@@ -230,12 +235,14 @@
 <script>
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/times';
+import 'vue-awesome/icons/eye';
+import 'vue-awesome/icons/eye-slash';
 import 'vue-awesome/icons/files-o';
 import 'vue-awesome/icons/plus';
 import 'vue-awesome/icons/caret-down';
 import 'vue-awesome/icons/chevron-down';
 
-import { getUniqueId } from '@/utils';
+import { getUniqueId, titleCase, deepCopy, getProps } from '@/utils';
 
 import SubmitButton from './SubmitButton';
 import DescriptionPopover from './DescriptionPopover';
@@ -259,14 +266,14 @@ export default {
             default: false,
         },
 
-        stepTypes: {
-            type: Array,
-            required: true,
-        },
-
         disableDelete: {
             type: Boolean,
             default: false,
+        },
+
+        testTypes: {
+            type: Array,
+            required: true,
         },
     },
 
@@ -286,6 +293,14 @@ export default {
     },
 
     computed: {
+        typeColor() {
+            return this.testTypes.find(x => x.name === this.value.type).color;
+        },
+
+        stepName() {
+            return titleCase(this.value.type.replace(/_/g, ' '));
+        },
+
         programNameId() {
             return `auto-test-step-program-${this.id}`;
         },
@@ -326,10 +341,6 @@ export default {
             return n => `auto-test-step-weight-${this.id}-${n}`;
         },
 
-        stepType() {
-            return this.stepTypes.find(t => t.value === this.value.type);
-        },
-
         ioOptions() {
             return [
                 { text: 'Case insensitive', value: 'case' },
@@ -340,11 +351,11 @@ export default {
         },
 
         inputs() {
-            return this.value.inputs || [];
+            return getProps(this.value, [], 'data', 'inputs');
         },
 
         weightPopoverText() {
-            if (this.stepType.value === 'io_test') {
+            if (this.value.type === 'io_test') {
                 return 'This is equal to the sum of the weights of each input.';
             } else {
                 return '';
@@ -387,31 +398,47 @@ export default {
             this.updateValue('inputs', this.inputs.filter((_, i) => i !== index));
         },
 
+        updateName(name) {
+            this.$emit('input', Object.assign(deepCopy(this.value), { name }));
+        },
+
+        updateHidden(hidden) {
+            this.$emit('input', Object.assign(deepCopy(this.value), { hidden }));
+        },
+
+        updateCollapse(opened) {
+            this.$emit('input', Object.assign(deepCopy(this.value), { opened }));
+        },
+
         updateValue(key, value) {
             if (key === 'weight') {
-                this.$emit('input', {
-                    ...this.value,
-                    weight: value,
-                });
+                this.$emit(
+                    'input',
+                    Object.assign(deepCopy(this.value), {
+                        weight: value,
+                    }),
+                );
                 return;
             }
 
             let weight = this.value.weight;
             if (key === 'inputs') {
-                weight = (value || []).reduce(
-                    (res, cur) => res + Number(cur.weight),
-                    0,
-                );
+                weight = (value || []).reduce((res, cur) => res + Number(cur.weight), 0);
                 if (Number.isNaN(weight)) {
                     weight = '-';
                 }
             }
 
-            this.$emit('input', {
-                ...this.value,
-                [key]: value,
-                weight,
-            });
+            this.$emit(
+                'input',
+                Object.assign(deepCopy(this.value), {
+                    data: {
+                        ...this.value.data,
+                        [key]: value,
+                    },
+                    weight,
+                }),
+            );
         },
     },
 
@@ -468,6 +495,10 @@ export default {
         margin: 0.25rem;
     }
 
+    .hide-header {
+        box-shadow: none;
+    }
+
     .step-type {
         padding: 0.375rem 1rem;
         flex: 0 1 auto;
@@ -478,13 +509,13 @@ export default {
 
     .name-input {
         border-radius: 0;
-        flex: 1 1 20rem;
+        flex: 1 1 18rem;
     }
 
     .points-input {
         flex: 0 1 12rem;
-        .input-group-text, .form-control
-        {
+        .input-group-text,
+        .form-control {
             border-left: 1px solid rgba(0, 0, 0, 0.125);
         }
     }
@@ -518,11 +549,6 @@ hr {
     margin-bottom: 0.5rem;
 }
 
-.delete-btn {
-    margin-left: 0 !important;
-    float: right;
-}
-
 .collapse-toggle {
     cursor: pointer;
 
@@ -530,7 +556,6 @@ hr {
         transition: all 300ms linear;
         transform: rotate(-90deg);
     }
-
 
     &.collapse-open .fa-icon {
         transform: rotate(0deg);

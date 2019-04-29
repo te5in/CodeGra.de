@@ -258,8 +258,7 @@ export default {
                 promise = waitAtLeast(this.waitAtLeast, promise);
             }
 
-            promise.then(this.filterSuccess, this.filterError)
-                .then(this.onSuccess, this.onError);
+            promise.then(this.filterSuccess, this.filterError).then(this.onSuccess, this.onError);
         },
 
         onSuccess(data, fromWarning = false) {

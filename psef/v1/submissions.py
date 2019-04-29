@@ -205,10 +205,7 @@ def delete_submission(submission_id: int) -> EmptyResponse:
     for sub_file in db.session.query(models.File).filter_by(
         work_id=submission_id, is_directory=False
     ).all():
-        try:
-            sub_file.delete_from_disk()
-        except FileNotFoundError:  # pragma: no cover
-            pass
+        helpers.callback_after_this_request(sub_file.delete_from_disk)
 
     db.session.delete(submission)
     db.session.commit()

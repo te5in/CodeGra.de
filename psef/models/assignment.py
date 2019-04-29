@@ -25,10 +25,11 @@ from . import user as user_models
 from . import work as work_models
 from . import group as group_models
 from . import linter as linter_models
+from . import rubric as rubric_models
 from . import _MyQuery
+from . import auto_test as auto_test_models
 from .. import auth, ignore, helpers
 from .role import CourseRole
-from .rubric import RubricRow, RubricItem
 from .permission import Permission
 from ..exceptions import PermissionException, InvalidAssignmentState
 from .link_tables import user_course, work_rubric_item, course_permissions
@@ -425,10 +426,10 @@ class Assignment(Base):  # pylint: disable=too-many-public-methods
     )
     rubric_rows = db.relationship(
         'RubricRow',
-        backref=db.backref('assignment'),
+        back_populates='assignment',
         cascade='delete-orphan, delete, save-update',
         order_by="RubricRow.created_at"
-    )  # type: t.MutableSequence['RubricRow']
+    )  # type: t.MutableSequence['rubric_models.RubricRow']
 
     group_set_id: int = db.Column(
         'group_set_id',
@@ -448,6 +449,19 @@ class Assignment(Base):  # pylint: disable=too-many-public-methods
 
     # This variable is available through a backref
     submissions: t.Iterable['work_models.Work']
+
+    auto_test_id: int = db.Column(
+        'auto_test_id',
+        db.Integer,
+        db.ForeignKey('AutoTest.id'),
+        nullable=True,
+    )
+
+    auto_test: t.Optional['auto_test_models.AutoTest'] = db.relationship(
+        'AutoTest',
+        back_populates="assignment",
+        cascade='all',
+    )
 
     @validates('group_set')
     def validate_group_set(
@@ -669,10 +683,10 @@ class Assignment(Base):  # pylint: disable=too-many-public-methods
     @cached_property
     def _dynamic_max_points(self) -> t.Optional[float]:
         sub = db.session.query(
-            func.max(RubricItem.points).label('max_val')
-        ).join(RubricRow, RubricRow.id == RubricItem.rubricrow_id).filter(
-            RubricRow.assignment_id == self.id
-        ).group_by(RubricRow.id).subquery('sub')
+            func.max(rubric_models.RubricItem.points).label('max_val')
+        ).join(rubric_models.RubricRow, rubric_models.RubricRow.id == rubric_models.RubricItem.rubricrow_id).filter(
+            rubric_models.RubricRow.assignment_id == self.id
+        ).group_by(rubric_models.RubricRow.id).subquery('sub')
         return db.session.query(func.sum(sub.c.max_val)).scalar()
 
     @property
@@ -834,6 +848,7 @@ class Assignment(Base):  # pylint: disable=too-many-public-methods
             'max_grade': self._max_grade,
             'group_set': self.group_set,
             'division_parent_id': None,
+            'auto_test_id': self.auto_test_id,
         }
 
         if self.course.lti_provider is not None:

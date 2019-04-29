@@ -125,11 +125,13 @@ class MyDb:  # pragma: no cover
     Boolean: DbType[bool]
     ForeignKey: t.Callable
     String: t.Callable[[DbSelf, int], DbType[str]]
-    Enum: t.Callable[[DbSelf, t.Type[E]], DbType[E]]
     init_app: t.Callable
     engine: t.Any
 
     def Table(self, name: str, *args: T) -> RawTable:
+        ...
+
+    def Enum(self, typ: t.Type[E], native_enum: bool = True) -> DbType[E]:
         ...
 
     @t.overload

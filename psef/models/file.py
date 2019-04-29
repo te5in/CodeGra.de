@@ -13,7 +13,9 @@ from flask import current_app
 import psef
 
 from . import Base, db, _MyQuery
+from . import auto_test as auto_test_models
 from .. import auth
+from .mixins import TimestampMixin
 from ..exceptions import APICodes, APIException
 from ..permissions import CoursePermission
 
@@ -41,7 +43,50 @@ class FileOwner(enum.IntEnum):
     both: int = 3
 
 
-class File(Base):
+class FileMixin:
+
+    # The given name of the file.
+    name: str = db.Column('name', db.Unicode, nullable=False)
+
+    # This is the filename for the actual file on the disk. This is probably a
+    # randomly generated uuid.
+    filename: t.Optional[str]
+    filename = db.Column('filename', db.Unicode, nullable=True)
+
+    @property
+    def id(self) -> int:
+        raise NotImplementedError
+
+    def delete_from_disk(self) -> None:
+        """Delete the file from disk if it is not a directory.
+
+        :returns: Nothing.
+        """
+        try:
+            os.remove(self.get_diskname())
+        except (AssertionError, FileNotFoundError):
+            pass
+
+    def get_diskname(self) -> str:
+        """Get the absolute path on the disk for this file.
+
+        :returns: The absolute path.
+        """
+        assert self.filename
+        res = os.path.realpath(
+            os.path.join(current_app.config['UPLOAD_DIR'], self.filename)
+        )
+        assert res.startswith(current_app.config['UPLOAD_DIR'])
+        return res
+
+    def __to_json__(self) -> t.Mapping[str, t.Union[str, int]]:
+        return {
+            'id': self.id,
+            'name': self.name,
+        }
+
+
+class File(FileMixin, Base):
     """
     This object describes a file or directory that stored is stored on the
     server.
@@ -55,6 +100,7 @@ class File(Base):
     if t.TYPE_CHECKING:  # pragma: no cover
         query: t.ClassVar[_MyQuery['File']]
     __tablename__ = "File"
+
     id: int = db.Column('id', db.Integer, primary_key=True)
     work_id: int = db.Column(
         'Work_id',
@@ -62,13 +108,7 @@ class File(Base):
         db.ForeignKey('Work.id', ondelete='CASCADE'),
         nullable=False,
     )
-    # The given name of the file.
-    name: str = db.Column('name', db.Unicode, nullable=False)
 
-    # This is the filename for the actual file on the disk. This is probably a
-    # randomly generated uuid.
-    filename: t.Optional[str]
-    filename = db.Column('filename', db.Unicode, nullable=True)
     modification_date = db.Column(
         'modification_date', db.DateTime, default=datetime.datetime.utcnow
     )
@@ -139,20 +179,7 @@ class File(Base):
         :returns: The absolute path.
         """
         assert not self.is_directory
-        assert self.filename is not None
-        res = os.path.realpath(
-            os.path.join(current_app.config['UPLOAD_DIR'], self.filename)
-        )
-        assert res.startswith(current_app.config['UPLOAD_DIR'])
-        return res
-
-    def delete_from_disk(self) -> None:
-        """Delete the file from disk if it is not a directory.
-
-        :returns: Nothing.
-        """
-        if not self.is_directory:
-            os.remove(self.get_diskname())
+        return super().get_diskname()
 
     def list_contents(
         self,
@@ -258,7 +285,38 @@ class File(Base):
         :returns: A object as described above.
         """
         return {
-            'name': self.name,
+            **super().__to_json__(),
             'is_directory': self.is_directory,
-            'id': self.id,
+        }
+
+
+class AutoTestFixture(Base, FileMixin, TimestampMixin):
+    if t.TYPE_CHECKING:  # pragma: no cover
+        query: t.ClassVar[_MyQuery['AutoTestFixture']]
+    __tablename__ = 'AutoTestFixture'
+
+    id: int = db.Column('id', db.Integer, primary_key=True)
+    auto_test_id: int = db.Column(
+        'auto_test_id',
+        db.Integer,
+        db.ForeignKey('AutoTest.id', ondelete='CASCADE'),
+        nullable=False,
+    )
+
+    hidden: bool = db.Column(
+        'hidden', db.Boolean, nullable=False, default=True
+    )
+
+    auto_test: 'auto_test_models.AutoTest' = db.relationship(
+        'AutoTest',
+        foreign_keys=auto_test_id,
+        back_populates='fixtures',
+        lazy='joined',
+        innerjoin=True,
+    )
+
+    def __to_json__(self) -> t.Mapping[str, t.Union[str, bool, int]]:
+        return {
+            **super().__to_json__(),
+            'hidden': self.hidden,
         }

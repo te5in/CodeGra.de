@@ -137,7 +137,10 @@ export default {
                 return;
             }
             this.ignoreInput++;
-            this.$emit('input', [...this.value, ...this.filesToAdd].filter(f => !this.filesToRemove.includes(f)));
+            this.$emit(
+                'input',
+                [...this.value, ...this.filesToAdd].filter(f => !this.filesToRemove.includes(f)),
+            );
             this.filesToAdd = [];
             this.filesToRemove = [];
             this.$nextTick(() => {

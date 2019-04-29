@@ -37,6 +37,7 @@ class Feature(enum.Enum):
     INCREMENTAL_RUBRIC_SUBMISSION = enum.auto()
     REGISTER = enum.auto()
     GROUPS = enum.auto()
+    AUTO_TEST = enum.auto()
 
 
 def ensure_feature(feature: Feature) -> None:

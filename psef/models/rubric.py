@@ -10,6 +10,7 @@ import datetime
 from mypy_extensions import TypedDict
 
 from . import Base, db, _MyQuery
+from . import assignment as assignment_models
 from .. import helpers
 from ..exceptions import APICodes, APIException
 
@@ -92,6 +93,13 @@ class RubricRow(Base):
         cascade='delete-orphan, delete, save-update',
         order_by='asc(RubricItem.points)',
     )  # type: t.MutableSequence[RubricItem]
+
+    assignment: 'assignment_models.Assignment' = db.relationship(
+        'Assignment',
+        foreign_keys=assignment_id,
+        back_populates='rubric_rows',
+        lazy='select',
+    )
 
     def copy(self) -> 'RubricRow':
         return RubricRow(

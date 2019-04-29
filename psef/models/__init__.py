@@ -184,6 +184,7 @@ else:
     from sqlalchemy.ext.hybrid import hybrid_property, Comparator  # type: ignore
     Base = db.Model  # type: ignore # pylint: disable=invalid-name
 
+
 # Sphinx has problems with resolving types when this decorator is used, we
 # simply remove it in the case of Sphinx.
 if getattr(t, 'SPHINX', False) is True:  # pragma: no cover
@@ -199,7 +200,7 @@ if True:  # pylint: disable=using-constant-test
     from .permission import Permission
     from .user import User
     from .lti_provider import LTIProvider
-    from .file import File, FileOwner
+    from .file import File, FileOwner, AutoTestFixture
     from .work import Work, GradeHistory
     from .linter import LinterState, LinterComment, LinterInstance
     from .plagiarism import (
@@ -211,3 +212,6 @@ if True:  # pylint: disable=using-constant-test
     from .rubric import RubricItem, RubricRow
     from .group import GroupSet, Group
     from .link_tables import user_course
+    from .auto_test import (
+        AutoTest, AutoTestSet, AutoTestSuite, AutoTestStep, AutoTestStepType
+    )

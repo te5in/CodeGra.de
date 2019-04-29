@@ -49,6 +49,19 @@ class PsefFlask(Flask):
     This contains the extra property :meth:`.PsefFlask.do_sanity_checks`.
     """
 
+    def __init__(self, *args: object, **kwargs: object) -> None:
+        super().__init__(*args, **kwargs)
+        with open(
+            os.path.join(
+                os.path.dirname(__file__), '..', 'seed_data',
+                'auto_test_base_systems.json'
+            ), 'r'
+        ) as f:
+            self.auto_test_base_systems = {
+                val['id']: val
+                for val in system_json.load(f)
+            }
+
     @property
     def max_single_file_size(self) -> 'psef.archive.FileSize':
         """The maximum allowed size for a single file.

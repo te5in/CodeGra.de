@@ -5,6 +5,7 @@ var config = require('../config')
 var vueLoaderConfig = require('./vue-loader.conf')
 var userConfig = require('./userConfig')
 var permissions = require('../seed_data/permissions.json')
+var AutoTestBaseSystems = require('../seed_data/auto_test_base_systems.json')
 
 function resolve (dir) {
   return path.join(__dirname, '..', dir)
@@ -79,6 +80,9 @@ module.exports = {
   plugins: [
     new webpack.DefinePlugin({
         'UserConfig': JSON.stringify(userConfig),
+        'AutoTestBaseSystems': JSON.stringify(AutoTestBaseSystems.map(
+            ({ group, id, name }) => ({ group, id, name }),
+        )),
         'Permissions': JSON.stringify(permissions),
     }),
   ],

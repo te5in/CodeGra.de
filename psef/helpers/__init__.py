@@ -35,6 +35,8 @@ logger = structlog.get_logger()
 #: Type vars
 T = t.TypeVar('T')
 TT = t.TypeVar('TT')
+TTT = t.TypeVar('TTT', bound='IsInstanceType')
+ZZ = t.TypeVar('ZZ')
 Z = t.TypeVar('Z', bound='Comparable')
 Y = t.TypeVar('Y', bound='Base')
 T_Type = t.TypeVar('T_Type', bound=t.Type)  # pylint: disable=invalid-name
@@ -44,6 +46,8 @@ T_TypedDict = t.TypeVar(  # pylint: disable=invalid-name
 )
 
 IsInstanceType = t.Union[t.Type, t.Tuple[t.Type, ...]]  # pylint: disable=invalid-name
+
+MISSING = object()
 
 
 def init_app(app: 'psef.Flask') -> None:
@@ -477,6 +481,29 @@ def get_key_from_dict(
     return val
 
 
+@contextlib.contextmanager
+def get_from_map_transaction(
+    mapping: t.Mapping[T, TT]
+) -> t.Generator[t.Tuple[t.Callable[[T, t.Type[TTT]], TTT], t.
+                         Callable[[T, t.Type[TTT], ZZ], t.
+                                  Union[TTT, ZZ]]], None, None]:
+    keys = []
+
+    def fun1(key: T, typ: t.Type[TTT]) -> TTT:
+        keys.append((key, typ))
+        return t.cast(TTT, mapping.get(key, MISSING))
+
+    def fun2(key: T, typ: t.Type[TTT], default: ZZ) -> t.Union[TTT, ZZ]:
+        if key not in mapping:
+            return default
+        return fun1(key, typ)
+
+    try:
+        yield fun1, fun2
+    finally:
+        ensure_keys_in_dict(mapping, keys)
+
+
 def ensure_keys_in_dict(
     mapping: t.Mapping[T, object], keys: t.Sequence[t.Tuple[T, IsInstanceType]]
 ) -> None:
@@ -710,10 +737,11 @@ def callback_after_this_request(
     """
 
     @flask.after_this_request
-    def after(res: T) -> T:
+    def after(res: flask.Response) -> flask.Response:
         """The entire callback that is executed at the end of the request.
         """
-        fun()
+        if res.status_code < 400:
+            fun()
         return res
 
     return after

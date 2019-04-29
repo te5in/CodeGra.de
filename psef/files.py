@@ -14,10 +14,12 @@ import typing as t
 import tarfile
 import zipfile
 import tempfile
+from collections import defaultdict
 
 import structlog
 import mypy_extensions
 from werkzeug.utils import secure_filename
+from typing_extensions import Protocol
 from werkzeug.datastructures import FileStorage
 
 import psef.models as models
@@ -88,6 +90,40 @@ def init_app(_: t.Any) -> None:
 
 def get_file_size(f: str) -> archive.FileSize:
     return archive.FileSize(max(1, os.path.getsize(f)))
+
+class FileLike(Protocol):
+    @property
+    def name(self) -> str:
+        ...
+
+    @name.setter
+    def name(self, new_val: str) -> None:
+        ...
+
+def fix_duplicate_filenames(files: t.Sequence[FileLike]) -> None:
+    file_occurrence_lookup: t.Dict[str, t.Dict[str, int]] = defaultdict(
+        lambda: {
+            'amount': 0,
+            'fixed': 0
+        },
+    )
+
+    for f in files:
+        file_occurrence_lookup[f.name]['amount'] += 1
+
+    if any(v['amount'] > 1 for v in file_occurrence_lookup.values()):
+        for f in files:
+            if file_occurrence_lookup[f.name]['fixed'] > 0:
+                num = file_occurrence_lookup[f.name]['fixed']
+                while f'{f.name} ({num})' in file_occurrence_lookup:
+                    num += 1
+                file_occurrence_lookup[f.name]['fixed'] = num
+                f.name = f'{f.name} ({num})'
+                # This isn't really needed (as num always is incremented
+                # after this block). However, this is simply an extra
+                # safety check.
+                file_occurrence_lookup[f.name]['amount'] += 1
+            file_occurrence_lookup[f.name]['fixed'] += 1
 
 
 def escape_logical_filename(name: str) -> str:
