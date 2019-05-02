@@ -684,9 +684,12 @@ class Assignment(Base):  # pylint: disable=too-many-public-methods
     def _dynamic_max_points(self) -> t.Optional[float]:
         sub = db.session.query(
             func.max(rubric_models.RubricItem.points).label('max_val')
-        ).join(rubric_models.RubricRow, rubric_models.RubricRow.id == rubric_models.RubricItem.rubricrow_id).filter(
-            rubric_models.RubricRow.assignment_id == self.id
-        ).group_by(rubric_models.RubricRow.id).subquery('sub')
+        ).join(
+            rubric_models.RubricRow,
+            rubric_models.RubricRow.id == rubric_models.RubricItem.rubricrow_id
+        ).filter(rubric_models.RubricRow.assignment_id == self.id).group_by(
+            rubric_models.RubricRow.id
+        ).subquery('sub')
         return db.session.query(func.sum(sub.c.max_val)).scalar()
 
     @property

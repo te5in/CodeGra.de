@@ -214,7 +214,7 @@ export default {
             this.rubricSelected = selected;
             this.rubricTotal = max;
             if (UserConfig.features.incremental_rubric_submission) {
-                this.gradeUpdated();
+                this.gradeUpdated(false);
             }
         },
     },
@@ -226,8 +226,11 @@ export default {
     },
 
     methods: {
-        gradeUpdated() {
-            this.$emit('gradeUpdated', this.grade);
+        gradeUpdated(overridden) {
+            this.$emit('gradeUpdated', {
+                grade: this.grade,
+                overridden,
+            });
         },
 
         deleteGrade() {
@@ -247,7 +250,7 @@ export default {
         afterDeleteGrade(response) {
             if (response.data.grade !== undefined) {
                 this.grade = formatGrade(response.data.grade) || null;
-                this.gradeUpdated();
+                this.gradeUpdated(false);
             }
         },
 
@@ -270,11 +273,13 @@ export default {
             let req = Promise.resolve();
 
             if (this.showRubric) {
-                req = this.$refs.rubricViewer.submitAllItems();
+                req = this.$refs.rubricViewer.submitAllItems().then(() => false);
             }
 
             if (!this.showRubric || this.rubricOverridden) {
-                req = req.then(() => this.submitNormalGrade(grade));
+                req = req.then(
+                    () => this.submitNormalGrade(grade),
+                ).then(() => this.rubricOverridden);
             }
 
             return req;

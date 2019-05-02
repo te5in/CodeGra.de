@@ -14,21 +14,16 @@ import psef
 
 from . import Base, DbColumn, db
 from . import file as file_models
+from . import work as work_models
 from . import rubric as rubric_models
 from . import _MyQuery
 from . import assignment as assignment_models
+from .. import auto_test
 from .mixins import IdMixin, TimestampMixin
 from ..exceptions import APICodes, APIException
 
 if t.TYPE_CHECKING:
     from . import user as user_models
-
-
-class AutoTestStepType(enum.Enum):
-    io_test = enum.auto()
-    run_program = enum.auto()
-    custom_output = enum.auto()
-    check_points = enum.auto()
 
 
 class AutoTestStep(Base, TimestampMixin, IdMixin):
@@ -59,26 +54,50 @@ class AutoTestStep(Base, TimestampMixin, IdMixin):
         innerjoin=True,
     )
 
-    test_type: AutoTestStepType = db.Column(
+    _test_type: str = db.Column(
         'test_type',
-        db.Enum(AutoTestStepType, native_enum=False),
+        db.Enum(*auto_test.auto_test_handlers.keys(), native_enum=False),
         nullable=False,
     )
 
-    data: 'psef.helpers.JSONType' = db.Column(
+    _data: 'psef.helpers.JSONType' = db.Column(
         'data', JSON, nullable=False, default={}
     )
+
+    @property
+    def test_type(self) -> t.Type[auto_test.TestStep]:
+        return auto_test.auto_test_handlers[self._test_type]
+
+    @test_type.setter
+    def test_type(self, test_type: t.Type[auto_test.TestStep]) -> None:
+        typ = auto_test.auto_test_handlers.find(test_type, None)
+        assert typ is not None
+        self._test_type = typ
+
+    @property
+    def data(self) -> 'psef.helpers.JSONType':
+        return self._data
+
+    @data.setter
+    def data(self, data: 'psef.helpers.JSONType') -> None:
+        self.test_type.validate_data(data)
+        self._data = data
+
+    @property
+    def step(self) -> auto_test.TestStep:
+        return self.test_type(self.data)
 
     def update_from_json(
         self, json: t.Dict[str, 'psef.helpers.JSONType']
     ) -> None:
+        self.test_type.validate_data(json)
         self.data = json
 
     def __to_json__(self) -> t.Mapping[str, object]:
         return {
             'id': self.id,
             'name': self.name,
-            'type': self.test_type.name,
+            'type': self._test_type,
             'weight': self.weight,
             'data': self.data,
             'hidden': self.hidden
@@ -158,6 +177,19 @@ class AutoTestStepResult(Base, TimestampMixin, IdMixin):
         innerjoin=True,
     )
 
+    auto_test_result_id = db.Column(
+        'auto_test_result_id',
+        db.Integer,
+        db.ForeignKey('AutoTestResult.id'),
+    )
+
+    auto_test_result: 'AutoTestResult' = db.relationship(
+        'AutoTestResult',
+        foreign_keys=auto_test_result_id,
+        innerjoin=True,
+        back_populates='step_results',
+    )
+
     state = db.Column(
         'state',
         db.Enum(AutoTestStepResultState),
@@ -175,7 +207,7 @@ class AutoTestStepResult(Base, TimestampMixin, IdMixin):
     def __to_json__(self) -> t.Mapping[str, object]:
         return {
             'id': self.id,
-            'auto_test_step_id': self.auto_test_step_id,
+            'auto_test_step': self.auto_test_step,
             'state': self.state,
             'log': self.log,
         }
@@ -217,7 +249,66 @@ class AutoTestSet(Base, TimestampMixin, IdMixin):
         }
 
 
+class AutoTestResult(Base, TimestampMixin, IdMixin):
+    __tablename__ = 'AutoTestResult'
+
+    if t.TYPE_CHECKING:  # pragma: no cover
+        query: t.ClassVar[_MyQuery['AutoTestResult']]
+
+    auto_test_run_id: int = db.Column(
+        'auto_test_run_id',
+        db.Integer,
+        db.ForeignKey('AutoTestRun.id'),
+        nullable=False
+    )
+
+    run: 'AutoTestRun' = db.relationship(
+        'AutoTestRun',
+        foreign_keys=auto_test_run_id,
+        back_populates='results',
+        lazy='joined',
+        innerjoin=True,
+    )
+
+    step_results = db.relationship(
+        'AutoTestStepResult',
+        back_populates='auto_test_result',
+        cascade='all,delete',
+        order_by='AutoTestStepResult.created_at'
+    )  # type: t.MutableSequence[AutoTestStepResult]
+
+    points_achieved: float = db.Column(
+        'points_achieved', db.Float, nullable=True
+    )
+
+    work_id: int = db.Column(
+        'work_id',
+        db.Integer,
+        db.ForeignKey('Work.id', ondelete='CASCADE'),
+        nullable=False,
+    )
+    work = db.relationship(
+        'Work', foreign_keys=work_id
+    )  # type: work_models.Work
+
+    def __to_json__(self) -> t.Mapping[str, object]:
+        return {
+            'id': self.id,
+            'created_at': self.created_at,
+            'work': self.work,
+            'points_achieved': self.points_achieved,
+        }
+
+    def __extended_to_json__(self) -> t.Mapping[str, object]:
+        return {
+            **self.__to_json__(),
+            'step_results': self.step_results,
+        }
+
+
 class AutoTestRun(Base, TimestampMixin, IdMixin):
+    __tablename__ = 'AutoTestRun'
+
     if t.TYPE_CHECKING:  # pragma: no cover
         query: t.ClassVar[_MyQuery['AutoTestRun']]
 
@@ -236,15 +327,24 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
         innerjoin=True,
     )
 
-    user_id: int = db.Column(
-        'user_id',
-        db.Integer,
-        db.ForeignKey('User.id', ondelete='CASCADE'),
-        nullable=False,
-    )
-    user = db.relationship(
-        'User', foreign_keys=user_id
-    )  # type: user_models.User
+    results = db.relationship(
+        'AutoTestResult',
+        back_populates='run',
+        cascade='all,delete',
+        order_by='AutoTestResult.created_at'
+    )  # type: t.MutableSequence[AutoTestResult]
+
+    def __to_json__(self) -> t.Mapping[str, object]:
+        return {
+            'id': self.id,
+            'created_at': self.created_at,
+        }
+
+    def __extended_to_json__(self) -> t.Mapping[str, object]:
+        return {
+            **self.__to_json__(),
+            'results': self.results,
+        }
 
 
 class AutoTest(Base, TimestampMixin, IdMixin):
@@ -280,12 +380,14 @@ class AutoTest(Base, TimestampMixin, IdMixin):
         cascade='all,delete',
         order_by='AutoTestSet.created_at'
     )  # type: t.MutableSequence[AutoTestSet]
+
     runs = db.relationship(
         "AutoTestRun",
         back_populates="auto_test",
         cascade='all,delete',
         order_by='AutoTestRun.created_at'
     )  # type: t.MutableSequence[AutoTestRun]
+
     fixtures = db.relationship(
         'AutoTestFixture',
         back_populates="auto_test",
@@ -307,4 +409,5 @@ class AutoTest(Base, TimestampMixin, IdMixin):
             'sets': self.sets,
             'assignment_id': self.assignment.id,
             'base_systems': self.base_systems,
+            'runs': self.runs,
         }

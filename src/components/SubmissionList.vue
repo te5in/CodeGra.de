@@ -109,7 +109,7 @@
         </a>
 
         <template slot="grade" slot-scope="item">
-            {{formatGrade(item.value) || '-'}}
+            {{ formatGrade(item.value) || '-' }}
         </template>
 
         <template slot="formatted_created_at" slot-scope="item">

@@ -131,7 +131,15 @@ class MyDb:  # pragma: no cover
     def Table(self, name: str, *args: T) -> RawTable:
         ...
 
+    @t.overload
     def Enum(self, typ: t.Type[E], native_enum: bool = True) -> DbType[E]:
+        ...
+
+    @t.overload
+    def Enum(self, *typ: T, native_enum: bool = True) -> DbType[T]:
+        ...
+
+    def Enum(self, *typ: t.Any, native_enum: bool = True) -> DbType[t.Any]:
         ...
 
     @t.overload

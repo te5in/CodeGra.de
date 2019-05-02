@@ -18,6 +18,7 @@ import structlog
 import flask_jwt_extended as flask_jwt
 from flask import g, jsonify, request
 from flask_limiter import Limiter, RateLimitExceeded
+from werkzeug.local import LocalProxy
 
 if t.TYPE_CHECKING and getattr(
     t, 'SPHINX', False
@@ -114,6 +115,10 @@ def limiter_key_func() -> None:  # pragma: no cover
 
 
 limiter = Limiter(key_func=limiter_key_func)  # pylint: disable=invalid-name
+
+
+_current_tester = None
+current_tester = LocalProxy(lambda: _current_tester)
 
 
 def create_app(  # pylint: disable=too-many-statements

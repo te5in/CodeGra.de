@@ -273,54 +273,6 @@ export default {
             return res;
         },
 
-        checkValid(step) {
-            const isEmpty = val => !val.match(/[a-zA-Z0-9]/);
-            const errs = [];
-
-            if (step.checkName && isEmpty(step.name)) {
-                errs.push('The name may not be empty.');
-            }
-            if (step.checkProgram && isEmpty(step.program)) {
-                errs.push('The program may not be empty.');
-            }
-            if (step.checkWeight && Number(step.weight) <= 0) {
-                errs.push('The weight should be a number higher than 0.');
-            }
-
-            if (step.type === 'io_test') {
-                if (step.inputs.length === 0) {
-                    errs.push('There should be at least one input output case.');
-                } else {
-                    step.inputs.forEach((input, i) => {
-                        const name = `${withOrdinalSuffix(i + 1)} input output case`;
-                        if (isEmpty(input.name)) {
-                            errs.push(`The name of the ${name} is emtpy.`);
-                        }
-                        if (Number(input.weight) <= 0) {
-                            errs.push(
-                                `The weight of the ${name} should be a number higher than 0.`,
-                            );
-                        }
-                    });
-                }
-            } else if (step.type === 'check_points') {
-                let weightBefore = 0;
-                for (let i = 0; i < this.internalValue.steps.length > 0; ++i) {
-                    if (this.internalValue.steps[i].id === this.id) {
-                        break;
-                    }
-                    weightBefore += Number(this.internalValue.steps[i].weight);
-                }
-                if (this.minPoints <= 0 || this.minPoints > weightBefore) {
-                    errs.push(
-                        `The minimal amount of points should be achievable (which is ${weightBefore}) and higher than 0.`,
-                    );
-                }
-            }
-
-            return errs;
-        },
-
         async editSuite() {
             this.internalValue = this.value.copy();
             this.internalValue.steps.forEach(val => {

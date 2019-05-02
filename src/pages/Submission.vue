@@ -766,11 +766,11 @@ export default {
                 });
         },
 
-        async gradeUpdated(grade) {
+        async gradeUpdated({ grade, overridden }) {
             await this.updateSubmission({
                 assignmentId: this.assignmentId,
                 submissionId: this.submission.id,
-                submissionProps: { grade },
+                submissionProps: { grade, grade_overridden: overridden },
             });
             this.updateTitle();
         },

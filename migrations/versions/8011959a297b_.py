@@ -1,8 +1,8 @@
 """Add AutoTest tables
 
-Revision ID: 5a1684e1f255
+Revision ID: 8011959a297b
 Revises: f05ffa6bcca6
-Create Date: 2019-04-29 17:25:14.256217
+Create Date: 2019-05-02 15:22:30.939015
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '5a1684e1f255'
+revision = '8011959a297b'
 down_revision = 'f05ffa6bcca6'
 branch_labels = None
 depends_on = None
@@ -38,6 +38,14 @@ def upgrade():
     sa.ForeignKeyConstraint(['auto_test_id'], ['AutoTest.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
+    op.create_table('AutoTestRun',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.Column('updated_at', sa.DateTime(), nullable=False),
+    sa.Column('auto_test_id', sa.Integer(), nullable=False),
+    sa.ForeignKeyConstraint(['auto_test_id'], ['AutoTest.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
     op.create_table('AutoTestSet',
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('updated_at', sa.DateTime(), nullable=False),
@@ -47,14 +55,15 @@ def upgrade():
     sa.ForeignKeyConstraint(['auto_test_id'], ['AutoTest.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
-    op.create_table('auto_test_run',
+    op.create_table('AutoTestResult',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('updated_at', sa.DateTime(), nullable=False),
-    sa.Column('auto_test_id', sa.Integer(), nullable=False),
-    sa.Column('user_id', sa.Integer(), nullable=False),
-    sa.ForeignKeyConstraint(['auto_test_id'], ['AutoTest.id'], ),
-    sa.ForeignKeyConstraint(['user_id'], ['User.id'], ondelete='CASCADE'),
+    sa.Column('auto_test_run_id', sa.Integer(), nullable=False),
+    sa.Column('points_achieved', sa.Float(), nullable=True),
+    sa.Column('work_id', sa.Integer(), nullable=False),
+    sa.ForeignKeyConstraint(['auto_test_run_id'], ['AutoTestRun.id'], ),
+    sa.ForeignKeyConstraint(['work_id'], ['Work.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('AutoTestSuite',
@@ -76,7 +85,7 @@ def upgrade():
     sa.Column('weight', sa.Float(), nullable=False),
     sa.Column('hidden', sa.Boolean(), nullable=False),
     sa.Column('auto_test_suite_id', sa.Integer(), nullable=False),
-    sa.Column('test_type', sa.Enum('io_test', 'run_program', 'custom_output', 'check_points', name='autoteststeptype', native_enum=False), nullable=False),
+    sa.Column('test_type', sa.Enum('io_test', 'run_program', 'custom_output', 'check_points', native_enum=False), nullable=False),
     sa.Column('data', sa.JSON(), nullable=False),
     sa.ForeignKeyConstraint(['auto_test_suite_id'], ['AutoTestSuite.id'], ),
     sa.PrimaryKeyConstraint('id')
@@ -86,8 +95,10 @@ def upgrade():
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('updated_at', sa.DateTime(), nullable=False),
     sa.Column('auto_test_step_id', sa.Integer(), nullable=False),
+    sa.Column('auto_test_result_id', sa.Integer(), nullable=True),
     sa.Column('state', sa.Enum('not_started', 'running', 'passed', 'failed', name='autoteststepresultstate'), nullable=False),
     sa.Column('log', sa.JSON(), nullable=True),
+    sa.ForeignKeyConstraint(['auto_test_result_id'], ['AutoTestResult.id'], ),
     sa.ForeignKeyConstraint(['auto_test_step_id'], ['AutoTestStep.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
@@ -103,8 +114,9 @@ def downgrade():
     op.drop_table('auto_test_step_result')
     op.drop_table('AutoTestStep')
     op.drop_table('AutoTestSuite')
-    op.drop_table('auto_test_run')
+    op.drop_table('AutoTestResult')
     op.drop_table('AutoTestSet')
+    op.drop_table('AutoTestRun')
     op.drop_table('AutoTestFixture')
     op.drop_table('AutoTest')
     # ### end Alembic commands ###

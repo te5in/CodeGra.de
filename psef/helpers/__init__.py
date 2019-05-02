@@ -23,7 +23,7 @@ import psef
 import psef.json_encoders as json
 
 from . import features, validate
-from .. import errors, models
+from .. import errors, models, current_tester
 
 if t.TYPE_CHECKING and not getattr(t, 'SPHINX', False):  # pragma: no cover
     import psef.archive
@@ -449,6 +449,11 @@ def coerce_json_value_to_typeddict(
     ensure_keys_in_dict(mapping, annots)
     return t.cast(T_TypedDict, mapping)
 
+def ensure_on_test_server() -> None:
+    assert not flask.has_app_context()
+    assert not flask.has_request_context()
+    assert current_tester._get_current_object() is not None
+
 
 def _get_type_name(typ: t.Union[t.Type, t.Tuple[t.Type, ...]]) -> str:
     if isinstance(typ, tuple):
@@ -483,18 +488,23 @@ def get_key_from_dict(
 
 @contextlib.contextmanager
 def get_from_map_transaction(
-    mapping: t.Mapping[T, TT]
+    mapping: t.Mapping[T, TT],
+    *,
+    ensure_empty: bool = False,
 ) -> t.Generator[t.Tuple[t.Callable[[T, t.Type[TTT]], TTT], t.
                          Callable[[T, t.Type[TTT], ZZ], t.
                                   Union[TTT, ZZ]]], None, None]:
+    all_keys_requested = []
     keys = []
 
     def fun1(key: T, typ: t.Type[TTT]) -> TTT:
+        all_keys_requested.append(key)
         keys.append((key, typ))
         return t.cast(TTT, mapping.get(key, MISSING))
 
     def fun2(key: T, typ: t.Type[TTT], default: ZZ) -> t.Union[TTT, ZZ]:
         if key not in mapping:
+            all_keys_requested.append(key)
             return default
         return fun1(key, typ)
 
@@ -502,6 +512,19 @@ def get_from_map_transaction(
         yield fun1, fun2
     finally:
         ensure_keys_in_dict(mapping, keys)
+        if ensure_empty and len(all_keys_requested) < len(mapping):
+            key_lookup = set(k for k, _ in all_keys_requested)
+            raise psef.errors.APIException(
+                'Extra keys in the object found', (
+                    'The object could only contain "{}", but is also contained'
+                    ' "{}".'
+                ).format(
+                    ', '.join(str(k) for k, _ in all_keys_requested),
+                    ', '.join(
+                        str(m) for m in mapping.keys() if m not in key_lookup
+                    ),
+                ), psef.errors.APICodes.INVALID_PARAM, 400
+            )
 
 
 def ensure_keys_in_dict(

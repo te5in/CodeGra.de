@@ -357,20 +357,23 @@ class Work(Base):
         .. code:: python
 
             {
-                'id': int # Submission id.
-                'user': user_models.User # User that submitted this work.
-                'created_at': str # Submission date in ISO-8601 datetime
-                                  # format.
-                'grade': t.Optional[float] # Grade for this submission, or
-                                           # None if the submission hasn't
-                                           # been graded yet or if the
-                                           # logged in user doesn't have
-                                           # permission to see the grade.
-                'assignee': t.Optional[user_models.User]
-                                           # User assigned to grade this
-                                           # submission, or None if the logged
-                                           # in user doesn't have permission to
-                                           # see the assignee.
+                'id': int, # Submission id
+                'user': user_models.User, # User that submitted this work.
+                'created_at': str, # Submission date in ISO-8601 datetime
+                                   # format.
+                'grade': t.Optional[float], # Grade for this submission, or
+                                            # None if the submission hasn't
+                                            # been graded yet or if the
+                                            # logged in user doesn't have
+                                            # permission to see the grade.
+                'assignee': t.Optional[user_models.User],
+                                            # User assigned to grade this
+                                            # submission, or None if the logged
+                                            # in user doesn't have permission
+                                            # to see the assignee.
+                'grade_overridden': bool, # Does this submission have a
+                                          # rubric grade which has been
+                                          # overridden.
             }
 
         :returns: A dict containing JSON serializable representations of the
@@ -394,8 +397,14 @@ class Work(Base):
             auth.ensure_can_see_grade(self)
         except PermissionException:
             item['grade'] = None
+            item['grade_overridden'] = False
         else:
             item['grade'] = self.grade
+            item['grade_overridden'] = (
+                self._grade is not None and
+                self.assignment.max_rubric_points is not None
+            )
+
         return item
 
     def __extended_to_json__(self) -> t.Mapping[str, t.Any]:

@@ -5,14 +5,16 @@ import numbers
 from flask import request
 
 from . import api
-from .. import app, files, models, parsers
+from .. import app, files, models, parsers, auto_test
 from ..models import db
 from ..helpers import (
-    JSONResponse, EmptyResponse, jsonify, get_or_404, ensure_json_dict,
-    ensure_keys_in_dict, make_empty_response, filter_single_or_404,
-    get_files_from_request, get_from_map_transaction,
-    get_json_dict_from_request, callback_after_this_request
+    JSONResponse, EmptyResponse, ExtendedJSONResponse, jsonify, get_or_404,
+    ensure_json_dict, extended_jsonify, ensure_keys_in_dict,
+    make_empty_response, filter_single_or_404, get_files_from_request,
+    get_from_map_transaction, get_json_dict_from_request,
+    callback_after_this_request
 )
+from ..exceptions import APICodes, APIException
 
 
 @api.route('/auto_tests/', methods=['POST'])
@@ -244,17 +246,28 @@ def update_or_create_auto_test_suite(auto_test_id: int, auto_test_set_id: int
             hidden = get('hidden', bool)
             weight = t.cast(float, get('weight', numbers.Real))  # type: ignore
 
-        step_type = parsers.parse_enum(typ_str, models.AutoTestStepType)
+        step_type = auto_test.auto_test_handlers.get(typ_str)
+        if step_type is None:
+            raise APIException(
+                'The given test type is not valid',
+                f'The given test type "{typ_str}" is not known',
+                APICodes.INVALID_PARAM, 400
+            )
 
         if step_id is None:
-            step = models.AutoTestStep(
-                test_type=step_type, name=name, weight=weight
-            )
+            step = models.AutoTestStep(name=name, weight=weight)
             db.session.add(step)
+            step.test_type = step_type
         else:
             step = get_or_404(models.AutoTestStep, step_id)
             if step.test_type != step_type:
-                raise Exception
+                raise APIException(
+                    'You cannot change the test type of a step after creation',
+                    (
+                        f'Trying to change the test type to "{typ_str}" for'
+                        f' step "{step_id}" is not valid'
+                    ), APICodes.INVALID_PARAM, 400
+                )
 
         step.hidden = hidden
         step.order = idx
@@ -292,6 +305,41 @@ def get_auto_test(auto_test_id: int) -> JSONResponse[models.AutoTest]:
     return jsonify(get_or_404(models.AutoTest, auto_test_id))
 
 
-@api.route('/auto_tests/<int:auto_test_id>/runs/', methods=['GET'])
-def get_auto_test_runs(auto_test_id: int) -> JSONResponse[models.AutoTest]:
-    return jsonify(get_or_404(models.AutoTest, auto_test_id).runs)
+@api.route('/auto_tests/<int:auto_test_id>/runs/<int:run_id>', methods=['GET'])
+def get_auto_test_run(auto_test_id: int,
+                      run_id: int) -> ExtendedJSONResponse[models.AutoTestRun]:
+    run = filter_single_or_404(
+        models.AutoTestRun,
+        models.AutoTestRun.id == run_id,
+        models.AutoTest.id == auto_test_id,
+    )
+    return extended_jsonify(run, use_extended=models.AutoTestRun)
+
+
+@api.route(
+    '/auto_tests/<int:auto_test_id>/runs/<int:run_id>', methods=['DELETE']
+)
+def delete_auto_test_runs(auto_test_id: int, run_id: int) -> EmptyResponse:
+    run = filter_single_or_404(
+        models.AutoTestRun,
+        models.AutoTestRun.id == run_id,
+        models.AutoTest.id == auto_test_id,
+    )
+    db.session.delete(run)
+    db.session.commit()
+    return make_empty_response()
+
+
+@api.route(
+    '/auto_tests/<int:auto_test_id>/runs/<int:run_id>/results/<int:result_id>',
+    methods=['GET']
+)
+def get_auto_test_result(auto_test_id: int, run_id: int, result_id: int
+                         ) -> ExtendedJSONResponse[models.AutoTestResult]:
+    result = filter_single_or_404(
+        models.AutoTestResult,
+        models.AutoTestResult.id == result_id,
+        models.AutoTestRun.id == run_id,
+        models.AutoTest.id == auto_test_id,
+    )
+    return extended_jsonify(result, use_extended=models.AutoTestResult)
