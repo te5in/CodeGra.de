@@ -35,7 +35,12 @@
                                 :key="result.work.user.id"
                                 @click="openResult(result)">
                                 <td class="name">{{ nameOfUser(result.work.user) }}</td>
-                                <td class="score">{{ result.points_achieved }}</td>
+                                <td class="score">
+                                    <icon v-if="result.work.grade_overridden"
+                                          v-b-popover.top.hover="'This submission\'s calculated grade has been manually overridden'"
+                                          name="exclamation-triangle"/>
+                                    {{ result.points_achieved }}
+                                </td>
                                 <td class="state">{{ result.state }}</td>
                             </tr>
                         </template>
@@ -57,7 +62,7 @@
                 AutoTest
             </span>
             <div class="btn-wrapper"
-                 v-b-popover.hover.top="configEditable ? 'The AutoTest configuration cannot be deleted because there are results associated with it.' : ''">
+                 v-b-popover.hover.top="!configEditable ? 'The AutoTest configuration cannot be deleted because there are results associated with it.' : ''">
                 <submit-button
                     v-if="!loading && test == null"
                     label="Create AutoTest"
@@ -321,7 +326,7 @@
         </b-collapse>
     </b-card>
 
-    <b-modal :id="resultsModalId" hide-footer size="lg">
+    <b-modal :id="resultsModalId" hide-footer size="lg" @hidden="currentResult = null">
         <template v-if="currentResult" slot="modal-title">
             {{ nameOfUser(currentResult.work.user) }} - {{ currentResult.achieved_points }} points
         </template>
@@ -341,6 +346,7 @@ import 'vue-awesome/icons/times';
 import 'vue-awesome/icons/eye';
 import 'vue-awesome/icons/eye-slash';
 import 'vue-awesome/icons/chevron-right';
+import 'vue-awesome/icons/exclamation-triangle';
 
 import { nameOfUser, getUniqueId, getProps, deepCopy, withOrdinalSuffix } from '@/utils';
 
@@ -591,6 +597,7 @@ export default {
                                         work: {
                                             id: 2,
                                             user: { name: 'Olmo Kramer', id: 2 },
+                                            grade_overridden: true,
                                         },
                                         points_achieved: '12 / 13',
                                         state: 'passed',
@@ -641,7 +648,7 @@ export default {
                 .get(`/api/v1/auto_tests/${this.assignment.auto_test_id}/runs/${this.result.id}`)
                 .then(
                     ({ data: result }) => {
-                        this.setResult(result);
+                        this.result.stepResults = result.step_results;
                     },
                     err => {
                         this.error = err.response.data.message;
@@ -702,10 +709,6 @@ export default {
                         ),
                 ),
             }));
-        },
-
-        setResult(result) {
-            this.result.step_results = result.step_results;
         },
 
         deleteSet(index) {
@@ -952,6 +955,7 @@ export default {
     margin-top: 1rem;
 }
 
+.add-btn-wrapper,
 .test-suites-button-wrapper {
     margin-top: 1rem;
 }
