@@ -261,10 +261,11 @@
         </div>
 
         <div class="cat-wrapper" :class="{hidden: selectedCat !== 'AutoTest'}">
-            <auto-test :assignment="assignment"
-                       :hidden="selectedCat !== 'AutoTest'"
-                       ref="autoTest"
-                       editable/>
+                <auto-test :assignment="assignment"
+                        :hidden="selectedCat !== 'AutoTest'"
+                        ref="autoTest"
+                        editable/>
+            </b-card>
         </div>
     </div>
 </div>

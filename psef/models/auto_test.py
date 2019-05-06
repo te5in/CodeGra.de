@@ -8,6 +8,7 @@ import typing as t
 import numbers
 import datetime
 
+from sqlalchemy import orm
 from sqlalchemy.types import JSON
 
 import psef
@@ -270,6 +271,18 @@ class AutoTestResult(Base, TimestampMixin, IdMixin):
         innerjoin=True,
     )
 
+    setup_stdout: str = orm.deferred(db.Column(
+        'setup_stdout',
+        db.Unicode,
+        default=None,
+    ))
+
+    setup_stderr: str = orm.deferred(db.Column(
+        'setup_stderr',
+        db.Unicode,
+        default=None,
+    ))
+
     step_results = db.relationship(
         'AutoTestStepResult',
         back_populates='auto_test_result',
@@ -279,6 +292,13 @@ class AutoTestResult(Base, TimestampMixin, IdMixin):
 
     points_achieved: float = db.Column(
         'points_achieved', db.Float, nullable=True
+    )
+
+    state = db.Column(
+        'state',
+        db.Enum(AutoTestStepResultState),
+        default=AutoTestStepResultState.not_started,
+        nullable=False,
     )
 
     work_id: int = db.Column(

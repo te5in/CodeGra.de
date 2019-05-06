@@ -201,6 +201,7 @@
     <tr>
         <td>{{ index }}</td>
         <td colspan="2">Stop when you got less than {{ value.data.min_points }} points.</td>
+        <td v-if="result"><icon v-if="stateIcon" :name="stateIcon" v-b-popover.top.hover="statePopover" /></td>
     </tr>
 </tbody>
 <tbody v-else-if="value.type === 'run_program'">
@@ -208,6 +209,7 @@
         <td>{{ index }}</td>
         <td>{{ stepName }}: Run <code>{{ value.data.program }}</code> and check for successful completion.</td>
         <td>{{ value.weight }}</td>
+        <td v-if="result"><icon v-if="stateIcon" :name="stateIcon" v-b-popover.top.hover="statePopover" /></td>
     </tr>
 </tbody>
 <tbody v-else-if="value.type === 'custom_output'">
@@ -215,6 +217,7 @@
         <td>{{ index }}</td>
         <td>{{ stepName }}: Run <code>{{ value.data.program }}</code> and parse its output.</td>
         <td>{{ value.weight }}</td>
+        <td v-if="result"><icon v-if="stateIcon" :name="stateIcon" v-b-popover.top.hover="statePopover" /></td>
     </tr>
 </tbody>
 <tbody v-else-if="value.type === 'io_test'">
@@ -222,18 +225,21 @@
         <td><b>{{ index }}</b></td>
         <td><b>{{ stepName }}</b></td>
         <td><b>{{ value.weight }}</b></td>
+        <td v-if="result"><icon v-if="stateIcon" :name="stateIcon" v-b-popover.top.hover="statePopover" /></td>
     </tr>
     <tr v-for="input, i in inputs"
         :key="i">
         <td>{{ index }}.{{ i + 1}}</td>
         <td>{{ input.name }}</td>
         <td>{{ input.weight }}</td>
+        <td v-if="result"><icon v-if="stateIcon" :name="stateIcon" v-b-popover.top.hover="statePopover" /></td>
     </tr>
 </tbody>
 </template>
 
 <script>
 import Icon from 'vue-awesome/components/Icon';
+import 'vue-awesome/icons/check';
 import 'vue-awesome/icons/times';
 import 'vue-awesome/icons/eye';
 import 'vue-awesome/icons/eye-slash';
@@ -241,6 +247,7 @@ import 'vue-awesome/icons/files-o';
 import 'vue-awesome/icons/plus';
 import 'vue-awesome/icons/caret-down';
 import 'vue-awesome/icons/chevron-down';
+import 'vue-awesome/icons/clock-o';
 
 import { getUniqueId, titleCase, deepCopy, getProps } from '@/utils';
 
@@ -274,6 +281,11 @@ export default {
         testTypes: {
             type: Array,
             required: true,
+        },
+
+        result: {
+            type: Object,
+            default: null,
         },
     },
 
@@ -359,6 +371,30 @@ export default {
                 return 'This is equal to the sum of the weights of each input.';
             } else {
                 return '';
+            }
+        },
+
+        stateIcon() {
+            const result = this.result.stepResults[this.value.id];
+            switch (result.state) {
+                case 'passed':
+                    return 'check';
+                case 'failed':
+                    return 'times';
+                default:
+                    return 'clock-o';
+            }
+        },
+
+        statePopover() {
+            const result = this.result.stepResults[this.value.id];
+            switch (result.state) {
+                case 'passed':
+                    return 'Passed!';
+                case 'failed':
+                    return 'Failed';
+                default:
+                    return 'Not finished';
             }
         },
     },

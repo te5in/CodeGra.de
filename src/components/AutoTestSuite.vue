@@ -118,32 +118,29 @@
         <div slot="header" class="title title-display">
             <span>{{ value.rubricRow.header }}</span>
 
-            <div class="pencil"
+            <div v-if="editable"
+                 class="pencil"
                  @click="editSuite">
                 <icon name="pencil"/>
             </div>
         </div>
 
-        <div class="steps-wrapper">
-            <ul class="steps-list">
-                <li>
-                    <table class="table" >
-                        <thead>
-                            <tr>
-                                <th>No</th>
-                                <th>Summary</th>
-                                <th>Weight</th>
-                            </tr>
-                        </thead>
-                        <auto-test-step :value="testStep"
-                                        v-for="testStep, i in value.steps"
-                                        :test-types="stepTypes"
-                                        :key="i"
-                                        :index="i + 1"/>
-                    </table>
-                </li>
-            </ul>
-        </div>
+        <table class="table steps-table">
+            <thead>
+                <tr>
+                    <th>No</th>
+                    <th>Summary</th>
+                    <th>Weight</th>
+                    <th v-if="result">Pass</th>
+                </tr>
+            </thead>
+            <auto-test-step :value="testStep"
+                            v-for="testStep, i in value.steps"
+                            :test-types="stepTypes"
+                            :key="i"
+                            :index="i + 1"
+                            :result="result"/>
+        </table>
     </b-card>
 </div>
 </template>
@@ -181,9 +178,19 @@ export default {
             required: true,
         },
 
+        editable: {
+            type: Boolean,
+            default: false,
+        },
+
         editing: {
             type: Boolean,
             default: false,
+        },
+
+        result: {
+            type: Object,
+            default: null,
         },
     },
 
@@ -320,15 +327,6 @@ export default {
 <style lang="less" scoped>
 @import '~mixins.less';
 
-.steps-wrapper {
-    padding: 1.25rem;
-    .steps-list {
-        list-style: none;
-        padding: 0;
-        margin: 0;
-    }
-}
-
 .title-display {
     display: flex;
     justify-content: space-between;
@@ -402,6 +400,10 @@ export default {
         opacity: 0.4;
         color: @color-primary !important;
     }
+}
+
+.steps-table {
+    margin-bottom: 0;
 }
 </style>
 
