@@ -619,58 +619,58 @@ export default {
                 .get(`/api/v1/auto_tests/${this.assignment.auto_test_id}`)
                 .then(
                     ({ data: test }) => {
-                        test.runs = [
-                            {
-                                id: 1,
-                                results: [
-                                    {
-                                        id: 1,
-                                        work: {
-                                            id: 1,
-                                            user: { name: 'Thomas Schaper', id: 1 },
-                                        },
-                                        points_achieved: '-',
-                                        state: 'not_started',
-                                        setup_stdout: 'stdout!!!',
-                                        setup_stderr: 'stderr!!!',
-                                    },
-                                    {
-                                        id: 2,
-                                        work: {
-                                            id: 2,
-                                            user: { name: 'Olmo Kramer', id: 2 },
-                                            grade_overridden: true,
-                                        },
-                                        points_achieved: '12 / 13',
-                                        state: 'passed',
-                                        setup_stdout: 'stdout!!!',
-                                        setup_stderr: 'stderr!!!',
-                                    },
-                                    {
-                                        id: 3,
-                                        work: {
-                                            id: 3,
-                                            user: { name: 'Student 2', id: 3 },
-                                        },
-                                        points_achieved: '0 / 13',
-                                        state: 'failed',
-                                        setup_stdout: 'stdout!!!',
-                                        setup_stderr: 'stderr!!!',
-                                    },
-                                    {
-                                        id: 4,
-                                        work: {
-                                            id: 4,
-                                            user: { name: 'Olmo Kramer', id: 4 },
-                                        },
-                                        points_achieved: '-',
-                                        state: 'running',
-                                        setup_stdout: 'stdout!!!',
-                                        setup_stderr: 'stderr!!!',
-                                    },
-                                ],
-                            },
-                        ];
+                        // test.runs = [
+                        //     {
+                        //         id: 1,
+                        //         results: [
+                        //             {
+                        //                 id: 1,
+                        //                 work: {
+                        //                     id: 1,
+                        //                     user: { name: 'Thomas Schaper', id: 1 },
+                        //                 },
+                        //                 points_achieved: '-',
+                        //                 state: 'not_started',
+                        //                 setup_stdout: 'stdout!!!',
+                        //                 setup_stderr: 'stderr!!!',
+                        //             },
+                        //             {
+                        //                 id: 2,
+                        //                 work: {
+                        //                     id: 2,
+                        //                     user: { name: 'Olmo Kramer', id: 2 },
+                        //                     grade_overridden: true,
+                        //                 },
+                        //                 points_achieved: '12 / 13',
+                        //                 state: 'passed',
+                        //                 setup_stdout: 'stdout!!!',
+                        //                 setup_stderr: 'stderr!!!',
+                        //             },
+                        //             {
+                        //                 id: 3,
+                        //                 work: {
+                        //                     id: 3,
+                        //                     user: { name: 'Student 2', id: 3 },
+                        //                 },
+                        //                 points_achieved: '0 / 13',
+                        //                 state: 'failed',
+                        //                 setup_stdout: 'stdout!!!',
+                        //                 setup_stderr: 'stderr!!!',
+                        //             },
+                        //             {
+                        //                 id: 4,
+                        //                 work: {
+                        //                     id: 4,
+                        //                     user: { name: 'Olmo Kramer', id: 4 },
+                        //                 },
+                        //                 points_achieved: '-',
+                        //                 state: 'running',
+                        //                 setup_stdout: 'stdout!!!',
+                        //                 setup_stderr: 'stderr!!!',
+                        //             },
+                        //         ],
+                        //     },
+                        // ];
 
                         this.setTest(test);
                     },
@@ -1011,9 +1011,16 @@ export default {
     margin-bottom: 1rem;
 }
 
-.auto-test:not(.config-editable) .auto-test-suite:last-child,
-.auto-test:not(.config-editable) .auto-test-suite:nth-last-child(2) {
-    margin-bottom: 0;
+.auto-test:not(.config-editable) {
+    .auto-test-suite:last-child {
+        margin-bottom: 0;
+    }
+
+    @media @media-large {
+        .auto-test-suite:nth-last-child(2) {
+            margin-bottom: 0;
+        }
+    }
 }
 
 .transition {

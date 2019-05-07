@@ -199,41 +199,57 @@
 <!-- Not editable -->
 <tbody v-else-if="value.type === 'check_points'">
     <tr>
-        <td>{{ index }}</td>
-        <td colspan="2">Stop when you got less than {{ value.data.min_points }} points.</td>
-        <td v-if="result">
-            <icon v-if="stateIcon" :name="stateIcon" v-b-popover.top.hover="statePopover" /></td>
+        <td class="index">{{ index }}</td>
+        <td class="summary" colspan="2">
+            <b>{{ stepName }}</b>
+            Stop when you got less than {{ value.data.min_points }} points.
+        </td>
+        <td class="passed" v-if="result">
+            <icon v-if="stateIcon" :name="stateIcon" v-b-popover.top.hover="statePopover" />
+        </td>
     </tr>
 </tbody>
 <tbody v-else-if="value.type === 'run_program'">
     <tr>
-        <td>{{ index }}</td>
-        <td>{{ stepName }}: Run <code>{{ value.data.program }}</code> and check for successful completion.</td>
-        <td>{{ value.weight }}</td>
-        <td v-if="result"><icon v-if="stateIcon" :name="stateIcon" v-b-popover.top.hover="statePopover" /></td>
+        <td class="index">{{ index }}</td>
+        <td class="summary">
+            <b>{{ stepName }}</b>
+            Run <code>{{ value.data.program }}</code> and check for successful completion.
+        </td>
+        <td class="weight">{{ value.weight }}</td>
+        <td class="passed" v-if="result">
+            <icon v-if="stateIcon" :name="stateIcon" v-b-popover.top.hover="statePopover" />
+        </td>
     </tr>
 </tbody>
 <tbody v-else-if="value.type === 'custom_output'">
     <tr>
-        <td>{{ index }}</td>
-        <td>{{ stepName }}: Run <code>{{ value.data.program }}</code> and parse its output.</td>
-        <td>{{ value.weight }}</td>
-        <td v-if="result"><icon v-if="stateIcon" :name="stateIcon" v-b-popover.top.hover="statePopover" /></td>
+        <td class="index">{{ index }}</td>
+        <td class="summary">
+            <b>{{ stepName }}</b>
+            Run <code>{{ value.data.program }}</code> and parse its output.
+        </td>
+        <td class="weight">{{ value.weight }}</td>
+        <td class="passed" v-if="result">
+            <icon v-if="stateIcon" :name="stateIcon" v-b-popover.top.hover="statePopover" />
+        </td>
     </tr>
 </tbody>
 <tbody v-else-if="value.type === 'io_test'">
     <tr>
-        <td><b>{{ index }}</b></td>
-        <td><b>{{ stepName }}</b></td>
-        <td><b>{{ value.weight }}</b></td>
-        <td v-if="result"><icon v-if="stateIcon" :name="stateIcon" v-b-popover.top.hover="statePopover" /></td>
+        <td class="index"><b>{{ index }}</b></td>
+        <td class="summary"><b>{{ stepName }}</b></td>
+        <td class="weight"><b>{{ value.weight }}</b></td>
+        <td class="passed" v-if="result">
+            <icon v-if="stateIcon" :name="stateIcon" v-b-popover.top.hover="statePopover" />
+        </td>
     </tr>
     <tr v-for="input, i in inputs"
         :key="i">
-        <td>{{ index }}.{{ i + 1}}</td>
-        <td>{{ input.name }}</td>
-        <td>{{ input.weight }}</td>
-        <td v-if="result"></td>
+        <td class="index">{{ index }}.{{ i + 1}}</td>
+        <td class="summary">{{ input.name }}</td>
+        <td class="weight">{{ input.weight }}</td>
+        <td class="passed" v-if="result"></td>
     </tr>
 </tbody>
 </template>
@@ -250,7 +266,7 @@ import 'vue-awesome/icons/caret-down';
 import 'vue-awesome/icons/chevron-down';
 import 'vue-awesome/icons/clock-o';
 
-import { getUniqueId, titleCase, deepCopy, getProps } from '@/utils';
+import { getUniqueId, deepCopy, getProps } from '@/utils';
 
 import SubmitButton from './SubmitButton';
 import DescriptionPopover from './DescriptionPopover';
@@ -311,7 +327,7 @@ export default {
         },
 
         stepName() {
-            return titleCase(this.value.type.replace(/_/g, ' '));
+            return this.value.name;
         },
 
         programNameId() {
@@ -629,5 +645,23 @@ hr {
 
 .flex-padding-element {
     flex: 1 1 auto;
+}
+
+.table tbody + tbody {
+    border-top-width: 1px;
+}
+
+td {
+    &.index,
+    &.weight,
+    &.passed {
+        width: 1px;
+        white-space: nowrap;
+    }
+
+    &.weight,
+    &.passed {
+        text-align: center;
+    }
 }
 </style>
