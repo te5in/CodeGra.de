@@ -715,7 +715,6 @@ export default {
                                 });
                             });
                         });
-                        console.log(stepResults);
 
                         this.result.stepResults = stepResults;
                     },
