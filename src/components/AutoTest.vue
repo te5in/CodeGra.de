@@ -171,7 +171,7 @@
                                             </template>
                                             <template v-else>
                                                 <component
-                                                    :is="fixture.hidden ? 'span' : 'a'"
+                                                    :is="canViewFixture(fixture) ? 'a' : 'span'"
                                                     class="fixture-name"
                                                     href="#">
                                                     {{ fixture.name }}
@@ -180,7 +180,7 @@
                                                 <icon
                                                     v-if="fixture.hidden"
                                                     name="eye-slash"
-                                                    v-b-popover.top.hover="`This fixture is hidden. ${singleRun ? 'You' : 'Students'} may not view its contents.`"/>
+                                                    v-b-popover.top.hover="`This fixture is hidden. ${singleResult && !canViewFixture(fixture) ? 'You' : 'Students'} may not view its contents.`"/>
                                             </template>
                                         </li>
                                     </transition-group>
@@ -542,6 +542,7 @@ export default {
             newFixtures: [],
             loading: true,
             error: '',
+            permissions: {},
             currentResult: null,
             nameOfUser,
 
@@ -570,13 +571,10 @@ export default {
 
                 this.loading = true;
 
-                let cont;
-                if (this.singleResult) {
-                    cont = this.loadSingleResult();
-                } else {
-                    cont = this.loadAutoTest();
-                }
-                cont.then(() => {
+                Promise.all([
+                    this.singleResult ? this.loadSingleResult() : this.loadAutoTest(),
+                    this.loadPermissions(),
+                ]).then(() => {
                     this.loading = false;
                 });
             },
@@ -688,6 +686,20 @@ export default {
                         this.result.stepResults = stepResults;
                     },
                 );
+        },
+
+        loadPermissions() {
+            const names = [
+                'can_view_hidden_fixtures',
+            ];
+
+            return this.$hasPermission(names, this.assignment.course.id).then(
+                perms => {
+                    perms.forEach((value, i) => {
+                        this.permissions[names[i]] = value;
+                    });
+                },
+            );
         },
 
         toggleHidden(fixtureIndex) {
@@ -879,6 +891,10 @@ export default {
                 this.currentResult = result;
                 this.$root.$emit('bv::show::modal', this.resultsModalId);
             }
+        },
+
+        canViewFixture(fixture) {
+            return !fixture.hidden || this.permissions.can_view_hidden_fixtures;
         },
     },
 

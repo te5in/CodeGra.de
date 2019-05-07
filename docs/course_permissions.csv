@@ -36,3 +36,4 @@ Name,Description
 **Create groups** \*,Users with this permission can create new groups in group assignments.
 **View course snippets**,"Users with this permission can see the snippets of this course, and use them while writing feedback."
 **Manage course snippets**,"Users with this permission can create, edit, and delete snippets for this course."
+**View hidden autotest fixtures**,Users with this permission can view hidden autotest fixtures.

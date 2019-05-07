@@ -172,6 +172,7 @@ class CoursePermission(BasePermission):
     :ivar can_create_groups: Users with this permission can create new groups in group assignments.
     :ivar can_view_course_snippets: Users with this permission can see the snippets of this course, and use them while writing feedback.
     :ivar can_manage_course_snippets: Users with this permission can create, edit, and delete snippets for this course.
+    :ivar can_view_hidden_fixtures: Users with this permission can view hidden autotest fixtures.
     """
 
     @staticmethod
@@ -215,5 +216,6 @@ class CoursePermission(BasePermission):
     can_create_groups = _PermissionValue(item=34, default_value=True)
     can_view_course_snippets = _PermissionValue(item=35, default_value=False)
     can_manage_course_snippets = _PermissionValue(item=36, default_value=False)
+    can_view_hidden_fixtures = _PermissionValue(item=37, default_value=False)
 
 # yapf: enable
