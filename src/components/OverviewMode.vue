@@ -126,7 +126,7 @@
                 :assignment="assignment"
                 :result="autoTestResult"
                 :test-config="autoTestConfig"
-                no-border />
+                no-card />
             <b-card v-else class="file-card">
                 There are no AutoTest results for this submission.
             </b-card>
@@ -262,7 +262,6 @@ export default {
                                     state: 'not_started',
                                     setup_stdout: 'stdout!!!',
                                     setup_stderr: 'stderr!!!',
-                                    test,
                                 },
                                 {
                                     id: 2,
@@ -275,7 +274,6 @@ export default {
                                     state: 'passed',
                                     setup_stdout: 'stdout!!!',
                                     setup_stderr: 'stderr!!!',
-                                    test,
                                 },
                                 {
                                     id: 3,
@@ -287,19 +285,17 @@ export default {
                                     state: 'failed',
                                     setup_stdout: 'stdout!!!',
                                     setup_stderr: 'stderr!!!',
-                                    test,
                                 },
                                 {
                                     id: 4,
                                     work: {
-                                        id: 4,
+                                        id: 20,
                                         user: { name: 'Olmo Kramer', id: 4 },
                                     },
                                     points_achieved: '-',
-                                    state: 'running',
+                                    state: 'passed',
                                     setup_stdout: 'stdout!!!',
                                     setup_stderr: 'stderr!!!',
-                                    test,
                                 },
                             ],
                         },

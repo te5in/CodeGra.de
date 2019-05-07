@@ -201,7 +201,8 @@
     <tr>
         <td>{{ index }}</td>
         <td colspan="2">Stop when you got less than {{ value.data.min_points }} points.</td>
-        <td v-if="result"><icon v-if="stateIcon" :name="stateIcon" v-b-popover.top.hover="statePopover" /></td>
+        <td v-if="result">
+            <icon v-if="stateIcon" :name="stateIcon" v-b-popover.top.hover="statePopover" /></td>
     </tr>
 </tbody>
 <tbody v-else-if="value.type === 'run_program'">
@@ -232,7 +233,7 @@
         <td>{{ index }}.{{ i + 1}}</td>
         <td>{{ input.name }}</td>
         <td>{{ input.weight }}</td>
-        <td v-if="result"><icon v-if="stateIcon" :name="stateIcon" v-b-popover.top.hover="statePopover" /></td>
+        <td v-if="result"></td>
     </tr>
 </tbody>
 </template>

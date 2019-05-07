@@ -123,6 +123,10 @@
                  @click="editSuite">
                 <icon name="pencil"/>
             </div>
+
+            <div v-else>
+                {{ achievedPoints }} points
+            </div>
         </div>
 
         <table class="table steps-table">
@@ -234,6 +238,17 @@ export default {
                 { name: 'check_points', color: '#D6CE5B' },
             ];
         },
+
+        achievedPoints() {
+            if (!this.result) {
+                return 0;
+            }
+
+            const stepResults = this.result.stepResults;
+            return this.value.steps.map(
+                step => (stepResults[step.id].state === 'passed' ? step.weight : 0),
+            ).reduce((x, y) => x + y, 0);
+        },
     },
 
     methods: {
@@ -331,6 +346,7 @@ export default {
     display: flex;
     justify-content: space-between;
     vertical-align: center;
+
     .pencil {
         cursor: pointer;
     }

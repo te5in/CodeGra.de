@@ -1,5 +1,5 @@
 <template>
-<div class="auto-test" :class="{ editable, 'config-editable': configEditable, 'no-border': noBorder }">
+<div class="auto-test" :class="{ editable, 'config-editable': configEditable, 'no-card': noCard }">
     <template v-if="!singleResult && hasResults">
         <b-card no-body v-for="run in test.runs" class="results-card">
             <b-card-header class="auto-test-header" :class="{ editable }">
@@ -56,33 +56,35 @@
     </template>
 
     <b-card no-body>
-        <b-card-header v-if="editable" class="auto-test-header editable">
-            <span class="toggle" :key="configCollapseId" v-b-toggle="configCollapseId">
-                <icon class="expander" name="chevron-right" :scale="0.75" />
+        <template v-if="!noCard">
+            <b-card-header v-if="editable" class="auto-test-header editable">
+                <span class="toggle" :key="configCollapseId" v-b-toggle="configCollapseId">
+                    <icon class="expander" name="chevron-right" :scale="0.75" />
+                    AutoTest
+                </span>
+                <div class="btn-wrapper"
+                    v-b-popover.hover.top="!configEditable ? 'The AutoTest configuration cannot be deleted because there are results associated with it.' : ''">
+                    <submit-button
+                        v-if="!loading && test == null"
+                        label="Create AutoTest"
+                        key="create-btn"
+                        :submit="createAutoTest"
+                        @success="afterCreateAutoTest"/>
+                    <submit-button
+                        v-if="!loading && test != null"
+                        :submit="deleteAutoTest"
+                        key="delete-btn"
+                        @after-success="afterDeleteAutoTest"
+                        variant="danger"
+                        confirm="Are you sure you want to delete this AutoTest configuration?"
+                        label="Delete"
+                        :disabled="!configEditable"/>
+                </div>
+            </b-card-header>
+            <b-card-header v-else class="auto-test-header">
                 AutoTest
-            </span>
-            <div class="btn-wrapper"
-                 v-b-popover.hover.top="!configEditable ? 'The AutoTest configuration cannot be deleted because there are results associated with it.' : ''">
-                <submit-button
-                    v-if="!loading && test == null"
-                    label="Create AutoTest"
-                    key="create-btn"
-                    :submit="createAutoTest"
-                    @success="afterCreateAutoTest"/>
-                <submit-button
-                    v-if="!loading && test != null"
-                    :submit="deleteAutoTest"
-                    key="delete-btn"
-                    @after-success="afterDeleteAutoTest"
-                    variant="danger"
-                    confirm="Are you sure you want to delete this AutoTest configuration?"
-                    label="Delete"
-                    :disabled="!configEditable"/>
-            </div>
-        </b-card-header>
-        <b-card-header v-else class="auto-test-header">
-            AutoTest
-        </b-card-header>
+            </b-card-header>
+        </template>
 
         <b-card-body v-if="loading" key="loading">
             <loader/>
@@ -542,7 +544,7 @@ export default {
             default: null,
         },
 
-        noBorder: {
+        noCard: {
             type: Boolean,
             default: false,
         },
@@ -605,58 +607,58 @@ export default {
                 .get(`/api/v1/auto_tests/${this.assignment.auto_test_id}`)
                 .then(
                     ({ data: test }) => {
-                        test.runs = [
-                            {
-                                id: 1,
-                                results: [
-                                    {
-                                        id: 1,
-                                        work: {
-                                            id: 1,
-                                            user: { name: 'Thomas Schaper', id: 1 },
-                                        },
-                                        points_achieved: '-',
-                                        state: 'not_started',
-                                        setup_stdout: 'stdout!!!',
-                                        setup_stderr: 'stderr!!!',
-                                    },
-                                    {
-                                        id: 2,
-                                        work: {
-                                            id: 2,
-                                            user: { name: 'Olmo Kramer', id: 2 },
-                                            grade_overridden: true,
-                                        },
-                                        points_achieved: '12 / 13',
-                                        state: 'passed',
-                                        setup_stdout: 'stdout!!!',
-                                        setup_stderr: 'stderr!!!',
-                                    },
-                                    {
-                                        id: 3,
-                                        work: {
-                                            id: 3,
-                                            user: { name: 'Student 2', id: 3 },
-                                        },
-                                        points_achieved: '0 / 13',
-                                        state: 'failed',
-                                        setup_stdout: 'stdout!!!',
-                                        setup_stderr: 'stderr!!!',
-                                    },
-                                    {
-                                        id: 4,
-                                        work: {
-                                            id: 4,
-                                            user: { name: 'Olmo Kramer', id: 4 },
-                                        },
-                                        points_achieved: '-',
-                                        state: 'running',
-                                        setup_stdout: 'stdout!!!',
-                                        setup_stderr: 'stderr!!!',
-                                    },
-                                ],
-                            },
-                        ];
+                        // test.runs = [
+                        //     {
+                        //         id: 1,
+                        //         results: [
+                        //             {
+                        //                 id: 1,
+                        //                 work: {
+                        //                     id: 1,
+                        //                     user: { name: 'Thomas Schaper', id: 1 },
+                        //                 },
+                        //                 points_achieved: '-',
+                        //                 state: 'not_started',
+                        //                 setup_stdout: 'stdout!!!',
+                        //                 setup_stderr: 'stderr!!!',
+                        //             },
+                        //             {
+                        //                 id: 2,
+                        //                 work: {
+                        //                     id: 2,
+                        //                     user: { name: 'Olmo Kramer', id: 2 },
+                        //                     grade_overridden: true,
+                        //                 },
+                        //                 points_achieved: '12 / 13',
+                        //                 state: 'passed',
+                        //                 setup_stdout: 'stdout!!!',
+                        //                 setup_stderr: 'stderr!!!',
+                        //             },
+                        //             {
+                        //                 id: 3,
+                        //                 work: {
+                        //                     id: 3,
+                        //                     user: { name: 'Student 2', id: 3 },
+                        //                 },
+                        //                 points_achieved: '0 / 13',
+                        //                 state: 'failed',
+                        //                 setup_stdout: 'stdout!!!',
+                        //                 setup_stderr: 'stderr!!!',
+                        //             },
+                        //             {
+                        //                 id: 4,
+                        //                 work: {
+                        //                     id: 4,
+                        //                     user: { name: 'Olmo Kramer', id: 4 },
+                        //                 },
+                        //                 points_achieved: '-',
+                        //                 state: 'running',
+                        //                 setup_stdout: 'stdout!!!',
+                        //                 setup_stderr: 'stderr!!!',
+                        //             },
+                        //         ],
+                        //     },
+                        // ];
 
                         this.setTest(test);
                     },
@@ -701,6 +703,7 @@ export default {
                                 });
                             });
                         });
+                        console.log(stepResults);
 
                         this.result.stepResults = stepResults;
                     },
@@ -989,7 +992,7 @@ export default {
 <style lang="less" scoped>
 @import '~mixins.less';
 
-.auto-test.no-border > .card {
+.auto-test.no-card > .card {
     border: 0;
 }
 
