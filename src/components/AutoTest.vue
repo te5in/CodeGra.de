@@ -1,5 +1,5 @@
 <template>
-<div class="auto-test" :class="{ editable, 'config-editable': configEditable }">
+<div class="auto-test" :class="{ editable, 'config-editable': configEditable, 'no-border': noBorder }">
     <template v-if="!singleResult && hasResults">
         <b-card no-body v-for="run in test.runs" class="results-card">
             <b-card-header class="auto-test-header" :class="{ editable }">
@@ -347,7 +347,12 @@
             {{ nameOfUser(currentResult.work.user) }} - {{ currentResult.achieved_points }} points
         </template>
 
-        <auto-test v-if="currentResult" :assignment="assignment" :result="currentResult" :editable="false" />
+        <auto-test
+            v-if="currentResult"
+            :assignment="assignment"
+            :result="currentResult"
+            :test-config="test"
+            :editable="false" />
     </b-modal>
 </div>
 </template>
@@ -531,13 +536,23 @@ export default {
             type: Object,
             default: null,
         },
+
+        testConfig: {
+            type: Object,
+            default: null,
+        },
+
+        noBorder: {
+            type: Boolean,
+            default: false,
+        },
     },
 
     data() {
         const id = getUniqueId();
 
         return {
-            test: this.result ? this.result.test : null,
+            test: null,
             disabledAnimations: true,
             newFixtures: [],
             loading: true,
@@ -604,7 +619,6 @@ export default {
                                         state: 'not_started',
                                         setup_stdout: 'stdout!!!',
                                         setup_stderr: 'stderr!!!',
-                                        test,
                                     },
                                     {
                                         id: 2,
@@ -617,7 +631,6 @@ export default {
                                         state: 'passed',
                                         setup_stdout: 'stdout!!!',
                                         setup_stderr: 'stderr!!!',
-                                        test,
                                     },
                                     {
                                         id: 3,
@@ -629,7 +642,6 @@ export default {
                                         state: 'failed',
                                         setup_stdout: 'stdout!!!',
                                         setup_stderr: 'stderr!!!',
-                                        test,
                                     },
                                     {
                                         id: 4,
@@ -641,7 +653,6 @@ export default {
                                         state: 'running',
                                         setup_stdout: 'stdout!!!',
                                         setup_stderr: 'stderr!!!',
-                                        test,
                                     },
                                 ],
                             },
@@ -658,8 +669,16 @@ export default {
         },
 
         loadSingleResult() {
+            if (this.test == null) {
+                this.setTest(this.testConfig);
+            }
+
+            const testId = this.test.id;
+            const runId = this.test.runs[0].id;
+            const resultId = this.result.id;
+
             return this.$http
-                .get(`/api/v1/auto_tests/${this.assignment.auto_test_id}/runs/${this.result.id}`)
+                .get(`/api/v1/auto_tests/${testId}/runs/${runId}/results/${resultId}`)
                 .then(
                     ({ data: result }) => {
                         this.result.stepResults = result.step_results;
@@ -731,7 +750,7 @@ export default {
                     suite =>
                         new AutoTestSuiteData(
                             this.$http,
-                            this.test.id,
+                            test.id,
                             set.id,
                             suite,
                         ),
@@ -969,6 +988,10 @@ export default {
 
 <style lang="less" scoped>
 @import '~mixins.less';
+
+.auto-test.no-border > .card {
+    border: 0;
+}
 
 .auto-test-suite:not(.empty-auto-test-suite) {
     margin-bottom: 1rem;

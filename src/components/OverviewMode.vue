@@ -120,6 +120,17 @@
                 </b-card>
             </div>
         </b-tab>
+        <b-tab title="AutoTest">
+            <auto-test
+                v-if="autoTestResult"
+                :assignment="assignment"
+                :result="autoTestResult"
+                :test-config="autoTestConfig"
+                no-border />
+            <b-card v-else class="file-card">
+                There are no AutoTest results for this submission.
+            </b-card>
+        </b-tab>
     </b-tabs>
 </div>
 </template>
@@ -129,7 +140,7 @@ import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/plus';
 import 'vue-awesome/icons/cog';
 
-import { last, getExtension, range, highlightCode } from '@/utils';
+import { last, getExtension, getProps, highlightCode } from '@/utils';
 import decodeBuffer from '@/utils/decode';
 
 import InnerCodeViewer from './InnerCodeViewer';
@@ -137,6 +148,7 @@ import Loader from './Loader';
 import Toggle from './Toggle';
 import DiffViewer from './DiffViewer';
 import User from './User';
+import AutoTest from './AutoTest';
 
 export default {
     name: 'overview-mode',
@@ -206,8 +218,9 @@ export default {
             loading: true,
             feedback: {},
             fileIds: [],
+            autoTestResult: null,
+            autoTestConfig: null,
             error: '',
-            range,
             tabIndex: null,
         };
     },
@@ -217,20 +230,93 @@ export default {
         await this.$nextTick();
 
         this.error = '';
-        this.feedback = await this.$http
-            .get(`/api/v1/submissions/${this.submission.id}/feedbacks/`)
-            .then(({ data }) => {
-                Object.entries(data.user).forEach(([fileId, fileFeedback]) => {
-                    Object.keys(fileFeedback).forEach(line => {
-                        fileFeedback[line] = {
-                            line,
-                            msg: fileFeedback[line],
-                            author: data.authors ? data.authors[fileId][line] : null,
-                        };
+        await Promise.all([
+            this.$http
+                .get(`/api/v1/submissions/${this.submission.id}/feedbacks/`)
+                .then(({ data }) => {
+                    Object.entries(data.user).forEach(([fileId, fileFeedback]) => {
+                        Object.keys(fileFeedback).forEach(line => {
+                            fileFeedback[line] = {
+                                line,
+                                msg: fileFeedback[line],
+                                author: data.authors ? data.authors[fileId][line] : null,
+                            };
+                        });
                     });
-                });
-                return data;
-            });
+                    this.feedback = data;
+                }),
+            this.assignment.auto_test_id && this.$http
+                .get(`/api/v1/auto_tests/${this.assignment.auto_test_id}`)
+                .then(({ data: test }) => {
+                    test.runs = [
+                        {
+                            id: 1,
+                            results: [
+                                {
+                                    id: 1,
+                                    work: {
+                                        id: 1,
+                                        user: { name: 'Thomas Schaper', id: 1 },
+                                    },
+                                    points_achieved: '-',
+                                    state: 'not_started',
+                                    setup_stdout: 'stdout!!!',
+                                    setup_stderr: 'stderr!!!',
+                                    test,
+                                },
+                                {
+                                    id: 2,
+                                    work: {
+                                        id: 27,
+                                        user: { name: 'Olmo Kramer', id: 2 },
+                                        grade_overridden: true,
+                                    },
+                                    points_achieved: '12 / 13',
+                                    state: 'passed',
+                                    setup_stdout: 'stdout!!!',
+                                    setup_stderr: 'stderr!!!',
+                                    test,
+                                },
+                                {
+                                    id: 3,
+                                    work: {
+                                        id: 3,
+                                        user: { name: 'Student 2', id: 3 },
+                                    },
+                                    points_achieved: '0 / 13',
+                                    state: 'failed',
+                                    setup_stdout: 'stdout!!!',
+                                    setup_stderr: 'stderr!!!',
+                                    test,
+                                },
+                                {
+                                    id: 4,
+                                    work: {
+                                        id: 4,
+                                        user: { name: 'Olmo Kramer', id: 4 },
+                                    },
+                                    points_achieved: '-',
+                                    state: 'running',
+                                    setup_stdout: 'stdout!!!',
+                                    setup_stderr: 'stderr!!!',
+                                    test,
+                                },
+                            ],
+                        },
+                    ];
+                    this.autoTestConfig = test;
+
+                    const results = getProps(test, null, 'runs', 0, 'results');
+                    if (results == null || results.length === 0) {
+                        return null;
+                    }
+
+                    this.autoTestResult = results.find(
+                        r => r.work.id === this.submission.id,
+                    );
+                    return this.autoTestResult;
+                }),
+        ]);
 
         this.fileIds = Object.keys(this.feedback.user);
         const codeLines = await Promise.all(this.fileIds.map(this.loadCodeWithSettings));
@@ -427,6 +513,7 @@ export default {
         DiffViewer,
         User,
         InnerCodeViewer,
+        AutoTest,
     },
 };
 </script>
@@ -526,7 +613,7 @@ export default {
 @import '~mixins.less';
 
 .overview-mode {
-    .tabs {
+    > .tabs {
         overflow-y: hidden;
         display: flex;
         flex-direction: column;
@@ -535,21 +622,26 @@ export default {
         flex-shrink: 1;
         position: relative;
     }
-    .nav-tabs {
-        border-color: @color-border-gray-lighter;
-        .default-background;
-    }
-    .tab-wrapper {
+
+    > .tabs > .tab-wrapper {
         flex: 1 0 auto;
         border-color: @color-border-gray-lighter;
         border-color: transparent;
-        .nav-link {
+
+        > .tabs > .nav-tabs {
+            border-color: @color-border-gray-lighter;
+            .default-background;
+        }
+
+        > .nav-link {
             &:hover {
                 color: inherit !important;
             }
+
             &:not(.active):not(:hover) {
                 border-color: transparent !important;
             }
+
             &.active {
                 border-color: @color-border-gray-lighter;
                 background-color: rgb(247, 247, 247);
@@ -557,7 +649,8 @@ export default {
             }
         }
     }
-    .tab-content {
+
+    > .tabs > .tab-content {
         border: 1px solid @color-border-gray-lighter;
         #app.dark & {
             border-color: @color-primary-darker;
@@ -570,6 +663,7 @@ export default {
         border-top-left-radius: 0;
 
         margin-bottom: 2px;
+
         .tab-pane {
             will-change: transform;
             height: 100%;

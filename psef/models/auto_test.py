@@ -316,6 +316,7 @@ class AutoTestResult(Base, TimestampMixin, IdMixin):
             'id': self.id,
             'created_at': self.created_at,
             'work': self.work,
+            'state': self.state,
             'points_achieved': self.points_achieved,
         }
 
