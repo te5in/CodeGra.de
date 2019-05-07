@@ -144,28 +144,44 @@
                                         <li v-for="fixture, index in test.fixtures"
                                             class="transition fixture-row"
                                             :key="fixture.id">
-                                            <div class="fixture-name">
-                                                <a href="#" @click="openFile(fixture, $event)">
+                                            <template v-if="configEditable">
+                                                <a
+                                                    class="fixture-name"
+                                                    href="#"
+                                                    @click="openFile(fixture, $event)">
                                                     {{ fixture.name }}
                                                 </a>
-                                            </div>
 
-                                            <b-button-group v-if="configEditable">
-                                                <submit-button
-                                                    :variant="fixture.hidden ? 'primary' : 'secondary'"
-                                                    :submit="() => toggleHidden(index)"
-                                                    size="sm">
-                                                    <icon :name="fixture.hidden ? 'eye-slash' : 'eye'" />
-                                                </submit-button>
-                                                <submit-button
-                                                    variant="danger"
-                                                    confirm="Are you sure you want to delete this fixture?"
-                                                    size="sm"
-                                                    :submit="() => removeFixture(index)"
-                                                    @success="removeFixtureSuccess">
-                                                    <icon name="times"/>
-                                                </submit-button>
-                                            </b-button-group>
+                                                <b-button-group>
+                                                    <submit-button
+                                                        :variant="fixture.hidden ? 'primary' : 'secondary'"
+                                                        :submit="() => toggleHidden(index)"
+                                                        size="sm">
+                                                        <icon :name="fixture.hidden ? 'eye-slash' : 'eye'" />
+                                                    </submit-button>
+                                                    <submit-button
+                                                        variant="danger"
+                                                        confirm="Are you sure you want to delete this fixture?"
+                                                        size="sm"
+                                                        :submit="() => removeFixture(index)"
+                                                        @success="removeFixtureSuccess">
+                                                        <icon name="times"/>
+                                                    </submit-button>
+                                                </b-button-group>
+                                            </template>
+                                            <template v-else>
+                                                <component
+                                                    :is="fixture.hidden ? 'span' : 'a'"
+                                                    class="fixture-name"
+                                                    href="#">
+                                                    {{ fixture.name }}
+                                                </component>
+
+                                                <icon
+                                                    v-if="fixture.hidden"
+                                                    name="eye-slash"
+                                                    v-b-popover.top.hover="`This fixture is hidden. ${singleRun ? 'You' : 'Students'} may not view its contents.`"/>
+                                            </template>
                                         </li>
                                     </transition-group>
                                 </ul>
@@ -1086,8 +1102,6 @@ export default {
 
 .fixture-name {
     flex: 1 1 auto;
-    display: flex;
-    align-items: center;
 }
 
 .fixture-list {
@@ -1099,11 +1113,13 @@ export default {
     padding: 0;
     margin: 0;
     .fixture-row {
+        padding: 5px 0.75rem;
+        display: flex;
+        align-items: center;
+
         &:not(:last-child) {
             border-bottom: 1px solid @color-border-gray-lighter;
         }
-        padding: 5px 0.75rem;
-        display: flex;
         #app.dark & {
             border-color: @color-primary-darker;
         }
@@ -1151,6 +1167,11 @@ export default {
 
     .score {
         text-align: right;
+
+        .fa-icon {
+            transform: translateY(2px);
+            margin-right: .25rem;
+        }
     }
 }
 
