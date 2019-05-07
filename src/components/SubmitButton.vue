@@ -313,9 +313,6 @@ export default {
             this.$emit('error', err);
             this.state = 'error';
             this.error = err;
-
-            // eslint-disable-next-line
-            console.error(err);
         },
 
         hideError() {
