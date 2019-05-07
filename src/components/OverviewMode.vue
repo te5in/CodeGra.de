@@ -126,7 +126,8 @@
                 :assignment="assignment"
                 :result="autoTestResult"
                 :test-config="autoTestConfig"
-                no-card />
+                no-card
+                hide-env />
             <b-card v-else class="file-card">
                 There are no AutoTest results for this submission.
             </b-card>

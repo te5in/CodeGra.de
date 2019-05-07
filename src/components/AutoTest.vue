@@ -94,8 +94,19 @@
         </b-card-body>
         <b-collapse v-else :id="configCollapseId" :visible="singleResult || !hasResults">
             <b-card-body key="full">
-                <div class="setup-env-wrapper">
-                    <h5>Environment setup</h5>
+                <h5
+                    class="setup-env-wrapper-header"
+                    v-if="singleResult"
+                    v-b-toggle="autoTestSetupEnvWrapperId">
+                    <icon v-if="singleResult" name="chevron-right" :scale="0.75" />
+                    Environment setup
+                </h5>
+                <h5 v-else>Environment setup</h5>
+
+                <b-collapse
+                    :id="autoTestSetupEnvWrapperId"
+                    class="setup-env-wrapper"
+                    :visible="!singleResult">
                     <b-form-fieldset>
                         <label :for="baseSystemId">Base systems</label>
 
@@ -250,7 +261,7 @@
                             </b-tab>
                         </b-tabs>
                     </b-form-fieldset>
-                </div>
+                </b-collapse>
 
                 <hr style="margin-bottom: 0;"/>
 
@@ -570,6 +581,7 @@ export default {
             fixtureUploadId: `auto-test-base-upload-${id}`,
             uploadedFixturesId: `auto-test-base-fixtures-${id}`,
             preStartScriptId: `auto-test-base-pre-start-script-${id}`,
+            autoTestSetupEnvWrapperId: `auto-test-setup-env-${id}`,
         };
     },
 
@@ -607,58 +619,58 @@ export default {
                 .get(`/api/v1/auto_tests/${this.assignment.auto_test_id}`)
                 .then(
                     ({ data: test }) => {
-                        // test.runs = [
-                        //     {
-                        //         id: 1,
-                        //         results: [
-                        //             {
-                        //                 id: 1,
-                        //                 work: {
-                        //                     id: 1,
-                        //                     user: { name: 'Thomas Schaper', id: 1 },
-                        //                 },
-                        //                 points_achieved: '-',
-                        //                 state: 'not_started',
-                        //                 setup_stdout: 'stdout!!!',
-                        //                 setup_stderr: 'stderr!!!',
-                        //             },
-                        //             {
-                        //                 id: 2,
-                        //                 work: {
-                        //                     id: 2,
-                        //                     user: { name: 'Olmo Kramer', id: 2 },
-                        //                     grade_overridden: true,
-                        //                 },
-                        //                 points_achieved: '12 / 13',
-                        //                 state: 'passed',
-                        //                 setup_stdout: 'stdout!!!',
-                        //                 setup_stderr: 'stderr!!!',
-                        //             },
-                        //             {
-                        //                 id: 3,
-                        //                 work: {
-                        //                     id: 3,
-                        //                     user: { name: 'Student 2', id: 3 },
-                        //                 },
-                        //                 points_achieved: '0 / 13',
-                        //                 state: 'failed',
-                        //                 setup_stdout: 'stdout!!!',
-                        //                 setup_stderr: 'stderr!!!',
-                        //             },
-                        //             {
-                        //                 id: 4,
-                        //                 work: {
-                        //                     id: 4,
-                        //                     user: { name: 'Olmo Kramer', id: 4 },
-                        //                 },
-                        //                 points_achieved: '-',
-                        //                 state: 'running',
-                        //                 setup_stdout: 'stdout!!!',
-                        //                 setup_stderr: 'stderr!!!',
-                        //             },
-                        //         ],
-                        //     },
-                        // ];
+                        test.runs = [
+                            {
+                                id: 1,
+                                results: [
+                                    {
+                                        id: 1,
+                                        work: {
+                                            id: 1,
+                                            user: { name: 'Thomas Schaper', id: 1 },
+                                        },
+                                        points_achieved: '-',
+                                        state: 'not_started',
+                                        setup_stdout: 'stdout!!!',
+                                        setup_stderr: 'stderr!!!',
+                                    },
+                                    {
+                                        id: 2,
+                                        work: {
+                                            id: 2,
+                                            user: { name: 'Olmo Kramer', id: 2 },
+                                            grade_overridden: true,
+                                        },
+                                        points_achieved: '12 / 13',
+                                        state: 'passed',
+                                        setup_stdout: 'stdout!!!',
+                                        setup_stderr: 'stderr!!!',
+                                    },
+                                    {
+                                        id: 3,
+                                        work: {
+                                            id: 3,
+                                            user: { name: 'Student 2', id: 3 },
+                                        },
+                                        points_achieved: '0 / 13',
+                                        state: 'failed',
+                                        setup_stdout: 'stdout!!!',
+                                        setup_stderr: 'stderr!!!',
+                                    },
+                                    {
+                                        id: 4,
+                                        work: {
+                                            id: 4,
+                                            user: { name: 'Olmo Kramer', id: 4 },
+                                        },
+                                        points_achieved: '-',
+                                        state: 'running',
+                                        setup_stdout: 'stdout!!!',
+                                        setup_stderr: 'stderr!!!',
+                                    },
+                                ],
+                            },
+                        ];
 
                         this.setTest(test);
                     },
@@ -1214,6 +1226,19 @@ export default {
             transform: translateY(2px);
             margin-right: .25rem;
         }
+    }
+}
+
+.setup-env-wrapper-header {
+    cursor: pointer;
+
+    .fa-icon {
+        margin-right: .25rem;
+        transition: transform 300ms;
+    }
+
+    &:not(.collapsed) .fa-icon {
+        transform: rotate(90deg);
     }
 }
 
