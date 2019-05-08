@@ -213,7 +213,7 @@
                     <div class="row">
                         <div class="col-12">
                             <span>
-                                Exit code:
+                                Exit status code
                                 <code>{{ stepResult.log.status || ':-(' }}</code>
                             </span>
                         </div>
@@ -255,7 +255,7 @@
                     <div class="row">
                         <div class="col-12">
                             <span>
-                                Exit code:
+                                Exit status code
                                 <code>{{ stepResult.log.status || ':-(' }}</code>
                             </span>
                         </div>
@@ -301,7 +301,7 @@
                                 <code>{{ value.data.regex }}</code>
                             </label>
                             <label>
-                                Exit code:
+                                Exit status code
                                 <code>{{ stepResult.log.status || ':-(' }}</code>
                             </label>
                         </div>
@@ -408,6 +408,7 @@ import 'vue-awesome/icons/plus';
 import 'vue-awesome/icons/caret-down';
 import 'vue-awesome/icons/chevron-down';
 import 'vue-awesome/icons/clock-o';
+import 'vue-awesome/icons/ban';
 
 import { getUniqueId, deepCopy, getProps } from '@/utils';
 
@@ -550,14 +551,7 @@ export default {
         },
 
         statePopover() {
-            switch (this.stepResult.state) {
-                case 'passed':
-                    return 'Passed!';
-                case 'failed':
-                    return 'Failed';
-                default:
-                    return 'Not finished';
-            }
+            return this.getStatePopover(this.stepResult.state);
         },
 
         canViewOutput() {
@@ -650,8 +644,23 @@ export default {
                     return 'check';
                 case 'failed':
                     return 'times';
+                case 'skipped':
+                    return 'ban';
                 default:
                     return 'clock-o';
+            }
+        },
+
+        getStatePopover(state) {
+            switch (state) {
+                case 'passed':
+                    return 'Passed!';
+                case 'failed':
+                    return 'Failed';
+                case 'skipped':
+                    return 'Skipped';
+                default:
+                    return 'Not finished';
             }
         },
     },
@@ -813,12 +822,19 @@ hr {
         border-top-width: 1px;
     }
 
-    .step-summary .caret .fa-icon {
-        transition: transform 300ms;
-    }
+    .step-summary {
+        td:not(.caret) .fa-icon {
+            transform: translateY(2px);
+        }
 
-    .step-summary:not(.collapsed) .caret .fa-icon {
-        transform: rotate(90deg);
+        .caret .fa-icon {
+            transform: translateY(1px);
+            transition: transform 300ms;
+        }
+
+        &:not(.collapsed) .caret .fa-icon {
+            transform: translateY(1px) rotate(90deg);
+        }
     }
 
     &.hidden tr:hover,

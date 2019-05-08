@@ -700,8 +700,17 @@ export default {
                     err => {
                         this.error = err.response.data.message;
 
-                        function randomChoice(choices) {
-                            return choices[Math.floor(Math.random() * choices.length)];
+                        let i = 0;
+                        function randomState() {
+                            console.log(i);
+                            const states = [
+                                'not_started',
+                                'running',
+                                'passed',
+                                'failed',
+                                'skipped',
+                            ];
+                            return states[(i++) % states.length];
                         }
 
                         const stepResults = {};
@@ -709,12 +718,7 @@ export default {
                             set.suites.forEach(suite => {
                                 suite.steps.forEach(step => {
                                     stepResults[step.id] = {
-                                        state: randomChoice([
-                                            'not_started',
-                                            'running',
-                                            'passed',
-                                            'failed',
-                                        ]),
+                                        state: randomState(),
                                         log: 'Step log!',
                                     };
                                 });
