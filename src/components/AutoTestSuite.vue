@@ -125,7 +125,7 @@
             </div>
 
             <div v-else>
-                {{ achievedPoints }} points
+                {{ achievedPoints }} / {{ pointsPossible }} points
             </div>
         </div>
 
@@ -238,6 +238,15 @@ export default {
                 { name: 'custom_output', color: '#DFD3AA' },
                 { name: 'check_points', color: '#D6CE5B' },
             ];
+        },
+
+        pointsPossible() {
+            console.log(this.value);
+
+            return this.value.steps.reduce(
+                (acc, step) => acc + (step.weight || 0),
+                0,
+            );
         },
 
         achievedPoints() {
