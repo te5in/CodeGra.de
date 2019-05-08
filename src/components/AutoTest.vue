@@ -1084,11 +1084,7 @@ export default {
 .test-suites-button-wrapper,
 .add-btn-wrapper {
     display: flex;
-    justify-content: right;
-
-    .btn {
-        align-self: flex-end;
-    }
+    justify-content: flex-end;
 }
 
 .list-enter-active {
