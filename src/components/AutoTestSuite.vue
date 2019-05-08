@@ -241,8 +241,6 @@ export default {
         },
 
         pointsPossible() {
-            console.log(this.value);
-
             return this.value.steps.reduce(
                 (acc, step) => acc + (step.weight || 0),
                 0,

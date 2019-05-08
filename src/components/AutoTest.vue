@@ -318,7 +318,7 @@
                                 </div>
                             </b-card-body>
                             <transition :name="disabledAnimations ? '' : 'setcontinue'">
-                                <b-card-footer v-if="test.sets.some((s, j) => j > i && !s.deleted)"
+                                <b-card-footer v-if="configEditable && test.sets.some((s, j) => j > i && !s.deleted)"
                                                 class="transition set-continue">
                                     Only execute other test sets when achieved grade by AutoTest is higher than
                                     <b-input-group class="input-group">
@@ -334,6 +334,20 @@
                                                 :submit="() => submitContinuePoints(set)" />
                                         </b-input-group-append>
                                     </b-input-group>
+                                </b-card-footer>
+                                <b-card-footer
+                                    v-else-if="singleResult && i < test.sets.length - 1"
+                                    class="set-continue">
+                                    <template v-if="setPassed(set)">
+                                        Scored <code>{{ setPoints(set) }}</code> points, which is
+                                        greater than <code>{{ set.stop_points }}</code>. Continuing
+                                        with the next set.
+                                    </template>
+                                    <template v-else>
+                                        Scored <code>{{ setPoints(set) }}</code> points, which is
+                                        less than <code>{{ set.stop_points }}</code>. No further
+                                        tests will be run.
+                                    </template>
                                 </b-card-footer>
                             </transition>
                         </b-card>
@@ -702,7 +716,6 @@ export default {
 
                         let i = 0;
                         function randomState() {
-                            console.log(i);
                             const states = [
                                 'not_started',
                                 'running',
@@ -779,6 +792,29 @@ export default {
                         ),
                 ),
             }));
+        },
+
+        setPoints(set) {
+            return set.suites
+                .reduce(
+                    (steps, suite) => steps.concat(suite.steps),
+                    [],
+                )
+                .map(
+                    step => (this.result.stepResults[step.id].state === 'passed' ? step.weight : 0),
+                )
+                .reduce(
+                    (acc, p) => acc + p,
+                    0,
+                );
+        },
+
+        setPassed(set) {
+            if (!this.result) {
+                return false;
+            }
+
+            return this.setPoints(set) > set.stop_points;
         },
 
         deleteSet(index) {
@@ -1115,6 +1151,10 @@ export default {
     .input-group {
         width: initial;
         margin-left: 5px;
+    }
+
+    code {
+        padding: 0 0.25rem;
     }
 }
 
