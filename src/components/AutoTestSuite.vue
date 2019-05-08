@@ -129,9 +129,10 @@
             </div>
         </div>
 
-        <table class="table steps-table">
+        <table class="table steps-table" :class="{ 'table-hover': result }">
             <thead>
                 <tr>
+                    <th v-if="result"></th>
                     <th>No</th>
                     <th>Summary</th>
                     <th>Weight</th>

@@ -94,176 +94,176 @@
         </b-card-body>
         <b-collapse v-else :id="configCollapseId" :visible="singleResult || !hasResults">
             <b-card-body key="full">
-                <h5
-                    class="setup-env-wrapper-header"
-                    v-if="singleResult"
-                    v-b-toggle="autoTestSetupEnvWrapperId">
-                    <icon v-if="singleResult" name="chevron-right" :scale="0.75" />
-                    Environment setup
-                </h5>
-                <h5 v-else>Environment setup</h5>
+                <b-card no-body>
+                    <span slot="header"
+                        class="setup-env-wrapper-header"
+                        v-if="singleResult"
+                        v-b-toggle="autoTestSetupEnvWrapperId">
+                        <icon v-if="singleResult" name="chevron-right" :scale="0.75" />
+                        Environment setup
+                    </span>
+                    <template v-else slot="header">Environment setup</template>
 
-                <b-collapse
-                    :id="autoTestSetupEnvWrapperId"
-                    class="setup-env-wrapper"
-                    :visible="!singleResult">
-                    <b-form-fieldset>
-                        <label :for="baseSystemId">Base systems</label>
-
-                        <b-input-group v-if="configEditable">
-                            <multiselect
-                                :close-on-select="false"
-                                :id="baseSystemId"
-                                class="base-system-selector"
-                                v-model="test.base_systems"
-                                :options="baseSystems"
-                                :searchable="true"
-                                :custom-label="a => a.name"
-                                multiple
-                                track-by="id"
-                                label="label"
-                                :hide-selected="false"
-                                placeholder="Select base systems"
-                                :internal-search="true"
-                                :loading="false">
-                                <span slot="noResult" class="text-muted">
-                                    No results were found.
-                                </span>
-                            </multiselect>
-                            <b-input-group-append>
-                                <submit-button :submit="submitBaseSystems" />
-                            </b-input-group-append>
-                        </b-input-group>
-                        <div v-else class="multiselect">
-                            <div class="multiselect__tags">
-                                <div class="multiselect__tags-wrap">
-                                    <span v-for="base in test.base_systems"
-                                            class="multiselect__tag no-close">
-                                        {{ base.name }}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                    </b-form-fieldset>
-
-                    <transition :name="disabledAnimations ? '' : 'fixtureswrapper'">
-                        <div v-if="test.fixtures.length > 0" class="transition">
+                    <b-collapse
+                        :id="autoTestSetupEnvWrapperId"
+                        class="setup-env-wrapper"
+                        :visible="!singleResult">
+                        <b-card-body>
                             <b-form-fieldset>
-                                <label :for="uploadedFixturesId">
-                                    Uploaded fixtures
-                                </label>
-                                <ul class="fixture-list">
-                                    <transition-group :name="disabledAnimations ? '' : 'fixtures'">
-                                        <li v-for="fixture, index in test.fixtures"
-                                            class="transition fixture-row"
-                                            :key="fixture.id">
-                                            <template v-if="configEditable">
-                                                <a
-                                                    class="fixture-name"
-                                                    href="#"
-                                                    @click="openFile(fixture, $event)">
-                                                    {{ fixture.name }}
-                                                </a>
+                                <label :for="baseSystemId">Base systems</label>
 
-                                                <b-button-group>
-                                                    <submit-button
-                                                        :variant="fixture.hidden ? 'primary' : 'secondary'"
-                                                        :submit="() => toggleHidden(index)"
-                                                        size="sm">
-                                                        <icon :name="fixture.hidden ? 'eye-slash' : 'eye'" />
-                                                    </submit-button>
-                                                    <submit-button
-                                                        variant="danger"
-                                                        confirm="Are you sure you want to delete this fixture?"
-                                                        size="sm"
-                                                        :submit="() => removeFixture(index)"
-                                                        @success="removeFixtureSuccess">
-                                                        <icon name="times"/>
-                                                    </submit-button>
-                                                </b-button-group>
-                                            </template>
-                                            <template v-else>
-                                                <component
-                                                    :is="canViewFixture(fixture) ? 'a' : 'span'"
-                                                    class="fixture-name"
-                                                    href="#">
-                                                    {{ fixture.name }}
-                                                </component>
-
-                                                <icon
-                                                    v-if="fixture.hidden"
-                                                    name="eye-slash"
-                                                    v-b-popover.top.hover="`This fixture is hidden. ${singleResult && !canViewFixture(fixture) ? 'You' : 'Students'} may not view its contents.`"/>
-                                            </template>
-                                        </li>
-                                    </transition-group>
-                                </ul>
+                                <b-input-group v-if="configEditable">
+                                    <multiselect
+                                        :close-on-select="false"
+                                        :id="baseSystemId"
+                                        class="base-system-selector"
+                                        v-model="test.base_systems"
+                                        :options="baseSystems"
+                                        :searchable="true"
+                                        :custom-label="a => a.name"
+                                        multiple
+                                        track-by="id"
+                                        label="label"
+                                        :hide-selected="false"
+                                        placeholder="Select base systems"
+                                        :internal-search="true"
+                                        :loading="false">
+                                        <span slot="noResult" class="text-muted">
+                                            No results were found.
+                                        </span>
+                                    </multiselect>
+                                    <b-input-group-append>
+                                        <submit-button :submit="submitBaseSystems" />
+                                    </b-input-group-append>
+                                </b-input-group>
+                                <div v-else class="multiselect">
+                                    <div class="multiselect__tags">
+                                        <div class="multiselect__tags-wrap">
+                                            <span v-for="base in test.base_systems"
+                                                    class="multiselect__tag no-close">
+                                                {{ base.name }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
                             </b-form-fieldset>
-                        </div>
-                    </transition>
 
-                    <b-form-fieldset class="fixture-upload-wrapper" v-if="configEditable">
-                        <label :for="fixtureUploadId">
-                            Upload fixtures
-                        </label>
-                        <multiple-files-uploader
-                            v-model="newFixtures"
-                            :id="fixtureUploadId">
-                            Click here or drop file(s) add fixtures and test files.
-                        </multiple-files-uploader>
-                        <b-input-group>
-                            <b-input-group-prepend is-text
-                                                    class="fixture-upload-information">
-                            </b-input-group-prepend>
-                            <b-input-group-append>
-                                <submit-button
-                                    :disabled="newFixtures.length === 0"
-                                    @after-success="afterAddFixtures"
-                                    class="upload-fixture-btn"
-                                    :submit="addFixtures" />
-                            </b-input-group-append>
-                        </b-input-group>
-                    </b-form-fieldset>
+                            <transition :name="disabledAnimations ? '' : 'fixtureswrapper'">
+                                <div v-if="test.fixtures.length > 0" class="transition">
+                                    <b-form-fieldset>
+                                        <label :for="uploadedFixturesId">
+                                            Uploaded fixtures
+                                        </label>
+                                        <ul class="fixture-list">
+                                            <transition-group :name="disabledAnimations ? '' : 'fixtures'">
+                                                <li v-for="fixture, index in test.fixtures"
+                                                    class="transition fixture-row"
+                                                    :key="fixture.id">
+                                                    <template v-if="configEditable">
+                                                        <a
+                                                            class="fixture-name"
+                                                            href="#"
+                                                            @click="openFile(fixture, $event)">
+                                                            {{ fixture.name }}
+                                                        </a>
 
-                    <b-form-fieldset v-if="configEditable">
-                        <label :for="preStartScriptId">
-                            Setup script to run
-                        </label>
-                        <b-input-group>
-                            <input class="form-control"
-                                    @keydown.ctrl.enter="$refs.setupScriptBtn.onClick"
-                                    :id="preStartScriptId"
-                                    v-model="test.setup_script"/>
-                            <b-input-group-append>
-                                <submit-button :submit="submitSetupScript" ref="setupScriptBtn"/>
-                            </b-input-group-append>
-                        </b-input-group>
-                    </b-form-fieldset>
-                    <b-form-fieldset v-else-if="editable && test.setup_script">
-                        <label :for="preStartScriptId">
-                            Setup script to run: <code>{{ test.setup_script }}</code>
-                        </label>
-                    </b-form-fieldset>
-                    <b-form-fieldset v-else-if="test.setup_script">
-                        <label>
-                            Setup script output: <code>{{ test.setup_script }}</code>
-                        </label>
-                        <b-tabs no-fade>
-                            <b-tab title="stdout">
-                                <pre v-if="singleResult" class="setup-output"><!--
-                                    -->{{ result.setup_stdout }}<!--
-                                --></pre>
-                            </b-tab>
-                            <b-tab title="stderr">
-                                <pre v-if="singleResult" class="setup-output"><!--
-                                    -->{{ result.setup_stderr }}<!--
-                                --></pre>
-                            </b-tab>
-                        </b-tabs>
-                    </b-form-fieldset>
-                </b-collapse>
+                                                        <b-button-group>
+                                                            <submit-button
+                                                                :variant="fixture.hidden ? 'primary' : 'secondary'"
+                                                                :submit="() => toggleHidden(index)"
+                                                                size="sm">
+                                                                <icon :name="fixture.hidden ? 'eye-slash' : 'eye'" />
+                                                            </submit-button>
+                                                            <submit-button
+                                                                variant="danger"
+                                                                confirm="Are you sure you want to delete this fixture?"
+                                                                size="sm"
+                                                                :submit="() => removeFixture(index)"
+                                                                @success="removeFixtureSuccess">
+                                                                <icon name="times"/>
+                                                            </submit-button>
+                                                        </b-button-group>
+                                                    </template>
+                                                    <template v-else>
+                                                        <component
+                                                            :is="canViewFixture(fixture) ? 'a' : 'span'"
+                                                            class="fixture-name"
+                                                            href="#">
+                                                            {{ fixture.name }}
+                                                        </component>
 
-                <hr style="margin-bottom: 0;"/>
+                                                        <icon
+                                                            v-if="fixture.hidden"
+                                                            name="eye-slash"
+                                                            v-b-popover.top.hover="`This fixture is hidden. ${singleResult && !canViewFixture(fixture) ? 'You' : 'Students'} may not view its contents.`"/>
+                                                    </template>
+                                                </li>
+                                            </transition-group>
+                                        </ul>
+                                    </b-form-fieldset>
+                                </div>
+                            </transition>
+
+                            <b-form-fieldset class="fixture-upload-wrapper" v-if="configEditable">
+                                <label :for="fixtureUploadId">
+                                    Upload fixtures
+                                </label>
+                                <multiple-files-uploader
+                                    v-model="newFixtures"
+                                    :id="fixtureUploadId">
+                                    Click here or drop file(s) add fixtures and test files.
+                                </multiple-files-uploader>
+                                <b-input-group>
+                                    <b-input-group-prepend is-text
+                                                            class="fixture-upload-information">
+                                    </b-input-group-prepend>
+                                    <b-input-group-append>
+                                        <submit-button
+                                            :disabled="newFixtures.length === 0"
+                                            @after-success="afterAddFixtures"
+                                            class="upload-fixture-btn"
+                                            :submit="addFixtures" />
+                                    </b-input-group-append>
+                                </b-input-group>
+                            </b-form-fieldset>
+
+                            <b-form-fieldset class="setup-output-wrapper">
+                                <template v-if="configEditable">
+                                    <label :for="preStartScriptId">
+                                        Setup script to run
+                                    </label>
+                                    <b-input-group>
+                                        <input class="form-control"
+                                                @keydown.ctrl.enter="$refs.setupScriptBtn.onClick"
+                                                :id="preStartScriptId"
+                                                v-model="test.setup_script"/>
+                                        <b-input-group-append>
+                                            <submit-button :submit="submitSetupScript" ref="setupScriptBtn"/>
+                                        </b-input-group-append>
+                                    </b-input-group>
+                                </template>
+                                <template v-else-if="editable && test.setup_script">
+                                    <label :for="preStartScriptId">
+                                        Setup script to run: <code>{{ test.setup_script }}</code>
+                                    </label>
+                                </template>
+                                <template v-else-if="test.setup_script">
+                                    <label>
+                                        Setup script output: <code>{{ test.setup_script }}</code>
+                                    </label>
+                                    <b-tabs no-fade v-if="singleResult">
+                                        <b-tab title="stdout">
+                                            <pre>{{ result.setup_stdout }}</pre>
+                                        </b-tab>
+                                        <b-tab title="stderr">
+                                            <pre>{{ result.setup_stderr }}</pre>
+                                        </b-tab>
+                                    </b-tabs>
+                                </template>
+                            </b-form-fieldset>
+                        </b-card-body>
+                    </b-collapse>
+                </b-card>
 
                 <transition :name="disabledAnimations ? '' : 'emptytext'">
                     <div class="text-muted empty-text transition"
@@ -295,7 +295,7 @@
                                         v-if="set.suites.filter(s => !s.isEmpty() && !s.deleted).length === 0">
                                     You have no suites yet. Click the button below to create one.
                                 </span>
-                                <masonry :cols="{default: 2, [$root.largeWidth]: 1, [$root.mediumWidth]: 1 }"
+                                <masonry :cols="{default: 2, [$root.largeWidth]: 1 }"
                                             :gutter="30"
                                             class="outer-block">
                                     <auto-test-suite v-for="suite, j in set.suites"
@@ -709,8 +709,13 @@ export default {
                             set.suites.forEach(suite => {
                                 suite.steps.forEach(step => {
                                     stepResults[step.id] = {
-                                        state: randomChoice(['not_started', 'running', 'passed', 'failed']),
-                                        log: '{}',
+                                        state: randomChoice([
+                                            'not_started',
+                                            'running',
+                                            'passed',
+                                            'failed',
+                                        ]),
+                                        log: 'Step log!',
                                     };
                                 });
                             });
@@ -1011,13 +1016,13 @@ export default {
     margin-bottom: 1rem;
 }
 
-.auto-test:not(.config-editable) {
-    .auto-test-suite:last-child {
+.auto-test {
+    &:not(.config-editable) .auto-test-suite:last-child {
         margin-bottom: 0;
     }
 
     @media @media-large {
-        .auto-test-suite:nth-last-child(2) {
+        &.config-editable .auto-test-suite:nth-last-child(2) {
             margin-bottom: 0;
         }
     }
@@ -1248,13 +1253,17 @@ export default {
     }
 }
 
-.setup-output {
+.setup-output-wrapper {
     margin-bottom: 0;
-    border: 1px solid @color-border-gray-lighter;
-    border-top-width: 0;
-    border-bottom-left-radius: 0.25rem;
-    border-bottom-right-radius: 0.25rem;
-    padding: 1rem;
+
+    pre {
+        margin-bottom: 0;
+        border: 1px solid @color-border-gray-lighter;
+        border-top-width: 0;
+        border-bottom-left-radius: 0.25rem;
+        border-bottom-right-radius: 0.25rem;
+        padding: 1rem;
+    }
 }
 </style>
 
