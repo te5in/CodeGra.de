@@ -329,9 +329,15 @@
 
     <template v-else-if="value.type === 'io_test'">
         <tr>
-            <td class="chevron" v-if="result"></td>
+            <td class="chevron" v-if="result">
+                <icon v-if="value.hidden" name="eye-slash" :scale="0.85"
+                    v-b-popover.hover.top="'You cannot view this step\'s results.'" />
+            </td>
             <td class="index"><b>{{ index }}</b></td>
-            <td class="summary"><b>{{ stepName }}</b></td>
+            <td class="summary">
+                <b>{{ stepName }}</b>
+                Run <code>{{ value.data.program }}</code> and match it output to an expected value.
+            </td>
             <td class="weight"><b>{{ value.weight }}</b></td>
             <td class="passed" v-if="result"></td>
         </tr>
