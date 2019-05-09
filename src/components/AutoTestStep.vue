@@ -205,7 +205,7 @@
                 Stop when you got less than {{ value.data.min_points }} points.
             </td>
             <td class="passed" v-if="result">
-                <icon v-if="stateIcon" :name="stateIcon" v-b-popover.top.hover="statePopover" />
+                <auto-test-step-state :state="stepResult.state" />
             </td>
         </tr>
 
@@ -249,7 +249,7 @@
             </td>
             <td class="weight">{{ value.weight }}</td>
             <td class="passed" v-if="result">
-                <icon v-if="stateIcon" :name="stateIcon" v-b-popover.top.hover="statePopover" />
+                <auto-test-step-state :state="stepResult.state" />
             </td>
         </tr>
 
@@ -293,7 +293,7 @@
             </td>
             <td class="weight">{{ value.weight }}</td>
             <td class="passed" v-if="result">
-                <icon v-if="stateIcon" :name="stateIcon" v-b-popover.top.hover="statePopover" />
+                <auto-test-step-state :state="stepResult.state" />
             </td>
         </tr>
 
@@ -354,8 +354,7 @@
                 <td class="weight">{{ input.weight }}</td>
                 <td class="passed" v-if="result">
                     <!-- TODO: Use state of the sub-step. -->
-                    <icon :name="getStateIcon(stepResult.state)"
-                          v-b-popover.top.hover="statePopover" />
+                    <auto-test-step-state :state="stepResult.state" />
                 </td>
             </tr>
 
@@ -428,6 +427,7 @@ import { getUniqueId, deepCopy, getProps } from '@/utils';
 
 import SubmitButton from './SubmitButton';
 import DescriptionPopover from './DescriptionPopover';
+import AutoTestStepState from './AutoTestStepState';
 
 export default {
     name: 'auto-test-step',
@@ -568,6 +568,10 @@ export default {
             return this.getStatePopover(this.stepResult.state);
         },
 
+        stateVariant() {
+            return this.getStateVariant(this.stepResult.state);
+        },
+
         canViewOutput() {
             const state = getProps(this, '', 'stepResult', 'state');
             // TODO: Check can_view_autotest_output permission
@@ -669,6 +673,17 @@ export default {
             }
         },
 
+        getStateClass(state) {
+            switch (state) {
+                case 'passed':
+                    return 'success';
+                case 'failed':
+                    return 'danger';
+                default:
+                    return 'default';
+            }
+        },
+
         getStatePopover(state) {
             switch (state) {
                 case 'passed':
@@ -687,6 +702,7 @@ export default {
         Icon,
         SubmitButton,
         DescriptionPopover,
+        AutoTestStepState,
     },
 };
 </script>
