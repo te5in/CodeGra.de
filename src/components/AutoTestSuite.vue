@@ -125,7 +125,7 @@
             </div>
 
             <div v-else>
-                {{ achievedPoints }} / {{ pointsPossible }} points
+                {{ (100 * achievedPoints / pointsPossible).toFixed(2) }} %
             </div>
         </div>
 
