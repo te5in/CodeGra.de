@@ -353,13 +353,13 @@
                             <b-tabs card no-fade class="container-fluid">
                                 <b-tab title="Output" class="row">
                                     <div class="col-6">
-                                        <label>Actual output</label>
-                                        <pre class="form-control">{{ stepResult.log.stdout }}</pre>
+                                        <label>Expected output</label>
+                                        <pre class="form-control">{{ input.output }}</pre>
                                     </div>
 
                                     <div class="col-6">
-                                        <label>Expected output</label>
-                                        <pre class="form-control">{{ input.output }}</pre>
+                                        <label>Actual output</label>
+                                        <pre class="form-control">{{ stepResult.log.stdout }}</pre>
                                     </div>
                                 </b-tab>
 
