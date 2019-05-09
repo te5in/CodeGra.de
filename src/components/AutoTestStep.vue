@@ -191,11 +191,13 @@
     </b-card>
 </div>
 <!-- Not editable -->
-<tbody v-else class="auto-test-step" :class="{ hidden: value.hidden }">
+<tbody v-else class="auto-test-step" :class="{ 'with-output': canViewOutput }">
     <template v-if="value.type === 'check_points'">
         <tr class="step-summary" v-b-toggle="resultsCollapseId">
-            <td class="caret" v-if="result">
-                <icon v-if="!value.hidden" name="chevron-right" :scale="0.75" />
+            <td class="chevron" v-if="result">
+                <icon v-if="canViewOutput" name="chevron-right" :scale="0.75" />
+                <icon v-else-if="value.hidden" name="eye-slash" :scale="0.85"
+                        v-b-popover.hover.top="'You cannot view this step\'s results.'" />
             </td>
             <td class="index">{{ index }}</td>
             <td class="summary" colspan="2">
@@ -235,8 +237,10 @@
 
     <template v-else-if="value.type === 'run_program'">
         <tr class="step-summary" v-b-toggle="resultsCollapseId">
-            <td class="caret" v-if="result">
-                <icon v-if="!value.hidden" name="chevron-right" :scale="0.75" />
+            <td class="chevron" v-if="result">
+                <icon v-if="canViewOutput" name="chevron-right" :scale="0.75" class="chevron" />
+                <icon v-else-if="value.hidden" name="eye-slash" :scale="0.85"
+                        v-b-popover.hover.top="'You cannot view this step\'s results.'" />
             </td>
             <td class="index">{{ index }}</td>
             <td class="summary">
@@ -277,8 +281,10 @@
 
     <template v-else-if="value.type === 'custom_output'">
         <tr class="step-summary" v-b-toggle="resultsCollapseId">
-            <td class="caret" v-if="result">
-                <icon v-if="!value.hidden" name="chevron-right" :scale="0.75" />
+            <td class="chevron" v-if="result">
+                <icon v-if="canViewOutput" name="chevron-right" :scale="0.75" />
+                <icon v-else-if="value.hidden" name="eye-slash" :scale="0.85"
+                        v-b-popover.hover.top="'You cannot view this step\'s results.'" />
             </td>
             <td class="index">{{ index }}</td>
             <td class="summary">
@@ -322,8 +328,8 @@
     </template>
 
     <template v-else-if="value.type === 'io_test'">
-        <tr class="hidden">
-            <td class="caret" v-if="result"></td>
+        <tr>
+            <td class="chevron" v-if="result"></td>
             <td class="index"><b>{{ index }}</b></td>
             <td class="summary"><b>{{ stepName }}</b></td>
             <td class="weight"><b>{{ value.weight }}</b></td>
@@ -332,8 +338,10 @@
 
         <template v-for="input, i in inputs">
             <tr class="step-summary" v-b-toggle="`${resultsCollapseId}-${i}`">
-                <td class="caret" v-if="result">
-                    <icon v-if="!value.hidden" name="chevron-right" :scale="0.75" />
+                <td class="chevron" v-if="result">
+                    <icon v-if="canViewOutput" name="chevron-right" :scale="0.75" />
+                    <icon v-else-if="value.hidden" name="eye-slash" :scale="0.85"
+                        v-b-popover.hover.top="'You cannot view this step\'s results.'" />
                 </td>
                 <td class="index">{{ index }}.{{ i + 1}}</td>
                 <td class="summary">{{ input.name }}</td>
@@ -555,8 +563,12 @@ export default {
         },
 
         canViewOutput() {
+            const state = getProps(this, '', 'stepResult', 'state');
             // TODO: Check can_view_autotest_output permission
-            return !!this.result && !this.value.hidden;
+            return (
+                (state === 'passed' || state === 'failed') &&
+                !this.value.hidden
+            );
         },
     },
 
@@ -822,29 +834,28 @@ hr {
         border-top-width: 1px;
     }
 
+    &.with-output .step-summary:hover {
+        background-color: rgba(0, 0, 0, 0.03);
+        cursor: pointer;
+    }
+
     .step-summary {
-        td:not(.caret) .fa-icon {
+        td:not(.chevron) .fa-icon {
             transform: translateY(2px);
         }
 
-        .caret .fa-icon {
+        .chevron .fa-icon {
             transform: translateY(1px);
             transition: transform 300ms;
         }
 
-        &:not(.collapsed) .caret .fa-icon {
+        &:not(.collapsed) .chevron .fa-icon.chevron {
             transform: translateY(1px) rotate(90deg);
         }
     }
 
-    &.hidden tr:hover,
-    tr.hidden:hover {
-        background-color: initial;
-        cursor: initial;
-    }
-
     td {
-        &.caret,
+        &.chevron,
         &.index,
         &.weight,
         &.passed {

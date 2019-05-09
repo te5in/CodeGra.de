@@ -129,7 +129,7 @@
             </div>
         </div>
 
-        <table class="table steps-table" :class="{ 'table-hover': result }">
+        <table class="table steps-table">
             <thead>
                 <tr>
                     <th v-if="result"></th>
