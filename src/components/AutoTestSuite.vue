@@ -129,23 +129,25 @@
             </div>
         </div>
 
-        <table class="table steps-table">
-            <thead>
-                <tr>
-                    <th v-if="result"></th>
-                    <th>No</th>
-                    <th>Summary</th>
-                    <th>Weight</th>
-                    <th v-if="result">Pass</th>
-                </tr>
-            </thead>
-            <auto-test-step :value="testStep"
-                            v-for="testStep, i in value.steps"
-                            :test-types="stepTypes"
-                            :key="i"
-                            :index="i + 1"
-                            :result="result"/>
-        </table>
+        <div class="suite-steps">
+            <table class="table steps-table">
+                <thead>
+                    <tr>
+                        <th v-if="result"></th>
+                        <th>No</th>
+                        <th>Summary</th>
+                        <th>Weight</th>
+                        <th v-if="result">Pass</th>
+                    </tr>
+                </thead>
+                <auto-test-step :value="testStep"
+                                v-for="testStep, i in value.steps"
+                                :test-types="stepTypes"
+                                :key="i"
+                                :index="i + 1"
+                                :result="result"/>
+            </table>
+        </div>
     </b-card>
 </div>
 </template>
@@ -424,6 +426,11 @@ export default {
         opacity: 0.4;
         color: @color-primary !important;
     }
+}
+
+.suite-steps {
+    max-height: 20rem;
+    overflow: auto;
 }
 
 .steps-table {
