@@ -814,7 +814,7 @@ export default {
                 return false;
             }
 
-            return this.setPoints(set) > set.stop_points;
+            return this.setPoints(set) >= set.stop_points;
         },
 
         deleteSet(index) {
