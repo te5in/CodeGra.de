@@ -11,7 +11,7 @@
                     :header="rubric.description"
                     body-class="rubric-items">
                 <div
-                    v-if="autoTestProgress"
+                    v-if="autoTestProgress && autoTestProgress[rubric.id]"
                     class="progress"
                     :style="{ width: `${autoTestProgress[rubric.id]}%` }"
                 />
@@ -148,7 +148,6 @@ export default {
         },
 
         autoTestProgress() {
-            console.log(this.autoTestConfig, this.autoTestResult);
             const suiteResults = getProps(this, null, 'autoTestResult', 'suiteResults');
 
             if (!suiteResults) {
@@ -156,11 +155,16 @@ export default {
             }
 
             const prog = {};
+            let i = 0;
 
             this.autoTestConfig.sets.forEach(set => {
                 set.suites.forEach(suite => {
                     const result = suiteResults[suite.id];
-                    prog[suite.rubricRow.id] = (100 * result.achieved / result.possible).toFixed(2);
+                    // FIXME: uncomment, remove line below
+                    // prog[suite.rubricRow.id] = (100 * result.achieved / result.possible)
+                    // .toFixed(2);
+                    prog[this.rubrics[i].id] = (100 * result.achieved / result.possible).toFixed(2);
+                    i = (i + 1) % this.rubrics.length;
                 });
             });
 

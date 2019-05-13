@@ -1202,7 +1202,6 @@ export default {
             return suite.steps.reduce((acc, step) => {
                 const stepResult = getProps(this, '', 'result', 'stepResults', step.id);
 
-                console.log(stepResult);
                 if (stepResult.state !== 'passed') {
                     return acc;
                 }
