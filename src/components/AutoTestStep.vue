@@ -568,11 +568,7 @@ export default {
             const { state, log } = this.stepResult;
 
             // TODO: Check can_view_autotest_output permission
-            return (
-                (state === 'passed' || state === 'failed') &&
-                log != null &&
-                !this.value.hidden
-            );
+            return (state === 'passed' || state === 'failed') && log != null && !this.value.hidden;
         },
     },
 

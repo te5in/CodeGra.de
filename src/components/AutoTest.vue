@@ -95,7 +95,8 @@
         <b-collapse v-else :id="configCollapseId" :visible="singleResult || !hasResults">
             <b-card-body key="full">
                 <b-card no-body>
-                    <span slot="header"
+                    <span
+                        slot="header"
                         class="setup-env-wrapper-header"
                         v-if="singleResult"
                         v-b-toggle="autoTestSetupEnvWrapperId">
@@ -106,7 +107,6 @@
 
                     <b-collapse
                         :id="autoTestSetupEnvWrapperId"
-                        class="setup-env-wrapper"
                         :visible="!singleResult">
                         <b-card-body>
                             <b-form-fieldset>
@@ -140,7 +140,7 @@
                                     <div class="multiselect__tags">
                                         <div class="multiselect__tags-wrap">
                                             <span v-for="base in test.base_systems"
-                                                    class="multiselect__tag no-close">
+                                                  class="multiselect__tag no-close">
                                                 {{ base.name }}
                                             </span>
                                         </div>
@@ -769,24 +769,28 @@ export default {
                                                 },
                                             ],
                                             rubricRow: {
-                                                description: 'The style of the code is conform to the styleguide.',
+                                                description:
+                                                    'The style of the code is conform to the styleguide.',
                                                 header: 'Style',
                                                 id: 1,
                                                 items: [
                                                     {
-                                                        description: 'You have no style.You have no style.You have no style.You have no style.You have no style.',
+                                                        description:
+                                                            'You have no style.You have no style.You have no style.You have no style.You have no style.',
                                                         header: 'Novice',
                                                         id: 3,
                                                         points: 1,
                                                     },
                                                     {
-                                                        description: 'You don\'t know how to use some tools.You don\'t know how to use some tools.You don\'t know how to use some tools.You don\'t know how to use some tools.You don\'t know how to use some tools.',
+                                                        description:
+                                                            "You don't know how to use some tools.You don't know how to use some tools.You don't know how to use some tools.You don't know how to use some tools.You don't know how to use some tools.",
                                                         header: 'Competent',
                                                         id: 2,
                                                         points: 2,
                                                     },
                                                     {
-                                                        description: 'You know how to use some tools.You know how to use some tools.You know how to use some tools.You know how to use some tools.You know how to use some tools.',
+                                                        description:
+                                                            'You know how to use some tools.You know how to use some tools.You know how to use some tools.You know how to use some tools.You know how to use some tools.',
                                                         header: 'Expert',
                                                         id: 1,
                                                         points: 3,
@@ -843,24 +847,28 @@ export default {
                                                 },
                                             ],
                                             rubricRow: {
-                                                description: 'The code is strutured well and logical design choices were made.',
+                                                description:
+                                                    'The code is strutured well and logical design choices were made.',
                                                 header: 'Code structure',
                                                 id: 3,
                                                 items: [
                                                     {
-                                                        description: 'You don\'t know to use enter or space.You don\'t know to use enter or space.You don\'t know to use enter or space.You don\'t know to use enter or space.You don\'t know to use enter or space.',
+                                                        description:
+                                                            "You don't know to use enter or space.You don't know to use enter or space.You don't know to use enter or space.You don't know to use enter or space.You don't know to use enter or space.",
                                                         header: 'Novice',
                                                         id: 9,
                                                         points: 1,
                                                     },
                                                     {
-                                                        description: 'You know to use enter but not space.You know to use enter but not space.You know to use enter but not space.You know to use enter but not space.You know to use enter but not space.',
+                                                        description:
+                                                            'You know to use enter but not space.You know to use enter but not space.You know to use enter but not space.You know to use enter but not space.You know to use enter but not space.',
                                                         header: 'Competent',
                                                         id: 8,
                                                         points: 2.5,
                                                     },
                                                     {
-                                                        description: 'You know to use enter and space.You know to use enter and space.You know to use enter and space.You know to use enter and space.You know to use enter and space.',
+                                                        description:
+                                                            'You know to use enter and space.You know to use enter and space.You know to use enter and space.You know to use enter and space.You know to use enter and space.',
                                                         header: 'Expert',
                                                         id: 7,
                                                         points: 4,
@@ -905,24 +913,28 @@ export default {
                                                 },
                                             ],
                                             rubricRow: {
-                                                description: 'The documentation of the code is well written and complete.',
+                                                description:
+                                                    'The documentation of the code is well written and complete.',
                                                 header: 'Documentation',
                                                 id: 2,
                                                 items: [
                                                     {
-                                                        description: 'You typed a lot of wrong things.You typed a lot of wrong things.You typed a lot of wrong things.You typed a lot of wrong things.You typed a lot of wrong things.',
+                                                        description:
+                                                            'You typed a lot of wrong things.You typed a lot of wrong things.You typed a lot of wrong things.You typed a lot of wrong things.You typed a lot of wrong things.',
                                                         header: 'Novice',
                                                         id: 6,
                                                         points: 1,
                                                     },
                                                     {
-                                                        description: 'You typed a lot of things, some wrong.You typed a lot of things, some wrong.You typed a lot of things, some wrong.You typed a lot of things, some wrong.You typed a lot of things, some wrong.',
+                                                        description:
+                                                            'You typed a lot of things, some wrong.You typed a lot of things, some wrong.You typed a lot of things, some wrong.You typed a lot of things, some wrong.You typed a lot of things, some wrong.',
                                                         header: 'Competent',
                                                         id: 5,
                                                         points: 1.5,
                                                     },
                                                     {
-                                                        description: 'You typed a lot of things.You typed a lot of things.You typed a lot of things.You typed a lot of things.You typed a lot of things.',
+                                                        description:
+                                                            'You typed a lot of things.You typed a lot of things.You typed a lot of things.You typed a lot of things.You typed a lot of things.',
                                                         header: 'Expert',
                                                         id: 4,
                                                         points: 2,
@@ -939,12 +951,8 @@ export default {
                         this.test.sets = this.test.sets.map(set => ({
                             ...set,
                             suites: set.suites.map(
-                                suite => new AutoTestSuiteData(
-                                    this.$http,
-                                    this.test.id,
-                                    set.id,
-                                    suite,
-                                ),
+                                suite =>
+                                    new AutoTestSuiteData(this.$http, this.test.id, set.id, suite),
                             ),
                         }));
 
@@ -1164,31 +1172,28 @@ export default {
 
         pointsForSuite(suite) {
             if (this.suitePoints[suite.id] == null) {
-                this.suitePoints[suite.id] = suite.steps.reduce(
-                    (acc, step) => {
-                        const stepResult = getProps(this, '', 'result', 'stepResults', step.id);
+                this.suitePoints[suite.id] = suite.steps.reduce((acc, step) => {
+                    const stepResult = getProps(this, '', 'result', 'stepResults', step.id);
 
-                        if (stepResult.state !== 'passed') {
-                            return acc;
-                        }
+                    if (stepResult.state !== 'passed') {
+                        return acc;
+                    }
 
-                        if (step.type === 'io_test') {
-                            return acc + step.data.inputs.reduce(
-                                (acc2, input, i) => {
-                                    if (stepResult.log.steps[i].state === 'passed') {
-                                        return acc2 + input.weight;
-                                    } else {
-                                        return acc2;
-                                    }
-                                },
-                                0,
-                            );
-                        } else {
-                            return acc + step.weight;
-                        }
-                    },
-                    0,
-                );
+                    if (step.type === 'io_test') {
+                        return (
+                            acc +
+                            step.data.inputs.reduce((acc2, input, i) => {
+                                if (stepResult.log.steps[i].state === 'passed') {
+                                    return acc2 + input.weight;
+                                } else {
+                                    return acc2;
+                                }
+                            }, 0)
+                        );
+                    } else {
+                        return acc + step.weight;
+                    }
+                }, 0);
             }
 
             return this.suitePoints[suite.id];
@@ -1431,18 +1436,16 @@ export default {
 
         testSteps() {
             return this.test.sets.reduce(
-                (acc, set) => Object.assign(
-                    acc,
-                    set.suites.reduce(
-                        (acc2, suite) => {
+                (acc, set) =>
+                    Object.assign(
+                        acc,
+                        set.suites.reduce((acc2, suite) => {
                             suite.steps.forEach(step => {
                                 acc2[step.id] = step;
                             });
                             return acc2;
-                        },
-                        {},
+                        }, {}),
                     ),
-                ),
                 {},
             );
         },
