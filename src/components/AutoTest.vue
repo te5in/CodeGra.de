@@ -1,7 +1,7 @@
 <template>
 <div class="auto-test" :class="{ editable, 'config-editable': configEditable, 'no-card': noCard }">
     <template v-if="!singleResult && hasResults">
-        <b-card no-body v-for="run in test.runs" class="results-card">
+        <b-card no-body v-for="run in test.runs" :key="run.id" class="results-card">
             <b-card-header class="auto-test-header" :class="{ editable }">
                 <span class="toggle" :key="resultsCollapseId" v-b-toggle="resultsCollapseId">
                     <icon class="expander" name="chevron-right" :scale="0.75" />
@@ -338,13 +338,13 @@
                                 <b-card-footer
                                     v-else-if="singleResult && i < test.sets.length - 1"
                                     class="set-continue">
-                                    <template v-if="setPassed(set)">
-                                        Scored <code>{{ setPoints(set) }}</code> points, which is
+                                    <template v-if="isSetPassed(set)">
+                                        Scored <code>{{ pointsForSet(set) }}</code> points, which is
                                         greater than <code>{{ set.stop_points }}</code>. Continuing
                                         with the next set.
                                     </template>
                                     <template v-else>
-                                        Scored <code>{{ setPoints(set) }}</code> points, which is
+                                        Scored <code>{{ pointsForSet(set) }}</code> points, which is
                                         less than <code>{{ set.stop_points }}</code>. No further
                                         tests will be run.
                                     </template>
@@ -629,74 +629,72 @@ export default {
         ...mapActions('courses', ['updateAssignment']),
 
         loadAutoTest() {
-            return this.$http
-                .get(`/api/v1/auto_tests/${this.assignment.auto_test_id}`)
-                .then(
-                    ({ data: test }) => {
-                        // test.runs = [
-                        //     {
-                        //         id: 1,
-                        //         results: [
-                        //             {
-                        //                 id: 1,
-                        //                 work: {
-                        //                     id: 1,
-                        //                     user: { name: 'Thomas Schaper', id: 1 },
-                        //                 },
-                        //                 points_achieved: '-',
-                        //                 state: 'not_started',
-                        //                 setup_stdout: 'stdout!!!',
-                        //                 setup_stderr: 'stderr!!!',
-                        //             },
-                        //             {
-                        //                 id: 2,
-                        //                 work: {
-                        //                     id: 2,
-                        //                     user: { name: 'Olmo Kramer', id: 2 },
-                        //                     grade_overridden: true,
-                        //                 },
-                        //                 points_achieved: '12 / 13',
-                        //                 state: 'passed',
-                        //                 setup_stdout: 'stdout!!!',
-                        //                 setup_stderr: 'stderr!!!',
-                        //             },
-                        //             {
-                        //                 id: 3,
-                        //                 work: {
-                        //                     id: 3,
-                        //                     user: { name: 'Student 2', id: 3 },
-                        //                 },
-                        //                 points_achieved: '0 / 13',
-                        //                 state: 'failed',
-                        //                 setup_stdout: 'stdout!!!',
-                        //                 setup_stderr: 'stderr!!!',
-                        //             },
-                        //             {
-                        //                 id: 4,
-                        //                 work: {
-                        //                     id: 4,
-                        //                     user: { name: 'Olmo Kramer', id: 4 },
-                        //                 },
-                        //                 points_achieved: '-',
-                        //                 state: 'running',
-                        //                 setup_stdout: 'stdout!!!',
-                        //                 setup_stderr: 'stderr!!!',
-                        //             },
-                        //         ],
-                        //     },
-                        // ];
+            return this.$http.get(`/api/v1/auto_tests/${this.assignment.auto_test_id}`).then(
+                ({ data: test }) => {
+                    // test.runs = [
+                    //     {
+                    //         id: 1,
+                    //         results: [
+                    //             {
+                    //                 id: 1,
+                    //                 work: {
+                    //                     id: 1,
+                    //                     user: { name: 'Thomas Schaper', id: 1 },
+                    //                 },
+                    //                 points_achieved: '-',
+                    //                 state: 'not_started',
+                    //                 setup_stdout: 'stdout!!!',
+                    //                 setup_stderr: 'stderr!!!',
+                    //             },
+                    //             {
+                    //                 id: 2,
+                    //                 work: {
+                    //                     id: 2,
+                    //                     user: { name: 'Olmo Kramer', id: 2 },
+                    //                     grade_overridden: true,
+                    //                 },
+                    //                 points_achieved: '12 / 13',
+                    //                 state: 'passed',
+                    //                 setup_stdout: 'stdout!!!',
+                    //                 setup_stderr: 'stderr!!!',
+                    //             },
+                    //             {
+                    //                 id: 3,
+                    //                 work: {
+                    //                     id: 3,
+                    //                     user: { name: 'Student 2', id: 3 },
+                    //                 },
+                    //                 points_achieved: '0 / 13',
+                    //                 state: 'failed',
+                    //                 setup_stdout: 'stdout!!!',
+                    //                 setup_stderr: 'stderr!!!',
+                    //             },
+                    //             {
+                    //                 id: 4,
+                    //                 work: {
+                    //                     id: 4,
+                    //                     user: { name: 'Olmo Kramer', id: 4 },
+                    //                 },
+                    //                 points_achieved: '-',
+                    //                 state: 'running',
+                    //                 setup_stdout: 'stdout!!!',
+                    //                 setup_stderr: 'stderr!!!',
+                    //             },
+                    //         ],
+                    //     },
+                    // ];
 
-                        this.setTest(test);
-                    },
-                    err => {
-                        if (this.is404(err)) {
-                            this.test = null;
-                        }
-                    },
-                );
+                    this.setTest(test);
+                },
+                err => {
+                    if (this.is404(err)) {
+                        this.test = null;
+                    }
+                },
+            );
         },
 
-        loadSingleResult() {
+        async loadSingleResult() {
             if (this.test == null) {
                 this.setTest(this.testConfig);
             }
@@ -709,52 +707,85 @@ export default {
                 .get(`/api/v1/auto_tests/${testId}/runs/${runId}/results/${resultId}`)
                 .then(
                     ({ data: result }) => {
-                        this.result.stepResults = result.step_results;
+                        this.setResult(result);
                     },
-                    err => {
-                        this.error = err.response.data.message;
-
-                        let i = 0;
-                        function randomState() {
-                            const states = [
-                                'not_started',
-                                'running',
-                                'passed',
-                                'failed',
-                                'skipped',
-                            ];
-                            return states[(i++) % states.length];
-                        }
-
-                        const stepResults = {};
-                        this.test.sets.forEach(set => {
-                            set.suites.forEach(suite => {
-                                suite.steps.forEach(step => {
-                                    stepResults[step.id] = {
-                                        state: randomState(),
-                                        log: 'Step log!',
-                                    };
-                                });
-                            });
+                    () => {
+                        this.setResult({
+                            step_results: [
+                                {
+                                    auto_test_step: {
+                                        id: 1,
+                                    },
+                                    state: 'passed',
+                                    log: {
+                                        stdout: 'passed!',
+                                        stderr: '',
+                                    },
+                                },
+                                {
+                                    auto_test_step: {
+                                        id: 3,
+                                    },
+                                    state: 'failed',
+                                    log: {
+                                        stdout: '',
+                                        stderr: 'lots of errors\n...',
+                                    },
+                                },
+                                {
+                                    auto_test_step: {
+                                        id: 2,
+                                    },
+                                    state: 'passed',
+                                    log: {
+                                        stdout: 'passed!',
+                                        stderr: '',
+                                    },
+                                },
+                                {
+                                    auto_test_step: {
+                                        id: 4,
+                                    },
+                                    state: 'passed',
+                                    log: {
+                                        stdout: 'passed!',
+                                        stderr: '',
+                                    },
+                                },
+                                {
+                                    auto_test_step: {
+                                        id: 5,
+                                    },
+                                    state: 'failed',
+                                    log: {
+                                        stdout: 'Not enough points!!!',
+                                        stderr: '',
+                                    },
+                                },
+                                {
+                                    auto_test_step: {
+                                        id: 8,
+                                    },
+                                    state: 'running',
+                                    log: {
+                                        stdout: 'Starting...\nStarted\n',
+                                        stderr: '',
+                                    },
+                                },
+                            ],
                         });
-
-                        this.result.stepResults = stepResults;
                     },
                 );
         },
 
         loadPermissions() {
-            const names = [
-                'can_view_hidden_fixtures',
-            ];
+            const names = ['can_view_hidden_fixtures'];
 
-            return this.$hasPermission(names, this.assignment.course.id).then(
-                perms => {
-                    perms.forEach((value, i) => {
-                        this.permissions[names[i]] = value;
-                    });
-                },
-            );
+            return this.$hasPermission(names, this.assignment.course.id).then(perms => {
+                perms.forEach((value, i) => {
+                    this.permissions[names[i]] = value;
+                });
+            });
         },
 
         toggleHidden(fixtureIndex) {
@@ -771,11 +802,13 @@ export default {
         },
 
         submitContinuePoints(set) {
-            return this.$http.patch(`${this.autoTestUrl}/sets/${set.id}`, {
-                stop_points: Number(set.stop_points),
-            }).then(() => {
-                this.$set(set, 'stop_points', Number(set.stop_points));
-            });
+            return this.$http
+                .patch(`${this.autoTestUrl}/sets/${set.id}`, {
+                    stop_points: Number(set.stop_points),
+                })
+                .then(() => {
+                    this.$set(set, 'stop_points', Number(set.stop_points));
+                });
         },
 
         setTest(test) {
@@ -783,38 +816,66 @@ export default {
             this.test.sets = test.sets.map(set => ({
                 ...set,
                 suites: set.suites.map(
-                    suite =>
-                        new AutoTestSuiteData(
-                            this.$http,
-                            test.id,
-                            set.id,
-                            suite,
-                        ),
+                    suite => new AutoTestSuiteData(this.$http, test.id, set.id, suite),
                 ),
             }));
         },
 
-        setPoints(set) {
-            return set.suites
-                .reduce(
-                    (steps, suite) => steps.concat(suite.steps),
-                    [],
-                )
-                .map(
-                    step => (this.result.stepResults[step.id].state === 'passed' ? step.weight : 0),
-                )
-                .reduce(
-                    (acc, p) => acc + p,
-                    0,
-                );
+        setResult(result) {
+            const stepResults = result.step_results.reduce((acc, step) => {
+                acc[step.auto_test_step.id] = step;
+                return acc;
+            }, {});
+            this.result.stepResults = stepResults;
+
+            let setCheckPointFailed = false;
+            this.test.sets.forEach(set => {
+                set.suites.forEach(suite => {
+                    let checkPointFailed = false;
+                    suite.steps.forEach(step => {
+                        if (setCheckPointFailed || checkPointFailed) {
+                            stepResults[step.id] = {
+                                state: 'skipped',
+                                log: null,
+                            };
+                        } else if (stepResults[step.id] == null) {
+                            stepResults[step.id] = {
+                                state: 'not_started',
+                                log: null,
+                            };
+                        } else if (
+                            step.type === 'check_points' &&
+                            stepResults[step.id].state === 'failed'
+                        ) {
+                            checkPointFailed = true;
+                        }
+                    });
+                });
+
+                if (!this.isSetPassed(set)) {
+                    setCheckPointFailed = true;
+                }
+            });
         },
 
-        setPassed(set) {
+        pointsForSet(set) {
+            return set.suites
+                .reduce((steps, suite) => steps.concat(suite.steps), [])
+                .map(
+                    step =>
+                        (getProps(this, '', 'result', 'stepResults', step.id, 'state') === 'passed'
+                            ? step.weight
+                            : 0),
+                )
+                .reduce((acc, p) => acc + p, 0);
+        },
+
+        isSetPassed(set) {
             if (!this.result) {
                 return false;
             }
 
-            return this.setPoints(set) >= set.stop_points;
+            return this.pointsForSet(set) >= set.stop_points;
         },
 
         deleteSet(index) {
@@ -1275,7 +1336,7 @@ export default {
 
         .fa-icon {
             transform: translateY(2px);
-            margin-right: .25rem;
+            margin-right: 0.25rem;
         }
     }
 }
@@ -1284,7 +1345,7 @@ export default {
     cursor: pointer;
 
     .fa-icon {
-        margin-right: .25rem;
+        margin-right: 0.25rem;
         transition: transform 300ms;
     }
 

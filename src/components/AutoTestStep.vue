@@ -575,10 +575,7 @@ export default {
         canViewOutput() {
             const state = getProps(this, '', 'stepResult', 'state');
             // TODO: Check can_view_autotest_output permission
-            return (
-                (state === 'passed' || state === 'failed') &&
-                !this.value.hidden
-            );
+            return (state === 'passed' || state === 'failed') && !this.value.hidden;
         },
     },
 

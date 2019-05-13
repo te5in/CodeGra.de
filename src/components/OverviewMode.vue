@@ -120,14 +120,13 @@
                 </b-card>
             </div>
         </b-tab>
-        <b-tab title="AutoTest">
+        <b-tab title="AutoTest" v-if="autoTestConfig">
             <auto-test
                 v-if="autoTestResult"
                 :assignment="assignment"
                 :result="autoTestResult"
                 :test-config="autoTestConfig"
-                no-card
-                hide-env />
+                no-card />
             <b-card v-else class="file-card">
                 There are no AutoTest results for this submission.
             </b-card>
@@ -246,74 +245,75 @@ export default {
                     });
                     this.feedback = data;
                 }),
-            this.assignment.auto_test_id && this.$http
-                .get(`/api/v1/auto_tests/${this.assignment.auto_test_id}`)
-                .then(({ data: test }) => {
-                    test.runs = [
-                        {
-                            id: 1,
-                            results: [
-                                {
-                                    id: 1,
-                                    work: {
+            this.assignment.auto_test_id &&
+                this.$http
+                    .get(`/api/v1/auto_tests/${this.assignment.auto_test_id}`)
+                    .then(({ data: test }) => {
+                        test.runs = [
+                            {
+                                id: 1,
+                                results: [
+                                    {
                                         id: 1,
-                                        user: { name: 'Thomas Schaper', id: 1 },
+                                        work: {
+                                            id: 1,
+                                            user: { name: 'Thomas Schaper', id: 1 },
+                                        },
+                                        points_achieved: '-',
+                                        state: 'not_started',
+                                        setup_stdout: 'stdout!!!',
+                                        setup_stderr: 'stderr!!!',
                                     },
-                                    points_achieved: '-',
-                                    state: 'not_started',
-                                    setup_stdout: 'stdout!!!',
-                                    setup_stderr: 'stderr!!!',
-                                },
-                                {
-                                    id: 2,
-                                    work: {
-                                        id: 27,
-                                        user: { name: 'Olmo Kramer', id: 2 },
-                                        grade_overridden: true,
+                                    {
+                                        id: 2,
+                                        work: {
+                                            id: 27,
+                                            user: { name: 'Olmo Kramer', id: 2 },
+                                            grade_overridden: true,
+                                        },
+                                        points_achieved: '12 / 13',
+                                        state: 'passed',
+                                        setup_stdout: 'stdout!!!',
+                                        setup_stderr: 'stderr!!!',
                                     },
-                                    points_achieved: '12 / 13',
-                                    state: 'passed',
-                                    setup_stdout: 'stdout!!!',
-                                    setup_stderr: 'stderr!!!',
-                                },
-                                {
-                                    id: 3,
-                                    work: {
+                                    {
                                         id: 3,
-                                        user: { name: 'Student 2', id: 3 },
+                                        work: {
+                                            id: 3,
+                                            user: { name: 'Student 2', id: 3 },
+                                        },
+                                        points_achieved: '0 / 13',
+                                        state: 'failed',
+                                        setup_stdout: 'stdout!!!',
+                                        setup_stderr: 'stderr!!!',
                                     },
-                                    points_achieved: '0 / 13',
-                                    state: 'failed',
-                                    setup_stdout: 'stdout!!!',
-                                    setup_stderr: 'stderr!!!',
-                                },
-                                {
-                                    id: 4,
-                                    work: {
-                                        id: 20,
-                                        user: { name: 'Olmo Kramer', id: 4 },
+                                    {
+                                        id: 4,
+                                        work: {
+                                            id: 20,
+                                            user: { name: 'Olmo Kramer', id: 4 },
+                                        },
+                                        points_achieved: '-',
+                                        state: 'passed',
+                                        setup_stdout: 'stdout!!!',
+                                        setup_stderr: 'stderr!!!',
                                     },
-                                    points_achieved: '-',
-                                    state: 'passed',
-                                    setup_stdout: 'stdout!!!',
-                                    setup_stderr: 'stderr!!!',
-                                },
-                            ],
-                        },
-                    ];
-                    this.autoTestConfig = test;
+                                ],
+                            },
+                        ];
+                        this.autoTestConfig = test;
 
-                    const results = getProps(test, null, 'runs', 0, 'results');
-                    if (results == null || results.length === 0) {
-                        return null;
-                    }
+                        const results = getProps(test, null, 'runs', 0, 'results');
+                        if (results == null || results.length === 0) {
+                            return null;
+                        }
 
-                    this.autoTestResult = results.find(
-                        r => r.work.id === this.submission.id,
-                    );
-                    return this.autoTestResult;
-                }),
-        ]);
+                        this.autoTestResult = results.find(r => r.work.id === this.submission.id);
+                        return this.autoTestResult;
+                    }),
+        ]).catch(err => {
+            this.error = err.message;
+        });
 
         this.fileIds = Object.keys(this.feedback.user);
         const codeLines = await Promise.all(this.fileIds.map(this.loadCodeWithSettings));

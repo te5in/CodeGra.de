@@ -277,9 +277,9 @@ export default {
             }
 
             if (!this.showRubric || this.rubricOverridden) {
-                req = req.then(
-                    () => this.submitNormalGrade(grade),
-                ).then(() => this.rubricOverridden);
+                req = req
+                    .then(() => this.submitNormalGrade(grade))
+                    .then(() => this.rubricOverridden);
             }
 
             return req;

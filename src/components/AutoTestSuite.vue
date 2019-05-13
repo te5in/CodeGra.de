@@ -243,10 +243,7 @@ export default {
         },
 
         pointsPossible() {
-            return this.value.steps.reduce(
-                (acc, step) => acc + (step.weight || 0),
-                0,
-            );
+            return this.value.steps.reduce((acc, step) => acc + (step.weight || 0), 0);
         },
 
         achievedPoints() {
@@ -255,9 +252,9 @@ export default {
             }
 
             const stepResults = this.result.stepResults;
-            return this.value.steps.map(
-                step => (stepResults[step.id].state === 'passed' ? step.weight : 0),
-            ).reduce((x, y) => x + y, 0);
+            return this.value.steps
+                .map(step => (stepResults[step.id].state === 'passed' ? step.weight : 0))
+                .reduce((x, y) => x + y, 0);
         },
     },
 
