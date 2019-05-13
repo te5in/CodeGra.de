@@ -1010,12 +1010,12 @@ export default {
                                         steps: [
                                             {
                                                 state: 'passed',
-                                                stdout: 'passed!!!',
+                                                stdout: 'ABC',
                                                 stderr: 'WARNING: ...',
                                             },
                                             {
                                                 state: 'passed',
-                                                stdout: 'passed!!!',
+                                                stdout: 'DEF',
                                                 stderr: '',
                                             },
                                         ],
@@ -1028,12 +1028,12 @@ export default {
                                         steps: [
                                             {
                                                 state: 'failed',
-                                                stdout: 'failed!!!',
+                                                stdout: 'ABC',
                                                 stderr: 'ERROR: ...',
                                             },
                                             {
                                                 state: 'passed',
-                                                stdout: 'passed!!!',
+                                                stdout: 'def',
                                                 stderr: 'WARNING: ...',
                                             },
                                         ],
