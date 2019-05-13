@@ -308,7 +308,7 @@
                                                      @delete="$set(suite, 'deleted', true)"
                                                      v-model="set.suites[j]"
                                                      :result="result"
-                                                     :achieved-points="result.suiteResults[suite.id]"/>
+                                                     :achieved-points="hasResults && result.suiteResults[suite.id]"/>
                                 </masonry>
                                 <div v-if="configEditable"
                                      class="btn-wrapper"
@@ -340,13 +340,13 @@
                                     v-else-if="singleResult && i < test.sets.length - 1"
                                     class="set-continue">
                                     <template v-if="isSetPassed(set)">
-                                        Scored <code>{{ result.setResults[set.id] }}</code> points, which is
-                                        greater than <code>{{ set.stop_points }}</code>. Continuing
+                                        Scored <code>{{ result.setResults[set.id].achieved }}</code> points,
+                                        which is greater than <code>{{ set.stop_points }}</code>. Continuing
                                         with the next set.
                                     </template>
                                     <template v-else>
-                                        Scored <code>{{ result.setResults[set.id] }}</code> points, which is
-                                        less than <code>{{ set.stop_points }}</code>. No further
+                                        Scored <code>{{ result.setResults[set.id].achieved }}</code> points,
+                                        which is less than <code>{{ set.stop_points }}</code>. No further
                                         tests will be run.
                                     </template>
                                 </b-card-footer>
@@ -758,7 +758,7 @@ export default {
                                         weight: 2,
                                     },
                                 ],
-                                rubricRow: {
+                                rubric_row: {
                                     description:
                                         'The style of the code is conform to the styleguide.',
                                     header: 'Style',
@@ -836,7 +836,7 @@ export default {
                                         weight: 1,
                                     },
                                 ],
-                                rubricRow: {
+                                rubric_row: {
                                     description:
                                         'The code is strutured well and logical design choices were made.',
                                     header: 'Code structure',
@@ -902,7 +902,7 @@ export default {
                                         weight: 1,
                                     },
                                 ],
-                                rubricRow: {
+                                rubric_row: {
                                     description:
                                         'The documentation of the code is well written and complete.',
                                     header: 'Documentation',
@@ -1147,16 +1147,27 @@ export default {
                 return acc;
             }, {});
 
+            this.result.stepResults = stepResults;
+            this.result.setResults = setResults;
+            this.result.suiteResults = suiteResults;
+
             let setCheckPointFailed = false;
             this.test.sets.forEach(set => {
-                setResults[set.id] = 0;
+                setResults[set.id] = {
+                    achieved: 0,
+                    possible: 0,
+                };
 
                 set.suites.forEach(suite => {
                     let checkPointFailed = false;
-                    suiteResults[suite.id] = this.pointsForSuite(suite);
-                    setResults[set.id] += suiteResults[suite.id];
+                    suiteResults[suite.id] = {
+                        achieved: this.pointsForSuite(suite),
+                        possible: 0,
+                    };
 
                     suite.steps.forEach(step => {
+                        suiteResults[suite.id].possible += step.weight;
+
                         if (setCheckPointFailed || checkPointFailed) {
                             stepResults[step.id] = {
                                 state: 'skipped',
@@ -1174,6 +1185,9 @@ export default {
                             checkPointFailed = true;
                         }
                     });
+
+                    setResults[set.id].achieved += suiteResults[suite.id].achieved;
+                    setResults[set.id].possible += suiteResults[suite.id].possible;
                 });
 
                 if (setResults[set.id] < set.stop_points) {
@@ -1181,15 +1195,14 @@ export default {
                 }
             });
 
-            this.result.setResults = setResults;
-            this.result.suiteResults = suiteResults;
-            this.result.stepResults = stepResults;
+            this.$emit('result', { test: this.test, result: this.result });
         },
 
         pointsForSuite(suite) {
             return suite.steps.reduce((acc, step) => {
                 const stepResult = getProps(this, '', 'result', 'stepResults', step.id);
 
+                console.log(stepResult);
                 if (stepResult.state !== 'passed') {
                     return acc;
                 }
@@ -1216,7 +1229,7 @@ export default {
                 return false;
             }
 
-            return this.result.setResults[set.id] > set.stop_points;
+            return this.result.setResults[set.id].achieved > set.stop_points;
         },
 
         deleteSet(index) {

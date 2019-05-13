@@ -125,7 +125,7 @@
             </div>
 
             <div v-else>
-                {{ (100 * achievedPoints / pointsPossible).toFixed(2) }} %
+                {{ pointPercentage }} %
             </div>
         </div>
 
@@ -200,7 +200,7 @@ export default {
             default: null,
         },
 
-        achievedPoints: {
+        points: {
             type: Number,
             default: 0,
         },
@@ -247,8 +247,9 @@ export default {
             ];
         },
 
-        pointsPossible() {
-            return this.value.steps.reduce((acc, step) => acc + (step.weight || 0), 0);
+        pointPercentage() {
+            const result = this.result.suiteResults[this.value.id];
+            return (100 * result.achieved / result.possible).toFixed(2);
         },
     },
 

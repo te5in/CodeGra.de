@@ -10,6 +10,12 @@
             <b-card class="rubric-category"
                     :header="rubric.description"
                     body-class="rubric-items">
+                <div
+                    v-if="autoTestProgress"
+                    class="progress"
+                    :style="{ width: `${autoTestProgress[rubric.id]}%` }"
+                />
+
                 <b-card-group>
                     <b-card class="rubric-item"
                             v-for="item in rubric.items"
@@ -59,7 +65,7 @@ import 'vue-awesome/icons/angle-right';
 import 'vue-awesome/icons/times';
 import 'vue-awesome/icons/check';
 
-import { waitAtLeast } from '../utils';
+import { getProps, waitAtLeast } from '../utils';
 
 import Loader from './Loader';
 
@@ -82,6 +88,14 @@ export default {
         editable: {
             type: Boolean,
             default: false,
+        },
+        autoTestConfig: {
+            type: Object,
+            default: null,
+        },
+        autoTestResult: {
+            type: Object,
+            default: null,
         },
     },
 
@@ -131,6 +145,26 @@ export default {
                 grade = maxGrade;
             }
             return grade;
+        },
+
+        autoTestProgress() {
+            console.log(this.autoTestConfig, this.autoTestResult);
+            const suiteResults = getProps(this, null, 'autoTestResult', 'suiteResults');
+
+            if (!suiteResults) {
+                return null;
+            }
+
+            const prog = {};
+
+            this.autoTestConfig.sets.forEach(set => {
+                set.suites.forEach(suite => {
+                    const result = suiteResults[suite.id];
+                    prog[suite.rubricRow.id] = (100 * result.achieved / result.possible).toFixed(2);
+                });
+            });
+
+            return prog;
         },
     },
 
@@ -395,6 +429,15 @@ export default {
             }
         }
     }
+}
+
+.progress {
+    height: 2px;
+    background-color: @color-secondary;
+    margin-top: -1px;
+    margin-bottom: -1px;
+    z-index: 100;
+    position: relative;
 }
 </style>
 

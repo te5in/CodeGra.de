@@ -122,6 +122,7 @@
         </b-tab>
         <b-tab title="AutoTest" v-if="autoTestConfig">
             <auto-test
+                @result="$emit('result', $event)"
                 v-if="autoTestResult"
                 :assignment="assignment"
                 :result="autoTestResult"

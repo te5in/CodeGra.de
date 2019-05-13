@@ -182,7 +182,8 @@
                        :language="selectedLanguage"
                        :can-use-snippets="canUseSnippets"
                        :auto-test-config="autoTestConfig"
-                       :auto-test-result="autoTestResult"/>
+                       :auto-test-result="autoTestResult"
+                       @result="setAutoTest"/>
         </div>
         <div class="file-tree-container " v-if="!overviewMode"
              slot="secondPane">
@@ -203,6 +204,8 @@
                   :rubric="rubric"
                   :editable="editable"
                   :rubric-start-open="overviewMode"
+                  :auto-test-config="autoTestConfig"
+                  :auto-test-result="autoTestResult"
                   v-if="!loadingInner && (editable || assignment.state === assignmentState.DONE)"
                   @gradeUpdated="gradeUpdated"/>
 </div>
@@ -830,6 +833,12 @@ export default {
 
         revisionChanged(val) {
             this.setRevision(val);
+        },
+
+        // FIXME: remove
+        setAutoTest({ test, result }) {
+            this.autoTestConfig = test;
+            this.autoTestResult = result;
         },
     },
 
