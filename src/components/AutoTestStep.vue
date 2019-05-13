@@ -349,12 +349,12 @@
                     <icon v-else-if="value.hidden" name="eye-slash" :scale="0.85"
                         v-b-popover.hover.top="'You cannot view this step\'s results.'" />
                 </td>
-                <td class="index">{{ index }}.{{ i + 1}}</td>
+                <td class="index">{{ index }}.{{ i + 1 }}</td>
                 <td class="summary">{{ input.name }}</td>
                 <td class="weight">{{ input.weight }}</td>
                 <td class="passed" v-if="result">
                     <!-- TODO: Use state of the sub-step. -->
-                    <auto-test-step-state :state="stepResult.state" />
+                    <auto-test-step-state :state="stepResult.log.steps[i].state" />
                 </td>
             </tr>
 
@@ -372,7 +372,7 @@
 
                                     <div class="col-6">
                                         <label>Actual output</label>
-                                        <pre class="form-control">{{ stepResult.log.stdout }}</pre>
+                                        <pre class="form-control">{{ stepResult.log.steps[i].stdout }}</pre>
                                     </div>
                                 </b-tab>
 
@@ -394,10 +394,10 @@
                                     </div>
                                 </b-tab>
 
-                                <b-tab title="Errors" class="row" v-if="stepResult.log.stderr">
+                                <b-tab title="Errors" class="row" v-if="stepResult.log.steps[i].stderr">
                                     <div class="col-12">
                                         <label>Errors</label>
-                                        <pre class="form-control">{{ stepResult.log.stderr }}</pre>
+                                        <pre class="form-control">{{ stepResult.log.steps[i].stderr }}</pre>
                                     </div>
                                 </b-tab>
                             </b-tabs>
@@ -560,18 +560,6 @@ export default {
             return getProps(this, null, 'result', 'stepResults', this.value.id);
         },
 
-        stateIcon() {
-            return this.getStateIcon(this.stepResult.state);
-        },
-
-        statePopover() {
-            return this.getStatePopover(this.stepResult.state);
-        },
-
-        stateVariant() {
-            return this.getStateVariant(this.stepResult.state);
-        },
-
         canViewOutput() {
             const state = getProps(this, '', 'stepResult', 'state');
             // TODO: Check can_view_autotest_output permission
@@ -655,43 +643,6 @@ export default {
                     weight,
                 }),
             );
-        },
-
-        getStateIcon(state) {
-            switch (state) {
-                case 'passed':
-                    return 'check';
-                case 'failed':
-                    return 'times';
-                case 'skipped':
-                    return 'ban';
-                default:
-                    return 'clock-o';
-            }
-        },
-
-        getStateClass(state) {
-            switch (state) {
-                case 'passed':
-                    return 'success';
-                case 'failed':
-                    return 'danger';
-                default:
-                    return 'default';
-            }
-        },
-
-        getStatePopover(state) {
-            switch (state) {
-                case 'passed':
-                    return 'Passed!';
-                case 'failed':
-                    return 'Failed';
-                case 'skipped':
-                    return 'Skipped';
-                default:
-                    return 'Not finished';
-            }
         },
     },
 
