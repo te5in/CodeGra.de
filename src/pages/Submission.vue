@@ -180,7 +180,9 @@
                        :editable="canGiveLineFeedback"
                        @new-lang="languageChanged"
                        :language="selectedLanguage"
-                       :can-use-snippets="canUseSnippets"/>
+                       :can-use-snippets="canUseSnippets"
+                       :auto-test-config="autoTestConfig"
+                       :auto-test-result="autoTestResult"/>
         </div>
         <div class="file-tree-container " v-if="!overviewMode"
              slot="secondPane">
@@ -264,6 +266,8 @@ export default {
             gradeHistory: true,
             editable: false,
             canUseSnippets: false,
+            autoTestConfig: null,
+            autoTestResult: null,
         };
     },
 
@@ -474,8 +478,8 @@ export default {
         },
     },
 
-    mounted() {
-        Promise.all([
+    async mounted() {
+        await Promise.all([
             this.$hasPermission(
                 [
                     'can_grade_work',
@@ -519,10 +523,12 @@ export default {
                     this.canSeeRevision = editOthersWork;
                 }
 
-                this.loadingPage = false;
-                this.loadingInner = false;
+                return this.getAutoTest();
             },
         );
+
+        this.loadingPage = false;
+        this.loadingInner = false;
     },
 
     methods: {
@@ -584,7 +590,10 @@ export default {
         },
 
         getSubmissionData() {
-            return Promise.all([this.getFileTrees(), this.getRubric()]);
+            return Promise.all([
+                this.getFileTrees(),
+                this.getRubric(),
+            ]);
         },
 
         getFileTrees() {
@@ -705,6 +714,42 @@ export default {
                 .get(`/api/v1/submissions/${this.submissionId}/rubrics/`)
                 .then(({ data: rubric }) => {
                     this.rubric = rubric;
+                }, () => null);
+        },
+
+        getAutoTest() {
+            // FIXME: Remove "&& false"
+            if ((!UserConfig.features.auto_test || this.assignment.auto_test_id == null) && false) {
+                return Promise.resolve(null);
+            }
+
+            return this.$http
+                .get(`/api/v1/auto_tests/${this.assignment.auto_test_id}`)
+                .then(({ data: test }) => {
+                    // FIXME: Uncomment
+                    // if (test.runs.length === 0) {
+                    //     return;
+                    // }
+
+                    // const result = test.runs[0].results.find(
+                    //     r => r.work.id === this.submission.id,
+                    // );
+
+                    // if (result != null) {
+                    // this.autoTestResult = result;
+                    this.autoTestResult = {
+                        id: 1,
+                        work: {
+                            id: 27,
+                            user: { name: 'Thomas Schaper', id: 1 },
+                        },
+                        points_achieved: '-',
+                        state: 'not_started',
+                        setup_stdout: 'stdout!!!',
+                        setup_stderr: 'stderr!!!',
+                    };
+                    this.autoTestConfig = test;
+                    // }
                 }, () => null);
         },
 

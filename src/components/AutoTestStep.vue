@@ -353,7 +353,6 @@
                 <td class="summary">{{ input.name }}</td>
                 <td class="weight">{{ input.weight }}</td>
                 <td class="passed" v-if="result">
-                    <!-- TODO: Use state of the sub-step. -->
                     <auto-test-step-state :state="stepResult.log ? stepResult.log.steps[i].state : 'skipped'" />
                 </td>
             </tr>
