@@ -336,7 +336,7 @@
             <td class="index"><b>{{ index }}</b></td>
             <td class="summary">
                 <b>{{ stepName }}</b>
-                Run <code>{{ value.data.program }}</code> and match it output to an expected value.
+                Run <code>{{ value.data.program }}</code> and match its output to an expected value.
             </td>
             <td class="weight"><b>{{ value.weight }}</b></td>
             <td class="passed" v-if="result"></td>
@@ -354,7 +354,7 @@
                 <td class="weight">{{ input.weight }}</td>
                 <td class="passed" v-if="result">
                     <!-- TODO: Use state of the sub-step. -->
-                    <auto-test-step-state :state="stepResult.log.steps[i].state" />
+                    <auto-test-step-state :state="stepResult.log ? stepResult.log.steps[i].state : 'skipped'" />
                 </td>
             </tr>
 
@@ -561,9 +561,18 @@ export default {
         },
 
         canViewOutput() {
-            const state = getProps(this, '', 'stepResult', 'state');
+            if (!this.stepResult) {
+                return false;
+            }
+
+            const { state, log } = this.stepResult;
+
             // TODO: Check can_view_autotest_output permission
-            return (state === 'passed' || state === 'failed') && !this.value.hidden;
+            return (
+                (state === 'passed' || state === 'failed') &&
+                log != null &&
+                !this.value.hidden
+            );
         },
     },
 

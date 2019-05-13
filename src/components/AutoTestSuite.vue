@@ -199,6 +199,11 @@ export default {
             type: Object,
             default: null,
         },
+
+        achievedPoints: {
+            type: Number,
+            default: 0,
+        },
     },
 
     data() {
@@ -243,18 +248,8 @@ export default {
         },
 
         pointsPossible() {
+            console.log(this.value.steps);
             return this.value.steps.reduce((acc, step) => acc + (step.weight || 0), 0);
-        },
-
-        achievedPoints() {
-            if (!this.result) {
-                return 0;
-            }
-
-            const stepResults = this.result.stepResults;
-            return this.value.steps
-                .map(step => (stepResults[step.id].state === 'passed' ? step.weight : 0))
-                .reduce((x, y) => x + y, 0);
         },
     },
 

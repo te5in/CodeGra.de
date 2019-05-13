@@ -292,12 +292,12 @@
                             </b-card-header>
                             <b-card-body>
                                 <span class="text-muted"
-                                        v-if="set.suites.filter(s => !s.isEmpty() && !s.deleted).length === 0">
+                                      v-if="set.suites.filter(s => !s.isEmpty() && !s.deleted).length === 0">
                                     You have no suites yet. Click the button below to create one.
                                 </span>
                                 <masonry :cols="{default: 2, [$root.largeWidth]: 1 }"
-                                            :gutter="30"
-                                            class="outer-block">
+                                         :gutter="30"
+                                         class="outer-block">
                                     <auto-test-suite v-for="suite, j in set.suites"
                                                      v-if="!suite.deleted"
                                                      :editable="configEditable"
@@ -307,7 +307,8 @@
                                                      :other-suites="allNonDeletedSuites"
                                                      @delete="$set(suite, 'deleted', true)"
                                                      v-model="set.suites[j]"
-                                                     :result="result"/>
+                                                     :result="result"
+                                                     :achieved-points="suitePoints[suite.id]"/>
                                 </masonry>
                                 <div v-if="configEditable"
                                      class="btn-wrapper"
@@ -356,9 +357,9 @@
                 <div v-if="configEditable"
                      class="add-btn-wrapper transition">
                     <submit-button :submit="addSet"
-                                    @success="afterAddSet"
-                                    label="Add set"
-                                    class="transition"/>
+                                   @success="afterAddSet"
+                                   label="Add set"
+                                   class="transition"/>
             </div>
 
             <div slot="footer">
@@ -596,6 +597,9 @@ export default {
             uploadedFixturesId: `auto-test-base-fixtures-${id}`,
             preStartScriptId: `auto-test-base-pre-start-script-${id}`,
             autoTestSetupEnvWrapperId: `auto-test-setup-env-${id}`,
+
+            setPoints: {},
+            suitePoints: {},
         };
     },
 
@@ -608,352 +612,6 @@ export default {
             handler() {
                 if (this.assignment.auto_test_id == null) {
                     this.test = null;
-
-                    this.test = {
-                        assignment_id: 3,
-                        base_systems: [
-                            {
-                                group: 'python',
-                                id: 2,
-                                name: 'Python 3.6',
-                            },
-                        ],
-                        finalize_script: '',
-                        fixtures: [
-                            {
-                                hidden: true,
-                                id: 1,
-                                name: 'Programmeertalen-Go (1).csv',
-                            },
-                            {
-                                hidden: false,
-                                id: 3,
-                                name: 'Programmeertalen-Python (1).csv',
-                            },
-                            {
-                                hidden: true,
-                                id: 4,
-                                name: 'Programmeertalen-Python (2).csv',
-                            },
-                            {
-                                hidden: false,
-                                id: 2,
-                                name: 'Programmeertalen-Python.csv',
-                            },
-                        ],
-                        id: 1,
-                        sets: [
-                            {
-                                id: 1,
-                                stop_points: 3,
-                                suites: [
-                                    {
-                                        autoTestSetId: 1,
-                                        autoTestId: 1,
-                                        id: 1,
-                                        steps: [
-                                            {
-                                                data: {
-                                                    inputs: [
-                                                        {
-                                                            args: 'abc',
-                                                            id: 4,
-                                                            name: 'abc',
-                                                            options: [],
-                                                            output: 'cba',
-                                                            stdin: 'abc',
-                                                            weight: 1,
-                                                        },
-                                                        {
-                                                            args: 'def',
-                                                            name: 'def',
-                                                            options: [],
-                                                            output: 'fed',
-                                                            stdin: 'def',
-                                                            weight: 1,
-                                                        },
-                                                    ],
-                                                    program: 'abc',
-                                                },
-                                                hidden: true,
-                                                id: 1,
-                                                name: 'test 1',
-                                                type: 'io_test',
-                                                weight: 2,
-                                            },
-                                            {
-                                                data: {
-                                                    inputs: [
-                                                        {
-                                                            args: 'abc',
-                                                            id: 18,
-                                                            name: 'xyz 1',
-                                                            options: [
-                                                                'regex',
-                                                                'case',
-                                                                'substring',
-                                                            ],
-                                                            output: 'ABC',
-                                                            stdin: 'abc',
-                                                            weight: 1,
-                                                        },
-                                                        {
-                                                            args: 'def',
-                                                            name: 'xyz 2',
-                                                            options: [],
-                                                            output: 'DEF',
-                                                            stdin: 'def',
-                                                            weight: 1,
-                                                        },
-                                                    ],
-                                                    program: 'xyz',
-                                                },
-                                                hidden: false,
-                                                id: 3,
-                                                name: 'test 2',
-                                                type: 'io_test',
-                                                weight: 2,
-                                            },
-                                        ],
-                                        rubricRow: {
-                                            description: 'The style of the code is conform to the styleguide.',
-                                            header: 'Style',
-                                            id: 1,
-                                            items: [
-                                                {
-                                                    description: 'You have no style.You have no style.You have no style.You have no style.You have no style.',
-                                                    header: 'Novice',
-                                                    id: 3,
-                                                    points: 1,
-                                                },
-                                                {
-                                                    description: 'You don\'t know how to use some tools.You don\'t know how to use some tools.You don\'t know how to use some tools.You don\'t know how to use some tools.You don\'t know how to use some tools.',
-                                                    header: 'Competent',
-                                                    id: 2,
-                                                    points: 2,
-                                                },
-                                                {
-                                                    description: 'You know how to use some tools.You know how to use some tools.You know how to use some tools.You know how to use some tools.You know how to use some tools.',
-                                                    header: 'Expert',
-                                                    id: 1,
-                                                    points: 3,
-                                                },
-                                            ],
-                                        },
-                                    },
-                                    {
-                                        autoTestSetId: 1,
-                                        autoTestId: 1,
-                                        id: 2,
-                                        steps: [
-                                            {
-                                                data: {
-                                                    program: 'prog --test',
-                                                },
-                                                hidden: false,
-                                                id: 2,
-                                                name: 'test_run',
-                                                type: 'run_program',
-                                                weight: 1,
-                                            },
-                                            {
-                                                data: {
-                                                    program: 'valgrind ./test_run',
-                                                },
-                                                hidden: true,
-                                                id: 4,
-                                                name: 'valgrind',
-                                                type: 'run_program',
-                                                weight: 1,
-                                            },
-                                            {
-                                                data: {
-                                                    min_points: 0,
-                                                    program: './check_points',
-                                                },
-                                                hidden: false,
-                                                id: 5,
-                                                name: 'Check POINTS!!!',
-                                                type: 'check_points',
-                                                weight: 8,
-                                            },
-                                            {
-                                                data: {
-                                                    program: './test_run',
-                                                    regex: '(\\d+\\.?\\d*|\\.\\d+) points$',
-                                                },
-                                                hidden: false,
-                                                id: 6,
-                                                name: 'get points',
-                                                type: 'custom_output',
-                                                weight: 1,
-                                            },
-                                            {
-                                                data: {
-                                                    program: 'ABCDTERING!!!',
-                                                    regex: '(\\d+\\.?\\d*|\\.\\d+)',
-                                                },
-                                                hidden: false,
-                                                id: 7,
-                                                name: 'krijg de tering!!!',
-                                                type: 'custom_output',
-                                                weight: 1,
-                                            },
-                                        ],
-                                        rubricRow: {
-                                            description: 'The code is strutured well and logical design choices were made.',
-                                            header: 'Code structure',
-                                            id: 3,
-                                            items: [
-                                                {
-                                                    description: 'You don\'t know to use enter or space.You don\'t know to use enter or space.You don\'t know to use enter or space.You don\'t know to use enter or space.You don\'t know to use enter or space.',
-                                                    header: 'Novice',
-                                                    id: 9,
-                                                    points: 1,
-                                                },
-                                                {
-                                                    description: 'You know to use enter but not space.You know to use enter but not space.You know to use enter but not space.You know to use enter but not space.You know to use enter but not space.',
-                                                    header: 'Competent',
-                                                    id: 8,
-                                                    points: 2.5,
-                                                },
-                                                {
-                                                    description: 'You know to use enter and space.You know to use enter and space.You know to use enter and space.You know to use enter and space.You know to use enter and space.',
-                                                    header: 'Expert',
-                                                    id: 7,
-                                                    points: 4,
-                                                },
-                                            ],
-                                        },
-                                    },
-                                ],
-                            },
-                            {
-                                id: 2,
-                                stop_points: 0,
-                                suites: [
-                                    {
-                                        autoTestSetId: 2,
-                                        autoTestId: 1,
-                                        id: 3,
-                                        steps: [
-                                            {
-                                                data: {
-                                                    inputs: [
-                                                        {
-                                                            args: '-a -b 1',
-                                                            id: 13,
-                                                            name: '-a -b 1',
-                                                            options: [
-                                                                'trailing_whitespace',
-                                                                'substring',
-                                                            ],
-                                                            output: 'PYTHON IS KUT!!!',
-                                                            stdin: 'PYTHON IS KUT',
-                                                            weight: 1,
-                                                        },
-                                                    ],
-                                                    program: 'kut-python-script.c',
-                                                },
-                                                hidden: false,
-                                                id: 8,
-                                                name: 'Python is kut!',
-                                                type: 'io_test',
-                                                weight: 1,
-                                            },
-                                        ],
-                                        rubricRow: {
-                                            description: 'The documentation of the code is well written and complete.',
-                                            header: 'Documentation',
-                                            id: 2,
-                                            items: [
-                                                {
-                                                    description: 'You typed a lot of wrong things.You typed a lot of wrong things.You typed a lot of wrong things.You typed a lot of wrong things.You typed a lot of wrong things.',
-                                                    header: 'Novice',
-                                                    id: 6,
-                                                    points: 1,
-                                                },
-                                                {
-                                                    description: 'You typed a lot of things, some wrong.You typed a lot of things, some wrong.You typed a lot of things, some wrong.You typed a lot of things, some wrong.You typed a lot of things, some wrong.',
-                                                    header: 'Competent',
-                                                    id: 5,
-                                                    points: 1.5,
-                                                },
-                                                {
-                                                    description: 'You typed a lot of things.You typed a lot of things.You typed a lot of things.You typed a lot of things.You typed a lot of things.',
-                                                    header: 'Expert',
-                                                    id: 4,
-                                                    points: 2,
-                                                },
-                                            ],
-                                        },
-                                    },
-                                ],
-                            },
-                        ],
-                        setup_script: 'setup.py',
-                    };
-
-                    this.test.sets = this.test.sets.map(set => ({
-                        ...set,
-                        suites: set.suites.map(
-                            suite => new AutoTestSuiteData(this.$http, this.test.id, set.id, suite),
-                        ),
-                    }));
-
-                    this.test.runs = [
-                        {
-                            id: 1,
-                            results: [
-                                {
-                                    id: 1,
-                                    work: {
-                                        id: 1,
-                                        user: { name: 'Thomas Schaper', id: 1 },
-                                    },
-                                    points_achieved: '-',
-                                    state: 'not_started',
-                                    setup_stdout: 'stdout!!!',
-                                    setup_stderr: 'stderr!!!',
-                                },
-                                {
-                                    id: 2,
-                                    work: {
-                                        id: 2,
-                                        user: { name: 'Olmo Kramer', id: 2 },
-                                        grade_overridden: true,
-                                    },
-                                    points_achieved: '12 / 13',
-                                    state: 'passed',
-                                    setup_stdout: 'stdout!!!',
-                                    setup_stderr: 'stderr!!!',
-                                },
-                                {
-                                    id: 3,
-                                    work: {
-                                        id: 3,
-                                        user: { name: 'Student 2', id: 3 },
-                                    },
-                                    points_achieved: '0 / 13',
-                                    state: 'failed',
-                                    setup_stdout: 'stdout!!!',
-                                    setup_stderr: 'stderr!!!',
-                                },
-                                {
-                                    id: 4,
-                                    work: {
-                                        id: 4,
-                                        user: { name: 'Olmo Kramer', id: 4 },
-                                    },
-                                    points_achieved: '-',
-                                    state: 'running',
-                                    setup_stdout: 'stdout!!!',
-                                    setup_stderr: 'stderr!!!',
-                                },
-                            ],
-                        },
-                    ];
-
                     this.loading = false;
                     return;
                 }
@@ -1004,6 +662,345 @@ export default {
                         this.setResult(result);
                     },
                     () => {
+                        this.test = {
+                            assignment_id: 3,
+                            base_systems: [
+                                {
+                                    group: 'python',
+                                    id: 2,
+                                    name: 'Python 3.6',
+                                },
+                            ],
+                            finalize_script: '',
+                            fixtures: [
+                                {
+                                    hidden: true,
+                                    id: 1,
+                                    name: 'Programmeertalen-Go (1).csv',
+                                },
+                                {
+                                    hidden: false,
+                                    id: 3,
+                                    name: 'Programmeertalen-Python (1).csv',
+                                },
+                                {
+                                    hidden: true,
+                                    id: 4,
+                                    name: 'Programmeertalen-Python (2).csv',
+                                },
+                                {
+                                    hidden: false,
+                                    id: 2,
+                                    name: 'Programmeertalen-Python.csv',
+                                },
+                            ],
+                            id: 1,
+                            sets: [
+                                {
+                                    id: 1,
+                                    stop_points: 3,
+                                    suites: [
+                                        {
+                                            autoTestSetId: 1,
+                                            autoTestId: 1,
+                                            id: 1,
+                                            steps: [
+                                                {
+                                                    data: {
+                                                        inputs: [
+                                                            {
+                                                                args: 'abc',
+                                                                id: 4,
+                                                                name: 'Sort 1',
+                                                                options: [],
+                                                                output: 'cba',
+                                                                stdin: 'abc',
+                                                                weight: 1,
+                                                            },
+                                                            {
+                                                                args: 'def',
+                                                                name: 'Sort 2',
+                                                                options: [],
+                                                                output: 'fed',
+                                                                stdin: 'def',
+                                                                weight: 1,
+                                                            },
+                                                        ],
+                                                        program: 'abc',
+                                                    },
+                                                    hidden: true,
+                                                    id: 1,
+                                                    name: 'Simple test',
+                                                    type: 'io_test',
+                                                    weight: 2,
+                                                },
+                                                {
+                                                    data: {
+                                                        inputs: [
+                                                            {
+                                                                args: 'abc',
+                                                                id: 18,
+                                                                name: 'Sort 3',
+                                                                options: [
+                                                                    'regex',
+                                                                    'case',
+                                                                    'substring',
+                                                                ],
+                                                                output: 'ABC',
+                                                                stdin: 'abc',
+                                                                weight: 1,
+                                                            },
+                                                            {
+                                                                args: 'def',
+                                                                name: 'Sort 4',
+                                                                options: [],
+                                                                output: 'DEF',
+                                                                stdin: 'def',
+                                                                weight: 1,
+                                                            },
+                                                        ],
+                                                        program: 'xyz',
+                                                    },
+                                                    hidden: false,
+                                                    id: 3,
+                                                    name: 'Advanced test',
+                                                    type: 'io_test',
+                                                    weight: 2,
+                                                },
+                                            ],
+                                            rubricRow: {
+                                                description: 'The style of the code is conform to the styleguide.',
+                                                header: 'Style',
+                                                id: 1,
+                                                items: [
+                                                    {
+                                                        description: 'You have no style.You have no style.You have no style.You have no style.You have no style.',
+                                                        header: 'Novice',
+                                                        id: 3,
+                                                        points: 1,
+                                                    },
+                                                    {
+                                                        description: 'You don\'t know how to use some tools.You don\'t know how to use some tools.You don\'t know how to use some tools.You don\'t know how to use some tools.You don\'t know how to use some tools.',
+                                                        header: 'Competent',
+                                                        id: 2,
+                                                        points: 2,
+                                                    },
+                                                    {
+                                                        description: 'You know how to use some tools.You know how to use some tools.You know how to use some tools.You know how to use some tools.You know how to use some tools.',
+                                                        header: 'Expert',
+                                                        id: 1,
+                                                        points: 3,
+                                                    },
+                                                ],
+                                            },
+                                        },
+                                        {
+                                            autoTestSetId: 1,
+                                            autoTestId: 1,
+                                            id: 2,
+                                            steps: [
+                                                {
+                                                    data: {
+                                                        program: './test_run',
+                                                    },
+                                                    hidden: false,
+                                                    id: 2,
+                                                    name: 'Test run',
+                                                    type: 'run_program',
+                                                    weight: 1,
+                                                },
+                                                {
+                                                    data: {
+                                                        program: 'valgrind ./test_run',
+                                                    },
+                                                    hidden: true,
+                                                    id: 4,
+                                                    name: 'Valgrind',
+                                                    type: 'run_program',
+                                                    weight: 1,
+                                                },
+                                                {
+                                                    data: {
+                                                        min_points: 4,
+                                                        program: 'check_points ./test_run',
+                                                    },
+                                                    hidden: false,
+                                                    id: 5,
+                                                    name: 'Check points',
+                                                    type: 'check_points',
+                                                    weight: 0,
+                                                },
+                                                {
+                                                    data: {
+                                                        program: 'get_points ./test_run',
+                                                        regex: '(\\d+\\.?\\d*|\\.\\d+) points$',
+                                                    },
+                                                    hidden: false,
+                                                    id: 6,
+                                                    name: 'Get points',
+                                                    type: 'custom_output',
+                                                    weight: 1,
+                                                },
+                                            ],
+                                            rubricRow: {
+                                                description: 'The code is strutured well and logical design choices were made.',
+                                                header: 'Code structure',
+                                                id: 3,
+                                                items: [
+                                                    {
+                                                        description: 'You don\'t know to use enter or space.You don\'t know to use enter or space.You don\'t know to use enter or space.You don\'t know to use enter or space.You don\'t know to use enter or space.',
+                                                        header: 'Novice',
+                                                        id: 9,
+                                                        points: 1,
+                                                    },
+                                                    {
+                                                        description: 'You know to use enter but not space.You know to use enter but not space.You know to use enter but not space.You know to use enter but not space.You know to use enter but not space.',
+                                                        header: 'Competent',
+                                                        id: 8,
+                                                        points: 2.5,
+                                                    },
+                                                    {
+                                                        description: 'You know to use enter and space.You know to use enter and space.You know to use enter and space.You know to use enter and space.You know to use enter and space.',
+                                                        header: 'Expert',
+                                                        id: 7,
+                                                        points: 4,
+                                                    },
+                                                ],
+                                            },
+                                        },
+                                    ],
+                                },
+                                {
+                                    id: 2,
+                                    stop_points: 0,
+                                    suites: [
+                                        {
+                                            autoTestSetId: 2,
+                                            autoTestId: 1,
+                                            id: 3,
+                                            steps: [
+                                                {
+                                                    data: {
+                                                        inputs: [
+                                                            {
+                                                                args: '-a -b 1',
+                                                                id: 13,
+                                                                name: '-a -b 1',
+                                                                options: [
+                                                                    'trailing_whitespace',
+                                                                    'substring',
+                                                                ],
+                                                                output: 'Python script',
+                                                                stdin: 'Input input',
+                                                                weight: 1,
+                                                            },
+                                                        ],
+                                                        program: 'python python_runner.py',
+                                                    },
+                                                    hidden: false,
+                                                    id: 8,
+                                                    name: 'Python runner',
+                                                    type: 'io_test',
+                                                    weight: 1,
+                                                },
+                                            ],
+                                            rubricRow: {
+                                                description: 'The documentation of the code is well written and complete.',
+                                                header: 'Documentation',
+                                                id: 2,
+                                                items: [
+                                                    {
+                                                        description: 'You typed a lot of wrong things.You typed a lot of wrong things.You typed a lot of wrong things.You typed a lot of wrong things.You typed a lot of wrong things.',
+                                                        header: 'Novice',
+                                                        id: 6,
+                                                        points: 1,
+                                                    },
+                                                    {
+                                                        description: 'You typed a lot of things, some wrong.You typed a lot of things, some wrong.You typed a lot of things, some wrong.You typed a lot of things, some wrong.You typed a lot of things, some wrong.',
+                                                        header: 'Competent',
+                                                        id: 5,
+                                                        points: 1.5,
+                                                    },
+                                                    {
+                                                        description: 'You typed a lot of things.You typed a lot of things.You typed a lot of things.You typed a lot of things.You typed a lot of things.',
+                                                        header: 'Expert',
+                                                        id: 4,
+                                                        points: 2,
+                                                    },
+                                                ],
+                                            },
+                                        },
+                                    ],
+                                },
+                            ],
+                            setup_script: 'setup.py',
+                        };
+
+                        this.test.sets = this.test.sets.map(set => ({
+                            ...set,
+                            suites: set.suites.map(
+                                suite => new AutoTestSuiteData(
+                                    this.$http,
+                                    this.test.id,
+                                    set.id,
+                                    suite,
+                                ),
+                            ),
+                        }));
+
+                        this.test.runs = [
+                            {
+                                id: 1,
+                                results: [
+                                    {
+                                        id: 1,
+                                        work: {
+                                            id: 1,
+                                            user: { name: 'Thomas Schaper', id: 1 },
+                                        },
+                                        points_achieved: '-',
+                                        state: 'not_started',
+                                        setup_stdout: 'stdout!!!',
+                                        setup_stderr: 'stderr!!!',
+                                    },
+                                    {
+                                        id: 2,
+                                        work: {
+                                            id: 2,
+                                            user: { name: 'Olmo Kramer', id: 2 },
+                                            grade_overridden: true,
+                                        },
+                                        points_achieved: '12 / 13',
+                                        state: 'passed',
+                                        setup_stdout: 'stdout!!!',
+                                        setup_stderr: 'stderr!!!',
+                                    },
+                                    {
+                                        id: 3,
+                                        work: {
+                                            id: 3,
+                                            user: { name: 'Student 2', id: 3 },
+                                        },
+                                        points_achieved: '0 / 13',
+                                        state: 'failed',
+                                        setup_stdout: 'stdout!!!',
+                                        setup_stderr: 'stderr!!!',
+                                    },
+                                    {
+                                        id: 4,
+                                        work: {
+                                            id: 4,
+                                            user: { name: 'Olmo Kramer', id: 4 },
+                                        },
+                                        points_achieved: '-',
+                                        state: 'running',
+                                        setup_stdout: 'stdout!!!',
+                                        setup_stderr: 'stderr!!!',
+                                    },
+                                ],
+                            },
+                        ];
+
                         this.setResult({
                             step_results: [
                                 {
@@ -1026,7 +1023,7 @@ export default {
                                 },
                                 {
                                     auto_test_step: this.testSteps[3],
-                                    state: 'failed',
+                                    state: 'passed',
                                     log: {
                                         steps: [
                                             {
@@ -1165,16 +1162,47 @@ export default {
             });
         },
 
+        pointsForSuite(suite) {
+            if (this.suitePoints[suite.id] == null) {
+                this.suitePoints[suite.id] = suite.steps.reduce(
+                    (acc, step) => {
+                        const stepResult = getProps(this, '', 'result', 'stepResults', step.id);
+
+                        if (stepResult.state !== 'passed') {
+                            return acc;
+                        }
+
+                        if (step.type === 'io_test') {
+                            return acc + step.data.inputs.reduce(
+                                (acc2, input, i) => {
+                                    if (stepResult.log.steps[i].state === 'passed') {
+                                        return acc2 + input.weight;
+                                    } else {
+                                        return acc2;
+                                    }
+                                },
+                                0,
+                            );
+                        } else {
+                            return acc + step.weight;
+                        }
+                    },
+                    0,
+                );
+            }
+
+            return this.suitePoints[suite.id];
+        },
+
         pointsForSet(set) {
-            return set.suites
-                .reduce((steps, suite) => steps.concat(suite.steps), [])
-                .map(
-                    step =>
-                        (getProps(this, '', 'result', 'stepResults', step.id, 'state') === 'passed'
-                            ? step.weight
-                            : 0),
-                )
-                .reduce((acc, p) => acc + p, 0);
+            if (this.setPoints[set.id] == null) {
+                this.setPoints[set.id] = set.suites.reduce(
+                    (acc, suite) => acc + this.pointsForSuite(suite),
+                    0,
+                );
+            }
+
+            return this.setPoints[set.id];
         },
 
         isSetPassed(set) {
