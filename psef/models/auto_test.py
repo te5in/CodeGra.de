@@ -271,17 +271,21 @@ class AutoTestResult(Base, TimestampMixin, IdMixin):
         innerjoin=True,
     )
 
-    setup_stdout: str = orm.deferred(db.Column(
-        'setup_stdout',
-        db.Unicode,
-        default=None,
-    ))
+    setup_stdout: str = orm.deferred(
+        db.Column(
+            'setup_stdout',
+            db.Unicode,
+            default=None,
+        )
+    )
 
-    setup_stderr: str = orm.deferred(db.Column(
-        'setup_stderr',
-        db.Unicode,
-        default=None,
-    ))
+    setup_stderr: str = orm.deferred(
+        db.Column(
+            'setup_stderr',
+            db.Unicode,
+            default=None,
+        )
+    )
 
     step_results = db.relationship(
         'AutoTestStepResult',

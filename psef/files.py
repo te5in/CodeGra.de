@@ -91,6 +91,7 @@ def init_app(_: t.Any) -> None:
 def get_file_size(f: str) -> archive.FileSize:
     return archive.FileSize(max(1, os.path.getsize(f)))
 
+
 class FileLike(Protocol):
     @property
     def name(self) -> str:
@@ -99,6 +100,7 @@ class FileLike(Protocol):
     @name.setter
     def name(self, new_val: str) -> None:
         ...
+
 
 def fix_duplicate_filenames(files: t.Sequence[FileLike]) -> None:
     file_occurrence_lookup: t.Dict[str, t.Dict[str, int]] = defaultdict(

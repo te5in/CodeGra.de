@@ -116,7 +116,6 @@ def limiter_key_func() -> None:  # pragma: no cover
 
 limiter = Limiter(key_func=limiter_key_func)  # pylint: disable=invalid-name
 
-
 _current_tester = None
 current_tester = LocalProxy(lambda: _current_tester)
 

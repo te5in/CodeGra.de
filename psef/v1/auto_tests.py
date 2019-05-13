@@ -302,7 +302,10 @@ def delete_suite(test_id: int, set_id: int, suite_id: int) -> EmptyResponse:
 
 @api.route('/auto_tests/<int:auto_test_id>', methods=['GET'])
 def get_auto_test(auto_test_id: int) -> JSONResponse[models.AutoTest]:
-    return extended_jsonify(get_or_404(models.AutoTest, auto_test_id), use_extended=models.AutoTestRun)
+    return extended_jsonify(
+        get_or_404(models.AutoTest, auto_test_id),
+        use_extended=models.AutoTestRun
+    )
 
 
 @api.route('/auto_tests/<int:auto_test_id>/runs/<int:run_id>', methods=['GET'])

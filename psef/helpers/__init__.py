@@ -449,6 +449,7 @@ def coerce_json_value_to_typeddict(
     ensure_keys_in_dict(mapping, annots)
     return t.cast(T_TypedDict, mapping)
 
+
 def ensure_on_test_server() -> None:
     assert not flask.has_app_context()
     assert not flask.has_request_context()

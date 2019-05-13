@@ -26,6 +26,7 @@ def _ensure_program(program: str) -> None:
             APICodes.INVALID_PARAM, 400
         )
 
+
 class TestStep(abc.ABC):
     def __init__(self, data: JSONType) -> None:
         self.data = data
@@ -149,8 +150,7 @@ class CustomOutput(TestStep):
             elif d['err']:
                 raise APIException(
                     'Compiling the regex failed: {}'.format(d['msg']),
-                    'Compiling was not successful',
-                    APICodes.INVALID_PARAM, 400
+                    'Compiling was not successful', APICodes.INVALID_PARAM, 400
                 )
 
 
