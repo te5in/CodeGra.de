@@ -86,15 +86,16 @@
                     :submit="cancelEdit"/>
                 <submit-button :submit="saveSuite"
                                label="Save">
-                    <div slot="error" v-if="caseErrors != null"
+                    <div slot="error"
+                         slot-scope="scope"
                          class="custom-error-popover">
-                        <template v-for="err in caseErrors.general">
+                        <template v-for="err in scope.error.messages.general">
                             {{ err }}
                         </template>
-                        <template v-if="caseErrors.steps.length > 0">
+                        <template v-if="scope.error.messages.steps.length > 0">
                             Some steps are not valid:
                             <ul>
-                                <li v-for="[step, errs], i in caseErrors.steps"
+                                <li v-for="[step, errs], i in scope.error.messages.steps"
                                     :key="step.id"
                                     v-if="errs.length > 0">
                                     {{ withOrdinalSuffix(i + 1) }} step<span v-if="step.name">
@@ -124,7 +125,7 @@
                 <icon name="pencil"/>
             </div>
 
-            <div v-else>
+            <div v-else-if="result">
                 {{ pointPercentage }} %
             </div>
         </div>
@@ -199,11 +200,6 @@ export default {
             type: Object,
             default: null,
         },
-
-        points: {
-            type: Number,
-            default: 0,
-        },
     },
 
     data() {
@@ -213,7 +209,6 @@ export default {
             showModal: false,
             internalValue: null,
             slickItemMoving: false,
-            caseErrors: null,
             withOrdinalSuffix,
         };
     },
@@ -253,8 +248,6 @@ export default {
     },
 
     methods: {
-        noop() {},
-
         createTestStep(type) {
             const res = {
                 name: '',
@@ -305,23 +298,18 @@ export default {
         },
 
         saveSuite() {
-            this.caseErrors = this.internalValue.getErrors();
-            if (this.caseErrors) {
-                throw new Error('The suite is not valid');
-            } else {
-                return this.internalValue.save().then(() => {
-                    this.$refs.editModal.hide();
-                    this.$emit('input', this.internalValue);
-                    this.internalValue = null;
-                });
-            }
+            return this.internalValue.save().then(() => {
+                this.$refs.editModal.hide();
+                this.$emit('input', this.internalValue);
+                this.internalValue = null;
+            });
         },
 
         cancelEdit() {
             const modal = this.$refs.editModal;
             if (modal) {
                 modal.hide();
-                this.$emit('save-canceled');
+                this.$emit('save-cancelled');
             }
         },
     },
@@ -385,6 +373,7 @@ export default {
 
 .custom-error-popover {
     text-align: left;
+
     ul {
         padding-left: 1rem;
         margin-bottom: 0;

@@ -582,7 +582,6 @@ export default {
         if (this.editable && this.$refs.nameInput && !this.value.name) {
             this.$refs.nameInput.focus();
         }
-        console.log(this);
     },
 
     methods: {

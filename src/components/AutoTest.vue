@@ -11,7 +11,6 @@
                         class="btn-wrapper">
                     <submit-button
                         :submit="() => deleteResults(run.id)"
-                        @after-success="afterDeleteResults"
                         variant="danger"
                         confirm="Are you sure you want to delete the results?"
                         label="Delete"/>
@@ -117,7 +116,7 @@
                                         :close-on-select="false"
                                         :id="baseSystemId"
                                         class="base-system-selector"
-                                        v-model="test.base_systems"
+                                        v-model="internalTest.base_systems"
                                         :options="baseSystems"
                                         :searchable="true"
                                         :custom-label="a => a.name"
@@ -133,7 +132,7 @@
                                         </span>
                                     </multiselect>
                                     <b-input-group-append>
-                                        <submit-button :submit="submitBaseSystems" />
+                                        <submit-button :submit="() => submitProp('base_systems')" />
                                     </b-input-group-append>
                                 </b-input-group>
                                 <div v-else class="multiselect">
@@ -178,8 +177,7 @@
                                                                 variant="danger"
                                                                 confirm="Are you sure you want to delete this fixture?"
                                                                 size="sm"
-                                                                :submit="() => removeFixture(index)"
-                                                                @success="removeFixtureSuccess">
+                                                                :submit="() => removeFixture(index)">
                                                                 <icon name="times"/>
                                                             </submit-button>
                                                         </b-button-group>
@@ -236,9 +234,11 @@
                                         <input class="form-control"
                                                 @keydown.ctrl.enter="$refs.setupScriptBtn.onClick"
                                                 :id="preStartScriptId"
-                                                v-model="test.setup_script"/>
+                                                v-model="internalTest.setup_script"/>
                                         <b-input-group-append>
-                                            <submit-button :submit="submitSetupScript" ref="setupScriptBtn"/>
+                                            <submit-button
+                                                :submit="() => submitProp('setup_script')"
+                                                ref="setupScriptBtn"/>
                                         </b-input-group-append>
                                     </b-input-group>
                                 </template>
@@ -282,8 +282,7 @@
                                 Test set
                                 <div class="btn-wrapper" v-if="configEditable">
                                     <submit-button
-                                        :submit="() => deleteSet(i)"
-                                        @success="afterDeleteSet"
+                                        :submit="() => deleteSet(set)"
                                         label="Delete set"
                                         variant="outline-danger"
                                         confirm="Are you sure you want to delete this test set and
@@ -305,16 +304,16 @@
                                                      :key="suite.id"
                                                      :assignment="assignment"
                                                      :other-suites="allNonDeletedSuites"
+                                                     :value="set.suites[j]"
+                                                     @input="updateSuite(set, j, $event)"
                                                      @delete="$set(suite, 'deleted', true)"
-                                                     v-model="set.suites[j]"
-                                                     :result="result"
-                                                     :achieved-points="hasResults && result.suiteResults[suite.id]"/>
+                                                     :result="result" />
                                 </masonry>
                                 <div v-if="configEditable"
                                      class="btn-wrapper"
                                      style="float: right;">
                                     <submit-button
-                                        :submit="() => addSuite(i)"
+                                        :submit="() => addSuite(set)"
                                         label="Add suite"/>
                                 </div>
                             </b-card-body>
@@ -323,12 +322,12 @@
                                                 class="transition set-continue">
                                     Only execute other test sets when achieved grade by AutoTest is higher than
                                     <b-input-group class="input-group">
-                                        <input class="form-control"
-                                                type="number"
-                                                v-model="set.stop_points"
-                                                @keyup.ctrl.enter="$refs.submitContinuePointsBtn[i].onClick()"
-                                                placeholder="0"
-                                            />
+                                        <input
+                                            class="form-control"
+                                            type="number"
+                                            v-model="internalTest.set_stop_points[set.id]"
+                                            @keyup.ctrl.enter="$refs.submitContinuePointsBtn[i].onClick()"
+                                            placeholder="0" />
                                         <b-input-group-append>
                                             <submit-button
                                                 ref="submitContinuePointsBtn"
@@ -339,7 +338,7 @@
                                 <b-card-footer
                                     v-else-if="singleResult && i < test.sets.length - 1"
                                     class="set-continue">
-                                    <template v-if="isSetPassed(set)">
+                                    <template v-if="set.passed">
                                         Scored <code>{{ result.setResults[set.id].achieved }}</code> points,
                                         which is greater than <code>{{ set.stop_points }}</code>. Continuing
                                         with the next set.
@@ -357,7 +356,6 @@
                 <div v-if="configEditable"
                      class="add-btn-wrapper transition">
                     <submit-button :submit="addSet"
-                                   @success="afterAddSet"
                                    label="Add set"
                                    class="transition"/>
             </div>
@@ -378,17 +376,17 @@
         <auto-test
             v-if="currentResult"
             :assignment="assignment"
-            :result="currentResult"
-            :test-config="test"
+            :result-id="currentResult.id"
             :editable="false" />
     </b-modal>
 </div>
 </template>
 
 <script>
+import Vue from 'vue';
 import Multiselect from 'vue-multiselect';
 
-import { mapActions } from 'vuex';
+import { mapActions, mapGetters } from 'vuex';
 
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/times';
@@ -397,154 +395,12 @@ import 'vue-awesome/icons/eye-slash';
 import 'vue-awesome/icons/chevron-right';
 import 'vue-awesome/icons/exclamation-triangle';
 
-import { nameOfUser, getUniqueId, getProps, deepCopy, withOrdinalSuffix } from '@/utils';
+import { nameOfUser, getUniqueId } from '@/utils';
 
 import AutoTestSuite from './AutoTestSuite';
 import SubmitButton from './SubmitButton';
 import MultipleFilesUploader from './MultipleFilesUploader';
 import Loader from './Loader';
-
-class AutoTestSuiteData {
-    constructor($http, autoTestId, autoTestSetId, serverData = {}, trackingId = getUniqueId()) {
-        this.$http = $http;
-        this.trackingId = trackingId;
-        this.autoTestSetId = autoTestSetId;
-        this.autoTestId = autoTestId;
-
-        this.id = null;
-        this.steps = [];
-        this.rubricRow = {};
-
-        this.setFromServerData(serverData);
-    }
-
-    setFromServerData(d) {
-        this.id = d.id;
-        this.steps = d.steps || [];
-        this.rubricRow = d.rubric_row || {};
-    }
-
-    copy() {
-        return new AutoTestSuiteData(
-            this.$http,
-            this.autoTestId,
-            this.autoTestSetId,
-            {
-                id: this.id,
-                steps: deepCopy(this.steps),
-                rubric_row: this.rubricRow,
-            },
-            this.trackingId,
-        );
-    }
-
-    isEmpty() {
-        return this.steps.length === 0;
-    }
-
-    get url() {
-        return `/api/v1/auto_tests/${this.autoTestId}/sets/${this.autoTestSetId}/suites/`;
-    }
-
-    save() {
-        return this.$http
-            .patch(this.url, {
-                id: this.id == null ? undefined : this.id,
-                steps: this.steps.map(step => ({
-                    ...step,
-                    weight: Number(step.weight),
-                })),
-                rubric_row_id: this.rubricRow.id,
-            })
-            .then(({ data }) => this.setFromServerData(data));
-    }
-
-    delete() {
-        if (this.id != null) {
-            return this.$http.delete(`${this.url}/${this.id}`);
-        } else {
-            return Promise.resolve();
-        }
-    }
-
-    removeItem(index) {
-        this.steps.splice(index, 1);
-    }
-
-    addStep(step) {
-        this.steps.push(step);
-    }
-
-    checkValid(step) {
-        const isEmpty = val => !val.match(/[a-zA-Z0-9]/);
-        const errs = [];
-
-        if (step.checkName && isEmpty(step.name)) {
-            errs.push('The name may not be empty.');
-        }
-        if (step.checkProgram && isEmpty(step.program)) {
-            errs.push('The program may not be empty.');
-        }
-        if (step.checkWeight && Number(step.weight) <= 0) {
-            errs.push('The weight should be a number higher than 0.');
-        }
-
-        if (step.type === 'io_test') {
-            if (step.data.inputs.length === 0) {
-                errs.push('There should be at least one input output case.');
-            } else {
-                step.data.inputs.forEach((input, i) => {
-                    const name = `${withOrdinalSuffix(i + 1)} input output case`;
-                    if (isEmpty(input.name)) {
-                        errs.push(`The name of the ${name} is emtpy.`);
-                    }
-                    if (Number(input.weight) <= 0) {
-                        errs.push(`The weight of the ${name} should be a number higher than 0.`);
-                    }
-                });
-            }
-        } else if (step.type === 'check_points') {
-            let weightBefore = 0;
-            for (let i = 0; i < this.steps.length > 0; ++i) {
-                if (this.steps[i].id === this.id) {
-                    break;
-                }
-                weightBefore += Number(this.steps[i].weight);
-            }
-            if (step.data.min_pints <= 0 || step.data.min_points > weightBefore) {
-                errs.push(
-                    `The minimal amount of points should be achievable (which is ${weightBefore}) and higher than 0.`,
-                );
-            }
-        }
-
-        return errs;
-    }
-
-    getErrors() {
-        const caseErrors = {
-            general: [],
-            steps: [],
-            isEmpty() {
-                return this.steps.length === 0 && this.general.length === 0;
-            },
-        };
-        if (this.steps.length === 0) {
-            caseErrors.general.push('You should have at least one step.');
-        }
-
-        const stepErrors = this.steps.map(s => [s, this.checkValid(s)]);
-        if (stepErrors.some(([, v]) => v.length > 0)) {
-            caseErrors.steps = stepErrors;
-        }
-
-        if (!this.rubricRow || !this.rubricRow.id) {
-            caseErrors.general.push('You should select a rubric category for this test suite.');
-        }
-
-        return caseErrors.isEmpty() ? null : caseErrors;
-    }
-}
 
 export default {
     name: 'auto-test',
@@ -560,13 +416,13 @@ export default {
             default: false,
         },
 
-        result: {
-            type: Object,
+        resultId: {
+            type: Number,
             default: null,
         },
 
-        testConfig: {
-            type: Object,
+        submissionId: {
+            type: Number,
             default: null,
         },
 
@@ -580,9 +436,9 @@ export default {
         const id = getUniqueId();
 
         return {
-            test: null,
             disabledAnimations: true,
             newFixtures: [],
+            internalTest: {},
             loading: true,
             error: '',
             permissions: {},
@@ -597,9 +453,6 @@ export default {
             uploadedFixturesId: `auto-test-base-fixtures-${id}`,
             preStartScriptId: `auto-test-base-pre-start-script-${id}`,
             autoTestSetupEnvWrapperId: `auto-test-setup-env-${id}`,
-
-            setPoints: {},
-            suitePoints: {},
         };
     },
 
@@ -611,7 +464,6 @@ export default {
         assignmentId: {
             handler() {
                 if (this.assignment.auto_test_id == null) {
-                    this.test = null;
                     this.loading = false;
                     return;
                 }
@@ -619,11 +471,13 @@ export default {
                 this.loading = true;
 
                 Promise.all([
-                    this.singleResult ? this.loadSingleResult() : this.loadAutoTest(),
+                    this.loadAutoTest(),
+                    this.loadSingleResult(),
                     this.loadPermissions(),
-                ]).then(() => {
-                    this.loading = false;
-                });
+                ]).then(
+                    () => { this.loading = false; },
+                    () => { this.loading = false; },
+                );
             },
             immediate: true,
         },
@@ -632,468 +486,54 @@ export default {
     methods: {
         ...mapActions('courses', ['updateAssignment']),
 
+        ...mapActions('autotest', {
+            storeCreateAutoTest: 'createAutoTest',
+            storeDeleteAutoTest: 'deleteAutoTest',
+            storeUpdateAutoTest: 'updateAutoTest',
+            storeLoadAutoTest: 'loadAutoTest',
+            storeCreateFixtures: 'createFixtures',
+            storeToggleFixture: 'toggleFixture',
+            storeCreateAutoTestSet: 'createAutoTestSet',
+            storeDeleteAutoTestSet: 'deleteAutoTestSet',
+            storeUpdateAutoTestSet: 'updateAutoTestSet',
+            storeCreateAutoTestSuite: 'createAutoTestSuite',
+            storeUpdateAutoTestSuite: 'updateAutoTestSuite',
+            storeLoadAutoTestResult: 'loadAutoTestResult',
+            storeDeleteAutoTestResult: 'deleteAutoTestResult',
+        }),
+
+
         loadAutoTest() {
-            return this.$http.get(`/api/v1/auto_tests/${this.assignment.auto_test_id}`).then(
-                ({ data: test }) => {
-                    this.setTest(test);
+            return this.storeLoadAutoTest({
+                autoTestId: this.assignment.auto_test_id,
+            }).then(
+                () => {
+                    Vue.set(this.internalTest, 'base_systems', this.test.base_systems);
+                    Vue.set(this.internalTest, 'setup_script', this.test.setup_script);
+                    Vue.set(this.internalTest, 'set_stop_points', this.test.sets.reduce(
+                        (acc, set) => Object.assign(acc, { [set.id]: set.stop_points }),
+                        {},
+                    ));
                 },
                 err => {
-                    console.log(err);
-                    if (this.is404(err)) {
-                        // FIXME: uncomment
-                        // this.test = null;
-                    }
+                    // FIXME: handle error
+                    console.error(err);
                 },
             );
         },
 
         loadSingleResult() {
-            if (this.test == null) {
-                this.setTest(this.testConfig);
+            if (this.assignment.auto_test_id == null || !this.singleResult) {
+                return null;
             }
 
-            this.test = {
-                assignment_id: 3,
-                base_systems: [
-                    {
-                        group: 'python',
-                        id: 2,
-                        name: 'Python 3.6',
-                    },
-                ],
-                finalize_script: '',
-                fixtures: [
-                    {
-                        hidden: true,
-                        id: 1,
-                        name: 'Programmeertalen-Go (1).csv',
-                    },
-                    {
-                        hidden: false,
-                        id: 3,
-                        name: 'Programmeertalen-Python (1).csv',
-                    },
-                    {
-                        hidden: true,
-                        id: 4,
-                        name: 'Programmeertalen-Python (2).csv',
-                    },
-                    {
-                        hidden: false,
-                        id: 2,
-                        name: 'Programmeertalen-Python.csv',
-                    },
-                ],
-                id: 1,
-                sets: [
-                    {
-                        id: 1,
-                        stop_points: 3,
-                        suites: [
-                            {
-                                autoTestSetId: 1,
-                                autoTestId: 1,
-                                id: 1,
-                                steps: [
-                                    {
-                                        data: {
-                                            inputs: [
-                                                {
-                                                    args: 'abc',
-                                                    id: 4,
-                                                    name: 'Sort 1',
-                                                    options: [],
-                                                    output: 'cba',
-                                                    stdin: 'abc',
-                                                    weight: 1,
-                                                },
-                                                {
-                                                    args: 'def',
-                                                    name: 'Sort 2',
-                                                    options: [],
-                                                    output: 'fed',
-                                                    stdin: 'def',
-                                                    weight: 1,
-                                                },
-                                            ],
-                                            program: 'abc',
-                                        },
-                                        hidden: true,
-                                        id: 1,
-                                        name: 'Simple test',
-                                        type: 'io_test',
-                                        weight: 2,
-                                    },
-                                    {
-                                        data: {
-                                            inputs: [
-                                                {
-                                                    args: 'abc',
-                                                    id: 18,
-                                                    name: 'Sort 3',
-                                                    options: [
-                                                        'regex',
-                                                        'case',
-                                                        'substring',
-                                                    ],
-                                                    output: 'ABC',
-                                                    stdin: 'abc',
-                                                    weight: 1,
-                                                },
-                                                {
-                                                    args: 'def',
-                                                    name: 'Sort 4',
-                                                    options: [],
-                                                    output: 'DEF',
-                                                    stdin: 'def',
-                                                    weight: 1,
-                                                },
-                                            ],
-                                            program: 'xyz',
-                                        },
-                                        hidden: false,
-                                        id: 3,
-                                        name: 'Advanced test',
-                                        type: 'io_test',
-                                        weight: 2,
-                                    },
-                                ],
-                                rubric_row: {
-                                    description:
-                                        'The style of the code is conform to the styleguide.',
-                                    header: 'Style',
-                                    id: 1,
-                                    items: [
-                                        {
-                                            description:
-                                                'You have no style.You have no style.You have no style.You have no style.You have no style.',
-                                            header: 'Novice',
-                                            id: 3,
-                                            points: 1,
-                                        },
-                                        {
-                                            description:
-                                                "You don't know how to use some tools.You don't know how to use some tools.You don't know how to use some tools.You don't know how to use some tools.You don't know how to use some tools.",
-                                            header: 'Competent',
-                                            id: 2,
-                                            points: 2,
-                                        },
-                                        {
-                                            description:
-                                                'You know how to use some tools.You know how to use some tools.You know how to use some tools.You know how to use some tools.You know how to use some tools.',
-                                            header: 'Expert',
-                                            id: 1,
-                                            points: 3,
-                                        },
-                                    ],
-                                },
-                            },
-                            {
-                                autoTestSetId: 1,
-                                autoTestId: 1,
-                                id: 2,
-                                steps: [
-                                    {
-                                        data: {
-                                            program: './test_run',
-                                        },
-                                        hidden: false,
-                                        id: 2,
-                                        name: 'Test run',
-                                        type: 'run_program',
-                                        weight: 1,
-                                    },
-                                    {
-                                        data: {
-                                            program: 'valgrind ./test_run',
-                                        },
-                                        hidden: true,
-                                        id: 4,
-                                        name: 'Valgrind',
-                                        type: 'run_program',
-                                        weight: 1,
-                                    },
-                                    {
-                                        data: {
-                                            min_points: 4,
-                                            program: 'check_points ./test_run',
-                                        },
-                                        hidden: false,
-                                        id: 5,
-                                        name: 'Check points',
-                                        type: 'check_points',
-                                        weight: 0,
-                                    },
-                                    {
-                                        data: {
-                                            program: 'get_points ./test_run',
-                                            regex: '(\\d+\\.?\\d*|\\.\\d+) points$',
-                                        },
-                                        hidden: false,
-                                        id: 6,
-                                        name: 'Get points',
-                                        type: 'custom_output',
-                                        weight: 1,
-                                    },
-                                ],
-                                rubric_row: {
-                                    description:
-                                        'The code is strutured well and logical design choices were made.',
-                                    header: 'Code structure',
-                                    id: 3,
-                                    items: [
-                                        {
-                                            description:
-                                                "You don't know to use enter or space.You don't know to use enter or space.You don't know to use enter or space.You don't know to use enter or space.You don't know to use enter or space.",
-                                            header: 'Novice',
-                                            id: 9,
-                                            points: 1,
-                                        },
-                                        {
-                                            description:
-                                                'You know to use enter but not space.You know to use enter but not space.You know to use enter but not space.You know to use enter but not space.You know to use enter but not space.',
-                                            header: 'Competent',
-                                            id: 8,
-                                            points: 2.5,
-                                        },
-                                        {
-                                            description:
-                                                'You know to use enter and space.You know to use enter and space.You know to use enter and space.You know to use enter and space.You know to use enter and space.',
-                                            header: 'Expert',
-                                            id: 7,
-                                            points: 4,
-                                        },
-                                    ],
-                                },
-                            },
-                        ],
-                    },
-                    {
-                        id: 2,
-                        stop_points: 0,
-                        suites: [
-                            {
-                                autoTestSetId: 2,
-                                autoTestId: 1,
-                                id: 3,
-                                steps: [
-                                    {
-                                        data: {
-                                            inputs: [
-                                                {
-                                                    args: '-a -b 1',
-                                                    id: 13,
-                                                    name: '-a -b 1',
-                                                    options: [
-                                                        'trailing_whitespace',
-                                                        'substring',
-                                                    ],
-                                                    output: 'Python script',
-                                                    stdin: 'Input input',
-                                                    weight: 1,
-                                                },
-                                            ],
-                                            program: 'python python_runner.py',
-                                        },
-                                        hidden: false,
-                                        id: 8,
-                                        name: 'Python runner',
-                                        type: 'io_test',
-                                        weight: 1,
-                                    },
-                                ],
-                                rubric_row: {
-                                    description:
-                                        'The documentation of the code is well written and complete.',
-                                    header: 'Documentation',
-                                    id: 2,
-                                    items: [
-                                        {
-                                            description:
-                                                'You typed a lot of wrong things.You typed a lot of wrong things.You typed a lot of wrong things.You typed a lot of wrong things.You typed a lot of wrong things.',
-                                            header: 'Novice',
-                                            id: 6,
-                                            points: 1,
-                                        },
-                                        {
-                                            description:
-                                                'You typed a lot of things, some wrong.You typed a lot of things, some wrong.You typed a lot of things, some wrong.You typed a lot of things, some wrong.You typed a lot of things, some wrong.',
-                                            header: 'Competent',
-                                            id: 5,
-                                            points: 1.5,
-                                        },
-                                        {
-                                            description:
-                                                'You typed a lot of things.You typed a lot of things.You typed a lot of things.You typed a lot of things.You typed a lot of things.',
-                                            header: 'Expert',
-                                            id: 4,
-                                            points: 2,
-                                        },
-                                    ],
-                                },
-                            },
-                        ],
-                    },
-                ],
-                setup_script: 'setup.py',
-            };
-
-            this.test.sets = this.test.sets.map(set => ({
-                ...set,
-                suites: set.suites.map(
-                    suite =>
-                        new AutoTestSuiteData(this.$http, this.test.id, set.id, suite),
-                ),
-            }));
-
-            this.test.runs = [
-                {
-                    id: 1,
-                    results: [
-                        {
-                            id: 1,
-                            work: {
-                                id: 1,
-                                user: { name: 'Thomas Schaper', id: 1 },
-                            },
-                            points_achieved: '-',
-                            state: 'not_started',
-                            setup_stdout: 'stdout!!!',
-                            setup_stderr: 'stderr!!!',
-                        },
-                        {
-                            id: 2,
-                            work: {
-                                id: 2,
-                                user: { name: 'Olmo Kramer', id: 2 },
-                                grade_overridden: true,
-                            },
-                            points_achieved: '12 / 13',
-                            state: 'passed',
-                            setup_stdout: 'stdout!!!',
-                            setup_stderr: 'stderr!!!',
-                        },
-                        {
-                            id: 3,
-                            work: {
-                                id: 3,
-                                user: { name: 'Student 2', id: 3 },
-                            },
-                            points_achieved: '0 / 13',
-                            state: 'failed',
-                            setup_stdout: 'stdout!!!',
-                            setup_stderr: 'stderr!!!',
-                        },
-                        {
-                            id: 4,
-                            work: {
-                                id: 4,
-                                user: { name: 'Olmo Kramer', id: 4 },
-                            },
-                            points_achieved: '-',
-                            state: 'running',
-                            setup_stdout: 'stdout!!!',
-                            setup_stderr: 'stderr!!!',
-                        },
-                    ],
-                },
-            ];
-
-            if (this.test.runs.length === 0) {
-                // FIXME: uncomment
-                // return null;
-            }
-
-            const testId = this.test.id;
-            const runId = this.test.runs[0].id;
-            const resultId = this.result.id;
-
-            return this.$http
-                .get(`/api/v1/auto_tests/${testId}/runs/${runId}/results/${resultId}`)
-                .then(
-                    ({ data: result }) => {
-                        this.setResult(result);
-                    },
-                    () => {
-                        this.setResult({
-                            step_results: [
-                                {
-                                    auto_test_step: this.testSteps[1],
-                                    state: 'passed',
-                                    log: {
-                                        steps: [
-                                            {
-                                                state: 'passed',
-                                                stdout: 'ABC',
-                                                stderr: 'WARNING: ...',
-                                            },
-                                            {
-                                                state: 'passed',
-                                                stdout: 'DEF',
-                                                stderr: '',
-                                            },
-                                        ],
-                                    },
-                                },
-                                {
-                                    auto_test_step: this.testSteps[3],
-                                    state: 'passed',
-                                    log: {
-                                        steps: [
-                                            {
-                                                state: 'failed',
-                                                stdout: 'ABC',
-                                                stderr: 'ERROR: ...',
-                                            },
-                                            {
-                                                state: 'passed',
-                                                stdout: 'def',
-                                                stderr: 'WARNING: ...',
-                                            },
-                                        ],
-                                    },
-                                },
-                                {
-                                    auto_test_step: this.testSteps[2],
-                                    state: 'passed',
-                                    log: {
-                                        stdout: 'passed!',
-                                        stderr: '',
-                                    },
-                                },
-                                {
-                                    auto_test_step: this.testSteps[4],
-                                    state: 'passed',
-                                    log: {
-                                        stdout: 'passed!',
-                                        stderr: '',
-                                    },
-                                },
-                                {
-                                    auto_test_step: this.testSteps[5],
-                                    state: 'failed',
-                                    log: {
-                                        stdout: 'Not enough points!!!',
-                                        stderr: '',
-                                    },
-                                },
-                                {
-                                    auto_test_step: this.testSteps[8],
-                                    state: 'running',
-                                    log: {
-                                        steps: [
-                                            {
-                                                state: 'running',
-                                                stdout: '',
-                                                stderr: '',
-                                            },
-                                        ],
-                                    },
-                                },
-                            ],
-                        });
-                    },
-                );
+            return this.storeLoadAutoTestResult({
+                autoTestId: this.assignment.auto_test_id,
+                resultId: this.resultId,
+            }).catch(err => {
+                // FIXME: handle error
+                console.error(err);
+            });
         },
 
         loadPermissions() {
@@ -1106,192 +546,53 @@ export default {
             });
         },
 
-        toggleHidden(fixtureIndex) {
-            let fun;
-            const fixture = this.test.fixtures[fixtureIndex];
-            if (fixture.hidden) {
-                fun = this.$http.delete;
-            } else {
-                fun = this.$http.post;
-            }
-            return fun(`${this.autoTestUrl}/fixtures/${fixture.id}/hide`).then(() => {
-                this.$set(this.test.fixtures[fixtureIndex], 'hidden', !fixture.hidden);
-            });
-        },
-
-        submitContinuePoints(set) {
-            return this.$http
-                .patch(`${this.autoTestUrl}/sets/${set.id}`, {
-                    stop_points: Number(set.stop_points),
-                })
-                .then(() => {
-                    this.$set(set, 'stop_points', Number(set.stop_points));
-                });
-        },
-
-        setTest(test) {
-            this.test = test;
-            this.test.sets = test.sets.map(set => ({
-                ...set,
-                suites: set.suites.map(
-                    suite => new AutoTestSuiteData(this.$http, test.id, set.id, suite),
-                ),
-            }));
-        },
-
-        setResult(result) {
-            const setResults = {};
-            const suiteResults = {};
-            const stepResults = result.step_results.reduce((acc, step) => {
-                acc[step.auto_test_step.id] = step;
-                return acc;
-            }, {});
-
-            this.result.stepResults = stepResults;
-            this.result.setResults = setResults;
-            this.result.suiteResults = suiteResults;
-
-            let setCheckPointFailed = false;
-            this.test.sets.forEach(set => {
-                setResults[set.id] = {
-                    achieved: 0,
-                    possible: 0,
-                };
-
-                set.suites.forEach(suite => {
-                    let checkPointFailed = false;
-                    suiteResults[suite.id] = {
-                        achieved: this.pointsForSuite(suite),
-                        possible: 0,
-                    };
-
-                    suite.steps.forEach(step => {
-                        suiteResults[suite.id].possible += step.weight;
-
-                        if (setCheckPointFailed || checkPointFailed) {
-                            stepResults[step.id] = {
-                                state: 'skipped',
-                                log: null,
-                            };
-                        } else if (stepResults[step.id] == null) {
-                            stepResults[step.id] = {
-                                state: 'not_started',
-                                log: null,
-                            };
-                        } else if (
-                            step.type === 'check_points' &&
-                            stepResults[step.id].state === 'failed'
-                        ) {
-                            checkPointFailed = true;
-                        }
-                    });
-
-                    setResults[set.id].achieved += suiteResults[suite.id].achieved;
-                    setResults[set.id].possible += suiteResults[suite.id].possible;
-                });
-
-                if (setResults[set.id] < set.stop_points) {
-                    setCheckPointFailed = true;
-                }
-            });
-
-            this.$emit('result', { test: this.test, result: this.result });
-        },
-
-        pointsForSuite(suite) {
-            return suite.steps.reduce((acc, step) => {
-                const stepResult = getProps(this, '', 'result', 'stepResults', step.id);
-
-                if (stepResult.state !== 'passed') {
-                    return acc;
-                }
-
-                if (step.type === 'io_test') {
-                    return (
-                        acc +
-                        step.data.inputs.reduce((acc2, input, i) => {
-                            if (stepResult.log.steps[i].state === 'passed') {
-                                return acc2 + input.weight;
-                            } else {
-                                return acc2;
-                            }
-                        }, 0)
-                    );
-                } else {
-                    return acc + step.weight;
-                }
-            }, 0);
-        },
-
-        isSetPassed(set) {
-            if (!this.result) {
-                return false;
-            }
-
-            return this.result.setResults[set.id].achieved > set.stop_points;
-        },
-
-        deleteSet(index) {
-            return this.$http
-                .delete(`${this.autoTestUrl}/sets/${this.test.sets[index].id}`)
-                .then(() => index);
-        },
-
-        async afterDeleteSet(index) {
-            await this.$nextTick();
-            this.$set(this.test.sets[index], 'deleted', true);
-        },
-
         openFile(_, event) {
             event.preventDefault();
         },
 
-        selectSetup(selectedName) {
-            this.selectedEnvironmentOption = selectedName;
-        },
-
-        addSuite(index) {
-            this.test.sets[index].suites.push(
-                new AutoTestSuiteData(this.$http, this.test.id, this.test.sets[index].id),
-            );
-            this.$set(this.test.sets, index, this.test.sets[index]);
-        },
-
         addSet() {
-            return this.$http.post(`${this.autoTestUrl}/sets/`);
-        },
-
-        afterAddSet({ data }) {
-            this.test.sets.push(data);
-            this.$set(this.test, 'sets', this.test.sets);
-        },
-
-        removeFixture(index) {
-            return this.$http.patch(this.autoTestUrl, {
-                fixtures: this.test.fixtures.filter((_, i) => i !== index),
+            return this.storeCreateAutoTestSet({
+                autoTestId: this.test.id,
             });
         },
 
-        async removeFixtureSuccess({ data }) {
-            await this.$nextTick();
-            this.test.fixtures = data.fixtures;
-        },
-
-        submitBaseSystems() {
-            return this.$http.patch(this.autoTestUrl, {
-                base_systems: this.test.base_systems,
+        deleteSet(set) {
+            return this.storeDeleteAutoTestSet({
+                autoTestId: this.test.id,
+                setId: set.id,
             });
         },
 
-        submitSetupScript() {
-            return this.$http.patch(this.autoTestUrl, {
-                setup_script: this.test.setup_script,
+        submitContinuePoints(set) {
+            const stopPoints = Number(
+                this.internalTest.set_stop_points[set.id],
+            );
+            return this.storeUpdateAutoTestSet({
+                autoTestId: this.test.id,
+                autoTestSet: set,
+                setProps: { stop_points: stopPoints },
             });
         },
 
-        submitFinalizeScript() {
-            return this.$http.patch(this.autoTestUrl, {
-                finalize_script: this.test.finalize_script,
+        addSuite(set) {
+            this.storeCreateAutoTestSuite({
+                autoTestId: this.test.id,
+                autoTestSet: set,
+            });
+        },
+
+        updateSuite(set, index, suite) {
+            this.storeUpdateAutoTestSuite({
+                autoTestSet: set,
+                index,
+                suite,
+            });
+        },
+
+        submitProp(prop) {
+            return this.storeUpdateAutoTest({
+                autoTestId: this.test.id,
+                autoTestProps: { [prop]: this.internalTest[prop] },
             });
         },
 
@@ -1316,66 +617,57 @@ export default {
                 ),
             );
 
-            return this.$http.patch(this.autoTestUrl, data);
+            return this.storeCreateFixtures({
+                autoTestId: this.test.id,
+                fixtures: data,
+            });
         },
 
-        afterAddFixtures(response) {
+        afterAddFixtures() {
             this.newFixtures = [];
-            this.test.fixtures = response.data.fixtures;
+        },
+
+        removeFixture(index) {
+            this.storeUpdateAutoTest({
+                autoTestId: this.test.id,
+                autoTestProps: {
+                    fixtures: this.test.fixtures.filter((_, i) => i !== index),
+                },
+            });
+        },
+
+        toggleHidden(index) {
+            return this.storeToggleFixture({
+                autoTestId: this.test.id,
+                fixture: this.test.fixtures[index],
+            });
         },
 
         createAutoTest() {
             this.disabledAnimations = true;
-            return this.$http.post('/api/v1/auto_tests/', {
-                assignment_id: this.assignmentId,
-            });
+            return this.storeCreateAutoTest(this.assignment.id);
         },
 
-        async afterCreateAutoTest({ data }) {
-            this.updateAssignment({
-                assignmentId: this.assignmentId,
-                assignmentProps: {
-                    auto_test_id: data.id,
-                },
-            });
-            this.setTest(data);
+        async afterCreateAutoTest() {
             await this.$nextTick();
             this.disabledAnimations = false;
         },
 
         deleteAutoTest() {
             this.disabledAnimations = true;
-            return this.$http.delete(this.autoTestUrl);
+            return this.storeDeleteAutoTest(this.test.id);
         },
 
         async afterDeleteAutoTest() {
-            this.test = null;
-            this.updateAssignment({
-                assignmentId: this.assignmentId,
-                assignmentProps: {
-                    auto_test_id: null,
-                },
-            });
             await this.$nextTick();
             this.disabledAnimations = false;
         },
 
         deleteResults(id) {
-            if (!this.test || !this.test.runs.length) {
-                throw new Error('There is no run to delete.');
-            }
-
-            return this.$http.delete(
-                `/api/v1/auto_tests/${this.assignment.auto_test_id}/runs/${id}`,
-            );
-        },
-
-        afterDeleteResults() {
-            this.test.runs = [];
-        },
-
-        is404(err) {
-            return getProps(err, null, 'response', 'status') === 404;
+            return this.storeDeleteAutoTestResults({
+                autoTestId: this.test.id,
+                runId: id,
+            });
         },
 
         openResult(result) {
@@ -1391,6 +683,32 @@ export default {
     },
 
     computed: {
+        ...mapGetters('autotest', {
+            allTests: 'tests',
+            allResults: 'results',
+        }),
+
+        test() {
+            const id = this.assignment.auto_test_id;
+            return id && this.allTests[id];
+        },
+
+        result() {
+            if (!this.hasResults) {
+                return null;
+            }
+
+            let resultId = this.resultId;
+
+            if (resultId == null && this.submissionId != null) {
+                resultId = this.test.runs[0].results.filter(
+                    r => r.work.id === this.submissionId,
+                ).id;
+            }
+
+            return resultId ? this.allResult[resultId] : null;
+        },
+
         autoTestUrl() {
             return `/api/v1/auto_tests/${this.test.id}`;
         },
@@ -1444,23 +762,7 @@ export default {
         },
 
         singleResult() {
-            return this.result != null;
-        },
-
-        testSteps() {
-            return this.test.sets.reduce(
-                (acc, set) =>
-                    Object.assign(
-                        acc,
-                        set.suites.reduce((acc2, suite) => {
-                            suite.steps.forEach(step => {
-                                acc2[step.id] = step;
-                            });
-                            return acc2;
-                        }, {}),
-                    ),
-                {},
-            );
+            return this.hasResults && (this.resultId != null || this.submissionId != null);
         },
     },
 

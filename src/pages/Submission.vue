@@ -180,10 +180,7 @@
                        :editable="canGiveLineFeedback"
                        @new-lang="languageChanged"
                        :language="selectedLanguage"
-                       :can-use-snippets="canUseSnippets"
-                       :auto-test-config="autoTestConfig"
-                       :auto-test-result="autoTestResult"
-                       @result="setAutoTest"/>
+                       :can-use-snippets="canUseSnippets" />
         </div>
         <div class="file-tree-container " v-if="!overviewMode"
              slot="secondPane">
@@ -204,8 +201,6 @@
                   :rubric="rubric"
                   :editable="editable"
                   :rubric-start-open="overviewMode"
-                  :auto-test-config="autoTestConfig"
-                  :auto-test-result="autoTestResult"
                   v-if="!loadingInner && (editable || assignment.state === assignmentState.DONE)"
                   @gradeUpdated="gradeUpdated"/>
 </div>
@@ -269,8 +264,6 @@ export default {
             gradeHistory: true,
             editable: false,
             canUseSnippets: false,
-            autoTestConfig: null,
-            autoTestResult: null,
         };
     },
 
@@ -525,8 +518,6 @@ export default {
                 } else {
                     this.canSeeRevision = editOthersWork;
                 }
-
-                return this.getAutoTest();
             },
         );
 
@@ -720,42 +711,6 @@ export default {
                 }, () => null);
         },
 
-        getAutoTest() {
-            // FIXME: Remove "&& false"
-            if ((!UserConfig.features.auto_test || this.assignment.auto_test_id == null) && false) {
-                return Promise.resolve(null);
-            }
-
-            return this.$http
-                .get(`/api/v1/auto_tests/${this.assignment.auto_test_id}`)
-                .then(({ data: test }) => {
-                    // FIXME: Uncomment
-                    // if (test.runs.length === 0) {
-                    //     return;
-                    // }
-
-                    // const result = test.runs[0].results.find(
-                    //     r => r.work.id === this.submission.id,
-                    // );
-
-                    // if (result != null) {
-                    // this.autoTestResult = result;
-                    this.autoTestResult = {
-                        id: 1,
-                        work: {
-                            id: 27,
-                            user: { name: 'Thomas Schaper', id: 1 },
-                        },
-                        points_achieved: '-',
-                        state: 'not_started',
-                        setup_stdout: 'stdout!!!',
-                        setup_stderr: 'stderr!!!',
-                    };
-                    this.autoTestConfig = test;
-                    // }
-                }, () => null);
-        },
-
         // Returns the first file in the file tree that is not a folder
         // The file tree is searched with BFS
         getFirstFile(fileTree) {
@@ -833,12 +788,6 @@ export default {
 
         revisionChanged(val) {
             this.setRevision(val);
-        },
-
-        // FIXME: remove
-        setAutoTest({ test, result }) {
-            this.autoTestConfig = test;
-            this.autoTestResult = result;
         },
     },
 

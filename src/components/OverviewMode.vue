@@ -120,17 +120,11 @@
                 </b-card>
             </div>
         </b-tab>
-        <b-tab title="AutoTest" v-if="autoTestConfig">
+        <b-tab title="AutoTest" v-if="assignment.auto_test_id">
             <auto-test
-                @result="$emit('result', $event)"
-                v-if="autoTestResult"
+                no-card
                 :assignment="assignment"
-                :result="autoTestResult"
-                :test-config="autoTestConfig"
-                no-card />
-            <b-card v-else class="file-card">
-                There are no AutoTest results for this submission.
-            </b-card>
+                :submission-id="submission.id" />
         </b-tab>
     </b-tabs>
 </div>
@@ -190,14 +184,6 @@ export default {
         showWhitespace: {
             type: Boolean,
             default: true,
-        },
-        autoTestConfig: {
-            type: Object,
-            default: null,
-        },
-        autoTestResult: {
-            type: Object,
-            default: null,
         },
     },
 
