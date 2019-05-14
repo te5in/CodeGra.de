@@ -68,7 +68,7 @@
                    v-b-popover.top.hover="`Add a new ${stepType.name} step`"
                    :style="{ 'background-color': stepType.color }"
                    variant="primary">
-                <icon name="plus" /> {{ titleCase(stepType.name.replace(/_/g, ' ')) }}
+                <icon name="plus" /> {{ stepType.title }}
             </b-btn>
         </b-button-toolbar>
 
@@ -161,7 +161,7 @@ import 'vue-awesome/icons/times';
 import 'vue-awesome/icons/check';
 import 'vue-awesome/icons/pencil';
 
-import { titleCase, getUniqueId, withOrdinalSuffix } from '@/utils';
+import { getUniqueId, withOrdinalSuffix } from '@/utils';
 
 import SubmitButton from './SubmitButton';
 import AutoTestStep from './AutoTestStep';
@@ -213,7 +213,6 @@ export default {
             showModal: false,
             internalValue: null,
             slickItemMoving: false,
-            titleCase,
             caseErrors: null,
             withOrdinalSuffix,
         };
@@ -240,10 +239,10 @@ export default {
 
         stepTypes() {
             return [
-                { name: 'io_test', color: '#E7EEE9' },
-                { name: 'run_program', color: '#E6DCCD' },
-                { name: 'custom_output', color: '#DFD3AA' },
-                { name: 'check_points', color: '#D6CE5B' },
+                { name: 'io_test', title: 'IO Test', color: '#E7EEE9' },
+                { name: 'run_program', title: 'Run Program', color: '#E6DCCD' },
+                { name: 'custom_output', title: 'Custom Output', color: '#DFD3AA' },
+                { name: 'check_points', title: 'Check Points', color: '#D6CE5B' },
             ];
         },
 

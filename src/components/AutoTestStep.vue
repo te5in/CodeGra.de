@@ -10,7 +10,7 @@
             </div>
             <div class="step-type header-item"
                  :style="{ 'background-color': typeColor }">
-                {{ stepName }}
+                {{ typeTitle }}
             </div>
             <b-input-group prepend="Name"
                            class="name-input header-item"
@@ -468,7 +468,6 @@ export default {
 
         return {
             id,
-            arr: [],
             collapseState: {},
             mainCollapseState: this.collapseOpen,
             autoTestStepModalId: `auto-test-step-modal-${id}`,
@@ -482,8 +481,16 @@ export default {
     },
 
     computed: {
+        type() {
+            return this.testTypes.find(x => x.name === this.value.type);
+        },
+
+        typeTitle() {
+            return this.type.title;
+        },
+
         typeColor() {
-            return this.testTypes.find(x => x.name === this.value.type).color;
+            return this.type.color;
         },
 
         stepName() {
@@ -575,6 +582,7 @@ export default {
         if (this.editable && this.$refs.nameInput && !this.value.name) {
             this.$refs.nameInput.focus();
         }
+        console.log(this);
     },
 
     methods: {
