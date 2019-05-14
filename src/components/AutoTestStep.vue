@@ -194,8 +194,8 @@
 <tbody v-else class="auto-test-step" :class="{ 'with-output': canViewOutput }">
     <template v-if="value.type === 'check_points'">
         <tr class="step-summary" v-b-toggle="resultsCollapseId">
-            <td class="chevron" v-if="result">
-                <icon v-if="canViewOutput" name="chevron-right" :scale="0.75" />
+            <td class="expand" v-if="result">
+                <icon v-if="canViewOutput" name="chevron-down" :scale="0.75" />
                 <icon v-else-if="value.hidden" name="eye-slash" :scale="0.85"
                         v-b-popover.hover.top="'You cannot view this step\'s results.'" />
             </td>
@@ -216,7 +216,7 @@
                         <div class="col-12">
                             <span>
                                 Exit status code
-                                <code>{{ stepResult.log.status || ':-(' }}</code>
+                                <code>{{ stepResult.log.status || '(unknown) :-(' }}</code>
                             </span>
                         </div>
 
@@ -237,8 +237,8 @@
 
     <template v-else-if="value.type === 'run_program'">
         <tr class="step-summary" v-b-toggle="resultsCollapseId">
-            <td class="chevron" v-if="result">
-                <icon v-if="canViewOutput" name="chevron-right" :scale="0.75" class="chevron" />
+            <td class="expand" v-if="result">
+                <icon v-if="canViewOutput" name="chevron-down" :scale="0.75" />
                 <icon v-else-if="value.hidden" name="eye-slash" :scale="0.85"
                         v-b-popover.hover.top="'You cannot view this step\'s results.'" />
             </td>
@@ -260,7 +260,7 @@
                         <div class="col-12">
                             <span>
                                 Exit status code
-                                <code>{{ stepResult.log.status || ':-(' }}</code>
+                                <code>{{ stepResult.log.status || '(unknown) :-(' }}</code>
                             </span>
                         </div>
 
@@ -281,8 +281,8 @@
 
     <template v-else-if="value.type === 'custom_output'">
         <tr class="step-summary" v-b-toggle="resultsCollapseId">
-            <td class="chevron" v-if="result">
-                <icon v-if="canViewOutput" name="chevron-right" :scale="0.75" />
+            <td class="expand" v-if="result">
+                <icon v-if="canViewOutput" name="chevron-down" :scale="0.75" />
                 <icon v-else-if="value.hidden" name="eye-slash" :scale="0.85"
                         v-b-popover.hover.top="'You cannot view this step\'s results.'" />
             </td>
@@ -308,7 +308,7 @@
                             </label>
                             <label>
                                 Exit status code
-                                <code>{{ stepResult.log.status || ':-(' }}</code>
+                                <code>{{ stepResult.log.status || '(unknown) :-(' }}</code>
                             </label>
                         </div>
 
@@ -329,7 +329,7 @@
 
     <template v-else-if="value.type === 'io_test'">
         <tr>
-            <td class="chevron" v-if="result">
+            <td class="expand" v-if="result">
                 <icon v-if="value.hidden" name="eye-slash" :scale="0.85"
                     v-b-popover.hover.top="'You cannot view this step\'s results.'" />
             </td>
@@ -344,8 +344,8 @@
 
         <template v-for="input, i in inputs">
             <tr class="step-summary" v-b-toggle="`${resultsCollapseId}-${i}`">
-                <td class="chevron" v-if="result">
-                    <icon v-if="canViewOutput" name="chevron-right" :scale="0.75" />
+                <td class="expand" v-if="result">
+                    <icon v-if="canViewOutput" name="chevron-down" :scale="0.75" />
                     <icon v-else-if="value.hidden" name="eye-slash" :scale="0.85"
                         v-b-popover.hover.top="'You cannot view this step\'s results.'" />
                 </td>
@@ -814,17 +814,16 @@ hr {
     }
 
     .step-summary {
-        td:not(.chevron) .fa-icon {
+        td:not(.expand) .fa-icon {
             transform: translateY(2px);
         }
 
-        .chevron .fa-icon {
-            transform: translateY(1px);
+        .expand .fa-icon {
             transition: transform 300ms;
         }
 
-        &:not(.collapsed) .chevron .fa-icon.chevron {
-            transform: translateY(1px) rotate(90deg);
+        &.collapsed .expand .fa-icon {
+            transform: rotate(-90deg);
         }
     }
 
