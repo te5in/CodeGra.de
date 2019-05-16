@@ -398,50 +398,27 @@ class StartedContainer:
             return res
 
 
-if t.TYPE_CHECKING:
-
-    class Container:
-        running: bool
-
-        def __init__(self, name: str) -> None:
-            ...
-
-        def stop(self) -> None:
-            ...
-
-        def wait(self, state: str, time: int) -> None:
-            ...
-
-        def destroy(self) -> None:
-            ...
-
-        def start(self) -> None:
-            ...
-
-        def get_ips(self) -> t.List[object]:
-            ...
-
-        def clone(self, name: str) -> 'Container':
-            ...
-
-        def create(self, *args: object, **kwargs: object) -> None:
-            ...
-else:
-    Container = lxc.Container
-
-
-class AutoTestContainer(Container):
-    def __init__(self, name: str, config: 'psef.FlaskConfig') -> None:
-        super().__init__(name)
+class AutoTestContainer:
+    def __init__(
+        self,
+        name: str,
+        config: 'psef.FlaskConfig',
+        cont: t.Optional[lxc.Container] = None
+    ) -> None:
+        self._name = name
         self._lock = threading.RLock()
         self._config = config
+        if cont is None:
+            self._cont = lxc.Container(name)
+        else:
+            self._cont = cont
 
     @contextlib.contextmanager
     def started_container(self) -> t.Generator[StartedContainer, None, None]:
         self._start_container()
         started = None
         try:
-            started = StartedContainer(self, self._config)
+            started = StartedContainer(self._cont, self._config)
             yield started
         finally:
             self._stop_container(started)
@@ -449,40 +426,50 @@ class AutoTestContainer(Container):
     def _stop_container(self, cont: t.Optional[StartedContainer]) -> None:
         logger.info('Stopping container', cont=self)
         try:
-            if self.running:
-                self.stop()
-                self.wait('STOPPED', 3)
+            if self._cont.running:
+                self._cont.stop()
+                self._cont.wait('STOPPED', 3)
             if cont is not None:
                 logger.info('Destroying snapshots')
                 cont.destroy_snapshots()
         finally:
             logger.info('Destroying container')
             try:
-                self.destroy()
+                self._cont.destroy()
             finally:
                 logger.try_unbind('cont')
 
     def _start_container(self) -> None:
-        self.start()
-        self.wait('RUNNING', 3)
+        self._cont.start()
+        self._cont.wait('RUNNING', 3)
         for _ in range(30):
-            if self.get_ips():
+            if self._cont.get_ips():
                 break
             time.sleep(1)
         else:
             raise Exception(f"Couldn't get ip for container {self}")
 
+    def create(self) -> None:
+        assert self._cont.create(
+            'download',
+            0, {
+                'dist': 'ubuntu',
+                'release': 'bionic',
+                'arch': 'amd64',
+            },
+            bdevtype='btrfs'
+        )
+
     def clone(self, new_name: str = '') -> 'AutoTestContainer':
         if STOP_CONTAINERS.is_set():
             raise Exception
 
+        new_name = new_name or get_new_container_name()
+
         with self._lock:
-            res = super().clone(new_name or get_new_container_name())
-            assert isinstance(res, lxc.Container)
-            res.__class__ = type(self)
-            res._lock = threading.RLock()
-            res._config = self._config
-            return res
+            cont = self._cont.clone()
+            assert isinstance(cont, lxc.Container)
+            return type(self)(new_name, self._config, cont)
 
 
 class AutoTestRunner(abc.ABC):
@@ -750,15 +737,7 @@ class _SimpleAutoTestRunner(AutoTestRunner):
 
         # We use uuid1 as this is always unique for a single machine
         base_container = self.make_container()
-        base_container.create(
-            'download',
-            0, {
-                'dist': 'ubuntu',
-                'release': 'bionic',
-                'arch': 'amd64',
-            },
-            bdevtype='best'
-        )
+        base_container.create()
 
         with base_container.started_container() as cont:
             cont.run_command(
