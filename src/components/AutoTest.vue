@@ -1,7 +1,7 @@
 <template>
 <div class="auto-test" :class="{ editable, 'config-editable': configEditable, 'no-card': noCard }">
     <template v-if="!singleResult && hasResults">
-        <b-card no-body v-for="run in test.runs" class="results-card">
+        <b-card no-body v-for="run in test.runs" :key="run.id" class="results-card">
             <b-card-header class="auto-test-header" :class="{ editable }">
                 <span class="toggle" :key="resultsCollapseId" v-b-toggle="resultsCollapseId">
                     <icon class="expander" name="chevron-right" :scale="0.75" />
@@ -11,7 +11,6 @@
                         class="btn-wrapper">
                     <submit-button
                         :submit="() => deleteResults(run.id)"
-                        @after-success="afterDeleteResults"
                         variant="danger"
                         confirm="Are you sure you want to delete the results?"
                         label="Delete"/>
@@ -72,6 +71,7 @@
                         @success="afterCreateAutoTest"/>
                     <submit-button
                         v-if="!loading && test != null"
+                        label="Run"
                         :submit="runAutoTest"
                         />
                     <submit-button
@@ -98,176 +98,177 @@
         </b-card-body>
         <b-collapse v-else :id="configCollapseId" :visible="singleResult || !hasResults">
             <b-card-body key="full">
-                <h5
-                    class="setup-env-wrapper-header"
-                    v-if="singleResult"
-                    v-b-toggle="autoTestSetupEnvWrapperId">
-                    <icon v-if="singleResult" name="chevron-right" :scale="0.75" />
-                    Environment setup
-                </h5>
-                <h5 v-else>Environment setup</h5>
+                <b-card no-body>
+                    <span
+                        slot="header"
+                        class="setup-env-wrapper-header"
+                        v-if="singleResult"
+                        v-b-toggle="autoTestSetupEnvWrapperId">
+                        <icon v-if="singleResult" name="chevron-right" :scale="0.75" />
+                        Environment setup
+                    </span>
+                    <template v-else slot="header">Environment setup</template>
 
-                <b-collapse
-                    :id="autoTestSetupEnvWrapperId"
-                    class="setup-env-wrapper"
-                    :visible="!singleResult">
-                    <b-form-fieldset>
-                        <label :for="baseSystemId">Base systems</label>
-
-                        <b-input-group v-if="configEditable">
-                            <multiselect
-                                :close-on-select="false"
-                                :id="baseSystemId"
-                                class="base-system-selector"
-                                v-model="test.base_systems"
-                                :options="baseSystems"
-                                :searchable="true"
-                                :custom-label="a => a.name"
-                                multiple
-                                track-by="id"
-                                label="label"
-                                :hide-selected="false"
-                                placeholder="Select base systems"
-                                :internal-search="true"
-                                :loading="false">
-                                <span slot="noResult" class="text-muted">
-                                    No results were found.
-                                </span>
-                            </multiselect>
-                            <b-input-group-append>
-                                <submit-button :submit="submitBaseSystems" />
-                            </b-input-group-append>
-                        </b-input-group>
-                        <div v-else class="multiselect">
-                            <div class="multiselect__tags">
-                                <div class="multiselect__tags-wrap">
-                                    <span v-for="base in test.base_systems"
-                                            class="multiselect__tag no-close">
-                                        {{ base.name }}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                    </b-form-fieldset>
-
-                    <transition :name="disabledAnimations ? '' : 'fixtureswrapper'">
-                        <div v-if="test.fixtures.length > 0" class="transition">
+                    <b-collapse
+                        :id="autoTestSetupEnvWrapperId"
+                        :visible="!singleResult">
+                        <b-card-body>
                             <b-form-fieldset>
-                                <label :for="uploadedFixturesId">
-                                    Uploaded fixtures
-                                </label>
-                                <ul class="fixture-list">
-                                    <transition-group :name="disabledAnimations ? '' : 'fixtures'">
-                                        <li v-for="fixture, index in test.fixtures"
-                                            class="transition fixture-row"
-                                            :key="fixture.id">
-                                            <template v-if="configEditable">
-                                                <a
-                                                    class="fixture-name"
-                                                    href="#"
-                                                    @click="openFile(fixture, $event)">
-                                                    {{ fixture.name }}
-                                                </a>
+                                <label :for="baseSystemId">Base systems</label>
 
-                                                <b-button-group>
-                                                    <submit-button
-                                                        :variant="fixture.hidden ? 'primary' : 'secondary'"
-                                                        :submit="() => toggleHidden(index)"
-                                                        size="sm">
-                                                        <icon :name="fixture.hidden ? 'eye-slash' : 'eye'" />
-                                                    </submit-button>
-                                                    <submit-button
-                                                        variant="danger"
-                                                        confirm="Are you sure you want to delete this fixture?"
-                                                        size="sm"
-                                                        :submit="() => removeFixture(index)"
-                                                        @success="removeFixtureSuccess">
-                                                        <icon name="times"/>
-                                                    </submit-button>
-                                                </b-button-group>
-                                            </template>
-                                            <template v-else>
-                                                <component
-                                                    :is="canViewFixture(fixture) ? 'a' : 'span'"
-                                                    class="fixture-name"
-                                                    href="#">
-                                                    {{ fixture.name }}
-                                                </component>
-
-                                                <icon
-                                                    v-if="fixture.hidden"
-                                                    name="eye-slash"
-                                                    v-b-popover.top.hover="`This fixture is hidden. ${singleResult && !canViewFixture(fixture) ? 'You' : 'Students'} may not view its contents.`"/>
-                                            </template>
-                                        </li>
-                                    </transition-group>
-                                </ul>
+                                <b-input-group v-if="configEditable">
+                                    <multiselect
+                                        :close-on-select="false"
+                                        :id="baseSystemId"
+                                        class="base-system-selector"
+                                        v-model="internalTest.base_systems"
+                                        :options="baseSystems"
+                                        :searchable="true"
+                                        :custom-label="a => a.name"
+                                        multiple
+                                        track-by="id"
+                                        label="label"
+                                        :hide-selected="false"
+                                        placeholder="Select base systems"
+                                        :internal-search="true"
+                                        :loading="false">
+                                        <span slot="noResult" class="text-muted">
+                                            No results were found.
+                                        </span>
+                                    </multiselect>
+                                    <b-input-group-append>
+                                        <submit-button :submit="() => submitProp('base_systems')" />
+                                    </b-input-group-append>
+                                </b-input-group>
+                                <div v-else class="multiselect">
+                                    <div class="multiselect__tags">
+                                        <div class="multiselect__tags-wrap">
+                                            <span v-for="base in test.base_systems"
+                                                  class="multiselect__tag no-close">
+                                                {{ base.name }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
                             </b-form-fieldset>
-                        </div>
-                    </transition>
 
-                    <b-form-fieldset class="fixture-upload-wrapper" v-if="configEditable">
-                        <label :for="fixtureUploadId">
-                            Upload fixtures
-                        </label>
-                        <multiple-files-uploader
-                            v-model="newFixtures"
-                            :id="fixtureUploadId">
-                            Click here or drop file(s) add fixtures and test files.
-                        </multiple-files-uploader>
-                        <b-input-group>
-                            <b-input-group-prepend is-text
-                                                    class="fixture-upload-information">
-                            </b-input-group-prepend>
-                            <b-input-group-append>
-                                <submit-button
-                                    :disabled="newFixtures.length === 0"
-                                    @after-success="afterAddFixtures"
-                                    class="upload-fixture-btn"
-                                    :submit="addFixtures" />
-                            </b-input-group-append>
-                        </b-input-group>
-                    </b-form-fieldset>
+                            <transition :name="disabledAnimations ? '' : 'fixtureswrapper'">
+                                <div v-if="test.fixtures.length > 0" class="transition">
+                                    <b-form-fieldset>
+                                        <label :for="uploadedFixturesId">
+                                            Uploaded fixtures
+                                        </label>
+                                        <ul class="fixture-list">
+                                            <transition-group :name="disabledAnimations ? '' : 'fixtures'">
+                                                <li v-for="fixture, index in test.fixtures"
+                                                    class="transition fixture-row"
+                                                    :key="fixture.id">
+                                                    <template v-if="configEditable">
+                                                        <a
+                                                            class="fixture-name"
+                                                            href="#"
+                                                            @click="openFile(fixture, $event)">
+                                                            {{ fixture.name }}
+                                                        </a>
 
-                    <b-form-fieldset v-if="configEditable">
-                        <label :for="preStartScriptId">
-                            Setup script to run
-                        </label>
-                        <b-input-group>
-                            <input class="form-control"
-                                    @keydown.ctrl.enter="$refs.setupScriptBtn.onClick"
-                                    :id="preStartScriptId"
-                                    v-model="test.setup_script"/>
-                            <b-input-group-append>
-                                <submit-button :submit="submitSetupScript" ref="setupScriptBtn"/>
-                            </b-input-group-append>
-                        </b-input-group>
-                    </b-form-fieldset>
-                    <b-form-fieldset v-else-if="editable && test.setup_script">
-                        <label :for="preStartScriptId">
-                            Setup script to run: <code>{{ test.setup_script }}</code>
-                        </label>
-                    </b-form-fieldset>
-                    <b-form-fieldset v-else-if="test.setup_script">
-                        <label>
-                            Setup script output: <code>{{ test.setup_script }}</code>
-                        </label>
-                        <b-tabs no-fade>
-                            <b-tab title="stdout">
-                                <pre v-if="singleResult" class="setup-output"><!--
-                                    -->{{ result.setup_stdout }}<!--
-                                --></pre>
-                            </b-tab>
-                            <b-tab title="stderr">
-                                <pre v-if="singleResult" class="setup-output"><!--
-                                    -->{{ result.setup_stderr }}<!--
-                                --></pre>
-                            </b-tab>
-                        </b-tabs>
-                    </b-form-fieldset>
-                </b-collapse>
+                                                        <b-button-group>
+                                                            <submit-button
+                                                                :variant="fixture.hidden ? 'primary' : 'secondary'"
+                                                                :submit="() => toggleHidden(index)"
+                                                                size="sm">
+                                                                <icon :name="fixture.hidden ? 'eye-slash' : 'eye'" />
+                                                            </submit-button>
+                                                            <submit-button
+                                                                variant="danger"
+                                                                confirm="Are you sure you want to delete this fixture?"
+                                                                size="sm"
+                                                                :submit="() => removeFixture(index)">
+                                                                <icon name="times"/>
+                                                            </submit-button>
+                                                        </b-button-group>
+                                                    </template>
+                                                    <template v-else>
+                                                        <component
+                                                            :is="canViewFixture(fixture) ? 'a' : 'span'"
+                                                            class="fixture-name"
+                                                            href="#">
+                                                            {{ fixture.name }}
+                                                        </component>
 
-                <hr style="margin-bottom: 0;"/>
+                                                        <icon
+                                                            v-if="fixture.hidden"
+                                                            name="eye-slash"
+                                                            v-b-popover.top.hover="`This fixture is hidden. ${singleResult && !canViewFixture(fixture) ? 'You' : 'Students'} may not view its contents.`"/>
+                                                    </template>
+                                                </li>
+                                            </transition-group>
+                                        </ul>
+                                    </b-form-fieldset>
+                                </div>
+                            </transition>
+
+                            <b-form-fieldset class="fixture-upload-wrapper" v-if="configEditable">
+                                <label :for="fixtureUploadId">
+                                    Upload fixtures
+                                </label>
+                                <multiple-files-uploader
+                                    v-model="newFixtures"
+                                    :id="fixtureUploadId">
+                                    Click here or drop file(s) add fixtures and test files.
+                                </multiple-files-uploader>
+                                <b-input-group>
+                                    <b-input-group-prepend is-text
+                                                            class="fixture-upload-information">
+                                    </b-input-group-prepend>
+                                    <b-input-group-append>
+                                        <submit-button
+                                            :disabled="newFixtures.length === 0"
+                                            @after-success="afterAddFixtures"
+                                            class="upload-fixture-btn"
+                                            :submit="addFixtures" />
+                                    </b-input-group-append>
+                                </b-input-group>
+                            </b-form-fieldset>
+
+                            <b-form-fieldset class="setup-output-wrapper">
+                                <template v-if="configEditable">
+                                    <label :for="preStartScriptId">
+                                        Setup script to run
+                                    </label>
+                                    <b-input-group>
+                                        <input class="form-control"
+                                                @keydown.ctrl.enter="$refs.setupScriptBtn.onClick"
+                                                :id="preStartScriptId"
+                                                v-model="internalTest.setup_script"/>
+                                        <b-input-group-append>
+                                            <submit-button
+                                                :submit="() => submitProp('setup_script')"
+                                                ref="setupScriptBtn"/>
+                                        </b-input-group-append>
+                                    </b-input-group>
+                                </template>
+                                <template v-else-if="editable && test.setup_script">
+                                    <label :for="preStartScriptId">
+                                        Setup script to run: <code>{{ test.setup_script }}</code>
+                                    </label>
+                                </template>
+                                <template v-else-if="test.setup_script">
+                                    <label>
+                                        Setup script output: <code>{{ test.setup_script }}</code>
+                                    </label>
+                                    <b-tabs no-fade v-if="singleResult">
+                                        <b-tab title="stdout">
+                                            <pre>{{ result.setup_stdout }}</pre>
+                                        </b-tab>
+                                        <b-tab title="stderr">
+                                            <pre>{{ result.setup_stderr }}</pre>
+                                        </b-tab>
+                                    </b-tabs>
+                                </template>
+                            </b-form-fieldset>
+                        </b-card-body>
+                    </b-collapse>
+                </b-card>
 
                 <transition :name="disabledAnimations ? '' : 'emptytext'">
                     <div class="text-muted empty-text transition"
@@ -286,8 +287,7 @@
                                 Test set
                                 <div class="btn-wrapper" v-if="configEditable">
                                     <submit-button
-                                        :submit="() => deleteSet(i)"
-                                        @success="afterDeleteSet"
+                                        :submit="() => deleteSet(set)"
                                         label="Delete set"
                                         variant="outline-danger"
                                         confirm="Are you sure you want to delete this test set and
@@ -296,12 +296,12 @@
                             </b-card-header>
                             <b-card-body>
                                 <span class="text-muted"
-                                        v-if="set.suites.filter(s => !s.isEmpty() && !s.deleted).length === 0">
+                                      v-if="set.suites.filter(s => !s.isEmpty() && !s.deleted).length === 0">
                                     You have no suites yet. Click the button below to create one.
                                 </span>
-                                <masonry :cols="{default: 2, [$root.largeWidth]: 1, [$root.mediumWidth]: 1 }"
-                                            :gutter="30"
-                                            class="outer-block">
+                                <masonry :cols="{default: 2, [$root.largeWidth]: 1 }"
+                                         :gutter="30"
+                                         class="outer-block">
                                     <auto-test-suite v-for="suite, j in set.suites"
                                                      v-if="!suite.deleted"
                                                      :editable="configEditable"
@@ -309,35 +309,50 @@
                                                      :key="suite.id"
                                                      :assignment="assignment"
                                                      :other-suites="allNonDeletedSuites"
+                                                     :value="set.suites[j]"
+                                                     @input="updateSuite(set, j, $event)"
                                                      @delete="$set(suite, 'deleted', true)"
-                                                     v-model="set.suites[j]"
-                                                     :result="result"/>
+                                                     :result="result" />
                                 </masonry>
                                 <div v-if="configEditable"
                                      class="btn-wrapper"
                                      style="float: right;">
                                     <submit-button
-                                        :submit="() => addSuite(i)"
+                                        :submit="() => addSuite(set)"
                                         label="Add suite"/>
                                 </div>
                             </b-card-body>
                             <transition :name="disabledAnimations ? '' : 'setcontinue'">
-                                <b-card-footer v-if="test.sets.some((s, j) => j > i && !s.deleted)"
+                                <b-card-footer v-if="configEditable && test.sets.some((s, j) => j > i && !s.deleted)"
                                                 class="transition set-continue">
                                     Only execute other test sets when achieved grade by AutoTest is higher than
                                     <b-input-group class="input-group">
-                                        <input class="form-control"
-                                                type="number"
-                                                v-model="set.stop_points"
-                                                @keyup.ctrl.enter="$refs.submitContinuePointsBtn[i].onClick()"
-                                                placeholder="0"
-                                            />
+                                        <input
+                                            class="form-control"
+                                            type="number"
+                                            v-model="internalTest.set_stop_points[set.id]"
+                                            @keyup.ctrl.enter="$refs.submitContinuePointsBtn[i].onClick()"
+                                            placeholder="0" />
                                         <b-input-group-append>
                                             <submit-button
                                                 ref="submitContinuePointsBtn"
                                                 :submit="() => submitContinuePoints(set)" />
                                         </b-input-group-append>
                                     </b-input-group>
+                                </b-card-footer>
+                                <b-card-footer
+                                    v-else-if="singleResult && i < test.sets.length - 1"
+                                    class="set-continue">
+                                    <template v-if="set.passed">
+                                        Scored <code>{{ result.setResults[set.id].achieved }}</code> points,
+                                        which is greater than <code>{{ set.stop_points }}</code>. Continuing
+                                        with the next set.
+                                    </template>
+                                    <template v-else>
+                                        Scored <code>{{ result.setResults[set.id].achieved }}</code> points,
+                                        which is less than <code>{{ set.stop_points }}</code>. No further
+                                        tests will be run.
+                                    </template>
                                 </b-card-footer>
                             </transition>
                         </b-card>
@@ -346,9 +361,8 @@
                 <div v-if="configEditable"
                      class="add-btn-wrapper transition">
                     <submit-button :submit="addSet"
-                                    @success="afterAddSet"
-                                    label="Add set"
-                                    class="transition"/>
+                                   label="Add set"
+                                   class="transition"/>
             </div>
 
             <div slot="footer">
@@ -367,17 +381,17 @@
         <auto-test
             v-if="currentResult"
             :assignment="assignment"
-            :result="currentResult"
-            :test-config="test"
+            :result-id="currentResult.id"
             :editable="false" />
     </b-modal>
 </div>
 </template>
 
 <script>
+import Vue from 'vue';
 import Multiselect from 'vue-multiselect';
 
-import { mapActions } from 'vuex';
+import { mapActions, mapGetters } from 'vuex';
 
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/times';
@@ -386,154 +400,12 @@ import 'vue-awesome/icons/eye-slash';
 import 'vue-awesome/icons/chevron-right';
 import 'vue-awesome/icons/exclamation-triangle';
 
-import { nameOfUser, getUniqueId, getProps, deepCopy, withOrdinalSuffix } from '@/utils';
+import { nameOfUser, getUniqueId } from '@/utils';
 
 import AutoTestSuite from './AutoTestSuite';
 import SubmitButton from './SubmitButton';
 import MultipleFilesUploader from './MultipleFilesUploader';
 import Loader from './Loader';
-
-class AutoTestSuiteData {
-    constructor($http, autoTestId, autoTestSetId, serverData = {}, trackingId = getUniqueId()) {
-        this.$http = $http;
-        this.trackingId = trackingId;
-        this.autoTestSetId = autoTestSetId;
-        this.autoTestId = autoTestId;
-
-        this.id = null;
-        this.steps = [];
-        this.rubricRow = {};
-
-        this.setFromServerData(serverData);
-    }
-
-    setFromServerData(d) {
-        this.id = d.id;
-        this.steps = d.steps || [];
-        this.rubricRow = d.rubric_row || {};
-    }
-
-    copy() {
-        return new AutoTestSuiteData(
-            this.$http,
-            this.autoTestId,
-            this.autoTestSetId,
-            {
-                id: this.id,
-                steps: deepCopy(this.steps),
-                rubric_row: this.rubricRow,
-            },
-            this.trackingId,
-        );
-    }
-
-    isEmpty() {
-        return this.steps.length === 0;
-    }
-
-    get url() {
-        return `/api/v1/auto_tests/${this.autoTestId}/sets/${this.autoTestSetId}/suites/`;
-    }
-
-    save() {
-        return this.$http
-            .patch(this.url, {
-                id: this.id == null ? undefined : this.id,
-                steps: this.steps.map(step => ({
-                    ...step,
-                    weight: Number(step.weight),
-                })),
-                rubric_row_id: this.rubricRow.id,
-            })
-            .then(({ data }) => this.setFromServerData(data));
-    }
-
-    delete() {
-        if (this.id != null) {
-            return this.$http.delete(`${this.url}/${this.id}`);
-        } else {
-            return Promise.resolve();
-        }
-    }
-
-    removeItem(index) {
-        this.steps.splice(index, 1);
-    }
-
-    addStep(step) {
-        this.steps.push(step);
-    }
-
-    checkValid(step) {
-        const isEmpty = val => !val.match(/[a-zA-Z0-9]/);
-        const errs = [];
-
-        if (step.checkName && isEmpty(step.name)) {
-            errs.push('The name may not be empty.');
-        }
-        if (step.checkProgram && isEmpty(step.program)) {
-            errs.push('The program may not be empty.');
-        }
-        if (step.checkWeight && Number(step.weight) <= 0) {
-            errs.push('The weight should be a number higher than 0.');
-        }
-
-        if (step.type === 'io_test') {
-            if (step.data.inputs.length === 0) {
-                errs.push('There should be at least one input output case.');
-            } else {
-                step.data.inputs.forEach((input, i) => {
-                    const name = `${withOrdinalSuffix(i + 1)} input output case`;
-                    if (isEmpty(input.name)) {
-                        errs.push(`The name of the ${name} is emtpy.`);
-                    }
-                    if (Number(input.weight) <= 0) {
-                        errs.push(`The weight of the ${name} should be a number higher than 0.`);
-                    }
-                });
-            }
-        } else if (step.type === 'check_points') {
-            let weightBefore = 0;
-            for (let i = 0; i < this.steps.length > 0; ++i) {
-                if (this.steps[i].id === this.id) {
-                    break;
-                }
-                weightBefore += Number(this.steps[i].weight);
-            }
-            if (step.data.min_pints <= 0 || step.data.min_points > weightBefore) {
-                errs.push(
-                    `The minimal amount of points should be achievable (which is ${weightBefore}) and higher than 0.`,
-                );
-            }
-        }
-
-        return errs;
-    }
-
-    getErrors() {
-        const caseErrors = {
-            general: [],
-            steps: [],
-            isEmpty() {
-                return this.steps.length === 0 && this.general.length === 0;
-            },
-        };
-        if (this.steps.length === 0) {
-            caseErrors.general.push('You should have at least one step.');
-        }
-
-        const stepErrors = this.steps.map(s => [s, this.checkValid(s)]);
-        if (stepErrors.some(([, v]) => v.length > 0)) {
-            caseErrors.steps = stepErrors;
-        }
-
-        if (!this.rubricRow || !this.rubricRow.id) {
-            caseErrors.general.push('You should select a rubric category for this test suite.');
-        }
-
-        return caseErrors.isEmpty() ? null : caseErrors;
-    }
-}
 
 export default {
     name: 'auto-test',
@@ -549,13 +421,13 @@ export default {
             default: false,
         },
 
-        result: {
-            type: Object,
+        resultId: {
+            type: Number,
             default: null,
         },
 
-        testConfig: {
-            type: Object,
+        submissionId: {
+            type: Number,
             default: null,
         },
 
@@ -569,9 +441,9 @@ export default {
         const id = getUniqueId();
 
         return {
-            test: null,
             disabledAnimations: true,
             newFixtures: [],
+            internalTest: {},
             loading: true,
             error: '',
             permissions: {},
@@ -597,7 +469,6 @@ export default {
         assignmentId: {
             handler() {
                 if (this.assignment.auto_test_id == null) {
-                    this.test = null;
                     this.loading = false;
                     return;
                 }
@@ -605,11 +476,13 @@ export default {
                 this.loading = true;
 
                 Promise.all([
-                    this.singleResult ? this.loadSingleResult() : this.loadAutoTest(),
+                    this.loadAutoTest(),
+                    this.loadSingleResult(),
                     this.loadPermissions(),
-                ]).then(() => {
-                    this.loading = false;
-                });
+                ]).then(
+                    () => { this.loading = false; },
+                    () => { this.loading = false; },
+                );
             },
             immediate: true,
         },
@@ -618,231 +491,117 @@ export default {
     methods: {
         ...mapActions('courses', ['updateAssignment']),
 
+        ...mapActions('autotest', {
+            storeCreateAutoTest: 'createAutoTest',
+            storeDeleteAutoTest: 'deleteAutoTest',
+            storeUpdateAutoTest: 'updateAutoTest',
+            storeLoadAutoTest: 'loadAutoTest',
+            storeCreateFixtures: 'createFixtures',
+            storeToggleFixture: 'toggleFixture',
+            storeCreateAutoTestSet: 'createAutoTestSet',
+            storeDeleteAutoTestSet: 'deleteAutoTestSet',
+            storeUpdateAutoTestSet: 'updateAutoTestSet',
+            storeCreateAutoTestSuite: 'createAutoTestSuite',
+            storeUpdateAutoTestSuite: 'updateAutoTestSuite',
+            storeLoadAutoTestResult: 'loadAutoTestResult',
+            storeDeleteAutoTestResult: 'deleteAutoTestResult',
+        }),
+
         runAutoTest() {
             return this.$http
                 .post(`/api/v1/auto_tests/${this.assignment.auto_test_id}/runs/`);
         },
 
         loadAutoTest() {
-            return this.$http
-                .get(`/api/v1/auto_tests/${this.assignment.auto_test_id}`)
-                .then(
-                    ({ data: test }) => {
-                        test.runs = [
-                            {
-                                id: 1,
-                                results: [
-                                    {
-                                        id: 1,
-                                        work: {
-                                            id: 1,
-                                            user: { name: 'Thomas Schaper', id: 1 },
-                                        },
-                                        points_achieved: '-',
-                                        state: 'not_started',
-                                        setup_stdout: 'stdout!!!',
-                                        setup_stderr: 'stderr!!!',
-                                    },
-                                    {
-                                        id: 2,
-                                        work: {
-                                            id: 2,
-                                            user: { name: 'Olmo Kramer', id: 2 },
-                                            grade_overridden: true,
-                                        },
-                                        points_achieved: '12 / 13',
-                                        state: 'passed',
-                                        setup_stdout: 'stdout!!!',
-                                        setup_stderr: 'stderr!!!',
-                                    },
-                                    {
-                                        id: 3,
-                                        work: {
-                                            id: 3,
-                                            user: { name: 'Student 2', id: 3 },
-                                        },
-                                        points_achieved: '0 / 13',
-                                        state: 'failed',
-                                        setup_stdout: 'stdout!!!',
-                                        setup_stderr: 'stderr!!!',
-                                    },
-                                    {
-                                        id: 4,
-                                        work: {
-                                            id: 4,
-                                            user: { name: 'Olmo Kramer', id: 4 },
-                                        },
-                                        points_achieved: '-',
-                                        state: 'running',
-                                        setup_stdout: 'stdout!!!',
-                                        setup_stderr: 'stderr!!!',
-                                    },
-                                ],
-                            },
-                        ];
-                        test.runs = [];
-
-                        this.setTest(test);
-                    },
-                    err => {
-                        if (this.is404(err)) {
-                            this.test = null;
-                        }
-                    },
-                );
-        },
-
-        loadSingleResult() {
-            if (this.test == null) {
-                this.setTest(this.testConfig);
-            }
-
-            const testId = this.test.id;
-            const runId = this.test.runs[0].id;
-            const resultId = this.result.id;
-
-            return this.$http
-                .get(`/api/v1/auto_tests/${testId}/runs/${runId}/results/${resultId}`)
-                .then(
-                    ({ data: result }) => {
-                        this.result.stepResults = result.step_results;
-                    },
-                    err => {
-                        this.error = err.response.data.message;
-
-                        function randomChoice(choices) {
-                            return choices[Math.floor(Math.random() * choices.length)];
-                        }
-
-                        const stepResults = {};
-                        this.test.sets.forEach(set => {
-                            set.suites.forEach(suite => {
-                                suite.steps.forEach(step => {
-                                    stepResults[step.id] = {
-                                        state: randomChoice(['not_started', 'running', 'passed', 'failed']),
-                                        log: '{}',
-                                    };
-                                });
-                            });
-                        });
-
-                        this.result.stepResults = stepResults;
-                    },
-                );
-        },
-
-        loadPermissions() {
-            const names = [
-                'can_view_hidden_fixtures',
-            ];
-
-            return this.$hasPermission(names, this.assignment.course.id).then(
-                perms => {
-                    perms.forEach((value, i) => {
-                        this.permissions[names[i]] = value;
-                    });
+            return this.storeLoadAutoTest({
+                autoTestId: this.assignment.auto_test_id,
+            }).then(
+                () => {
+                    Vue.set(this.internalTest, 'base_systems', this.test.base_systems);
+                    Vue.set(this.internalTest, 'setup_script', this.test.setup_script);
+                    Vue.set(this.internalTest, 'set_stop_points', this.test.sets.reduce(
+                        (acc, set) => Object.assign(acc, { [set.id]: set.stop_points }),
+                        {},
+                    ));
+                },
+                err => {
+                    // FIXME: handle error
+                    console.error(err);
                 },
             );
         },
 
-        toggleHidden(fixtureIndex) {
-            let fun;
-            const fixture = this.test.fixtures[fixtureIndex];
-            if (fixture.hidden) {
-                fun = this.$http.delete;
-            } else {
-                fun = this.$http.post;
+        loadSingleResult() {
+            if (this.assignment.auto_test_id == null || !this.singleResult) {
+                return null;
             }
-            return fun(`${this.autoTestUrl}/fixtures/${fixture.id}/hide`).then(() => {
-                this.$set(this.test.fixtures[fixtureIndex], 'hidden', !fixture.hidden);
+
+            return this.storeLoadAutoTestResult({
+                autoTestId: this.assignment.auto_test_id,
+                resultId: this.resultId,
+            }).catch(err => {
+                // FIXME: handle error
+                console.error(err);
             });
         },
 
-        submitContinuePoints(set) {
-            return this.$http.patch(`${this.autoTestUrl}/sets/${set.id}`, {
-                stop_points: Number(set.stop_points),
-            }).then(() => {
-                this.$set(set, 'stop_points', Number(set.stop_points));
+        loadPermissions() {
+            const names = ['can_view_hidden_fixtures'];
+
+            return this.$hasPermission(names, this.assignment.course.id).then(perms => {
+                perms.forEach((value, i) => {
+                    this.permissions[names[i]] = value;
+                });
             });
-        },
-
-        setTest(test) {
-            this.test = test;
-            this.test.sets = test.sets.map(set => ({
-                ...set,
-                suites: set.suites.map(
-                    suite =>
-                        new AutoTestSuiteData(
-                            this.$http,
-                            test.id,
-                            set.id,
-                            suite,
-                        ),
-                ),
-            }));
-        },
-
-        deleteSet(index) {
-            return this.$http
-                .delete(`${this.autoTestUrl}/sets/${this.test.sets[index].id}`)
-                .then(() => index);
-        },
-
-        async afterDeleteSet(index) {
-            await this.$nextTick();
-            this.$set(this.test.sets[index], 'deleted', true);
         },
 
         openFile(_, event) {
             event.preventDefault();
         },
 
-        selectSetup(selectedName) {
-            this.selectedEnvironmentOption = selectedName;
-        },
-
-        addSuite(index) {
-            this.test.sets[index].suites.push(
-                new AutoTestSuiteData(this.$http, this.test.id, this.test.sets[index].id),
-            );
-            this.$set(this.test.sets, index, this.test.sets[index]);
-        },
-
         addSet() {
-            return this.$http.post(`${this.autoTestUrl}/sets/`);
-        },
-
-        afterAddSet({ data }) {
-            this.test.sets.push(data);
-            this.$set(this.test, 'sets', this.test.sets);
-        },
-
-        removeFixture(index) {
-            return this.$http.patch(this.autoTestUrl, {
-                fixtures: this.test.fixtures.filter((_, i) => i !== index),
+            return this.storeCreateAutoTestSet({
+                autoTestId: this.test.id,
             });
         },
 
-        async removeFixtureSuccess({ data }) {
-            await this.$nextTick();
-            this.test.fixtures = data.fixtures;
-        },
-
-        submitBaseSystems() {
-            return this.$http.patch(this.autoTestUrl, {
-                base_systems: this.test.base_systems,
+        deleteSet(set) {
+            return this.storeDeleteAutoTestSet({
+                autoTestId: this.test.id,
+                setId: set.id,
             });
         },
 
-        submitSetupScript() {
-            return this.$http.patch(this.autoTestUrl, {
-                setup_script: this.test.setup_script,
+        submitContinuePoints(set) {
+            const stopPoints = Number(
+                this.internalTest.set_stop_points[set.id],
+            );
+            return this.storeUpdateAutoTestSet({
+                autoTestId: this.test.id,
+                autoTestSet: set,
+                setProps: { stop_points: stopPoints },
             });
         },
 
-        submitFinalizeScript() {
-            return this.$http.patch(this.autoTestUrl, {
-                finalize_script: this.test.finalize_script,
+        addSuite(set) {
+            this.storeCreateAutoTestSuite({
+                autoTestId: this.test.id,
+                autoTestSet: set,
+            });
+        },
+
+        updateSuite(set, index, suite) {
+            this.storeUpdateAutoTestSuite({
+                autoTestSet: set,
+                index,
+                suite,
+            });
+        },
+
+        submitProp(prop) {
+            return this.storeUpdateAutoTest({
+                autoTestId: this.test.id,
+                autoTestProps: { [prop]: this.internalTest[prop] },
             });
         },
 
@@ -867,66 +626,57 @@ export default {
                 ),
             );
 
-            return this.$http.patch(this.autoTestUrl, data);
+            return this.storeCreateFixtures({
+                autoTestId: this.test.id,
+                fixtures: data,
+            });
         },
 
-        afterAddFixtures(response) {
+        afterAddFixtures() {
             this.newFixtures = [];
-            this.test.fixtures = response.data.fixtures;
+        },
+
+        removeFixture(index) {
+            this.storeUpdateAutoTest({
+                autoTestId: this.test.id,
+                autoTestProps: {
+                    fixtures: this.test.fixtures.filter((_, i) => i !== index),
+                },
+            });
+        },
+
+        toggleHidden(index) {
+            return this.storeToggleFixture({
+                autoTestId: this.test.id,
+                fixture: this.test.fixtures[index],
+            });
         },
 
         createAutoTest() {
             this.disabledAnimations = true;
-            return this.$http.post('/api/v1/auto_tests/', {
-                assignment_id: this.assignmentId,
-            });
+            return this.storeCreateAutoTest(this.assignment.id);
         },
 
-        async afterCreateAutoTest({ data }) {
-            this.updateAssignment({
-                assignmentId: this.assignmentId,
-                assignmentProps: {
-                    auto_test_id: data.id,
-                },
-            });
-            this.setTest(data);
+        async afterCreateAutoTest() {
             await this.$nextTick();
             this.disabledAnimations = false;
         },
 
         deleteAutoTest() {
             this.disabledAnimations = true;
-            return this.$http.delete(this.autoTestUrl);
+            return this.storeDeleteAutoTest(this.test.id);
         },
 
         async afterDeleteAutoTest() {
-            this.test = null;
-            this.updateAssignment({
-                assignmentId: this.assignmentId,
-                assignmentProps: {
-                    auto_test_id: null,
-                },
-            });
             await this.$nextTick();
             this.disabledAnimations = false;
         },
 
         deleteResults(id) {
-            if (!this.test || !this.test.runs.length) {
-                throw new Error('There is no run to delete.');
-            }
-
-            return this.$http.delete(
-                `/api/v1/auto_tests/${this.assignment.auto_test_id}/runs/${id}`,
-            );
-        },
-
-        afterDeleteResults() {
-            this.test.runs = [];
-        },
-
-        is404(err) {
-            return getProps(err, null, 'response', 'status') === 404;
+            return this.storeDeleteAutoTestResults({
+                autoTestId: this.test.id,
+                runId: id,
+            });
         },
 
         openResult(result) {
@@ -942,6 +692,32 @@ export default {
     },
 
     computed: {
+        ...mapGetters('autotest', {
+            allTests: 'tests',
+            allResults: 'results',
+        }),
+
+        test() {
+            const id = this.assignment.auto_test_id;
+            return id && this.allTests[id];
+        },
+
+        result() {
+            if (!this.hasResults) {
+                return null;
+            }
+
+            let resultId = this.resultId;
+
+            if (resultId == null && this.submissionId != null) {
+                resultId = this.test.runs[0].results.filter(
+                    r => r.work.id === this.submissionId,
+                ).id;
+            }
+
+            return resultId ? this.allResult[resultId] : null;
+        },
+
         autoTestUrl() {
             return `/api/v1/auto_tests/${this.test.id}`;
         },
@@ -995,7 +771,7 @@ export default {
         },
 
         singleResult() {
-            return this.result != null;
+            return this.hasResults && (this.resultId != null || this.submissionId != null);
         },
     },
 
@@ -1021,9 +797,16 @@ export default {
     margin-bottom: 1rem;
 }
 
-.auto-test:not(.config-editable) .auto-test-suite:last-child,
-.auto-test:not(.config-editable) .auto-test-suite:nth-last-child(2) {
-    margin-bottom: 0;
+.auto-test {
+    &:not(.config-editable) .auto-test-suite:last-child {
+        margin-bottom: 0;
+    }
+
+    @media @media-large {
+        &.config-editable .auto-test-suite:nth-last-child(2) {
+            margin-bottom: 0;
+        }
+    }
 }
 
 .transition {
@@ -1042,11 +825,7 @@ export default {
 .test-suites-button-wrapper,
 .add-btn-wrapper {
     display: flex;
-    justify-content: right;
-
-    .btn {
-        align-self: flex-end;
-    }
+    justify-content: flex-end;
 }
 
 .list-enter-active {
@@ -1109,6 +888,10 @@ export default {
     .input-group {
         width: initial;
         margin-left: 5px;
+    }
+
+    code {
+        padding: 0 0.25rem;
     }
 }
 
@@ -1233,7 +1016,7 @@ export default {
 
         .fa-icon {
             transform: translateY(2px);
-            margin-right: .25rem;
+            margin-right: 0.25rem;
         }
     }
 }
@@ -1242,7 +1025,7 @@ export default {
     cursor: pointer;
 
     .fa-icon {
-        margin-right: .25rem;
+        margin-right: 0.25rem;
         transition: transform 300ms;
     }
 
@@ -1251,13 +1034,17 @@ export default {
     }
 }
 
-.setup-output {
+.setup-output-wrapper {
     margin-bottom: 0;
-    border: 1px solid @color-border-gray-lighter;
-    border-top-width: 0;
-    border-bottom-left-radius: 0.25rem;
-    border-bottom-right-radius: 0.25rem;
-    padding: 1rem;
+
+    pre {
+        margin-bottom: 0;
+        border: 1px solid @color-border-gray-lighter;
+        border-top-width: 0;
+        border-bottom-left-radius: 0.25rem;
+        border-bottom-right-radius: 0.25rem;
+        padding: 1rem;
+    }
 }
 </style>
 

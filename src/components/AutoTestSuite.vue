@@ -68,7 +68,7 @@
                    v-b-popover.top.hover="`Add a new ${stepType.name} step`"
                    :style="{ 'background-color': stepType.color }"
                    variant="primary">
-                <icon name="plus" /> {{ titleCase(stepType.name.replace(/_/g, ' ')) }}
+                <icon name="plus" /> {{ stepType.title }}
             </b-btn>
         </b-button-toolbar>
 
@@ -86,15 +86,16 @@
                     :submit="cancelEdit"/>
                 <submit-button :submit="saveSuite"
                                label="Save">
-                    <div slot="error" v-if="caseErrors != null"
+                    <div slot="error"
+                         slot-scope="scope"
                          class="custom-error-popover">
-                        <template v-for="err in caseErrors.general">
+                        <template v-for="err in scope.error.messages.general">
                             {{ err }}
                         </template>
-                        <template v-if="caseErrors.steps.length > 0">
+                        <template v-if="scope.error.messages.steps.length > 0">
                             Some steps are not valid:
                             <ul>
-                                <li v-for="[step, errs], i in caseErrors.steps"
+                                <li v-for="[step, errs], i in scope.error.messages.steps"
                                     :key="step.id"
                                     v-if="errs.length > 0">
                                     {{ withOrdinalSuffix(i + 1) }} step<span v-if="step.name">
@@ -124,27 +125,30 @@
                 <icon name="pencil"/>
             </div>
 
-            <div v-else>
-                {{ achievedPoints }} points
+            <div v-else-if="result">
+                {{ pointPercentage }} %
             </div>
         </div>
 
-        <table class="table steps-table">
-            <thead>
-                <tr>
-                    <th>No</th>
-                    <th>Summary</th>
-                    <th>Weight</th>
-                    <th v-if="result">Pass</th>
-                </tr>
-            </thead>
-            <auto-test-step :value="testStep"
-                            v-for="testStep, i in value.steps"
-                            :test-types="stepTypes"
-                            :key="i"
-                            :index="i + 1"
-                            :result="result"/>
-        </table>
+        <div class="suite-steps">
+            <table class="table steps-table">
+                <thead>
+                    <tr>
+                        <th v-if="result"></th>
+                        <th>No</th>
+                        <th>Summary</th>
+                        <th>Weight</th>
+                        <th v-if="result">Pass</th>
+                    </tr>
+                </thead>
+                <auto-test-step :value="testStep"
+                                v-for="testStep, i in value.steps"
+                                :test-types="stepTypes"
+                                :key="i"
+                                :index="i + 1"
+                                :result="result"/>
+            </table>
+        </div>
     </b-card>
 </div>
 </template>
@@ -158,7 +162,7 @@ import 'vue-awesome/icons/times';
 import 'vue-awesome/icons/check';
 import 'vue-awesome/icons/pencil';
 
-import { titleCase, getUniqueId, withOrdinalSuffix } from '@/utils';
+import { getUniqueId, withOrdinalSuffix } from '@/utils';
 
 import SubmitButton from './SubmitButton';
 import AutoTestStep from './AutoTestStep';
@@ -205,8 +209,6 @@ export default {
             showModal: false,
             internalValue: null,
             slickItemMoving: false,
-            titleCase,
-            caseErrors: null,
             withOrdinalSuffix,
         };
     },
@@ -232,28 +234,20 @@ export default {
 
         stepTypes() {
             return [
-                { name: 'io_test', color: '#E7EEE9' },
-                { name: 'run_program', color: '#E6DCCD' },
-                { name: 'custom_output', color: '#DFD3AA' },
-                { name: 'check_points', color: '#D6CE5B' },
+                { name: 'io_test', title: 'IO Test', color: '#E7EEE9' },
+                { name: 'run_program', title: 'Run Program', color: '#E6DCCD' },
+                { name: 'custom_output', title: 'Custom Output', color: '#DFD3AA' },
+                { name: 'check_points', title: 'Check Points', color: '#D6CE5B' },
             ];
         },
 
-        achievedPoints() {
-            if (!this.result) {
-                return 0;
-            }
-
-            const stepResults = this.result.stepResults;
-            return this.value.steps.map(
-                step => (stepResults[step.id].state === 'passed' ? step.weight : 0),
-            ).reduce((x, y) => x + y, 0);
+        pointPercentage() {
+            const result = this.result.suiteResults[this.value.id];
+            return (100 * result.achieved / result.possible).toFixed(2);
         },
     },
 
     methods: {
-        noop() {},
-
         createTestStep(type) {
             const res = {
                 name: '',
@@ -304,23 +298,18 @@ export default {
         },
 
         saveSuite() {
-            this.caseErrors = this.internalValue.getErrors();
-            if (this.caseErrors) {
-                throw new Error('The suite is not valid');
-            } else {
-                return this.internalValue.save().then(() => {
-                    this.$refs.editModal.hide();
-                    this.$emit('input', this.internalValue);
-                    this.internalValue = null;
-                });
-            }
+            return this.internalValue.save().then(() => {
+                this.$refs.editModal.hide();
+                this.$emit('input', this.internalValue);
+                this.internalValue = null;
+            });
         },
 
         cancelEdit() {
             const modal = this.$refs.editModal;
             if (modal) {
                 modal.hide();
-                this.$emit('save-canceled');
+                this.$emit('save-cancelled');
             }
         },
     },
@@ -384,6 +373,7 @@ export default {
 
 .custom-error-popover {
     text-align: left;
+
     ul {
         padding-left: 1rem;
         margin-bottom: 0;
@@ -416,6 +406,11 @@ export default {
         opacity: 0.4;
         color: @color-primary !important;
     }
+}
+
+.suite-steps {
+    max-height: 20rem;
+    overflow: auto;
 }
 
 .steps-table {

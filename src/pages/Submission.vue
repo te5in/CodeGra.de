@@ -180,7 +180,7 @@
                        :editable="canGiveLineFeedback"
                        @new-lang="languageChanged"
                        :language="selectedLanguage"
-                       :can-use-snippets="canUseSnippets"/>
+                       :can-use-snippets="canUseSnippets" />
         </div>
         <div class="file-tree-container " v-if="!overviewMode"
              slot="secondPane">
@@ -474,8 +474,8 @@ export default {
         },
     },
 
-    mounted() {
-        Promise.all([
+    async mounted() {
+        await Promise.all([
             this.$hasPermission(
                 [
                     'can_grade_work',
@@ -518,11 +518,11 @@ export default {
                 } else {
                     this.canSeeRevision = editOthersWork;
                 }
-
-                this.loadingPage = false;
-                this.loadingInner = false;
             },
         );
+
+        this.loadingPage = false;
+        this.loadingInner = false;
     },
 
     methods: {
@@ -584,7 +584,10 @@ export default {
         },
 
         getSubmissionData() {
-            return Promise.all([this.getFileTrees(), this.getRubric()]);
+            return Promise.all([
+                this.getFileTrees(),
+                this.getRubric(),
+            ]);
         },
 
         getFileTrees() {

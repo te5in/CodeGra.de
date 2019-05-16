@@ -214,7 +214,7 @@ export function loadCodeAndFeedback(http, fileId) {
 
 export function getProps(object, defaultValue, ...props) {
     let res = object;
-    for (let i = 0; res !== undefined && i < props.length; ++i) {
+    for (let i = 0; res != null && i < props.length; ++i) {
         res = res[props[i]];
     }
     if (res === undefined) {

@@ -6,11 +6,11 @@
             <div v-b-toggle="collapseId"
                  class="collapse-toggle header-item"
                  :class="value.opened ? 'collapse-open' : ''">
-                <icon name="chevron-down"/>
+                <icon name="chevron-down" :scale="0.75"/>
             </div>
             <div class="step-type header-item"
                  :style="{ 'background-color': typeColor }">
-                {{ stepName }}
+                {{ typeTitle }}
             </div>
             <b-input-group prepend="Name"
                            class="name-input header-item"
@@ -117,7 +117,6 @@
                                            @input="updateInput(index, 'args', $event.target.value)"/>
                                 </b-form-fieldset>
 
-
                                 <div class="stdin-wrapper">
                                     <label :for="stdinId(index)">Input</label>
                                     <textarea class="form-control stdin-input"
@@ -132,15 +131,10 @@
                                     Options
                                 </label>
                                 <b-form-checkbox-group :checked="input.options"
+                                                       :options="ioOptions"
                                                        :id="optionsId(index)"
                                                        class="io-options"
-                                                       @input="updateInput(index, 'options', $event)">
-                                    <b-form-checkbox v-for="option in ioOptions"
-                                                     :key="option.value"
-                                                     :value="option.value">
-                                        {{ option.text }}
-                                    </b-form-checkbox>
-                                </b-form-checkbox-group>
+                                                       @input="updateInput(index, 'options', $event)"/>
                                 <label :for="stdoutId(index)">Expected output</label>
                                 <textarea class="form-control expected-output"
                                           :value="input.output"
@@ -197,44 +191,221 @@
     </b-card>
 </div>
 <!-- Not editable -->
-<tbody v-else-if="value.type === 'check_points'">
-    <tr>
-        <td>{{ index }}</td>
-        <td colspan="2">Stop when you got less than {{ value.data.min_points }} points.</td>
-        <td v-if="result">
-            <icon v-if="stateIcon" :name="stateIcon" v-b-popover.top.hover="statePopover" /></td>
-    </tr>
-</tbody>
-<tbody v-else-if="value.type === 'run_program'">
-    <tr>
-        <td>{{ index }}</td>
-        <td>{{ stepName }}: Run <code>{{ value.data.program }}</code> and check for successful completion.</td>
-        <td>{{ value.weight }}</td>
-        <td v-if="result"><icon v-if="stateIcon" :name="stateIcon" v-b-popover.top.hover="statePopover" /></td>
-    </tr>
-</tbody>
-<tbody v-else-if="value.type === 'custom_output'">
-    <tr>
-        <td>{{ index }}</td>
-        <td>{{ stepName }}: Run <code>{{ value.data.program }}</code> and parse its output.</td>
-        <td>{{ value.weight }}</td>
-        <td v-if="result"><icon v-if="stateIcon" :name="stateIcon" v-b-popover.top.hover="statePopover" /></td>
-    </tr>
-</tbody>
-<tbody v-else-if="value.type === 'io_test'">
-    <tr>
-        <td><b>{{ index }}</b></td>
-        <td><b>{{ stepName }}</b></td>
-        <td><b>{{ value.weight }}</b></td>
-        <td v-if="result"><icon v-if="stateIcon" :name="stateIcon" v-b-popover.top.hover="statePopover" /></td>
-    </tr>
-    <tr v-for="input, i in inputs"
-        :key="i">
-        <td>{{ index }}.{{ i + 1}}</td>
-        <td>{{ input.name }}</td>
-        <td>{{ input.weight }}</td>
-        <td v-if="result"></td>
-    </tr>
+<tbody v-else class="auto-test-step" :class="{ 'with-output': canViewOutput }">
+    <template v-if="value.type === 'check_points'">
+        <tr class="step-summary" v-b-toggle="resultsCollapseId">
+            <td class="expand" v-if="result">
+                <icon v-if="canViewOutput" name="chevron-down" :scale="0.75" />
+                <icon v-else-if="value.hidden" name="eye-slash" :scale="0.85"
+                        v-b-popover.hover.top="'You cannot view this step\'s results.'" />
+            </td>
+            <td class="index">{{ index }}</td>
+            <td class="summary" colspan="2">
+                <b>{{ stepName }}</b>
+                Stop when you got less than {{ value.data.min_points }} points.
+            </td>
+            <td class="passed" v-if="result">
+                <auto-test-step-state :state="stepResult.state" />
+            </td>
+        </tr>
+
+        <tr v-if="canViewOutput" class="results-log-collapse-row">
+            <td colspan="5">
+                <b-collapse :id="resultsCollapseId" class="container-fluid">
+                    <div class="row">
+                        <div class="col-12">
+                            <span>
+                                Exit status code
+                                <code>{{ stepResult.log.status || '(unknown) :-(' }}</code>
+                            </span>
+                        </div>
+
+                        <div class="col-6">
+                            <label>Output</label>
+                            <pre class="form-control">{{ stepResult.log.stdout }}</pre>
+                        </div>
+
+                        <div class="col-6">
+                            <label>Errors</label>
+                            <pre class="form-control">{{ stepResult.log.stderr }}</pre>
+                        </div>
+                    </div>
+                </b-collapse>
+            </td>
+        </tr>
+    </template>
+
+    <template v-else-if="value.type === 'run_program'">
+        <tr class="step-summary" v-b-toggle="resultsCollapseId">
+            <td class="expand" v-if="result">
+                <icon v-if="canViewOutput" name="chevron-down" :scale="0.75" />
+                <icon v-else-if="value.hidden" name="eye-slash" :scale="0.85"
+                        v-b-popover.hover.top="'You cannot view this step\'s results.'" />
+            </td>
+            <td class="index">{{ index }}</td>
+            <td class="summary">
+                <b>{{ stepName }}</b>
+                Run <code>{{ value.data.program }}</code> and check for successful completion.
+            </td>
+            <td class="weight">{{ value.weight }}</td>
+            <td class="passed" v-if="result">
+                <auto-test-step-state :state="stepResult.state" />
+            </td>
+        </tr>
+
+        <tr v-if="canViewOutput" class="results-log-collapse-row">
+            <td colspan="5">
+                <b-collapse :id="resultsCollapseId" class="container-fluid">
+                    <div class="row">
+                        <div class="col-12">
+                            <span>
+                                Exit status code
+                                <code>{{ stepResult.log.status || '(unknown) :-(' }}</code>
+                            </span>
+                        </div>
+
+                        <div class="col-6">
+                            <label>Output</label>
+                            <pre class="form-control">{{ stepResult.log.stdout }}</pre>
+                        </div>
+
+                        <div class="col-6">
+                            <label>Errors</label>
+                            <pre class="form-control">{{ stepResult.log.stderr }}</pre>
+                        </div>
+                    </div>
+                </b-collapse>
+            </td>
+        </tr>
+    </template>
+
+    <template v-else-if="value.type === 'custom_output'">
+        <tr class="step-summary" v-b-toggle="resultsCollapseId">
+            <td class="expand" v-if="result">
+                <icon v-if="canViewOutput" name="chevron-down" :scale="0.75" />
+                <icon v-else-if="value.hidden" name="eye-slash" :scale="0.85"
+                        v-b-popover.hover.top="'You cannot view this step\'s results.'" />
+            </td>
+            <td class="index">{{ index }}</td>
+            <td class="summary">
+                <b>{{ stepName }}</b>
+                Run <code>{{ value.data.program }}</code> and parse its output.
+            </td>
+            <td class="weight">{{ value.weight }}</td>
+            <td class="passed" v-if="result">
+                <auto-test-step-state :state="stepResult.state" />
+            </td>
+        </tr>
+
+        <tr v-if="canViewOutput" class="results-log-collapse-row">
+            <td colspan="5">
+                <b-collapse :id="resultsCollapseId" class="container-fluid">
+                    <div class="row">
+                        <div class="col-12">
+                            <label>
+                                Match output on
+                                <code>{{ value.data.regex }}</code>
+                            </label>
+                            <label>
+                                Exit status code
+                                <code>{{ stepResult.log.status || '(unknown) :-(' }}</code>
+                            </label>
+                        </div>
+
+                        <div class="col-6">
+                            <label>Output</label>
+                            <pre class="form-control">{{ stepResult.log.stdout }}</pre>
+                        </div>
+
+                        <div class="col-6">
+                            <label>Errors</label>
+                            <pre class="form-control">{{ stepResult.log.stderr }}</pre>
+                        </div>
+                    </div>
+                </b-collapse>
+            </td>
+        </tr>
+    </template>
+
+    <template v-else-if="value.type === 'io_test'">
+        <tr>
+            <td class="expand" v-if="result">
+                <icon v-if="value.hidden" name="eye-slash" :scale="0.85"
+                    v-b-popover.hover.top="'You cannot view this step\'s results.'" />
+            </td>
+            <td class="index"><b>{{ index }}</b></td>
+            <td class="summary">
+                <b>{{ stepName }}</b>
+                Run <code>{{ value.data.program }}</code> and match its output to an expected value.
+            </td>
+            <td class="weight"><b>{{ value.weight }}</b></td>
+            <td class="passed" v-if="result"></td>
+        </tr>
+
+        <template v-for="input, i in inputs">
+            <tr class="step-summary" v-b-toggle="`${resultsCollapseId}-${i}`">
+                <td class="expand" v-if="result">
+                    <icon v-if="canViewOutput" name="chevron-down" :scale="0.75" />
+                    <icon v-else-if="value.hidden" name="eye-slash" :scale="0.85"
+                        v-b-popover.hover.top="'You cannot view this step\'s results.'" />
+                </td>
+                <td class="index">{{ index }}.{{ i + 1 }}</td>
+                <td class="summary">{{ input.name }}</td>
+                <td class="weight">{{ input.weight }}</td>
+                <td class="passed" v-if="result">
+                    <auto-test-step-state :state="stepResult.log ? stepResult.log.steps[i].state : 'skipped'" />
+                </td>
+            </tr>
+
+            <tr v-if="canViewOutput"
+                class="results-log-collapse-row">
+                <td colspan="5">
+                    <b-collapse :id="`${resultsCollapseId}-${i}`">
+                        <b-card no-body style="border: 0;">
+                            <b-tabs card no-fade class="container-fluid">
+                                <b-tab title="Output" class="row">
+                                    <div class="col-6">
+                                        <label>Expected output</label>
+                                        <pre class="form-control">{{ input.output }}</pre>
+                                    </div>
+
+                                    <div class="col-6">
+                                        <label>Actual output</label>
+                                        <pre class="form-control">{{ stepResult.log.steps[i].stdout }}</pre>
+                                    </div>
+                                </b-tab>
+
+                                <b-tab title="Input" class="row">
+                                    <div class="col-6">
+                                        <label>Input arguments</label>
+                                        <code class="form-control">{{ input.args }}</code>
+
+                                        <label>Options</label>
+                                        <b-form-checkbox-group
+                                            :options="ioOptions"
+                                            :checked="input.options"
+                                            @click.native.capture.prevent.stop/>
+                                    </div>
+
+                                    <div class="col-6">
+                                        <label>Input</label>
+                                        <pre class="form-control">{{ input.stdin }}</pre>
+                                    </div>
+                                </b-tab>
+
+                                <b-tab title="Errors" class="row" v-if="stepResult.log.steps[i].stderr">
+                                    <div class="col-12">
+                                        <label>Errors</label>
+                                        <pre class="form-control">{{ stepResult.log.steps[i].stderr }}</pre>
+                                    </div>
+                                </b-tab>
+                            </b-tabs>
+                        </b-card>
+                    </b-collapse>
+                </td>
+            </tr>
+        </template>
+    </template>
 </tbody>
 </template>
 
@@ -249,11 +420,13 @@ import 'vue-awesome/icons/plus';
 import 'vue-awesome/icons/caret-down';
 import 'vue-awesome/icons/chevron-down';
 import 'vue-awesome/icons/clock-o';
+import 'vue-awesome/icons/ban';
 
-import { getUniqueId, titleCase, deepCopy, getProps } from '@/utils';
+import { getUniqueId, deepCopy, getProps } from '@/utils';
 
 import SubmitButton from './SubmitButton';
 import DescriptionPopover from './DescriptionPopover';
+import AutoTestStepState from './AutoTestStepState';
 
 export default {
     name: 'auto-test-step',
@@ -291,11 +464,13 @@ export default {
     },
 
     data() {
+        const id = getUniqueId();
+
         return {
-            id: getUniqueId(),
-            arr: [],
+            id,
             collapseState: {},
             mainCollapseState: this.collapseOpen,
+            autoTestStepModalId: `auto-test-step-modal-${id}`,
         };
     },
 
@@ -306,12 +481,20 @@ export default {
     },
 
     computed: {
+        type() {
+            return this.testTypes.find(x => x.name === this.value.type);
+        },
+
+        typeTitle() {
+            return this.type.title;
+        },
+
         typeColor() {
-            return this.testTypes.find(x => x.name === this.value.type).color;
+            return this.type.color;
         },
 
         stepName() {
-            return titleCase(this.value.type.replace(/_/g, ' '));
+            return this.value.name;
         },
 
         programNameId() {
@@ -354,6 +537,10 @@ export default {
             return n => `auto-test-step-weight-${this.id}-${n}`;
         },
 
+        resultsCollapseId() {
+            return `auto-test-step-result-collapse-${this.id}`;
+        },
+
         ioOptions() {
             return [
                 { text: 'Case insensitive', value: 'case' },
@@ -364,7 +551,7 @@ export default {
         },
 
         inputs() {
-            return getProps(this.value, [], 'data', 'inputs');
+            return getProps(this, [], 'value', 'data', 'inputs');
         },
 
         weightPopoverText() {
@@ -375,28 +562,19 @@ export default {
             }
         },
 
-        stateIcon() {
-            const result = this.result.stepResults[this.value.id];
-            switch (result.state) {
-                case 'passed':
-                    return 'check';
-                case 'failed':
-                    return 'times';
-                default:
-                    return 'clock-o';
-            }
+        stepResult() {
+            return getProps(this, null, 'result', 'stepResults', this.value.id);
         },
 
-        statePopover() {
-            const result = this.result.stepResults[this.value.id];
-            switch (result.state) {
-                case 'passed':
-                    return 'Passed!';
-                case 'failed':
-                    return 'Failed';
-                default:
-                    return 'Not finished';
+        canViewOutput() {
+            if (!this.stepResult) {
+                return false;
             }
+
+            const { state, log } = this.stepResult;
+
+            // TODO: Check can_view_autotest_output permission
+            return (state === 'passed' || state === 'failed') && log != null && !this.value.hidden;
         },
     },
 
@@ -483,6 +661,7 @@ export default {
         Icon,
         SubmitButton,
         DescriptionPopover,
+        AutoTestStepState,
     },
 };
 </script>
@@ -559,7 +738,7 @@ export default {
 
     .cur-prog-title {
         flex: 1;
-        background: @footer-color;
+        background-color: @footer-color;
         padding: 0.375rem 1rem;
         border-radius: 0.25rem;
         border: 1px solid rgba(0, 0, 0, 0.125);
@@ -629,5 +808,100 @@ hr {
 
 .flex-padding-element {
     flex: 1 1 auto;
+}
+
+.table tbody {
+    + tbody {
+        border-top-width: 1px;
+    }
+
+    &.with-output .step-summary:hover {
+        background-color: rgba(0, 0, 0, 0.03);
+        cursor: pointer;
+    }
+
+    .step-summary {
+        td:not(.expand) .fa-icon {
+            transform: translateY(2px);
+        }
+
+        .expand .fa-icon {
+            transition: transform 300ms;
+        }
+
+        &.collapsed .expand .fa-icon {
+            transform: rotate(-90deg);
+        }
+    }
+
+    td {
+        &.chevron,
+        &.index,
+        &.weight,
+        &.passed {
+            width: 1px;
+            white-space: nowrap;
+        }
+
+        &.weight,
+        &.passed {
+            text-align: center;
+        }
+    }
+}
+
+.results-log-collapse-row {
+    cursor: initial;
+
+    &:hover {
+        background-color: initial;
+    }
+
+    td {
+        border-top: 0;
+        padding: 0;
+    }
+
+    .row {
+        margin-bottom: 1rem;
+    }
+
+    .col-6,
+    .col-12 {
+        display: flex;
+        flex-direction: column;
+    }
+
+    code.form-control,
+    pre.form-control {
+        background-color: rgba(0, 0, 0, 0.03);
+        margin-bottom: 1rem;
+
+        &:last-child {
+            margin-bottom: 0;
+        }
+    }
+
+    code.form-control {
+        flex: 0 0 auto;
+    }
+
+    pre.form-control {
+        flex: 1 1 auto;
+    }
+}
+</style>
+
+<style lang="less">
+.auto-test-step .results-log-collapse-row {
+    .card-header {
+        background-color: inherit;
+        border-bottom: 0;
+    }
+
+    .tab-pane {
+        display: flex;
+        padding: 0.75rem 0 0;
+    }
 }
 </style>

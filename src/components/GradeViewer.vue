@@ -11,6 +11,8 @@
             :assignment="assignment"
             :submission="submission"
             :rubric="rubric"
+            :auto-test-config="autoTestConfig"
+            :auto-test-result="autoTestResult"
             ref="rubricViewer"/>
     </b-collapse>
 
@@ -118,6 +120,14 @@ export default {
         rubric: {
             type: Object,
             default: {},
+        },
+        autoTestConfig: {
+            type: Object,
+            default: null,
+        },
+        autoTestResult: {
+            type: Object,
+            default: null,
         },
     },
 
@@ -277,9 +287,9 @@ export default {
             }
 
             if (!this.showRubric || this.rubricOverridden) {
-                req = req.then(
-                    () => this.submitNormalGrade(grade),
-                ).then(() => this.rubricOverridden);
+                req = req
+                    .then(() => this.submitNormalGrade(grade))
+                    .then(() => this.rubricOverridden);
             }
 
             return req;

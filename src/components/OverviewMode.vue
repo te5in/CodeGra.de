@@ -120,17 +120,11 @@
                 </b-card>
             </div>
         </b-tab>
-        <b-tab title="AutoTest">
+        <b-tab title="AutoTest" v-if="assignment.auto_test_id">
             <auto-test
-                v-if="autoTestResult"
-                :assignment="assignment"
-                :result="autoTestResult"
-                :test-config="autoTestConfig"
                 no-card
-                hide-env />
-            <b-card v-else class="file-card">
-                There are no AutoTest results for this submission.
-            </b-card>
+                :assignment="assignment"
+                :submission-id="submission.id" />
         </b-tab>
     </b-tabs>
 </div>
@@ -141,7 +135,7 @@ import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/plus';
 import 'vue-awesome/icons/cog';
 
-import { last, getExtension, getProps, highlightCode } from '@/utils';
+import { last, getExtension, highlightCode } from '@/utils';
 import decodeBuffer from '@/utils/decode';
 
 import InnerCodeViewer from './InnerCodeViewer';
@@ -219,8 +213,6 @@ export default {
             loading: true,
             feedback: {},
             fileIds: [],
-            autoTestResult: null,
-            autoTestConfig: null,
             error: '',
             tabIndex: null,
         };
@@ -231,10 +223,10 @@ export default {
         await this.$nextTick();
 
         this.error = '';
-        await Promise.all([
-            this.$http
-                .get(`/api/v1/submissions/${this.submission.id}/feedbacks/`)
-                .then(({ data }) => {
+        await this.$http
+            .get(`/api/v1/submissions/${this.submission.id}/feedbacks/`)
+            .then(
+                ({ data }) => {
                     Object.entries(data.user).forEach(([fileId, fileFeedback]) => {
                         Object.keys(fileFeedback).forEach(line => {
                             fileFeedback[line] = {
@@ -245,75 +237,11 @@ export default {
                         });
                     });
                     this.feedback = data;
-                }),
-            this.assignment.auto_test_id && this.$http
-                .get(`/api/v1/auto_tests/${this.assignment.auto_test_id}`)
-                .then(({ data: test }) => {
-                    test.runs = [
-                        {
-                            id: 1,
-                            results: [
-                                {
-                                    id: 1,
-                                    work: {
-                                        id: 1,
-                                        user: { name: 'Thomas Schaper', id: 1 },
-                                    },
-                                    points_achieved: '-',
-                                    state: 'not_started',
-                                    setup_stdout: 'stdout!!!',
-                                    setup_stderr: 'stderr!!!',
-                                },
-                                {
-                                    id: 2,
-                                    work: {
-                                        id: 27,
-                                        user: { name: 'Olmo Kramer', id: 2 },
-                                        grade_overridden: true,
-                                    },
-                                    points_achieved: '12 / 13',
-                                    state: 'passed',
-                                    setup_stdout: 'stdout!!!',
-                                    setup_stderr: 'stderr!!!',
-                                },
-                                {
-                                    id: 3,
-                                    work: {
-                                        id: 3,
-                                        user: { name: 'Student 2', id: 3 },
-                                    },
-                                    points_achieved: '0 / 13',
-                                    state: 'failed',
-                                    setup_stdout: 'stdout!!!',
-                                    setup_stderr: 'stderr!!!',
-                                },
-                                {
-                                    id: 4,
-                                    work: {
-                                        id: 20,
-                                        user: { name: 'Olmo Kramer', id: 4 },
-                                    },
-                                    points_achieved: '-',
-                                    state: 'passed',
-                                    setup_stdout: 'stdout!!!',
-                                    setup_stderr: 'stderr!!!',
-                                },
-                            ],
-                        },
-                    ];
-                    this.autoTestConfig = test;
-
-                    const results = getProps(test, null, 'runs', 0, 'results');
-                    if (results == null || results.length === 0) {
-                        return null;
-                    }
-
-                    this.autoTestResult = results.find(
-                        r => r.work.id === this.submission.id,
-                    );
-                    return this.autoTestResult;
-                }),
-        ]);
+                },
+                err => {
+                    this.error = err.message;
+                },
+            );
 
         this.fileIds = Object.keys(this.feedback.user);
         const codeLines = await Promise.all(this.fileIds.map(this.loadCodeWithSettings));
