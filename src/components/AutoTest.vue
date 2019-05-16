@@ -72,6 +72,10 @@
                         @success="afterCreateAutoTest"/>
                     <submit-button
                         v-if="!loading && test != null"
+                        :submit="runAutoTest"
+                        />
+                    <submit-button
+                        v-if="!loading && test != null"
                         :submit="deleteAutoTest"
                         key="delete-btn"
                         @after-success="afterDeleteAutoTest"
@@ -614,6 +618,11 @@ export default {
     methods: {
         ...mapActions('courses', ['updateAssignment']),
 
+        runAutoTest() {
+            return this.$http
+                .post(`/api/v1/auto_tests/${this.assignment.auto_test_id}/runs/`);
+        },
+
         loadAutoTest() {
             return this.$http
                 .get(`/api/v1/auto_tests/${this.assignment.auto_test_id}`)
@@ -671,6 +680,7 @@ export default {
                                 ],
                             },
                         ];
+                        test.runs = [];
 
                         this.setTest(test);
                     },

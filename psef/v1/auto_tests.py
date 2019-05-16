@@ -301,8 +301,12 @@ def delete_suite(test_id: int, set_id: int, suite_id: int) -> EmptyResponse:
 
 
 @api.route('/auto_tests/<int:auto_test_id>', methods=['GET'])
-def get_auto_test(auto_test_id: int) -> JSONResponse[models.AutoTest]:
-    return extended_jsonify(get_or_404(models.AutoTest, auto_test_id), use_extended=models.AutoTestRun)
+def get_auto_test(auto_test_id: int) -> ExtendedJSONResponse[models.AutoTest]:
+    test = get_or_404(models.AutoTest, auto_test_id)
+
+    return extended_jsonify(
+        test, use_extended=(models.AutoTestRun, models.AutoTest)
+    )
 
 
 @api.route('/auto_tests/<int:auto_test_id>/runs/<int:run_id>', methods=['GET'])
@@ -314,6 +318,28 @@ def get_auto_test_run(auto_test_id: int,
         models.AutoTest.id == auto_test_id,
     )
     return extended_jsonify(run, use_extended=models.AutoTestRun)
+
+
+@api.route('/auto_tests/<int:auto_test_id>/runs/', methods=['POST'])
+def start_auto_test_run(auto_test_id: int
+                        ) -> ExtendedJSONResponse[models.AutoTestRun]:
+    test = get_or_404(models.AutoTest, auto_test_id)
+    if test.runs:
+        raise APIException(
+            'This test already has a run',
+            f'The test "{test.id}" already has a run "{test.runs[0].id}"',
+            APICodes.INVALID_STATE, 400
+        )
+
+    sub_ids = t.cast(
+        t.List[t.Tuple[int]],
+        test.assignment.get_from_latest_submissions(models.Work.id).all()
+    )
+    results = [models.AutoTestResult(work_id=sub_id) for sub_id, in sub_ids]
+    test.runs.append(models.AutoTestRun(results=results))
+    db.session.commit()
+
+    return extended_jsonify(test.runs[0], use_extended=models.AutoTestRun)
 
 
 @api.route(

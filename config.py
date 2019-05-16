@@ -4,6 +4,7 @@ import typing as t
 import datetime
 import tempfile
 import warnings
+import ipaddress
 import subprocess
 from configparser import ConfigParser
 
@@ -15,15 +16,18 @@ CONFIG['BASE_DIR'] = os.path.dirname(os.path.abspath(__file__))
 os.environ['BASE_DIR'] = str(CONFIG['BASE_DIR'])
 
 parser = ConfigParser(os.environ)
-parser.read('config.ini')
+parser.read(os.getenv('CODEGRADE_CONFIG_FILE', 'config.ini'))
 
 if 'Back-end' not in parser:
     parser['Back-end'] = {}
 if 'Features' not in parser:
     parser['Features'] = {}
+if 'AutoTest' not in parser:
+    parser['AutoTest'] = {}
 
 backend_ops = parser['Back-end']
 feature_ops = parser['Features']
+auto_test_ops = parser['AutoTest']
 
 
 class CeleryConfig(TypedDict, total=True):
@@ -34,11 +38,29 @@ if t.TYPE_CHECKING and getattr(
     t, 'SPHINX', False
 ) is not True:  # pragma: no cover
     import psef.features
+    import psef.auto_test
+
+AutoTestConfig = TypedDict(
+    'AutoTestConfig', {
+        'password': str,
+        'type': t.Type['psef.auto_test.AutoTestRunner'],
+        'disable_origin_check': bool,
+    }
+)
+AutoTestCredentials = t.Mapping[str, AutoTestConfig]
 
 FlaskConfig = TypedDict(
     'FlaskConfig', {
         'FEATURES': t.Mapping['psef.features.Feature', bool],
         '__S_FEATURES': t.Mapping[str, bool],
+        'IS_AUTO_TEST_RUNNER': bool,
+        'AUTO_TEST_CREDENTIALS': AutoTestCredentials,
+        'AUTO_TEST_MAX_TIME_SINGLE_RUN': int,
+        'AUTO_TEST_MAX_TIME_TOTAL_RUN': int,
+        'AUTO_TEST_POLL_TIME': int,
+        'AUTO_TEST_OUTPUT_LIMIT': int,
+        'AUTO_TEST_MEMORY_LIMIT': str,
+        '__S_AUTO_TEST_CREDENTIALS': t.Mapping[str, t.Any],
         'Celery': CeleryConfig,
         'LTI Consumer keys': t.Mapping[str, str],
         'DEBUG': bool,
@@ -155,6 +177,21 @@ def set_list(
         parsed_val = json.loads(val)
         assert isinstance(parsed_val, list), f'Value "{item}" should be a list'
         assert all(isinstance(v, str) for v in parsed_val)
+        out[item] = parsed_val
+
+
+def set_dict(
+    out: t.MutableMapping[str, t.Any],
+    parser: t.Any,
+    item: str,
+    default: object,
+) -> None:
+    val = parser.get(item)
+    if val is None:
+        out[item] = default
+    else:
+        parsed_val = json.loads(val)
+        assert isinstance(parsed_val, dict), f'Value "{item}" should be a list'
         out[item] = parsed_val
 
 
@@ -450,3 +487,22 @@ if parser.read('config.ini') and 'Celery' in parser:
     CONFIG['CELERY_CONFIG'] = dict(parser['Celery'])
 else:
     CONFIG['CELERY_CONFIG'] = {}
+
+val = json.loads(auto_test_ops.get('auto_test_credentials', '{}'))
+assert isinstance(val, dict)
+CONFIG['__S_AUTO_TEST_CREDENTIALS'] = val
+
+set_bool(CONFIG, auto_test_ops, 'IS_AUTO_TEST_RUNNER', False)
+if CONFIG['IS_AUTO_TEST_RUNNER']:
+    assert CONFIG['SQLALCHEMY_DATABASE_URI'] == 'postgresql:///codegrade_dev'
+    assert CONFIG['CELERY_CONFIG'] == {}
+    assert CONFIG['LTI_CONSUMER_KEY_SECRETS'] == {}
+    assert CONFIG['LTI_SECRET_KEY'] == ''
+    assert CONFIG['SECRET_KEY'] == ''
+    assert CONFIG['HEALTH_KEY'] == ''
+
+set_int(CONFIG, auto_test_ops, 'AUTO_TEST_MAX_TIME_SINGLE_RUN', 15)
+set_int(CONFIG, auto_test_ops, 'AUTO_TEST_MAX_TIME_TOTAL_RUN', 1440)
+set_int(CONFIG, auto_test_ops, 'AUTO_TEST_POLL_TIME', 30)
+set_int(CONFIG, auto_test_ops, 'AUTO_TEST_OUTPUT_LIMIT', 32768)
+set_str(CONFIG, auto_test_ops, 'AUTO_TEST_MEMORY_LIMIT', '512M')

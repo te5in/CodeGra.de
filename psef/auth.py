@@ -47,17 +47,12 @@ def _raise_login_exception(desc: str = 'No user was logged in.') -> NoReturn:
 @jwt.expired_token_loader
 @jwt.invalid_token_loader
 @jwt.needs_fresh_token_loader
-def _handle_jwt_errors(
-    reason: str = 'No user was logged in.',
-) -> 'psef.helpers.JSONResponse[PermissionException]':
-    return psef.helpers.jsonify(
-        PermissionException(
-            'You need to be logged in to do this.',
-            reason,
-            APICodes.NOT_LOGGED_IN,
-            401,
-        ),
-        status_code=401
+def _handle_jwt_errors(reason: str = 'No user was logged in.') -> t.NoReturn:
+    raise PermissionException(
+        'You need to be logged in to do this.',
+        reason,
+        APICodes.NOT_LOGGED_IN,
+        401,
     )
 
 

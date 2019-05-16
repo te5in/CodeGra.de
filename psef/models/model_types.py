@@ -139,7 +139,7 @@ class MyDb:  # pragma: no cover
     def Enum(self, *typ: T, native_enum: bool = True) -> DbType[T]:
         ...
 
-    def Enum(self, *typ: t.Any, native_enum: bool = True) -> DbType[t.Any]:
+    def Enum(self, *args: t.Any, **kwargs: t.Any) -> DbType[t.Any]:
         ...
 
     @t.overload

@@ -151,34 +151,8 @@ def get_zip(work: models.Work,
                                  user and the user can not view files in the
                                  attached course. (INCORRECT_PERMISSION)
     """
-    auth.ensure_can_view_files(work, exclude_owner == FileOwner.student)
-
-    path, name = psef.files.random_file_path(True)
-
-    with open(
-        path,
-        'w+b',
-    ) as f, tempfile.TemporaryDirectory(
-        suffix='dir',
-    ) as tmpdir, zipfile.ZipFile(
-        f,
-        'w',
-        compression=zipfile.ZIP_DEFLATED,
-    ) as zipf:
-        # Restore the files to tmpdir
-        tree_root = psef.files.restore_directory_structure(
-            work, tmpdir, exclude_owner
-        )
-
-        zipf.write(tmpdir, tree_root['name'])
-
-        for root, _dirs, files in os.walk(tmpdir):
-            for file in files:
-                path = os.path.join(root, file)
-                zipf.write(path, path[len(tmpdir):])
-
     return {
-        'name': name,
+        'name': work.create_zip(exclude_owner),
         'output_name': f'{work.assignment.name}-{work.user.name}-archive.zip'
     }
 

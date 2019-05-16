@@ -18,6 +18,7 @@ class APIWarnings(IntEnum):
     INVALID_FILENAME = 4
     WEAK_PASSWORD = 5
     UNASSIGNED_ASSIGNMENTS = 6
+    INTERNAL_API = 7
 
 
 @unique
