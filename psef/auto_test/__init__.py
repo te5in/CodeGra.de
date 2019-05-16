@@ -50,8 +50,8 @@ def get_amount_cpus() -> int:
 
 
 def _start_container(cont: lxc.Container) -> None:
-    cont.start()
-    cont.wait('RUNNING', 3)
+    assert cont.start()
+    assert cont.wait('RUNNING', 3)
     for _ in range(30):
         if cont.get_ips():
             return
@@ -164,8 +164,8 @@ class StartedContainer:
         return self._container.set_cgroup_item(key, value)
 
     def stop_container(self) -> None:
-        self._container.stop()
-        self._container.wait('STOPPED', 3)
+        assert self._container.stop()
+        assert self._container.wait('STOPPED', 3)
 
     @contextlib.contextmanager
     def as_snapshot(self) -> t.Generator['StartedContainer', None, None]:
@@ -415,7 +415,7 @@ class AutoTestContainer:
 
     @contextlib.contextmanager
     def started_container(self) -> t.Generator[StartedContainer, None, None]:
-        self._start_container()
+        _start_container(self._cont)
         started = None
         try:
             started = StartedContainer(self._cont, self._config)
@@ -439,16 +439,6 @@ class AutoTestContainer:
             finally:
                 logger.try_unbind('cont')
 
-    def _start_container(self) -> None:
-        self._cont.start()
-        self._cont.wait('RUNNING', 3)
-        for _ in range(30):
-            if self._cont.get_ips():
-                break
-            time.sleep(1)
-        else:
-            raise Exception(f"Couldn't get ip for container {self}")
-
     def create(self) -> None:
         assert self._cont.create(
             'download',
@@ -467,7 +457,7 @@ class AutoTestContainer:
         new_name = new_name or get_new_container_name()
 
         with self._lock:
-            cont = self._cont.clone()
+            cont = self._cont.clone(new_name)
             assert isinstance(cont, lxc.Container)
             return type(self)(new_name, self._config, cont)
 

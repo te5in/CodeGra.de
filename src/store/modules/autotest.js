@@ -170,18 +170,18 @@ class AutoTestResult {
         this.id = result.id;
         this.submission = result.work;
         this.state = result.state;
-        this.setup = {
-            stdout: result.setup_stdout,
-            stderr: result.setup_stderr,
-        };
+        this.setupStdout = result.setup_stdout;
+        this.setupStderr = result.setup_stderr;
 
-        if (result.step_results) {
-            this.updateStepResults(result);
-        }
+        this.updateStepResults(result);
     }
 
     // eslint-disable-next-line
     updateStepResults(result) {
+        if (result.step_results == null) {
+            return;
+        }
+
         const setResults = {};
         const suiteResults = {};
         const stepResults = result.step_results.reduce(
@@ -191,6 +191,10 @@ class AutoTestResult {
             },
             {},
         );
+
+        this.setResults = setResults;
+        this.suiteResults = suiteResults;
+        this.stepResults = stepResults;
 
         let setCheckpointFailed = false;
         result.autoTest.sets.forEach(set => {
@@ -270,7 +274,7 @@ const loaders = {
 };
 
 const actions = {
-    createAutoTest({ commit, dispatch }, assignmentId) {
+    createAutoTest({ commit, dispatch, state }, assignmentId) {
         return axios.post('/api/v1/auto_tests/', {
             assignment_id: assignmentId,
         }).then(
@@ -282,7 +286,7 @@ const actions = {
                 commit(types.SET_AUTO_TEST, data),
             ]).then(
                 // eslint-disable-next-line
-                ([_, autoTest]) => autoTest,
+                () => state.tests[data.id],
             ),
         );
     },
@@ -305,13 +309,16 @@ const actions = {
         );
     },
 
-    updateAutoTest({ commit }, { autoTestId, autoTestProps }) {
+    updateAutoTest({ commit, state }, { autoTestId, autoTestProps }) {
         return axios
             .patch(`/api/v1/auto_tests/${autoTestId}`, autoTestProps)
-            .then(() => commit(types.UPDATE_AUTO_TEST, {
-                autoTestId,
-                autoTestProps,
-            }));
+            .then(() => {
+                commit(types.UPDATE_AUTO_TEST, {
+                    autoTestId,
+                    autoTestProps,
+                });
+                return state.tests[autoTestId];
+            });
     },
 
     loadAutoTest({ commit, state }, { autoTestId }) {
@@ -323,7 +330,7 @@ const actions = {
             loaders.tests[autoTestId] = axios
                 .get(`/api/v1/auto_tests/${autoTestId}`)
                 .then(
-                    ({ data }) => commit(types.SET_AUTO_TEST, data),
+                    // ({ data }) => commit(types.SET_AUTO_TEST, data),
                     // FIXME: remove
                     () => commit(types.SET_AUTO_TEST, {
                         id: autoTestId,
@@ -505,7 +512,7 @@ const actions = {
                                                 hidden: false,
                                                 id: 6,
                                                 name: 'Get points',
-                                                type: 'custom_output',
+                                                type: 'capture_points',
                                                 weight: 1,
                                             },
                                         ],
@@ -616,7 +623,7 @@ const actions = {
                                     {
                                         id: 1,
                                         work: {
-                                            id: 1,
+                                            id: 14,
                                             user: { name: 'Thomas Schaper', id: 1 },
                                         },
                                         points_achieved: '-',
@@ -663,9 +670,9 @@ const actions = {
                         ],
                     }),
                 ).then(
-                    ret => {
+                    () => {
                         delete loaders.tests[autoTestId];
-                        return ret;
+                        return state.tests[autoTestId];
                     },
                     err => {
                         delete loaders.tests[autoTestId];
@@ -677,8 +684,9 @@ const actions = {
         return loaders.tests[autoTestId];
     },
 
-    async createAutoTestSet({ commit, dispatch }, { autoTestId }) {
-        const autoTest = await dispatch('loadAutoTest', { autoTestId });
+    async createAutoTestSet({ commit, dispatch, state }, { autoTestId }) {
+        await dispatch('loadAutoTest', { autoTestId });
+        const autoTest = state.tests[autoTestId];
 
         return axios
             .post(`/api/v1/auto_tests/${autoTestId}/sets/`)
@@ -692,8 +700,9 @@ const actions = {
             );
     },
 
-    async deleteAutoTestSet({ commit, dispatch }, { autoTestId, setId }) {
-        const autoTest = await dispatch('loadAutoTest', { autoTestId });
+    async deleteAutoTestSet({ commit, dispatch, state }, { autoTestId, setId }) {
+        await dispatch('loadAutoTest', { autoTestId });
+        const autoTest = state.tests[autoTestId];
 
         return axios
             .delete(`/api/v1/auto_tests/${autoTestId}/sets/${setId}`)
@@ -729,6 +738,12 @@ const actions = {
         });
     },
 
+    deleteAutoTestSuite({ commit }, { autoTestSuite }) {
+        return commit(types.DELETE_AUTO_TEST_SUITE, {
+            autoTestSuite,
+        });
+    },
+
     updateAutoTestSuite({ commit }, { autoTestSet, index, suite }) {
         const suites = [...autoTestSet.suites];
         suites[index] = suite;
@@ -745,7 +760,8 @@ const actions = {
         }
 
         if (loaders.results[resultId] == null) {
-            const autoTest = await dispatch('loadAutoTest', { autoTestId });
+            await dispatch('loadAutoTest', { autoTestId });
+            const autoTest = state.tests[autoTestId];
 
             if (autoTest.runs.length === 0) {
                 throw new Error('AutoTest has not been run yet.');
@@ -760,6 +776,11 @@ const actions = {
                     // FIXME: remove
                     () => commit(types.SET_AUTO_TEST_RESULT, {
                         autoTest,
+                        id: resultId,
+                        setup_stdout: 'Setup script:\nSUCCESS!',
+                        setup_stderr: '',
+                        points_achieved: '3 / 15',
+                        state: 'failed',
                         step_results: [
                             {
                                 auto_test_step: autoTest.sets[0].suites[0].steps[0],
@@ -837,9 +858,9 @@ const actions = {
                         ],
                     }),
                 ).then(
-                    ret => {
+                    () => {
                         delete loaders.results[resultId];
-                        return ret;
+                        return state.results[resultId];
                     },
                     err => {
                         delete loaders.results[resultId];
@@ -851,8 +872,9 @@ const actions = {
         return loaders.results[resultId];
     },
 
-    async deleteAutoTestResults({ commit, dispatch }, { autoTestId, runId }) {
-        const autoTest = await dispatch('loadAutoTest', { autoTestId });
+    async deleteAutoTestResults({ commit, dispatch, state }, { autoTestId, runId }) {
+        await dispatch('loadAutoTest', { autoTestId });
+        const autoTest = state.tests[autoTestId];
 
         if (autoTest.runs.length === 0) {
             return null;
@@ -879,8 +901,9 @@ const actions = {
             );
     },
 
-    async toggleFixture({ commit, dispatch }, { autoTestId, fixture }) {
-        const autoTest = await dispatch('loadAutoTest', { autoTestId });
+    async toggleFixture({ commit, dispatch, state }, { autoTestId, fixture }) {
+        await dispatch('loadAutoTest', { autoTestId });
+        const autoTest = state.tests[autoTestId];
 
         const hidden = !fixture.hidden;
         const method = fixture.hidden ? 'delete' : 'post';
@@ -911,8 +934,6 @@ const mutations = {
         );
 
         Vue.set(state.tests, autoTest.id, autoTest);
-
-        return autoTest;
     },
 
     [types.DELETE_AUTO_TEST](state, autoTestId) {
@@ -939,11 +960,13 @@ const mutations = {
         );
     },
 
+    [types.DELETE_AUTO_TEST_SUITE](state, { autoTestSuite }) {
+        Vue.set(autoTestSuite, 'deleted', true);
+    },
+
     [types.SET_AUTO_TEST_RESULT](state, result) {
         const storeResult = new AutoTestResult(result);
-
         Vue.set(state.results, result.id, storeResult);
-        return storeResult;
     },
 };
 

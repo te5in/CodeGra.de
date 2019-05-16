@@ -59,7 +59,7 @@
             <b-card-header v-if="editable" class="auto-test-header editable">
                 <span class="toggle" :key="configCollapseId" v-b-toggle="configCollapseId">
                     <icon class="expander" name="chevron-right" :scale="0.75" />
-                    AutoTest
+                    Configuration
                 </span>
                 <div class="btn-wrapper"
                     v-b-popover.hover.top="!configEditable ? 'The AutoTest configuration cannot be deleted because there are results associated with it.' : ''">
@@ -256,12 +256,14 @@
                                     <label>
                                         Setup script output: <code>{{ test.setup_script }}</code>
                                     </label>
-                                    <b-tabs no-fade v-if="singleResult">
+                                    <b-tabs no-fade v-if="result">
                                         <b-tab title="stdout">
-                                            <pre>{{ result.setup_stdout }}</pre>
+                                            <pre v-if="result.setupStdout">{{ result.setupStdout }}</pre>
+                                            <pre v-else class="text-muted">No output.</pre>
                                         </b-tab>
                                         <b-tab title="stderr">
-                                            <pre>{{ result.setup_stderr }}</pre>
+                                            <pre v-if="result.setupStderr">{{ result.setupStderr }}</pre>
+                                            <pre v-else class="text-muted">No output.</pre>
                                         </b-tab>
                                     </b-tabs>
                                 </template>
@@ -281,8 +283,7 @@
                             v-if="!set.deleted"
                             :key="set.id"
                             class="list-item transition">
-                        <b-card class="test-group auto-test-set"
-                                no-body>
+                        <b-card no-body class="test-group auto-test-set">
                             <b-card-header class="test-set-header" :class="{ editable: configEditable }">
                                 Test set
                                 <div class="btn-wrapper" v-if="configEditable">
@@ -311,7 +312,7 @@
                                                      :other-suites="allNonDeletedSuites"
                                                      :value="set.suites[j]"
                                                      @input="updateSuite(set, j, $event)"
-                                                     @delete="$set(suite, 'deleted', true)"
+                                                     @delete="deleteSuite(suite)"
                                                      :result="result" />
                                 </masonry>
                                 <div v-if="configEditable"
@@ -341,7 +342,7 @@
                                     </b-input-group>
                                 </b-card-footer>
                                 <b-card-footer
-                                    v-else-if="singleResult && i < test.sets.length - 1"
+                                    v-else-if="result && i < test.sets.length - 1"
                                     class="set-continue">
                                     <template v-if="set.passed">
                                         Scored <code>{{ result.setResults[set.id].achieved }}</code> points,
@@ -388,7 +389,6 @@
 </template>
 
 <script>
-import Vue from 'vue';
 import Multiselect from 'vue-multiselect';
 
 import { mapActions, mapGetters } from 'vuex';
@@ -477,12 +477,31 @@ export default {
 
                 Promise.all([
                     this.loadAutoTest(),
-                    this.loadSingleResult(),
                     this.loadPermissions(),
                 ]).then(
+                    () => this.loadSingleResult(),
+                ).then(
                     () => { this.loading = false; },
                     () => { this.loading = false; },
                 );
+            },
+            immediate: true,
+        },
+
+        test: {
+            handler() {
+                if (this.test == null) {
+                    this.internalTest = {};
+                } else {
+                    this.internalTest = {
+                        base_systems: this.test.base_systems,
+                        setup_script: this.test.setup_script,
+                        set_stop_points: this.test.sets.reduce(
+                            (acc, set) => Object.assign(acc, { [set.id]: set.stop_points }),
+                            {},
+                        ),
+                    };
+                }
             },
             immediate: true,
         },
@@ -502,9 +521,10 @@ export default {
             storeDeleteAutoTestSet: 'deleteAutoTestSet',
             storeUpdateAutoTestSet: 'updateAutoTestSet',
             storeCreateAutoTestSuite: 'createAutoTestSuite',
+            storeDeleteAutoTestSuite: 'deleteAutoTestSuite',
             storeUpdateAutoTestSuite: 'updateAutoTestSuite',
             storeLoadAutoTestResult: 'loadAutoTestResult',
-            storeDeleteAutoTestResult: 'deleteAutoTestResult',
+            storeDeleteAutoTestResults: 'deleteAutoTestResults',
         }),
 
         runAutoTest() {
@@ -515,30 +535,24 @@ export default {
         loadAutoTest() {
             return this.storeLoadAutoTest({
                 autoTestId: this.assignment.auto_test_id,
-            }).then(
-                () => {
-                    Vue.set(this.internalTest, 'base_systems', this.test.base_systems);
-                    Vue.set(this.internalTest, 'setup_script', this.test.setup_script);
-                    Vue.set(this.internalTest, 'set_stop_points', this.test.sets.reduce(
-                        (acc, set) => Object.assign(acc, { [set.id]: set.stop_points }),
-                        {},
-                    ));
-                },
-                err => {
-                    // FIXME: handle error
-                    console.error(err);
-                },
-            );
+            }).catch(err => {
+                // FIXME: handle error
+                console.error(err);
+            });
         },
 
         loadSingleResult() {
-            if (this.assignment.auto_test_id == null || !this.singleResult) {
+            if (
+                this.assignment.auto_test_id == null ||
+                !this.singleResult ||
+                this.actualResultId == null
+            ) {
                 return null;
             }
 
             return this.storeLoadAutoTestResult({
                 autoTestId: this.assignment.auto_test_id,
-                resultId: this.resultId,
+                resultId: this.actualResultId,
             }).catch(err => {
                 // FIXME: handle error
                 console.error(err);
@@ -584,17 +598,23 @@ export default {
         },
 
         addSuite(set) {
-            this.storeCreateAutoTestSuite({
+            return this.storeCreateAutoTestSuite({
                 autoTestId: this.test.id,
                 autoTestSet: set,
             });
         },
 
         updateSuite(set, index, suite) {
-            this.storeUpdateAutoTestSuite({
+            return this.storeUpdateAutoTestSuite({
                 autoTestSet: set,
                 index,
                 suite,
+            });
+        },
+
+        deleteSuite(suite) {
+            return this.storeDeleteAutoTestSuite({
+                autoTestSuite: suite,
             });
         },
 
@@ -680,7 +700,7 @@ export default {
         },
 
         openResult(result) {
-            if (result.state !== 'not_started' && result.state !== 'running') {
+            if (result.state === 'passed' || result.state === 'failed') {
                 this.currentResult = result;
                 this.$root.$emit('bv::show::modal', this.resultsModalId);
             }
@@ -696,31 +716,6 @@ export default {
             allTests: 'tests',
             allResults: 'results',
         }),
-
-        test() {
-            const id = this.assignment.auto_test_id;
-            return id && this.allTests[id];
-        },
-
-        result() {
-            if (!this.hasResults) {
-                return null;
-            }
-
-            let resultId = this.resultId;
-
-            if (resultId == null && this.submissionId != null) {
-                resultId = this.test.runs[0].results.filter(
-                    r => r.work.id === this.submissionId,
-                ).id;
-            }
-
-            return resultId ? this.allResult[resultId] : null;
-        },
-
-        autoTestUrl() {
-            return `/api/v1/auto_tests/${this.test.id}`;
-        },
 
         assignmentId() {
             return this.assignment.id;
@@ -738,27 +733,26 @@ export default {
         baseSystems() {
             const langSet = new Set();
             const selectedSet = new Set();
-            this.test.base_systems.forEach(t => {
+            this.internalTest.base_systems.forEach(t => {
                 langSet.add(t.group);
                 selectedSet.add(t.id);
             });
 
             return AutoTestBaseSystems.reduce((res, cur) => {
                 if (langSet.has(cur.group) && !selectedSet.has(cur.id)) {
-                    res.push(
-                        Object.assign(
-                            {},
-                            {
-                                ...cur,
-                                $isDisabled: true,
-                            },
-                        ),
-                    );
+                    res.push({
+                        ...cur,
+                        $isDisabled: true,
+                    });
                 } else {
                     res.push(cur);
                 }
                 return res;
             }, []);
+        },
+
+        selectedBaseSystems() {
+            return this.internalTest.base_systems;
         },
 
         hasResults() {
@@ -771,7 +765,34 @@ export default {
         },
 
         singleResult() {
-            return this.hasResults && (this.resultId != null || this.submissionId != null);
+            return this.resultId != null || this.submissionId != null;
+        },
+
+        test() {
+            const id = this.assignment.auto_test_id;
+            return id && this.allTests[id];
+        },
+
+        actualResultId() {
+            if (!this.hasResults) {
+                return null;
+            }
+
+            let resultId = this.resultId;
+
+            if (resultId == null && this.submissionId != null) {
+                const result = this.test.runs[0].results.find(
+                    r => r.work.id === this.submissionId,
+                );
+                resultId = result && result.id;
+            }
+
+            return resultId;
+        },
+
+        result() {
+            const resultId = this.actualResultId;
+            return resultId ? this.allResults[resultId] : null;
         },
     },
 
