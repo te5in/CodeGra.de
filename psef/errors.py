@@ -10,7 +10,6 @@ import typing as t
 import structlog
 from flask import Response, g, jsonify, request
 
-from . import models
 from .exceptions import APICodes, APIWarnings, APIException
 
 HttpWarning = t.NewType('HttpWarning', str)  # pylint: disable=invalid-name
@@ -48,6 +47,7 @@ def init_app(app: t.Any) -> None:
         :returns: A response with the JSON serialized error as content.
         :rtype: flask.Response
         """
+        from . import models
         models.db.session.expire_all()
 
         response = jsonify(error)
@@ -65,6 +65,7 @@ def init_app(app: t.Any) -> None:
 
     @app.errorhandler(404)
     def handle_404(_: object) -> Response:  # pylint: disable=unused-variable; #pragma: no cover
+        from . import models
         models.db.session.expire_all()
 
         api_exp = APIException(
@@ -84,6 +85,7 @@ def init_app(app: t.Any) -> None:
         This function should never really be called, as it means our code
         contains a bug.
         """
+        from . import models
         models.db.session.expire_all()
 
         api_exp = APIException(

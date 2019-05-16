@@ -71,6 +71,11 @@
                         @success="afterCreateAutoTest"/>
                     <submit-button
                         v-if="!loading && test != null"
+                        label="Run"
+                        :submit="runAutoTest"
+                        />
+                    <submit-button
+                        v-if="!loading && test != null"
                         :submit="deleteAutoTest"
                         key="delete-btn"
                         @after-success="afterDeleteAutoTest"
@@ -520,6 +525,10 @@ export default {
             storeDeleteAutoTestResult: 'deleteAutoTestResult',
         }),
 
+        runAutoTest() {
+            return this.$http
+                .post(`/api/v1/auto_tests/${this.assignment.auto_test_id}/runs/`);
+        },
 
         loadAutoTest() {
             return this.storeLoadAutoTest({

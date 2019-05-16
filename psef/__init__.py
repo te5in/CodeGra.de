@@ -12,6 +12,7 @@ import types
 import typing as t
 import logging
 import datetime
+import threading
 
 import flask
 import structlog
@@ -50,8 +51,8 @@ class PsefFlask(Flask):
     This contains the extra property :meth:`.PsefFlask.do_sanity_checks`.
     """
 
-    def __init__(self, *args: object, **kwargs: object) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(self, name: str) -> None:
+        super().__init__(name)
         with open(
             os.path.join(
                 os.path.dirname(__file__), '..', 'seed_data',
@@ -120,6 +121,48 @@ _current_tester = None
 current_tester = LocalProxy(lambda: _current_tester)
 
 
+def configure_logging(debug: bool, testing: bool) -> None:
+    def add_thread_name(
+        logger: object, method_name: object, event_dict: dict
+    ) -> dict:
+        event_dict['thread_id'] = threading.current_thread().name
+        return event_dict
+
+    processors = [
+        structlog.stdlib.filter_by_level,
+        structlog.stdlib.add_logger_name,
+        structlog.stdlib.add_log_level,
+        add_thread_name,
+        structlog.stdlib.PositionalArgumentsFormatter(),
+        structlog.processors.format_exc_info,
+        structlog.processors.TimeStamper(fmt="iso"),
+        structlog.processors.StackInfoRenderer(),
+        structlog.processors.format_exc_info,
+        structlog.processors.UnicodeDecoder(),
+        structlog.processors.JSONRenderer(),
+    ]
+    structlog.configure(
+        processors=processors,
+        context_class=structlog.threadlocal.wrap_dict(dict),
+        logger_factory=structlog.stdlib.LoggerFactory(),
+        wrapper_class=structlog.stdlib.BoundLogger,
+        cache_logger_on_first_use=True,
+    )
+    if debug:
+        structlog.configure(
+            processors=processors[:-2] +
+            [structlog.dev.ConsoleRenderer(colors=not testing)]
+        )
+    logging.basicConfig(
+        format='%(message)s',
+        stream=sys.stdout,
+    )
+    logging.getLogger('psef').setLevel(logging.DEBUG)
+    logging.getLogger('werkzeug').setLevel(logging.ERROR)
+    # Let the celery logger shut up
+    logging.getLogger('celery').propagate = False
+
+
 def create_app(  # pylint: disable=too-many-statements
     config: t.Mapping = None,
     skip_celery: bool = False,
@@ -184,44 +227,16 @@ def create_app(  # pylint: disable=too-many-statements
             "Request started",
             host=request.host_url,
             method=request.method,
-            args=dict(flask.request.args),
+            args={
+                k: '<PASSWORD>' if k == 'password' else v
+                for k, v in flask.request.args.items()
+            },
         )
 
-    processors = [
-        structlog.stdlib.filter_by_level,
-        structlog.stdlib.add_logger_name,
-        structlog.stdlib.add_log_level,
-        structlog.stdlib.PositionalArgumentsFormatter(),
-        structlog.processors.format_exc_info,
-        structlog.processors.TimeStamper(fmt="iso"),
-        structlog.processors.StackInfoRenderer(),
-        structlog.processors.format_exc_info,
-        structlog.processors.UnicodeDecoder(),
-        structlog.processors.JSONRenderer(),
-    ]
-    structlog.configure(
-        processors=processors,
-        context_class=structlog.threadlocal.wrap_dict(dict),
-        logger_factory=structlog.stdlib.LoggerFactory(),
-        wrapper_class=structlog.stdlib.BoundLogger,
-        cache_logger_on_first_use=True,
+    configure_logging(
+        getattr(resulting_app, 'debug', False),
+        getattr(resulting_app, 'testing', False),
     )
-    if getattr(resulting_app, 'debug', False):
-        structlog.configure(
-            processors=processors[:-2] + [
-                structlog.dev.ConsoleRenderer(
-                    colors=not getattr(resulting_app, 'testing', False)
-                )
-            ]
-        )
-    logging.basicConfig(
-        format='%(message)s',
-        stream=sys.stdout,
-    )
-    logging.getLogger('psef').setLevel(logging.DEBUG)
-    logging.getLogger('werkzeug').setLevel(logging.ERROR)
-    # Let the celery logger shut up
-    logging.getLogger('celery').propagate = False
 
     @resulting_app.errorhandler(RateLimitExceeded)
     def __handle_error(_: RateLimitExceeded) -> 'flask.Response':  # pylint: disable=unused-variable
@@ -274,6 +289,9 @@ def create_app(  # pylint: disable=too-many-statements
     from . import lti
     lti.init_app(resulting_app)
 
+    from . import auto_test
+    auto_test.init_app(resulting_app)
+
     from . import helpers
     helpers.init_app(resulting_app)
 
@@ -286,6 +304,9 @@ def create_app(  # pylint: disable=too-many-statements
     # Register blueprint(s)
     from . import v1 as api_v1
     api_v1.init_app(resulting_app)
+
+    from . import v_internal as api_v_internal
+    api_v_internal.init_app(resulting_app)
 
     # Make sure celery is working
     if not skip_celery:  # pragma: no cover

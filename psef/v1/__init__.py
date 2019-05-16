@@ -1,7 +1,5 @@
 """The module implementing version one of the codegra.de API.
 
-.. warning:: This API is not yet stable, please proceed with caution!
-
 SPDX-License-Identifier: AGPL-3.0-only
 """
 import typing as t

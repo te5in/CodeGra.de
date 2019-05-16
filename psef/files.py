@@ -279,7 +279,7 @@ def get_stat_information(file: models.File) -> t.Mapping[str, t.Any]:
     }
 
 
-def get_file_contents(code: models.File) -> bytes:
+def get_file_contents(code: models.FileMixin) -> bytes:
     """Get the contents of the given :class:`.models.File`.
 
     :param code: The file object to read.

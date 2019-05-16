@@ -294,8 +294,12 @@ def get_in_or_error(
     return res
 
 
-def _filter_or_404(model: t.Type[Y], get_all: bool,
-                   criteria: t.Tuple) -> t.Union[Y, t.Sequence[Y]]:
+def _filter_or_404(
+    model: t.Type[Y],
+    get_all: bool,
+    criteria: t.Tuple,
+    also_error: t.Optional[t.Callable[[Y], bool]],
+) -> t.Union[Y, t.Sequence[Y]]:
     """Get the specified object by filtering or raise an exception.
 
     :param get_all: Get all objects if ``True`` else get a single one.
@@ -309,7 +313,7 @@ def _filter_or_404(model: t.Type[Y], get_all: bool,
     crit_str = ' AND '.join(str(crit) for crit in criteria)
     query = model.query.filter(*criteria)  # type: ignore
     obj = query.all() if get_all else query.one_or_none()
-    if not obj:
+    if not obj or (also_error is not None and also_error(obj)):
         raise psef.errors.APIException(
             f'The requested {model.__name__.lower()} was not found',
             f'There is no "{model.__name__}" when filtering with {crit_str}',
@@ -333,10 +337,14 @@ def filter_all_or_404(model: t.Type[Y], *criteria: t.Any) -> t.Sequence[Y]:
     :raises APIException: If no object with the given id could be found.
         (OBJECT_ID_NOT_FOUND)
     """
-    return t.cast(t.Sequence[Y], _filter_or_404(model, True, criteria))
+    return t.cast(t.Sequence[Y], _filter_or_404(model, True, criteria, None))
 
 
-def filter_single_or_404(model: t.Type[Y], *criteria: t.Any) -> Y:
+def filter_single_or_404(
+    model: t.Type[Y],
+    *criteria: t.Any,
+    also_error: t.Optional[t.Callable[[Y], bool]] = None,
+) -> Y:
     """Get a single object of the specified model by filtering or raise an
     exception.
 
@@ -351,7 +359,7 @@ def filter_single_or_404(model: t.Type[Y], *criteria: t.Any) -> Y:
     :raises APIException: If no object with the given id could be found.
         (OBJECT_ID_NOT_FOUND)
     """
-    return t.cast(Y, _filter_or_404(model, False, criteria))
+    return t.cast(Y, _filter_or_404(model, False, criteria, also_error))
 
 
 def get_or_404(
@@ -514,13 +522,13 @@ def get_from_map_transaction(
     finally:
         ensure_keys_in_dict(mapping, keys)
         if ensure_empty and len(all_keys_requested) < len(mapping):
-            key_lookup = set(k for k, _ in all_keys_requested)
+            key_lookup = set(all_keys_requested)
             raise psef.errors.APIException(
                 'Extra keys in the object found', (
                     'The object could only contain "{}", but is also contained'
                     ' "{}".'
                 ).format(
-                    ', '.join(str(k) for k, _ in all_keys_requested),
+                    ', '.join(map(str, all_keys_requested)),
                     ', '.join(
                         str(m) for m in mapping.keys() if m not in key_lookup
                     ),

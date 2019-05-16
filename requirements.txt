@@ -43,3 +43,4 @@ defusedxml==0.5.0
 coolname==1.1.0
 zxcvbn==4.4.27
 pylzma==0.5.0
+git+http://github.com/CodeGra-de/python3-lxc.git

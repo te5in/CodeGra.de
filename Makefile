@@ -46,6 +46,10 @@ start_dev_celery:
 start_dev_server:
 	DEBUG=on ./.scripts/start_dev.sh python
 
+.PHONY: start_dev_test_runner
+start_dev_test_runner:
+	DEBUG=on ./.scripts/start_dev_auto_test_runner.sh
+
 .PHONY: start_dev_npm
 start_dev_npm: privacy_statement
 	DEBUG=on ./.scripts/start_dev.sh npm

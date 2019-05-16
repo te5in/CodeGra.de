@@ -2,37 +2,177 @@
   {
     "group": "python",
     "id": 0,
-    "docker_config": "halksdjflkajsdfkl",
-    "name": "Python 2.7"
+    "name": "Python 2.7",
+    "pre_start_commands": [
+      [
+        "pyenv",
+        "global",
+        "2.7.16"
+      ]
+    ],
+    "setup_commands": [
+      [
+        "/usr/bin/install_pyenv.sh"
+      ],
+      [
+        "pyenv",
+        "install",
+        "2.7.16"
+      ]
+    ]
   },
   {
     "group": "python",
     "id": 1,
-    "name": "Python 3.5"
+    "name": "Python 3.5",
+    "pre_start_commands": [
+      [
+        "pyenv",
+        "global",
+        "3.5.7"
+      ]
+    ],
+    "setup_commands": [
+      [
+        "/usr/bin/install_pyenv.sh"
+      ],
+      [
+        "pyenv",
+        "install",
+        "3.5.7"
+      ]
+    ]
   },
   {
     "group": "python",
     "id": 2,
-    "name": "Python 3.6"
+    "name": "Python 3.6",
+    "pre_start_commands": [
+      [
+        "pyenv",
+        "global",
+        "3.6.8"
+      ]
+    ],
+    "setup_commands": [
+      [
+        "/usr/bin/install_pyenv.sh"
+      ],
+      [
+        "pyenv",
+        "install",
+        "3.6.8"
+      ]
+    ]
   },
   {
     "group": "python",
     "id": 3,
-    "name": "Python 3.7"
+    "name": "Python 3.7",
+    "pre_start_commands": [
+      [
+        "pyenv",
+        "global",
+        "3.7.3"
+      ],
+      [
+        "python",
+        "--version"
+      ]
+    ],
+    "setup_commands": [
+      [
+        "/usr/bin/install_pyenv.sh"
+      ],
+      [
+        "pyenv",
+        "install",
+        "3.7.3"
+      ]
+    ]
   },
   {
     "group": "java",
     "id": 4,
-    "name": "Java 1.6"
+    "name": "Java 8",
+    "pre_start_commands": [
+      [
+        "java",
+        "--version"
+      ]
+    ],
+    "setup_commands": [
+      [
+        "apt",
+        "install",
+        "-y",
+        "openjdk-8-jdk"
+      ]
+    ]
   },
   {
     "group": "java",
     "id": 5,
-    "name": "Java 1.7"
+    "name": "Java 11",
+    "pre_start_commands": [
+      [
+        "java",
+        "--version"
+      ]
+    ],
+    "setup_commands": [
+      [
+        "apt",
+        "install",
+        "-y",
+        "openjdk-11-jdk"
+      ]
+    ]
   },
   {
     "group": "r",
     "id": 6,
-    "name": "R"
+    "name": "R",
+    "pre_start_commands": [
+      [
+        "apt-key",
+        "adv",
+        "--keyserver",
+        "keyserver.ubuntu.com",
+        "--recv-keys",
+        "E298A3A825C0D65DFD57CBB651716619E084DAB9"
+      ],
+      [
+        "add-apt-repository",
+        "deb https://cloud.r-project.org/bin/linux/ubuntu bionic-cran35/"
+      ],
+      [
+        "apt",
+        "update"
+      ],
+      [
+        "apt",
+        "install",
+        "-y",
+        "r-base"
+      ]
+    ]
+  },
+  {
+    "group": "c",
+    "id": 7,
+    "name": "C/C++",
+    "pre_start_commands": [
+      [
+        "apt",
+        "install",
+        "-y",
+        "build-essential",
+        "clang",
+        "clang-format",
+        "cmake"
+      ]
+    ],
+    "setup_commands": []
   }
 ]

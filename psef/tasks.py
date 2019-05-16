@@ -474,6 +474,42 @@ def _run_plagiarism_control_1(  # pylint: disable=too-many-branches,too-many-sta
 
 
 @celery.task
+def _notify_slow_auto_test_run_1(auto_test_run_id: int) -> None:
+    run = p.models.AutoTestRun.query.get(auto_test_run_id)
+    if run is None:
+        return
+    if run.state != p.models.AutoTestRunState.running:
+        return
+
+    logger.warning(
+        'A AutoTest run is slow!',
+        started_date=run.started_date,
+        kill_date=run.kill_date,
+        run_id=run.id,
+        run=run.__extended_to_json__(),
+    )
+
+
+@celery.task
+def _stop_auto_test_run_1(auto_test_run_id: int) -> None:
+    run = p.models.AutoTestRun.query.get(auto_test_run_id)
+    if run is None:
+        return
+    if (
+        run.kill_date is not None and
+        run.kill_date < datetime.datetime.utcnow()
+    ):
+        _stop_auto_test_run_1.apply_async((run.id, ), eta=run.kill_date)
+
+    if run.state != p.models.AutoTestRunState.running:
+        return
+    run.state = p.models.AutoTestRunState.timed_out
+    if run.runner is not None:
+        run.runner.after_run()
+    p.models.db.session.commit()
+
+
+@celery.task
 def _add_1(first: int, second: int) -> int:  # pragma: no cover
     """This function is used for testing if celery works. What it actually does
     is completely irrelevant.
@@ -491,3 +527,11 @@ run_plagiarism_control = _run_plagiarism_control_1.delay  # pylint: disable=inva
 send_reminder_mails: t.Callable[[
     t.Tuple[int], NamedArg(t.Optional[datetime.datetime], 'eta')
 ], t.Any] = _send_reminder_mails_1.apply_async  # pylint: disable=invalid-name
+
+stop_auto_test_run: t.Callable[[
+    t.Tuple[int], NamedArg(t.Optional[datetime.datetime], 'eta')
+], t.Any] = _stop_auto_test_run_1.apply_async
+
+notify_slow_auto_test_run: t.Callable[[
+    t.Tuple[int], NamedArg(t.Optional[datetime.datetime], 'eta')
+], t.Any] = _notify_slow_auto_test_run_1.apply_async

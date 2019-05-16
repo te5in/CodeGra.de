@@ -199,7 +199,7 @@ if True:  # pylint: disable=using-constant-test
     from .permission import Permission
     from .user import User
     from .lti_provider import LTIProvider
-    from .file import File, FileOwner, AutoTestFixture
+    from .file import File, FileOwner, AutoTestFixture, FileMixin
     from .work import Work, GradeHistory
     from .linter import LinterState, LinterComment, LinterInstance
     from .plagiarism import (
@@ -213,5 +213,6 @@ if True:  # pylint: disable=using-constant-test
     from .link_tables import user_course
     from .auto_test import (
         AutoTest, AutoTestSet, AutoTestSuite, AutoTestStep, AutoTestRun,
-        AutoTestResult
+        AutoTestResult, AutoTestRunState, AutoTestRunner,
+        AutoTestStepResultState, AutoTestStepResult, AutoTestRunState
     )

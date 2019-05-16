@@ -57,6 +57,10 @@ class FileMixin:
     def id(self) -> int:
         raise NotImplementedError
 
+    @property
+    def is_directory(self) -> bool:
+        raise NotImplementedError
+
     def delete_from_disk(self) -> None:
         """Delete the file from disk if it is not a directory.
 
@@ -73,10 +77,14 @@ class FileMixin:
         :returns: The absolute path.
         """
         assert self.filename
+        assert not self.is_directory
+
         res = os.path.realpath(
             os.path.join(current_app.config['UPLOAD_DIR'], self.filename)
         )
+
         assert res.startswith(current_app.config['UPLOAD_DIR'])
+
         return res
 
     def __to_json__(self) -> t.Mapping[str, t.Union[str, int]]:
@@ -172,14 +180,6 @@ class File(FileMixin, Base):
                 return teacher
         else:
             return teacher
-
-    def get_diskname(self) -> str:
-        """Get the absolute path on the disk for this file.
-
-        :returns: The absolute path.
-        """
-        assert not self.is_directory
-        return super().get_diskname()
 
     def list_contents(
         self,
@@ -302,6 +302,10 @@ class AutoTestFixture(Base, FileMixin, TimestampMixin):
         db.ForeignKey('AutoTest.id', ondelete='CASCADE'),
         nullable=False,
     )
+
+    @property
+    def is_directory(self) -> bool:
+        return False
 
     hidden: bool = db.Column(
         'hidden', db.Boolean, nullable=False, default=True

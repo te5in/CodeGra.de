@@ -3,8 +3,11 @@
 SPDX-License-Identifier: AGPL-3.0-only
 """
 
+import os
 import typing as t
+import zipfile
 import datetime
+import tempfile
 from collections import defaultdict
 
 import sqlalchemy.sql as sql
@@ -738,3 +741,41 @@ class Work(Base):
             return True
         else:
             return False
+
+    def create_zip(
+        self, exclude_owner: FileOwner, create_leading_directory: bool = False
+    ) -> str:
+        """Create zip in `MIRROR_UPLOADS` directory.
+
+        :param exclude_owner: Which files to exclude.
+        :returns: The name of the zip file in the `MIRROR_UPLOADS` dir.
+        """
+        path, name = psef.files.random_file_path(True)
+
+        with open(
+            path,
+            'w+b',
+        ) as f, tempfile.TemporaryDirectory(
+            suffix='dir',
+        ) as tmpdir, zipfile.ZipFile(
+            f,
+            'w',
+            compression=zipfile.ZIP_DEFLATED,
+        ) as zipf:
+            # Restore the files to tmpdir
+            tree_root = psef.files.restore_directory_structure(
+                self, tmpdir, exclude_owner
+            )
+
+            if create_leading_directory:
+                zipf.write(tmpdir, tree_root['name'])
+                leading_len = len(tmpdir)
+            else:
+                leading_len = len(tmpdir) + len('/') + len(tree_root['name'])
+
+            for root, _dirs, files in os.walk(tmpdir):
+                for file in files:
+                    path = os.path.join(root, file)
+                    zipf.write(path, path[leading_len:])
+
+        return name
