@@ -276,8 +276,7 @@
                             v-if="!set.deleted"
                             :key="set.id"
                             class="list-item transition">
-                        <b-card class="test-group auto-test-set"
-                                no-body>
+                        <b-card no-body class="test-group auto-test-set">
                             <b-card-header class="test-set-header" :class="{ editable: configEditable }">
                                 Test set
                                 <div class="btn-wrapper" v-if="configEditable">
@@ -306,7 +305,7 @@
                                                      :other-suites="allNonDeletedSuites"
                                                      :value="set.suites[j]"
                                                      @input="updateSuite(set, j, $event)"
-                                                     @delete="$set(suite, 'deleted', true)"
+                                                     @delete="deleteSuite(suite)"
                                                      :result="result" />
                                 </masonry>
                                 <div v-if="configEditable"
@@ -497,6 +496,7 @@ export default {
             storeDeleteAutoTestSet: 'deleteAutoTestSet',
             storeUpdateAutoTestSet: 'updateAutoTestSet',
             storeCreateAutoTestSuite: 'createAutoTestSuite',
+            storeDeleteAutoTestSuite: 'deleteAutoTestSuite',
             storeUpdateAutoTestSuite: 'updateAutoTestSuite',
             storeLoadAutoTestResult: 'loadAutoTestResult',
             storeDeleteAutoTestResult: 'deleteAutoTestResult',
@@ -575,17 +575,23 @@ export default {
         },
 
         addSuite(set) {
-            this.storeCreateAutoTestSuite({
+            return this.storeCreateAutoTestSuite({
                 autoTestId: this.test.id,
                 autoTestSet: set,
             });
         },
 
         updateSuite(set, index, suite) {
-            this.storeUpdateAutoTestSuite({
+            return this.storeUpdateAutoTestSuite({
                 autoTestSet: set,
                 index,
                 suite,
+            });
+        },
+
+        deleteSuite(suite) {
+            return this.storeDeleteAutoTestSuite({
+                autoTestSuite: suite,
             });
         },
 
@@ -671,7 +677,7 @@ export default {
         },
 
         openResult(result) {
-            if (result.state !== 'not_started' && result.state !== 'running') {
+            if (result.state === 'passed' && result.state === 'failed') {
                 this.currentResult = result;
                 this.$root.$emit('bv::show::modal', this.resultsModalId);
             }
@@ -709,10 +715,6 @@ export default {
             return resultId ? this.allResult[resultId] : null;
         },
 
-        autoTestUrl() {
-            return `/api/v1/auto_tests/${this.test.id}`;
-        },
-
         assignmentId() {
             return this.assignment.id;
         },
@@ -729,27 +731,26 @@ export default {
         baseSystems() {
             const langSet = new Set();
             const selectedSet = new Set();
-            this.test.base_systems.forEach(t => {
+            this.internalTest.base_systems.forEach(t => {
                 langSet.add(t.group);
                 selectedSet.add(t.id);
             });
 
             return AutoTestBaseSystems.reduce((res, cur) => {
                 if (langSet.has(cur.group) && !selectedSet.has(cur.id)) {
-                    res.push(
-                        Object.assign(
-                            {},
-                            {
-                                ...cur,
-                                $isDisabled: true,
-                            },
-                        ),
-                    );
+                    res.push({
+                        ...cur,
+                        $isDisabled: true,
+                    });
                 } else {
                     res.push(cur);
                 }
                 return res;
             }, []);
+        },
+
+        selectedBaseSystems() {
+            return this.internalTest.base_systems;
         },
 
         hasResults() {

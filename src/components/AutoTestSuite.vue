@@ -77,7 +77,7 @@
                 <submit-button variant="danger"
                                confirm="Are you sure you want to delete this suite?"
                                :submit="() => internalValue.delete()"
-                               @after-success="$emit('delete')"
+                               @after-success="$emit('delete', internalValue)"
                                label="Delete"/>
                 <submit-button
                     variant="outline-danger"

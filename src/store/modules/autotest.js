@@ -729,6 +729,12 @@ const actions = {
         });
     },
 
+    deleteAutoTestSuite({ commit }, { autoTestSuite }) {
+        return commit(types.DELETE_AUTO_TEST_SUITE, {
+            autoTestSuite,
+        });
+    },
+
     updateAutoTestSuite({ commit }, { autoTestSet, index, suite }) {
         const suites = [...autoTestSet.suites];
         suites[index] = suite;
@@ -937,6 +943,10 @@ const mutations = {
         Object.entries(setProps).forEach(
             ([k, v]) => Vue.set(autoTestSet, k, v),
         );
+    },
+
+    [types.DELETE_AUTO_TEST_SUITE](state, { autoTestSuite }) {
+        Vue.set(autoTestSuite, 'deleted', true);
     },
 
     [types.SET_AUTO_TEST_RESULT](state, result) {
