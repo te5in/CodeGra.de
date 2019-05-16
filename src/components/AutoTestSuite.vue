@@ -236,7 +236,7 @@ export default {
             return [
                 { name: 'io_test', title: 'IO Test', color: '#E7EEE9' },
                 { name: 'run_program', title: 'Run Program', color: '#E6DCCD' },
-                { name: 'custom_output', title: 'Custom Output', color: '#DFD3AA' },
+                { name: 'capture_points', title: 'Capture Points', color: '#DFD3AA' },
                 { name: 'check_points', title: 'Check Points', color: '#D6CE5B' },
             ];
         },
@@ -273,7 +273,7 @@ export default {
                         },
                     ];
                     break;
-                case 'custom_output':
+                case 'capture_points':
                     res.data.regex = '(\\d+\\.?\\d*|\\.\\d+)';
                     break;
                 case 'check_points':

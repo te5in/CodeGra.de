@@ -76,7 +76,7 @@
                            @input="updateValue('min_points', $event.target.value)"/>
                 </template>
 
-                <template v-if="value.type === 'custom_output'">
+                <template v-if="value.type === 'capture_points'">
                     <hr/>
 
                     <label :for="regexId">
@@ -279,7 +279,7 @@
         </tr>
     </template>
 
-    <template v-else-if="value.type === 'custom_output'">
+    <template v-else-if="value.type === 'capture_points'">
         <tr class="step-summary" v-b-toggle="resultsCollapseId">
             <td class="expand" v-if="result">
                 <icon v-if="canViewOutput" name="chevron-down" :scale="0.75" />
