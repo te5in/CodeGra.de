@@ -170,18 +170,18 @@ class AutoTestResult {
         this.id = result.id;
         this.submission = result.work;
         this.state = result.state;
-        this.setup = {
-            stdout: result.setup_stdout,
-            stderr: result.setup_stderr,
-        };
+        this.setupStdout = result.setup_stdout;
+        this.setupStderr = result.setup_stderr;
 
-        if (result.step_results) {
-            this.updateStepResults(result);
-        }
+        this.updateStepResults(result);
     }
 
     // eslint-disable-next-line
     updateStepResults(result) {
+        if (result.step_results == null) {
+            return;
+        }
+
         const setResults = {};
         const suiteResults = {};
         const stepResults = result.step_results.reduce(

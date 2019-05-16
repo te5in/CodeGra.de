@@ -258,10 +258,12 @@
                                     </label>
                                     <b-tabs no-fade v-if="result">
                                         <b-tab title="stdout">
-                                            <pre>{{ result.setup_stdout }}</pre>
+                                            <pre v-if="result.setupStdout">{{ result.setupStdout }}</pre>
+                                            <pre v-else class="text-muted">No output.</pre>
                                         </b-tab>
                                         <b-tab title="stderr">
-                                            <pre>{{ result.setup_stderr }}</pre>
+                                            <pre v-if="result.setupStderr">{{ result.setupStderr }}</pre>
+                                            <pre v-else class="text-muted">No output.</pre>
                                         </b-tab>
                                     </b-tabs>
                                 </template>
@@ -522,7 +524,7 @@ export default {
             storeDeleteAutoTestSuite: 'deleteAutoTestSuite',
             storeUpdateAutoTestSuite: 'updateAutoTestSuite',
             storeLoadAutoTestResult: 'loadAutoTestResult',
-            storeDeleteAutoTestResult: 'deleteAutoTestResult',
+            storeDeleteAutoTestResults: 'deleteAutoTestResults',
         }),
 
         runAutoTest() {
