@@ -26,7 +26,7 @@ import psef
 
 from .. import app
 from .steps import TestStep, StopRunningStepsException, auto_test_handlers
-from ..helpers import register, ensure_on_test_server
+from ..helpers import defer, register, ensure_on_test_server
 
 logger = structlog.get_logger()
 
@@ -325,7 +325,11 @@ class StartedContainer:
     ) -> int:
         self._dirty = True
 
-        with tempfile.TemporaryDirectory(
+        logger.bind(cmd=cmd, timeout=timeout)
+
+        with defer(
+            lambda: logger.try_unbind('cmd', 'timeout')
+        ), tempfile.TemporaryDirectory(
         ) as output_dir, tempfile.NamedTemporaryFile() as stdin_file:
             if isinstance(stdin, bytes):
                 os.chmod(stdin_file.name, 0o777)
@@ -339,11 +343,24 @@ class StartedContainer:
             stderr_fifo = os.path.join(output_dir, 'stderr')
             os.mkfifo(stderr_fifo)
 
+            def _make_log_function(log_location: str
+                                   ) -> t.Callable[[bytes], None]:
+                def inner(log_line: bytes) -> None:
+                    logger.info(
+                        'Got output from command',
+                        location=log_location,
+                        output=log_line
+                    )
+
+                return inner
+
             stdout_thread = threading.Thread(
-                target=self._read_fifo, args=(stdout, stdout_fifo)
+                target=self._read_fifo,
+                args=(stdout or _make_log_function('stdout'), stdout_fifo)
             )
             stderr_thread = threading.Thread(
-                target=self._read_fifo, args=(stderr, stderr_fifo)
+                target=self._read_fifo,
+                args=(stderr or _make_log_function('stderr'), stderr_fifo)
             )
             stdout_thread.start()
             stderr_thread.start()
@@ -447,7 +464,7 @@ class AutoTestContainer:
                 'release': 'bionic',
                 'arch': 'amd64',
             },
-            bdevtype='btrfs'
+            bdevtype='best'
         )
 
     def clone(self, new_name: str = '') -> 'AutoTestContainer':
@@ -505,10 +522,6 @@ class AutoTestRunner(abc.ABC):
 
 @auto_test_runners.register('simple_runner')
 class _SimpleAutoTestRunner(AutoTestRunner):
-    def __init__(self, *args: object, **kwargs: object) -> None:
-        super().__init__(*args, **kwargs)
-        self._init_log: t.List[bytes] = []
-
     @classmethod
     def after_run(_, __: 'psef.models.AutoTestRunner') -> None:
         pass
@@ -521,25 +534,14 @@ class _SimpleAutoTestRunner(AutoTestRunner):
     def _finalize_base_systems(self, cont: StartedContainer) -> None:
         for system in self.base_systems:
             for cmd in system.get('pre_start_commands', []):
-                print(
-                    cont.run_command(
-                        cmd, self._init_log.append, self._init_log.append
-                    )
-                )
+                cont.run_command(cmd)
 
     def copy_file(
         self, container: StartedContainer, src: str, dst: str
     ) -> None:
         with open(src, 'rb') as f:
-            container.run_command(
-                ['dd', 'status=none', f'of={dst}'],
-                self._init_log.append,
-                self._init_log.append,
-                stdin=f
-            )
-        container.run_command(
-            ['chmod', '+x', dst], self._init_log.append, self._init_log.append
-        )
+            container.run_command(['dd', 'status=none', f'of={dst}'], stdin=f)
+        container.run_command(['chmod', '+x', dst])
 
     def download_fixtures(self, cont: StartedContainer) -> None:
         cont.run_command(
@@ -572,8 +574,6 @@ class _SimpleAutoTestRunner(AutoTestRunner):
         cont.run_command(
             ['ls', '-hl', '/home/codegrade/fixtures/'],
             user='codegrade',
-            stdout=self._init_log.append,
-            stderr=self._init_log.append,
         )
 
     def download_student_code(
@@ -605,7 +605,7 @@ class _SimpleAutoTestRunner(AutoTestRunner):
                 'unzip', '/home/codegrade/student.zip', '-d',
                 '/home/codegrade/student/'
             ],
-            user='codegrade'
+            user='codegrade',
         )
         logger.info('Extracted student code')
 
@@ -717,12 +717,6 @@ class _SimpleAutoTestRunner(AutoTestRunner):
             cpu_queue.put(cpu_number)
 
     def run_test(self) -> None:
-        try:
-            self._run_test()
-        finally:
-            print(b''.join(self._init_log).decode('utf-8', 'backslashreplace'))
-
-    def _run_test(self) -> None:
         # ensure_on_test_server()
 
         # We use uuid1 as this is always unique for a single machine
@@ -730,19 +724,11 @@ class _SimpleAutoTestRunner(AutoTestRunner):
         base_container.create()
 
         with base_container.started_container() as cont:
-            cont.run_command(
-                ['apt', 'update'], self._init_log.append, self._init_log.append
-            )
-            cont.run_command(
-                ['apt', 'upgrade', '-y'], self._init_log.append,
-                self._init_log.append
-            )
+            cont.run_command(['apt', 'update'])
+            cont.run_command(['apt', 'upgrade', '-y'])
 
             # Install useful commands
-            cont.run_command(
-                ['apt', 'install', '-y', 'wget', 'curl', 'unzip'],
-                self._init_log.append, self._init_log.append
-            )
+            cont.run_command(['apt', 'install', '-y', 'wget', 'curl', 'unzip'])
 
             self.copy_file(
                 cont,
@@ -757,13 +743,9 @@ class _SimpleAutoTestRunner(AutoTestRunner):
 
             cont.run_command(
                 ['adduser', '--disabled-password', '--gecos', '', 'codegrade'],
-                self._init_log.append, self._init_log.append
             )
 
-            cont.run_command(
-                ['usermod', '-aG', 'sudo', 'codegrade'], self._init_log.append,
-                self._init_log.append
-            )
+            cont.run_command(['usermod', '-aG', 'sudo', 'codegrade'])
 
             self.download_fixtures(cont)
             self._finalize_base_systems(cont)
