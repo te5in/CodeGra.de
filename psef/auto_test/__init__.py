@@ -718,6 +718,7 @@ class _SimpleAutoTestRunner(AutoTestRunner):
 
     def run_test(self) -> None:
         # ensure_on_test_server()
+        STOP_CONTAINERS.clear()
 
         # We use uuid1 as this is always unique for a single machine
         base_container = self.make_container()
@@ -753,7 +754,6 @@ class _SimpleAutoTestRunner(AutoTestRunner):
             cont.stop_container()
             del cont
 
-            STOP_CONTAINERS.clear()
             with Pool(get_amount_cpus()) as pool:
                 q: 'Queue[int]' = Queue(maxsize=get_amount_cpus())
                 for i in range(get_amount_cpus()):
