@@ -387,7 +387,7 @@ class StartedContainer:
                     try:
                         new_pid, status = os.waitpid(pid, os.WNOHANG)
                         if new_pid == status == 0 or not os.WIFEXITED(status):
-                            time.sleep(6)
+                            time.sleep(0.5)
                             continue
                         res = os.WEXITSTATUS(status)
                         break
