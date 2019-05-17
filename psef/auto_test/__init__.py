@@ -41,6 +41,15 @@ STOP_CONTAINERS = threading.Event()
 T = t.TypeVar('T')
 
 
+class StopContainerException(Exception):
+    pass
+
+
+def maybe_stop_container() -> None:
+    if STOP_CONTAINERS.is_set():
+        raise StopContainerException
+
+
 def get_new_container_name() -> str:
     return str(uuid.uuid1())
 
@@ -50,6 +59,8 @@ def get_amount_cpus() -> int:
 
 
 def _start_container(cont: lxc.Container) -> None:
+    maybe_stop_container()
+
     assert cont.start()
     assert cont.wait('RUNNING', 3)
     for _ in range(30):
@@ -160,8 +171,9 @@ class StartedContainer:
         while self._snapshots:
             self._container.snapshot_destroy(self._snapshots.pop())
 
-    def set_cgroup_item(self, key: str, value: str) -> bool:
-        return self._container.set_cgroup_item(key, value)
+    def set_cgroup_item(self, key: str, value: str) -> None:
+        if not self._container.set_cgroup_item(key, value):
+            raise ValueError
 
     def stop_container(self) -> None:
         assert self._container.stop()
@@ -169,10 +181,9 @@ class StartedContainer:
 
     @contextlib.contextmanager
     def as_snapshot(self) -> t.Generator['StartedContainer', None, None]:
-        pop_later = False
+        maybe_stop_container()
 
-        if STOP_CONTAINERS.is_set():
-            raise Exception
+        pop_later = False
 
         try:
             if self._dirty or not self._snapshots:
@@ -181,8 +192,8 @@ class StartedContainer:
                 snap = self._container.snapshot()
                 assert isinstance(snap, str)
                 self._snapshots.append(snap)
-                _start_container(self._container)
                 self._dirty = False
+                _start_container(self._container)
             yield self
         finally:
             logger.info('Stopping container')
@@ -365,12 +376,16 @@ class StartedContainer:
             stdout_thread.start()
             stderr_thread.start()
 
-            with open(stdout_fifo,
-                      'wb') as out, open(stderr_fifo, 'wb') as err:
+            with defer(stdout_thread.join), defer(stderr_thread.join), open(
+                stdout_fifo,
+                'wb',
+            ) as out, open(
+                stderr_fifo,
+                'wb',
+            ) as err:
                 assert timeout is None or timeout > 0
                 start = datetime.datetime.utcnow()
-                if STOP_CONTAINERS.is_set():
-                    raise Exception
+                maybe_stop_container()
 
                 pid = self._container.attach(
                     callback,
@@ -400,14 +415,9 @@ class StartedContainer:
                     os.kill(pid, signal.SIGKILL)
                     os.waitpid(pid, 0)
                     logger.warning('Killing done', pid=pid)
-                    if STOP_CONTAINERS.is_set():
-                        raise Exception
-                    return -1
-                if STOP_CONTAINERS.is_set():
-                    raise Exception
+                    res = -1
 
-            stdout_thread.join()
-            stderr_thread.join()
+            maybe_stop_container()
 
             if check and res != 0:
                 raise RuntimeError(f'Command "{cmd}" crashed: {res}')
@@ -468,8 +478,7 @@ class AutoTestContainer:
         )
 
     def clone(self, new_name: str = '') -> 'AutoTestContainer':
-        if STOP_CONTAINERS.is_set():
-            raise Exception
+        maybe_stop_container()
 
         new_name = new_name or get_new_container_name()
 
@@ -613,9 +622,7 @@ class _SimpleAutoTestRunner(AutoTestRunner):
             ['chmod', '-R', '+x', '/home/codegrade/student/'],
             user='codegrade'
         )
-        cont.run_command(
-            ['rm', '-f', '/home/codegrade/student.zip'], user='codegrade'
-        )
+        cont.run_command(['rm', '-f', '/home/codegrade/student.zip'])
 
     def run_student(
         self,
@@ -632,15 +639,17 @@ class _SimpleAutoTestRunner(AutoTestRunner):
             with student_container.started_container() as cont:
                 logger.info('Started container')
                 logger.info('Setting limits')
-                assert cont.set_cgroup_item(
+
+                cont.set_cgroup_item(
                     'memory.limit_in_bytes',
                     self.config['AUTO_TEST_MEMORY_LIMIT']
                 )
-                assert cont.set_cgroup_item('cpuset.cpus', str(cpu_number))
-                assert cont.set_cgroup_item(
+                cont.set_cgroup_item('cpuset.cpus', str(cpu_number))
+                cont.set_cgroup_item(
                     'memory.memsw.limit_in_bytes',
                     self.config['AUTO_TEST_MEMORY_LIMIT']
                 )
+
                 logger.info('Done setting limits')
 
                 self.download_student_code(cont, result_id)
