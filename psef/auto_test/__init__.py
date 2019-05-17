@@ -211,6 +211,7 @@ class StartedContainer:
     ) -> None:
         with open(fname, 'rb') as f:
             while True:
+                maybe_stop_container()
                 line = f.readline()
                 if not line:
                     return
@@ -376,6 +377,10 @@ class StartedContainer:
             stdout_thread.start()
             stderr_thread.start()
 
+            # The order is really important here! We first need to close the
+            # two fifo files before we join our threads. As otherwise the
+            # threads will hang because they are still reading from these
+            # files.
             with defer(stdout_thread.join), defer(stderr_thread.join), open(
                 stdout_fifo,
                 'wb',
@@ -783,7 +788,7 @@ class _SimpleAutoTestRunner(AutoTestRunner):
                         else:
                             break
                 finally:
-                    logger.warning('Got keyboard interrupt, cleaning up')
+                    logger.warning('Done with containers, cleaning up')
                     STOP_CONTAINERS.set()
                     pool.terminate()
                     pool.join()
