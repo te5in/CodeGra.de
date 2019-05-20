@@ -471,80 +471,80 @@ const actions = {
                                                 ],
                                             },
                                         },
-                                        // {
-                                        //     autoTestSetId: 1,
-                                        //     autoTestId: 1,
-                                        //     id: 2,
-                                        //     steps: [
-                                        //         {
-                                        //             data: {
-                                        //                 program: './test_run',
-                                        //             },
-                                        //             hidden: false,
-                                        //             id: 2,
-                                        //             name: 'Test run',
-                                        //             type: 'run_program',
-                                        //             weight: 1,
-                                        //         },
-                                        //         {
-                                        //             data: {
-                                        //                 program: 'valgrind ./test_run',
-                                        //             },
-                                        //             hidden: true,
-                                        //             id: 4,
-                                        //             name: 'Valgrind',
-                                        //             type: 'run_program',
-                                        //             weight: 1,
-                                        //         },
-                                        //         {
-                                        //             data: {
-                                        //                 min_points: 4,
-                                        //                 program: 'check_points ./test_run',
-                                        //             },
-                                        //             hidden: false,
-                                        //             id: 5,
-                                        //             name: 'Check points',
-                                        //             type: 'check_points',
-                                        //             weight: 0,
-                                        //         },
-                                        //         {
-                                        //             data: {
-                                        //                 program: 'get_points ./test_run',
-                                        //                 regex: '(\\d+\\.?\\d*|\\.\\d+) points$',
-                                        //             },
-                                        //             hidden: false,
-                                        //             id: 6,
-                                        //             name: 'Get points',
-                                        //             type: 'capture_points',
-                                        //             weight: 1,
-                                        //         },
-                                        //     ],
-                                        //     rubric_row: {
-                                        //         description: 'abc',
-                                        //         header: 'Code structure',
-                                        //         id: 3,
-                                        //         items: [
-                                        //             {
-                                        //                 description: 'rubric row description',
-                                        //                 header: 'Novice',
-                                        //                 id: 9,
-                                        //                 points: 1,
-                                        //             },
-                                        //             {
-                                        //                 description: 'blaksdfasdg',
-                                        //                 header: 'Competent',
-                                        //                 id: 8,
-                                        //                 points: 2.5,
-                                        //             },
-                                        //             {
-                                        //                 description: 'ja hsaas a ahsdg',
-                                        //                 header: 'Expert',
-                                        //                 id: 7,
-                                        //                 points: 4,
-                                        //             },
-                                        //         ],
-                                        //     },
-                                        // },
+                                        {
+                                            autoTestSetId: 1,
+                                            autoTestId: 1,
+                                            id: 2,
+                                            steps: [
+                                                {
+                                                    data: {
+                                                        program: './test_run',
+                                                    },
+                                                    hidden: false,
+                                                    id: 2,
+                                                    name: 'Test run',
+                                                    type: 'run_program',
+                                                    weight: 1,
+                                                },
+                                                {
+                                                    data: {
+                                                        program: 'valgrind ./test_run',
+                                                    },
+                                                    hidden: true,
+                                                    id: 4,
+                                                    name: 'Valgrind',
+                                                    type: 'run_program',
+                                                    weight: 1,
+                                                },
+                                                {
+                                                    data: {
+                                                        min_points: 4,
+                                                        program: 'check_points ./test_run',
+                                                    },
+                                                    hidden: false,
+                                                    id: 5,
+                                                    name: 'Check points',
+                                                    type: 'check_points',
+                                                    weight: 0,
+                                                },
+                                                {
+                                                    data: {
+                                                        program: 'get_points ./test_run',
+                                                        regex: '(\\d+\\.?\\d*|\\.\\d+) points$',
+                                                    },
+                                                    hidden: false,
+                                                    id: 6,
+                                                    name: 'Get points',
+                                                    type: 'capture_points',
+                                                    weight: 1,
+                                                },
+                                            ],
+                                            rubric_row: {
+                                                description: 'abc',
+                                                header: 'Code structure',
+                                                id: 3,
+                                                items: [
+                                                    {
+                                                        description: 'rubric row description',
+                                                        header: 'Novice',
+                                                        id: 9,
+                                                        points: 1,
+                                                    },
+                                                    {
+                                                        description: 'blaksdfasdg',
+                                                        header: 'Competent',
+                                                        id: 8,
+                                                        points: 2.5,
+                                                    },
+                                                    {
+                                                        description: 'ja hsaas a ahsdg',
+                                                        header: 'Expert',
+                                                        id: 7,
+                                                        points: 4,
+                                                    },
+                                                ],
+                                            },
+                                        },
                                     ],
                                 },
                                 {
