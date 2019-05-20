@@ -218,7 +218,7 @@ import ResSplitPane from 'vue-resize-split-pane';
 
 import { mapGetters, mapActions } from 'vuex';
 
-import { cmpNoCase, parseBool, nameOfUser } from '@/utils';
+import { cmpNoCase, nameOfUser } from '@/utils';
 
 import {
     CodeViewer,
@@ -317,7 +317,7 @@ export default {
         },
 
         overviewMode() {
-            return this.canSeeFeedback && parseBool(this.$route.query.overview, false);
+            return this.canSeeFeedback && parseInt(this.$route.query.overview, 10) >= 0;
         },
 
         currentFileData() {
@@ -557,11 +557,19 @@ export default {
         },
 
         toggleOverviewMode(forceOn = false) {
-            this.$router.push({
-                query: Object.assign({}, this.$route.query, {
-                    overview: forceOn || !this.overviewMode,
-                }),
-            });
+            const query = Object.assign({}, this.$route.query);
+            const overview = parseInt(query.overview, 10);
+
+            // Can't use < because overview isn't necessarily a number.
+            if (!(overview >= 0)) {
+                query.overview = 0;
+            } else if (!forceOn) {
+                delete query.overview;
+            } else {
+                query.overview = overview;
+            }
+
+            this.$router.push({ query });
         },
 
         deleteSubmission() {

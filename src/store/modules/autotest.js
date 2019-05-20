@@ -335,9 +335,10 @@ const actions = {
             loaders.tests[autoTestId] = axios
                 .get(`/api/v1/auto_tests/${autoTestId}`)
                 .then(
-                    // ({ data }) => commit(types.SET_AUTO_TEST, data),
-                    // FIXME: remove
-                    () =>
+                    ({ data }) => {
+                        // FIXME: uncomment
+                        // commit(types.SET_AUTO_TEST, data);
+                        // FIXME: remove
                         commit(types.SET_AUTO_TEST, {
                             id: autoTestId,
                             assignment_id: 3,
@@ -674,12 +675,8 @@ const actions = {
                                     ],
                                 },
                             ],
-                        }),
-                )
-                .then(
-                    () => {
-                        delete loaders.tests[autoTestId];
-                        return state.tests[autoTestId];
+                        });
+                        return state.tests[data.id];
                     },
                     err => {
                         delete loaders.tests[autoTestId];
@@ -755,7 +752,7 @@ const actions = {
         });
     },
 
-    async loadAutoTestResult({ commit, dispatch, state }, { autoTestId, resultId }) {
+    async loadAutoTestResult({ commit, dispatch, state }, { autoTestId, resultId, submissionId }) {
         if (state.results[resultId] != null) {
             return state.results[resultId];
         }
@@ -765,7 +762,23 @@ const actions = {
             const autoTest = state.tests[autoTestId];
 
             if (autoTest.runs.length === 0) {
-                throw new Error('AutoTest has not been run yet.');
+                return Promise.reject(
+                    new Error('AutoTest has not been run yet.'),
+                );
+            }
+
+            if (resultId == null) {
+                const result = autoTest.runs[0].results.find(
+                    r => r.work.id === submissionId,
+                );
+                // eslint-disable-next-line
+                resultId = result && result.id;
+            }
+
+            if (resultId == null) {
+                return Promise.reject(
+                    new Error('AutoTest result not found!'),
+                );
             }
 
             loaders.results[resultId] = axios
@@ -775,15 +788,13 @@ const actions = {
                     }/results/${resultId}`,
                 )
                 .then(
-                    ({ data }) =>
-                        commit(
-                            types.SET_AUTO_TEST_RESULT,
-                            Object.assign(data, {
-                                autoTest,
-                            }),
-                        ),
-                    // FIXME: remove
-                    () =>
+                    ({ data }) => {
+                        commit(types.SET_AUTO_TEST_RESULT, data);
+                        delete loaders.results[resultId];
+                        return state.results[data.id];
+                    },
+                    err => {
+                        // FIXME: remove
                         commit(types.SET_AUTO_TEST_RESULT, {
                             autoTest,
                             id: resultId,
@@ -866,14 +877,7 @@ const actions = {
                                     },
                                 },
                             ],
-                        }),
-                )
-                .then(
-                    () => {
-                        delete loaders.results[resultId];
-                        return state.results[resultId];
-                    },
-                    err => {
+                        });
                         delete loaders.results[resultId];
                         throw err;
                     },

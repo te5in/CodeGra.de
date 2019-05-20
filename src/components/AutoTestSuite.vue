@@ -234,10 +234,27 @@ export default {
 
         stepTypes() {
             return [
-                { name: 'io_test', title: 'IO Test', color: '#E7EEE9' },
-                { name: 'run_program', title: 'Run Program', color: '#E6DCCD' },
-                { name: 'capture_points', title: 'Capture Points', color: '#DFD3AA' },
-                { name: 'check_points', title: 'Check Points', color: '#D6CE5B' },
+                {
+                    name: 'io_test',
+                    title: 'IO Test',
+                    color: '#E7EEE9',
+                },
+                {
+                    name: 'run_program',
+                    title: 'Run Program',
+                    color: '#E6DCCD',
+                },
+                {
+                    name: 'capture_points',
+                    title: 'Capture Points',
+                    color: '#DFD3AA',
+                },
+                {
+                    name: 'check_points',
+                    title: 'Check Points',
+                    color: '#D6CE5B',
+                    meta: true,
+                },
             ];
         },
 
