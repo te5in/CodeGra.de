@@ -26,7 +26,7 @@ import psef
 
 from .. import app
 from .steps import TestStep, StopRunningStepsException, auto_test_handlers
-from ..helpers import register, ensure_on_test_server
+from ..helpers import defer, register, ensure_on_test_server
 
 logger = structlog.get_logger()
 
@@ -41,6 +41,15 @@ STOP_CONTAINERS = threading.Event()
 T = t.TypeVar('T')
 
 
+class StopContainerException(Exception):
+    pass
+
+
+def maybe_stop_container() -> None:
+    if STOP_CONTAINERS.is_set():
+        raise StopContainerException
+
+
 def get_new_container_name() -> str:
     return str(uuid.uuid1())
 
@@ -50,8 +59,10 @@ def get_amount_cpus() -> int:
 
 
 def _start_container(cont: lxc.Container) -> None:
-    cont.start()
-    cont.wait('RUNNING', 3)
+    maybe_stop_container()
+
+    assert cont.start()
+    assert cont.wait('RUNNING', 3)
     for _ in range(30):
         if cont.get_ips():
             return
@@ -160,19 +171,19 @@ class StartedContainer:
         while self._snapshots:
             self._container.snapshot_destroy(self._snapshots.pop())
 
-    def set_cgroup_item(self, key: str, value: str) -> bool:
-        return self._container.set_cgroup_item(key, value)
+    def set_cgroup_item(self, key: str, value: str) -> None:
+        if not self._container.set_cgroup_item(key, value):
+            raise ValueError
 
     def stop_container(self) -> None:
-        self._container.stop()
-        self._container.wait('STOPPED', 3)
+        assert self._container.stop()
+        assert self._container.wait('STOPPED', 3)
 
     @contextlib.contextmanager
     def as_snapshot(self) -> t.Generator['StartedContainer', None, None]:
-        pop_later = False
+        maybe_stop_container()
 
-        if STOP_CONTAINERS.is_set():
-            raise Exception
+        pop_later = False
 
         try:
             if self._dirty or not self._snapshots:
@@ -181,8 +192,8 @@ class StartedContainer:
                 snap = self._container.snapshot()
                 assert isinstance(snap, str)
                 self._snapshots.append(snap)
-                _start_container(self._container)
                 self._dirty = False
+                _start_container(self._container)
             yield self
         finally:
             logger.info('Stopping container')
@@ -200,6 +211,7 @@ class StartedContainer:
     ) -> None:
         with open(fname, 'rb') as f:
             while True:
+                maybe_stop_container()
                 line = f.readline()
                 if not line:
                     return
@@ -325,7 +337,11 @@ class StartedContainer:
     ) -> int:
         self._dirty = True
 
-        with tempfile.TemporaryDirectory(
+        logger.bind(cmd=cmd, timeout=timeout)
+
+        with defer(
+            lambda: logger.try_unbind('cmd', 'timeout')
+        ), tempfile.TemporaryDirectory(
         ) as output_dir, tempfile.NamedTemporaryFile() as stdin_file:
             if isinstance(stdin, bytes):
                 os.chmod(stdin_file.name, 0o777)
@@ -339,21 +355,42 @@ class StartedContainer:
             stderr_fifo = os.path.join(output_dir, 'stderr')
             os.mkfifo(stderr_fifo)
 
+            def _make_log_function(log_location: str
+                                   ) -> t.Callable[[bytes], None]:
+                def inner(log_line: bytes) -> None:
+                    logger.info(
+                        'Got output from command',
+                        location=log_location,
+                        output=log_line
+                    )
+
+                return inner
+
             stdout_thread = threading.Thread(
-                target=self._read_fifo, args=(stdout, stdout_fifo)
+                target=self._read_fifo,
+                args=(stdout or _make_log_function('stdout'), stdout_fifo)
             )
             stderr_thread = threading.Thread(
-                target=self._read_fifo, args=(stderr, stderr_fifo)
+                target=self._read_fifo,
+                args=(stderr or _make_log_function('stderr'), stderr_fifo)
             )
             stdout_thread.start()
             stderr_thread.start()
 
-            with open(stdout_fifo,
-                      'wb') as out, open(stderr_fifo, 'wb') as err:
+            # The order is really important here! We first need to close the
+            # two fifo files before we join our threads. As otherwise the
+            # threads will hang because they are still reading from these
+            # files.
+            with defer(stdout_thread.join), defer(stderr_thread.join), open(
+                stdout_fifo,
+                'wb',
+            ) as out, open(
+                stderr_fifo,
+                'wb',
+            ) as err:
                 assert timeout is None or timeout > 0
                 start = datetime.datetime.utcnow()
-                if STOP_CONTAINERS.is_set():
-                    raise Exception
+                maybe_stop_container()
 
                 pid = self._container.attach(
                     callback,
@@ -370,7 +407,7 @@ class StartedContainer:
                     try:
                         new_pid, status = os.waitpid(pid, os.WNOHANG)
                         if new_pid == status == 0 or not os.WIFEXITED(status):
-                            time.sleep(6)
+                            time.sleep(0.5)
                             continue
                         res = os.WEXITSTATUS(status)
                         break
@@ -383,14 +420,9 @@ class StartedContainer:
                     os.kill(pid, signal.SIGKILL)
                     os.waitpid(pid, 0)
                     logger.warning('Killing done', pid=pid)
-                    if STOP_CONTAINERS.is_set():
-                        raise Exception
-                    return -1
-                if STOP_CONTAINERS.is_set():
-                    raise Exception
+                    res = -1
 
-            stdout_thread.join()
-            stderr_thread.join()
+            maybe_stop_container()
 
             if check and res != 0:
                 raise RuntimeError(f'Command "{cmd}" crashed: {res}')
@@ -398,50 +430,27 @@ class StartedContainer:
             return res
 
 
-if t.TYPE_CHECKING:
-
-    class Container:
-        running: bool
-
-        def __init__(self, name: str) -> None:
-            ...
-
-        def stop(self) -> None:
-            ...
-
-        def wait(self, state: str, time: int) -> None:
-            ...
-
-        def destroy(self) -> None:
-            ...
-
-        def start(self) -> None:
-            ...
-
-        def get_ips(self) -> t.List[object]:
-            ...
-
-        def clone(self, name: str) -> 'Container':
-            ...
-
-        def create(self, *args: object, **kwargs: object) -> None:
-            ...
-else:
-    Container = lxc.Container
-
-
-class AutoTestContainer(Container):
-    def __init__(self, name: str, config: 'psef.FlaskConfig') -> None:
-        super().__init__(name)
+class AutoTestContainer:
+    def __init__(
+        self,
+        name: str,
+        config: 'psef.FlaskConfig',
+        cont: t.Optional[lxc.Container] = None
+    ) -> None:
+        self._name = name
         self._lock = threading.RLock()
         self._config = config
+        if cont is None:
+            self._cont = lxc.Container(name)
+        else:
+            self._cont = cont
 
     @contextlib.contextmanager
     def started_container(self) -> t.Generator[StartedContainer, None, None]:
-        self._start_container()
+        _start_container(self._cont)
         started = None
         try:
-            started = StartedContainer(self, self._config)
+            started = StartedContainer(self._cont, self._config)
             yield started
         finally:
             self._stop_container(started)
@@ -449,40 +458,39 @@ class AutoTestContainer(Container):
     def _stop_container(self, cont: t.Optional[StartedContainer]) -> None:
         logger.info('Stopping container', cont=self)
         try:
-            if self.running:
-                self.stop()
-                self.wait('STOPPED', 3)
+            if self._cont.running:
+                self._cont.stop()
+                self._cont.wait('STOPPED', 3)
             if cont is not None:
                 logger.info('Destroying snapshots')
                 cont.destroy_snapshots()
         finally:
             logger.info('Destroying container')
             try:
-                self.destroy()
+                self._cont.destroy()
             finally:
                 logger.try_unbind('cont')
 
-    def _start_container(self) -> None:
-        self.start()
-        self.wait('RUNNING', 3)
-        for _ in range(30):
-            if self.get_ips():
-                break
-            time.sleep(1)
-        else:
-            raise Exception(f"Couldn't get ip for container {self}")
+    def create(self) -> None:
+        assert self._cont.create(
+            'download',
+            0, {
+                'dist': 'ubuntu',
+                'release': 'bionic',
+                'arch': 'amd64',
+            },
+            bdevtype='best'
+        )
 
     def clone(self, new_name: str = '') -> 'AutoTestContainer':
-        if STOP_CONTAINERS.is_set():
-            raise Exception
+        maybe_stop_container()
+
+        new_name = new_name or get_new_container_name()
 
         with self._lock:
-            res = super().clone(new_name or get_new_container_name())
-            assert isinstance(res, lxc.Container)
-            res.__class__ = type(self)
-            res._lock = threading.RLock()
-            res._config = self._config
-            return res
+            cont = self._cont.clone(new_name)
+            assert isinstance(cont, lxc.Container)
+            return type(self)(new_name, self._config, cont)
 
 
 class AutoTestRunner(abc.ABC):
@@ -528,10 +536,6 @@ class AutoTestRunner(abc.ABC):
 
 @auto_test_runners.register('simple_runner')
 class _SimpleAutoTestRunner(AutoTestRunner):
-    def __init__(self, *args: object, **kwargs: object) -> None:
-        super().__init__(*args, **kwargs)
-        self._init_log: t.List[bytes] = []
-
     @classmethod
     def after_run(_, __: 'psef.models.AutoTestRunner') -> None:
         pass
@@ -544,25 +548,14 @@ class _SimpleAutoTestRunner(AutoTestRunner):
     def _finalize_base_systems(self, cont: StartedContainer) -> None:
         for system in self.base_systems:
             for cmd in system.get('pre_start_commands', []):
-                print(
-                    cont.run_command(
-                        cmd, self._init_log.append, self._init_log.append
-                    )
-                )
+                cont.run_command(cmd)
 
     def copy_file(
         self, container: StartedContainer, src: str, dst: str
     ) -> None:
         with open(src, 'rb') as f:
-            container.run_command(
-                ['dd', 'status=none', f'of={dst}'],
-                self._init_log.append,
-                self._init_log.append,
-                stdin=f
-            )
-        container.run_command(
-            ['chmod', '+x', dst], self._init_log.append, self._init_log.append
-        )
+            container.run_command(['dd', 'status=none', f'of={dst}'], stdin=f)
+        container.run_command(['chmod', '+x', dst])
 
     def download_fixtures(self, cont: StartedContainer) -> None:
         cont.run_command(
@@ -595,8 +588,6 @@ class _SimpleAutoTestRunner(AutoTestRunner):
         cont.run_command(
             ['ls', '-hl', '/home/codegrade/fixtures/'],
             user='codegrade',
-            stdout=self._init_log.append,
-            stderr=self._init_log.append,
         )
 
     def download_student_code(
@@ -628,7 +619,7 @@ class _SimpleAutoTestRunner(AutoTestRunner):
                 'unzip', '/home/codegrade/student.zip', '-d',
                 '/home/codegrade/student/'
             ],
-            user='codegrade'
+            user='codegrade',
         )
         logger.info('Extracted student code')
 
@@ -636,9 +627,7 @@ class _SimpleAutoTestRunner(AutoTestRunner):
             ['chmod', '-R', '+x', '/home/codegrade/student/'],
             user='codegrade'
         )
-        cont.run_command(
-            ['rm', '-f', '/home/codegrade/student.zip'], user='codegrade'
-        )
+        cont.run_command(['rm', '-f', '/home/codegrade/student.zip'])
 
     def run_student(
         self,
@@ -655,15 +644,17 @@ class _SimpleAutoTestRunner(AutoTestRunner):
             with student_container.started_container() as cont:
                 logger.info('Started container')
                 logger.info('Setting limits')
-                assert cont.set_cgroup_item(
+
+                cont.set_cgroup_item(
                     'memory.limit_in_bytes',
                     self.config['AUTO_TEST_MEMORY_LIMIT']
                 )
-                assert cont.set_cgroup_item('cpuset.cpus', str(cpu_number))
-                assert cont.set_cgroup_item(
+                cont.set_cgroup_item('cpuset.cpus', str(cpu_number))
+                cont.set_cgroup_item(
                     'memory.memsw.limit_in_bytes',
                     self.config['AUTO_TEST_MEMORY_LIMIT']
                 )
+
                 logger.info('Done setting limits')
 
                 self.download_student_code(cont, result_id)
@@ -740,40 +731,19 @@ class _SimpleAutoTestRunner(AutoTestRunner):
             cpu_queue.put(cpu_number)
 
     def run_test(self) -> None:
-        try:
-            self._run_test()
-        finally:
-            print(b''.join(self._init_log).decode('utf-8', 'backslashreplace'))
-
-    def _run_test(self) -> None:
         # ensure_on_test_server()
+        STOP_CONTAINERS.clear()
 
         # We use uuid1 as this is always unique for a single machine
         base_container = self.make_container()
-        base_container.create(
-            'download',
-            0, {
-                'dist': 'ubuntu',
-                'release': 'bionic',
-                'arch': 'amd64',
-            },
-            bdevtype='best'
-        )
+        base_container.create()
 
         with base_container.started_container() as cont:
-            cont.run_command(
-                ['apt', 'update'], self._init_log.append, self._init_log.append
-            )
-            cont.run_command(
-                ['apt', 'upgrade', '-y'], self._init_log.append,
-                self._init_log.append
-            )
+            cont.run_command(['apt', 'update'])
+            cont.run_command(['apt', 'upgrade', '-y'])
 
             # Install useful commands
-            cont.run_command(
-                ['apt', 'install', '-y', 'wget', 'curl', 'unzip'],
-                self._init_log.append, self._init_log.append
-            )
+            cont.run_command(['apt', 'install', '-y', 'wget', 'curl', 'unzip'])
 
             self.copy_file(
                 cont,
@@ -788,13 +758,9 @@ class _SimpleAutoTestRunner(AutoTestRunner):
 
             cont.run_command(
                 ['adduser', '--disabled-password', '--gecos', '', 'codegrade'],
-                self._init_log.append, self._init_log.append
             )
 
-            cont.run_command(
-                ['usermod', '-aG', 'sudo', 'codegrade'], self._init_log.append,
-                self._init_log.append
-            )
+            cont.run_command(['usermod', '-aG', 'sudo', 'codegrade'])
 
             self.download_fixtures(cont)
             self._finalize_base_systems(cont)
@@ -802,7 +768,6 @@ class _SimpleAutoTestRunner(AutoTestRunner):
             cont.stop_container()
             del cont
 
-            STOP_CONTAINERS.clear()
             with Pool(get_amount_cpus()) as pool:
                 q: 'Queue[int]' = Queue(maxsize=get_amount_cpus())
                 for i in range(get_amount_cpus()):
@@ -823,7 +788,7 @@ class _SimpleAutoTestRunner(AutoTestRunner):
                         else:
                             break
                 finally:
-                    logger.warning('Got keyboard interrupt, cleaning up')
+                    logger.warning('Done with containers, cleaning up')
                     STOP_CONTAINERS.set()
                     pool.terminate()
                     pool.join()
