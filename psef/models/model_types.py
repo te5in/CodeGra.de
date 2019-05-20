@@ -158,7 +158,9 @@ class MyDb:  # pragma: no cover
     def PrimaryKeyConstraint(self, *args: t.Any) -> t.Any:
         ...
 
-    def CheckConstraint(self, *args: t.Any) -> t.Any:
+    def CheckConstraint(
+        self, *args: t.Any, name: t.Optional[str] = None
+    ) -> t.Any:
         ...
 
     def UniqueConstraint(self, *args: t.Any) -> t.Any:

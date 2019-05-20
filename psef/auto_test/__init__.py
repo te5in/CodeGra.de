@@ -26,7 +26,9 @@ import psef
 
 from .. import app
 from .steps import TestStep, StopRunningStepsException, auto_test_handlers
-from ..helpers import defer, register, ensure_on_test_server
+from ..helpers import (
+    JSONType, defer, register, timed_code, ensure_on_test_server
+)
 
 logger = structlog.get_logger()
 
@@ -42,6 +44,10 @@ T = t.TypeVar('T')
 
 
 class StopContainerException(Exception):
+    pass
+
+
+class CommandTimeoutException(Exception):
     pass
 
 
@@ -114,6 +120,43 @@ def init_app(app: 'psef.PsefFlask') -> None:
     app.config['AUTO_TEST_CREDENTIALS'] = res  # type: ignore
 
 
+def _push_logging(post_log: t.Callable[[JSONType], object]
+                  ) -> t.Callable[[], None]:
+    logs: t.List[t.Dict[str, object]] = []
+    logs_lock = threading.RLock()
+
+    @psef.logger_callback
+    def log_line(logger: object, method_name: str, event_dict: str) -> None:
+        json_event = json.loads(event_dict)
+        with logs_lock:
+            logs.append(json_event)
+
+    stop_event = threading.Event()
+
+    def log_thread() -> None:
+        while True:
+            stop_event.wait(timeout=15)
+
+            with logs_lock:
+                logs_copy = list(logs)
+                logs.clear()
+            if logs_copy:
+                post_log(logs_copy)
+            del logs_copy
+
+            if stop_event.is_set():
+                return
+
+    thread = threading.Thread(target=log_thread)
+    thread.start()
+
+    def stop() -> None:
+        stop_event.set()
+        thread.join()
+
+    return stop
+
+
 def start_polling(config: 'psef.FlaskConfig') -> None:
     while True:
         for url, url_config in config['__S_AUTO_TEST_CREDENTIALS'].items():
@@ -129,7 +172,7 @@ def start_polling(config: 'psef.FlaskConfig') -> None:
                     },
                     headers={
                         'CG-Internal-Api-Password':
-                            f'{url_config["password"]}@:@',
+                            f'NOT_PRESENT@:@{url_config["password"]}',
                     }
                 )
             except requests.exceptions.RequestException:
@@ -140,6 +183,7 @@ def start_polling(config: 'psef.FlaskConfig') -> None:
                 data = response.json()
                 logger.info('Got test', response=response, json=data)
                 typ = auto_test_runners[url_config['type']]
+
                 typ(
                     t.cast(URL,
                            url_config.get('container_url') or url), data,
@@ -159,12 +203,13 @@ def start_polling(config: 'psef.FlaskConfig') -> None:
 
 class StartedContainer:
     def __init__(
-        self, container: lxc.Container, config: 'psef.FlaskConfig'
+        self, container: lxc.Container, name: str, config: 'psef.FlaskConfig'
     ) -> None:
         self._snapshots: t.List[str] = []
         self._dirty = False
         self._container = container
         self._config = config
+        self._name = name
 
     def destroy_snapshots(self) -> None:
         self.stop_container()
@@ -172,39 +217,57 @@ class StartedContainer:
             self._container.snapshot_destroy(self._snapshots.pop())
 
     def set_cgroup_item(self, key: str, value: str) -> None:
-        if not self._container.set_cgroup_item(key, value):
-            raise ValueError
+        success = self._container.set_cgroup_item(key, value)
+        if not success:
+            raise ValueError(f'Could not set "{key}" to "{value}"')
 
     def stop_container(self) -> None:
-        assert self._container.stop()
-        assert self._container.wait('STOPPED', 3)
+        with timed_code(
+            'Stopping container', 'Stopped container', container=self._name
+        ):
+            assert self._container.stop()
+            assert self._container.wait('STOPPED', 3)
+
+    def _create_snapshot(self) -> None:
+        snap = self._container.snapshot()
+        assert isinstance(snap, str)
+        self._snapshots.append(snap)
+        self._dirty = False
 
     @contextlib.contextmanager
     def as_snapshot(self) -> t.Generator['StartedContainer', None, None]:
         maybe_stop_container()
 
-        pop_later = False
+        # NOTE: This code never destroys snapshots, as this logic makes the
+        # function way harder to follow. As we keep a dirty flag, only one
+        # snapsnot will probably be created.
 
         try:
             if self._dirty or not self._snapshots:
-                pop_later = bool(self._snapshots)
-                self.stop_container()
-                snap = self._container.snapshot()
-                assert isinstance(snap, str)
-                self._snapshots.append(snap)
-                self._dirty = False
-                _start_container(self._container)
+                with timed_code(
+                    'Creating snapshot',
+                    'Created snapshot',
+                    container=self._name,
+                    amount_of_snapshots=len(self._snapshots)
+                ):
+                    self.stop_container()
+                    self._create_snapshot()
+                    _start_container(self._container)
+            else:
+                logger.info(
+                    'Snapshot creation not needed',
+                    snapshots=self._snapshots,
+                    dirty=self._dirty
+                )
             yield self
         finally:
-            logger.info('Stopping container')
             self.stop_container()
+            # Creating the snapshot, so we might not have a snapshot
             if self._snapshots:
-                logger.info('Restoring snapshots')
-                self._container.snapshot_restore(self._snapshots[-1])
-                if pop_later:
-                    self._container.snapshot_destroy(self._snapshots.pop())
+                with timed_code('Restoring snapshots', 'Restored snapshot'):
+                    self._container.snapshot_restore(self._snapshots[-1])
+                self._dirty = False
             _start_container(self._container)
-            self._dirty = False
 
     def _read_fifo(
         self, callback: t.Optional[OutputCallback], fname: str
@@ -222,7 +285,18 @@ class StartedContainer:
         pw_record = pwd.getpwnam(username)
         user_uid = pw_record.pw_uid
         user_gid = pw_record.pw_gid
+
+        path = os.environ['PATH']
+        # Converting to a list is important here as we mutate the object in the
+        # body of the loop.
+        for key in list(os.environ):
+            del os.environ[key]
+
+        os.environ['PATH'] = path
         os.environ['USER'] = username
+        os.environ['HOME'] = pw_record.pw_dir
+        os.environ['LOGUSER'] = username
+
         os.setgid(user_gid)
         os.setuid(user_uid)
 
@@ -343,6 +417,8 @@ class StartedContainer:
             lambda: logger.try_unbind('cmd', 'timeout')
         ), tempfile.TemporaryDirectory(
         ) as output_dir, tempfile.NamedTemporaryFile() as stdin_file:
+            local_logger = structlog.threadlocal.as_immutable(logger)
+
             if isinstance(stdin, bytes):
                 os.chmod(stdin_file.name, 0o777)
                 stdin_file.write(stdin)
@@ -358,7 +434,7 @@ class StartedContainer:
             def _make_log_function(log_location: str
                                    ) -> t.Callable[[bytes], None]:
                 def inner(log_line: bytes) -> None:
-                    logger.info(
+                    local_logger.info(
                         'Got output from command',
                         location=log_location,
                         output=log_line
@@ -420,7 +496,8 @@ class StartedContainer:
                     os.kill(pid, signal.SIGKILL)
                     os.waitpid(pid, 0)
                     logger.warning('Killing done', pid=pid)
-                    res = -1
+                    maybe_stop_container()
+                    raise CommandTimeoutException
 
             maybe_stop_container()
 
@@ -449,8 +526,16 @@ class AutoTestContainer:
     def started_container(self) -> t.Generator[StartedContainer, None, None]:
         _start_container(self._cont)
         started = None
+
         try:
-            started = StartedContainer(self._cont, self._config)
+            with timed_code(
+                'Starting container',
+                'Started container',
+                container=self._name
+            ):
+                started = StartedContainer(
+                    self._cont, self._name, self._config
+                )
             yield started
         finally:
             self._stop_container(started)
@@ -519,7 +604,7 @@ class AutoTestRunner(abc.ABC):
 
     @property
     def password(self) -> str:
-        return f'{self._global_password}@:@{self.instructions["runner_id"]}'
+        return f'{self.instructions["runner_id"]}@:@{self._global_password}'
 
     @abc.abstractmethod
     def run_test(self) -> None:
@@ -629,6 +714,53 @@ class _SimpleAutoTestRunner(AutoTestRunner):
         )
         cont.run_command(['rm', '-f', '/home/codegrade/student.zip'])
 
+    def _run_test_suite(
+        self, student_container: StartedContainer, result_id: int,
+        test_suite: SuiteInstructions
+    ) -> None:
+        with student_container.as_snapshot() as snap:
+            url = (
+                f'{self.base_url}/api/v-internal/auto_tests/'
+                f'{self.auto_test_id}/results/{result_id}/'
+                f'step_results/'
+            )
+
+            for test_step in test_suite['steps']:
+                logger.info('Running step', step=test_step)
+                step_result_id: t.Optional[int] = None
+
+                def update_test_result(
+                    state: psef.models.AutoTestStepResultState,
+                    log: t.Dict[str, object]
+                ) -> None:
+                    nonlocal step_result_id
+                    data = {
+                        'log': log,
+                        'state': state.name,
+                        'auto_test_step_id': test_step['id'],
+                    }
+                    if step_result_id is not None:
+                        data['id'] = step_result_id
+
+                    logger.info('Posting result data', json=data, url=url)
+                    response = requests.put(
+                        url,
+                        json=data,
+                        headers={'CG-Internal-Api-Password': self.password}
+                    )
+                    logger.info('Posted result data', response=response)
+                    assert response.status_code == 200
+                    step_result_id = response.json()['id']
+
+                typ = auto_test_handlers[test_step['test_type_name']]
+                try:
+                    typ(test_step['data']
+                        ).execute_step(snap, update_test_result)
+                except StopRunningStepsException:
+                    logger.info('Stopping steps')
+                    break
+                logger.info('Ran step')
+
     def run_student(
         self,
         base_container: AutoTestContainer,
@@ -638,12 +770,22 @@ class _SimpleAutoTestRunner(AutoTestRunner):
         student_container = base_container.clone()
         cpu_number = cpu_queue.get()
 
+        result_url = (
+            f'{self.base_url}/api/v-internal/auto_tests/'
+            f'{self.auto_test_id}/results/{result_id}'
+        )
+        result_state = psef.models.AutoTestStepResultState.running
+
         try:
             logger.bind(result_id=result_id)
-            logger.info('Starting container for student')
+
+            requests.patch(
+                result_url,
+                json={'state': result_state.name},
+                headers={'CG-Internal-Api-Password': self.password}
+            )
+
             with student_container.started_container() as cont:
-                logger.info('Started container')
-                logger.info('Setting limits')
 
                 cont.set_cgroup_item(
                     'memory.limit_in_bytes',
@@ -655,83 +797,77 @@ class _SimpleAutoTestRunner(AutoTestRunner):
                     self.config['AUTO_TEST_MEMORY_LIMIT']
                 )
 
-                logger.info('Done setting limits')
-
                 self.download_student_code(cont, result_id)
 
                 if self.setup_script:
                     logger.info('Running setup script')
-                    cont.run_student_command(self.setup_script)
+                    _, stdout, stderr = cont.run_student_command(
+                        self.setup_script
+                    )
+
+                    requests.patch(
+                        result_url,
+                        json={
+                            'setup_stdout': stdout,
+                            'setup_stderr': stderr
+                        },
+                        headers={'CG-Internal-Api-Password': self.password}
+                    )
 
                 logger.info('Dropping sudo rights')
                 cont.run_command(['deluser', 'codegrade', 'sudo'])
 
                 for test_set in self.instructions['sets']:
                     for test_suite in test_set['suites']:
-                        logger.info(
-                            'Creating snapshot',
-                            test_set=test_set,
-                            test_suite=test_suite
-                        )
-
-                        with cont.as_snapshot() as snap:
-                            url = (
-                                f'{self.base_url}/api/v-internal/auto_tests/'
-                                f'{self.auto_test_id}/results/{result_id}/'
-                                f'step_results/'
-                            )
-
-                            for test_step in test_suite['steps']:
-                                logger.info('Running step', step=test_step)
-                                step_result_id: t.Optional[int] = None
-
-                                def update_test_result(
-                                    state: psef.models.AutoTestStepResultState,
-                                    log: t.Dict[str, object]
-                                ) -> None:
-                                    nonlocal step_result_id
-                                    data: t.Dict[str, object] = {}
-                                    data['auto_test_step_id'] = test_step['id']
-                                    if step_result_id is not None:
-                                        data['id'] = step_result_id
-                                    data['log'] = log
-                                    data['state'] = state.name
-
-                                    logger.info('Posting result data')
-                                    response = requests.put(
-                                        url,
-                                        json=data,
-                                        headers={
-                                            'CG-Internal-Api-Password':
-                                                self.password
-                                        }
-                                    )
-                                    logger.info(
-                                        'Posted result data',
-                                        response=response
-                                    )
-                                    assert response.status_code == 200
-                                    step_result_id = response.json()['id']
-
-                                typ = auto_test_handlers[
-                                    test_step['test_type_name']]
-                                try:
-                                    typ(
-                                        test_step['data']
-                                    ).execute_step(snap, update_test_result)
-                                except StopRunningStepsException:
-                                    logger.info('Stopping steps')
-                                    break
-                                logger.info('Ran step')
+                        self._run_test_suite(cont, result_id, test_suite)
+        except CommandTimeoutException:
+            logger.error('Command timed out', exc_info=True)
+            result_state = psef.models.AutoTestStepResultState.timed_out
         except:
             logger.error('Something went wrong', exc_info=True)
+            result_state = psef.models.AutoTestStepResultState.failed
             raise
+        else:
+            result_state = psef.models.AutoTestStepResultState.passed
         finally:
-            logger.try_unbind('result_id')
             cpu_queue.put(cpu_number)
+            logger.try_unbind('result_id')
+            requests.patch(
+                result_url,
+                json={'state': result_state.name},
+                headers={'CG-Internal-Api-Password': self.password}
+            )
 
     def run_test(self) -> None:
-        # ensure_on_test_server()
+        stop_logger = _push_logging(
+            lambda logs: requests.post(
+                (
+                    f'{self.base_url}/api/v-internal/auto_tests/'
+                    f'{self.auto_test_id}/runs/{self.instructions["run_id"]}/'
+                    'logs/'
+                ),
+                json={'logs': logs},
+                headers={'CG-Internal-Api-Password': self.password}
+            )
+        )
+        try:
+            self._run_test()
+        finally:
+            stop_logger()
+
+    def _run_test(self) -> None:
+        ensure_on_test_server()
+        run_result_url = (
+            f'{self.base_url}/api/v-internal/auto_tests/'
+            f'{self.auto_test_id}/runs/{self.instructions["run_id"]}'
+        )
+
+        requests.patch(
+            run_result_url,
+            json={'state': psef.models.AutoTestRunState.running.name},
+            headers={'CG-Internal-Api-Password': self.password}
+        )
+
         STOP_CONTAINERS.clear()
 
         # We use uuid1 as this is always unique for a single machine
@@ -792,3 +928,9 @@ class _SimpleAutoTestRunner(AutoTestRunner):
                     STOP_CONTAINERS.set()
                     pool.terminate()
                     pool.join()
+
+        requests.patch(
+            run_result_url,
+            json={'state': psef.models.AutoTestRunState.done.name},
+            headers={'CG-Internal-Api-Password': self.password}
+        )

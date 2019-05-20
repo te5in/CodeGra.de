@@ -3,7 +3,11 @@
 <loader v-if="loading"/>
 <div class="grade-history" v-else>
     <b-table striped :items="history" :fields="fields" show-empty empty-text="No grade history">
-        <span slot="user" slot-scope="data"><user :user="data.item.user"/></span>
+        <template slot="user" slot-scope="data">
+            <user v-if="data.item.origin === 'human'" :user="data.item.user"/>
+            <span v-else><i v-b-popover.top.hover="'This grade was not given by a human.'"
+                            >{{ convertGradeOrigin(data.item.origin) }}</i></span>
+        </template>
         <span slot="grade" slot-scope="data">
             {{ data.item.grade >= 0 ? Math.round(data.item.grade * 100) / 100 : 'Deleted' }}
         </span>
@@ -92,6 +96,13 @@ export default {
                 this.history = data;
                 this.loading = false;
             });
+        },
+
+        convertGradeOrigin(origin) {
+            return {
+                auto_test: 'AutoTest',
+                human: 'Human',
+            }[origin];
         },
     },
 

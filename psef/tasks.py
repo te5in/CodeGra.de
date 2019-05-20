@@ -503,6 +503,13 @@ def _stop_auto_test_run_1(auto_test_run_id: int) -> None:
 
     if run.state != p.models.AutoTestRunState.running:
         return
+
+    logger.warning(
+        'Run timed out',
+        auto_test_run_id=auto_test_run_id,
+        run=run.__to_json__(),
+    )
+
     run.state = p.models.AutoTestRunState.timed_out
     if run.runner is not None:
         run.runner.after_run()

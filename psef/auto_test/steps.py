@@ -39,6 +39,7 @@ UpdateResultFunction = t.Callable[
 class StopRunningStepsException(Exception):
     pass
 
+
 class TestStep(abc.ABC):
     def __init__(self, data: JSONType) -> None:
         self.data = data
@@ -53,8 +54,8 @@ class TestStep(abc.ABC):
         container: 'StartedContainer',
         update_test_result: UpdateResultFunction,
     ) -> None:
-        # Make sure we are not on webserver server
-        # ensure_on_test_server()
+        # Make sure we are not on a webserver
+        ensure_on_test_server()
 
         update_test_result(psef.models.AutoTestStepResultState.running, {})
         return self._execute(container, update_test_result)
@@ -66,6 +67,14 @@ class TestStep(abc.ABC):
         update_test_result: UpdateResultFunction,
     ) -> None:
         raise NotImplementedError
+
+    @staticmethod
+    def get_amount_achieved_points(
+        result: 'psef.models.AutoTestStepResult'
+    ) -> float:
+        if result.state == psef.models.AutoTestStepResultState.passed:
+            return result.step.weight
+        return 0
 
 
 @auto_test_handlers.register('io_test')
@@ -273,6 +282,7 @@ class CustomOutput(TestStep):
                     'Compiling the regex failed: {}'.format(d['msg']),
                     'Compiling was not successful', APICodes.INVALID_PARAM, 400
                 )
+
     def _execute(
         self,
         container: 'StartedContainer',
@@ -298,12 +308,21 @@ class CustomOutput(TestStep):
             state = psef.models.AutoTestStepResultState.failed
             points = 0
 
-        update_test_result(state, {
-            'stdout': stdout,
-            'stderr': stderr,
-            'points': points,
-        })
+        update_test_result(
+            state, {
+                'stdout': stdout,
+                'stderr': stderr,
+                'points': points,
+            }
+        )
 
+    @staticmethod
+    def get_amount_achieved_points(
+        result: 'psef.models.AutoTestStepResult'
+    ) -> float:
+        if not isinstance(result.log, dict):
+            return 0
+        return t.cast(float, result.log['points'])
 
 
 @auto_test_handlers.register('check_points')

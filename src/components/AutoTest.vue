@@ -475,15 +475,16 @@ export default {
 
                 this.loading = true;
 
-                Promise.all([
-                    this.loadAutoTest(),
-                    this.loadPermissions(),
-                ]).then(
-                    () => this.loadSingleResult(),
-                ).then(
-                    () => { this.loading = false; },
-                    () => { this.loading = false; },
-                );
+                Promise.all([this.loadAutoTest(), this.loadPermissions()])
+                    .then(() => this.loadSingleResult())
+                    .then(
+                        () => {
+                            this.loading = false;
+                        },
+                        () => {
+                            this.loading = false;
+                        },
+                    );
             },
             immediate: true,
         },
@@ -528,8 +529,7 @@ export default {
         }),
 
         runAutoTest() {
-            return this.$http
-                .post(`/api/v1/auto_tests/${this.assignment.auto_test_id}/runs/`);
+            return this.$http.post(`/api/v1/auto_tests/${this.assignment.auto_test_id}/runs/`);
         },
 
         loadAutoTest() {
@@ -587,9 +587,7 @@ export default {
         },
 
         submitContinuePoints(set) {
-            const stopPoints = Number(
-                this.internalTest.set_stop_points[set.id],
-            );
+            const stopPoints = Number(this.internalTest.set_stop_points[set.id]);
             return this.storeUpdateAutoTestSet({
                 autoTestId: this.test.id,
                 autoTestSet: set,
@@ -781,9 +779,7 @@ export default {
             let resultId = this.resultId;
 
             if (resultId == null && this.submissionId != null) {
-                const result = this.test.runs[0].results.find(
-                    r => r.work.id === this.submissionId,
-                );
+                const result = this.test.runs[0].results.find(r => r.work.id === this.submissionId);
                 resultId = result && result.id;
             }
 

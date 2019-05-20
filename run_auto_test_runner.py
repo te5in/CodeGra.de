@@ -10,4 +10,5 @@ import psef.auto_test
 if __name__ == '__main__':
     import config
     psef.configure_logging(config.CONFIG['DEBUG'], False)
+    psef.enable_testing()
     psef.auto_test.start_polling(config.CONFIG)

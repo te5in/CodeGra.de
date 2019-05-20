@@ -5,6 +5,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 """
 import re
 import abc
+import enum
+import time
 import typing as t
 import datetime
 import contextlib
@@ -47,7 +49,12 @@ T_TypedDict = t.TypeVar(  # pylint: disable=invalid-name
 
 IsInstanceType = t.Union[t.Type, t.Tuple[t.Type, ...]]  # pylint: disable=invalid-name
 
-MISSING = object()
+
+class MissingType(enum.Enum):
+    token = 0
+
+
+MISSING: MissingType = MissingType.token
 
 
 def init_app(app: 'psef.Flask') -> None:
@@ -828,6 +835,18 @@ def defer(function: t.Callable[[], object]) -> t.Generator[None, None, None]:
         yield
     finally:
         function()
+
+
+@contextlib.contextmanager
+def timed_code(start_msg: str, end_msg: str,
+               **other_keys: object) -> t.Generator[None, None, None]:
+    start_time = time.time()
+    logger.info(start_msg, **other_keys)
+    # This should not be wrapped in a `try`, `finally` block as we only want to
+    # log when the when block succeeds.
+    yield
+    end_time = time.time()
+    logger.info(end_msg, **other_keys, elapsed_time=end_time - start_time)
 
 
 def call_external(
