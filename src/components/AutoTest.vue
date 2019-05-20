@@ -1,7 +1,7 @@
 <template>
+<loader v-if="loading" />
 
-
-<b-alert v-if="error"
+<b-alert v-else-if="error"
          show
          variant="danger"
          class="error-message">
@@ -98,10 +98,7 @@
             </b-card-header>
         </template>
 
-        <b-card-body v-if="loading" key="loading">
-            <loader/>
-        </b-card-body>
-        <b-card-body v-else-if="test == null" key="empty">
+        <b-card-body v-if="test == null" key="empty">
             <div class="text-muted">You have no AutoTest yet for this assignment</div>
         </b-card-body>
         <b-collapse v-else :id="configCollapseId" :visible="singleResult || !hasResults">
