@@ -22,10 +22,9 @@
                         v-b-popover.hover.top="progressPopover"/>
                 </template>
 
-                <div
-                    class="progress"
-                    v-if="autoTestProgress[rubric.id]">
-                    <div class="meter" :style="{ width: `${autoTestProgress[rubric.id]}%` }" />
+                <div v-if="autoTestProgress[rubric.id]"
+                     class="progress">
+                    <div ref="progressMeter" class="meter" />
                 </div>
 
                 <b-card-group
@@ -128,6 +127,7 @@ export default {
         },
 
         submission: {
+            immediate: true,
             handler() {
                 if (this.autoTestConfigId == null) {
                     return;
@@ -146,7 +146,21 @@ export default {
                     this.autoTestResultId = result.id;
                 });
             },
+        },
+
+        currentProgress: {
             immediate: true,
+            async handler() {
+                const cur = this.current;
+
+                if (cur == null || this.currentProgress == null) {
+                    return;
+                }
+
+                await this.$nextTick();
+                const ref = this.$refs.progressMeter[cur];
+                ref.style.width = `${this.currentProgress}%`;
+            },
         },
     },
 
@@ -170,6 +184,14 @@ export default {
 
         autoTestResult() {
             return this.allResults[this.autoTestResultId];
+        },
+
+        currentRow() {
+            return this.rubrics[this.current];
+        },
+
+        currentProgress() {
+            return this.currentRow && this.autoTestProgress[this.currentRow.id];
         },
 
         hasSelectedItems() {
@@ -225,17 +247,14 @@ export default {
         },
 
         progressPopover() {
-            const rubricRow = this.rubrics[this.current];
-            const progress = this.autoTestProgress[rubricRow.id];
-
-            if (progress == null) {
+            if (this.currentProgress == null) {
                 return '';
             }
 
-            const index = Math.floor(rubricRow.items.length * progress / 100);
-            const points = rubricRow.items[index].points;
+            const index = Math.floor(this.currentRow.items.length * this.currentProgress / 100);
+            const points = this.currentRow.items[index].points;
 
-            return `You scored ${progress}% in the corresponding AutoTest category, which scores you ${points} points in this rubric category.`;
+            return `You scored ${this.currentProgress}% in the corresponding AutoTest category, which scores you ${points} points in this rubric category.`;
         },
     },
 
@@ -517,15 +536,28 @@ export default {
     }
 }
 
-.progress {
-    height: 2px;
-    margin-top: -1px;
-    margin-bottom: -1px;
-    z-index: 100;
+.rubric-items {
     position: relative;
+}
+
+.rubric-item {
+    background-color: transparent;
+}
+
+.progress {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    background-color: transparent;
+    height: 100%;
 
     .meter {
-        background-color: @color-secondary;
+        background-color: fade(@color-secondary, 10%);
+        border-right: 1px solid fade(@color-secondary, 15%);
+        width: 0;
+        transition: width 1250ms ease-in-out;
     }
 }
 </style>
