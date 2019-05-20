@@ -13,8 +13,7 @@
                 {{ typeTitle }}
             </div>
             <b-input-group prepend="Name"
-                           class="name-input header-item"
-                           v-if="!value.metaTest">
+                           class="name-input header-item">
                 <input class="form-control"
                        ref="nameInput"
                        :value="value.name"
@@ -22,11 +21,10 @@
             </b-input-group>
             <b-input-group prepend="Weight"
                            class="points-input header-item"
-                           v-b-popover.top.hover="weightPopoverText"
-                           v-if="!value.metaTest">
+                           v-b-popover.top.hover="weightPopoverText">
                 <input class="form-control"
                        type="number"
-                       :disabled="value.type === 'io_test'"
+                       :disabled="!hasWeight"
                        :value="value.weight"
                        @input="updateValue('weight', $event.target.value)"/>
             </b-input-group>
@@ -57,7 +55,7 @@
                     :id="collapseId"
                     v-if="!value.metatest">
             <div class="io-test-wrapper card-body">
-                <template v-if="!value.metaTest">
+                <template v-if="!stepType.meta">
                     <label :for="programNameId">
                         Program to test
                     </label>
@@ -541,6 +539,17 @@ export default {
             return `auto-test-step-result-collapse-${this.id}`;
         },
 
+        stepType() {
+            const type = this.value.type;
+            return this.testTypes.find(
+                t => t.name === type,
+            );
+        },
+
+        hasWeight() {
+            return !this.stepType.meta && this.value.type !== 'io_test';
+        },
+
         ioOptions() {
             return [
                 { text: 'Case insensitive', value: 'case' },
@@ -557,6 +566,8 @@ export default {
         weightPopoverText() {
             if (this.value.type === 'io_test') {
                 return 'This is equal to the sum of the weights of each input.';
+            } else if (this.stepType.meta) {
+                return 'This step does not count towards the score and thus has no weight.';
             } else {
                 return '';
             }

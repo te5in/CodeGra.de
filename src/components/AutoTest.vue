@@ -1,14 +1,22 @@
 <template>
-<div class="auto-test" :class="{ editable, 'config-editable': configEditable, 'no-card': noCard }">
-    <template v-if="!singleResult && hasResults">
+
+
+<b-alert v-if="error"
+         show
+         variant="danger"
+         class="error-message">
+    {{ error }}
+</b-alert>
+
+<div v-else class="auto-test" :class="{ editable, 'config-editable': configEditable, 'no-card': noCard }">
+    <template v-if="hasResults && !singleResult">
         <b-card no-body v-for="run in test.runs" :key="run.id" class="results-card">
             <b-card-header class="auto-test-header" :class="{ editable }">
                 <span class="toggle" :key="resultsCollapseId" v-b-toggle="resultsCollapseId">
                     <icon class="expander" name="chevron-right" :scale="0.75" />
                     Results
                 </span>
-                <div v-if="editable"
-                        class="btn-wrapper">
+                <div v-if="editable" class="btn-wrapper">
                     <submit-button
                         :submit="() => deleteResults(run.id)"
                         variant="danger"
@@ -374,7 +382,7 @@
         </b-collapse>
     </b-card>
 
-    <b-modal :id="resultsModalId" hide-footer size="lg" @hidden="currentResult = null">
+    <b-modal :id="resultsModalId" hide-footer size="lg" @hidden="currentResult = null" class="result-modal">
         <template v-if="currentResult" slot="modal-title">
             {{ nameOfUser(currentResult.work.user) }} - {{ currentResult.achieved_points }} points
         </template>
@@ -448,6 +456,7 @@ export default {
             error: '',
             permissions: {},
             currentResult: null,
+            actualResultId: null,
             nameOfUser,
 
             configCollapseId: `auto-test-config-collapse-${id}`,
@@ -536,27 +545,30 @@ export default {
             return this.storeLoadAutoTest({
                 autoTestId: this.assignment.auto_test_id,
             }).catch(err => {
-                // FIXME: handle error
-                console.error(err);
+                this.error = `AutoTest configuration could not be loaded: ${err.message}`;
             });
         },
 
         loadSingleResult() {
             if (
                 this.assignment.auto_test_id == null ||
-                !this.singleResult ||
-                this.actualResultId == null
+                !this.singleResult
             ) {
                 return null;
             }
 
             return this.storeLoadAutoTestResult({
                 autoTestId: this.assignment.auto_test_id,
-                resultId: this.actualResultId,
-            }).catch(err => {
-                // FIXME: handle error
-                console.error(err);
-            });
+                resultId: this.resultId,
+                submissionId: this.submissionId,
+            }).then(
+                result => {
+                    this.actualResultId = result.id;
+                },
+                err => {
+                    this.error = `No result found for this submission: ${err.message}`;
+                },
+            );
         },
 
         loadPermissions() {
@@ -771,23 +783,6 @@ export default {
         test() {
             const id = this.assignment.auto_test_id;
             return id && this.allTests[id];
-        },
-
-        actualResultId() {
-            if (!this.hasResults) {
-                return null;
-            }
-
-            let resultId = this.resultId;
-
-            if (resultId == null && this.submissionId != null) {
-                const result = this.test.runs[0].results.find(
-                    r => r.work.id === this.submissionId,
-                );
-                resultId = result && result.id;
-            }
-
-            return resultId;
         },
 
         result() {
@@ -1067,8 +1062,11 @@ export default {
         padding: 1rem;
     }
 }
-</style>
 
+.error-message {
+    margin: 1rem;
+}
+</style>
 
 <style lang="less">
 .auto-test .base-system-selector {
@@ -1082,5 +1080,10 @@ export default {
 
 .multiselect__tag.no-close {
     padding-right: 10px;
+}
+
+.result-modal .modal-dialog {
+    max-width: calc(100% - 8rem);
+    width: calc(100vw - 8rem);
 }
 </style>

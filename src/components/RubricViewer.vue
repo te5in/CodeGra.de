@@ -2,7 +2,7 @@
 <template>
 <div class="rubric-viewer"
      :class="{ editable }">
-    <b-tabs no-fade>
+    <b-tabs no-fade v-model="current">
         <b-tab class="rubric"
                :head-html="getHeadHtml(rubric)"
                v-for="(rubric, i) in rubrics"
@@ -13,8 +13,10 @@
                 <div
                     v-if="autoTestProgress && autoTestProgress[rubric.id]"
                     class="progress"
-                    :style="{ width: `${autoTestProgress[rubric.id]}%` }"
-                />
+                    v-b-popover.hover.top="progressPopover"
+                >
+                    <div class="meter" :style="{ width: `${autoTestProgress[rubric.id]}%` }" />
+                </div>
 
                 <b-card-group>
                     <b-card class="rubric-item"
@@ -59,6 +61,8 @@
 </template>
 
 <script>
+import { mapActions, mapGetters } from 'vuex';
+
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/angle-left';
 import 'vue-awesome/icons/angle-right';
@@ -89,14 +93,6 @@ export default {
             type: Boolean,
             default: false,
         },
-        autoTestConfig: {
-            type: Object,
-            default: null,
-        },
-        autoTestResult: {
-            type: Object,
-            default: null,
-        },
     },
 
     data() {
@@ -109,6 +105,8 @@ export default {
             maxPoints: 0,
             itemStates: {},
             origSelected: [],
+            autoTestConfig: null,
+            autoTestResult: null,
         };
     },
 
@@ -116,9 +114,40 @@ export default {
         rubric(rubric) {
             this.rubricUpdated(rubric);
         },
+
+        submission: {
+            handler() {
+                const autoTestId = this.assignment.auto_test_id;
+                const submissionId = this.submission.id;
+
+                if (autoTestId == null) {
+                    return;
+                }
+
+                this.autoTestConfig = null;
+                this.autoTestResult = null;
+
+                Promise.all([
+                    this.storeLoadAutoTest({ autoTestId }),
+                    this.storeLoadAutoTestResult({
+                        autoTestId,
+                        submissionId,
+                    }),
+                ]).then(([autoTest, result]) => {
+                    this.autoTestConfig = autoTest;
+                    this.autoTestResult = result;
+                });
+            },
+            immediate: true,
+        },
     },
 
     computed: {
+        ...mapGetters('autotest', {
+            allTests: 'tests',
+            allResults: 'results',
+        }),
+
         hasSelectedItems() {
             return Object.keys(this.selected).length !== 0;
         },
@@ -170,6 +199,22 @@ export default {
 
             return prog;
         },
+
+        progressPopover() {
+            if (this.autoTestProgress == null) {
+                return '';
+            }
+
+            const rubricRow = this.rubrics[this.current];
+            const progress = this.autoTestProgress[rubricRow.id];
+
+            const index = Math.floor(rubricRow.items.length * progress / 100);
+            const points = rubricRow.items[index].points;
+
+            console.log(index, points);
+
+            return `You scored ${progress}% in the corresponding AutoTest category, which scores you ${points} points in this rubric category.`;
+        },
     },
 
     mounted() {
@@ -177,6 +222,11 @@ export default {
     },
 
     methods: {
+        ...mapActions('autotest', {
+            storeLoadAutoTest: 'loadAutoTest',
+            storeLoadAutoTestResult: 'loadAutoTestResult',
+        }),
+
         getHeadHtml(rubric) {
             const selected = this.selectedRows[rubric.id];
             const maxPoints = this.$htmlEscape(Math.max(...rubric.items.map(i => i.points)));
@@ -437,11 +487,14 @@ export default {
 
 .progress {
     height: 2px;
-    background-color: @color-secondary;
     margin-top: -1px;
     margin-bottom: -1px;
     z-index: 100;
     position: relative;
+
+    .meter {
+        background-color: @color-secondary;
+    }
 }
 </style>
 
