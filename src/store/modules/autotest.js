@@ -2,7 +2,7 @@
 import Vue from 'vue';
 import axios from 'axios';
 
-import { deepCopy, getUniqueId, withOrdinalSuffix } from '@/utils';
+import { deepCopy, getProps, getUniqueId, withOrdinalSuffix } from '@/utils';
 import * as types from '../mutation-types';
 
 class AutoTestSuiteData {
@@ -166,18 +166,18 @@ class AutoTestSuiteData {
 }
 
 class AutoTestResult {
-    constructor(result) {
+    constructor(result, autoTest) {
         this.id = result.id;
         this.submission = result.work;
         this.state = result.state;
         this.setupStdout = result.setup_stdout;
         this.setupStderr = result.setup_stderr;
 
-        this.updateStepResults(result);
+        this.updateStepResults(result, autoTest);
     }
 
     // eslint-disable-next-line
-    updateStepResults(result) {
+    updateStepResults(result, autoTest) {
         if (result.step_results == null) {
             return;
         }
@@ -197,7 +197,7 @@ class AutoTestResult {
         this.stepResults = stepResults;
 
         let setCheckpointFailed = false;
-        result.autoTest.sets.forEach(set => {
+        autoTest.sets.forEach(set => {
             setResults[set.id] = {
                 achieved: 0,
                 possible: 0,
@@ -344,6 +344,7 @@ const actions = {
                                     name: 'Python 3.6',
                                 },
                             ],
+                            setup_script: 'setup.py',
                             finalize_script: '',
                             fixtures: [
                                 {
@@ -470,84 +471,80 @@ const actions = {
                                                 ],
                                             },
                                         },
-                                        {
-                                            autoTestSetId: 1,
-                                            autoTestId: 1,
-                                            id: 2,
-                                            steps: [
-                                                {
-                                                    data: {
-                                                        program: './test_run',
-                                                    },
-                                                    hidden: false,
-                                                    id: 2,
-                                                    name: 'Test run',
-                                                    type: 'run_program',
-                                                    weight: 1,
-                                                },
-                                                {
-                                                    data: {
-                                                        program: 'valgrind ./test_run',
-                                                    },
-                                                    hidden: true,
-                                                    id: 4,
-                                                    name: 'Valgrind',
-                                                    type: 'run_program',
-                                                    weight: 1,
-                                                },
-                                                {
-                                                    data: {
-                                                        min_points: 4,
-                                                        program: 'check_points ./test_run',
-                                                    },
-                                                    hidden: false,
-                                                    id: 5,
-                                                    name: 'Check points',
-                                                    type: 'check_points',
-                                                    weight: 0,
-                                                },
-                                                {
-                                                    data: {
-                                                        program: 'get_points ./test_run',
-                                                        regex: '(\\d+\\.?\\d*|\\.\\d+) points$',
-                                                    },
-                                                    hidden: false,
-                                                    id: 6,
-                                                    name: 'Get points',
-                                                    type: 'capture_points',
-                                                    weight: 1,
-                                                },
-                                            ],
-                                            rubric_row: {
-                                                description:
-                                                    'The code is strutured well and logical design choices were made.',
-                                                header: 'Code structure',
-                                                id: 3,
-                                                items: [
-                                                    {
-                                                        description:
-                                                            "You don't know to use enter or space.You don't know to use enter or space.You don't know to use enter or space.You don't know to use enter or space.You don't know to use enter or space.",
-                                                        header: 'Novice',
-                                                        id: 9,
-                                                        points: 1,
-                                                    },
-                                                    {
-                                                        description:
-                                                            'You know to use enter but not space.You know to use enter but not space.You know to use enter but not space.You know to use enter but not space.You know to use enter but not space.',
-                                                        header: 'Competent',
-                                                        id: 8,
-                                                        points: 2.5,
-                                                    },
-                                                    {
-                                                        description:
-                                                            'You know to use enter and space.You know to use enter and space.You know to use enter and space.You know to use enter and space.You know to use enter and space.',
-                                                        header: 'Expert',
-                                                        id: 7,
-                                                        points: 4,
-                                                    },
-                                                ],
-                                            },
-                                        },
+                                        // {
+                                        //     autoTestSetId: 1,
+                                        //     autoTestId: 1,
+                                        //     id: 2,
+                                        //     steps: [
+                                        //         {
+                                        //             data: {
+                                        //                 program: './test_run',
+                                        //             },
+                                        //             hidden: false,
+                                        //             id: 2,
+                                        //             name: 'Test run',
+                                        //             type: 'run_program',
+                                        //             weight: 1,
+                                        //         },
+                                        //         {
+                                        //             data: {
+                                        //                 program: 'valgrind ./test_run',
+                                        //             },
+                                        //             hidden: true,
+                                        //             id: 4,
+                                        //             name: 'Valgrind',
+                                        //             type: 'run_program',
+                                        //             weight: 1,
+                                        //         },
+                                        //         {
+                                        //             data: {
+                                        //                 min_points: 4,
+                                        //                 program: 'check_points ./test_run',
+                                        //             },
+                                        //             hidden: false,
+                                        //             id: 5,
+                                        //             name: 'Check points',
+                                        //             type: 'check_points',
+                                        //             weight: 0,
+                                        //         },
+                                        //         {
+                                        //             data: {
+                                        //                 program: 'get_points ./test_run',
+                                        //                 regex: '(\\d+\\.?\\d*|\\.\\d+) points$',
+                                        //             },
+                                        //             hidden: false,
+                                        //             id: 6,
+                                        //             name: 'Get points',
+                                        //             type: 'capture_points',
+                                        //             weight: 1,
+                                        //         },
+                                        //     ],
+                                        //     rubric_row: {
+                                        //         description: 'abc',
+                                        //         header: 'Code structure',
+                                        //         id: 3,
+                                        //         items: [
+                                        //             {
+                                        //                 description: 'rubric row description',
+                                        //                 header: 'Novice',
+                                        //                 id: 9,
+                                        //                 points: 1,
+                                        //             },
+                                        //             {
+                                        //                 description: 'blaksdfasdg',
+                                        //                 header: 'Competent',
+                                        //                 id: 8,
+                                        //                 points: 2.5,
+                                        //             },
+                                        //             {
+                                        //                 description: 'ja hsaas a ahsdg',
+                                        //                 header: 'Expert',
+                                        //                 id: 7,
+                                        //                 points: 4,
+                                        //             },
+                                        //         ],
+                                        //     },
+                                        // },
                                     ],
                                 },
                                 {
@@ -617,7 +614,6 @@ const actions = {
                                     ],
                                 },
                             ],
-                            setup_script: 'setup.py',
                             runs: [
                                 {
                                     id: 1,
@@ -786,14 +782,17 @@ const actions = {
                 .get(`/api/v1/auto_tests/${autoTestId}/runs/${autoTest.runs[0].id}/results/${resultId}`)
                 .then(
                     ({ data }) => {
-                        commit(types.SET_AUTO_TEST_RESULT, data);
+                        commit(types.SET_AUTO_TEST_RESULT, { autoTest, result: data });
                         delete loaders.results[resultId];
                         return state.results[data.id];
                     },
                     err => {
+                        delete loaders.results[resultId];
+                        // FIXME: uncomment
+                        // throw err;
                         // FIXME: remove
-                        commit(types.SET_AUTO_TEST_RESULT, {
-                            autoTest,
+                        console.log('REMOVE THIS CONSOLE.LOG()', err);
+                        const result = {
                             id: resultId,
                             setup_stdout: 'Setup script:\nSUCCESS!',
                             setup_stderr: '',
@@ -801,7 +800,7 @@ const actions = {
                             state: 'failed',
                             step_results: [
                                 {
-                                    auto_test_step: autoTest.sets[0].suites[0].steps[0],
+                                    auto_test_step: getProps(autoTest, {}, 'sets', 0, 'suites', 0, 'steps', 0),
                                     state: 'passed',
                                     log: {
                                         steps: [
@@ -819,7 +818,7 @@ const actions = {
                                     },
                                 },
                                 {
-                                    auto_test_step: autoTest.sets[0].suites[0].steps[1],
+                                    auto_test_step: getProps(autoTest, {}, 'sets', 0, 'suites', 0, 'steps', 1),
                                     state: 'passed',
                                     log: {
                                         steps: [
@@ -837,7 +836,7 @@ const actions = {
                                     },
                                 },
                                 {
-                                    auto_test_step: autoTest.sets[0].suites[1].steps[0],
+                                    auto_test_step: getProps(autoTest, {}, 'sets', 0, 'suites', 1, 'steps', 0),
                                     state: 'passed',
                                     log: {
                                         stdout: 'passed!',
@@ -845,7 +844,7 @@ const actions = {
                                     },
                                 },
                                 {
-                                    auto_test_step: autoTest.sets[0].suites[1].steps[1],
+                                    auto_test_step: getProps(autoTest, {}, 'sets', 0, 'suites', 1, 'steps', 1),
                                     state: 'passed',
                                     log: {
                                         stdout: 'passed!',
@@ -853,7 +852,7 @@ const actions = {
                                     },
                                 },
                                 {
-                                    auto_test_step: autoTest.sets[0].suites[1].steps[2],
+                                    auto_test_step: getProps(autoTest, {}, 'sets', 0, 'suites', 1, 'steps', 2),
                                     state: 'failed',
                                     log: {
                                         stdout: 'Not enough points!!!',
@@ -861,7 +860,7 @@ const actions = {
                                     },
                                 },
                                 {
-                                    auto_test_step: autoTest.sets[1].suites[0].steps[0],
+                                    auto_test_step: getProps(autoTest, {}, 'sets', 1, 'suites', 0, 'steps', 0),
                                     state: 'running',
                                     log: {
                                         steps: [
@@ -874,9 +873,9 @@ const actions = {
                                     },
                                 },
                             ],
-                        });
-                        delete loaders.results[resultId];
-                        throw err;
+                        };
+                        commit(types.SET_AUTO_TEST_RESULT, { autoTest, result });
+                        return result;
                     },
                 );
         }
@@ -976,9 +975,8 @@ const mutations = {
         Vue.set(autoTestSuite, 'deleted', true);
     },
 
-    [types.SET_AUTO_TEST_RESULT](state, result) {
-        const storeResult = new AutoTestResult(result);
-        Vue.set(state.results, result.id, storeResult);
+    [types.SET_AUTO_TEST_RESULT](state, { result, autoTest }) {
+        Vue.set(state.results, result.id, new AutoTestResult(result, autoTest));
     },
 };
 
