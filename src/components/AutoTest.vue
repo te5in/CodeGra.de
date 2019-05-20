@@ -316,9 +316,9 @@
                                                      :assignment="assignment"
                                                      :other-suites="allNonDeletedSuites"
                                                      :value="set.suites[j]"
+                                                     :result="result"
                                                      @input="updateSuite(set, j, $event)"
-                                                     @delete="deleteSuite(suite)"
-                                                     :result="result" />
+                                                     @delete="deleteSuite(suite)" />
                                 </masonry>
                                 <div v-if="configEditable"
                                      class="btn-wrapper"

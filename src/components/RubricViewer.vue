@@ -260,6 +260,18 @@ export default {
 
     mounted() {
         this.rubricUpdated(this.rubric, true);
+
+        this.$root.$on('open-rubric-category', id => {
+            this.rubrics.forEach((row, i) => {
+                if (row.id === id) {
+                    this.current = i;
+                }
+            });
+        });
+    },
+
+    destroyed() {
+        this.$root.$off('open-rubric-category');
     },
 
     methods: {

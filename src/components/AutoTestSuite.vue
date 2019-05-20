@@ -101,8 +101,7 @@
                                     {{ withOrdinalSuffix(i + 1) }} step<span v-if="step.name">
                                         with name "{{ step.name }}"</span>:
                                     <ul>
-                                        <li v-for="err in errs"
-                                            :key="err">
+                                        <li v-for="err in errs" :key="err">
                                             {{ err }}
                                         </li>
                                     </ul>
@@ -117,7 +116,14 @@
 
     <b-card no-body v-if="!value.isEmpty()">
         <div slot="header" class="title title-display">
-            <span>{{ value.rubricRow.header }}</span>
+            <a v-if="result"
+               href="#"
+               @click="$root.$emit('open-rubric-category', value.rubricRow.id)">
+                {{ value.rubricRow.header }}
+            </a>
+            <span v-else>
+                {{ value.rubricRow.header }}
+            </span>
 
             <div v-if="editable"
                  class="pencil"

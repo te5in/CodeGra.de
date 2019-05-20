@@ -445,7 +445,7 @@ const actions = {
                                                 description:
                                                     'The style of the code is conform to the styleguide.',
                                                 header: 'Style',
-                                                id: 1,
+                                                id: 9,
                                                 items: [
                                                     {
                                                         description:
@@ -522,7 +522,7 @@ const actions = {
                                             rubric_row: {
                                                 description: 'abc',
                                                 header: 'Code structure',
-                                                id: 3,
+                                                id: 7,
                                                 items: [
                                                     {
                                                         description: 'rubric row description',
@@ -585,7 +585,7 @@ const actions = {
                                                 description:
                                                     'The documentation of the code is well written and complete.',
                                                 header: 'Documentation',
-                                                id: 2,
+                                                id: 8,
                                                 items: [
                                                     {
                                                         description:
