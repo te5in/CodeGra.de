@@ -1,9 +1,11 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <b-alert class="error" variant="danger" show v-if="error">
-    <div v-html="error"></div>
+    <div v-html="error"/>
 </b-alert>
+
 <loader class="text-center" v-else-if="loading"/>
+
 <div class="overview-mode" v-else>
     <b-tabs no-fade
             nav-wrapper-class="tab-wrapper"
@@ -188,21 +190,14 @@ export default {
     },
 
     watch: {
-        urlTabIndex() {
-            this.tabIndex = this.urlTabIndex;
-        },
-
-        tabIndex(newVal, oldVal) {
-            if (newVal === oldVal || oldVal == null) {
-                return;
-            }
-
-            const newQuery = Object.assign({}, this.$route.query, {
-                overviewTab: newVal,
+        tabIndex() {
+            this.$router.replace({
+                query: Object.assign(
+                    {},
+                    this.$route.query,
+                    { overview: this.tabIndex },
+                ),
             });
-            if (newVal === 0) {
-                delete newQuery.overviewTab;
-            }
         },
     },
 
@@ -214,12 +209,11 @@ export default {
             feedback: {},
             fileIds: [],
             error: '',
-            tabIndex: null,
+            tabIndex: parseInt(this.$route.query.overview, 10),
         };
     },
 
     async mounted() {
-        this.tabIndex = this.urlTabIndex;
         await this.$nextTick();
 
         this.error = '';
@@ -411,9 +405,6 @@ export default {
     },
 
     computed: {
-        urlTabIndex() {
-            return Number(this.$route.query.overviewTab) || 0;
-        },
         allModifiedFiles() {
             return this.getChangedFiles(this.tree);
         },

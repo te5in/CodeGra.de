@@ -1,12 +1,12 @@
 <template>
-<loader v-if="loading" />
-
-<b-alert v-else-if="error"
+<b-alert v-if="error"
          show
          variant="danger"
          class="error-message">
     {{ error }}
 </b-alert>
+
+<loader v-else-if="loading" />
 
 <div v-else class="auto-test" :class="{ editable, 'config-editable': configEditable, 'no-card': noCard }">
     <template v-if="hasResults && !singleResult">
