@@ -353,6 +353,8 @@ class AutoTestResult(Base, TimestampMixin, IdMixin):
     def __extended_to_json__(self) -> t.Mapping[str, object]:
         return {
             **self.__to_json__(),
+            'setup_stdout': self.setup_stdout,
+            'setup_stderr': self.setup_stderr,
             'step_results': self.step_results,
         }
 
