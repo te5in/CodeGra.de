@@ -4,11 +4,12 @@ import typing as t
 import datetime
 import tempfile
 import warnings
-import ipaddress
 import subprocess
 from configparser import ConfigParser
 
 from mypy_extensions import TypedDict
+
+config_file = os.getenv('CODEGRADE_CONFIG_FILE', 'config.ini')
 
 CONFIG: t.Dict[str, t.Any] = dict()
 CONFIG['BASE_DIR'] = os.path.dirname(os.path.abspath(__file__))
@@ -16,7 +17,7 @@ CONFIG['BASE_DIR'] = os.path.dirname(os.path.abspath(__file__))
 os.environ['BASE_DIR'] = str(CONFIG['BASE_DIR'])
 
 parser = ConfigParser(os.environ)
-parser.read(os.getenv('CODEGRADE_CONFIG_FILE', 'config.ini'))
+parser.read(config_file)
 
 if 'Back-end' not in parser:
     parser['Back-end'] = {}
@@ -471,20 +472,20 @@ set_bool(CONFIG['__S_FEATURES'], feature_ops, 'AUTO_TEST', False)
 # LTI keys #
 ############
 # All LTI consumer keys mapped to secret keys. Please add your own.
-parser = ConfigParser()
-parser.optionxform = str  # type: ignore
-if parser.read('config.ini') and 'LTI Consumer keys' in parser:
-    CONFIG['LTI_CONSUMER_KEY_SECRETS'] = dict(parser['LTI Consumer keys'])
+lti_parser = ConfigParser()
+lti_parser.optionxform = str  # type: ignore
+if lti_parser.read(config_file) and 'LTI Consumer keys' in lti_parser:
+    CONFIG['LTI_CONSUMER_KEY_SECRETS'] = dict(lti_parser['LTI Consumer keys'])
 else:
     CONFIG['LTI_CONSUMER_KEY_SECRETS'] = {}
 
 ##########
 # CELERY #
 ##########
-parser = ConfigParser()
-parser.optionxform = str  # type: ignore
-if parser.read('config.ini') and 'Celery' in parser:
-    CONFIG['CELERY_CONFIG'] = dict(parser['Celery'])
+celery_parser = ConfigParser()
+celery_parser.optionxform = str  # type: ignore
+if celery_parser.read(config_file) and 'Celery' in celery_parser:
+    CONFIG['CELERY_CONFIG'] = dict(celery_parser['Celery'])
 else:
     CONFIG['CELERY_CONFIG'] = {}
 

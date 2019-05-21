@@ -4,6 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 """
 
 import os
+import enum
 import typing as t
 import zipfile
 import datetime
@@ -31,6 +32,11 @@ if t.TYPE_CHECKING:  # pragma: no cover
     # pylint: disable=unused-import
     from . import user as user_models
     from . import assignment as assignment_models
+
+
+class GradeOrigin(enum.Enum):
+    human = enum.auto()
+    auto_test = enum.auto()
 
 
 class GradeHistory(Base):
@@ -65,7 +71,13 @@ class GradeHistory(Base):
         'User_id',
         db.Integer,
         db.ForeignKey('User.id', ondelete='CASCADE'),
+    )
+
+    grade_origin = db.Column(
+        'grade_origin',
+        db.Enum(GradeOrigin, native_enum=False),
         nullable=False,
+        server_default=GradeOrigin.human.name,
     )
 
     work = db.relationship(
@@ -76,9 +88,17 @@ class GradeHistory(Base):
         ),
         innerjoin=True,
     )  # type: 'Work'
+
     user = db.relationship(
         'User', foreign_keys=user_id
     )  # type: user_models.User
+
+    __table_args__ = (
+        db.CheckConstraint(
+            "grade_origin != 'human' OR \"User_id\" IS NOT NULL",
+            name='grade_history_grade_origin_check',
+        ),
+    )
 
     def __to_json__(self) -> t.Mapping[str, t.Any]:
         """Converts a rubric of a work to a object that is JSON serializable.
@@ -93,7 +113,7 @@ class GradeHistory(Base):
                                    # grade.
                 'grade': float, # The new grade, -1 if the grade was deleted.
                 'passed_back': bool, # Is this grade given back to LTI.
-                'user': user_models.User, # The user that added this grade.
+                'user': t.Optional[user_models.User], # The user that added this grade.
             }
 
         :returns: A object as described above.
@@ -104,6 +124,7 @@ class GradeHistory(Base):
             'grade': self.grade,
             'passed_back': self.passed_back,
             'user': self.user,
+            'origin': self.grade_origin.name,
         }
 
 
@@ -244,23 +265,49 @@ class Work(Base):
             )
         return self._grade
 
+    @t.overload
     def set_grade(
         self,
         new_grade: t.Optional[float],
         user: 'user_models.User',
         never_passback: bool = False,
     ) -> GradeHistory:
+        ...
+
+    @t.overload
+    def set_grade(
+        self,
+        *,
+        never_passback: bool = False,
+        grade_origin: GradeOrigin,
+    ) -> GradeHistory:
+        ...
+
+    def set_grade(
+        self,
+        new_grade: t.Union[float, None, helpers.MissingType] = helpers.MISSING,
+        user: t.Optional['user_models.User'] = None,
+        never_passback: bool = False,
+        grade_origin: GradeOrigin = GradeOrigin.human,
+    ) -> GradeHistory:
         """Set the grade to the new grade.
 
         .. note:: This also passes back the grade to LTI if this is necessary
             (see :py:func:`passback_grade`).
 
+        .. note:: If ``grade_origin`` is ``human`` the ``user`` is required.
+
         :param new_grade: The new grade to set
         :param user: The user setting the new grade.
+        :param grade_origin: The way this grade was given.
         :param never_passback: Never passback the new grade.
         :returns: Nothing
         """
-        self._grade = new_grade
+        assert grade_origin != GradeOrigin.human or user is not None
+
+        if new_grade is not helpers.MISSING:
+            assert isinstance(new_grade, (float, int, type(None)))
+            self._grade = new_grade
         passback = self.assignment.should_passback
         grade = self.grade
         history = GradeHistory(
@@ -268,7 +315,8 @@ class Work(Base):
             grade=-1 if grade is None else grade,
             passed_back=False,
             work=self,
-            user=user
+            user=user,
+            grade_origin=grade_origin,
         )
         self.grade_histories.append(history)
 

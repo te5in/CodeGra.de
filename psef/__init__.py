@@ -121,11 +121,43 @@ _current_tester = None
 current_tester = LocalProxy(lambda: _current_tester)
 
 
+def enable_testing() -> None:
+    global _current_tester
+    _current_tester = True
+
+
+LogCallback = t.Callable[[object, str, str], None]
+_logger_callbacks: t.List[LogCallback] = []
+
+
+def logger_callback(fun: LogCallback) -> LogCallback:
+    assert fun not in _logger_callbacks
+    _logger_callbacks.append(fun)
+    return fun
+
+
 def configure_logging(debug: bool, testing: bool) -> None:
+    json_renderer = structlog.processors.JSONRenderer()
+
     def add_thread_name(
         logger: object, method_name: object, event_dict: dict
     ) -> dict:
         event_dict['thread_id'] = threading.current_thread().name
+        return event_dict
+
+    def log_callbacks(logger: object, method_name: str,
+                      event_dict: t.Any) -> t.Dict[str, object]:
+        if debug:
+            json_event_dict = json_renderer(logger, method_name, event_dict)
+        else:
+            json_event_dict = event_dict
+
+        for callback in _logger_callbacks:
+            try:
+                callback(logger, method_name, json_event_dict)
+            except Exception as e:
+                pass
+
         return event_dict
 
     processors = [
@@ -139,7 +171,8 @@ def configure_logging(debug: bool, testing: bool) -> None:
         structlog.processors.StackInfoRenderer(),
         structlog.processors.format_exc_info,
         structlog.processors.UnicodeDecoder(),
-        structlog.processors.JSONRenderer(),
+        json_renderer,
+        log_callbacks,
     ]
     structlog.configure(
         processors=processors,
@@ -151,7 +184,8 @@ def configure_logging(debug: bool, testing: bool) -> None:
     if debug:
         structlog.configure(
             processors=processors[:-2] +
-            [structlog.dev.ConsoleRenderer(colors=not testing)]
+            [log_callbacks,
+             structlog.dev.ConsoleRenderer(colors=not testing)]
         )
     logging.basicConfig(
         format='%(message)s',
@@ -181,6 +215,7 @@ def create_app(  # pylint: disable=too-many-statements
 
     @resulting_app.before_request
     def __set_request_start_time() -> None:  # pylint: disable=unused-variable
+        assert current_tester._get_current_object() is None
         g.request_start_time = datetime.datetime.utcnow()
 
     @resulting_app.before_request

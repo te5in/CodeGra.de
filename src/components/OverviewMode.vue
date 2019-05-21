@@ -192,11 +192,7 @@ export default {
     watch: {
         tabIndex() {
             this.$router.replace({
-                query: Object.assign(
-                    {},
-                    this.$route.query,
-                    { overview: this.tabIndex },
-                ),
+                query: Object.assign({}, this.$route.query, { overview: this.tabIndex }),
             });
         },
     },
@@ -217,25 +213,23 @@ export default {
         await this.$nextTick();
 
         this.error = '';
-        await this.$http
-            .get(`/api/v1/submissions/${this.submission.id}/feedbacks/`)
-            .then(
-                ({ data }) => {
-                    Object.entries(data.user).forEach(([fileId, fileFeedback]) => {
-                        Object.keys(fileFeedback).forEach(line => {
-                            fileFeedback[line] = {
-                                line,
-                                msg: fileFeedback[line],
-                                author: data.authors ? data.authors[fileId][line] : null,
-                            };
-                        });
+        await this.$http.get(`/api/v1/submissions/${this.submission.id}/feedbacks/`).then(
+            ({ data }) => {
+                Object.entries(data.user).forEach(([fileId, fileFeedback]) => {
+                    Object.keys(fileFeedback).forEach(line => {
+                        fileFeedback[line] = {
+                            line,
+                            msg: fileFeedback[line],
+                            author: data.authors ? data.authors[fileId][line] : null,
+                        };
                     });
-                    this.feedback = data;
-                },
-                err => {
-                    this.error = err.message;
-                },
-            );
+                });
+                this.feedback = data;
+            },
+            err => {
+                this.error = err.message;
+            },
+        );
 
         this.fileIds = Object.keys(this.feedback.user);
         const codeLines = await Promise.all(this.fileIds.map(this.loadCodeWithSettings));

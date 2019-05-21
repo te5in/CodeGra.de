@@ -493,12 +493,13 @@ export default {
 
                 this.loading = true;
 
-                Promise.all([
-                    this.loadAutoTest(),
-                    this.loadPermissions(),
-                ]).then(
-                    () => { this.loading = false; },
-                    () => { this.loading = false; },
+                Promise.all([this.loadAutoTest(), this.loadPermissions()]).then(
+                    () => {
+                        this.loading = false;
+                    },
+                    () => {
+                        this.loading = false;
+                    },
                 );
             },
         },
@@ -544,8 +545,7 @@ export default {
         }),
 
         runAutoTest() {
-            return this.$http
-                .post(`/api/v1/auto_tests/${this.assignment.auto_test_id}/runs/`);
+            return this.$http.post(`/api/v1/auto_tests/${this.assignment.auto_test_id}/runs/`);
         },
 
         loadAutoTest() {
@@ -634,9 +634,7 @@ ${err.stack}`;
         },
 
         submitContinuePoints(set) {
-            const stopPoints = Number(
-                this.internalTest.set_stop_points[set.id],
-            );
+            const stopPoints = Number(this.internalTest.set_stop_points[set.id]);
             return this.storeUpdateAutoTestSet({
                 autoTestId: this.test.id,
                 autoTestSet: set,

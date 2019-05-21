@@ -141,7 +141,7 @@ export default {
                         autoTestId: this.autoTestConfigId,
                         submissionId: this.submissionId,
                     }),
-                // eslint-disable-next-line
+                    // eslint-disable-next-line
                 ]).then(([_, result]) => {
                     this.autoTestResultId = result.id;
                 });
@@ -256,7 +256,9 @@ export default {
             const index = Math.floor(this.currentRow.items.length * this.currentProgress / 100);
             const points = this.currentRow.items[index].points;
 
-            return `You scored ${this.currentProgress}% in the corresponding AutoTest category, which scores you ${points} points in this rubric category.`;
+            return `You scored ${
+                this.currentProgress
+            }% in the corresponding AutoTest category, which scores you ${points} points in this rubric category.`;
         },
     },
 

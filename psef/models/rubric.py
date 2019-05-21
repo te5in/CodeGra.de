@@ -65,6 +65,17 @@ class RubricItem(Base):
             points=self.points,
         )
 
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, RubricItem):
+            return False
+        return self.id == other.id
+
+    def __hash__(self) -> int:
+        return hash(self.id)
+
+    def __ne__(self, other: object) -> bool:  # pragma: no cover
+        return not self.__eq__(other)
+
 
 class RubricRow(Base):
     """Describes a row of some rubric.

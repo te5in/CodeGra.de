@@ -49,7 +49,7 @@ class AutoTestStep(Base, TimestampMixin, IdMixin):
         nullable=False
     )
 
-    auto_test_suite: 'AutoTestSuite' = db.relationship(
+    suite: 'AutoTestSuite' = db.relationship(
         'AutoTestSuite',
         foreign_keys=auto_test_suite_id,
         back_populates='steps',
@@ -152,7 +152,7 @@ class AutoTestSuite(Base, TimestampMixin, IdMixin):
 
     steps = db.relationship(
         "AutoTestStep",
-        back_populates="auto_test_suite",
+        back_populates="suite",
         cascade='all,delete',
         order_by='AutoTestStep.order'
     )  # type: t.MutableSequence[AutoTestStep]
@@ -190,7 +190,7 @@ class AutoTestStepResult(Base, TimestampMixin, IdMixin):
         nullable=False
     )
 
-    auto_test_step: AutoTestStep = db.relationship(
+    step: AutoTestStep = db.relationship(
         'AutoTestStep',
         foreign_keys=auto_test_step_id,
         lazy='joined',
@@ -203,7 +203,7 @@ class AutoTestStepResult(Base, TimestampMixin, IdMixin):
         db.ForeignKey('AutoTestResult.id'),
     )
 
-    auto_test_result: 'AutoTestResult' = db.relationship(
+    result: 'AutoTestResult' = db.relationship(
         'AutoTestResult',
         foreign_keys=auto_test_result_id,
         innerjoin=True,
@@ -227,7 +227,7 @@ class AutoTestStepResult(Base, TimestampMixin, IdMixin):
     def __to_json__(self) -> t.Mapping[str, object]:
         return {
             'id': self.id,
-            'auto_test_step': self.auto_test_step,
+            'auto_test_step': self.step,
             'state': self.state.name,
             'log': self.log,
         }
@@ -315,7 +315,7 @@ class AutoTestResult(Base, TimestampMixin, IdMixin):
 
     step_results = db.relationship(
         'AutoTestStepResult',
-        back_populates='auto_test_result',
+        back_populates='result',
         cascade='all,delete',
         order_by='AutoTestStepResult.created_at'
     )  # type: t.MutableSequence[AutoTestStepResult]
@@ -340,6 +340,46 @@ class AutoTestResult(Base, TimestampMixin, IdMixin):
     work = db.relationship(
         'Work', foreign_keys=work_id
     )  # type: work_models.Work
+
+    def update_rubric(self) -> None:
+        old_selected_items = set(self.work.selected_items)
+        new_items = []
+        updated_rubric_row_ids = set()
+
+        for auto_test_set in self.run.auto_test.sets:
+            for suite in auto_test_set.suites:
+                got, possible = self.get_amount_points_in_suite(suite)
+                percentage = got / possible
+                items = suite.rubric_row.items
+                new_item = items[-1 if percentage ==
+                                 1 else int(len(items) * percentage)]
+                if new_item in old_selected_items:
+                    continue
+
+                new_items.append(new_item)
+                updated_rubric_row_ids.add(suite.rubric_row_id)
+
+        if not new_items:
+            return
+
+        self.work.selected_items = [
+            *new_items,
+            *[
+                i for i in self.work.selected_items
+                if i.rubricrow_id not in updated_rubric_row_ids
+            ],
+        ]
+        self.work.set_grade(grade_origin=work_models.GradeOrigin.auto_test)
+
+    def get_amount_points_in_suite(self, suite: 'AutoTestSuite'
+                                   ) -> t.Tuple[float, float]:
+        steps = suite.steps
+        possible = sum(step.weight for step in steps)
+        achieved = sum(
+            step_result.step.test_type.get_amount_achieved_points(step_result)
+            for step_result in self.step_results
+        )
+        return achieved, possible
 
     def __to_json__(self) -> t.Mapping[str, object]:
         return {
@@ -453,7 +493,7 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
         order_by='AutoTestResult.created_at'
     )  # type: t.MutableSequence[AutoTestResult]
 
-    state = db.Column(
+    _state = db.Column(
         'state',
         db.Enum(AutoTestRunState, native_enum=False),
         default=AutoTestRunState.not_started,
@@ -465,6 +505,20 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
     kill_date: t.Optional[datetime.datetime] = db.Column(
         'kill_date', db.DateTime, nullable=True, default=None
     )
+
+    @property
+    def state(self) -> AutoTestRunState:
+        return self._state
+
+    @state.setter
+    def state(self, new_state: AutoTestRunState) -> None:
+        assert isinstance(new_state, AutoTestRunState)
+
+        self._state = new_state
+
+        if new_state == AutoTestRunState.done:
+            for result in self.results:
+                result.update_rubric()
 
     def start(
         self,
@@ -505,6 +559,7 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
         return {
             'id': self.id,
             'created_at': self.created_at.isoformat(),
+            'state': self.state.name,
         }
 
     def __extended_to_json__(self) -> t.Mapping[str, object]:

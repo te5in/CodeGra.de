@@ -541,9 +541,7 @@ export default {
 
         stepType() {
             const type = this.value.type;
-            return this.testTypes.find(
-                t => t.name === type,
-            );
+            return this.testTypes.find(t => t.name === type);
         },
 
         hasWeight() {

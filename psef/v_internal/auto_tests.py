@@ -2,6 +2,7 @@ import typing as t
 import datetime
 
 import werkzeug
+import structlog
 from flask import request, make_response, send_from_directory
 
 from . import api
@@ -15,21 +16,21 @@ from ..helpers import (
 from ..parsers import parse_enum
 from ..exceptions import APICodes, APIException, PermissionException
 
+logger = structlog.get_logger()
 LocalRunner = t.NewType('LocalRunner', t.Tuple[str, bool])
 
 
 def extract_local_password(password: str) -> LocalRunner:
-    global_password, local_password = password.split('@:@', maxsplit=1)
+    local_password, global_password = password.split('@:@', maxsplit=1)
     config_dict = app.config['AUTO_TEST_CREDENTIALS'].get(
         request.remote_addr, None
     )
-    if config_dict is None:
-        if global_password in {
-            v['password']
-            for v in app.config['AUTO_TEST_CREDENTIALS'].values()
-            if v.get('disable_origin_check', False)
-        }:
-            return LocalRunner((local_password, False))
+    if config_dict is None and global_password in {
+        v['password']
+        for v in app.config['AUTO_TEST_CREDENTIALS'].values()
+        if v.get('disable_origin_check', False)
+    }:
+        return LocalRunner((local_password, False))
 
     stored_password = config_dict and config_dict['password']
 
@@ -56,11 +57,12 @@ def verify_runner(
             'No valid password given', APICodes.NOT_LOGGED_IN, 401
         )
 
-
-def scrub_password(key: str, value: object) -> object:
-    if 'password' in key:
-        return '<PASSWORD>'
-    return value
+    if runner.run.state == models.AutoTestRunState.timed_out:
+        raise PermissionException(
+            'You cannot update runs which timed out',
+            f'The run {{ runner.run.id }} has timed out',
+            APICodes.INCORRECT_PERMISSION, 403
+        )
 
 
 def verify_global_header_password() -> LocalRunner:
@@ -77,10 +79,7 @@ def get_auto_test_status(
     if request.args.get('get', object()) != 'tests_to_run':
         return make_empty_response()
 
-    config_dict = app.config['AUTO_TEST_CREDENTIALS'].get(
-        request.remote_addr, None
-    )
-    assert config_dict is not None
+    config_dict = app.config['AUTO_TEST_CREDENTIALS'][request.remote_addr]
 
     run = models.AutoTestRun.query.filter_by(
         started_date=None,
@@ -100,8 +99,7 @@ def get_auto_test_status(
 def update_run(auto_test_id: int, run_id: int) -> EmptyResponse:
     password = verify_global_header_password()
 
-    with get_from_map_transaction(get_json_dict_from_request(scrub_password)
-                                  ) as [get, _]:
+    with get_from_map_transaction(get_json_dict_from_request()) as [get, _]:
         state = get('state', str)
 
     run = filter_single_or_404(
@@ -109,10 +107,13 @@ def update_run(auto_test_id: int, run_id: int) -> EmptyResponse:
         models.AutoTestRun.id == run_id,
         models.AutoTest.id == auto_test_id,
     )
+    verify_runner(run.runner, password)
+
     new_state = parse_enum(state, models.AutoTestRunState)
     assert new_state is not None
     run.state = new_state
     db.session.commit()
+
     return make_empty_response()
 
 
@@ -139,6 +140,35 @@ def get_result_data(auto_test_id: int, result_id: int
         )
         directory = app.config['MIRROR_UPLOAD_DIR']
         return send_from_directory(directory, file_name)
+
+    return make_empty_response()
+
+
+@api.route(
+    '/auto_tests/<int:auto_test_id>/runs/<int:run_id>/logs/', methods=['POST']
+)
+def emit_log_for_runner(auto_test_id: int, run_id: int) -> EmptyResponse:
+    password = verify_global_header_password()
+
+    with get_from_map_transaction(get_json_dict_from_request()) as [get, _]:
+        logs = get('logs', list)
+
+    run = filter_single_or_404(
+        models.AutoTestRun,
+        models.AutoTestRun.id == run_id,
+        models.AutoTest.id == auto_test_id,
+    )
+    verify_runner(run.runner, password)
+
+    for log in logs:
+        assert isinstance(log, dict)
+        assert 'level' in log
+        getattr(logger, log['level'])(
+            **log,
+            from_tester=True,
+            original_timestamp=log['timestamp'],
+            run_id=run_id
+        )
 
     return make_empty_response()
 
@@ -175,9 +205,12 @@ def get_fixture(
 def update_result(auto_test_id: int, result_id: int) -> EmptyResponse:
     password = verify_global_header_password()
 
-    with get_from_map_transaction(get_json_dict_from_request(scrub_password)
-                                  ) as [get, _]:
-        state = get('state', str)
+    with get_from_map_transaction(get_json_dict_from_request()) as [
+        _, opt_get
+    ]:
+        state = opt_get('state', str, None)
+        setup_stdout = opt_get('setup_stdout', str, None)
+        setup_stderr = opt_get('setup_stderr', str, None)
 
     result = filter_single_or_404(
         models.AutoTestResult,
@@ -186,9 +219,15 @@ def update_result(auto_test_id: int, result_id: int) -> EmptyResponse:
     )
     verify_runner(result.run.runner, password)
 
-    new_state = parse_enum(state, models.AutoTestStepResultState)
-    assert new_state is not None
-    result.state = new_state
+    if state is not None:
+        new_state = parse_enum(state, models.AutoTestStepResultState)
+        assert new_state is not None
+        result.state = new_state
+    if setup_stdout is not None:
+        result.setup_stdout = setup_stdout
+    if setup_stderr is not None:
+        result.setup_stderr = setup_stderr
+
     db.session.commit()
     return make_empty_response()
 
@@ -201,8 +240,9 @@ def update_step_result(auto_test_id: int, result_id: int
                        ) -> JSONResponse[models.AutoTestStepResult]:
     password = verify_global_header_password()
 
-    with get_from_map_transaction(get_json_dict_from_request(scrub_password)
-                                  ) as [get, opt_get]:
+    with get_from_map_transaction(get_json_dict_from_request()) as [
+        get, opt_get
+    ]:
         state = get('state', str)
         log = get('log', dict)
         auto_test_step_id = get('auto_test_step_id', int)
@@ -217,8 +257,8 @@ def update_step_result(auto_test_id: int, result_id: int
 
     if res_id is None:
         step_result = models.AutoTestStepResult(
-            auto_test_step=get_or_404(models.AutoTestStep, auto_test_step_id),
-            auto_test_result=result
+            step=get_or_404(models.AutoTestStep, auto_test_step_id),
+            result=result
         )
         db.session.add(result)
     else:
@@ -236,4 +276,5 @@ def update_step_result(auto_test_id: int, result_id: int
     step_result.log = log
 
     db.session.commit()
+
     return jsonify(step_result)

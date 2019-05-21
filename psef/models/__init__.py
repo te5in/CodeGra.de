@@ -200,7 +200,7 @@ if True:  # pylint: disable=using-constant-test
     from .user import User
     from .lti_provider import LTIProvider
     from .file import File, FileOwner, AutoTestFixture, FileMixin
-    from .work import Work, GradeHistory
+    from .work import Work, GradeHistory, GradeOrigin
     from .linter import LinterState, LinterComment, LinterInstance
     from .plagiarism import (
         PlagiarismState, PlagiarismRun, PlagiarismCase, PlagiarismMatch

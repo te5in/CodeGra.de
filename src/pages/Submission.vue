@@ -592,10 +592,7 @@ export default {
         },
 
         getSubmissionData() {
-            return Promise.all([
-                this.getFileTrees(),
-                this.getRubric(),
-            ]);
+            return Promise.all([this.getFileTrees(), this.getRubric()]);
         },
 
         getFileTrees() {
