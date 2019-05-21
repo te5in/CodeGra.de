@@ -468,7 +468,8 @@ export default {
             currentResult: null,
             actualResultId: null,
             nameOfUser,
-            pollingInterval: 1000,
+            pollingInterval: 5000,
+            pollingTimer: null,
 
             configCollapseId: `auto-test-config-collapse-${id}`,
             resultsCollapseId: `auto-test-results-collapse-${id}`,
@@ -483,6 +484,10 @@ export default {
 
     mounted() {
         this.disabledAnimations = false;
+    },
+
+    destroyed() {
+        clearTimeout(this.pollingTimer);
     },
 
     watch: {
@@ -557,7 +562,7 @@ export default {
             }).then(
                 () => {
                     if (this.hasResults && !this.test.runs[0].finished) {
-                        setTimeout(this.loadAutoTestRun, this.pollingInterval);
+                        this.pollingTimer = setTimeout(this.loadAutoTestRun, this.pollingInterval);
                     }
                     return this.loadSingleResult();
                 },
@@ -577,7 +582,7 @@ export default {
             }).then(
                 () => {
                     if (!this.test.runs[0].finished) {
-                        setTimeout(this.loadAutoTestRun, this.pollingInterval);
+                        this.pollingTimer = setTimeout(this.loadAutoTestRun, this.pollingInterval);
                     }
                 },
                 err => {
@@ -600,7 +605,7 @@ ${err.stack}`;
                 result => {
                     this.actualResultId = result.id;
                     if (!this.result.finished) {
-                        setTimeout(this.loadSingleResult, this.pollingInterval);
+                        this.pollingTimer = setTimeout(this.loadSingleResult, this.pollingInterval);
                     }
                 },
                 err => {

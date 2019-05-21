@@ -890,8 +890,8 @@ const actions = {
                             id: resultId,
                             setup_stdout: 'Setup script:\nSUCCESS!',
                             setup_stderr: '',
-                            points_achieved: '3 / 15',
-                            state: 'failed',
+                            points_achieved: 3,
+                            state: 'running',
                             step_results: [
                                 {
                                     auto_test_step: getProps(
