@@ -3,7 +3,7 @@
          show
          variant="danger"
          class="error-message">
-    {{ error }}
+    <pre>{{ error }}</pre>
 </b-alert>
 
 <loader v-else-if="loading" />
@@ -39,16 +39,22 @@
                     <tbody>
                         <template v-if="run.results.length > 0">
                             <tr v-for="result in run.results"
-                                :key="result.work.user.id"
+                                :key="result.submission.user.id"
                                 @click="openResult(result)">
-                                <td class="name">{{ nameOfUser(result.work.user) }}</td>
+                                <td class="name">{{ nameOfUser(result.submission.user) }}</td>
                                 <td class="score">
-                                    <icon v-if="result.work.grade_overridden"
+                                    <icon v-if="result.submission.grade_overridden"
                                           v-b-popover.top.hover="'This submission\'s calculated grade has been manually overridden'"
                                           name="exclamation-triangle"/>
-                                    {{ result.points_achieved }}
+                                    {{ result.pointsAchieved }} / {{ test.pointsPossible }}
                                 </td>
-                                <td class="state">{{ result.state }}</td>
+                                <td class="state">
+                                    <icon v-if="result.state === 'not_started'" name="clock-o" />
+                                    <icon v-else-if="result.state === 'running'" name="circle-o-notch" spin />
+                                    <icon v-else-if="result.state === 'passed'" name="check" class="text-success" />
+                                    <icon v-else-if="result.state === 'failed'" name="times" class="text-danger" />
+                                    <icon v-else-if="result.state === 'timed_out'" name="clock-o" class="text-danger" />
+                                </td>
                             </tr>
                         </template>
                         <template v-else>
@@ -316,9 +322,9 @@
                                                      :assignment="assignment"
                                                      :other-suites="allNonDeletedSuites"
                                                      :value="set.suites[j]"
+                                                     :result="result"
                                                      @input="updateSuite(set, j, $event)"
-                                                     @delete="deleteSuite(suite)"
-                                                     :result="result" />
+                                                     @delete="deleteSuite(suite)" />
                                 </masonry>
                                 <div v-if="configEditable"
                                      class="btn-wrapper"
@@ -379,16 +385,26 @@
         </b-collapse>
     </b-card>
 
-    <b-modal :id="resultsModalId" hide-footer size="lg" @hidden="currentResult = null" class="result-modal">
-        <template v-if="currentResult" slot="modal-title">
-            {{ nameOfUser(currentResult.work.user) }} - {{ currentResult.achieved_points }} points
+    <b-modal
+        v-if="!singleResult && currentResult"
+        :id="resultsModalId"
+        hide-footer
+        @hidden="currentResult = null"
+        class="result-modal">
+        <template slot="modal-title">
+            {{ nameOfUser(currentResult.submission.user) }} -
+            {{ currentResult.pointsAchieved }} / {{ test.pointsPossible }} points
         </template>
 
         <auto-test
-            v-if="currentResult"
+            no-card
             :assignment="assignment"
-            :result-id="currentResult.id"
-            :editable="false" />
+            :submission-id="currentResult.submission.id" />
+
+        <rubric-viewer
+            :assignment="assignment"
+            :submission="currentResult.submission"
+            :rubric="currentResult.rubric" />
     </b-modal>
 </div>
 </template>
@@ -404,13 +420,17 @@ import 'vue-awesome/icons/eye';
 import 'vue-awesome/icons/eye-slash';
 import 'vue-awesome/icons/chevron-right';
 import 'vue-awesome/icons/exclamation-triangle';
+import 'vue-awesome/icons/circle-o-notch';
+import 'vue-awesome/icons/clock-o';
+import 'vue-awesome/icons/check';
 
-import { nameOfUser, getUniqueId } from '@/utils';
+import { deepCopy, nameOfUser, getUniqueId } from '@/utils';
 
 import AutoTestSuite from './AutoTestSuite';
 import SubmitButton from './SubmitButton';
 import MultipleFilesUploader from './MultipleFilesUploader';
 import Loader from './Loader';
+import RubricViewer from './RubricViewer';
 
 export default {
     name: 'auto-test',
@@ -424,11 +444,6 @@ export default {
         editable: {
             type: Boolean,
             default: false,
-        },
-
-        resultId: {
-            type: Number,
-            default: null,
         },
 
         submissionId: {
@@ -453,8 +468,9 @@ export default {
             error: '',
             permissions: {},
             currentResult: null,
-            actualResultId: null,
             nameOfUser,
+            pollingInterval: 30000,
+            pollingTimer: null,
 
             configCollapseId: `auto-test-config-collapse-${id}`,
             resultsCollapseId: `auto-test-results-collapse-${id}`,
@@ -471,8 +487,13 @@ export default {
         this.disabledAnimations = false;
     },
 
+    destroyed() {
+        clearTimeout(this.pollingTimer);
+    },
+
     watch: {
         assignmentId: {
+            immediate: true,
             handler() {
                 if (this.assignment.auto_test_id == null) {
                     this.loading = false;
@@ -481,21 +502,19 @@ export default {
 
                 this.loading = true;
 
-                Promise.all([this.loadAutoTest(), this.loadPermissions()])
-                    .then(() => this.loadSingleResult())
-                    .then(
-                        () => {
-                            this.loading = false;
-                        },
-                        () => {
-                            this.loading = false;
-                        },
-                    );
+                Promise.all([this.loadAutoTest(), this.loadPermissions()]).then(
+                    () => {
+                        this.loading = false;
+                    },
+                    () => {
+                        this.loading = false;
+                    },
+                );
             },
-            immediate: true,
         },
 
         test: {
+            immediate: true,
             handler() {
                 if (this.test == null) {
                     this.internalTest = {};
@@ -510,7 +529,6 @@ export default {
                     };
                 }
             },
-            immediate: true,
         },
     },
 
@@ -522,6 +540,7 @@ export default {
             storeDeleteAutoTest: 'deleteAutoTest',
             storeUpdateAutoTest: 'updateAutoTest',
             storeLoadAutoTest: 'loadAutoTest',
+            storeLoadAutoTestRun: 'loadAutoTestRun',
             storeCreateFixtures: 'createFixtures',
             storeToggleFixture: 'toggleFixture',
             storeCreateAutoTestSet: 'createAutoTestSet',
@@ -541,26 +560,54 @@ export default {
         loadAutoTest() {
             return this.storeLoadAutoTest({
                 autoTestId: this.assignment.auto_test_id,
-            }).catch(err => {
-                this.error = `AutoTest configuration could not be loaded: ${err.message}`;
-            });
+            }).then(
+                () => {
+                    if (this.hasResults && !this.test.runs[0].finished) {
+                        this.pollingTimer = setTimeout(this.loadAutoTestRun, this.pollingInterval);
+                    }
+                    return this.loadSingleResult();
+                },
+                err => {
+                    this.error = `AutoTest configuration could not be loaded: ${err.message}`;
+                },
+            );
         },
 
-        loadSingleResult() {
-            if (
-                this.assignment.auto_test_id == null ||
-                !this.singleResult
-            ) {
+        loadAutoTestRun() {
+            if (this.singleResult || !this.hasResults) {
                 return null;
             }
 
-            return this.storeLoadAutoTestResult({
+            return this.storeLoadAutoTestRun({
                 autoTestId: this.assignment.auto_test_id,
-                resultId: this.resultId,
-                submissionId: this.submissionId,
             }).then(
-                result => {
-                    this.actualResultId = result.id;
+                () => {
+                    if (!this.test.runs[0].finished) {
+                        this.pollingTimer = setTimeout(this.loadAutoTestRun, this.pollingInterval);
+                    }
+                },
+                err => {
+                    this.error = `AutoTest results could not be loaded: ${err.message}
+${err.stack}`;
+                },
+            );
+        },
+
+        loadSingleResult() {
+            if (!this.singleResult) {
+                return null;
+            }
+
+            return Promise.all([
+                this.storeLoadAutoTestResult({
+                    autoTestId: this.assignment.auto_test_id,
+                    submissionId: this.submissionId,
+                }),
+            ]).then(
+                () => {
+                    if (!this.result.finished) {
+                        this.pollingTimer = setTimeout(this.loadSingleResult, this.pollingInterval);
+                    }
                 },
                 err => {
                     this.error = `No result found for this submission: ${err.message}`;
@@ -706,11 +753,23 @@ export default {
             });
         },
 
-        openResult(result) {
-            if (result.state === 'passed' || result.state === 'failed') {
-                this.currentResult = result;
-                this.$root.$emit('bv::show::modal', this.resultsModalId);
+        async openResult(result) {
+            if (result.state === 'not_started') {
+                return;
             }
+
+            const { data: rubric } = await this.$http.get(
+                `/api/v1/submissions/${result.submission.id}/rubrics/`,
+            );
+
+            this.currentResult = Object.assign({}, result, {
+                rubric: Object.assign(rubric, {
+                    rubrics: deepCopy(this.assignment.rubric),
+                }),
+            });
+
+            await this.$nextTick();
+            this.$root.$emit('bv::show::modal', this.resultsModalId);
         },
 
         canViewFixture(fixture) {
@@ -772,7 +831,7 @@ export default {
         },
 
         singleResult() {
-            return this.resultId != null || this.submissionId != null;
+            return this.submissionId != null;
         },
 
         test() {
@@ -781,8 +840,10 @@ export default {
         },
 
         result() {
-            const resultId = this.actualResultId;
-            return resultId ? this.allResults[resultId] : null;
+            if (!this.hasResults || this.submissionId == null) {
+                return null;
+            }
+            return this.test.runs[0].results.find(r => r.submission.id === this.submissionId);
         },
     },
 
@@ -793,6 +854,7 @@ export default {
         SubmitButton,
         MultipleFilesUploader,
         Loader,
+        RubricViewer,
     },
 };
 </script>
@@ -1027,8 +1089,12 @@ export default {
 
         .fa-icon {
             transform: translateY(2px);
-            margin-right: 0.25rem;
+            margin-right: 0.5rem;
         }
+    }
+
+    .state {
+        text-align: center;
     }
 }
 
@@ -1056,16 +1122,28 @@ export default {
         border-bottom-right-radius: 0.25rem;
         padding: 1rem;
     }
+
+    #app.dark & {
+        pre {
+            color: @text-color-dark;
+            border-color: @color-primary-darker;
+        }
+    }
 }
 
 .error-message {
     margin: 1rem;
+}
+
+.rubric-viewer {
+    margin: 0 1rem 1rem;
 }
 </style>
 
 <style lang="less">
 .auto-test .base-system-selector {
     flex: 1;
+
     .multiselect__tags {
         z-index: 10;
         border-bottom-right-radius: 0;
@@ -1077,8 +1155,15 @@ export default {
     padding-right: 10px;
 }
 
-.result-modal .modal-dialog {
-    max-width: calc(100% - 8rem);
-    width: calc(100vw - 8rem);
+.result-modal {
+    .modal-dialog {
+        max-width: calc(100vw - 8rem);
+        width: calc(100vw - 8rem);
+        margin-top: 2rem;
+    }
+
+    .auto-test & .modal-body {
+        padding: 0;
+    }
 }
 </style>

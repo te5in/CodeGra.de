@@ -7,18 +7,29 @@
                :head-html="getHeadHtml(rubric)"
                v-for="(rubric, i) in rubrics"
                :key="`rubric-${rubric.id}`">
-            <b-card class="rubric-category"
-                    :header="rubric.description"
-                    body-class="rubric-items">
-                <div
-                    v-if="autoTestProgress && autoTestProgress[rubric.id]"
-                    class="progress"
-                    v-b-popover.hover.top="progressPopover"
-                >
-                    <div class="meter" :style="{ width: `${autoTestProgress[rubric.id]}%` }" />
+            <b-card
+                class="rubric-category"
+                header-class="rubric-category-header"
+                body-class="rubric-items">
+                <template slot="header">
+                    <div class="rubric-category-description">
+                        {{ rubric.description }}
+                    </div>
+
+                    <icon
+                        name="lock"
+                        v-if="autoTestProgress[rubric.id]"
+                        v-b-popover.hover.top="progressPopover"/>
+                </template>
+
+                <div v-if="autoTestProgress[rubric.id]"
+                     class="progress">
+                    <div ref="progressMeter" class="meter" />
                 </div>
 
-                <b-card-group>
+                <b-card-group
+                    class="rubric-items-group"
+                    :class="{ disabled: autoTestProgress[rubric.id] }">
                     <b-card class="rubric-item"
                             v-for="item in rubric.items"
                             :key="`rubric-${rubric.id}-${item.id}`"
@@ -28,7 +39,7 @@
                         <div slot="header" class="header">
                             <b class="header-title">{{ item.points }} - {{ item.header }}</b>
                             <div v-if="itemStates[item.id] === '__LOADING__'"
-                                class="rubric-item-icon">
+                                 class="rubric-item-icon">
                                 <loader :scale="1"/>
                             </div>
                             <div v-else-if="selected[item.id]"
@@ -38,9 +49,9 @@
                             <div v-else-if="itemStates[item.id]"
                                 class="rubric-item-icon">
                                 <b-popover show
-                                        :target="`rubric-error-icon-${rubric.id}-${item.id}`"
-                                        :content="itemStates[item.id]"
-                                        placement="top">
+                                           :target="`rubric-error-icon-${rubric.id}-${item.id}`"
+                                           :content="itemStates[item.id]"
+                                           placement="top">
                                 </b-popover>
                                 <icon name="times"
                                     :scale="1"
@@ -68,6 +79,7 @@ import 'vue-awesome/icons/angle-left';
 import 'vue-awesome/icons/angle-right';
 import 'vue-awesome/icons/times';
 import 'vue-awesome/icons/check';
+import 'vue-awesome/icons/lock';
 
 import { getProps, waitAtLeast } from '../utils';
 
@@ -105,8 +117,6 @@ export default {
             maxPoints: 0,
             itemStates: {},
             origSelected: [],
-            autoTestConfig: null,
-            autoTestResult: null,
         };
     },
 
@@ -116,29 +126,39 @@ export default {
         },
 
         submission: {
+            immediate: true,
             handler() {
-                const autoTestId = this.assignment.auto_test_id;
-                const submissionId = this.submission.id;
-
-                if (autoTestId == null) {
+                if (this.autoTestConfigId == null) {
                     return;
                 }
 
-                this.autoTestConfig = null;
-                this.autoTestResult = null;
-
                 Promise.all([
-                    this.storeLoadAutoTest({ autoTestId }),
-                    this.storeLoadAutoTestResult({
-                        autoTestId,
-                        submissionId,
+                    this.storeLoadAutoTest({
+                        autoTestId: this.autoTestConfigId,
                     }),
-                ]).then(([autoTest, result]) => {
-                    this.autoTestConfig = autoTest;
-                    this.autoTestResult = result;
-                });
+                    this.storeLoadAutoTestResult({
+                        autoTestId: this.autoTestConfigId,
+                        submissionId: this.submissionId,
+                    }),
+                ]);
             },
+        },
+
+        currentProgress: {
             immediate: true,
+            async handler() {
+                const cur = this.current;
+
+                if (cur == null || this.currentProgress == null) {
+                    return;
+                }
+
+                await this.$nextTick();
+                const ref = this.$refs.progressMeter[cur];
+                ref.style.width = 0;
+                await this.$nextTick();
+                ref.style.width = `${this.currentProgress}%`;
+            },
         },
     },
 
@@ -147,6 +167,30 @@ export default {
             allTests: 'tests',
             allResults: 'results',
         }),
+
+        submissionId() {
+            return this.submission.id;
+        },
+
+        autoTestConfigId() {
+            return this.assignment.auto_test_id;
+        },
+
+        autoTestConfig() {
+            return this.allTests[this.autoTestConfigId];
+        },
+
+        autoTestResult() {
+            return Object.values(this.allResults).find(r => r.submission.id === this.submissionId);
+        },
+
+        currentRow() {
+            return this.rubrics[this.current];
+        },
+
+        currentProgress() {
+            return this.currentRow && this.autoTestProgress[this.currentRow.id];
+        },
 
         hasSelectedItems() {
             return Object.keys(this.selected).length !== 0;
@@ -180,7 +224,7 @@ export default {
             const suiteResults = getProps(this, null, 'autoTestResult', 'suiteResults');
 
             if (!suiteResults) {
-                return null;
+                return {};
             }
 
             const prog = {};
@@ -201,24 +245,33 @@ export default {
         },
 
         progressPopover() {
-            if (this.autoTestProgress == null) {
+            if (this.currentProgress == null) {
                 return '';
             }
 
-            const rubricRow = this.rubrics[this.current];
-            const progress = this.autoTestProgress[rubricRow.id];
+            const index = Math.floor(this.currentRow.items.length * this.currentProgress / 100);
+            const points = this.currentRow.items[index].points;
 
-            const index = Math.floor(rubricRow.items.length * progress / 100);
-            const points = rubricRow.items[index].points;
-
-            console.log(index, points);
-
-            return `You scored ${progress}% in the corresponding AutoTest category, which scores you ${points} points in this rubric category.`;
+            return `You scored ${
+                this.currentProgress
+            }% in the corresponding AutoTest category, which scores you ${points} points in this rubric category.`;
         },
     },
 
     mounted() {
         this.rubricUpdated(this.rubric, true);
+
+        this.$root.$on('open-rubric-category', id => {
+            this.rubrics.forEach((row, i) => {
+                if (row.id === id) {
+                    this.current = i;
+                }
+            });
+        });
+    },
+
+    destroyed() {
+        this.$root.$off('open-rubric-category');
     },
 
     methods: {
@@ -323,7 +376,10 @@ export default {
         },
 
         toggleItem(row, item) {
-            if (!this.editable) return;
+            if (!this.editable || this.autoTestProgress[row.id]) {
+                return;
+            }
+
             this.$set(this.itemStates, item.id, '__LOADING__');
 
             let req;
@@ -401,11 +457,18 @@ export default {
 
 .rubric-viewer .rubric-category {
     border-top-width: 0;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+}
 
-    &,
-    .card-header {
-        border-top-left-radius: 0;
-        border-top-right-radius: 0;
+.rubric-category-header {
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+    display: flex;
+    align-items: center;
+
+    .rubric-category-description {
+        flex: 1 1 auto;
     }
 }
 
@@ -428,7 +491,7 @@ export default {
         }
     }
 
-    .editable & {
+    .editable .rubric-items-group:not(.disabled) & {
         cursor: pointer;
 
         &:hover {
@@ -485,15 +548,33 @@ export default {
     }
 }
 
-.progress {
-    height: 2px;
-    margin-top: -1px;
-    margin-bottom: -1px;
-    z-index: 100;
+.rubric-items {
     position: relative;
+}
+
+.rubric-item {
+    background-color: transparent !important;
+}
+
+.progress {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: 100%;
+    background-color: transparent !important;
 
     .meter {
-        background-color: @color-secondary;
+        background-color: fade(@color-secondary, 10%);
+        border-right: 1px solid fade(@color-secondary, 15%);
+        width: 0;
+        transition: width 1250ms ease-in-out;
+
+        #app.dark & {
+            background-color: fade(white, 10%);
+            border-right: 1px solid fade(white, 15%);
+        }
     }
 }
 </style>

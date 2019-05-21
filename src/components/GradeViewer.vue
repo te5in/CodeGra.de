@@ -6,7 +6,6 @@
                 v-if="showRubric">
         <rubric-viewer
             v-model="rubricPoints"
-            style="margin-bottom: 15px;"
             :editable="editable"
             :assignment="assignment"
             :submission="submission"
@@ -360,6 +359,10 @@ input {
 
 .help-cursor {
     cursor: help;
+}
+
+.rubric-viewer {
+    margin-bottom: 1rem;
 }
 </style>
 

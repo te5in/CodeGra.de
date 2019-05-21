@@ -95,8 +95,13 @@ main {
 
 table.table {
     .default-table-colors;
+
     tr:first-child td {
         border-top: 0;
+    }
+
+    #app.dark & tbody + tbody {
+        border-color: @color-primary-darker;
     }
 }
 

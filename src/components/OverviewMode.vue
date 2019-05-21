@@ -192,11 +192,7 @@ export default {
     watch: {
         tabIndex() {
             this.$router.replace({
-                query: Object.assign(
-                    {},
-                    this.$route.query,
-                    { overview: this.tabIndex },
-                ),
+                query: Object.assign({}, this.$route.query, { overview: this.tabIndex }),
             });
         },
     },
