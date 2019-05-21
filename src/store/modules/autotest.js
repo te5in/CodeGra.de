@@ -188,55 +188,51 @@ class AutoTestResult {
             return;
         }
 
-        const setResults = {};
-        const suiteResults = {};
-        const stepResults = steps.reduce((acc, step) => {
+        this.setResults = {};
+        this.suiteResults = {};
+        this.stepResults = steps.reduce((acc, step) => {
             acc[step.auto_test_step.id] = step;
             return acc;
         }, {});
 
-        this.setResults = setResults;
-        this.suiteResults = suiteResults;
-        this.stepResults = stepResults;
-
         let setCheckpointFailed = false;
         autoTest.sets.forEach(set => {
-            setResults[set.id] = {
+            this.setResults[set.id] = {
                 achieved: 0,
                 possible: 0,
             };
 
             set.suites.forEach(suite => {
                 let suiteCheckpointFailed = false;
-                suiteResults[suite.id] = {
+                this.suiteResults[suite.id] = {
                     achieved: 0,
                     possible: 0,
                 };
 
                 suite.steps.forEach(step => {
-                    suiteResults[suite.id].possible += step.weight;
+                    this.suiteResults[suite.id].possible += step.weight;
 
                     if (setCheckpointFailed || suiteCheckpointFailed) {
-                        stepResults[step.id] = {
+                        this.stepResults[step.id] = {
                             state: 'skipped',
                             log: null,
                         };
-                    } else if (stepResults[step.id] == null) {
-                        stepResults[step.id] = {
+                    } else if (this.stepResults[step.id] == null) {
+                        this.stepResults[step.id] = {
                             state: 'not_started',
                             log: null,
                         };
                     } else if (
                         step.type === 'check_points' &&
-                        stepResults[step.id].state === 'failed'
+                        this.stepResults[step.id].state === 'failed'
                     ) {
                         suiteCheckpointFailed = true;
-                    } else if (stepResults[step.id].state === 'passed') {
+                    } else if (this.stepResults[step.id].state === 'passed') {
                         switch (step.type) {
                             case 'io_test':
-                                suiteResults[suite.id].achieved += step.data.inputs.reduce(
+                                this.suiteResults[suite.id].achieved += step.data.inputs.reduce(
                                     (acc, input, i) => {
-                                        if (stepResults[step.id].log.steps[i].state === 'passed') {
+                                        if (this.stepResults[step.id].log.steps[i].state === 'passed') {
                                             return acc + input.weight;
                                         } else {
                                             return acc;
@@ -246,18 +242,18 @@ class AutoTestResult {
                                 );
                                 break;
                             default:
-                                suiteResults[suite.id].achieved += step.weight;
+                                this.suiteResults[suite.id].achieved += step.weight;
                         }
                     }
                 });
 
-                setResults[set.id].achieved += suiteResults[suite.id].achieved;
-                setResults[set.id].possible += suiteResults[suite.id].possible;
+                this.setResults[set.id].achieved += this.suiteResults[suite.id].achieved;
+                this.setResults[set.id].possible += this.suiteResults[suite.id].possible;
 
                 suite.passed = suiteCheckpointFailed;
             });
 
-            if (setResults[set.id] < set.stop_points) {
+            if (this.setResults[set.id] < set.stop_points) {
                 setCheckpointFailed = true;
             }
 
@@ -283,7 +279,9 @@ class AutoTestRun {
     updateResults(results, autoTest) {
         results.forEach(r1 => {
             const storeResult = this.results.find(r2 => r2.id === r1.id);
-            storeResult.update(r1, autoTest);
+            if (!storeResult.finished) {
+                storeResult.update(r1, autoTest);
+            }
         });
     }
 }
@@ -1084,6 +1082,18 @@ const mutations = {
         autoTest.sets.forEach(set => {
             set.suites = set.suites.map(suite => new AutoTestSuiteData(autoTest.id, set.id, suite));
         });
+
+        autoTest.pointsPossible = autoTest.sets.reduce(
+            (acc1, set) => acc1 + set.suites.reduce(
+                (acc2, suite) => acc2 + suite.steps.reduce(
+                    (acc3, step) => acc3 + step.weight,
+                    0,
+                ),
+                0,
+            ),
+            0,
+        );
+
         autoTest.runs = autoTest.runs.map(run => new AutoTestRun(run, autoTest));
 
         Vue.set(state.tests, autoTest.id, autoTest);

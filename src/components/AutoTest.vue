@@ -46,7 +46,7 @@
                                     <icon v-if="result.submission.grade_overridden"
                                           v-b-popover.top.hover="'This submission\'s calculated grade has been manually overridden'"
                                           name="exclamation-triangle"/>
-                                    {{ result.pointsAchieved }}
+                                    {{ result.pointsAchieved }} / {{ test.pointsPossible }}
                                 </td>
                                 <td class="state">
                                     <icon v-if="result.state === 'not_started'" name="clock-o" />
@@ -392,7 +392,8 @@
         @hidden="currentResult = null"
         class="result-modal">
         <template slot="modal-title">
-            {{ nameOfUser(currentResult.submission.user) }} - {{ currentResult.pointsAchieved }} points
+            {{ nameOfUser(currentResult.submission.user) }} -
+            {{ currentResult.pointsAchieved }} / {{ test.pointsPossible }} points
         </template>
 
         <auto-test
