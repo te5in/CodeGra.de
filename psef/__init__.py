@@ -262,7 +262,7 @@ def create_app(  # pylint: disable=too-many-statements
             "Request started",
             host=request.host_url,
             method=request.method,
-            args={
+            query_args={
                 k: '<PASSWORD>' if k == 'password' else v
                 for k, v in flask.request.args.items()
             },
