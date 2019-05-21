@@ -3,7 +3,7 @@
          show
          variant="danger"
          class="error-message">
-    {{ error }}
+    <pre>{{ error }}</pre>
 </b-alert>
 
 <loader v-else-if="loading" />
@@ -39,16 +39,22 @@
                     <tbody>
                         <template v-if="run.results.length > 0">
                             <tr v-for="result in run.results"
-                                :key="result.work.user.id"
+                                :key="result.submission.user.id"
                                 @click="openResult(result)">
-                                <td class="name">{{ nameOfUser(result.work.user) }}</td>
+                                <td class="name">{{ nameOfUser(result.submission.user) }}</td>
                                 <td class="score">
-                                    <icon v-if="result.work.grade_overridden"
+                                    <icon v-if="result.submission.grade_overridden"
                                           v-b-popover.top.hover="'This submission\'s calculated grade has been manually overridden'"
                                           name="exclamation-triangle"/>
-                                    {{ result.points_achieved }}
+                                    {{ result.pointsAchieved }}
                                 </td>
-                                <td class="state">{{ result.state }}</td>
+                                <td class="state">
+                                    <icon v-if="result.state === 'not_started'" name="clock-o" />
+                                    <icon v-else-if="result.state === 'running'" name="circle-o-notch" spin />
+                                    <icon v-else-if="result.state === 'passed'" name="check" class="text-success" />
+                                    <icon v-else-if="result.state === 'failed'" name="times" class="text-danger" />
+                                    <icon v-else-if="result.state === 'timed_out'" name="clock-o" class="text-danger" />
+                                </td>
                             </tr>
                         </template>
                         <template v-else>
@@ -381,10 +387,11 @@
 
     <b-modal :id="resultsModalId" hide-footer size="lg" @hidden="currentResult = null" class="result-modal">
         <template v-if="currentResult" slot="modal-title">
-            {{ nameOfUser(currentResult.work.user) }} - {{ currentResult.achieved_points }} points
+            {{ nameOfUser(currentResult.submission.user) }} - {{ currentResult.pointsAchieved }} points
         </template>
 
         <auto-test
+            no-card
             v-if="currentResult"
             :assignment="assignment"
             :result-id="currentResult.id"
@@ -404,6 +411,9 @@ import 'vue-awesome/icons/eye';
 import 'vue-awesome/icons/eye-slash';
 import 'vue-awesome/icons/chevron-right';
 import 'vue-awesome/icons/exclamation-triangle';
+import 'vue-awesome/icons/circle-o-notch';
+import 'vue-awesome/icons/clock-o';
+import 'vue-awesome/icons/check';
 
 import { nameOfUser, getUniqueId } from '@/utils';
 
@@ -455,6 +465,7 @@ export default {
             currentResult: null,
             actualResultId: null,
             nameOfUser,
+            pollingInterval: 1000,
 
             configCollapseId: `auto-test-config-collapse-${id}`,
             resultsCollapseId: `auto-test-results-collapse-${id}`,
@@ -473,6 +484,7 @@ export default {
 
     watch: {
         assignmentId: {
+            immediate: true,
             handler() {
                 if (this.assignment.auto_test_id == null) {
                     this.loading = false;
@@ -485,16 +497,14 @@ export default {
                     this.loadAutoTest(),
                     this.loadPermissions(),
                 ]).then(
-                    () => this.loadSingleResult(),
-                ).then(
                     () => { this.loading = false; },
                     () => { this.loading = false; },
                 );
             },
-            immediate: true,
         },
 
         test: {
+            immediate: true,
             handler() {
                 if (this.test == null) {
                     this.internalTest = {};
@@ -509,7 +519,6 @@ export default {
                     };
                 }
             },
-            immediate: true,
         },
     },
 
@@ -521,6 +530,7 @@ export default {
             storeDeleteAutoTest: 'deleteAutoTest',
             storeUpdateAutoTest: 'updateAutoTest',
             storeLoadAutoTest: 'loadAutoTest',
+            storeLoadAutoTestRun: 'loadAutoTestRun',
             storeCreateFixtures: 'createFixtures',
             storeToggleFixture: 'toggleFixture',
             storeCreateAutoTestSet: 'createAutoTestSet',
@@ -541,16 +551,41 @@ export default {
         loadAutoTest() {
             return this.storeLoadAutoTest({
                 autoTestId: this.assignment.auto_test_id,
-            }).catch(err => {
-                this.error = `AutoTest configuration could not be loaded: ${err.message}`;
-            });
+            }).then(
+                () => {
+                    if (this.hasResults && !this.test.runs[0].finished) {
+                        setTimeout(this.loadAutoTestRun, this.pollingInterval);
+                    }
+                    return this.loadSingleResult();
+                },
+                err => {
+                    this.error = `AutoTest configuration could not be loaded: ${err.message}`;
+                },
+            );
+        },
+
+        loadAutoTestRun() {
+            if (this.singleResult || !this.hasResults) {
+                return null;
+            }
+
+            return this.storeLoadAutoTestRun({
+                autoTestId: this.assignment.auto_test_id,
+            }).then(
+                () => {
+                    if (!this.test.runs[0].finished) {
+                        setTimeout(this.loadAutoTestRun, this.pollingInterval);
+                    }
+                },
+                err => {
+                    this.error = `AutoTest results could not be loaded: ${err.message}
+${err.stack}`;
+                },
+            );
         },
 
         loadSingleResult() {
-            if (
-                this.assignment.auto_test_id == null ||
-                !this.singleResult
-            ) {
+            if (!this.singleResult) {
                 return null;
             }
 
@@ -561,6 +596,9 @@ export default {
             }).then(
                 result => {
                     this.actualResultId = result.id;
+                    if (!this.result.finished) {
+                        setTimeout(this.loadSingleResult, this.pollingInterval);
+                    }
                 },
                 err => {
                     this.error = `No result found for this submission: ${err.message}`;
@@ -709,7 +747,7 @@ export default {
         },
 
         openResult(result) {
-            if (result.state === 'passed' || result.state === 'failed') {
+            if (result.finished) {
                 this.currentResult = result;
                 this.$root.$emit('bv::show::modal', this.resultsModalId);
             }
@@ -1029,8 +1067,12 @@ export default {
 
         .fa-icon {
             transform: translateY(2px);
-            margin-right: 0.25rem;
+            margin-right: 0.5rem;
         }
+    }
+
+    .state {
+        text-align: center;
     }
 }
 
@@ -1079,8 +1121,14 @@ export default {
     padding-right: 10px;
 }
 
-.result-modal .modal-dialog {
-    max-width: calc(100% - 8rem);
-    width: calc(100vw - 8rem);
+.result-modal {
+    .modal-dialog {
+        max-width: calc(100% - 8rem);
+        width: calc(100vw - 8rem);
+    }
+
+    .auto-test & .modal-body {
+        padding: 0;
+    }
 }
 </style>

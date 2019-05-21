@@ -159,6 +159,8 @@ export default {
 
                 await this.$nextTick();
                 const ref = this.$refs.progressMeter[cur];
+                ref.style.width = 0;
+                await this.$nextTick();
                 ref.style.width = `${this.currentProgress}%`;
             },
         },

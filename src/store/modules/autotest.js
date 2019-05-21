@@ -169,22 +169,28 @@ class AutoTestResult {
     constructor(result, autoTest) {
         this.id = result.id;
         this.submission = result.work;
+        this.update(result, autoTest);
+    }
+
+    update(result, autoTest) {
         this.state = result.state;
+        this.finished = ['passed', 'failed', 'timed_out'].indexOf(result.state) !== -1;
         this.setupStdout = result.setup_stdout;
         this.setupStderr = result.setup_stderr;
+        this.pointsAchieved = result.points_achieved;
 
-        this.updateStepResults(result, autoTest);
+        this.updateStepResults(result.step_results, autoTest);
     }
 
     // eslint-disable-next-line
-    updateStepResults(result, autoTest) {
-        if (result.step_results == null) {
+    updateStepResults(steps, autoTest) {
+        if (steps == null) {
             return;
         }
 
         const setResults = {};
         const suiteResults = {};
-        const stepResults = result.step_results.reduce(
+        const stepResults = steps.reduce(
             (acc, step) => {
                 acc[step.auto_test_step.id] = step;
                 return acc;
@@ -259,6 +265,32 @@ class AutoTestResult {
             }
 
             set.passed = setCheckpointFailed;
+        });
+    }
+}
+
+class AutoTestRun {
+    constructor(run, autoTest) {
+        this.id = run.id;
+        this.results = run.results.map(
+            result => new AutoTestResult(result, autoTest),
+        );
+        this.update(run, autoTest);
+    }
+
+    update(run, autoTest) {
+        this.state = run.state;
+        this.finished = ['done', 'timed_out'].indexOf(this.state) !== -1;
+
+        this.updateResults(run.results, autoTest);
+    }
+
+    updateResults(results, autoTest) {
+        results.forEach(r1 => {
+            const storeResult = this.results.find(
+                r2 => r2.id === r1.id,
+            );
+            storeResult.update(r1, autoTest);
         });
     }
 }
@@ -617,6 +649,7 @@ const actions = {
                             runs: [
                                 {
                                     id: 1,
+                                    state: 'running',
                                     results: [
                                         {
                                             id: 1,
@@ -624,7 +657,7 @@ const actions = {
                                                 id: 14,
                                                 user: { name: 'Thomas Schaper', id: 1 },
                                             },
-                                            points_achieved: '-',
+                                            points_achieved: 0,
                                             state: 'not_started',
                                             setup_stdout: 'stdout!!!',
                                             setup_stderr: 'stderr!!!',
@@ -636,7 +669,7 @@ const actions = {
                                                 user: { name: 'Olmo Kramer', id: 2 },
                                                 grade_overridden: true,
                                             },
-                                            points_achieved: '12 / 13',
+                                            points_achieved: 12,
                                             state: 'passed',
                                             setup_stdout: 'stdout!!!',
                                             setup_stderr: 'stderr!!!',
@@ -647,8 +680,8 @@ const actions = {
                                                 id: 3,
                                                 user: { name: 'Student 2', id: 3 },
                                             },
-                                            points_achieved: '0 / 13',
-                                            state: 'failed',
+                                            points_achieved: 0,
+                                            state: 'running',
                                             setup_stdout: 'stdout!!!',
                                             setup_stderr: 'stderr!!!',
                                         },
@@ -658,7 +691,7 @@ const actions = {
                                                 id: 4,
                                                 user: { name: 'Olmo Kramer', id: 4 },
                                             },
-                                            points_achieved: '-',
+                                            points_achieved: 0,
                                             state: 'running',
                                             setup_stdout: 'stdout!!!',
                                             setup_stderr: 'stderr!!!',
@@ -671,12 +704,87 @@ const actions = {
                     },
                     err => {
                         delete loaders.tests[autoTestId];
-                        throw err;
+                        throw new Error(err.response.data.message);
                     },
                 );
         }
 
         return loaders.tests[autoTestId];
+    },
+
+    async loadAutoTestRun({ commit, dispatch, state }, { autoTestId }) {
+        await dispatch('loadAutoTest', { autoTestId });
+        const autoTest = state.tests[autoTestId];
+
+        const oldRun = autoTest.runs[0];
+        if (oldRun && oldRun.done) {
+            return oldRun;
+        }
+
+        return axios
+            .get(`/api/v1/auto_tests/${autoTestId}/runs/${autoTest.runs[0].id}`)
+            .then(
+                run => commit(types.UPDATE_AUTO_TEST_RUNS, { autoTestId, run, index: 0 }),
+                err => {
+                    // FIXME: uncomment
+                    // throw new Error(err.response.data.message);
+                    // FIXME: remove
+                    console.log('REMOVE THIS CONSOLE.LOG()', err);
+                    const run = {
+                        id: 1,
+                        state: 'done',
+                        results: [
+                            {
+                                id: 1,
+                                work: {
+                                    id: 14,
+                                    user: { name: 'Thomas Schaper', id: 1 },
+                                },
+                                points_achieved: 0,
+                                state: 'timed_out',
+                                setup_stdout: 'stdout!!!',
+                                setup_stderr: 'stderr!!!',
+                            },
+                            {
+                                id: 2,
+                                work: {
+                                    id: 2,
+                                    user: { name: 'Olmo Kramer', id: 2 },
+                                    grade_overridden: true,
+                                },
+                                points_achieved: 13,
+                                state: 'passed',
+                                setup_stdout: 'stdout!!!',
+                                setup_stderr: 'stderr!!!',
+                            },
+                            {
+                                id: 3,
+                                work: {
+                                    id: 3,
+                                    user: { name: 'Student 2', id: 3 },
+                                },
+                                points_achieved: 12,
+                                state: 'passed',
+                                setup_stdout: 'stdout!!!',
+                                setup_stderr: 'stderr!!!',
+                            },
+                            {
+                                id: 4,
+                                work: {
+                                    id: 4,
+                                    user: { name: 'Olmo Kramer', id: 4 },
+                                },
+                                points_achieved: 6,
+                                state: 'failed',
+                                setup_stdout: 'stdout!!!',
+                                setup_stderr: 'stderr!!!',
+                            },
+                        ],
+                    };
+                    commit(types.UPDATE_AUTO_TEST_RUNS, { autoTest, run, index: 0 });
+                    return run;
+                },
+            );
     },
 
     async createAutoTestSet({ commit, dispatch, state }, { autoTestId }) {
@@ -750,34 +858,35 @@ const actions = {
     },
 
     async loadAutoTestResult({ commit, dispatch, state }, { autoTestId, resultId, submissionId }) {
-        if (state.results[resultId] != null) {
-            return state.results[resultId];
+        await dispatch('loadAutoTest', { autoTestId });
+        const autoTest = state.tests[autoTestId];
+
+        if (autoTest.runs.length === 0) {
+            return Promise.reject(
+                new Error('AutoTest has not been run yet.'),
+            );
+        }
+
+        if (resultId == null) {
+            const result = autoTest.runs[0].results.find(
+                r => r.submission.id === submissionId,
+            );
+            // eslint-disable-next-line
+            resultId = result && result.id;
+        }
+
+        if (resultId == null) {
+            return Promise.reject(
+                new Error('AutoTest result not found!'),
+            );
+        }
+
+        let result = state.results[resultId];
+        if (result && result.done) {
+            return result;
         }
 
         if (loaders.results[resultId] == null) {
-            await dispatch('loadAutoTest', { autoTestId });
-            const autoTest = state.tests[autoTestId];
-
-            if (autoTest.runs.length === 0) {
-                return Promise.reject(
-                    new Error('AutoTest has not been run yet.'),
-                );
-            }
-
-            if (resultId == null) {
-                const result = autoTest.runs[0].results.find(
-                    r => r.work.id === submissionId,
-                );
-                // eslint-disable-next-line
-                resultId = result && result.id;
-            }
-
-            if (resultId == null) {
-                return Promise.reject(
-                    new Error('AutoTest result not found!'),
-                );
-            }
-
             loaders.results[resultId] = axios
                 .get(`/api/v1/auto_tests/${autoTestId}/runs/${autoTest.runs[0].id}/results/${resultId}`)
                 .then(
@@ -789,10 +898,10 @@ const actions = {
                     err => {
                         delete loaders.results[resultId];
                         // FIXME: uncomment
-                        // throw err;
+                        // throw new Error(err.response.data.message);
                         // FIXME: remove
                         console.log('REMOVE THIS CONSOLE.LOG()', err);
-                        const result = {
+                        result = {
                             id: resultId,
                             setup_stdout: 'Setup script:\nSUCCESS!',
                             setup_stderr: '',
@@ -874,7 +983,7 @@ const actions = {
                                 },
                             ],
                         };
-                        commit(types.SET_AUTO_TEST_RESULT, { autoTest, result });
+                        commit(types.UPDATE_AUTO_TEST_RESULT, { autoTest, result });
                         return result;
                     },
                 );
@@ -943,6 +1052,9 @@ const mutations = {
                 );
             },
         );
+        autoTest.runs = autoTest.runs.map(
+            run => new AutoTestRun(run, autoTest),
+        );
 
         Vue.set(state.tests, autoTest.id, autoTest);
     },
@@ -965,6 +1077,15 @@ const mutations = {
         );
     },
 
+    [types.UPDATE_AUTO_TEST_RUNS](state, { autoTest, run }) {
+        const runIndex = autoTest.runs.findIndex(
+            r => r.id === run.id,
+        );
+        const storeRun = autoTest.runs[runIndex];
+        storeRun.update(run, autoTest);
+        Vue.set(autoTest.runs, runIndex, storeRun);
+    },
+
     [types.UPDATE_AUTO_TEST_SET](state, { autoTestSet, setProps }) {
         Object.entries(setProps).forEach(
             ([k, v]) => Vue.set(autoTestSet, k, v),
@@ -975,8 +1096,16 @@ const mutations = {
         Vue.set(autoTestSuite, 'deleted', true);
     },
 
-    [types.SET_AUTO_TEST_RESULT](state, { result, autoTest }) {
-        Vue.set(state.results, result.id, new AutoTestResult(result, autoTest));
+    [types.UPDATE_AUTO_TEST_RESULT](state, { result, autoTest }) {
+        const run = autoTest.runs[0];
+        const resultIndex = run.results.findIndex(
+            r => r.id === result.id,
+        );
+        const storeResult = run.results[resultIndex];
+        storeResult.update(result, autoTest);
+
+        Vue.set(run.results, resultIndex, storeResult);
+        Vue.set(state.results, result.id, storeResult);
     },
 };
 
