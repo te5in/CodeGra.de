@@ -399,7 +399,12 @@
         <auto-test
             no-card
             :assignment="assignment"
-            :result-id="currentResult.id" />
+            :submission-id="currentResult.submission.id" />
+
+        <rubric-viewer
+            :assignment="assignment"
+            :submission="currentResult.submission"
+            :rubric="currentResult.rubric" />
     </b-modal>
 </div>
 </template>
@@ -419,12 +424,13 @@ import 'vue-awesome/icons/circle-o-notch';
 import 'vue-awesome/icons/clock-o';
 import 'vue-awesome/icons/check';
 
-import { nameOfUser, getUniqueId } from '@/utils';
+import { deepCopy, nameOfUser, getUniqueId } from '@/utils';
 
 import AutoTestSuite from './AutoTestSuite';
 import SubmitButton from './SubmitButton';
 import MultipleFilesUploader from './MultipleFilesUploader';
 import Loader from './Loader';
+import RubricViewer from './RubricViewer';
 
 export default {
     name: 'auto-test',
@@ -438,11 +444,6 @@ export default {
         editable: {
             type: Boolean,
             default: false,
-        },
-
-        resultId: {
-            type: Number,
-            default: null,
         },
 
         submissionId: {
@@ -467,7 +468,6 @@ export default {
             error: '',
             permissions: {},
             currentResult: null,
-            actualResultId: null,
             nameOfUser,
             pollingInterval: 30000,
             pollingTimer: null,
@@ -598,13 +598,13 @@ ${err.stack}`;
                 return null;
             }
 
-            return this.storeLoadAutoTestResult({
-                autoTestId: this.assignment.auto_test_id,
-                resultId: this.resultId,
-                submissionId: this.submissionId,
-            }).then(
-                result => {
-                    this.actualResultId = result.id;
+            return Promise.all([
+                this.storeLoadAutoTestResult({
+                    autoTestId: this.assignment.auto_test_id,
+                    submissionId: this.submissionId,
+                }),
+            ]).then(
+                () => {
                     if (!this.result.finished) {
                         this.pollingTimer = setTimeout(this.loadSingleResult, this.pollingInterval);
                     }
@@ -754,11 +754,22 @@ ${err.stack}`;
         },
 
         async openResult(result) {
-            if (result.finished) {
-                this.currentResult = result;
-                await this.$nextTick();
-                this.$root.$emit('bv::show::modal', this.resultsModalId);
+            if (result.state === 'not_started') {
+                return;
             }
+
+            const { data: rubric } = await this.$http.get(
+                `/api/v1/submissions/${result.submission.id}/rubrics/`,
+            );
+
+            this.currentResult = Object.assign({}, result, {
+                rubric: Object.assign(rubric, {
+                    rubrics: deepCopy(this.assignment.rubric),
+                }),
+            });
+
+            await this.$nextTick();
+            this.$root.$emit('bv::show::modal', this.resultsModalId);
         },
 
         canViewFixture(fixture) {
@@ -820,7 +831,7 @@ ${err.stack}`;
         },
 
         singleResult() {
-            return this.resultId != null || this.submissionId != null;
+            return this.submissionId != null;
         },
 
         test() {
@@ -829,8 +840,10 @@ ${err.stack}`;
         },
 
         result() {
-            const resultId = this.actualResultId;
-            return resultId ? this.allResults[resultId] : null;
+            if (!this.hasResults || this.submissionId == null) {
+                return null;
+            }
+            return this.test.runs[0].results.find(r => r.submission.id === this.submissionId);
         },
     },
 
@@ -841,6 +854,7 @@ ${err.stack}`;
         SubmitButton,
         MultipleFilesUploader,
         Loader,
+        RubricViewer,
     },
 };
 </script>
@@ -1119,6 +1133,10 @@ ${err.stack}`;
 
 .error-message {
     margin: 1rem;
+}
+
+.rubric-viewer {
+    margin: 0 1rem 1rem;
 }
 </style>
 

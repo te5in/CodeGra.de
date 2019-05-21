@@ -117,7 +117,6 @@ export default {
             maxPoints: 0,
             itemStates: {},
             origSelected: [],
-            autoTestResultId: null,
         };
     },
 
@@ -141,10 +140,7 @@ export default {
                         autoTestId: this.autoTestConfigId,
                         submissionId: this.submissionId,
                     }),
-                    // eslint-disable-next-line
-                ]).then(([_, result]) => {
-                    this.autoTestResultId = result.id;
-                });
+                ]);
             },
         },
 
@@ -185,7 +181,7 @@ export default {
         },
 
         autoTestResult() {
-            return this.allResults[this.autoTestResultId];
+            return Object.values(this.allResults).find(r => r.submission.id === this.submissionId);
         },
 
         currentRow() {

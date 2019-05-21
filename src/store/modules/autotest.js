@@ -232,7 +232,10 @@ class AutoTestResult {
                             case 'io_test':
                                 this.suiteResults[suite.id].achieved += step.data.inputs.reduce(
                                     (acc, input, i) => {
-                                        if (this.stepResults[step.id].log.steps[i].state === 'passed') {
+                                        if (
+                                            this.stepResults[step.id].log.steps[i].state ===
+                                            'passed'
+                                        ) {
                                             return acc + input.weight;
                                         } else {
                                             return acc;
@@ -297,7 +300,7 @@ const loaders = {
 };
 
 const actions = {
-    createAutoTest({ commit, dispatch, state }, assignmentId) {
+    createAutoTest({ commit, dispatch }, assignmentId) {
         return axios
             .post('/api/v1/auto_tests/', {
                 assignment_id: assignmentId,
@@ -313,10 +316,7 @@ const actions = {
                         { root: true },
                     ),
                     commit(types.SET_AUTO_TEST, data),
-                ]).then(
-                    // eslint-disable-next-line
-                    () => state.tests[data.id],
-                ),
+                ]),
             );
     },
 
@@ -342,19 +342,18 @@ const actions = {
         );
     },
 
-    updateAutoTest({ commit, state }, { autoTestId, autoTestProps }) {
+    updateAutoTest({ commit }, { autoTestId, autoTestProps }) {
         return axios.patch(`/api/v1/auto_tests/${autoTestId}`, autoTestProps).then(() => {
             commit(types.UPDATE_AUTO_TEST, {
                 autoTestId,
                 autoTestProps,
             });
-            return state.tests[autoTestId];
         });
     },
 
     loadAutoTest({ commit, state }, { autoTestId }) {
         if (state.tests[autoTestId] != null) {
-            return Promise.resolve(state.tests[autoTestId]);
+            return Promise.resolve();
         }
 
         if (loaders.tests[autoTestId] == null) {
@@ -363,6 +362,7 @@ const actions = {
                     // FIXME: uncomment
                     // commit(types.SET_AUTO_TEST, data);
                     // FIXME: remove
+                    console.log(data);
                     commit(types.SET_AUTO_TEST, {
                         id: autoTestId,
                         assignment_id: 3,
@@ -693,7 +693,6 @@ const actions = {
                             },
                         ],
                     });
-                    return state.tests[data.id];
                 },
                 err => {
                     delete loaders.tests[autoTestId];
@@ -711,69 +710,71 @@ const actions = {
 
         const oldRun = autoTest.runs[0];
         if (oldRun && oldRun.done) {
-            return oldRun;
+            return null;
         }
 
         return axios.get(`/api/v1/auto_tests/${autoTestId}/runs/${autoTest.runs[0].id}`).then(
-            run => commit(types.UPDATE_AUTO_TEST_RUNS, { autoTestId, run, index: 0 }),
+            run => commit(types.UPDATE_AUTO_TEST_RUNS, { autoTest, run, index: 0 }),
             err => {
                 // FIXME: uncomment
                 // throw new Error(err.response.data.message);
                 // FIXME: remove
                 console.log('REMOVE THIS CONSOLE.LOG()', err);
-                const run = {
-                    id: 1,
-                    state: 'done',
-                    results: [
-                        {
-                            id: 1,
-                            work: {
-                                id: 14,
-                                user: { name: 'Thomas Schaper', id: 1 },
+                commit(types.UPDATE_AUTO_TEST_RUNS, {
+                    autoTest,
+                    index: 0,
+                    run: {
+                        id: 1,
+                        state: 'done',
+                        results: [
+                            {
+                                id: 1,
+                                work: {
+                                    id: 14,
+                                    user: { name: 'Thomas Schaper', id: 1 },
+                                },
+                                points_achieved: 0,
+                                state: 'timed_out',
+                                setup_stdout: 'stdout!!!',
+                                setup_stderr: 'stderr!!!',
                             },
-                            points_achieved: 0,
-                            state: 'timed_out',
-                            setup_stdout: 'stdout!!!',
-                            setup_stderr: 'stderr!!!',
-                        },
-                        {
-                            id: 2,
-                            work: {
+                            {
                                 id: 2,
-                                user: { name: 'Olmo Kramer', id: 2 },
-                                grade_overridden: true,
+                                work: {
+                                    id: 2,
+                                    user: { name: 'Olmo Kramer', id: 2 },
+                                    grade_overridden: true,
+                                },
+                                points_achieved: 13,
+                                state: 'passed',
+                                setup_stdout: 'stdout!!!',
+                                setup_stderr: 'stderr!!!',
                             },
-                            points_achieved: 13,
-                            state: 'passed',
-                            setup_stdout: 'stdout!!!',
-                            setup_stderr: 'stderr!!!',
-                        },
-                        {
-                            id: 3,
-                            work: {
+                            {
                                 id: 3,
-                                user: { name: 'Student 2', id: 3 },
+                                work: {
+                                    id: 3,
+                                    user: { name: 'Student 2', id: 3 },
+                                },
+                                points_achieved: 12,
+                                state: 'passed',
+                                setup_stdout: 'stdout!!!',
+                                setup_stderr: 'stderr!!!',
                             },
-                            points_achieved: 12,
-                            state: 'passed',
-                            setup_stdout: 'stdout!!!',
-                            setup_stderr: 'stderr!!!',
-                        },
-                        {
-                            id: 4,
-                            work: {
+                            {
                                 id: 4,
-                                user: { name: 'Olmo Kramer', id: 4 },
+                                work: {
+                                    id: 4,
+                                    user: { name: 'Olmo Kramer', id: 4 },
+                                },
+                                points_achieved: 6,
+                                state: 'failed',
+                                setup_stdout: 'stdout!!!',
+                                setup_stderr: 'stderr!!!',
                             },
-                            points_achieved: 6,
-                            state: 'failed',
-                            setup_stdout: 'stdout!!!',
-                            setup_stderr: 'stderr!!!',
-                        },
-                    ],
-                };
-                commit(types.UPDATE_AUTO_TEST_RUNS, { autoTest, run, index: 0 });
-                return run;
+                        ],
+                    },
+                });
             },
         );
     },
@@ -842,27 +843,24 @@ const actions = {
         });
     },
 
-    async loadAutoTestResult({ commit, dispatch, state }, { autoTestId, resultId, submissionId }) {
+    async loadAutoTestResult({ commit, dispatch, state }, { autoTestId, submissionId }) {
         await dispatch('loadAutoTest', { autoTestId });
         const autoTest = state.tests[autoTestId];
 
         if (autoTest.runs.length === 0) {
-            return Promise.reject(new Error('AutoTest has not been run yet.'));
+            throw new Error('AutoTest has not been run yet.');
         }
+
+        let result = autoTest.runs[0].results.find(r => r.submission.id === submissionId);
+        const resultId = result && result.id;
 
         if (resultId == null) {
-            const result = autoTest.runs[0].results.find(r => r.submission.id === submissionId);
-            // eslint-disable-next-line
-            resultId = result && result.id;
+            throw new Error('AutoTest result not found!');
         }
 
-        if (resultId == null) {
-            return Promise.reject(new Error('AutoTest result not found!'));
-        }
-
-        let result = state.results[resultId];
+        result = state.results[resultId];
         if (result && result.done) {
-            return result;
+            return null;
         }
 
         if (loaders.results[resultId] == null) {
@@ -874,9 +872,8 @@ const actions = {
                 )
                 .then(
                     ({ data }) => {
-                        commit(types.SET_AUTO_TEST_RESULT, { autoTest, result: data });
                         delete loaders.results[resultId];
-                        return state.results[data.id];
+                        commit(types.UPDATE_AUTO_TEST_RESULT, { autoTest, result: data });
                     },
                     err => {
                         delete loaders.results[resultId];
@@ -884,144 +881,145 @@ const actions = {
                         // throw new Error(err.response.data.message);
                         // FIXME: remove
                         console.log('REMOVE THIS CONSOLE.LOG()', err);
-                        result = {
-                            id: resultId,
-                            setup_stdout: 'Setup script:\nSUCCESS!',
-                            setup_stderr: '',
-                            points_achieved: 3,
-                            state: 'running',
-                            step_results: [
-                                {
-                                    auto_test_step: getProps(
-                                        autoTest,
-                                        {},
-                                        'sets',
-                                        0,
-                                        'suites',
-                                        0,
-                                        'steps',
-                                        0,
-                                    ),
-                                    state: 'passed',
-                                    log: {
-                                        steps: [
-                                            {
-                                                state: 'passed',
-                                                stdout: 'ABC',
-                                                stderr: 'WARNING: ...',
-                                            },
-                                            {
-                                                state: 'passed',
-                                                stdout: 'DEF',
-                                                stderr: '',
-                                            },
-                                        ],
+                        commit(types.UPDATE_AUTO_TEST_RESULT, {
+                            autoTest,
+                            result: {
+                                id: resultId,
+                                setup_stdout: 'Setup script:\nSUCCESS!',
+                                setup_stderr: '',
+                                points_achieved: 3,
+                                state: 'running',
+                                step_results: [
+                                    {
+                                        auto_test_step: getProps(
+                                            autoTest,
+                                            {},
+                                            'sets',
+                                            0,
+                                            'suites',
+                                            0,
+                                            'steps',
+                                            0,
+                                        ),
+                                        state: 'passed',
+                                        log: {
+                                            steps: [
+                                                {
+                                                    state: 'passed',
+                                                    stdout: 'ABC',
+                                                    stderr: 'WARNING: ...',
+                                                },
+                                                {
+                                                    state: 'passed',
+                                                    stdout: 'DEF',
+                                                    stderr: '',
+                                                },
+                                            ],
+                                        },
                                     },
-                                },
-                                {
-                                    auto_test_step: getProps(
-                                        autoTest,
-                                        {},
-                                        'sets',
-                                        0,
-                                        'suites',
-                                        0,
-                                        'steps',
-                                        1,
-                                    ),
-                                    state: 'passed',
-                                    log: {
-                                        steps: [
-                                            {
-                                                state: 'failed',
-                                                stdout: 'ABC',
-                                                stderr: 'ERROR: ...',
-                                            },
-                                            {
-                                                state: 'passed',
-                                                stdout: 'def',
-                                                stderr: 'WARNING: ...',
-                                            },
-                                        ],
+                                    {
+                                        auto_test_step: getProps(
+                                            autoTest,
+                                            {},
+                                            'sets',
+                                            0,
+                                            'suites',
+                                            0,
+                                            'steps',
+                                            1,
+                                        ),
+                                        state: 'passed',
+                                        log: {
+                                            steps: [
+                                                {
+                                                    state: 'failed',
+                                                    stdout: 'ABC',
+                                                    stderr: 'ERROR: ...',
+                                                },
+                                                {
+                                                    state: 'passed',
+                                                    stdout: 'def',
+                                                    stderr: 'WARNING: ...',
+                                                },
+                                            ],
+                                        },
                                     },
-                                },
-                                {
-                                    auto_test_step: getProps(
-                                        autoTest,
-                                        {},
-                                        'sets',
-                                        0,
-                                        'suites',
-                                        1,
-                                        'steps',
-                                        0,
-                                    ),
-                                    state: 'passed',
-                                    log: {
-                                        stdout: 'passed!',
-                                        stderr: '',
+                                    {
+                                        auto_test_step: getProps(
+                                            autoTest,
+                                            {},
+                                            'sets',
+                                            0,
+                                            'suites',
+                                            1,
+                                            'steps',
+                                            0,
+                                        ),
+                                        state: 'passed',
+                                        log: {
+                                            stdout: 'passed!',
+                                            stderr: '',
+                                        },
                                     },
-                                },
-                                {
-                                    auto_test_step: getProps(
-                                        autoTest,
-                                        {},
-                                        'sets',
-                                        0,
-                                        'suites',
-                                        1,
-                                        'steps',
-                                        1,
-                                    ),
-                                    state: 'passed',
-                                    log: {
-                                        stdout: 'passed!',
-                                        stderr: '',
+                                    {
+                                        auto_test_step: getProps(
+                                            autoTest,
+                                            {},
+                                            'sets',
+                                            0,
+                                            'suites',
+                                            1,
+                                            'steps',
+                                            1,
+                                        ),
+                                        state: 'passed',
+                                        log: {
+                                            stdout: 'passed!',
+                                            stderr: '',
+                                        },
                                     },
-                                },
-                                {
-                                    auto_test_step: getProps(
-                                        autoTest,
-                                        {},
-                                        'sets',
-                                        0,
-                                        'suites',
-                                        1,
-                                        'steps',
-                                        2,
-                                    ),
-                                    state: 'failed',
-                                    log: {
-                                        stdout: 'Not enough points!!!',
-                                        stderr: '',
+                                    {
+                                        auto_test_step: getProps(
+                                            autoTest,
+                                            {},
+                                            'sets',
+                                            0,
+                                            'suites',
+                                            1,
+                                            'steps',
+                                            2,
+                                        ),
+                                        state: 'failed',
+                                        log: {
+                                            stdout: 'Not enough points!!!',
+                                            stderr: '',
+                                        },
                                     },
-                                },
-                                {
-                                    auto_test_step: getProps(
-                                        autoTest,
-                                        {},
-                                        'sets',
-                                        1,
-                                        'suites',
-                                        0,
-                                        'steps',
-                                        0,
-                                    ),
-                                    state: 'running',
-                                    log: {
-                                        steps: [
-                                            {
-                                                state: 'running',
-                                                stdout: '',
-                                                stderr: '',
-                                            },
-                                        ],
+                                    {
+                                        auto_test_step: getProps(
+                                            autoTest,
+                                            {},
+                                            'sets',
+                                            1,
+                                            'suites',
+                                            0,
+                                            'steps',
+                                            0,
+                                        ),
+                                        state: 'running',
+                                        log: {
+                                            steps: [
+                                                {
+                                                    state: 'running',
+                                                    stdout: '',
+                                                    stderr: '',
+                                                },
+                                            ],
+                                        },
                                     },
-                                },
-                            ],
-                        };
-                        commit(types.UPDATE_AUTO_TEST_RESULT, { autoTest, result });
-                        return result;
+                                ],
+                            },
+                        });
                     },
                 );
         }
@@ -1084,13 +1082,13 @@ const mutations = {
         });
 
         autoTest.pointsPossible = autoTest.sets.reduce(
-            (acc1, set) => acc1 + set.suites.reduce(
-                (acc2, suite) => acc2 + suite.steps.reduce(
-                    (acc3, step) => acc3 + step.weight,
+            (acc1, set) =>
+                acc1 +
+                set.suites.reduce(
+                    (acc2, suite) =>
+                        acc2 + suite.steps.reduce((acc3, step) => acc3 + step.weight, 0),
                     0,
                 ),
-                0,
-            ),
             0,
         );
 
