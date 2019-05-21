@@ -557,7 +557,7 @@ export default {
 }
 
 .rubric-item {
-    background-color: transparent;
+    background-color: transparent !important;
 }
 
 .progress {
@@ -566,14 +566,19 @@ export default {
     right: 0;
     bottom: 0;
     left: 0;
-    background-color: transparent;
     height: 100%;
+    background-color: transparent !important;
 
     .meter {
         background-color: fade(@color-secondary, 10%);
         border-right: 1px solid fade(@color-secondary, 15%);
         width: 0;
         transition: width 1250ms ease-in-out;
+
+        #app.dark & {
+            background-color: fade(white, 10%);
+            border-right: 1px solid fade(white, 15%);
+        }
     }
 }
 </style>

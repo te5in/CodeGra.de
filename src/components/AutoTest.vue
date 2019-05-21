@@ -1108,6 +1108,13 @@ ${err.stack}`;
         border-bottom-right-radius: 0.25rem;
         padding: 1rem;
     }
+
+    #app.dark & {
+        pre {
+            color: @text-color-dark;
+            border-color: @color-primary-darker;
+        }
+    }
 }
 
 .error-message {
@@ -1118,6 +1125,7 @@ ${err.stack}`;
 <style lang="less">
 .auto-test .base-system-selector {
     flex: 1;
+
     .multiselect__tags {
         z-index: 10;
         border-bottom-right-radius: 0;
