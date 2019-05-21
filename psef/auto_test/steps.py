@@ -6,21 +6,24 @@ import dataclasses
 import multiprocessing
 
 import flask
+import structlog
 
 import psef
 
-from .. import current_tester
+from .. import models, current_tester
 from ..helpers import (
-    JSONType, register, ensure_json_dict, ensure_on_test_server,
+    JSONType, between, register, ensure_json_dict, ensure_on_test_server,
     get_from_map_transaction
 )
 from ..exceptions import APICodes, APIException
+
+logger = structlog.get_logger()
 
 auto_test_handlers: register.Register[str, t.
                                       Type['TestStep']] = register.Register()
 
 if t.TYPE_CHECKING and not getattr(t, 'SPHINX', False):  # pragma: no cover
-    from . import StartedContainer
+    from . import StartedContainer, StepInstructions
 
 
 def _ensure_program(program: str) -> None:
@@ -33,7 +36,7 @@ def _ensure_program(program: str) -> None:
 
 
 UpdateResultFunction = t.Callable[
-    ['psef.models.AutoTestStepResultState', t.Dict[str, object]], None]
+    ['models.AutoTestStepResultState', t.Dict[str, object]], None]
 
 
 class StopRunningStepsException(Exception):
@@ -53,26 +56,32 @@ class TestStep(abc.ABC):
         self,
         container: 'StartedContainer',
         update_test_result: UpdateResultFunction,
-    ) -> None:
+        test_instructions: 'StepInstructions',
+        total_points: float,
+    ) -> float:
         # Make sure we are not on a webserver
         ensure_on_test_server()
 
-        update_test_result(psef.models.AutoTestStepResultState.running, {})
-        return self._execute(container, update_test_result)
+        update_test_result(models.AutoTestStepResultState.running, {})
+        return self._execute(
+            container, update_test_result, test_instructions, total_points
+        )
 
     @abc.abstractmethod
     def _execute(
         self,
         container: 'StartedContainer',
         update_test_result: UpdateResultFunction,
-    ) -> None:
+        test_instructions: 'StepInstructions',
+        total_points: float,
+    ) -> float:
         raise NotImplementedError
 
     @staticmethod
     def get_amount_achieved_points(
-        result: 'psef.models.AutoTestStepResult'
+        result: 'models.AutoTestStepResult'
     ) -> float:
-        if result.state == psef.models.AutoTestStepResultState.passed:
+        if result.state == models.AutoTestStepResultState.passed:
             return result.step.weight
         return 0
 
@@ -143,11 +152,14 @@ class IoTest(TestStep):
         self,
         container: 'StartedContainer',
         update_test_result: UpdateResultFunction,
-    ) -> None:
+        _: 'StepInstructions',
+        __: float,
+    ) -> float:
         test_result: t.Dict[str, t.Any] = {'steps': []}
         assert isinstance(self.data, dict)
         prog = t.cast(str, self.data['program'])
-        total_state = psef.models.AutoTestStepResultState.failed
+        total_state = models.AutoTestStepResultState.failed
+        total_weight = 0
 
         for step in t.cast(t.List[dict], self.data['inputs']):
             output = step['output'].rstrip('\n')
@@ -178,15 +190,16 @@ class IoTest(TestStep):
             else:
                 success = False
                 if code < 0:
-                    state = psef.models.AutoTestStepResultState.timed_out
+                    state = models.AutoTestStepResultState.timed_out
                 else:
-                    state = psef.models.AutoTestStepResultState.failed
+                    state = models.AutoTestStepResultState.failed
 
             if success:
-                total_state = psef.models.AutoTestStepResultState.passed
-                state = psef.models.AutoTestStepResultState.passed
+                total_state = models.AutoTestStepResultState.passed
+                state = models.AutoTestStepResultState.passed
+                total_weight += step['weight']
             else:
-                state = psef.models.AutoTestStepResultState.failed
+                state = models.AutoTestStepResultState.failed
 
             test_result['steps'].append(
                 {
@@ -196,10 +209,11 @@ class IoTest(TestStep):
                 }
             )
             update_test_result(
-                psef.models.AutoTestStepResultState.running, test_result
+                models.AutoTestStepResultState.running, test_result
             )
 
         update_test_result(total_state, test_result)
+        return total_weight
 
 
 @auto_test_handlers.register('run_program')
@@ -216,22 +230,29 @@ class RunProgram(TestStep):
         self,
         container: 'StartedContainer',
         update_test_result: UpdateResultFunction,
-    ) -> None:
+        test_instructions: 'StepInstructions',
+        _: float,
+    ) -> float:
         assert isinstance(self.data, dict)
+
+        res = 0.0
 
         code, stdout, stderr = container.run_student_command(
             t.cast(str, self.data['program'])
         )
 
         if code == 0:
-            state = psef.models.AutoTestStepResultState.passed
+            state = models.AutoTestStepResultState.passed
+            res = test_instructions['weight']
         else:
-            state = psef.models.AutoTestStepResultState.failed
+            state = models.AutoTestStepResultState.failed
 
         update_test_result(state, {
             'stdout': stdout,
             'stderr': stderr,
         })
+
+        return res
 
 
 @auto_test_handlers.register('custom_output')
@@ -287,25 +308,29 @@ class CustomOutput(TestStep):
         self,
         container: 'StartedContainer',
         update_test_result: UpdateResultFunction,
-    ) -> None:
+        test_instructions: 'StepInstructions',
+        _: float,
+    ) -> float:
         assert isinstance(self.data, dict)
         regex = t.cast(str, self.data['regex'])
+        res = 0
 
         code, stdout, stderr = container.run_student_command(
             t.cast(str, self.data['program'])
         )
         if code == 0:
+            state = models.AutoTestStepResultState.passed
             match = re.match(regex, stdout)
             if match is None:
                 code = -1
             else:
                 try:
-                    points = int(match.group(1))
+                    points = between(0, float(match.group(1)), 1)
                 except ValueError:
                     code = -2
 
         if code != 0:
-            state = psef.models.AutoTestStepResultState.failed
+            state = models.AutoTestStepResultState.failed
             points = 0
 
         update_test_result(
@@ -316,17 +341,44 @@ class CustomOutput(TestStep):
             }
         )
 
+        return points * test_instructions['weight']
+
     @staticmethod
     def get_amount_achieved_points(
-        result: 'psef.models.AutoTestStepResult'
+        result: 'models.AutoTestStepResult'
     ) -> float:
         if not isinstance(result.log, dict):
             return 0
-        return t.cast(float, result.log['points'])
+        return t.cast(float, result.log['points']) * result.step.weight
 
 
 @auto_test_handlers.register('check_points')
 class CheckPoints(TestStep):
     @classmethod
     def validate_data(cls, data: JSONType) -> None:
-        pass
+        with get_from_map_transaction(
+            ensure_json_dict(data), ensure_empty=True
+        ) as [get, _]:
+            get('min_points', float)
+
+    def _execute(
+        self,
+        _: 'StartedContainer',
+        update_test_result: UpdateResultFunction,
+        test_instructions: 'StepInstructions',
+        total_points: float,
+    ) -> float:
+        if total_points >= t.cast(dict,
+                                  test_instructions['data'])['min_points']:
+            update_test_result(models.AutoTestStepResultState.passed, {})
+            return 0
+        else:
+            logger.warning(
+                "Didn't score enough points", total_points=total_points
+            )
+            update_test_result(models.AutoTestStepResultState.failed, {})
+            raise StopRunningStepsException('Not enough points')
+
+    @staticmethod
+    def get_amount_achieved_points(_: 'models.AutoTestStepResult') -> float:
+        return 0

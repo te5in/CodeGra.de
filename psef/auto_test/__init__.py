@@ -24,7 +24,7 @@ from mypy_extensions import TypedDict
 
 import psef
 
-from .. import app
+from .. import app, models
 from .steps import TestStep, StopRunningStepsException, auto_test_handlers
 from ..helpers import (
     JSONType, defer, register, timed_code, ensure_on_test_server
@@ -612,7 +612,7 @@ class AutoTestRunner(abc.ABC):
 
     @classmethod
     @abc.abstractmethod
-    def after_run(cls, runner: 'psef.models.AutoTestRunner') -> None:
+    def after_run(cls, runner: 'models.AutoTestRunner') -> None:
         pass
 
     def make_container(self) -> AutoTestContainer:
@@ -622,7 +622,7 @@ class AutoTestRunner(abc.ABC):
 @auto_test_runners.register('simple_runner')
 class _SimpleAutoTestRunner(AutoTestRunner):
     @classmethod
-    def after_run(_, __: 'psef.models.AutoTestRunner') -> None:
+    def after_run(_, __: 'models.AutoTestRunner') -> None:
         pass
 
     def _install_base_systems(self, cont: StartedContainer) -> None:
@@ -717,7 +717,9 @@ class _SimpleAutoTestRunner(AutoTestRunner):
     def _run_test_suite(
         self, student_container: StartedContainer, result_id: int,
         test_suite: SuiteInstructions
-    ) -> None:
+    ) -> float:
+        total_points = 0.0
+
         with student_container.as_snapshot() as snap:
             url = (
                 f'{self.base_url}/api/v-internal/auto_tests/'
@@ -730,7 +732,7 @@ class _SimpleAutoTestRunner(AutoTestRunner):
                 step_result_id: t.Optional[int] = None
 
                 def update_test_result(
-                    state: psef.models.AutoTestStepResultState,
+                    state: models.AutoTestStepResultState,
                     log: t.Dict[str, object]
                 ) -> None:
                     nonlocal step_result_id
@@ -753,13 +755,26 @@ class _SimpleAutoTestRunner(AutoTestRunner):
                     step_result_id = response.json()['id']
 
                 typ = auto_test_handlers[test_step['test_type_name']]
+
                 try:
-                    typ(test_step['data']
-                        ).execute_step(snap, update_test_result)
+                    logger.bind(step=test_step)
+                    total_points += typ(test_step['data']).execute_step(
+                        snap, update_test_result, test_step, total_points
+                    )
                 except StopRunningStepsException:
-                    logger.info('Stopping steps')
+                    logger.info('Stopping steps', exc_info=True)
                     break
-                logger.info('Ran step')
+                except CommandTimeoutException:
+                    logger.warning('Command timed out', exc_info=True)
+                    update_test_result(
+                        models.AutoTestStepResultState.timed_out, {}
+                    )
+                else:
+                    logger.info('Ran step')
+                finally:
+                    logger.try_unbind('step')
+
+        return total_points
 
     def run_student(
         self,
@@ -774,7 +789,7 @@ class _SimpleAutoTestRunner(AutoTestRunner):
             f'{self.base_url}/api/v-internal/auto_tests/'
             f'{self.auto_test_id}/results/{result_id}'
         )
-        result_state = psef.models.AutoTestStepResultState.running
+        result_state = models.AutoTestStepResultState.running
 
         try:
             logger.bind(result_id=result_id)
@@ -817,18 +832,24 @@ class _SimpleAutoTestRunner(AutoTestRunner):
                 logger.info('Dropping sudo rights')
                 cont.run_command(['deluser', 'codegrade', 'sudo'])
 
+                total_points = 0.0
+
                 for test_set in self.instructions['sets']:
                     for test_suite in test_set['suites']:
-                        self._run_test_suite(cont, result_id, test_suite)
+                        total_points += self._run_test_suite(
+                            cont, result_id, test_suite
+                        )
+                    if total_points < test_set['stop_points']:
+                        break
         except CommandTimeoutException:
             logger.error('Command timed out', exc_info=True)
-            result_state = psef.models.AutoTestStepResultState.timed_out
+            result_state = models.AutoTestStepResultState.timed_out
         except:
             logger.error('Something went wrong', exc_info=True)
-            result_state = psef.models.AutoTestStepResultState.failed
+            result_state = models.AutoTestStepResultState.failed
             raise
         else:
-            result_state = psef.models.AutoTestStepResultState.passed
+            result_state = models.AutoTestStepResultState.passed
         finally:
             cpu_queue.put(cpu_number)
             logger.try_unbind('result_id')
@@ -864,7 +885,7 @@ class _SimpleAutoTestRunner(AutoTestRunner):
 
         requests.patch(
             run_result_url,
-            json={'state': psef.models.AutoTestRunState.running.name},
+            json={'state': models.AutoTestRunState.running.name},
             headers={'CG-Internal-Api-Password': self.password}
         )
 
@@ -931,6 +952,6 @@ class _SimpleAutoTestRunner(AutoTestRunner):
 
         requests.patch(
             run_result_url,
-            json={'state': psef.models.AutoTestRunState.done.name},
+            json={'state': models.AutoTestRunState.done.name},
             headers={'CG-Internal-Api-Password': self.password}
         )
