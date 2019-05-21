@@ -468,7 +468,7 @@ export default {
             currentResult: null,
             actualResultId: null,
             nameOfUser,
-            pollingInterval: 5000,
+            pollingInterval: 30000,
             pollingTimer: null,
 
             configCollapseId: `auto-test-config-collapse-${id}`,
