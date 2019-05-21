@@ -385,17 +385,20 @@
         </b-collapse>
     </b-card>
 
-    <b-modal :id="resultsModalId" hide-footer size="lg" @hidden="currentResult = null" class="result-modal">
-        <template v-if="currentResult" slot="modal-title">
+    <b-modal
+        v-if="!singleResult && currentResult"
+        :id="resultsModalId"
+        hide-footer
+        @hidden="currentResult = null"
+        class="result-modal">
+        <template slot="modal-title">
             {{ nameOfUser(currentResult.submission.user) }} - {{ currentResult.pointsAchieved }} points
         </template>
 
         <auto-test
             no-card
-            v-if="currentResult"
             :assignment="assignment"
-            :result-id="currentResult.id"
-            :editable="false" />
+            :result-id="currentResult.id" />
     </b-modal>
 </div>
 </template>
@@ -744,9 +747,10 @@ ${err.stack}`;
             });
         },
 
-        openResult(result) {
+        async openResult(result) {
             if (result.finished) {
                 this.currentResult = result;
+                await this.$nextTick();
                 this.$root.$emit('bv::show::modal', this.resultsModalId);
             }
         },
@@ -1121,8 +1125,9 @@ ${err.stack}`;
 
 .result-modal {
     .modal-dialog {
-        max-width: calc(100% - 8rem);
+        max-width: calc(100vw - 8rem);
         width: calc(100vw - 8rem);
+        margin-top: 2rem;
     }
 
     .auto-test & .modal-body {
