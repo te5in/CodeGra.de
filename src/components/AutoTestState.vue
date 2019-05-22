@@ -30,8 +30,10 @@ export default {
         name() {
             switch (this.state) {
                 case 'passed':
+                case 'done':
                     return 'check';
                 case 'failed':
+                case 'crashed':
                     return 'times';
                 case 'skipped':
                     return 'ban';
@@ -63,6 +65,10 @@ export default {
                     return 'Running...';
                 case 'timed_out':
                     return 'Timed out.';
+                case 'done':
+                    return 'Done';
+                case 'crashed':
+                    return 'Crashed';
                 default:
                     return '';
             }
@@ -74,6 +80,7 @@ export default {
                     return 'text-success';
                 case 'failed':
                 case 'timed_out':
+                case 'crashed':
                     return 'text-danger';
                 case 'skipped':
                     return 'text-muted';

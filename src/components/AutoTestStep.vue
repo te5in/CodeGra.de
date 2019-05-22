@@ -214,7 +214,7 @@
                         <div class="col-12">
                             <span>
                                 Exit status code
-                                <code>{{ stepResult.log.status || '(unknown) :-(' }}</code>
+                                <code>{{ stepResult.log.exit_code || '(unknown) :-(' }}</code>
                             </span>
                         </div>
 
@@ -258,7 +258,7 @@
                         <div class="col-12">
                             <span>
                                 Exit status code
-                                <code>{{ stepResult.log.status || '(unknown) :-(' }}</code>
+                                <code>{{ stepResult.log.exit_code || '(unknown) :-(' }}</code>
                             </span>
                         </div>
 
@@ -306,7 +306,7 @@
                             </label>
                             <label>
                                 Exit status code
-                                <code>{{ stepResult.log.status || '(unknown) :-(' }}</code>
+                                <code>{{ stepResult.log.exit_code || '(unknown) :-(' }}</code>
                             </label>
                         </div>
 

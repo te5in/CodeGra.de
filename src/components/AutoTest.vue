@@ -12,11 +12,18 @@
     <template v-if="hasResults && !singleResult">
         <b-card no-body v-for="run in test.runs" :key="run.id" class="results-card">
             <b-card-header class="auto-test-header" :class="{ editable }">
-                <span class="toggle" :key="resultsCollapseId" v-b-toggle="resultsCollapseId">
+                <div class="toggle" :key="resultsCollapseId" v-b-toggle="resultsCollapseId">
                     <icon class="expander" name="chevron-right" :scale="0.75" />
                     Results
-                </span>
+                </div>
+
+
                 <div v-if="editable" class="btn-wrapper">
+
+                <div class="btn btn-secondary" style="pointer-events: none;">
+                    <auto-test-state :state="run.state" />
+                    {{ capitalize(run.state.replace(/_/g, ' ')) }}
+                </div>
                     <submit-button
                         :submit="() => deleteResults(run.id)"
                         variant="danger"
@@ -419,7 +426,7 @@ import 'vue-awesome/icons/circle-o-notch';
 import 'vue-awesome/icons/clock-o';
 import 'vue-awesome/icons/check';
 
-import { deepCopy, getProps, nameOfUser, getUniqueId } from '@/utils';
+import { deepCopy, getErrorMessage, getProps, nameOfUser, getUniqueId, capitalize } from '@/utils';
 
 import AutoTestSuite from './AutoTestSuite';
 import AutoTestState from './AutoTestState';
@@ -459,6 +466,7 @@ export default {
         return {
             getProps,
             nameOfUser,
+            capitalize,
 
             disabledAnimations: true,
             newFixtures: [],
@@ -569,7 +577,7 @@ export default {
                     return this.loadSingleResult();
                 },
                 err => {
-                    this.error = `AutoTest configuration could not be loaded: ${err.message}`;
+                    this.error = `Could not load AutoTest: ${getErrorMessage(err)}`;
                 },
             );
         },
@@ -585,8 +593,7 @@ export default {
                 }).then(
                     () => this.loadAutoTestRun(),
                     err => {
-                        this.error = `AutoTest results could not be loaded: ${err.message}
-    ${err.stack}`;
+                        this.error = `Could not load AutoTest: ${getErrorMessage(err)}`;
                     },
                 );
             }, this.pollingInterval);
@@ -609,7 +616,7 @@ export default {
                     }
                 },
                 err => {
-                    this.error = `No result found for this submission: ${err.message}`;
+                    this.error = `Could not load AutoTest result: ${getErrorMessage(err)}`;
                 },
             );
         },
