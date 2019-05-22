@@ -17,10 +17,13 @@
                     Results
                 </div>
 
-                <span>{{ capitalize(run.state.replace(/_/g, ' ')) }}</span>
-
 
                 <div v-if="editable" class="btn-wrapper">
+
+                <div class="btn btn-secondary" style="pointer-events: none;">
+                    <auto-test-state :state="run.state" />
+                    {{ capitalize(run.state.replace(/_/g, ' ')) }}
+                </div>
                     <submit-button
                         :submit="() => deleteResults(run.id)"
                         variant="danger"
