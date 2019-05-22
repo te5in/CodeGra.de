@@ -79,12 +79,19 @@ def verify_global_header_password() -> LocalRunner:
 @feature_required(Feature.AUTO_TEST)
 def get_auto_test_status(
 ) -> t.Union[JSONResponse[auto_test.RunnerInstructions], EmptyResponse]:
-    verify_global_header_password()
-
     if request.args.get('get', object()) != 'tests_to_run':
         return make_empty_response()
 
+    verify_global_header_password()
+
     config_dict = app.config['AUTO_TEST_CREDENTIALS'][request.remote_addr]
+
+    if models.AutoTestRunner.already_running(request.remote_addr):
+        logger.warning(
+            'IP which had already ran tried getting tests',
+            remote_addr=request.remote_addr,
+        )
+        return make_empty_response()
 
     run = models.AutoTestRun.query.filter_by(
         started_date=None,
@@ -95,6 +102,7 @@ def get_auto_test_status(
 
     run.start(config_dict['type'], request.remote_addr)
     db.session.commit()
+
     return jsonify(run.get_instructions())
 
 

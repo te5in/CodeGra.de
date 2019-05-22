@@ -445,6 +445,13 @@ class AutoTestRunner(Base, TimestampMixin, UUIDMixin):
         return auto_test_module.auto_test_runners[self._type]
 
     @classmethod
+    def already_running(cls, ipaddr: str) -> bool:
+        return db.session.query(
+            cls.query.filter_by(_ipaddr=ipaddr,
+                                after_run_called=False).exists()
+        ).scalar()
+
+    @classmethod
     def create(
         cls,
         typ: t.Type[auto_test_module.AutoTestRunner],
