@@ -613,8 +613,6 @@ const mutations = {
     },
 
     [types.UPDATE_AUTO_TEST_RUNS](state, { autoTest, run }) {
-        console.log('updating runs!');
-
         let runIndex = autoTest.runs.findIndex(r => r.id === run.id);
         let storeRun;
 

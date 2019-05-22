@@ -275,3 +275,19 @@ export function withOrdinalSuffix(i) {
 
     return `${i}${suffix}`;
 }
+
+export function getErrorMessage(err) {
+    let msg;
+
+    if (err == null) {
+        return '';
+    } else if (err.response && err.response.data) {
+        msg = err.response.data.message;
+    } else if (err instanceof Error) {
+        msg = err.message;
+    } else {
+        msg = err.toString();
+    }
+
+    return msg || 'Something unknown went wrong';
+}

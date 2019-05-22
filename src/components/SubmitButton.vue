@@ -103,7 +103,7 @@ import 'vue-awesome/icons/times';
 import 'vue-awesome/icons/check';
 import 'vue-awesome/icons/warning';
 
-import { parseWarningHeader, waitAtLeast } from '@/utils';
+import { getErrorMessage, parseWarningHeader, waitAtLeast } from '@/utils';
 
 import Loader from './Loader';
 
@@ -216,20 +216,7 @@ export default {
         },
 
         stringifiedError() {
-            const err = this.error;
-            let msg;
-
-            if (err == null) {
-                return '';
-            } else if (err.response && err.response.data) {
-                msg = err.response.data.message;
-            } else if (err instanceof Error) {
-                msg = err.message;
-            } else {
-                msg = err.toString();
-            }
-
-            return msg || 'Something unknown went wrong';
+            getErrorMessage(this.error);
         },
 
         isDisabled() {
