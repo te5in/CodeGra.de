@@ -77,9 +77,8 @@ class TestStep(abc.ABC):
     ) -> float:
         raise NotImplementedError
 
-    @staticmethod
     def get_amount_achieved_points(
-        result: 'models.AutoTestStepResult'
+        self, result: 'models.AutoTestStepResult'
     ) -> float:
         if result.state == models.AutoTestStepResultState.passed:
             return result.step.weight
@@ -88,6 +87,8 @@ class TestStep(abc.ABC):
 
 @auto_test_handlers.register('io_test')
 class IoTest(TestStep):
+    data: t.Dict[str, object]
+
     @classmethod
     def validate_data(cls, data: JSONType) -> None:
         with get_from_map_transaction(
@@ -148,6 +149,16 @@ class IoTest(TestStep):
                 invalid_cases=errs,
             )
 
+    def get_amount_achieved_points(
+        self, result: 'models.AutoTestStepResult'
+    ) -> float:
+        passed = models.AutoTestStepResultState.passed.name
+        steps = t.cast(t.List, self.data['inputs'])
+        step_results = t.cast(t.Dict[str, t.List], result.log)['steps']
+        it = zip(steps, step_results)
+
+        return sum(s['weight'] if sr['state'] == passed else 0 for s, sr in it)
+
     def _execute(
         self,
         container: 'StartedContainer',
@@ -156,6 +167,7 @@ class IoTest(TestStep):
         __: float,
     ) -> float:
         test_result: t.Dict[str, t.Any] = {'steps': []}
+
         assert isinstance(self.data, dict)
         prog = t.cast(str, self.data['program'])
         total_state = models.AutoTestStepResultState.failed
@@ -248,11 +260,13 @@ class RunProgram(TestStep):
         else:
             state = models.AutoTestStepResultState.failed
 
-        update_test_result(state, {
-            'stdout': stdout,
-            'stderr': stderr,
-            'exit_code': code,
-        })
+        update_test_result(
+            state, {
+                'stdout': stdout,
+                'stderr': stderr,
+                'exit_code': code,
+            }
+        )
 
         return res
 
@@ -346,9 +360,8 @@ class CustomOutput(TestStep):
 
         return points * test_instructions['weight']
 
-    @staticmethod
     def get_amount_achieved_points(
-        result: 'models.AutoTestStepResult'
+        _, result: 'models.AutoTestStepResult'
     ) -> float:
         if not isinstance(result.log, dict):
             return 0
@@ -382,6 +395,7 @@ class CheckPoints(TestStep):
             update_test_result(models.AutoTestStepResultState.failed, {})
             raise StopRunningStepsException('Not enough points')
 
-    @staticmethod
-    def get_amount_achieved_points(_: 'models.AutoTestStepResult') -> float:
+    def get_amount_achieved_points(
+        _, __: 'models.AutoTestStepResult'
+    ) -> float:
         return 0

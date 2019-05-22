@@ -571,7 +571,7 @@ class AutoTestContainer:
                 'release': 'bionic',
                 'arch': 'amd64',
             },
-            bdevtype='best'
+            bdevtype=self._config['AUTO_TEST_BDEVTYPE']
         )
 
     def clone(self, new_name: str = '') -> 'AutoTestContainer':
@@ -883,8 +883,10 @@ class _SimpleAutoTestRunner(AutoTestRunner):
         try:
             self._run_test()
         except:
+            logger.warning('Something went wrong running tests', exc_info=True)
             end_state = models.AutoTestRunState.crashed.name
         else:
+            logger.info('Finished running tests')
             end_state = models.AutoTestRunState.done.name
         finally:
             try:
@@ -966,10 +968,9 @@ class _TransipAutoTestRunner(_SimpleAutoTestRunner):
     def _retry_vps_action(
         action_name: str, func: t.Callable[[], object], max_tries: int = 50
     ) -> None:
-        with timed_code(
-            f'Starting VPS action: {action_name}',
-            f'Finished VPS action: {action_name}',
-        ):
+        with bound_to_logger(
+            action=action_name
+        ), timed_code('Starting VPS action', 'Finished VPS action'):
             for _ in range(max_tries):
                 try:
                     func()
@@ -979,7 +980,7 @@ class _TransipAutoTestRunner(_SimpleAutoTestRunner):
                 else:
                     break
             else:
-                logger.error()
+                logger.error("Couldn't perform action")
                 raise TimeoutError
 
     @classmethod

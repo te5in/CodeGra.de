@@ -316,3 +316,6 @@
 
 # The time between polls in seconds to the test servers
 # auto_test_poll_time = 30
+
+# The bdevtype that should be used by lxc
+# auto_test_bdevtype = best

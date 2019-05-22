@@ -234,6 +234,7 @@ def update_or_create_auto_test_suite(auto_test_id: int, auto_test_set_id: int
         suite = get_or_404(models.AutoTestSuite, suite_id)
 
     rubric_row = get_or_404(models.RubricRow, rubric_row_id)
+    # TODO: This sometimes fails?
     if rubric_row.assignment.id != suite.auto_test_set.auto_test.assignment.id:
         raise Exception
     suite.rubric_row = rubric_row

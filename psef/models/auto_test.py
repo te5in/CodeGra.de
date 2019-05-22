@@ -370,7 +370,7 @@ class AutoTestResult(Base, TimestampMixin, IdMixin):
         steps = suite.steps
         possible = sum(step.weight for step in steps)
         achieved = sum(
-            step_result.step.test_type.get_amount_achieved_points(step_result)
+            step_result.step.step.get_amount_achieved_points(step_result)
             for step_result in self.step_results
         )
         return achieved, possible
