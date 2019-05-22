@@ -870,7 +870,8 @@ class _SimpleAutoTestRunner(AutoTestRunner):
             json={'state': models.AutoTestRunState.running.name},
         )
         try:
-            self._run_test()
+            with timed_code('run_complete_auto_test'):
+                self._run_test()
         except:
             logger.warning('Something went wrong running tests', exc_info=True)
             end_state = models.AutoTestRunState.crashed.name
