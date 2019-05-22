@@ -9,6 +9,7 @@ import enum
 import time
 import typing as t
 import datetime
+import threading
 import contextlib
 import subprocess
 from functools import wraps
@@ -863,6 +864,31 @@ def timed_code(code_block_name: str,
             elapsed_time=end_time - start_time,
             **other_keys,
         )
+
+
+class RepeatedTimer(threading.Thread):
+    def __init__(
+        self,
+        interval: int,
+        function: t.Callable[[], None],
+        cleanup: t.Callable[[], None] = lambda: None,
+    ) -> None:
+        self.interval = interval
+        self.function = function
+        self.finished = threading.Event()
+        self.cleanup = cleanup
+
+    def cancel(self) -> None:
+        self.finished.set()
+
+    def run(self) -> None:
+        try:
+            while not self.finished.wait(self.interval):
+                self.function()
+            else:
+                self.function()
+        finally:
+            self.cleanup()
 
 
 @contextlib.contextmanager

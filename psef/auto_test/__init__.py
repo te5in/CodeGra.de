@@ -26,10 +26,10 @@ from mypy_extensions import TypedDict
 
 import psef
 
-from .. import app, models
+from .. import app, log, models
 from .steps import TestStep, StopRunningStepsException, auto_test_handlers
 from ..helpers import (
-    JSONType, defer, register, timed_code, bound_to_logger,
+    JSONType, RepeatedTimer, defer, register, timed_code, bound_to_logger,
     ensure_on_test_server
 )
 
@@ -124,41 +124,24 @@ def init_app(app: 'psef.PsefFlask') -> None:
     app.config['AUTO_TEST_CREDENTIALS'] = res  # type: ignore
 
 
-def _push_logging(post_log: t.Callable[[JSONType], object]
-                  ) -> t.Callable[[], None]:
+def _push_logging(post_log: t.Callable[[JSONType], object]) -> RepeatedTimer:
     logs: t.List[t.Dict[str, object]] = []
     logs_lock = threading.RLock()
 
-    @psef.logger_callback
+    @log.logger_callback
     def log_line(logger: object, method_name: str, event_dict: str) -> None:
         json_event = json.loads(event_dict)
         with logs_lock:
             logs.append(json_event)
 
-    stop_event = threading.Event()
+    def push_logs() -> None:
+        with logs_lock:
+            logs_copy = list(logs)
+            logs.clear()
+        if logs_copy:
+            post_log(logs_copy)
 
-    def log_thread() -> None:
-        while True:
-            stop_event.wait(timeout=15)
-
-            with logs_lock:
-                logs_copy = list(logs)
-                logs.clear()
-            if logs_copy:
-                post_log(logs_copy)
-            del logs_copy
-
-            if stop_event.is_set():
-                return
-
-    thread = threading.Thread(target=log_thread)
-    thread.start()
-
-    def stop() -> None:
-        stop_event.set()
-        thread.join()
-
-    return stop
+    return RepeatedTimer(15, push_logs, cleanup=log_line.disable)
 
 
 def start_polling(config: 'psef.FlaskConfig') -> None:
@@ -850,7 +833,7 @@ class _SimpleAutoTestRunner(AutoTestRunner):
             )
 
     def run_test(self) -> None:
-        stop_logger = _push_logging(
+        push_log_timer = _push_logging(
             lambda logs: self.req.post(
                 (
                     f'{self.base_url}/api/v-internal/auto_tests/'
@@ -885,7 +868,7 @@ class _SimpleAutoTestRunner(AutoTestRunner):
                     json={'state': end_state},
                 )
             finally:
-                stop_logger()
+                push_log_timer.cancel()
 
     def _run_test(self) -> None:
         ensure_on_test_server()
