@@ -203,7 +203,7 @@
                 Stop when you got less than {{ value.data.min_points }} points.
             </td>
             <td class="passed" v-if="result">
-                <auto-test-step-state :state="stepResult.state" />
+                <auto-test-state :state="stepResult.state" />
             </td>
         </tr>
 
@@ -247,7 +247,7 @@
             </td>
             <td class="weight">{{ value.weight }}</td>
             <td class="passed" v-if="result">
-                <auto-test-step-state :state="stepResult.state" />
+                <auto-test-state :state="stepResult.state" />
             </td>
         </tr>
 
@@ -291,7 +291,7 @@
             </td>
             <td class="weight">{{ value.weight }}</td>
             <td class="passed" v-if="result">
-                <auto-test-step-state :state="stepResult.state" />
+                <auto-test-state :state="stepResult.state" />
             </td>
         </tr>
 
@@ -351,7 +351,7 @@
                 <td class="summary">{{ input.name }}</td>
                 <td class="weight">{{ input.weight }}</td>
                 <td class="passed" v-if="result">
-                    <auto-test-step-state :state="stepResult.log ? stepResult.log.steps[i].state : 'skipped'" />
+                    <auto-test-state :state="stepResult.log ? stepResult.log.steps[i].state : 'skipped'" />
                 </td>
             </tr>
 
@@ -424,7 +424,7 @@ import { getUniqueId, deepCopy, getProps } from '@/utils';
 
 import SubmitButton from './SubmitButton';
 import DescriptionPopover from './DescriptionPopover';
-import AutoTestStepState from './AutoTestStepState';
+import AutoTestState from './AutoTestState';
 
 export default {
     name: 'auto-test-step',
@@ -670,7 +670,7 @@ export default {
         Icon,
         SubmitButton,
         DescriptionPopover,
-        AutoTestStepState,
+        AutoTestState,
     },
 };
 </script>
@@ -844,7 +844,7 @@ hr {
     }
 
     td {
-        &.chevron,
+        &.expand,
         &.index,
         &.weight,
         &.passed {

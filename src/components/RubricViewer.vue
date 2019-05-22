@@ -228,16 +228,11 @@ export default {
             }
 
             const prog = {};
-            let i = 0;
 
             this.autoTestConfig.sets.forEach(set => {
                 set.suites.forEach(suite => {
                     const result = suiteResults[suite.id];
-                    // FIXME: uncomment, remove line below
-                    // prog[suite.rubricRow.id] = (100 * result.achieved / result.possible)
-                    // .toFixed(2);
-                    prog[this.rubrics[i].id] = (100 * result.achieved / result.possible).toFixed(2);
-                    i = (i + 1) % this.rubrics.length;
+                    prog[suite.rubricRow.id] = (100 * result.achieved / result.possible).toFixed(2);
                 });
             });
 

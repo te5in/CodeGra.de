@@ -60,3 +60,15 @@ String.prototype.startsWith =
     function startsWith(search, pos) {
         return this.substr(!pos || pos < 0 ? 0 : +pos, search.length) === search;
     };
+
+// eslint-disable-next-line
+Promise.prototype.finally =
+    Promise.prototype.finally ||
+    (callback => {
+        const constructor = this.constructor;
+
+        return this.then(
+            ret => constructor.resolve(callback()).then(() => ret),
+            err => constructor.resolve(callback()).then(() => { throw err; }),
+        );
+    });

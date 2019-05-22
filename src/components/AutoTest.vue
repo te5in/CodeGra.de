@@ -46,14 +46,10 @@
                                     <icon v-if="result.submission.grade_overridden"
                                           v-b-popover.top.hover="'This submission\'s calculated grade has been manually overridden'"
                                           name="exclamation-triangle"/>
-                                    {{ result.pointsAchieved }} / {{ test.pointsPossible }}
+                                    {{ getProps(result.pointsAchieved, '-') }} / {{ test.pointsPossible }}
                                 </td>
                                 <td class="state">
-                                    <icon v-if="result.state === 'not_started'" name="clock-o" />
-                                    <icon v-else-if="result.state === 'running'" name="circle-o-notch" spin />
-                                    <icon v-else-if="result.state === 'passed'" name="check" class="text-success" />
-                                    <icon v-else-if="result.state === 'failed'" name="times" class="text-danger" />
-                                    <icon v-else-if="result.state === 'timed_out'" name="clock-o" class="text-danger" />
+                                    <auto-test-state :state="result.state" />
                                 </td>
                             </tr>
                         </template>
@@ -311,7 +307,7 @@
                                       v-if="set.suites.filter(s => !s.isEmpty() && !s.deleted).length === 0">
                                     You have no suites yet. Click the button below to create one.
                                 </span>
-                                <masonry :cols="{default: 2, [$root.largeWidth]: 1 }"
+                                <masonry :cols="{default: (singleResult ? 1 : 2), [$root.largeWidth]: 1 }"
                                          :gutter="30"
                                          class="outer-block">
                                     <auto-test-suite v-for="suite, j in set.suites"
@@ -424,9 +420,10 @@ import 'vue-awesome/icons/circle-o-notch';
 import 'vue-awesome/icons/clock-o';
 import 'vue-awesome/icons/check';
 
-import { deepCopy, nameOfUser, getUniqueId } from '@/utils';
+import { deepCopy, getProps, nameOfUser, getUniqueId } from '@/utils';
 
 import AutoTestSuite from './AutoTestSuite';
+import AutoTestState from './AutoTestState';
 import SubmitButton from './SubmitButton';
 import MultipleFilesUploader from './MultipleFilesUploader';
 import Loader from './Loader';
@@ -461,6 +458,9 @@ export default {
         const id = getUniqueId();
 
         return {
+            getProps,
+            nameOfUser,
+
             disabledAnimations: true,
             newFixtures: [],
             internalTest: {},
@@ -468,7 +468,6 @@ export default {
             error: '',
             permissions: {},
             currentResult: null,
-            nameOfUser,
             pollingInterval: 30000,
             pollingTimer: null,
 
@@ -502,14 +501,12 @@ export default {
 
                 this.loading = true;
 
-                Promise.all([this.loadAutoTest(), this.loadPermissions()]).then(
-                    () => {
-                        this.loading = false;
-                    },
-                    () => {
-                        this.loading = false;
-                    },
-                );
+                Promise.all([
+                    this.loadAutoTest(),
+                    this.loadPermissions(),
+                ]).finally(() => {
+                    this.loading = false;
+                });
             },
         },
 
@@ -851,6 +848,7 @@ ${err.stack}`;
         Icon,
         Multiselect,
         AutoTestSuite,
+        AutoTestState,
         SubmitButton,
         MultipleFilesUploader,
         Loader,
@@ -1078,6 +1076,7 @@ ${err.stack}`;
         border-top: 0;
     }
 
+    .caret,
     .score,
     .state {
         width: 1px;
