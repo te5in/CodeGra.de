@@ -70,14 +70,15 @@ def get_amount_cpus() -> int:
 def _start_container(cont: lxc.Container) -> None:
     maybe_stop_container()
 
-    assert cont.start()
-    assert cont.wait('RUNNING', 3)
-    for _ in range(30):
-        if cont.get_ips():
-            return
-        time.sleep(1)
-    else:
-        raise Exception(f"Couldn't get ip for container {cont}")
+    with timed_code('start_container'):
+        assert cont.start()
+        assert cont.wait('RUNNING', 3)
+        for _ in range(30):
+            if cont.get_ips():
+                return
+            time.sleep(1)
+        else:
+            raise Exception(f"Couldn't get ip for container {cont}")
 
 
 class StepInstructions(TypedDict, total=True):
@@ -217,9 +218,7 @@ class StartedContainer:
     def destroy_snapshots(self) -> None:
         self.stop_container()
         with timed_code(
-            'Destroying snapshots',
-            'Destroyed snapshots',
-            snapshot_amount=len(self._snapshots)
+            'destroy_snapshots', snapshot_amount=len(self._snapshots)
         ):
             while self._snapshots:
                 self._container.snapshot_destroy(self._snapshots.pop())
@@ -230,9 +229,7 @@ class StartedContainer:
             raise ValueError(f'Could not set "{key}" to "{value}"')
 
     def stop_container(self) -> None:
-        with timed_code(
-            'Stopping container', 'Stopped container', container=self._name
-        ):
+        with timed_code('stop_container', container=self._name):
             assert self._container.stop()
             assert self._container.wait('STOPPED', 3)
 
@@ -253,8 +250,7 @@ class StartedContainer:
         try:
             if self._dirty or not self._snapshots:
                 with timed_code(
-                    'Creating snapshot',
-                    'Created snapshot',
+                    'create_snapshot',
                     container=self._name,
                     amount_of_snapshots=len(self._snapshots)
                 ):
@@ -272,7 +268,7 @@ class StartedContainer:
             self.stop_container()
             # Creating the snapshot, so we might not have a snapshot
             if self._snapshots:
-                with timed_code('Restoring snapshots', 'Restored snapshot'):
+                with timed_code('restore_snapshots'):
                     self._container.snapshot_restore(self._snapshots[-1])
                 self._dirty = False
             _start_container(self._container)
@@ -536,15 +532,8 @@ class AutoTestContainer:
         started = None
 
         try:
-            with timed_code(
-                'Starting container',
-                'Started container',
-                container=self._name
-            ):
-                _start_container(self._cont)
-                started = StartedContainer(
-                    self._cont, self._name, self._config
-                )
+            _start_container(self._cont)
+            started = StartedContainer(self._cont, self._name, self._config)
             yield started
         finally:
             self._stop_container(started)
@@ -560,7 +549,7 @@ class AutoTestContainer:
                     logger.info('Destroying snapshots')
                     cont.destroy_snapshots()
             finally:
-                with timed_code('Destroying container', 'Destroyed container'):
+                with timed_code('destroy_container'):
                     self._cont.destroy()
 
     def create(self) -> None:
@@ -969,8 +958,8 @@ class _TransipAutoTestRunner(_SimpleAutoTestRunner):
         action_name: str, func: t.Callable[[], object], max_tries: int = 50
     ) -> None:
         with bound_to_logger(
-            action=action_name
-        ), timed_code('Starting VPS action', 'Finished VPS action'):
+            action=action_name,
+        ), timed_code('_retry_vps_action'):
             for _ in range(max_tries):
                 try:
                     func()

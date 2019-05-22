@@ -838,15 +838,30 @@ def defer(function: t.Callable[[], object]) -> t.Generator[None, None, None]:
 
 
 @contextlib.contextmanager
-def timed_code(start_msg: str, end_msg: str,
+def timed_code(code_block_name: str,
                **other_keys: object) -> t.Generator[None, None, None]:
     start_time = time.time()
-    logger.info(start_msg, **other_keys)
-    # This should not be wrapped in a `try`, `finally` block as we only want to
-    # log when the when block succeeds.
-    yield
-    end_time = time.time()
-    logger.info(end_msg, **other_keys, elapsed_time=end_time - start_time)
+    logger.info(
+        'Starting timed code block',
+        timed_code_block=code_block_name,
+        **other_keys
+    )
+    try:
+        yield
+    except:
+        exc_info = True
+    else:
+        exc_info = False
+    finally:
+        end_time = time.time()
+        logger.info(
+            'Finished timed code block',
+            timed_code_block=code_block_name,
+            exc_info=exc_info,
+            exception_occurred=exc_info,
+            **other_keys
+        )
+
 
 @contextlib.contextmanager
 def bound_to_logger(**vals: object) -> t.Generator[None, None, None]:
