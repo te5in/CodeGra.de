@@ -860,7 +860,8 @@ def timed_code(code_block_name: str,
             timed_code_block=code_block_name,
             exc_info=exc_info,
             exception_occurred=exc_info,
-            **other_keys
+            elapsed_time=end_time - start_time,
+            **other_keys,
         )
 
 
