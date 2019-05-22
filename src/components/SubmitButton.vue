@@ -216,7 +216,7 @@ export default {
         },
 
         stringifiedError() {
-            getErrorMessage(this.error);
+            return getErrorMessage(this.error);
         },
 
         isDisabled() {
