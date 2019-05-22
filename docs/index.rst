@@ -51,6 +51,7 @@ details on `the CodeGrade website <https://codegrade.com>`_.
    user/preferences.rst
    Filesystem <https://fs-docs.codegra.de>
    user/lms.rst
+   user/autotest/overview.rst
 
 .. only:: not latex
 
