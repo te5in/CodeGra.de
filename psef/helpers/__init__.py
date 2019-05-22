@@ -850,6 +850,7 @@ def timed_code(code_block_name: str,
         yield
     except:
         exc_info = True
+        raise
     else:
         exc_info = False
     finally:
