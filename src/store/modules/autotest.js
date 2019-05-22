@@ -274,7 +274,7 @@ class AutoTestRun {
 
     update(run, autoTest) {
         this.state = run.state;
-        this.finished = ['done', 'timed_out'].indexOf(this.state) !== -1;
+        this.finished = ['done', 'crashed', 'timed_out'].indexOf(this.state) !== -1;
 
         this.updateResults(run.results, autoTest);
     }
@@ -373,6 +373,25 @@ const actions = {
         return loaders.tests[autoTestId];
     },
 
+    async createAutoTestRun({ commit, dispatch, state }, { autoTestId }) {
+        await dispatch('loadAutoTest', { autoTestId });
+        const autoTest = state.tests[autoTestId];
+
+        if (autoTest.runs.length > 0) {
+            throw new Error('AutoTest has already been run.');
+        }
+
+        return axios
+            .post(`/api/v1/auto_tests/${autoTestId}/runs/`)
+            .then(
+                ({ data }) =>
+                    commit(types.UPDATE_AUTO_TEST_RUNS, { autoTest, run: data }),
+                err => {
+                    throw new Error(err.response.data.message);
+                },
+            );
+    },
+
     async loadAutoTestRun({ commit, dispatch, state }, { autoTestId }) {
         await dispatch('loadAutoTest', { autoTestId });
         const autoTest = state.tests[autoTestId];
@@ -387,9 +406,7 @@ const actions = {
         const runId = oldRun.id;
         if (loaders.runs[runId] == null) {
             loaders.runs[runId] = axios.get(`/api/v1/auto_tests/${autoTestId}/runs/${runId}`).then(
-                run => {
-                    commit(types.UPDATE_AUTO_TEST_RUNS, { autoTest, run, index: 0 });
-                },
+                ({ data }) => commit(types.UPDATE_AUTO_TEST_RUNS, { autoTest, run: data }),
                 err => {
                     throw new Error(err.response.data.message);
                 },
@@ -493,9 +510,7 @@ const actions = {
                     }/results/${resultId}`,
                 )
                 .then(
-                    ({ data }) => {
-                        commit(types.UPDATE_AUTO_TEST_RESULT, { autoTest, result: data });
-                    },
+                    ({ data }) => commit(types.UPDATE_AUTO_TEST_RESULT, { autoTest, result: data }),
                     err => {
                         throw new Error(err.response.data.message);
                     },
@@ -578,11 +593,11 @@ const mutations = {
     },
 
     [types.DELETE_AUTO_TEST](state, autoTestId) {
-        state.tests[autoTestId].runs.forEach(run => {
-            run.results.forEach(result => {
-                Vue.delete(state.results, result.id);
-            });
-        });
+        state.tests[autoTestId].runs.forEach(run =>
+            run.results.forEach(result =>
+                Vue.delete(state.results, result.id),
+            ),
+        );
 
         Vue.delete(state.tests, autoTestId);
     },
@@ -594,9 +609,19 @@ const mutations = {
     },
 
     [types.UPDATE_AUTO_TEST_RUNS](state, { autoTest, run }) {
-        const runIndex = autoTest.runs.findIndex(r => r.id === run.id);
-        const storeRun = autoTest.runs[runIndex];
-        storeRun.update(run, autoTest);
+        console.log('updating runs!');
+
+        let runIndex = autoTest.runs.findIndex(r => r.id === run.id);
+        let storeRun;
+
+        if (runIndex === -1) {
+            storeRun = new AutoTestRun(run, autoTest);
+            runIndex = 0;
+        } else {
+            storeRun = autoTest.runs[runIndex];
+            storeRun.update(run, autoTest);
+        }
+
         Vue.set(autoTest.runs, runIndex, storeRun);
     },
 

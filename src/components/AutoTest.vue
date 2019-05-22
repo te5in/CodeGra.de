@@ -3,7 +3,7 @@
          show
          variant="danger"
          class="error-message">
-    <pre>{{ error }}</pre>
+    {{ error }}
 </b-alert>
 
 <loader v-else-if="loading" />
@@ -82,8 +82,7 @@
                     <submit-button
                         v-if="!loading && test != null"
                         label="Run"
-                        :submit="runAutoTest"
-                        />
+                        :submit="runAutoTest" />
                     <submit-button
                         v-if="!loading && test != null"
                         :submit="deleteAutoTest"
@@ -468,7 +467,7 @@ export default {
             error: '',
             permissions: {},
             currentResult: null,
-            pollingInterval: 30000,
+            pollingInterval: 3000,
             pollingTimer: null,
 
             configCollapseId: `auto-test-config-collapse-${id}`,
@@ -537,6 +536,7 @@ export default {
             storeDeleteAutoTest: 'deleteAutoTest',
             storeUpdateAutoTest: 'updateAutoTest',
             storeLoadAutoTest: 'loadAutoTest',
+            storeCreateAutoTestRun: 'createAutoTestRun',
             storeLoadAutoTestRun: 'loadAutoTestRun',
             storeCreateFixtures: 'createFixtures',
             storeToggleFixture: 'toggleFixture',
@@ -551,7 +551,11 @@ export default {
         }),
 
         runAutoTest() {
-            return this.$http.post(`/api/v1/auto_tests/${this.assignment.auto_test_id}/runs/`);
+            this.storeCreateAutoTestRun({
+                autoTestId: this.assignment.auto_test_id,
+            }).then(
+                () => this.loadAutoTestRun(),
+            );
         },
 
         loadAutoTest() {
@@ -559,9 +563,7 @@ export default {
                 autoTestId: this.assignment.auto_test_id,
             }).then(
                 () => {
-                    if (this.hasResults && !this.test.runs[0].finished) {
-                        this.pollingTimer = setTimeout(this.loadAutoTestRun, this.pollingInterval);
-                    }
+                    this.loadAutoTestRun();
                     return this.loadSingleResult();
                 },
                 err => {
@@ -571,23 +573,21 @@ export default {
         },
 
         loadAutoTestRun() {
-            if (this.singleResult || !this.hasResults) {
-                return null;
+            if (!this.hasResults || this.singleResult || this.test.runs[0].finished) {
+                return;
             }
 
-            return this.storeLoadAutoTestRun({
-                autoTestId: this.assignment.auto_test_id,
-            }).then(
-                () => {
-                    if (!this.test.runs[0].finished) {
-                        this.pollingTimer = setTimeout(this.loadAutoTestRun, this.pollingInterval);
-                    }
-                },
-                err => {
-                    this.error = `AutoTest results could not be loaded: ${err.message}
-${err.stack}`;
-                },
-            );
+            this.pollingTimer = setTimeout(() => {
+                this.storeLoadAutoTestRun({
+                    autoTestId: this.assignment.auto_test_id,
+                }).then(
+                    () => this.loadAutoTestRun(),
+                    err => {
+                        this.error = `AutoTest results could not be loaded: ${err.message}
+    ${err.stack}`;
+                    },
+                );
+            }, this.pollingInterval);
         },
 
         loadSingleResult() {

@@ -139,7 +139,10 @@ export default {
                     this.storeLoadAutoTestResult({
                         autoTestId: this.autoTestConfigId,
                         submissionId: this.submissionId,
-                    }),
+                    }).catch(
+                        // Autotest hasn't been started yet.
+                        () => {},
+                    ),
                 ]);
             },
         },
@@ -240,16 +243,15 @@ export default {
         },
 
         progressPopover() {
-            if (this.currentProgress == null) {
+            const selectedInRow = this.selectedRows[this.currentRow.id];
+
+            if (selectedInRow == null || this.currentProgress == null) {
                 return '';
+            } else {
+                return `You scored ${this.currentProgress}% in the corresponding ` +
+                    `AutoTest category, which scores you ${selectedInRow.points} ` +
+                    'points in the rubric category.';
             }
-
-            const index = Math.floor(this.currentRow.items.length * this.currentProgress / 100);
-            const points = this.currentRow.items[index].points;
-
-            return `You scored ${
-                this.currentProgress
-            }% in the corresponding AutoTest category, which scores you ${points} points in this rubric category.`;
         },
     },
 
@@ -554,13 +556,16 @@ export default {
 .progress {
     position: absolute;
     top: 0;
-    right: 0;
-    bottom: 0;
     left: 0;
     height: 100%;
+    width: 100%;
+    box-sizing: content-box;
+    border-right: 1px solid transparent;
+    border-radius: 0;
     background-color: transparent !important;
 
     .meter {
+        box-sizing: content-box;
         background-color: fade(@color-secondary, 10%);
         border-right: 1px solid fade(@color-secondary, 15%);
         width: 0;
