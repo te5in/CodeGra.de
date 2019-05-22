@@ -79,13 +79,9 @@ class FileMixin:
         assert self.filename
         assert not self.is_directory
 
-        res = os.path.realpath(
-            os.path.join(current_app.config['UPLOAD_DIR'], self.filename)
+        return psef.files.safe_join(
+            current_app.config['UPLOAD_DIR'], self.filename
         )
-
-        assert res.startswith(current_app.config['UPLOAD_DIR'])
-
-        return res
 
     def __to_json__(self) -> t.Mapping[str, t.Union[str, int]]:
         return {

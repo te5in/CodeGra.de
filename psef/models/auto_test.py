@@ -8,6 +8,7 @@ import uuid
 import typing as t
 import numbers
 import datetime
+import itertools
 
 from sqlalchemy import orm
 from sqlalchemy.types import JSON
@@ -59,9 +60,7 @@ class AutoTestStep(Base, TimestampMixin, IdMixin):
 
     _test_type: str = db.Column(
         'test_type',
-        db.Enum(
-            *auto_test_module.auto_test_handlers.keys(), native_enum=False
-        ),
+        db.Enum(*auto_test_module.auto_test_handlers.keys()),
         nullable=False,
     )
 
@@ -320,10 +319,6 @@ class AutoTestResult(Base, TimestampMixin, IdMixin):
         order_by='AutoTestStepResult.created_at'
     )  # type: t.MutableSequence[AutoTestStepResult]
 
-    points_achieved: float = db.Column(
-        'points_achieved', db.Float, nullable=True, default=None
-    )
-
     state = db.Column(
         'state',
         db.Enum(AutoTestStepResultState),
@@ -346,18 +341,17 @@ class AutoTestResult(Base, TimestampMixin, IdMixin):
         new_items = []
         updated_rubric_row_ids = set()
 
-        for auto_test_set in self.run.auto_test.sets:
-            for suite in auto_test_set.suites:
-                got, possible = self.get_amount_points_in_suite(suite)
-                percentage = got / possible
-                items = suite.rubric_row.items
-                new_item = items[-1 if percentage ==
-                                 1 else int(len(items) * percentage)]
-                if new_item in old_selected_items:
-                    continue
+        for suite in self.run.auto_test.all_suites:
+            got, possible = self.get_amount_points_in_suite(suite)
+            percentage = got / possible
+            items = suite.rubric_row.items
+            new_item = items[-1 if percentage ==
+                             1 else int(len(items) * percentage)]
+            if new_item in old_selected_items:
+                continue
 
-                new_items.append(new_item)
-                updated_rubric_row_ids.add(suite.rubric_row_id)
+            new_items.append(new_item)
+            updated_rubric_row_ids.add(suite.rubric_row_id)
 
         if not new_items:
             return
@@ -382,12 +376,16 @@ class AutoTestResult(Base, TimestampMixin, IdMixin):
         return achieved, possible
 
     def __to_json__(self) -> t.Mapping[str, object]:
+        points_achieved = sum(
+            self.get_amount_points_in_suite(suite)[0]
+            for suite in self.run.auto_test.all_suites
+        )
         return {
             'id': self.id,
             'created_at': self.created_at.isoformat(),
             'work': self.work,
             'state': self.state.name,
-            'points_achieved': self.points_achieved,
+            'points_achieved': points_achieved,
         }
 
     def __extended_to_json__(self) -> t.Mapping[str, object]:
@@ -404,6 +402,7 @@ class AutoTestRunState(enum.Enum):
     running = enum.auto()
     done = enum.auto()
     timed_out = enum.auto()
+    crashed = enum.auto()
 
 
 class AutoTestRunner(Base, TimestampMixin, UUIDMixin):
@@ -411,13 +410,22 @@ class AutoTestRunner(Base, TimestampMixin, UUIDMixin):
 
     _type: str = db.Column(
         'type',
-        db.Enum(*auto_test_module.auto_test_runners.keys(), native_enum=False),
+        db.Enum(*auto_test_module.auto_test_runners.keys()),
         nullable=False
     )
 
     _ipaddr: str = db.Column('ipaddr', db.Unicode, nullable=False)
 
-    run: 'AutoTestRun' = db.relationship(
+    #: Is this runner completely finished. So is the `after_run` method called.
+    after_run_called: bool = db.Column(
+        'after_run_called',
+        db.Boolean,
+        nullable=False,
+        default=False,
+        server_default='true',
+    )
+
+    run: t.Optional['AutoTestRun'] = db.relationship(
         "AutoTestRun",
         back_populates="runner",
         cascade='all,delete',
@@ -495,7 +503,7 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
 
     _state = db.Column(
         'state',
-        db.Enum(AutoTestRunState, native_enum=False),
+        db.Enum(AutoTestRunState),
         default=AutoTestRunState.not_started,
         nullable=False,
     )
@@ -520,6 +528,13 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
             for result in self.results:
                 result.update_rubric()
 
+        if new_state in {
+            AutoTestRunState.done,
+            AutoTestRunState.timed_out,
+            AutoTestRunState.crashed,
+        }:
+            psef.tasks.reset_auto_test_runner(self.runner_id)
+
     def start(
         self,
         runner_type: t.Type['auto_test_module.AutoTestRunner'],
@@ -536,7 +551,7 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
         psef.tasks.notify_slow_auto_test_run(
             (self.id, ), eta=now + (max_duration / 2)
         )
-        psef.tasks.stop_auto_test_run((self.id, ), eta=self.kill_date)
+        psef.tasks.stop_auto_test_run((self.runner_id, ), eta=self.kill_date)
 
     def get_instructions(self) -> auto_test_module.RunnerInstructions:
         return {
@@ -621,6 +636,10 @@ class AutoTest(Base, TimestampMixin, IdMixin):
     finalize_script: str = db.Column(
         'finalize_script', db.Unicode, nullable=False
     )
+
+    @property
+    def all_suites(self) -> t.Iterable[AutoTestSuite]:
+        return itertools.chain.from_iterable(s.suites for s in self.sets)
 
     def __to_json__(self) -> t.Mapping[str, object]:
         return {

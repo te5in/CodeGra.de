@@ -206,6 +206,7 @@ class IoTest(TestStep):
                     'stdout': stdout,
                     'stderr': stderr,
                     'state': state.name,
+                    'exit_code': code,
                 }
             )
             update_test_result(
@@ -250,6 +251,7 @@ class RunProgram(TestStep):
         update_test_result(state, {
             'stdout': stdout,
             'stderr': stderr,
+            'exit_code': code,
         })
 
         return res
@@ -338,6 +340,7 @@ class CustomOutput(TestStep):
                 'stdout': stdout,
                 'stderr': stderr,
                 'points': points,
+                'exit_code': code,
             }
         )
 

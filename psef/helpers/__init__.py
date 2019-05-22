@@ -848,6 +848,14 @@ def timed_code(start_msg: str, end_msg: str,
     end_time = time.time()
     logger.info(end_msg, **other_keys, elapsed_time=end_time - start_time)
 
+@contextlib.contextmanager
+def bound_to_logger(**vals: object) -> t.Generator[None, None, None]:
+    logger.bind(**vals)
+    try:
+        yield
+    finally:
+        logger.try_unbind(*vals.keys())
+
 
 def call_external(
     call_args: t.List[str],

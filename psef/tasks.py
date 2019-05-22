@@ -90,6 +90,10 @@ if t.TYPE_CHECKING:  # pragma: no cover
 
     class CeleryTask(t.Generic[T]):  # pylint: disable=unsubscriptable-object
         @property
+        def __call__(self) -> T:
+            ...
+
+        @property
         def delay(self) -> T:
             # This hax is for sphinx as it can't parse the source otherwise
             return lambda *args, **kwargs: None  # type: ignore
@@ -405,7 +409,7 @@ def _run_plagiarism_control_1(  # pylint: disable=too-many-branches,too-many-sta
                 f'-{sub.id}-{sub.user_id}'
             )
             submission_lookup[dir_name] = sub.id
-            parent = os.path.join(tempdir, dir_name)
+            parent = p.files.safe_join(tempdir, dir_name)
 
             if not main_assig:
                 old_subs.add(sub.id)
@@ -511,8 +515,41 @@ def _stop_auto_test_run_1(auto_test_run_id: int) -> None:
     )
 
     run.state = p.models.AutoTestRunState.timed_out
-    if run.runner is not None:
-        run.runner.after_run()
+    p.models.db.session.commit()
+
+
+@celery.task
+def _remove_auto_test_runner_1(auto_test_runner_id: uuid.UUID) -> None:
+    _reset_auto_test_runner_1(auto_test_runner_id)
+
+    runner = p.models.AutoTestRunner.query.get(auto_test_runner_id)
+    if runner is None:
+        return
+
+    p.models.db.session.delete(runner)
+    p.models.db.session.commit()
+
+
+@celery.task
+def _reset_auto_test_runner_1(auto_test_runner_id: uuid.UUID) -> None:
+    runner = p.models.AutoTestRunner.query.get(auto_test_runner_id)
+    logger.info(
+        'Resetting runner',
+        runner=runner,
+    )
+    if runner is None or runner.after_run_called:
+        logger.info('Runner already reset or not found')
+        return
+
+    try:
+        runner.after_run()
+    except:  # pylint: disable=broad-except
+        logger.error(
+            'Calling after_run failed', exc_info=True, runner_id=runner.id
+        )
+        raise
+
+    runner.after_run_called = True
     p.models.db.session.commit()
 
 
@@ -530,15 +567,18 @@ add = _add_1.delay  # pylint: disable=invalid-name
 send_done_mail = _send_done_mail_1.delay  # pylint: disable=invalid-name
 send_grader_status_mail = _send_grader_status_mail_1.delay  # pylint: disable=invalid-name
 run_plagiarism_control = _run_plagiarism_control_1.delay  # pylint: disable=invalid-name
+reset_auto_test_runner = _reset_auto_test_runner_1.delay  # pylint: disable=invalid-name
+remove_auto_test_runner = _remove_auto_test_runner_1.delay  # pylint: disable=invalid-name
 
 send_reminder_mails: t.Callable[[
     t.Tuple[int], NamedArg(t.Optional[datetime.datetime], 'eta')
 ], t.Any] = _send_reminder_mails_1.apply_async  # pylint: disable=invalid-name
 
-stop_auto_test_run: t.Callable[[
-    t.Tuple[int], NamedArg(t.Optional[datetime.datetime], 'eta')
-], t.Any] = _stop_auto_test_run_1.apply_async
+stop_auto_test_run: t.Callable[
+    [t.Tuple[uuid.UUID],
+     NamedArg(t.Optional[datetime.datetime], 'eta')], t.
+    Any] = _stop_auto_test_run_1.apply_async  # pylint: disable=invalid-name
 
 notify_slow_auto_test_run: t.Callable[[
     t.Tuple[int], NamedArg(t.Optional[datetime.datetime], 'eta')
-], t.Any] = _notify_slow_auto_test_run_1.apply_async
+], t.Any] = _notify_slow_auto_test_run_1.apply_async  # pylint: disable=invalid-name

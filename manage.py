@@ -11,6 +11,7 @@ import datetime
 from flask_script import Manager
 from flask_migrate import Migrate, MigrateCommand
 from sqlalchemy_utils import PasswordType
+import alembic_autogenerate_enums
 
 import psef
 import psef.models as m

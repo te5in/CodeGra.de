@@ -92,6 +92,12 @@ def get_file_size(f: str) -> archive.FileSize:
     return archive.FileSize(max(1, os.path.getsize(f)))
 
 
+def safe_join(parent: str, *children: str) -> str:
+    res = os.path.normpath(os.path.realpath(os.path.join(parent, *children)))
+    assert res.startswith(parent)
+    return res
+
+
 class FileLike(Protocol):
     @property
     def name(self) -> str:
@@ -429,7 +435,7 @@ def _restore_directory_structure(
     :param cache: The cache to use to get file children.
     :returns: A tree as described in :py:func:`.restore_directory_structure`
     """
-    out = os.path.join(parent, code.name)
+    out = safe_join(parent, code.name)
     if code.is_directory:
         os.mkdir(out)
         subtree: t.List[FileTree] = [
@@ -504,7 +510,7 @@ def rename_directory_structure(rootdir: str) -> ExtractFileTreeDirectory:
         for key, value in dirs.items():
             if value is None:
                 new_name, filename = random_file_path()
-                shutil.move(os.path.join(name, key), new_name)
+                shutil.move(safe_join(name, key), new_name)
                 res.append(
                     ExtractFileTreeFile(
                         name=key,
@@ -517,7 +523,7 @@ def rename_directory_structure(rootdir: str) -> ExtractFileTreeDirectory:
                 new_dir = ExtractFileTreeDirectory(
                     name=key, values=[], parent=None
                 )
-                for child in __to_lists(os.path.join(name, key), value):
+                for child in __to_lists(safe_join(name, key), value):
                     new_dir.add_child(child)
                 res.append(new_dir)
         return res
@@ -637,7 +643,7 @@ def random_file_path(use_mirror_dir: bool = False) -> t.Tuple[str, str]:
 
     while True:
         name = str(uuid.uuid4())
-        candidate = os.path.join(root, name)
+        candidate = safe_join(root, name)
         if os.path.exists(candidate):  # pragma: no cover
             continue
         else:
@@ -784,7 +790,7 @@ def process_blackboard_zip(
             if isinstance(blackboard_file, blackboard.FileInfo):
                 name = blackboard_file.original_name
                 stream = open(
-                    os.path.join(tmpdir, blackboard_file.name), mode='rb'
+                    safe_join(tmpdir, blackboard_file.name), mode='rb'
                 )
             else:
                 name = blackboard_file[0]
@@ -807,7 +813,7 @@ def process_blackboard_zip(
         submissions = []
         for info_file in info_files:
             info = blackboard.parse_info_file(
-                os.path.join(tmpdir, info_file.string)
+                safe_join(tmpdir, info_file.string)
             )
 
             try:

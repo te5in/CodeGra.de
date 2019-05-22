@@ -100,6 +100,8 @@ FlaskConfig = TypedDict(
         'PYLINT_PROGRAM': t.List[str],
         'FLAKE8_PROGRAM': t.List[str],
         '_USING_SQLITE': str,
+        '_TRANSIP_PRIVATE_KEY_FILE': str,
+        '_TRANSIP_USERNAME': str,
     },
     total=True
 )
@@ -427,6 +429,9 @@ set_list(
         '{files}',
     ]
 )
+
+set_str(CONFIG, backend_ops, '_TRANSIP_PRIVATE_KEY_FILE', '')
+set_str(CONFIG, backend_ops, '_TRANSIP_USERNAME', '')
 
 ############
 # FEATURES #

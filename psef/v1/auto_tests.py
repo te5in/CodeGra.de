@@ -5,7 +5,7 @@ import numbers
 from flask import request
 
 from . import api
-from .. import app, files, models, parsers, auto_test
+from .. import app, files, tasks, models, parsers, auto_test
 from ..models import db
 from ..helpers import (
     JSONResponse, EmptyResponse, ExtendedJSONResponse, jsonify, get_or_404,
@@ -14,10 +14,12 @@ from ..helpers import (
     get_from_map_transaction, get_json_dict_from_request,
     callback_after_this_request
 )
+from ..features import Feature, feature_required
 from ..exceptions import APICodes, APIException
 
 
 @api.route('/auto_tests/', methods=['POST'])
+@feature_required(Feature.AUTO_TEST)
 def create_auto_test() -> JSONResponse[models.AutoTest]:
     with get_from_map_transaction(get_json_dict_from_request()) as [get, _]:
         assignment_id = get('assignment_id', int)
@@ -35,6 +37,7 @@ def create_auto_test() -> JSONResponse[models.AutoTest]:
 
 
 @api.route('/auto_tests/<int:auto_test_id>', methods=['DELETE'])
+@feature_required(Feature.AUTO_TEST)
 def delete_auto_test(auto_test_id: int) -> EmptyResponse:
     auto_test = get_or_404(models.AutoTest, auto_test_id)
 
@@ -52,6 +55,7 @@ def delete_auto_test(auto_test_id: int) -> EmptyResponse:
     '/auto_tests/<int:auto_test_id>/fixtures/<int:fixture_id>/hide',
     methods=['POST', 'DELETE']
 )
+@feature_required(Feature.AUTO_TEST)
 def hide_or_open_fixture(auto_test_id: int, fixture_id: int) -> EmptyResponse:
     fixture = filter_single_or_404(
         models.AutoTestFixture,
@@ -66,6 +70,7 @@ def hide_or_open_fixture(auto_test_id: int, fixture_id: int) -> EmptyResponse:
 
 
 @api.route('/auto_tests/<int:auto_test_id>', methods=['PATCH'])
+@feature_required(Feature.AUTO_TEST)
 def update_or_create_auto_test(auto_test_id: int
                                ) -> JSONResponse[models.AutoTest]:
     auto_test = get_or_404(models.AutoTest, auto_test_id)
@@ -79,7 +84,6 @@ def update_or_create_auto_test(auto_test_id: int
     with get_from_map_transaction(content) as [get, optional_get]:
         old_fixtures = optional_get('fixtures', list, None)
         base_systems = optional_get('base_systems', list, None)
-        finalize_script = optional_get('finalize_script', str, None)
         setup_script = optional_get('setup_script', str, None)
         has_new_fixtures = optional_get('has_new_fixtures', bool, False)
 
@@ -110,9 +114,6 @@ def update_or_create_auto_test(auto_test_id: int
 
     if setup_script is not None:
         auto_test.setup_script = setup_script
-
-    if finalize_script is not None:
-        auto_test.finalize_script = finalize_script
 
     if base_systems is not None:
         new_base_systems = []
@@ -147,6 +148,7 @@ def update_or_create_auto_test(auto_test_id: int
 
 
 @api.route('/auto_tests/<int:auto_test_id>/sets/', methods=['POST'])
+@feature_required(Feature.AUTO_TEST)
 def create_auto_test_set(auto_test_id: int
                          ) -> JSONResponse[models.AutoTestSet]:
     auto_test = get_or_404(models.AutoTest, auto_test_id)
@@ -162,6 +164,7 @@ def create_auto_test_set(auto_test_id: int
     '/auto_tests/<int:auto_test_id>/sets/<int:auto_test_set_id>',
     methods=['PATCH']
 )
+@feature_required(Feature.AUTO_TEST)
 def update_auto_test_set(
     auto_test_id: int, auto_test_set_id: int
 ) -> EmptyResponse:
@@ -189,6 +192,7 @@ def update_auto_test_set(
     '/auto_tests/<int:auto_test_id>/sets/<int:auto_test_set_id>',
     methods=['DELETE']
 )
+@feature_required(Feature.AUTO_TEST)
 def delete_auto_test_set(
     auto_test_id: int, auto_test_set_id: int
 ) -> EmptyResponse:
@@ -209,6 +213,7 @@ def delete_auto_test_set(
     '/auto_tests/<int:auto_test_id>/sets/<int:auto_test_set_id>/suites/',
     methods=['PATCH']
 )
+@feature_required(Feature.AUTO_TEST)
 def update_or_create_auto_test_suite(auto_test_id: int, auto_test_set_id: int
                                      ) -> JSONResponse[models.AutoTestSuite]:
     auto_test_set = filter_single_or_404(
@@ -286,6 +291,7 @@ def update_or_create_auto_test_suite(auto_test_id: int, auto_test_set_id: int
     '/auto_tests/<int:test_id>/sets/<int:set_id>/suites/<int:suite_id>',
     methods=['DELETE']
 )
+@feature_required(Feature.AUTO_TEST)
 def delete_suite(test_id: int, set_id: int, suite_id: int) -> EmptyResponse:
     suite = filter_single_or_404(
         models.AutoTestSuite,
@@ -301,6 +307,7 @@ def delete_suite(test_id: int, set_id: int, suite_id: int) -> EmptyResponse:
 
 
 @api.route('/auto_tests/<int:auto_test_id>', methods=['GET'])
+@feature_required(Feature.AUTO_TEST)
 def get_auto_test(auto_test_id: int) -> ExtendedJSONResponse[models.AutoTest]:
     return extended_jsonify(
         get_or_404(models.AutoTest, auto_test_id),
@@ -309,6 +316,7 @@ def get_auto_test(auto_test_id: int) -> ExtendedJSONResponse[models.AutoTest]:
 
 
 @api.route('/auto_tests/<int:auto_test_id>/runs/<int:run_id>', methods=['GET'])
+@feature_required(Feature.AUTO_TEST)
 def get_auto_test_run(auto_test_id: int,
                       run_id: int) -> ExtendedJSONResponse[models.AutoTestRun]:
     run = filter_single_or_404(
@@ -320,6 +328,7 @@ def get_auto_test_run(auto_test_id: int,
 
 
 @api.route('/auto_tests/<int:auto_test_id>/runs/', methods=['POST'])
+@feature_required(Feature.AUTO_TEST)
 def start_auto_test_run(auto_test_id: int
                         ) -> ExtendedJSONResponse[models.AutoTestRun]:
     test = get_or_404(models.AutoTest, auto_test_id)
@@ -344,14 +353,21 @@ def start_auto_test_run(auto_test_id: int
 @api.route(
     '/auto_tests/<int:auto_test_id>/runs/<int:run_id>', methods=['DELETE']
 )
+@feature_required(Feature.AUTO_TEST)
 def delete_auto_test_runs(auto_test_id: int, run_id: int) -> EmptyResponse:
     run = filter_single_or_404(
         models.AutoTestRun,
         models.AutoTestRun.id == run_id,
         models.AutoTest.id == auto_test_id,
     )
+    runner_id = run.runner_id
     db.session.delete(run)
     db.session.commit()
+
+    callback_after_this_request(
+        lambda: tasks.remove_auto_test_runner(runner_id)
+    )
+
     return make_empty_response()
 
 
@@ -359,6 +375,7 @@ def delete_auto_test_runs(auto_test_id: int, run_id: int) -> EmptyResponse:
     '/auto_tests/<int:auto_test_id>/runs/<int:run_id>/results/<int:result_id>',
     methods=['GET']
 )
+@feature_required(Feature.AUTO_TEST)
 def get_auto_test_result(auto_test_id: int, run_id: int, result_id: int
                          ) -> ExtendedJSONResponse[models.AutoTestResult]:
     result = filter_single_or_404(

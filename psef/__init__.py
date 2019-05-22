@@ -258,15 +258,33 @@ def create_app(  # pylint: disable=too-many-statements
         )
         flask_jwt.verify_jwt_in_request_optional()
         log.bind(current_user=current_user and current_user.username)
-        log.info(
-            "Request started",
-            host=request.host_url,
-            method=request.method,
-            query_args={
-                k: '<PASSWORD>' if k == 'password' else v
-                for k, v in flask.request.args.items()
-            },
-        )
+
+        func = log.info
+        try:
+            start = datetime.datetime.utcfromtimestamp(
+                float(flask.request.headers['X-Request-Start-Time'])
+            )
+            wait_time = (g.request_start_time - start).total_seconds()
+            if wait_time > 5:
+                log.error
+            if wait_time > 1:
+                log.warning
+            log.bind(time_spend_in_queue=wait_time)
+        except:
+            pass
+
+        try:
+            func(
+                "Request started",
+                host=request.host_url,
+                method=request.method,
+                query_args={
+                    k: '<PASSWORD>' if k == 'password' else v
+                    for k, v in flask.request.args.items()
+                },
+            )
+        finally:
+            log.try_unbind('time_spend_in_queue')
 
     configure_logging(
         getattr(resulting_app, 'debug', False),

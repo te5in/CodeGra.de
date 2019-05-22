@@ -823,7 +823,7 @@ class Work(Base):
 
             for root, _dirs, files in os.walk(tmpdir):
                 for file in files:
-                    path = os.path.join(root, file)
+                    path = psef.files.safe_join(root, file)
                     zipf.write(path, path[leading_len:])
 
         return name

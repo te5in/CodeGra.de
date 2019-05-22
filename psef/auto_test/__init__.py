@@ -20,6 +20,8 @@ from multiprocessing.dummy import Pool
 import lxc  # typing: ignore
 import requests
 import structlog
+import transip.service
+from suds import WebFault
 from mypy_extensions import TypedDict
 
 import psef
@@ -27,7 +29,8 @@ import psef
 from .. import app, models
 from .steps import TestStep, StopRunningStepsException, auto_test_handlers
 from ..helpers import (
-    JSONType, defer, register, timed_code, ensure_on_test_server
+    JSONType, defer, register, timed_code, bound_to_logger,
+    ensure_on_test_server
 )
 
 logger = structlog.get_logger()
@@ -411,12 +414,13 @@ class StartedContainer:
     ) -> int:
         self._dirty = True
 
-        logger.bind(cmd=cmd, timeout=timeout)
-
-        with defer(
-            lambda: logger.try_unbind('cmd', 'timeout')
+        with bound_to_logger(
+            cmd=cmd, timeout=timeout
         ), tempfile.TemporaryDirectory(
-        ) as output_dir, tempfile.NamedTemporaryFile() as stdin_file:
+        ) as output_dir, tempfile.NamedTemporaryFile() as stdin_file, open(
+            '/dev/null', 'r'
+        ) as dev_null:
+            logger.info('Running command')
             local_logger = structlog.threadlocal.as_immutable(logger)
 
             if isinstance(stdin, bytes):
@@ -424,7 +428,7 @@ class StartedContainer:
                 stdin_file.write(stdin)
                 stdin_file.flush()
             elif stdin is not None:
-                stdin_file = stdin
+                stdin_file = dev_null
 
             stdout_fifo = os.path.join(output_dir, 'stdout')
             os.mkfifo(stdout_fifo)
@@ -602,6 +606,9 @@ class AutoTestRunner(abc.ABC):
             ]
         self.fixtures = self.instructions['fixtures']
 
+        self.req = requests.Session()
+        self.req.headers.update({'CG-Internal-Api-Password': self.password})
+
     @property
     def password(self) -> str:
         return f'{self.instructions["runner_id"]}@:@{self._global_password}'
@@ -611,9 +618,8 @@ class AutoTestRunner(abc.ABC):
         ...
 
     @classmethod
-    @abc.abstractmethod
     def after_run(cls, runner: 'models.AutoTestRunner') -> None:
-        pass
+        logger.info('Call after run!')
 
     def make_container(self) -> AutoTestContainer:
         return AutoTestContainer(get_new_container_name(), self.config)
@@ -621,14 +627,10 @@ class AutoTestRunner(abc.ABC):
 
 @auto_test_runners.register('simple_runner')
 class _SimpleAutoTestRunner(AutoTestRunner):
-    @classmethod
-    def after_run(_, __: 'models.AutoTestRunner') -> None:
-        pass
-
     def _install_base_systems(self, cont: StartedContainer) -> None:
         for system in self.base_systems:
             for cmd in system['setup_commands']:
-                print(cont.run_command(cmd))
+                cont.run_command(cmd)
 
     def _finalize_base_systems(self, cont: StartedContainer) -> None:
         for system in self.base_systems:
@@ -745,10 +747,9 @@ class _SimpleAutoTestRunner(AutoTestRunner):
                         data['id'] = step_result_id
 
                     logger.info('Posting result data', json=data, url=url)
-                    response = requests.put(
+                    response = self.req.put(
                         url,
                         json=data,
-                        headers={'CG-Internal-Api-Password': self.password}
                     )
                     logger.info('Posted result data', response=response)
                     assert response.status_code == 200
@@ -794,10 +795,9 @@ class _SimpleAutoTestRunner(AutoTestRunner):
         try:
             logger.bind(result_id=result_id)
 
-            requests.patch(
+            self.req.patch(
                 result_url,
                 json={'state': result_state.name},
-                headers={'CG-Internal-Api-Password': self.password}
             )
 
             with student_container.started_container() as cont:
@@ -820,13 +820,12 @@ class _SimpleAutoTestRunner(AutoTestRunner):
                         self.setup_script
                     )
 
-                    requests.patch(
+                    self.req.patch(
                         result_url,
                         json={
                             'setup_stdout': stdout,
                             'setup_stderr': stderr
                         },
-                        headers={'CG-Internal-Api-Password': self.password}
                     )
 
                 logger.info('Dropping sudo rights')
@@ -853,41 +852,48 @@ class _SimpleAutoTestRunner(AutoTestRunner):
         finally:
             cpu_queue.put(cpu_number)
             logger.try_unbind('result_id')
-            requests.patch(
+            self.req.patch(
                 result_url,
                 json={'state': result_state.name},
-                headers={'CG-Internal-Api-Password': self.password}
             )
 
     def run_test(self) -> None:
         stop_logger = _push_logging(
-            lambda logs: requests.post(
+            lambda logs: self.req.post(
                 (
                     f'{self.base_url}/api/v-internal/auto_tests/'
                     f'{self.auto_test_id}/runs/{self.instructions["run_id"]}/'
                     'logs/'
                 ),
                 json={'logs': logs},
-                headers={'CG-Internal-Api-Password': self.password}
             )
         )
-        try:
-            self._run_test()
-        finally:
-            stop_logger()
-
-    def _run_test(self) -> None:
-        ensure_on_test_server()
         run_result_url = (
             f'{self.base_url}/api/v-internal/auto_tests/'
             f'{self.auto_test_id}/runs/{self.instructions["run_id"]}'
         )
 
-        requests.patch(
+        self.req.patch(
             run_result_url,
             json={'state': models.AutoTestRunState.running.name},
-            headers={'CG-Internal-Api-Password': self.password}
         )
+        try:
+            self._run_test()
+        except:
+            end_state = models.AutoTestRunState.crashed.name
+        else:
+            end_state = models.AutoTestRunState.done.name
+        finally:
+            try:
+                self.req.patch(
+                    run_result_url,
+                    json={'state': end_state},
+                )
+            finally:
+                stop_logger()
+
+    def _run_test(self) -> None:
+        ensure_on_test_server()
 
         STOP_CONTAINERS.clear()
 
@@ -950,8 +956,43 @@ class _SimpleAutoTestRunner(AutoTestRunner):
                     pool.terminate()
                     pool.join()
 
-        requests.patch(
-            run_result_url,
-            json={'state': models.AutoTestRunState.done.name},
-            headers={'CG-Internal-Api-Password': self.password}
-        )
+
+@auto_test_runners.register('transip_runner')
+class _TransipAutoTestRunner(_SimpleAutoTestRunner):
+    @staticmethod
+    def _retry_vps_action(
+        action_name: str, func: t.Callable[[], object], max_tries: int = 50
+    ) -> None:
+        with timed_code(
+            f'Starting VPS action: {action_name}',
+            f'Finished VPS action: {action_name}',
+        ):
+            for _ in range(max_tries):
+                try:
+                    func()
+                except WebFault:
+                    logger.info('Could not perform action yet', exc_info=True)
+                    time.sleep(1)
+                else:
+                    break
+            else:
+                logger.error()
+                raise TimeoutError
+
+    @classmethod
+    def after_run(self, runner: 'models.AutoTestRunner') -> None:
+        username = psef.current_app.config['_TRANSIP_USERNAME']
+        key_file = psef.current_app.config['_TRANSIP_PRIVATE_KEY_FILE']
+        vs = transip.service.VpsService(username, private_key_file=key_file)
+        vps, = [
+            vps for vps in vs.get_vpses() if vps['ipAddress'] == runner.ipaddr
+        ]
+        with bound_to_logger(vps=vps):
+            vps_name = vps['name']
+            snapshots = vs.get_snapshots_by_vps(vps_name)
+            snapshot = min(snapshots, key=lambda s: s['dateTimeCreate'])
+            self._retry_vps_action('stopping vps', lambda: vs.stop(vps_name))
+            self._retry_vps_action(
+                'reverting snapshot',
+                lambda: vs.revert_snapshot(vps_name, snapshot['name']),
+            )

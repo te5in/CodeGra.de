@@ -14,6 +14,7 @@ from ..helpers import (
     get_json_dict_from_request
 )
 from ..parsers import parse_enum
+from ..features import Feature, feature_required
 from ..exceptions import APICodes, APIException, PermissionException
 
 logger = structlog.get_logger()
@@ -57,7 +58,10 @@ def verify_runner(
             'No valid password given', APICodes.NOT_LOGGED_IN, 401
         )
 
-    if runner.run.state == models.AutoTestRunState.timed_out:
+    if (
+        runner.run is None or
+        runner.run.state == models.AutoTestRunState.timed_out
+    ):
         raise PermissionException(
             'You cannot update runs which timed out',
             f'The run {{ runner.run.id }} has timed out',
@@ -72,6 +76,7 @@ def verify_global_header_password() -> LocalRunner:
 
 
 @api.route('/auto_tests/', methods=['GET'])
+@feature_required(Feature.AUTO_TEST)
 def get_auto_test_status(
 ) -> t.Union[JSONResponse[auto_test.RunnerInstructions], EmptyResponse]:
     verify_global_header_password()
@@ -96,6 +101,7 @@ def get_auto_test_status(
 @api.route(
     '/auto_tests/<int:auto_test_id>/runs/<int:run_id>', methods=['PATCH']
 )
+@feature_required(Feature.AUTO_TEST)
 def update_run(auto_test_id: int, run_id: int) -> EmptyResponse:
     password = verify_global_header_password()
 
@@ -120,6 +126,7 @@ def update_run(auto_test_id: int, run_id: int) -> EmptyResponse:
 @api.route(
     '/auto_tests/<int:auto_test_id>/results/<int:result_id>', methods=['GET']
 )
+@feature_required(Feature.AUTO_TEST)
 def get_result_data(auto_test_id: int, result_id: int
                     ) -> t.Union[werkzeug.wrappers.Response, EmptyResponse]:
     password = verify_global_header_password()
@@ -147,6 +154,7 @@ def get_result_data(auto_test_id: int, result_id: int
 @api.route(
     '/auto_tests/<int:auto_test_id>/runs/<int:run_id>/logs/', methods=['POST']
 )
+@feature_required(Feature.AUTO_TEST)
 def emit_log_for_runner(auto_test_id: int, run_id: int) -> EmptyResponse:
     password = verify_global_header_password()
 
@@ -177,6 +185,7 @@ def emit_log_for_runner(auto_test_id: int, run_id: int) -> EmptyResponse:
     '/auto_tests/<int:auto_test_id>/fixtures/<int:fixture_id>',
     methods=['GET']
 )
+@feature_required(Feature.AUTO_TEST)
 def get_fixture(
     auto_test_id: int, fixture_id: int
 ) -> werkzeug.wrappers.Response:
@@ -202,6 +211,7 @@ def get_fixture(
     '/auto_tests/<int:auto_test_id>/results/<int:result_id>',
     methods=['PATCH']
 )
+@feature_required(Feature.AUTO_TEST)
 def update_result(auto_test_id: int, result_id: int) -> EmptyResponse:
     password = verify_global_header_password()
 
@@ -236,6 +246,7 @@ def update_result(auto_test_id: int, result_id: int) -> EmptyResponse:
     '/auto_tests/<int:auto_test_id>/results/<int:result_id>/step_results/',
     methods=['PUT']
 )
+@feature_required(Feature.AUTO_TEST)
 def update_step_result(auto_test_id: int, result_id: int
                        ) -> JSONResponse[models.AutoTestStepResult]:
     password = verify_global_header_password()

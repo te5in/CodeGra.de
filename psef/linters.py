@@ -597,14 +597,14 @@ class LinterRunner:
             )
 
             self.linter.run(
-                os.path.join(tmpdir, tree_root['name']), __emit,
+                files.safe_join(tmpdir, tree_root['name']), __emit,
                 process_completed
             )
 
         del tmpdir
 
         def __do(tree: files.FileTree, parent: str) -> None:
-            parent = os.path.join(parent, tree['name'])
+            parent = files.safe_join(parent, tree['name'])
             if 'entries' in tree:  # this is dir:
                 for entry in tree['entries']:
                     __do(entry, parent)

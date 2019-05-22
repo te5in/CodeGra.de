@@ -92,7 +92,7 @@ class ExtractFileTreeFile(ExtractFileTreeBase):
 
     def delete(self, base_dir: str) -> None:
         super().delete(base_dir)
-        path = os.path.realpath(os.path.join(base_dir, self.disk_name))
+        path = psef.files.safe_join(base_dir, self.disk_name)
         assert path.startswith(base_dir)
         os.unlink(path)
 
