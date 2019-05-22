@@ -897,11 +897,14 @@ class _SimpleAutoTestRunner(AutoTestRunner):
         base_container.create()
 
         with base_container.started_container() as cont:
-            cont.run_command(['apt', 'update'])
-            cont.run_command(['apt', 'upgrade', '-y'])
+            with timed_code('install_base_system'):
+                cont.run_command(['apt', 'update'])
+                cont.run_command(['apt', 'upgrade', '-y'])
 
-            # Install useful commands
-            cont.run_command(['apt', 'install', '-y', 'wget', 'curl', 'unzip'])
+                # Install useful commands
+                cont.run_command(
+                    ['apt', 'install', '-y', 'wget', 'curl', 'unzip']
+                )
 
             self.copy_file(
                 cont,
@@ -912,7 +915,8 @@ class _SimpleAutoTestRunner(AutoTestRunner):
                 '/usr/bin/install_pyenv.sh',
             )
 
-            self._install_base_systems(cont)
+            with timed_code('installing_base_systems'):
+                self._install_base_systems(cont)
 
             cont.run_command(
                 ['adduser', '--disabled-password', '--gecos', '', 'codegrade'],
@@ -920,13 +924,16 @@ class _SimpleAutoTestRunner(AutoTestRunner):
 
             cont.run_command(['usermod', '-aG', 'sudo', 'codegrade'])
 
-            self.download_fixtures(cont)
+            with timed_code('download_fixtures'):
+                self.download_fixtures(cont)
             self._finalize_base_systems(cont)
 
             cont.stop_container()
             del cont
 
-            with Pool(get_amount_cpus()) as pool:
+            with timed_code('running_students'), Pool(
+                get_amount_cpus()
+            ) as pool:
                 q: 'Queue[int]' = Queue(maxsize=get_amount_cpus())
                 for i in range(get_amount_cpus()):
                     q.put(i)
