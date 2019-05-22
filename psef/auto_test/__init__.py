@@ -216,8 +216,13 @@ class StartedContainer:
 
     def destroy_snapshots(self) -> None:
         self.stop_container()
-        while self._snapshots:
-            self._container.snapshot_destroy(self._snapshots.pop())
+        with timed_code(
+            'Destroying snapshots',
+            'Destroyed snapshots',
+            snapshot_amount=len(self._snapshots)
+        ):
+            while self._snapshots:
+                self._container.snapshot_destroy(self._snapshots.pop())
 
     def set_cgroup_item(self, key: str, value: str) -> None:
         success = self._container.set_cgroup_item(key, value)
