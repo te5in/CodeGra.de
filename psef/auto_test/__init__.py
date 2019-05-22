@@ -533,7 +533,6 @@ class AutoTestContainer:
 
     @contextlib.contextmanager
     def started_container(self) -> t.Generator[StartedContainer, None, None]:
-        _start_container(self._cont)
         started = None
 
         try:
@@ -542,6 +541,7 @@ class AutoTestContainer:
                 'Started container',
                 container=self._name
             ):
+                _start_container(self._cont)
                 started = StartedContainer(
                     self._cont, self._name, self._config
                 )
