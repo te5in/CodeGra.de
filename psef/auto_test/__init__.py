@@ -550,20 +550,18 @@ class AutoTestContainer:
             self._stop_container(started)
 
     def _stop_container(self, cont: t.Optional[StartedContainer]) -> None:
-        logger.info('Stopping container', cont=self)
-        try:
-            if self._cont.running:
-                self._cont.stop()
-                self._cont.wait('STOPPED', 3)
-            if cont is not None:
-                logger.info('Destroying snapshots')
-                cont.destroy_snapshots()
-        finally:
-            logger.info('Destroying container')
+        with bound_to_logger(cont=self):
+            logger.info('Stopping container', cont=self)
             try:
-                self._cont.destroy()
+                if self._cont.running:
+                    self._cont.stop()
+                    self._cont.wait('STOPPED', 3)
+                if cont is not None:
+                    logger.info('Destroying snapshots')
+                    cont.destroy_snapshots()
             finally:
-                logger.try_unbind('cont')
+                with timed_code('Destroying container', 'Destroyed container'):
+                    self._cont.destroy()
 
     def create(self) -> None:
         assert self._cont.create(
@@ -956,7 +954,7 @@ class _SimpleAutoTestRunner(AutoTestRunner):
                         else:
                             break
                 finally:
-                    logger.warning('Done with containers, cleaning up')
+                    logger.info('Done with containers, cleaning up')
                     STOP_CONTAINERS.set()
                     pool.terminate()
                     pool.join()
