@@ -503,7 +503,9 @@ export default {
                 Promise.all([
                     this.loadAutoTest(),
                     this.loadPermissions(),
-                ]).finally(() => {
+                ]).then(() => {
+                    this.loading = false;
+                }, () => {
                     this.loading = false;
                 });
             },

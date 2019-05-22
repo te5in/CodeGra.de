@@ -360,14 +360,14 @@ const actions = {
         if (loaders.tests[autoTestId] == null) {
             loaders.tests[autoTestId] = axios.get(`/api/v1/auto_tests/${autoTestId}`).then(
                 ({ data }) => {
+                    delete loaders.tests[autoTestId];
                     commit(types.SET_AUTO_TEST, data);
                 },
                 err => {
+                    delete loaders.tests[autoTestId];
                     throw new Error(err.response.data.message);
                 },
-            ).finally(() => {
-                delete loaders.tests[autoTestId];
-            });
+            );
         }
 
         return loaders.tests[autoTestId];
@@ -406,13 +406,15 @@ const actions = {
         const runId = oldRun.id;
         if (loaders.runs[runId] == null) {
             loaders.runs[runId] = axios.get(`/api/v1/auto_tests/${autoTestId}/runs/${runId}`).then(
-                ({ data }) => commit(types.UPDATE_AUTO_TEST_RUNS, { autoTest, run: data }),
+                ({ data }) => {
+                    delete loaders.runs[runId];
+                    commit(types.UPDATE_AUTO_TEST_RUNS, { autoTest, run: data });
+                },
                 err => {
+                    delete loaders.runs[runId];
                     throw new Error(err.response.data.message);
                 },
-            ).finally(() => {
-                delete loaders.runs[runId];
-            });
+            );
         }
 
         return loaders.runs[runId];
@@ -510,13 +512,15 @@ const actions = {
                     }/results/${resultId}`,
                 )
                 .then(
-                    ({ data }) => commit(types.UPDATE_AUTO_TEST_RESULT, { autoTest, result: data }),
+                    ({ data }) => {
+                        delete loaders.results[resultId];
+                        commit(types.UPDATE_AUTO_TEST_RESULT, { autoTest, result: data });
+                    },
                     err => {
+                        delete loaders.results[resultId];
                         throw new Error(err.response.data.message);
                     },
-                ).finally(() => {
-                    delete loaders.results[resultId];
-                });
+                );
         }
 
         return loaders.results[resultId];
