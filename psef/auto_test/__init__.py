@@ -1000,12 +1000,12 @@ class _TransipAutoTestRunner(_SimpleAutoTestRunner):
         with bound_to_logger(
             action=action_name,
         ), timed_code('_retry_vps_action'):
-            for _ in range(max_tries):
+            for idx in range(max_tries):
                 try:
                     func()
                 except WebFault:
                     logger.info('Could not perform action yet', exc_info=True)
-                    time.sleep(1)
+                    time.sleep(idx)
                 else:
                     break
             else:

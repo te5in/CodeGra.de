@@ -334,7 +334,6 @@ class CustomOutput(TestStep):
     ) -> float:
         assert isinstance(self.data, dict)
         regex = t.cast(str, self.data['regex'])
-        res = 0
 
         code, stdout, stderr = container.run_student_command(
             t.cast(str, self.data['program'])
@@ -370,7 +369,7 @@ class CustomOutput(TestStep):
     ) -> float:
         if not isinstance(result.log, dict):
             return 0
-        return t.cast(float, result.log['points']) * result.step.weight
+        return t.cast(float, result.log.get('points', 0)) * result.step.weight
 
 
 @auto_test_handlers.register('check_points')
