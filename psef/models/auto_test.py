@@ -486,7 +486,7 @@ class AutoTestRunner(Base, TimestampMixin, UUIDMixin):
         return db.session.query(
             cls.query.filter(
                 cls._ipaddr == ipaddr,
-                cls.after_run != AutoTestAfterRunState.called
+                cls.after_state != AutoTestAfterRunState.called
             ).exists()
         ).scalar()
 
