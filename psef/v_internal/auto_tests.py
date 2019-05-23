@@ -50,7 +50,7 @@ def verify_runner(
 
     if (
         runner is None or not password or str(runner.id) != password or
-        runner.after_run != models.AutoTestAfterRunState.not_called or
+        runner.after_state != models.AutoTestAfterRunState.not_called or
         (check_ip and runner.ipaddr != request.remote_addr)
     ):
         raise PermissionException(
