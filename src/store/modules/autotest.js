@@ -526,7 +526,7 @@ const actions = {
         return loaders.results[resultId];
     },
 
-    async deleteAutoTestResults({ commit, dispatch, state }, { autoTestId, runId }) {
+    async deleteAutoTestResults({ commit, dispatch, state }, { autoTestId, runId, force }) {
         await dispatch('loadAutoTest', { autoTestId });
         const autoTest = state.tests[autoTestId];
 
@@ -534,14 +534,16 @@ const actions = {
             return null;
         }
 
-        return axios.delete(`/api/v1/auto_tests/${autoTestId}/runs/${runId}`).then(() =>
-            commit(types.UPDATE_AUTO_TEST, {
-                autoTestId,
-                autoTestProps: {
-                    runs: autoTest.runs.filter(run => run.id !== runId),
-                },
-            }),
-        );
+        const c = () => commit(types.UPDATE_AUTO_TEST, {
+            autoTestId,
+            autoTestProps: {
+                runs: autoTest.runs.filter(run => run.id !== runId),
+            },
+        });
+
+        return axios
+            .delete(`/api/v1/auto_tests/${autoTestId}/runs/${runId}`)
+            .then(c, () => force && c());
     },
 
     createFixtures({ commit }, { autoTestId, fixtures }) {

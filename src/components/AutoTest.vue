@@ -9,7 +9,7 @@
 <loader v-else-if="loading" />
 
 <div v-else class="auto-test" :class="{ editable, 'config-editable': configEditable, 'no-card': noCard }">
-    <template v-if="hasResults && !singleResult">
+    <template v-if="autoTestRun && !singleResult">
         <b-card no-body v-for="run in test.runs" :key="run.id" class="results-card">
             <b-card-header class="auto-test-header" :class="{ editable }">
                 <div class="toggle" :key="resultsCollapseId" v-b-toggle="resultsCollapseId">
@@ -109,7 +109,7 @@
         <b-card-body v-if="test == null" key="empty">
             <div class="text-muted">You have no AutoTest yet for this assignment</div>
         </b-card-body>
-        <b-collapse v-else :id="configCollapseId" :visible="singleResult || !hasResults">
+        <b-collapse v-else :id="configCollapseId" :visible="singleResult || !autoTestRun">
             <b-card-body key="full">
                 <b-card no-body>
                     <span
@@ -501,7 +501,7 @@ export default {
         assignmentId: {
             immediate: true,
             handler() {
-                if (this.assignment.auto_test_id == null) {
+                if (this.autoTestId == null) {
                     this.loading = false;
                     return;
                 }
@@ -562,7 +562,7 @@ export default {
 
         runAutoTest() {
             this.storeCreateAutoTestRun({
-                autoTestId: this.assignment.auto_test_id,
+                autoTestId: this.autoTestId,
             }).then(
                 () => this.loadAutoTestRun(),
             );
@@ -570,7 +570,7 @@ export default {
 
         loadAutoTest() {
             return this.storeLoadAutoTest({
-                autoTestId: this.assignment.auto_test_id,
+                autoTestId: this.autoTestId,
             }).then(
                 () => {
                     this.loadAutoTestRun();
@@ -583,17 +583,24 @@ export default {
         },
 
         loadAutoTestRun() {
-            if (!this.hasResults || this.singleResult || this.test.runs[0].finished) {
+            if (!this.autoTestRun || this.singleResult || this.test.runs[0].finished) {
                 return;
             }
 
             this.pollingTimer = setTimeout(() => {
                 this.storeLoadAutoTestRun({
-                    autoTestId: this.assignment.auto_test_id,
+                    autoTestId: this.autoTestId,
                 }).then(
                     () => this.loadAutoTestRun(),
-                    err => {
-                        this.error = `Could not load AutoTest: ${getErrorMessage(err)}`;
+                    () => {
+                        clearTimeout(this.pollingTimer);
+                        if (this.autoTestRun) {
+                            this.storeDeleteAutoTestResults({
+                                autoTestId: this.autoTestId,
+                                runId: this.autoTestRun.id,
+                                force: true,
+                            });
+                        }
                     },
                 );
             }, this.pollingInterval);
@@ -606,7 +613,7 @@ export default {
 
             return Promise.all([
                 this.storeLoadAutoTestResult({
-                    autoTestId: this.assignment.auto_test_id,
+                    autoTestId: this.autoTestId,
                     submissionId: this.submissionId,
                 }),
             ]).then(
@@ -686,6 +693,10 @@ export default {
         },
 
         addFixtures() {
+            if (this.singleResult) {
+                throw new Error('Cannot add fixtures in single result mode.');
+            }
+
             const data = new FormData();
 
             this.newFixtures.forEach((f, i) => {
@@ -717,6 +728,10 @@ export default {
         },
 
         removeFixture(index) {
+            if (this.singleResult) {
+                throw new Error('Cannot remove fixtures in single result mode.');
+            }
+
             this.storeUpdateAutoTest({
                 autoTestId: this.test.id,
                 autoTestProps: {
@@ -726,6 +741,10 @@ export default {
         },
 
         toggleHidden(index) {
+            if (this.singleResult) {
+                throw new Error('Cannot toggle fixtures in single result mode.');
+            }
+
             return this.storeToggleFixture({
                 autoTestId: this.test.id,
                 fixture: this.test.fixtures[index],
@@ -733,6 +752,10 @@ export default {
         },
 
         createAutoTest() {
+            if (this.singleResult) {
+                throw new Error('AutoTest cannot be created on a single result page.');
+            }
+
             this.disabledAnimations = true;
             return this.storeCreateAutoTest(this.assignment.id);
         },
@@ -743,6 +766,10 @@ export default {
         },
 
         deleteAutoTest() {
+            if (this.singleResult) {
+                throw new Error('AutoTest cannot be deleted on a single result page.');
+            }
+
             this.disabledAnimations = true;
             return this.storeDeleteAutoTest(this.test.id);
         },
@@ -799,6 +826,15 @@ export default {
             return this.assignment.id;
         },
 
+        autoTestId() {
+            return this.assignment.auto_test_id;
+        },
+
+        autoTestRun() {
+            const runs = this.test && this.test.runs;
+            return runs && runs[0];
+        },
+
         allNonDeletedSuites() {
             return this.test.sets.reduce((res, set) => {
                 if (!set.deleted) {
@@ -833,13 +869,8 @@ export default {
             return this.internalTest.base_systems;
         },
 
-        hasResults() {
-            const runs = this.test && this.test.runs;
-            return !!(runs && runs.length);
-        },
-
         configEditable() {
-            return this.editable && !this.hasResults;
+            return this.editable && !this.autoTestRun;
         },
 
         singleResult() {
@@ -847,12 +878,12 @@ export default {
         },
 
         test() {
-            const id = this.assignment.auto_test_id;
+            const id = this.autoTestId;
             return id && this.allTests[id];
         },
 
         result() {
-            if (!this.hasResults || this.submissionId == null) {
+            if (!this.autoTestRun || this.submissionId == null) {
                 return null;
             }
             return this.test.runs[0].results.find(r => r.submission.id === this.submissionId);
