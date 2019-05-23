@@ -599,9 +599,11 @@ class AutoTestRunner(abc.ABC):
             ), 'r'
         ) as f:
             loaded = json.load(f)
+            enabled_systems = set(
+                b['id'] for b in self.instructions['base_systems']
+            )
             self.base_systems = [
-                val for val in loaded
-                if val['id'] in self.instructions['base_systems']
+                val for val in loaded if val['id'] in enabled_systems
             ]
             logger.info(
                 'Setting selected base systems',
