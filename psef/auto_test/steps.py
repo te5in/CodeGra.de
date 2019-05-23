@@ -177,9 +177,16 @@ class IoTest(TestStep):
             output = step['output'].rstrip('\n')
 
             options = t.cast(t.List[str], step['options'])
-            code, stdout, stderr = container.run_student_command(
-                f'{prog} {step["args"]}', stdin=step['stdin'].encode('utf-8')
-            )
+            try:
+                code, stdout, stderr = container.run_student_command(
+                    f'{prog} {step["args"]}',
+                    stdin=step['stdin'].encode('utf-8')
+                )
+            except psef.auto_test.CommandTimeoutException as e:
+                code = -1
+                stdout = e.stdout
+                stderr = e.stderr
+
             if code == 0:
                 to_test = stdout.rstrip('\n')
 
