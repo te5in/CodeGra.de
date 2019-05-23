@@ -212,20 +212,8 @@
                 <b-collapse :id="resultsCollapseId" class="container-fluid">
                     <div class="row">
                         <div class="col-12">
-                            <span>
-                                Exit status code:
-                                <code>{{ getProps(stepResult.log, '(unknown)', 'exit_code') }}</code>
-                            </span>
-                        </div>
-
-                        <div class="col-6">
-                            <label>Output</label>
-                            <pre class="form-control">{{ stepResult.log.stdout }}</pre>
-                        </div>
-
-                        <div class="col-6">
-                            <label>Errors</label>
-                            <pre class="form-control">{{ stepResult.log.stderr }}</pre>
+                            You {{ stepResult.state === 'passed' ? 'scored' : 'did not score' }}
+                            enough points.
                         </div>
                     </div>
                 </b-collapse>
