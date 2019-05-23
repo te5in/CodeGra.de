@@ -276,8 +276,8 @@ class StartedContainer:
     @property
     def _extra_path(self) -> str:
         return (
-            '~/.pyenv/bin/:~/.local/bin:/home/codegrade/.pyenv/bin:'
-            '/home/codegrade/.local/bin/'
+            '~/bin/:~/.pyenv/bin/:~/.local/bin:/home/codegrade/.pyenv/bin:'
+            '/home/codegrade/.local/bin/:/home/codegrade/bin/'
         )
 
     def _change_user(self, username: str) -> None:
@@ -285,31 +285,33 @@ class StartedContainer:
         user_uid = pw_record.pw_uid
         user_gid = pw_record.pw_gid
 
-        path = os.environ['PATH']
-        # Converting to a list is important here as we mutate the object in the
-        # body of the loop.
-        for key in list(os.environ):
-            del os.environ[key]
-
-        os.environ['PATH'] = path
-        os.environ['USER'] = username
-        os.environ['HOME'] = pw_record.pw_dir
-        os.environ['LOGUSER'] = username
-
         os.setgid(user_gid)
         os.setuid(user_uid)
+
+    def create_env(self, username: t.Optional[str]) -> t.Dict:
+        env = os.environ
+        if username is not None:
+            pw_record = pwd.getpwnam(username)
+            user = username
+            home = pw_record.pw_dir
+        else:
+            user = 'codegrade'
+            home = '/home/codegrade/'
+
+        return {
+            'PATH': f'{self._extra_path}:/usr/sbin/:/sbin/:{env["PATH"]}',
+            'USER': user,
+            'LOGUSER': user,
+            'HOME': home,
+        }
 
     def _run_command(
         self, cmd_user: t.Tuple[t.List[str], t.Optional[str]]
     ) -> int:
         cmd, user = cmd_user
-        env = os.environ.copy()
-        env['PATH'] = f'{self._extra_path}:/usr/sbin/:/sbin/:{env["PATH"]}'
+        env = self.create_env(user)
 
         def preexec() -> None:
-            os.environ['USER'] = 'codegrade'
-            os.environ['LOGUSER'] = 'codegrade'
-            os.environ['HOME'] = '/home/codegrade/'
             if user:
                 self._change_user(user)
 
@@ -317,11 +319,8 @@ class StartedContainer:
 
     def _run_shell(self, cmd_cwd_user: t.Tuple[str, str, str]) -> int:
         cmd, cwd, user = cmd_cwd_user
-        env = os.environ.copy()
-        env['PATH'] = (
-            '{self._extra_path}:/home/codegrade/student/:'
-            '/home/codegrade/fixtures/:{env["PATH"]}'
-        )
+        env = self.create_env(user)
+        env['PATH'] += '/home/codegrade/student/:/home/codegrade/fixtures/'
 
         def preexec() -> None:
             self._change_user(user)
