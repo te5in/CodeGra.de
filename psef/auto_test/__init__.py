@@ -297,7 +297,7 @@ class StartedContainer:
     ) -> int:
         cmd, user = cmd_user
         env = os.environ.copy()
-        env['PATH'] += ':/usr/sbin/:/sbin/'
+        env['PATH'] += ':/usr/sbin/:/sbin/:/home/codegrade/.local/bin/'
 
         def preexec() -> None:
             if user:
@@ -308,7 +308,9 @@ class StartedContainer:
     def _run_shell(self, cmd_cwd_user: t.Tuple[str, str, str]) -> int:
         cmd, cwd, user = cmd_cwd_user
         env = os.environ.copy()
-        env['PATH'] += ':/home/codegrade/student/:/home/codegrade/fixtures/:/home/codegrade/.local/bin/'
+        env[
+            'PATH'
+        ] += ':/home/codegrade/student/:/home/codegrade/fixtures/:/home/codegrade/.local/bin/'
 
         def preexec() -> None:
             self._change_user(user)
@@ -596,10 +598,17 @@ class AutoTestRunner(abc.ABC):
                 'auto_test_base_systems.json'
             ), 'r'
         ) as f:
+            loaded = json.load(f)
             self.base_systems = [
-                val for val in json.load(f)
+                val for val in loaded
                 if val['id'] in self.instructions['base_systems']
             ]
+            logger.info(
+                'Setting selected base systems',
+                got_base_systems=self.instructions['base_systems'],
+                loaded_base_systems=loaded,
+                base_systems=self.base_systems
+            )
         self.fixtures = self.instructions['fixtures']
 
         self.req = requests.Session()
