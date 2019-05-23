@@ -666,6 +666,7 @@ class _SimpleAutoTestRunner(AutoTestRunner):
                 ['dd', 'status=none', f'of={dst}'], stdin=f
             )
         container.run_command(['chmod', '+x', dst])
+        container.run_command(['ls', '-hal', dst])
         container.run_command(['cat', dst])
 
     def download_fixtures(self, cont: StartedContainer) -> None:
