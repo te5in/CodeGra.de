@@ -434,6 +434,8 @@ class StartedContainer:
                 stdin_file.flush()
             elif stdin is None:
                 stdin_file = dev_null
+            else:
+                stdin_file = stdin
 
             stdout_fifo = os.path.join(output_dir, 'stdout')
             os.mkfifo(stdout_fifo)
