@@ -10,7 +10,9 @@
       "python --version"
     ],
     "setup_commands": [
-      "/usr/bin/install_pyenv.sh",
+      [
+        "/usr/bin/install_pyenv.sh"
+      ],
       "pyenv install 2.7.16"
     ]
   },
@@ -24,7 +26,9 @@
       "python3 --version"
     ],
     "setup_commands": [
-      "/usr/bin/install_pyenv.sh",
+      [
+        "/usr/bin/install_pyenv.sh"
+      ],
       "pyenv install 3.5.7"
     ]
   },
@@ -38,7 +42,9 @@
       "python3 --version"
     ],
     "setup_commands": [
-      "/usr/bin/install_pyenv.sh",
+      [
+        "/usr/bin/install_pyenv.sh"
+      ],
       "pyenv install 3.6.8"
     ]
   },
@@ -52,7 +58,9 @@
       "python3 --version"
     ],
     "setup_commands": [
-      "/usr/bin/install_pyenv.sh",
+      [
+        "/usr/bin/install_pyenv.sh"
+      ],
       "pyenv install 3.7.3"
     ]
   },

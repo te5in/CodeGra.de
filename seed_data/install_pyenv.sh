@@ -1,4 +1,5 @@
 #!/bin/bash
+source ~/.bashrc
 
 env
 
@@ -14,6 +15,4 @@ echo -e '\neval "$(pyenv init -)"' >> /home/codegrade/.bash_profile
 echo -e '\neval "$(pyenv init -)"' >> /home/codegrade/.bashrc
 pyenv update
 
-bash -c 'env'
-bash -c 'which pyenv'
 exit 0
