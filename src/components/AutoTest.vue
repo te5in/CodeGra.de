@@ -753,10 +753,16 @@ export default {
         },
 
         deleteResults(id) {
+            if (this.singleResult) {
+                throw new Error('All results cannot be deleted on a single result page.');
+            }
+
             return this.storeDeleteAutoTestResults({
                 autoTestId: this.test.id,
                 runId: id,
-            });
+            }).then(
+                () => clearTimeout(this.pollingTimer),
+            );
         },
 
         async openResult(result) {
