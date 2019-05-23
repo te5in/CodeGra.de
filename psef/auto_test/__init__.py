@@ -141,6 +141,7 @@ def _push_logging(post_log: t.Callable[[JSONType], object]) -> RepeatedTimer:
             logs.append(json_event)
 
     def push_logs() -> None:
+        logger.info('Pushing logs')
         with logs_lock:
             logs_copy = list(logs)
             logs.clear()
@@ -934,12 +935,12 @@ class _SimpleAutoTestRunner(AutoTestRunner):
                 end_state = models.AutoTestRunState.done.name
             finally:
                 try:
+                    push_log_timer.cancel()
+                finally:
                     self.req.patch(
                         run_result_url,
                         json={'state': end_state},
                     )
-                finally:
-                    push_log_timer.cancel()
 
     def _run_test(self) -> None:
         ensure_on_test_server()
@@ -980,7 +981,7 @@ class _SimpleAutoTestRunner(AutoTestRunner):
 
             cont.run_command(
                 ['tee', '--append', '/etc/sudoers'],
-                stdin=b'codegrade ALL=(ALL) NOPASSWD: ALL\n'
+                stdin=b'\ncodegrade ALL=(ALL) NOPASSWD: ALL\n'
             )
             cont.run_command(['cat', '/etc/sudoers'])
             cont.run_command(['grep', 'codegrade', '/etc/sudoers'])

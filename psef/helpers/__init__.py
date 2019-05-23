@@ -874,6 +874,7 @@ class RepeatedTimer(threading.Thread):
         This class doesn't work when threads don't work, which is the case when
         using it in a flask context.
     """
+
     def __init__(
         self,
         interval: int,
@@ -882,7 +883,15 @@ class RepeatedTimer(threading.Thread):
     ) -> None:
         super().__init__()
         self.interval = interval
-        self.function = function
+
+        def fun() -> None:
+            try:
+                with timed_code('repeated_function', function=function):
+                    function()
+            except:
+                pass
+
+        self.function = fun
         self.finished = threading.Event()
         self.cleanup = cleanup
 
