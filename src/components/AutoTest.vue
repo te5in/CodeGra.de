@@ -516,14 +516,24 @@ export default {
                     autoTestId: this.autoTestId,
                 }).then(
                     () => this.loadAutoTestRun(),
-                    () => {
-                        clearTimeout(this.pollingTimer);
-                        if (this.autoTestRun) {
-                            this.storeDeleteAutoTestResults({
-                                autoTestId: this.autoTestId,
-                                runId: this.autoTestRun.id,
-                                force: true,
-                            });
+                    err => {
+                        switch (getProps(err, 500, 'response', 'status')) {
+                            case 404:
+                                clearTimeout(this.pollingTimer);
+                                if (this.autoTestRun) {
+                                    this.storeDeleteAutoTestResults({
+                                        autoTestId: this.autoTestId,
+                                        runId: this.autoTestRun.id,
+                                        force: true,
+                                    });
+                                }
+                                break;
+                            case 500:
+                                this.loadAutoTestRun();
+                                break;
+                            default:
+                                clearTimeout(this.pollingTimer);
+                                break;
                         }
                     },
                 );
