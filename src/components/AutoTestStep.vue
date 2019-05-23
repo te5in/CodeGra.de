@@ -636,27 +636,31 @@ export default {
         },
 
         updateValue(key, value) {
+            const copy = deepCopy(this.value);
+
             if (key === 'weight') {
                 this.$emit(
                     'input',
-                    Object.assign(deepCopy(this.value), {
-                        weight: value,
+                    Object.assign(copy, {
+                        weight: Number(value),
                     }),
                 );
                 return;
             }
 
-            let weight = this.value.weight;
+            let weight = Number(this.value.weight);
             if (key === 'inputs') {
                 weight = (value || []).reduce((res, cur) => res + Number(cur.weight), 0);
-                if (Number.isNaN(weight)) {
-                    weight = '-';
-                }
+                (value || []).forEach(cur => {
+                    if (typeof cur.weight !== 'number' || !(cur.weight instanceof Number)) {
+                        cur.weight = Number(cur.weight);
+                    }
+                });
             }
 
             this.$emit(
                 'input',
-                Object.assign(deepCopy(this.value), {
+                Object.assign(copy, {
                     data: {
                         ...this.value.data,
                         [key]: value,

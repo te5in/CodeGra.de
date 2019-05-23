@@ -312,7 +312,7 @@ export default {
             return res;
         },
 
-        async editSuite() {
+        editSuite() {
             this.internalValue = this.value.copy();
             this.internalValue.steps.forEach(val => {
                 val.opened = false;

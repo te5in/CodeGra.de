@@ -454,7 +454,7 @@ const actions = {
     },
 
     createAutoTestSuite({ commit }, { autoTestId, autoTestSet }) {
-        const suites = autoTestSet.suites.concat(new AutoTestSuiteData(autoTestId, autoTestSet.id));
+        const suites = [...autoTestSet.suites, new AutoTestSuiteData(autoTestId, autoTestSet.id)];
 
         return commit(types.UPDATE_AUTO_TEST_SET, {
             autoTestSet,
