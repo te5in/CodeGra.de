@@ -16,3 +16,4 @@ pyenv update
 
 bash -c 'env'
 bash -c 'which pyenv'
+exit 0
