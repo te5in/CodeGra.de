@@ -307,6 +307,9 @@ class StartedContainer:
         env['PATH'] = f'{self._extra_path}:/usr/sbin/:/sbin/:{env["PATH"]}'
 
         def preexec() -> None:
+            os.environ['USER'] = 'codegrade'
+            os.environ['LOGUSER'] = 'codegrade'
+            os.environ['HOME'] = '/home/codegrade/'
             if user:
                 self._change_user(user)
 
