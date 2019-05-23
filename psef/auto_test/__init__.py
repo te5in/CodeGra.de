@@ -704,10 +704,6 @@ class _SimpleAutoTestRunner(AutoTestRunner):
         container.run_command(['cat', dst])
 
     def download_fixtures(self, cont: StartedContainer) -> None:
-        cont.run_command(
-            ['mkdir', '/home/codegrade/fixtures/'], user='codegrade'
-        )
-
         for name, fixture_id in self.fixtures:
             url = f'{self.base_url}/fixtures/{fixture_id}'
             path = f'/home/codegrade/fixtures/{name}'
@@ -750,9 +746,6 @@ class _SimpleAutoTestRunner(AutoTestRunner):
         )
         logger.info('Downloaded student code', url=url)
 
-        cont.run_command(
-            ['mkdir', '-p', '/home/codegrade/student/'], user='codegrade'
-        )
         cont.run_command(
             [
                 'unzip', '/home/codegrade/student.zip', '-d',
@@ -997,6 +990,12 @@ class _SimpleAutoTestRunner(AutoTestRunner):
                     'adduser', '--shell', '/bin/bash', '--disabled-password',
                     '--gecos', '', 'codegrade'
                 ],
+            )
+            cont.run_command(
+                ['mkdir', '-p', '/home/codegrade/student/'], user='codegrade'
+            )
+            cont.run_command(
+                ['mkdir', '/home/codegrade/fixtures/'], user='codegrade'
             )
 
             cont.run_command(['usermod', '-aG', 'sudo', 'codegrade'])
