@@ -306,6 +306,8 @@ class StartedContainer:
             'USER': user,
             'LOGUSER': user,
             'HOME': home,
+            'DEBIAN_FRONTEND': 'noninteractive',
+            'TERM': 'dumb',
         }
 
     def _run_command(
@@ -329,7 +331,7 @@ class StartedContainer:
             self._change_user(user)
 
         return subprocess.call(
-            f'source ~/.bashrc; {cmd}',
+            cmd,
             cwd=cwd,
             preexec_fn=preexec,
             env=env,
@@ -973,8 +975,13 @@ class _SimpleAutoTestRunner(AutoTestRunner):
 
                 # Install useful commands
                 cont.run_command(
-                    ['apt', 'install', '-y', 'wget', 'curl', 'unzip']
+                    [
+                        'apt', 'install', '-y', 'wget', 'curl', 'unzip',
+                        'software-properties-common'
+                    ]
                 )
+                cont.run_command(['add-apt-repository', '-y', 'universe'])
+                cont.run_command(['apt', 'update'])
 
             self.copy_file(
                 cont,
