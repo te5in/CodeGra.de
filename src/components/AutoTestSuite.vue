@@ -77,7 +77,7 @@
                 <submit-button variant="danger"
                                confirm="Are you sure you want to delete this suite?"
                                :submit="() => internalValue.delete()"
-                               @after-success="$emit('delete', internalValue)"
+                               @after-success="deleteSuite"
                                label="Delete"/>
                 <submit-button
                     variant="outline-danger"
@@ -335,6 +335,12 @@ export default {
                 this.$emit('save-cancelled');
             }
         },
+
+        deleteSuite() {
+            return this.storeDeleteAutoTestSuite({
+                autoTestSuite: this.value,
+            });
+        },
     },
 
     components: {
@@ -434,6 +440,10 @@ export default {
 .suite-steps {
     max-height: 20rem;
     overflow: auto;
+
+    .single-result & {
+        max-height: 40rem;
+    }
 }
 
 .steps-table {

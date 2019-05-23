@@ -213,8 +213,8 @@
                     <div class="row">
                         <div class="col-12">
                             <span>
-                                Exit status code
-                                <code>{{ stepResult.log.exit_code || '(unknown) :-(' }}</code>
+                                Exit status code:
+                                <code>{{ getProps(stepResult.log, '(unknown)', 'exit_code') }}</code>
                             </span>
                         </div>
 
@@ -257,8 +257,8 @@
                     <div class="row">
                         <div class="col-12">
                             <span>
-                                Exit status code
-                                <code>{{ stepResult.log.exit_code || '(unknown) :-(' }}</code>
+                                Exit status code:
+                                <code>{{ getProps(stepResult.log, '(unknown)', 'exit_code') }}</code>
                             </span>
                         </div>
 
@@ -305,8 +305,8 @@
                                 <code>{{ value.data.regex }}</code>
                             </label>
                             <label>
-                                Exit status code
-                                <code>{{ stepResult.log.exit_code || '(unknown) :-(' }}</code>
+                                Exit status code:
+                                <code>{{ getProps(stepResult.log, '(unknown)', 'exit_code') }}</code>
                             </label>
                         </div>
 
@@ -465,6 +465,7 @@ export default {
         const id = getUniqueId();
 
         return {
+            getProps,
             id,
             collapseState: {},
             mainCollapseState: this.collapseOpen,
@@ -897,6 +898,8 @@ hr {
 
     pre.form-control {
         flex: 1 1 auto;
+        max-height: 15rem;
+        font-size: 87.5%;
     }
 }
 </style>

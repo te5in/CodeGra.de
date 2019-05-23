@@ -8,7 +8,7 @@
 
 <loader v-else-if="loading" />
 
-<div v-else class="auto-test" :class="{ editable, 'config-editable': configEditable, 'no-card': noCard }">
+<div v-else class="auto-test" :class="{ editable, 'config-editable': configEditable, 'no-card': noCard, 'single-result': singleResult }">
     <template v-if="autoTestRun && !singleResult">
         <b-card no-body v-for="run in test.runs" :key="run.id" class="results-card">
             <b-card-header class="auto-test-header" :class="{ editable }">
@@ -17,13 +17,11 @@
                     Results
                 </div>
 
-
                 <div v-if="editable" class="btn-wrapper">
-
-                <div class="btn btn-secondary" style="pointer-events: none;">
-                    <auto-test-state :state="run.state" />
-                    {{ capitalize(run.state.replace(/_/g, ' ')) }}
-                </div>
+                    <div class="btn btn-secondary" style="pointer-events: none;">
+                        <auto-test-state :state="run.state" />
+                        {{ capitalize(run.state.replace(/_/g, ' ')) }}
+                    </div>
                     <submit-button
                         :submit="() => deleteResults(run.id)"
                         variant="danger"
@@ -106,8 +104,8 @@
             </b-card-header>
         </template>
 
-        <b-card-body v-if="test == null" key="empty">
-            <div class="text-muted">You have no AutoTest yet for this assignment</div>
+        <b-card-body v-if="test == null" key="empty" class="text-muted">
+            You have no AutoTest yet for this assignment
         </b-card-body>
         <b-collapse v-else :id="configCollapseId" :visible="singleResult || !autoTestRun">
             <b-card-body key="full">
@@ -291,85 +289,23 @@
                         You have no test sets yet. Click the button below to create one.
                     </div>
                 </transition>
+
+                <hr>
+                <h5 v-if="singleResult">Test sets</h5>
+
                 <transition-group :name="disabledAnimations ? '' : 'list'">
+
                     <div v-for="set, i in test.sets"
                             v-if="!set.deleted"
                             :key="set.id"
                             class="list-item transition">
-                        <b-card no-body class="test-group auto-test-set">
-                            <b-card-header class="test-set-header" :class="{ editable: configEditable }">
-                                Test set
-                                <div class="btn-wrapper" v-if="configEditable">
-                                    <submit-button
-                                        :submit="() => deleteSet(set)"
-                                        label="Delete set"
-                                        variant="outline-danger"
-                                        confirm="Are you sure you want to delete this test set and
-                                                    all suits in it."/>
-                                </div>
-                            </b-card-header>
-                            <b-card-body>
-                                <span class="text-muted"
-                                      v-if="set.suites.filter(s => !s.isEmpty() && !s.deleted).length === 0">
-                                    You have no suites yet. Click the button below to create one.
-                                </span>
-                                <masonry :cols="{default: (singleResult ? 1 : 2), [$root.largeWidth]: 1 }"
-                                         :gutter="30"
-                                         class="outer-block">
-                                    <auto-test-suite v-for="suite, j in set.suites"
-                                                     v-if="!suite.deleted"
-                                                     :editable="configEditable"
-                                                     :editing="suite.steps.length === 0"
-                                                     :key="suite.id"
-                                                     :assignment="assignment"
-                                                     :other-suites="allNonDeletedSuites"
-                                                     :value="set.suites[j]"
-                                                     :result="result"
-                                                     @input="updateSuite(set, j, $event)"
-                                                     @delete="deleteSuite(suite)" />
-                                </masonry>
-                                <div v-if="configEditable"
-                                     class="btn-wrapper"
-                                     style="float: right;">
-                                    <submit-button
-                                        :submit="() => addSuite(set)"
-                                        label="Add suite"/>
-                                </div>
-                            </b-card-body>
-                            <transition :name="disabledAnimations ? '' : 'setcontinue'">
-                                <b-card-footer v-if="configEditable && test.sets.some((s, j) => j > i && !s.deleted)"
-                                                class="transition set-continue">
-                                    Only execute other test sets when achieved grade by AutoTest is higher than
-                                    <b-input-group class="input-group">
-                                        <input
-                                            class="form-control"
-                                            type="number"
-                                            v-model="internalTest.set_stop_points[set.id]"
-                                            @keyup.ctrl.enter="$refs.submitContinuePointsBtn[i].onClick()"
-                                            placeholder="0" />
-                                        <b-input-group-append>
-                                            <submit-button
-                                                ref="submitContinuePointsBtn"
-                                                :submit="() => submitContinuePoints(set)" />
-                                        </b-input-group-append>
-                                    </b-input-group>
-                                </b-card-footer>
-                                <b-card-footer
-                                    v-else-if="result && i < test.sets.length - 1"
-                                    class="set-continue">
-                                    <template v-if="set.passed">
-                                        Scored <code>{{ result.setResults[set.id].achieved }}</code> points,
-                                        which is greater than <code>{{ set.stop_points }}</code>. Continuing
-                                        with the next set.
-                                    </template>
-                                    <template v-else>
-                                        Scored <code>{{ result.setResults[set.id].achieved }}</code> points,
-                                        which is less than <code>{{ set.stop_points }}</code>. No further
-                                        tests will be run.
-                                    </template>
-                                </b-card-footer>
-                            </transition>
-                        </b-card>
+                        <auto-test-set
+                            :value="set"
+                            :assignment="assignment"
+                            :editable="configEditable"
+                            :result="result"
+                            :no-card="noCard"
+                            :other-suites="allNonDeletedSuites" />
                     </div>
                 </transition-group>
                 <div v-if="configEditable"
@@ -377,12 +313,7 @@
                     <submit-button :submit="addSet"
                                    label="Add set"
                                    class="transition"/>
-            </div>
-
-            <div slot="footer">
-                <b-button-toolbar justify>
-                </b-button-toolbar>
-            </div>
+                </div>
             </b-card-body>
         </b-collapse>
     </b-card>
@@ -428,7 +359,7 @@ import 'vue-awesome/icons/check';
 
 import { deepCopy, getErrorMessage, getProps, nameOfUser, getUniqueId, capitalize } from '@/utils';
 
-import AutoTestSuite from './AutoTestSuite';
+import AutoTestSet from './AutoTestSet';
 import AutoTestState from './AutoTestState';
 import SubmitButton from './SubmitButton';
 import MultipleFilesUploader from './MultipleFilesUploader';
@@ -508,14 +439,14 @@ export default {
 
                 this.loading = true;
 
-                Promise.all([
-                    this.loadAutoTest(),
-                    this.loadPermissions(),
-                ]).then(() => {
-                    this.loading = false;
-                }, () => {
-                    this.loading = false;
-                });
+                Promise.all([this.loadAutoTest(), this.loadPermissions()]).then(
+                    () => {
+                        this.loading = false;
+                    },
+                    () => {
+                        this.loading = false;
+                    },
+                );
             },
         },
 
@@ -550,22 +481,15 @@ export default {
             storeLoadAutoTestRun: 'loadAutoTestRun',
             storeCreateFixtures: 'createFixtures',
             storeToggleFixture: 'toggleFixture',
-            storeCreateAutoTestSet: 'createAutoTestSet',
-            storeDeleteAutoTestSet: 'deleteAutoTestSet',
-            storeUpdateAutoTestSet: 'updateAutoTestSet',
-            storeCreateAutoTestSuite: 'createAutoTestSuite',
-            storeDeleteAutoTestSuite: 'deleteAutoTestSuite',
-            storeUpdateAutoTestSuite: 'updateAutoTestSuite',
             storeLoadAutoTestResult: 'loadAutoTestResult',
             storeDeleteAutoTestResults: 'deleteAutoTestResults',
+            storeCreateAutoTestSet: 'createAutoTestSet',
         }),
 
         runAutoTest() {
             this.storeCreateAutoTestRun({
                 autoTestId: this.autoTestId,
-            }).then(
-                () => this.loadAutoTestRun(),
-            );
+            }).then(() => this.loadAutoTestRun());
         },
 
         loadAutoTest() {
@@ -642,52 +566,9 @@ export default {
             event.preventDefault();
         },
 
-        addSet() {
-            return this.storeCreateAutoTestSet({
-                autoTestId: this.test.id,
-            });
-        },
-
-        deleteSet(set) {
-            return this.storeDeleteAutoTestSet({
-                autoTestId: this.test.id,
-                setId: set.id,
-            });
-        },
-
-        submitContinuePoints(set) {
-            const stopPoints = Number(this.internalTest.set_stop_points[set.id]);
-            return this.storeUpdateAutoTestSet({
-                autoTestId: this.test.id,
-                autoTestSet: set,
-                setProps: { stop_points: stopPoints },
-            });
-        },
-
-        addSuite(set) {
-            return this.storeCreateAutoTestSuite({
-                autoTestId: this.test.id,
-                autoTestSet: set,
-            });
-        },
-
-        updateSuite(set, index, suite) {
-            return this.storeUpdateAutoTestSuite({
-                autoTestSet: set,
-                index,
-                suite,
-            });
-        },
-
-        deleteSuite(suite) {
-            return this.storeDeleteAutoTestSuite({
-                autoTestSuite: suite,
-            });
-        },
-
         submitProp(prop) {
             return this.storeUpdateAutoTest({
-                autoTestId: this.test.id,
+                autoTestId: this.autoTestId,
                 autoTestProps: { [prop]: this.internalTest[prop] },
             });
         },
@@ -718,7 +599,7 @@ export default {
             );
 
             return this.storeCreateFixtures({
-                autoTestId: this.test.id,
+                autoTestId: this.autoTestId,
                 fixtures: data,
             });
         },
@@ -733,7 +614,7 @@ export default {
             }
 
             this.storeUpdateAutoTest({
-                autoTestId: this.test.id,
+                autoTestId: this.autoTestId,
                 autoTestProps: {
                     fixtures: this.test.fixtures.filter((_, i) => i !== index),
                 },
@@ -746,7 +627,7 @@ export default {
             }
 
             return this.storeToggleFixture({
-                autoTestId: this.test.id,
+                autoTestId: this.autoTestId,
                 fixture: this.test.fixtures[index],
             });
         },
@@ -771,7 +652,7 @@ export default {
             }
 
             this.disabledAnimations = true;
-            return this.storeDeleteAutoTest(this.test.id);
+            return this.storeDeleteAutoTest(this.autoTestId);
         },
 
         async afterDeleteAutoTest() {
@@ -785,11 +666,9 @@ export default {
             }
 
             return this.storeDeleteAutoTestResults({
-                autoTestId: this.test.id,
+                autoTestId: this.autoTestId,
                 runId: id,
-            }).then(
-                () => clearTimeout(this.pollingTimer),
-            );
+            }).then(() => clearTimeout(this.pollingTimer));
         },
 
         async openResult(result) {
@@ -814,12 +693,18 @@ export default {
         canViewFixture(fixture) {
             return !fixture.hidden || this.permissions.can_view_hidden_fixtures;
         },
+
+        addSet() {
+            return this.storeCreateAutoTestSet({
+                autoTestId: this.autoTestId,
+            });
+        },
     },
 
     computed: {
         ...mapGetters('autotest', {
-            allTests: 'tests',
-            allResults: 'results',
+            storeTests: 'tests',
+            storeResults: 'results',
         }),
 
         assignmentId() {
@@ -879,7 +764,7 @@ export default {
 
         test() {
             const id = this.autoTestId;
-            return id && this.allTests[id];
+            return id && this.storeTests[id];
         },
 
         result() {
@@ -893,7 +778,7 @@ export default {
     components: {
         Icon,
         Multiselect,
-        AutoTestSuite,
+        AutoTestSet,
         AutoTestState,
         SubmitButton,
         MultipleFilesUploader,
@@ -934,15 +819,10 @@ export default {
     margin-top: 1rem;
 }
 
-.add-btn-wrapper,
-.test-suites-button-wrapper {
-    margin-top: 1rem;
-}
-
-.test-suites-button-wrapper,
 .add-btn-wrapper {
     display: flex;
     justify-content: flex-end;
+    margin-top: 1rem;
 }
 
 .list-enter-active {
@@ -950,9 +830,11 @@ export default {
     overflow-y: hidden;
     margin-top: 1rem;
 }
+
 .list-leave-active {
     max-height: 15rem;
 }
+
 .list-leave-to {
     opacity: 0;
     max-height: 0;
@@ -1012,16 +894,7 @@ export default {
     }
 }
 
-.auto-test-header,
-.test-set-header {
-    align-items: center;
-    display: flex;
-    justify-content: space-between;
-
-    &.editable {
-        padding: 5px 1.25rem;
-    }
-
+.auto-test-header {
     .toggle {
         cursor: pointer;
 
@@ -1209,6 +1082,16 @@ export default {
 
     .auto-test & .modal-body {
         padding: 0;
+    }
+}
+
+.auto-test .auto-test-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    &.editable {
+        padding: 5px 1.25rem;
     }
 }
 </style>

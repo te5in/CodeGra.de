@@ -248,9 +248,11 @@ export default {
             if (selectedInRow == null || this.currentProgress == null) {
                 return '';
             } else {
-                return `You scored ${this.currentProgress}% in the corresponding ` +
+                return (
+                    `You scored ${this.currentProgress}% in the corresponding ` +
                     `AutoTest category, which scores you ${selectedInRow.points} ` +
-                    'points in the rubric category.';
+                    'points in the rubric category.'
+                );
             }
         },
     },

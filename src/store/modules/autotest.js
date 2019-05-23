@@ -365,7 +365,7 @@ const actions = {
                 },
                 err => {
                     delete loaders.tests[autoTestId];
-                    throw new Error(err.response.data.message);
+                    throw err;
                 },
             );
         }
@@ -383,13 +383,7 @@ const actions = {
 
         return axios
             .post(`/api/v1/auto_tests/${autoTestId}/runs/`)
-            .then(
-                ({ data }) =>
-                    commit(types.UPDATE_AUTO_TEST_RUNS, { autoTest, run: data }),
-                err => {
-                    throw new Error(err.response.data.message);
-                },
-            );
+            .then(({ data }) => commit(types.UPDATE_AUTO_TEST_RUNS, { autoTest, run: data }));
     },
 
     async loadAutoTestRun({ commit, dispatch, state }, { autoTestId }) {
@@ -412,7 +406,7 @@ const actions = {
                 },
                 err => {
                     delete loaders.runs[runId];
-                    throw new Error(err.response.data.message);
+                    throw err;
                 },
             );
         }
@@ -518,7 +512,7 @@ const actions = {
                     },
                     err => {
                         delete loaders.results[resultId];
-                        throw new Error(err.response.data.message);
+                        throw err;
                     },
                 );
         }
@@ -534,12 +528,13 @@ const actions = {
             return null;
         }
 
-        const c = () => commit(types.UPDATE_AUTO_TEST, {
-            autoTestId,
-            autoTestProps: {
-                runs: autoTest.runs.filter(run => run.id !== runId),
-            },
-        });
+        const c = () =>
+            commit(types.UPDATE_AUTO_TEST, {
+                autoTestId,
+                autoTestProps: {
+                    runs: autoTest.runs.filter(run => run.id !== runId),
+                },
+            });
 
         return axios
             .delete(`/api/v1/auto_tests/${autoTestId}/runs/${runId}`)
@@ -582,16 +577,20 @@ const mutations = {
             set.suites = set.suites.map(suite => new AutoTestSuiteData(autoTest.id, set.id, suite));
         });
 
-        autoTest.pointsPossible = autoTest.sets.reduce(
-            (acc1, set) =>
-                acc1 +
-                set.suites.reduce(
-                    (acc2, suite) =>
-                        acc2 + suite.steps.reduce((acc3, step) => acc3 + step.weight, 0),
+        Object.defineProperty(autoTest, 'pointsPossible', {
+            get() {
+                return autoTest.sets.reduce(
+                    (acc1, set) =>
+                        acc1 +
+                        set.suites.reduce(
+                            (acc2, suite) =>
+                                acc2 + suite.steps.reduce((acc3, step) => acc3 + step.weight, 0),
+                            0,
+                        ),
                     0,
-                ),
-            0,
-        );
+                );
+            },
+        });
 
         autoTest.runs = autoTest.runs.map(run => new AutoTestRun(run, autoTest));
 
@@ -600,9 +599,7 @@ const mutations = {
 
     [types.DELETE_AUTO_TEST](state, autoTestId) {
         state.tests[autoTestId].runs.forEach(run =>
-            run.results.forEach(result =>
-                Vue.delete(state.results, result.id),
-            ),
+            run.results.forEach(result => Vue.delete(state.results, result.id)),
         );
 
         Vue.delete(state.tests, autoTestId);
