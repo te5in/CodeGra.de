@@ -154,7 +154,7 @@ class IoTest(TestStep):
     ) -> float:
         passed = models.AutoTestStepResultState.passed.name
         steps = t.cast(t.List, self.data['inputs'])
-        step_results = t.cast(t.Dict[str, t.List], result.log)['steps']
+        step_results = t.cast(t.Dict[str, t.List], result.log).get('steps', [])
         it = zip(steps, step_results)
 
         return sum(s['weight'] if sr['state'] == passed else 0 for s, sr in it)
@@ -177,9 +177,18 @@ class IoTest(TestStep):
             output = step['output'].rstrip('\n')
 
             options = t.cast(t.List[str], step['options'])
-            code, stdout, stderr = container.run_student_command(
-                f'{prog} {step["args"]}', stdin=step['stdin'].encode('utf-8')
-            )
+            try:
+                code, stdout, stderr = container.run_student_command(
+                    f'{prog} {step["args"]}',
+                    stdin=step['stdin'].encode('utf-8')
+                )
+            except psef.auto_test.CommandTimeoutException as e:
+                code = -1
+                stdout = e.stdout
+                stderr = e.stderr
+
+            success = code == 0
+
             if code == 0:
                 to_test = stdout.rstrip('\n')
 
@@ -199,17 +208,13 @@ class IoTest(TestStep):
                     success = output in to_test
                 else:
                     success = output == to_test
-            else:
-                success = False
-                if code < 0:
-                    state = models.AutoTestStepResultState.timed_out
-                else:
-                    state = models.AutoTestStepResultState.failed
 
             if success:
                 total_state = models.AutoTestStepResultState.passed
                 state = models.AutoTestStepResultState.passed
                 total_weight += step['weight']
+            elif code < 0:
+                state = models.AutoTestStepResultState.timed_out
             else:
                 state = models.AutoTestStepResultState.failed
 

@@ -51,7 +51,12 @@ class StopContainerException(Exception):
 
 
 class CommandTimeoutException(Exception):
-    pass
+    def __init__(
+        self, cmd: str = '', stdout: str = '', stderr: str = ''
+    ) -> None:
+        self.cmd = cmd
+        self.stdout = stdout
+        self.stderr = stderr
 
 
 def maybe_stop_container() -> None:
@@ -356,20 +361,29 @@ class StartedContainer:
 
                 return fun
 
-        code = self._run(
-            cmd=(cmd, cwd, user),
-            callback=self._run_shell,
-            stdout=make_add_function(stdout),
-            stderr=make_add_function(stderr),
-            stdin=stdin,
-            check=False,
-            timeout=timeout,
-        )
+        def get_stdout_and_stderr() -> t.List[str]:
+            return [
+                b''.join(v).decode('utf-8', 'backslashreplace')
+                for v in [stdout, stderr]
+            ]
 
-        stdout_str, stderr_str = [
-            b''.join(v).decode('utf-8', 'backslashreplace')
-            for v in [stdout, stderr]
-        ]
+        try:
+            code = self._run(
+                cmd=(cmd, cwd, user),
+                callback=self._run_shell,
+                stdout=make_add_function(stdout),
+                stderr=make_add_function(stderr),
+                stdin=stdin,
+                check=False,
+                timeout=timeout,
+            )
+        except CommandTimeoutException as e:
+            stdout_str, stderr_str = get_stdout_and_stderr()
+            raise CommandTimeoutException(
+                cmd=cmd, stdout=stdout_str, stderr=stderr_str
+            )
+
+        stdout_str, stderr_str = get_stdout_and_stderr()
         return code, stdout_str, stderr_str
 
     def run_command(
@@ -750,10 +764,14 @@ class _SimpleAutoTestRunner(AutoTestRunner):
                 except StopRunningStepsException:
                     logger.info('Stopping steps', exc_info=True)
                     break
-                except CommandTimeoutException:
+                except CommandTimeoutException as e:
                     logger.warning('Command timed out', exc_info=True)
                     update_test_result(
-                        models.AutoTestStepResultState.timed_out, {}
+                        models.AutoTestStepResultState.timed_out, {
+                            'exit_code': -1,
+                            'stdout': e.stdout,
+                            'stderr': e.stderr,
+                        }
                     )
                 else:
                     logger.info('Ran step')

@@ -305,8 +305,8 @@
 # The maximum amount of minutes that a auto test run may take.
 # auto_test_max_time_total_run = 1440
 
-# The maximum amount of minutes a single run may take.
-# auto_test_max_time_single_run = 15
+# The maximum amount of seconds a single run may take. Defaults to 15 minutes.
+# auto_test_max_time_single_run = 900
 
 # The maximum amount of bytes that command may emit.
 # auto_test_output_limit = 32768
