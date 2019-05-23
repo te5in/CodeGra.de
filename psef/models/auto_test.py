@@ -484,8 +484,10 @@ class AutoTestRunner(Base, TimestampMixin, UUIDMixin):
     @classmethod
     def already_running(cls, ipaddr: str) -> bool:
         return db.session.query(
-            cls.query.filter_by(_ipaddr=ipaddr,
-                                after_run_called=False).exists()
+            cls.query.filter(
+                cls._ipaddr == ipaddr,
+                cls.after_run != AutoTestAfterRunState.called
+            ).exists()
         ).scalar()
 
     @classmethod
@@ -603,9 +605,7 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
             psef.tasks.notify_slow_auto_test_run(
                 (self.id, ), eta=now + (max_duration / 2)
             )
-            psef.tasks.stop_auto_test_run(
-                (self.id, ), eta=self.kill_date
-            )
+            psef.tasks.stop_auto_test_run((self.id, ), eta=self.kill_date)
             logger.info('Checking heartbeat', runner_id=self.runner.id)
             psef.tasks.check_heartbeat_auto_test_run((self.runner.id.hex, ))
 
