@@ -319,3 +319,9 @@
 
 # The bdevtype that should be used by lxc
 # auto_test_bdevtype = best
+
+# The interval in seconds a running AutoTest runner should send a heartbeat.
+# auto_test_heartbeat_interval = 10
+
+# The amount of heartbeats missed before a AutoTest runner should be killed.
+# auto_test_heartbeat_max_missed = 6

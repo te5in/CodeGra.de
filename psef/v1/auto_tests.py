@@ -361,13 +361,14 @@ def delete_auto_test_runs(auto_test_id: int, run_id: int) -> EmptyResponse:
         models.AutoTestRun.id == run_id,
         models.AutoTest.id == auto_test_id,
     )
-    runner_id = run.runner_id
+
+    if run.runner_id is not None:
+        runner_id = run.runner_id
+        callback_after_this_request(
+            lambda: tasks.remove_auto_test_runner(runner_id.hex)
+        )
     db.session.delete(run)
     db.session.commit()
-
-    callback_after_this_request(
-        lambda: tasks.remove_auto_test_runner(runner_id)
-    )
 
     return make_empty_response()
 

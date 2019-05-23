@@ -108,6 +108,7 @@ class RunnerInstructions(TypedDict, total=True):
     base_systems: t.List[t.Dict[str, str]]
     fixtures: t.List[t.Tuple[str, int]]
     setup_script: str
+    heartbeat_interval: int
 
 
 def init_app(app: 'psef.PsefFlask') -> None:
@@ -158,8 +159,7 @@ def start_polling(config: 'psef.FlaskConfig') -> None:
                         'get': 'tests_to_run',
                     },
                     headers={
-                        'CG-Internal-Api-Password':
-                            f'NOT_PRESENT@:@{url_config["password"]}',
+                        'CG-Internal-Api-Password': url_config["password"],
                     }
                 )
             except requests.exceptions.RequestException:
@@ -309,7 +309,12 @@ class StartedContainer:
             self._change_user(user)
 
         return subprocess.call(
-            cmd, shell=True, cwd=cwd, preexec_fn=preexec, env=env
+            cmd,
+            shell=True,
+            cwd=cwd,
+            preexec_fn=preexec,
+            env=env,
+            executable='/bin/bash',
         )
 
     def run_student_command(
@@ -562,12 +567,14 @@ class AutoTestRunner(abc.ABC):
         self, base_url: URL, instructions: RunnerInstructions,
         global_password: str, config: 'psef.FlaskConfig'
     ) -> None:
-        self.base_url = base_url
         self._global_password = global_password
         self.instructions = instructions
         self.auto_test_id = instructions['auto_test_id']
         self.config = config
         self.setup_script = self.instructions['setup_script']
+        self.base_url = (
+            f'{base_url}/api/v-internal/auto_tests/{self.auto_test_id}'
+        )
 
         with open(
             os.path.join(
@@ -582,11 +589,25 @@ class AutoTestRunner(abc.ABC):
         self.fixtures = self.instructions['fixtures']
 
         self.req = requests.Session()
-        self.req.headers.update({'CG-Internal-Api-Password': self.password})
+        self.req.headers.update(
+            {
+                'CG-Internal-Api-Password': self._global_password,
+                'CG-Internal-Api-Runner-Password': self._local_password,
+            }
+        )
 
     @property
-    def password(self) -> str:
-        return f'{self.instructions["runner_id"]}@:@{self._global_password}'
+    def _local_password(self) -> str:
+        return self.instructions["runner_id"]
+
+    @property
+    def wget_headers(self) -> t.List[str]:
+        return [
+            '--header',
+            f'CG-Internal-Api-Password: {self._global_password}',
+            '--header',
+            f'CG-Internal-Api-Runner-Password: {self._local_password}',
+        ]
 
     @abc.abstractmethod
     def run_test(self) -> None:
@@ -625,16 +646,12 @@ class _SimpleAutoTestRunner(AutoTestRunner):
         )
 
         for name, fixture_id in self.fixtures:
-            url = (
-                f'{self.base_url}/api/v-internal/auto_tests/'
-                f'{self.auto_test_id}/fixtures/{fixture_id}'
-            )
+            url = f'{self.base_url}/fixtures/{fixture_id}'
             path = f'/home/codegrade/fixtures/{name}'
             cont.run_command(
                 [
                     'wget',
-                    '--header',
-                    f'CG-Internal-Api-Password: {self.password}',
+                    *self.wget_headers,
                     url,
                     '-O',
                     path,
@@ -655,16 +672,13 @@ class _SimpleAutoTestRunner(AutoTestRunner):
     def download_student_code(
         self, cont: StartedContainer, result_id: int
     ) -> None:
-        url = (
-            f'{self.base_url}/api/v-internal/auto_tests/'
-            f'{self.auto_test_id}/results/{result_id}?type=submission_files'
-        )
+        url = f'{self.base_url}/results/{result_id}?type=submission_files'
 
         logger.info('Downloading student code', url=url)
         cont.run_command(
             [
                 'wget',
-                f'--header=CG-Internal-Api-Password: {self.password}',
+                *self.wget_headers,
                 url,
                 '-O',
                 '/home/codegrade/student.zip',
@@ -698,11 +712,7 @@ class _SimpleAutoTestRunner(AutoTestRunner):
         total_points = 0.0
 
         with student_container.as_snapshot() as snap:
-            url = (
-                f'{self.base_url}/api/v-internal/auto_tests/'
-                f'{self.auto_test_id}/results/{result_id}/'
-                f'step_results/'
-            )
+            url = f'{self.base_url}/results/{result_id}/step_results/'
 
             for test_step in test_suite['steps']:
                 logger.info('Running step', step=test_step)
@@ -761,10 +771,7 @@ class _SimpleAutoTestRunner(AutoTestRunner):
         student_container = base_container.clone()
         cpu_number = cpu_queue.get()
 
-        result_url = (
-            f'{self.base_url}/api/v-internal/auto_tests/'
-            f'{self.auto_test_id}/results/{result_id}'
-        )
+        result_url = f'{self.base_url}/results/{result_id}'
         result_state = models.AutoTestStepResultState.running
 
         try:
@@ -832,43 +839,59 @@ class _SimpleAutoTestRunner(AutoTestRunner):
                 json={'state': result_state.name},
             )
 
+    @contextlib.contextmanager
+    def started_heartbeat(self) -> t.Generator[None, None, None]:
+        def push_heartbeat() -> None:
+            logger.info('Pushing heartbeat')
+            res = self.req.post(
+                f'{self.base_url}/runs/{self.instructions["run_id"]}/'
+                'heartbeats/'
+            )
+            logger.info('Pushed heartbeat', res=res)
+
+        interval = self.instructions['heartbeat_interval']
+        logger.info('Starting heartbeat interval', interval=interval)
+        timer = RepeatedTimer(interval, push_heartbeat)
+        try:
+            timer.start()
+            yield
+        finally:
+            timer.cancel()
+
     def run_test(self) -> None:
         push_log_timer = _push_logging(
             lambda logs: self.req.post(
-                (
-                    f'{self.base_url}/api/v-internal/auto_tests/'
-                    f'{self.auto_test_id}/runs/{self.instructions["run_id"]}/'
-                    'logs/'
-                ),
+                f'{self.base_url}/runs/{self.instructions["run_id"]}/logs/',
                 json={'logs': logs},
             )
         )
-        run_result_url = (
-            f'{self.base_url}/api/v-internal/auto_tests/'
-            f'{self.auto_test_id}/runs/{self.instructions["run_id"]}'
-        )
+        run_result_url = f'{self.base_url}/runs/{self.instructions["run_id"]}'
 
-        self.req.patch(
-            run_result_url,
-            json={'state': models.AutoTestRunState.running.name},
-        )
-        try:
-            with timed_code('run_complete_auto_test'):
-                self._run_test()
-        except:
-            logger.warning('Something went wrong running tests', exc_info=True)
-            end_state = models.AutoTestRunState.crashed.name
-        else:
-            logger.info('Finished running tests')
-            end_state = models.AutoTestRunState.done.name
-        finally:
+        with self.started_heartbeat():
+            self.req.patch(
+                run_result_url,
+                json={'state': models.AutoTestRunState.starting.name},
+            )
             try:
-                self.req.patch(
-                    run_result_url,
-                    json={'state': end_state},
+                with timed_code('run_complete_auto_test'):
+                    self._run_test()
+            except:
+                logger.warning(
+                    'Something went wrong running tests', exc_info=True
                 )
+                end_state = models.AutoTestRunState.crashed.name
+                raise
+            else:
+                logger.info('Finished running tests')
+                end_state = models.AutoTestRunState.done.name
             finally:
-                push_log_timer.cancel()
+                try:
+                    self.req.patch(
+                        run_result_url,
+                        json={'state': end_state},
+                    )
+                finally:
+                    push_log_timer.cancel()
 
     def _run_test(self) -> None:
         ensure_on_test_server()
@@ -902,7 +925,10 @@ class _SimpleAutoTestRunner(AutoTestRunner):
                 self._install_base_systems(cont)
 
             cont.run_command(
-                ['adduser', '--disabled-password', '--gecos', '', 'codegrade'],
+                [
+                    'adduser', '--shell', '/bin/bash', '--disabled-password',
+                    '--gecos', '', 'codegrade'
+                ],
             )
 
             cont.run_command(['usermod', '-aG', 'sudo', 'codegrade'])
@@ -913,6 +939,11 @@ class _SimpleAutoTestRunner(AutoTestRunner):
 
             cont.stop_container()
             del cont
+
+            self.req.patch(
+                f'{self.base_url}/runs/{self.instructions["run_id"]}',
+                json={'state': models.AutoTestRunState.running.name},
+            )
 
             with timed_code('running_students'), Pool(
                 get_amount_cpus()
