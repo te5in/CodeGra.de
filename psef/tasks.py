@@ -506,7 +506,9 @@ def _stop_auto_test_run_1(auto_test_run_id: int) -> None:
         run.kill_date is not None and
         run.kill_date > datetime.datetime.utcnow()
     ):
-        _stop_auto_test_run_1.apply_async((auto_test_run_id, ), eta=run.kill_date)
+        _stop_auto_test_run_1.apply_async(
+            (auto_test_run_id, ), eta=run.kill_date
+        )
 
     if run.state != p.models.AutoTestRunState.running:
         return
@@ -540,9 +542,12 @@ def _reset_auto_test_runner_1(auto_test_runner_id: str) -> None:
     runner_id = uuid.UUID(hex=auto_test_runner_id)
 
     runner = p.models.AutoTestRunner.query.get(runner_id)
-    if runner is None or runner.after_run_called:
+    if runner is None or runner.after_state != p.models.AutoTestAfterRunState.not_called:
         logger.info('Runner already reset or not found', runner=runner)
         return
+
+    runner.after_state = p.models.AutoTestAfterRunState.calling
+    p.models.db.session.commit()
 
     try:
         runner.after_run()
@@ -552,7 +557,7 @@ def _reset_auto_test_runner_1(auto_test_runner_id: str) -> None:
         )
         raise
 
-    runner.after_run_called = True
+    runner.after_state = p.models.AutoTestAfterRunState.called
     p.models.db.session.commit()
 
 
@@ -561,7 +566,11 @@ def _check_heartbeat_stop_test_runner_1(auto_test_runner_id: str) -> None:
     runner_id = uuid.UUID(hex=auto_test_runner_id)
 
     runner = p.models.AutoTestRunner.query.get(runner_id)
-    if runner is None or runner.after_run_called or runner.run is None:
+    if (
+        runner is None or
+        runner.after_state != p.models.AutoTestAfterRunState.not_called or
+        runner.run is None
+    ):
         logger.info('Runner already reset or not found')
         return
 

@@ -426,6 +426,12 @@ class AutoTestRunState(enum.Enum):
     changing_runner = enum.auto()
 
 
+class AutoTestAfterRunState(enum.Enum):
+    not_called = enum.auto()
+    calling = enum.auto()
+    called = enum.auto()
+
+
 class AutoTestRunner(Base, TimestampMixin, UUIDMixin):
     if t.TYPE_CHECKING:  # pragma: no cover
         query: t.ClassVar[_MyQuery['AutoTestRunner']]
@@ -448,12 +454,12 @@ class AutoTestRunner(Base, TimestampMixin, UUIDMixin):
     )
 
     #: Is this runner completely finished. So is the `after_run` method called.
-    after_run_called: bool = db.Column(
-        'after_run_called',
-        db.Boolean,
+    after_state = db.Column(
+        'after_run',
+        db.Enum(AutoTestAfterRunState),
         nullable=False,
-        default=False,
-        server_default='true',
+        default=AutoTestAfterRunState.not_called,
+        server_default='called',
     )
 
     run: t.Optional['AutoTestRun'] = db.relationship(
