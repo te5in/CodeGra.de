@@ -252,7 +252,7 @@ export default {
                     color: '#E6DCCD',
                 },
                 {
-                    name: 'capture_points',
+                    name: 'custom_output',
                     title: 'Capture Points',
                     color: '#DFD3AA',
                 },
@@ -301,7 +301,7 @@ export default {
                         },
                     ];
                     break;
-                case 'capture_points':
+                case 'custom_output':
                     res.data.regex = '(\\d+\\.?\\d*|\\.\\d+)';
                     break;
                 case 'check_points':

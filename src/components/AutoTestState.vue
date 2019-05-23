@@ -5,6 +5,7 @@
     :name="name"
     :spin="spin"
     v-b-popover.hover.top="popover"
+    v-if="name"
 />
 </template>
 
