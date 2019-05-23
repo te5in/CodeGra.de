@@ -398,12 +398,12 @@ class StartedContainer:
         check: bool = True,
     ) -> int:
         return self._run(
-            (cmd, user),
-            self._run_command,
-            stdout,
-            stderr,
-            stdin,
-            check,
+            cmd=(cmd, user),
+            callback=self._run_command,
+            stdout=stdout,
+            stderr=stderr,
+            stdin=stdin,
+            check=check,
             timeout=None
         )
 
@@ -432,7 +432,7 @@ class StartedContainer:
                 os.chmod(stdin_file.name, 0o777)
                 stdin_file.write(stdin)
                 stdin_file.flush()
-            elif stdin is not None:
+            elif stdin is None:
                 stdin_file = dev_null
 
             stdout_fifo = os.path.join(output_dir, 'stdout')
