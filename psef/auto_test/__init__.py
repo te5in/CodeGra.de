@@ -308,7 +308,7 @@ class StartedContainer:
     def _run_shell(self, cmd_cwd_user: t.Tuple[str, str, str]) -> int:
         cmd, cwd, user = cmd_cwd_user
         env = os.environ.copy()
-        env['PATH'] += ':/home/codegrade/student/:/home/codegrade/fixtures/'
+        env['PATH'] += ':/home/codegrade/student/:/home/codegrade/fixtures/:/home/codegrade/.local/bin/'
 
         def preexec() -> None:
             self._change_user(user)
