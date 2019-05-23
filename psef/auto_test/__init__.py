@@ -148,7 +148,9 @@ def _push_logging(post_log: t.Callable[[JSONType], object]) -> RepeatedTimer:
         if logs_copy:
             post_log(logs_copy)
 
-    return RepeatedTimer(15, push_logs, cleanup=log_line.disable)
+    res = RepeatedTimer(15, push_logs, cleanup=log_line.disable)
+    res.start()
+    return res
 
 
 def start_polling(config: 'psef.FlaskConfig') -> None:
