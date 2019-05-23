@@ -379,7 +379,7 @@ class CheckPoints(TestStep):
         with get_from_map_transaction(
             ensure_json_dict(data), ensure_empty=True
         ) as [get, _]:
-            get('min_points', float)
+            get('min_points', numbers.Real)
 
     def _execute(
         self,
