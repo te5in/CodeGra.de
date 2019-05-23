@@ -663,7 +663,7 @@ class _SimpleAutoTestRunner(AutoTestRunner):
     ) -> None:
         with open(src, 'rb') as f:
             container.run_command(
-                ['dd', 'status=none', f'of={dst}', 'if=/dev/stdin'], stdin=f
+                ['dd', 'status=none', f'of={dst}'], stdin=f
             )
         container.run_command(['chmod', '+x', dst])
         container.run_command(['cat', dst])
