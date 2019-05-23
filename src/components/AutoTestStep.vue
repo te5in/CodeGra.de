@@ -656,6 +656,9 @@ export default {
                         cur.weight = Number(cur.weight);
                     }
                 });
+            } else if (key === 'min_points') {
+                // eslint-disable-next-line
+                value = Number(value);
             }
 
             this.$emit(
