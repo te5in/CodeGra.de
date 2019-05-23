@@ -63,7 +63,10 @@ class AutoTestStep(Base, TimestampMixin, IdMixin):
 
     _test_type: str = db.Column(
         'test_type',
-        db.Enum(*auto_test_module.auto_test_handlers.keys()),
+        db.Enum(
+            *auto_test_module.auto_test_handlers.keys(),
+            name='autoteststeptesttype'
+        ),
         nullable=False,
     )
 
@@ -431,7 +434,10 @@ class AutoTestRunner(Base, TimestampMixin, UUIDMixin):
 
     _type: str = db.Column(
         'type',
-        db.Enum(*auto_test_module.auto_test_runners.keys()),
+        db.Enum(
+            *auto_test_module.auto_test_runners.keys(),
+            name='autotestrunnertype'
+        ),
         nullable=False
     )
 
