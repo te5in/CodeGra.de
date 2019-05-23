@@ -501,7 +501,7 @@ def _stop_auto_test_run_1(auto_test_run_id: int) -> None:
         return
     if (
         run.kill_date is not None and
-        run.kill_date < datetime.datetime.utcnow()
+        run.kill_date > datetime.datetime.utcnow()
     ):
         _stop_auto_test_run_1.apply_async((run.id, ), eta=run.kill_date)
 

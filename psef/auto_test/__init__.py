@@ -26,10 +26,10 @@ from mypy_extensions import TypedDict
 
 import psef
 
-from .. import app, models
+from .. import app, log, models
 from .steps import TestStep, StopRunningStepsException, auto_test_handlers
 from ..helpers import (
-    JSONType, defer, register, timed_code, bound_to_logger,
+    JSONType, RepeatedTimer, defer, register, timed_code, bound_to_logger,
     ensure_on_test_server
 )
 
@@ -70,14 +70,15 @@ def get_amount_cpus() -> int:
 def _start_container(cont: lxc.Container) -> None:
     maybe_stop_container()
 
-    assert cont.start()
-    assert cont.wait('RUNNING', 3)
-    for _ in range(30):
-        if cont.get_ips():
-            return
-        time.sleep(1)
-    else:
-        raise Exception(f"Couldn't get ip for container {cont}")
+    with timed_code('start_container'):
+        assert cont.start()
+        assert cont.wait('RUNNING', 3)
+        for _ in range(30):
+            if cont.get_ips():
+                return
+            time.sleep(1)
+        else:
+            raise Exception(f"Couldn't get ip for container {cont}")
 
 
 class StepInstructions(TypedDict, total=True):
@@ -123,41 +124,24 @@ def init_app(app: 'psef.PsefFlask') -> None:
     app.config['AUTO_TEST_CREDENTIALS'] = res  # type: ignore
 
 
-def _push_logging(post_log: t.Callable[[JSONType], object]
-                  ) -> t.Callable[[], None]:
+def _push_logging(post_log: t.Callable[[JSONType], object]) -> RepeatedTimer:
     logs: t.List[t.Dict[str, object]] = []
     logs_lock = threading.RLock()
 
-    @psef.logger_callback
+    @log.logger_callback
     def log_line(logger: object, method_name: str, event_dict: str) -> None:
         json_event = json.loads(event_dict)
         with logs_lock:
             logs.append(json_event)
 
-    stop_event = threading.Event()
+    def push_logs() -> None:
+        with logs_lock:
+            logs_copy = list(logs)
+            logs.clear()
+        if logs_copy:
+            post_log(logs_copy)
 
-    def log_thread() -> None:
-        while True:
-            stop_event.wait(timeout=15)
-
-            with logs_lock:
-                logs_copy = list(logs)
-                logs.clear()
-            if logs_copy:
-                post_log(logs_copy)
-            del logs_copy
-
-            if stop_event.is_set():
-                return
-
-    thread = threading.Thread(target=log_thread)
-    thread.start()
-
-    def stop() -> None:
-        stop_event.set()
-        thread.join()
-
-    return stop
+    return RepeatedTimer(15, push_logs, cleanup=log_line.disable)
 
 
 def start_polling(config: 'psef.FlaskConfig') -> None:
@@ -217,9 +201,7 @@ class StartedContainer:
     def destroy_snapshots(self) -> None:
         self.stop_container()
         with timed_code(
-            'Destroying snapshots',
-            'Destroyed snapshots',
-            snapshot_amount=len(self._snapshots)
+            'destroy_snapshots', snapshot_amount=len(self._snapshots)
         ):
             while self._snapshots:
                 self._container.snapshot_destroy(self._snapshots.pop())
@@ -230,9 +212,7 @@ class StartedContainer:
             raise ValueError(f'Could not set "{key}" to "{value}"')
 
     def stop_container(self) -> None:
-        with timed_code(
-            'Stopping container', 'Stopped container', container=self._name
-        ):
+        with timed_code('stop_container', container=self._name):
             assert self._container.stop()
             assert self._container.wait('STOPPED', 3)
 
@@ -253,8 +233,7 @@ class StartedContainer:
         try:
             if self._dirty or not self._snapshots:
                 with timed_code(
-                    'Creating snapshot',
-                    'Created snapshot',
+                    'create_snapshot',
                     container=self._name,
                     amount_of_snapshots=len(self._snapshots)
                 ):
@@ -272,7 +251,7 @@ class StartedContainer:
             self.stop_container()
             # Creating the snapshot, so we might not have a snapshot
             if self._snapshots:
-                with timed_code('Restoring snapshots', 'Restored snapshot'):
+                with timed_code('restore_snapshots'):
                     self._container.snapshot_restore(self._snapshots[-1])
                 self._dirty = False
             _start_container(self._container)
@@ -536,15 +515,8 @@ class AutoTestContainer:
         started = None
 
         try:
-            with timed_code(
-                'Starting container',
-                'Started container',
-                container=self._name
-            ):
-                _start_container(self._cont)
-                started = StartedContainer(
-                    self._cont, self._name, self._config
-                )
+            _start_container(self._cont)
+            started = StartedContainer(self._cont, self._name, self._config)
             yield started
         finally:
             self._stop_container(started)
@@ -560,7 +532,7 @@ class AutoTestContainer:
                     logger.info('Destroying snapshots')
                     cont.destroy_snapshots()
             finally:
-                with timed_code('Destroying container', 'Destroyed container'):
+                with timed_code('destroy_container'):
                     self._cont.destroy()
 
     def create(self) -> None:
@@ -571,7 +543,7 @@ class AutoTestContainer:
                 'release': 'bionic',
                 'arch': 'amd64',
             },
-            bdevtype='best'
+            bdevtype=self._config['AUTO_TEST_BDEVTYPE']
         )
 
     def clone(self, new_name: str = '') -> 'AutoTestContainer':
@@ -861,7 +833,7 @@ class _SimpleAutoTestRunner(AutoTestRunner):
             )
 
     def run_test(self) -> None:
-        stop_logger = _push_logging(
+        push_log_timer = _push_logging(
             lambda logs: self.req.post(
                 (
                     f'{self.base_url}/api/v-internal/auto_tests/'
@@ -881,10 +853,13 @@ class _SimpleAutoTestRunner(AutoTestRunner):
             json={'state': models.AutoTestRunState.running.name},
         )
         try:
-            self._run_test()
+            with timed_code('run_complete_auto_test'):
+                self._run_test()
         except:
+            logger.warning('Something went wrong running tests', exc_info=True)
             end_state = models.AutoTestRunState.crashed.name
         else:
+            logger.info('Finished running tests')
             end_state = models.AutoTestRunState.done.name
         finally:
             try:
@@ -893,7 +868,7 @@ class _SimpleAutoTestRunner(AutoTestRunner):
                     json={'state': end_state},
                 )
             finally:
-                stop_logger()
+                push_log_timer.cancel()
 
     def _run_test(self) -> None:
         ensure_on_test_server()
@@ -905,11 +880,14 @@ class _SimpleAutoTestRunner(AutoTestRunner):
         base_container.create()
 
         with base_container.started_container() as cont:
-            cont.run_command(['apt', 'update'])
-            cont.run_command(['apt', 'upgrade', '-y'])
+            with timed_code('install_base_system'):
+                cont.run_command(['apt', 'update'])
+                cont.run_command(['apt', 'upgrade', '-y'])
 
-            # Install useful commands
-            cont.run_command(['apt', 'install', '-y', 'wget', 'curl', 'unzip'])
+                # Install useful commands
+                cont.run_command(
+                    ['apt', 'install', '-y', 'wget', 'curl', 'unzip']
+                )
 
             self.copy_file(
                 cont,
@@ -920,7 +898,8 @@ class _SimpleAutoTestRunner(AutoTestRunner):
                 '/usr/bin/install_pyenv.sh',
             )
 
-            self._install_base_systems(cont)
+            with timed_code('installing_base_systems'):
+                self._install_base_systems(cont)
 
             cont.run_command(
                 ['adduser', '--disabled-password', '--gecos', '', 'codegrade'],
@@ -928,13 +907,16 @@ class _SimpleAutoTestRunner(AutoTestRunner):
 
             cont.run_command(['usermod', '-aG', 'sudo', 'codegrade'])
 
-            self.download_fixtures(cont)
+            with timed_code('download_fixtures'):
+                self.download_fixtures(cont)
             self._finalize_base_systems(cont)
 
             cont.stop_container()
             del cont
 
-            with Pool(get_amount_cpus()) as pool:
+            with timed_code('running_students'), Pool(
+                get_amount_cpus()
+            ) as pool:
                 q: 'Queue[int]' = Queue(maxsize=get_amount_cpus())
                 for i in range(get_amount_cpus()):
                     q.put(i)
@@ -966,10 +948,9 @@ class _TransipAutoTestRunner(_SimpleAutoTestRunner):
     def _retry_vps_action(
         action_name: str, func: t.Callable[[], object], max_tries: int = 50
     ) -> None:
-        with timed_code(
-            f'Starting VPS action: {action_name}',
-            f'Finished VPS action: {action_name}',
-        ):
+        with bound_to_logger(
+            action=action_name,
+        ), timed_code('_retry_vps_action'):
             for _ in range(max_tries):
                 try:
                     func()
@@ -979,7 +960,7 @@ class _TransipAutoTestRunner(_SimpleAutoTestRunner):
                 else:
                     break
             else:
-                logger.error()
+                logger.error("Couldn't perform action")
                 raise TimeoutError
 
     @classmethod

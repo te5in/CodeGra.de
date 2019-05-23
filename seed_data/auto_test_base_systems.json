@@ -133,7 +133,7 @@
     "group": "r",
     "id": 6,
     "name": "R",
-    "pre_start_commands": [
+    "setup_commands": [
       [
         "apt-key",
         "adv",
@@ -162,7 +162,7 @@
     "group": "c",
     "id": 7,
     "name": "C/C++",
-    "pre_start_commands": [
+    "setup_commands": [
       [
         "apt",
         "install",
@@ -172,7 +172,6 @@
         "clang-format",
         "cmake"
       ]
-    ],
-    "setup_commands": []
+    ]
   }
 ]

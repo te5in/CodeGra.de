@@ -342,7 +342,7 @@ class AutoTestResult(Base, TimestampMixin, IdMixin):
         updated_rubric_row_ids = set()
 
         for suite in self.run.auto_test.all_suites:
-            got, possible = self.get_amount_points_in_suite(suite)
+            got, possible = self.get_amount_points_in_suites(suite)
             percentage = got / possible
             items = suite.rubric_row.items
             new_item = items[-1 if percentage ==
@@ -365,20 +365,23 @@ class AutoTestResult(Base, TimestampMixin, IdMixin):
         ]
         self.work.set_grade(grade_origin=work_models.GradeOrigin.auto_test)
 
-    def get_amount_points_in_suite(self, suite: 'AutoTestSuite'
+    def get_amount_points_in_suites(self, *suites: 'AutoTestSuite'
                                    ) -> t.Tuple[float, float]:
-        steps = suite.steps
+        steps = list(
+            itertools.chain.from_iterable(suite.steps for suite in suites)
+        )
+        step_ids = set(step.id for step in steps)
         possible = sum(step.weight for step in steps)
         achieved = sum(
-            step_result.step.test_type.get_amount_achieved_points(step_result)
+            step_result.step.step.get_amount_achieved_points(step_result)
             for step_result in self.step_results
+            if step_result.auto_test_step_id in step_ids
         )
         return achieved, possible
 
     def __to_json__(self) -> t.Mapping[str, object]:
-        points_achieved = sum(
-            self.get_amount_points_in_suite(suite)[0]
-            for suite in self.run.auto_test.all_suites
+        points_achieved, _ = self.get_amount_points_in_suites(
+            *self.run.auto_test.all_suites
         )
         return {
             'id': self.id,

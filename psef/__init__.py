@@ -5,19 +5,15 @@ this backend is named ``psef``.
 SPDX-License-Identifier: AGPL-3.0-only
 """
 import os
-import sys
 import json as system_json
 import uuid
 import types
 import typing as t
-import logging
 import datetime
-import threading
 
-import flask
 import structlog
 import flask_jwt_extended as flask_jwt
-from flask import g, jsonify, request
+from flask import Response, g, jsonify, request
 from flask_limiter import Limiter, RateLimitExceeded
 from werkzeug.local import LocalProxy
 
@@ -125,78 +121,6 @@ def enable_testing() -> None:
     global _current_tester
     _current_tester = True
 
-
-LogCallback = t.Callable[[object, str, str], None]
-_logger_callbacks: t.List[LogCallback] = []
-
-
-def logger_callback(fun: LogCallback) -> LogCallback:
-    assert fun not in _logger_callbacks
-    _logger_callbacks.append(fun)
-    return fun
-
-
-def configure_logging(debug: bool, testing: bool) -> None:
-    json_renderer = structlog.processors.JSONRenderer()
-
-    def add_thread_name(
-        logger: object, method_name: object, event_dict: dict
-    ) -> dict:
-        event_dict['thread_id'] = threading.current_thread().name
-        return event_dict
-
-    def log_callbacks(logger: object, method_name: str,
-                      event_dict: t.Any) -> t.Dict[str, object]:
-        if debug:
-            json_event_dict = json_renderer(logger, method_name, event_dict)
-        else:
-            json_event_dict = event_dict
-
-        for callback in _logger_callbacks:
-            try:
-                callback(logger, method_name, json_event_dict)
-            except Exception as e:
-                pass
-
-        return event_dict
-
-    processors = [
-        structlog.stdlib.filter_by_level,
-        structlog.stdlib.add_logger_name,
-        structlog.stdlib.add_log_level,
-        add_thread_name,
-        structlog.stdlib.PositionalArgumentsFormatter(),
-        structlog.processors.format_exc_info,
-        structlog.processors.TimeStamper(fmt="iso"),
-        structlog.processors.StackInfoRenderer(),
-        structlog.processors.format_exc_info,
-        structlog.processors.UnicodeDecoder(),
-        json_renderer,
-        log_callbacks,
-    ]
-    structlog.configure(
-        processors=processors,
-        context_class=structlog.threadlocal.wrap_dict(dict),
-        logger_factory=structlog.stdlib.LoggerFactory(),
-        wrapper_class=structlog.stdlib.BoundLogger,
-        cache_logger_on_first_use=True,
-    )
-    if debug:
-        structlog.configure(
-            processors=processors[:-2] +
-            [log_callbacks,
-             structlog.dev.ConsoleRenderer(colors=not testing)]
-        )
-    logging.basicConfig(
-        format='%(message)s',
-        stream=sys.stdout,
-    )
-    logging.getLogger('psef').setLevel(logging.DEBUG)
-    logging.getLogger('werkzeug').setLevel(logging.ERROR)
-    # Let the celery logger shut up
-    logging.getLogger('celery').propagate = False
-
-
 def create_app(  # pylint: disable=too-many-statements
     config: t.Mapping = None,
     skip_celery: bool = False,
@@ -247,52 +171,8 @@ def create_app(  # pylint: disable=too-many-statements
     ):  # pragma: no cover
         raise ValueError('The option to generate keys has been removed')
 
-    @resulting_app.before_request
-    def __create_logger() -> None:  # pylint: disable=unused-variable
-        g.request_id = uuid.uuid4()
-        log = logger.new(
-            request_id=str(g.request_id),
-            path=flask.request.path,
-            view=getattr(flask.request.url_rule, 'rule', None),
-            base_url=resulting_app.config['EXTERNAL_URL'],
-        )
-        flask_jwt.verify_jwt_in_request_optional()
-        log.bind(current_user=current_user and current_user.username)
-
-        func = log.info
-        try:
-            start = datetime.datetime.utcfromtimestamp(
-                float(flask.request.headers['X-Request-Start-Time'])
-            )
-            wait_time = (g.request_start_time - start).total_seconds()
-            if wait_time > 5:
-                log.error
-            if wait_time > 1:
-                log.warning
-            log.bind(time_spend_in_queue=wait_time)
-        except:
-            pass
-
-        try:
-            func(
-                "Request started",
-                host=request.host_url,
-                method=request.method,
-                query_args={
-                    k: '<PASSWORD>' if k == 'password' else v
-                    for k, v in flask.request.args.items()
-                },
-            )
-        finally:
-            log.try_unbind('time_spend_in_queue')
-
-    configure_logging(
-        getattr(resulting_app, 'debug', False),
-        getattr(resulting_app, 'testing', False),
-    )
-
     @resulting_app.errorhandler(RateLimitExceeded)
-    def __handle_error(_: RateLimitExceeded) -> 'flask.Response':  # pylint: disable=unused-variable
+    def __handle_error(_: RateLimitExceeded) -> Response:  # pylint: disable=unused-variable
         res = jsonify(
             errors.APIException(
                 'Rate limit exceeded, slow down!',
@@ -305,6 +185,9 @@ def create_app(  # pylint: disable=too-many-statements
         return res
 
     limiter.init_app(resulting_app)
+
+    from . import log
+    log.init_app(resulting_app)
 
     from . import permissions
     permissions.init_app(resulting_app, skip_perm_check)
@@ -366,9 +249,8 @@ def create_app(  # pylint: disable=too-many-statements
         try:
             tasks.add(2, 3)
         except Exception:  # pragma: no cover
-            print(  # pylint: disable=bad-builtin
+            logger.error(
                 'Celery is not responding! Please check your config',
-                file=sys.stderr
             )
             raise
 

@@ -9,6 +9,7 @@ import enum
 import time
 import typing as t
 import datetime
+import threading
 import contextlib
 import subprocess
 from functools import wraps
@@ -838,15 +839,57 @@ def defer(function: t.Callable[[], object]) -> t.Generator[None, None, None]:
 
 
 @contextlib.contextmanager
-def timed_code(start_msg: str, end_msg: str,
+def timed_code(code_block_name: str,
                **other_keys: object) -> t.Generator[None, None, None]:
     start_time = time.time()
-    logger.info(start_msg, **other_keys)
-    # This should not be wrapped in a `try`, `finally` block as we only want to
-    # log when the when block succeeds.
-    yield
-    end_time = time.time()
-    logger.info(end_msg, **other_keys, elapsed_time=end_time - start_time)
+    logger.info(
+        'Starting timed code block',
+        timed_code_block=code_block_name,
+        **other_keys
+    )
+    try:
+        yield
+    except:
+        exc_info = True
+        raise
+    else:
+        exc_info = False
+    finally:
+        end_time = time.time()
+        logger.info(
+            'Finished timed code block',
+            timed_code_block=code_block_name,
+            exc_info=exc_info,
+            exception_occurred=exc_info,
+            elapsed_time=end_time - start_time,
+            **other_keys,
+        )
+
+
+class RepeatedTimer(threading.Thread):
+    def __init__(
+        self,
+        interval: int,
+        function: t.Callable[[], None],
+        cleanup: t.Callable[[], None] = lambda: None,
+    ) -> None:
+        self.interval = interval
+        self.function = function
+        self.finished = threading.Event()
+        self.cleanup = cleanup
+
+    def cancel(self) -> None:
+        self.finished.set()
+
+    def run(self) -> None:
+        try:
+            while not self.finished.wait(self.interval):
+                self.function()
+            else:
+                self.function()
+        finally:
+            self.cleanup()
+
 
 @contextlib.contextmanager
 def bound_to_logger(**vals: object) -> t.Generator[None, None, None]:
