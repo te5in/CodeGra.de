@@ -670,7 +670,14 @@ class _SimpleAutoTestRunner(AutoTestRunner):
                 if isinstance(cmd, list):
                     cont.run_command(cmd, user='codegrade')
                 else:
-                    cont.run_student_command(cmd)
+                    code, stdout, stderr = cont.run_student_command(cmd)
+                    logger.info(
+                        'Installed base system',
+                        cmd=cmd,
+                        exit_code=code,
+                        stdout=stdout,
+                        stderr=stderr,
+                    )
 
     def _finalize_base_systems(self, cont: StartedContainer) -> None:
         for system in self.base_systems:
@@ -678,7 +685,14 @@ class _SimpleAutoTestRunner(AutoTestRunner):
                 if isinstance(cmd, list):
                     cont.run_command(cmd, user='codegrade')
                 else:
-                    cont.run_student_command(cmd)
+                    code, stdout, stderr = cont.run_student_command(cmd)
+                    logger.info(
+                        'Finalized base system',
+                        cmd=cmd,
+                        exit_code=code,
+                        stdout=stdout,
+                        stderr=stderr,
+                    )
 
     def copy_file(
         self, container: StartedContainer, src: str, dst: str
