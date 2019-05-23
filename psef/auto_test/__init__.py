@@ -667,12 +667,18 @@ class _SimpleAutoTestRunner(AutoTestRunner):
     def _install_base_systems(self, cont: StartedContainer) -> None:
         for system in self.base_systems:
             for cmd in system['setup_commands']:
-                cont.run_command(cmd, user='codegrade')
+                if isinstance(cmd, list):
+                    cont.run_command(cmd, user='codegrade')
+                else:
+                    cont.run_student_command(cmd)
 
     def _finalize_base_systems(self, cont: StartedContainer) -> None:
         for system in self.base_systems:
             for cmd in system.get('pre_start_commands', []):
-                cont.run_command(cmd, user='codegrade')
+                if isinstance(cmd, list):
+                    cont.run_command(cmd, user='codegrade')
+                else:
+                    cont.run_student_command(cmd)
 
     def copy_file(
         self, container: StartedContainer, src: str, dst: str

@@ -9,10 +9,9 @@
         "global",
         "2.7.16"
       ],
-      [
-        "python",
-        "--version"
-      ]
+      "echo 'eval \"$(pyenv init -)\"' | sudo tee --append /etc/profile",
+      "echo 'eval \"$(pyenv init -)\"' >> ~/.bash_profile",
+      "python --version"
     ],
     "setup_commands": [
       [
@@ -35,10 +34,9 @@
         "global",
         "3.5.7"
       ],
-      [
-        "python",
-        "--version"
-      ]
+      "echo 'eval \"$(pyenv init -)\"' | sudo tee --append /etc/profile",
+      "echo 'eval \"$(pyenv init -)\"' >> ~/.bash_profile",
+      "python --version"
     ],
     "setup_commands": [
       [
@@ -61,10 +59,9 @@
         "global",
         "3.6.8"
       ],
-      [
-        "python",
-        "--version"
-      ]
+      "echo 'eval \"$(pyenv init -)\"' | sudo tee --append /etc/profile",
+      "echo 'eval \"$(pyenv init -)\"' >> ~/.bash_profile",
+      "python --version"
     ],
     "setup_commands": [
       [
@@ -87,10 +84,9 @@
         "global",
         "3.7.3"
       ],
-      [
-        "python",
-        "--version"
-      ]
+      "echo 'eval \"$(pyenv init -)\"' | sudo tee --append /etc/profile",
+      "echo 'eval \"$(pyenv init -)\"' >> ~/.bash_profile",
+      "python --version"
     ],
     "setup_commands": [
       [
