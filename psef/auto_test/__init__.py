@@ -329,12 +329,10 @@ class StartedContainer:
             self._change_user(user)
 
         return subprocess.call(
-            cmd,
-            shell=True,
+            ['/bin/bash', '-i', '-c', cmd],
             cwd=cwd,
             preexec_fn=preexec,
             env=env,
-            executable='/bin/bash',
         )
 
     def run_student_command(
