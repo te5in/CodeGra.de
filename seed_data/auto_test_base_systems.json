@@ -8,6 +8,10 @@
         "pyenv",
         "global",
         "2.7.16"
+      ],
+      [
+        "python",
+        "--version"
       ]
     ],
     "setup_commands": [
@@ -30,6 +34,10 @@
         "pyenv",
         "global",
         "3.5.7"
+      ],
+      [
+        "python",
+        "--version"
       ]
     ],
     "setup_commands": [
@@ -52,6 +60,10 @@
         "pyenv",
         "global",
         "3.6.8"
+      ],
+      [
+        "python",
+        "--version"
       ]
     ],
     "setup_commands": [
@@ -103,6 +115,7 @@
     ],
     "setup_commands": [
       [
+        "sudo",
         "apt",
         "install",
         "-y",
@@ -122,6 +135,7 @@
     ],
     "setup_commands": [
       [
+        "sudo",
         "apt",
         "install",
         "-y",
@@ -135,6 +149,7 @@
     "name": "R",
     "setup_commands": [
       [
+        "sudo",
         "apt-key",
         "adv",
         "--keyserver",
@@ -143,14 +158,17 @@
         "E298A3A825C0D65DFD57CBB651716619E084DAB9"
       ],
       [
+        "sudo",
         "add-apt-repository",
         "deb https://cloud.r-project.org/bin/linux/ubuntu bionic-cran35/"
       ],
       [
+        "sudo",
         "apt",
         "update"
       ],
       [
+        "sudo",
         "apt",
         "install",
         "-y",
@@ -164,6 +182,7 @@
     "name": "C/C++",
     "setup_commands": [
       [
+        "sudo",
         "apt",
         "install",
         "-y",

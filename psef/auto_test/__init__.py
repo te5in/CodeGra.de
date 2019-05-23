@@ -442,6 +442,7 @@ class StartedContainer:
                 os.chmod(stdin_file.name, 0o777)
                 stdin_file.write(stdin)
                 stdin_file.flush()
+                stdin_file.seek(0, 0)
             elif stdin is None:
                 stdin_file = dev_null
             else:
@@ -663,12 +664,12 @@ class _SimpleAutoTestRunner(AutoTestRunner):
     def _install_base_systems(self, cont: StartedContainer) -> None:
         for system in self.base_systems:
             for cmd in system['setup_commands']:
-                cont.run_command(cmd)
+                cont.run_command(cmd, user='codegrade')
 
     def _finalize_base_systems(self, cont: StartedContainer) -> None:
         for system in self.base_systems:
             for cmd in system.get('pre_start_commands', []):
-                cont.run_command(cmd)
+                cont.run_command(cmd, user='codegrade')
 
     def copy_file(
         self, container: StartedContainer, src: str, dst: str
@@ -855,6 +856,10 @@ class _SimpleAutoTestRunner(AutoTestRunner):
 
                 logger.info('Dropping sudo rights')
                 cont.run_command(['deluser', 'codegrade', 'sudo'])
+                cont.run_command(
+                    ['sed', '-i', 's/^codegrade.*$//g', '/etc/sudoers']
+                )
+                cont.run_command(['cat', '/etc/sudoers'])
 
                 total_points = 0.0
 
@@ -964,9 +969,6 @@ class _SimpleAutoTestRunner(AutoTestRunner):
                 '/usr/bin/install_pyenv.sh',
             )
 
-            with timed_code('installing_base_systems'):
-                self._install_base_systems(cont)
-
             cont.run_command(
                 [
                     'adduser', '--shell', '/bin/bash', '--disabled-password',
@@ -975,6 +977,16 @@ class _SimpleAutoTestRunner(AutoTestRunner):
             )
 
             cont.run_command(['usermod', '-aG', 'sudo', 'codegrade'])
+
+            cont.run_command(
+                ['tee', '--append', '/etc/sudoers'],
+                stdin=b'codegrade ALL=(ALL) NOPASSWD: ALL\n'
+            )
+            cont.run_command(['cat', '/etc/sudoers'])
+            cont.run_command(['grep', 'codegrade', '/etc/sudoers'])
+
+            with timed_code('installing_base_systems'):
+                self._install_base_systems(cont)
 
             with timed_code('download_fixtures'):
                 self.download_fixtures(cont)
