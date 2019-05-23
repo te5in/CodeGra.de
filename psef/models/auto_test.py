@@ -10,6 +10,7 @@ import numbers
 import datetime
 import itertools
 
+import structlog
 from sqlalchemy import orm
 from sqlalchemy.types import JSON
 from sqlalchemy_utils import UUIDType
@@ -28,6 +29,8 @@ from ..exceptions import APICodes, APIException
 
 if t.TYPE_CHECKING:
     from . import user as user_models
+
+logger = structlog.get_logger()
 
 
 class AutoTestStep(Base, TimestampMixin, IdMixin):
@@ -315,7 +318,7 @@ class AutoTestResult(Base, TimestampMixin, IdMixin):
     step_results = db.relationship(
         'AutoTestStepResult',
         back_populates='result',
-        cascade='all,delete',
+        cascade='all,delete,delete-orphan',
         order_by='AutoTestStepResult.created_at'
     )  # type: t.MutableSequence[AutoTestStepResult]
 
@@ -335,6 +338,16 @@ class AutoTestResult(Base, TimestampMixin, IdMixin):
     work = db.relationship(
         'Work', foreign_keys=work_id
     )  # type: work_models.Work
+
+    @property
+    def passed(self) -> bool:
+        return self.state == AutoTestStepResultState.passed
+
+    def clear(self) -> None:
+        self.step_results = []
+        self.state = AutoTestStepResultState.not_started
+        self.setup_stderr = None
+        self.setup_stdout = None
 
     def update_rubric(self) -> None:
         old_selected_items = set(self.work.selected_items)
@@ -366,7 +379,7 @@ class AutoTestResult(Base, TimestampMixin, IdMixin):
         self.work.set_grade(grade_origin=work_models.GradeOrigin.auto_test)
 
     def get_amount_points_in_suites(self, *suites: 'AutoTestSuite'
-                                   ) -> t.Tuple[float, float]:
+                                    ) -> t.Tuple[float, float]:
         steps = list(
             itertools.chain.from_iterable(suite.steps for suite in suites)
         )
@@ -401,14 +414,19 @@ class AutoTestResult(Base, TimestampMixin, IdMixin):
 
 
 class AutoTestRunState(enum.Enum):
-    not_started = enum.auto()
+    waiting_for_runner = enum.auto()
+    starting = enum.auto()
     running = enum.auto()
     done = enum.auto()
     timed_out = enum.auto()
     crashed = enum.auto()
+    changing_runner = enum.auto()
 
 
 class AutoTestRunner(Base, TimestampMixin, UUIDMixin):
+    if t.TYPE_CHECKING:  # pragma: no cover
+        query: t.ClassVar[_MyQuery['AutoTestRunner']]
+
     __tablename__ = 'AutoTestRunner'
 
     _type: str = db.Column(
@@ -418,6 +436,10 @@ class AutoTestRunner(Base, TimestampMixin, UUIDMixin):
     )
 
     _ipaddr: str = db.Column('ipaddr', db.Unicode, nullable=False)
+
+    last_heartbeat: datetime.datetime = db.Column(
+        'last_heartbeat', db.DateTime, default=datetime.datetime.utcnow
+    )
 
     #: Is this runner completely finished. So is the `after_run` method called.
     after_run_called: bool = db.Column(
@@ -482,7 +504,7 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
         nullable=False
     )
 
-    runner_id: uuid.UUID = db.Column(
+    runner_id: t.Optional[uuid.UUID] = db.Column(
         'runner_id',
         UUIDType,
         db.ForeignKey('AutoTestRunner.id'),
@@ -514,7 +536,7 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
     _state = db.Column(
         'state',
         db.Enum(AutoTestRunState),
-        default=AutoTestRunState.not_started,
+        default=AutoTestRunState.waiting_for_runner,
         nullable=False,
     )
     started_date: t.Optional[datetime.datetime] = db.Column(
@@ -523,6 +545,14 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
     kill_date: t.Optional[datetime.datetime] = db.Column(
         'kill_date', db.DateTime, nullable=True, default=None
     )
+
+    @property
+    def finished(self) -> bool:
+        return self.state in {
+            AutoTestRunState.done,
+            AutoTestRunState.timed_out,
+            AutoTestRunState.crashed,
+        }
 
     @property
     def state(self) -> AutoTestRunState:
@@ -538,12 +568,8 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
             for result in self.results:
                 result.update_rubric()
 
-        if new_state in {
-            AutoTestRunState.done,
-            AutoTestRunState.timed_out,
-            AutoTestRunState.crashed,
-        }:
-            psef.tasks.reset_auto_test_runner(self.runner_id)
+        if self.finished and self.runner_id is not None:
+            psef.tasks.reset_auto_test_runner(self.runner_id.hex)
 
     def start(
         self,
@@ -558,10 +584,18 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
         now = datetime.datetime.utcnow()
         self.kill_date = now + max_duration
         self.runner = AutoTestRunner.create(runner_type, runner_ipaddr)
-        psef.tasks.notify_slow_auto_test_run(
-            (self.id, ), eta=now + (max_duration / 2)
-        )
-        psef.tasks.stop_auto_test_run((self.runner_id, ), eta=self.kill_date)
+        db.session.add(self.runner)
+
+        @psef.helpers.callback_after_this_request
+        def start_tasks() -> None:
+            psef.tasks.notify_slow_auto_test_run(
+                (self.id, ), eta=now + (max_duration / 2)
+            )
+            psef.tasks.stop_auto_test_run(
+                (self.runner.id.hex, ), eta=self.kill_date
+            )
+            logger.info('Checking heartbeat', runner_id=self.runner.id)
+            psef.tasks.check_heartbeat_auto_test_run((self.runner.id.hex, ))
 
     def get_instructions(self) -> auto_test_module.RunnerInstructions:
         return {
@@ -571,13 +605,15 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
                 self.id,
             'auto_test_id':
                 self.auto_test_id,
-            'result_ids': [r.id for r in self.results],
+            'result_ids': [r.id for r in self.results if not r.passed],
             'sets': [s.get_instructions() for s in self.auto_test.sets],
             'base_systems':
                 t.cast(t.List[t.Dict[str, str]], self.auto_test.base_systems),
             'fixtures': [(f.name, f.id) for f in self.auto_test.fixtures],
             'setup_script':
                 self.auto_test.setup_script,
+            'heartbeat_interval':
+                psef.app.config['AUTO_TEST_HEARTBEAT_INTERVAL'],
         }
 
     def __to_json__(self) -> t.Mapping[str, object]:

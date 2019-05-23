@@ -6,8 +6,8 @@ from sqlalchemy_utils import UUIDType
 from . import db
 
 
-def _make_uuid() -> str:
-    return str(uuid.uuid4())
+def _make_uuid() -> uuid.UUID:
+    return uuid.uuid4()
 
 
 class IdMixin:

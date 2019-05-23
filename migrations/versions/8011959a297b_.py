@@ -85,7 +85,7 @@ def upgrade():
     sa.Column('weight', sa.Float(), nullable=False),
     sa.Column('hidden', sa.Boolean(), nullable=False),
     sa.Column('auto_test_suite_id', sa.Integer(), nullable=False),
-    sa.Column('test_type', sa.Enum('io_test', 'run_program', 'custom_output', 'check_points', native_enum=False), nullable=False),
+    sa.Column('test_type', sa.Enum('io_test', 'run_program', 'custom_output', 'check_points', name='autoteststeptesttype'), nullable=False),
     sa.Column('data', sa.JSON(), nullable=False),
     sa.ForeignKeyConstraint(['auto_test_suite_id'], ['AutoTestSuite.id'], ),
     sa.PrimaryKeyConstraint('id')

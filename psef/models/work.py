@@ -75,7 +75,7 @@ class GradeHistory(Base):
 
     grade_origin = db.Column(
         'grade_origin',
-        db.Enum(GradeOrigin, native_enum=False),
+        db.Enum(GradeOrigin),
         nullable=False,
         server_default=GradeOrigin.human.name,
     )

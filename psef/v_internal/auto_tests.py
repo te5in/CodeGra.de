@@ -3,7 +3,7 @@ import datetime
 
 import werkzeug
 import structlog
-from flask import request, make_response, send_from_directory
+from flask import g, request, make_response, send_from_directory
 
 from . import api
 from .. import app, files, models, auto_test
@@ -21,8 +21,7 @@ logger = structlog.get_logger()
 LocalRunner = t.NewType('LocalRunner', t.Tuple[str, bool])
 
 
-def extract_local_password(password: str) -> LocalRunner:
-    local_password, global_password = password.split('@:@', maxsplit=1)
+def get_local_runner(global_password: str, local_password: str) -> LocalRunner:
     config_dict = app.config['AUTO_TEST_CREDENTIALS'].get(
         request.remote_addr, None
     )
@@ -50,7 +49,8 @@ def verify_runner(
     password, check_ip = local
 
     if (
-        runner is None or str(runner.id) != password or
+        runner is None or not password or str(runner.id) != password or
+        runner.after_run_called or
         (check_ip and runner.ipaddr != request.remote_addr)
     ):
         raise PermissionException(
@@ -70,9 +70,10 @@ def verify_runner(
 
 
 def verify_global_header_password() -> LocalRunner:
-    with get_from_map_transaction(request.headers) as [get, _]:
+    with get_from_map_transaction(request.headers) as [get, opt_get]:
         global_password = get('CG-Internal-Api-Password', str)
-    return extract_local_password(global_password)
+        local_password = opt_get('CG-Internal-Api-Runner-Password', str, '')
+    return get_local_runner(global_password, local_password)
 
 
 @api.route('/auto_tests/', methods=['GET'])
@@ -156,6 +157,26 @@ def get_result_data(auto_test_id: int, result_id: int
         directory = app.config['MIRROR_UPLOAD_DIR']
         return send_from_directory(directory, file_name)
 
+    return make_empty_response()
+
+
+@api.route(
+    '/auto_tests/<int:auto_test_id>/runs/<int:run_id>/heartbeats/',
+    methods=['POST']
+)
+def post_heartbeat(auto_test_id: int, run_id: int) -> EmptyResponse:
+    password = verify_global_header_password()
+
+    run = filter_single_or_404(
+        models.AutoTestRun,
+        models.AutoTestRun.id == run_id,
+        models.AutoTest.id == auto_test_id,
+    )
+    verify_runner(run.runner, password)
+    assert run.runner is not None
+
+    run.runner.last_heartbeat = g.request_start_time
+    db.session.commit()
     return make_empty_response()
 
 

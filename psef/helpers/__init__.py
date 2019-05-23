@@ -867,12 +867,20 @@ def timed_code(code_block_name: str,
 
 
 class RepeatedTimer(threading.Thread):
+    """Call a function repeatedly in a separate thread.
+
+    .. warning::
+
+        This class doesn't work when threads don't work, which is the case when
+        using it in a flask context.
+    """
     def __init__(
         self,
         interval: int,
         function: t.Callable[[], None],
         cleanup: t.Callable[[], None] = lambda: None,
     ) -> None:
+        super().__init__()
         self.interval = interval
         self.function = function
         self.finished = threading.Event()
@@ -883,10 +891,11 @@ class RepeatedTimer(threading.Thread):
 
     def run(self) -> None:
         try:
-            while not self.finished.wait(self.interval):
+            while True:
                 self.function()
-            else:
-                self.function()
+                if self.finished.wait(self.interval):
+                    break
+            self.function()
         finally:
             self.cleanup()
 
