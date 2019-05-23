@@ -273,6 +273,13 @@ class StartedContainer:
                 if callback is not None:
                     callback(line)
 
+    @property
+    def _extra_path(self) -> str:
+        return (
+            '~/.pyenv/bin/:~/.local/bin:/home/codegrade/.pyenv/bin:'
+            '/home/codegrade/.local/bin/'
+        )
+
     def _change_user(self, username: str) -> None:
         pw_record = pwd.getpwnam(username)
         user_uid = pw_record.pw_uid
@@ -297,7 +304,7 @@ class StartedContainer:
     ) -> int:
         cmd, user = cmd_user
         env = os.environ.copy()
-        env['PATH'] += ':/usr/sbin/:/sbin/:/home/codegrade/.local/bin/'
+        env['PATH'] = f'{self._extra_path}:/usr/sbin/:/sbin/:{env["PATH"]}'
 
         def preexec() -> None:
             if user:
@@ -308,9 +315,10 @@ class StartedContainer:
     def _run_shell(self, cmd_cwd_user: t.Tuple[str, str, str]) -> int:
         cmd, cwd, user = cmd_cwd_user
         env = os.environ.copy()
-        env[
-            'PATH'
-        ] += ':/home/codegrade/student/:/home/codegrade/fixtures/:/home/codegrade/.local/bin/'
+        env['PATH'] = (
+            '{self._extra_path}:/home/codegrade/student/:'
+            '/home/codegrade/fixtures/:{env["PATH"]}'
+        )
 
         def preexec() -> None:
             self._change_user(user)
@@ -664,9 +672,7 @@ class _SimpleAutoTestRunner(AutoTestRunner):
         self, container: StartedContainer, src: str, dst: str
     ) -> None:
         with open(src, 'rb') as f:
-            container.run_command(
-                ['dd', 'status=none', f'of={dst}'], stdin=f
-            )
+            container.run_command(['dd', 'status=none', f'of={dst}'], stdin=f)
         container.run_command(['chmod', '+x', dst])
         container.run_command(['ls', '-hal', dst])
         container.run_command(['cat', dst])
