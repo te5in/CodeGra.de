@@ -305,7 +305,8 @@
                             :editable="configEditable"
                             :result="result"
                             :no-card="noCard"
-                            :other-suites="allNonDeletedSuites" />
+                            :other-suites="allNonDeletedSuites"
+                            :animations="disabledAnimations" />
                     </div>
                 </transition-group>
                 <div v-if="configEditable"
@@ -847,27 +848,13 @@ export default {
     overflow-y: hidden;
 }
 
-.setcontinue-enter-active,
-.setcontinue-leave-active,
 .emptytext-enter-active,
 .emptytext-leave-active {
     max-height: 2rem;
     overflow-y: hidden;
     margin-bottom: 0;
 }
-.setcontinue-enter-active,
-.setcontinue-leave-active {
-    max-height: 4rem;
-}
 
-.setcontinue-enter,
-.setcontinue-leave-to {
-    padding-top: 0 !important;
-    padding-bottom: 0 !important;
-}
-
-.setcontinue-enter,
-.setcontinue-leave-to,
 .emptytext-enter,
 .emptytext-leave-to {
     max-height: 0;
@@ -877,21 +864,6 @@ export default {
 
 .empty-text {
     margin-top: 1rem;
-}
-
-.set-continue {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    .input-group {
-        width: initial;
-        margin-left: 5px;
-    }
-
-    code {
-        padding: 0 0.25rem;
-    }
 }
 
 .auto-test-header {
