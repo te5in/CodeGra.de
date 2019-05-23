@@ -22,7 +22,7 @@
                         v-b-popover.hover.top="progressPopover"/>
                 </template>
 
-                <div v-if="autoTestProgress[rubric.id]"
+                <div v-show="autoTestProgress[rubric.id]"
                      class="progress">
                     <div ref="progressMeter" class="meter" />
                 </div>
