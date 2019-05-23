@@ -304,7 +304,6 @@
                             :assignment="assignment"
                             :editable="configEditable"
                             :result="result"
-                            :no-card="noCard"
                             :other-suites="allNonDeletedSuites"
                             :animations="disabledAnimations" />
                     </div>
@@ -866,21 +865,6 @@ export default {
     margin-top: 1rem;
 }
 
-.auto-test-header {
-    .toggle {
-        cursor: pointer;
-
-        .fa-icon {
-            margin-right: 0.5rem;
-            transition: transform 300ms;
-        }
-
-        &:not(.collapsed) .fa-icon {
-            transform: rotate(90deg);
-        }
-    }
-}
-
 .fixtureswrapper-leave-active,
 .fixtureswrapper-enter-active,
 .fixtures-leave-active,
@@ -1064,6 +1048,19 @@ export default {
 
     &.editable {
         padding: 5px 1.25rem;
+    }
+
+    .toggle {
+        cursor: pointer;
+
+        .fa-icon {
+            margin-right: 0.5rem;
+            transition: transform 300ms;
+        }
+
+        &:not(.collapsed) .fa-icon {
+            transform: rotate(90deg);
+        }
     }
 }
 </style>

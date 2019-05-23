@@ -902,6 +902,7 @@ hr {
 
     pre.form-control {
         flex: 1 1 auto;
+        min-height: 2rem;
         max-height: 15rem;
         font-size: 87.5%;
     }

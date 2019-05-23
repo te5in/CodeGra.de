@@ -1,10 +1,10 @@
 <template>
 <component
-    :is="noCard ? 'div' : 'b-card'"
+    :is="result ? 'div' : 'b-card'"
     no-body
     class="test-group auto-test-set"
     :class="{ editable }">
-    <b-card-header v-if="!noCard" class="auto-test-header" :class="{ editable }">
+    <b-card-header v-if="!result" class="auto-test-header" :class="{ editable }">
         Test set
         <div v-if="editable">
             <submit-button
@@ -16,7 +16,7 @@
         </div>
     </b-card-header>
 
-    <component :is="noCard ? 'div' : 'b-card-body'">
+    <component :is="result ? 'div' : 'b-card-body'">
         <span v-if="!hasSuites" class="text-muted">
             You have no suites yet. Click the button below to create one.
         </span>
@@ -25,7 +25,6 @@
                  :cols="{default: (result ? 1 : 2), [$root.largeWidth]: 1 }"
                  :gutter="30"
                  class="outer-block">
-            {{ value.suites }}
             <auto-test-suite v-for="suite, j in value.suites"
                              v-if="!suite.deleted"
                              :editable="editable"
@@ -112,11 +111,6 @@ export default {
         result: {
             type: Object,
             default: null,
-        },
-
-        noCard: {
-            type: Boolean,
-            default: false,
         },
 
         otherSuites: {
@@ -212,6 +206,10 @@ export default {
 </script>
 
 <style lang="less" scoped>
+.transition {
+    transition: all 0.3s linear;
+}
+
 .setcontinue-enter-active,
 .setcontinue-leave-active {
     max-height: 2rem;
@@ -250,5 +248,9 @@ export default {
     code {
         padding: 0 0.25rem;
     }
+}
+
+.auto-test-suite:not(:last-child) {
+    margin-bottom: 1rem;
 }
 </style>
