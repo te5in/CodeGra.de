@@ -506,7 +506,7 @@ def _stop_auto_test_run_1(auto_test_run_id: int) -> None:
         run.kill_date is not None and
         run.kill_date > datetime.datetime.utcnow()
     ):
-        _stop_auto_test_run_1.apply_async((run.id, ), eta=run.kill_date)
+        _stop_auto_test_run_1.apply_async((auto_test_run_id, ), eta=run.kill_date)
 
     if run.state != p.models.AutoTestRunState.running:
         return
@@ -631,7 +631,7 @@ send_reminder_mails: t.Callable[[
 ], t.Any] = _send_reminder_mails_1.apply_async  # pylint: disable=invalid-name
 
 stop_auto_test_run: t.Callable[[
-    t.Tuple[str], NamedArg(t.Optional[datetime.datetime], 'eta')
+    t.Tuple[int], NamedArg(t.Optional[datetime.datetime], 'eta')
 ], t.Any] = _stop_auto_test_run_1.apply_async  # pylint: disable=invalid-name
 
 notify_slow_auto_test_run: t.Callable[[

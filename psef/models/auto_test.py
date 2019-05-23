@@ -598,7 +598,7 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
                 (self.id, ), eta=now + (max_duration / 2)
             )
             psef.tasks.stop_auto_test_run(
-                (self.runner.id.hex, ), eta=self.kill_date
+                (self.id, ), eta=self.kill_date
             )
             logger.info('Checking heartbeat', runner_id=self.runner.id)
             psef.tasks.check_heartbeat_auto_test_run((self.runner.id.hex, ))
