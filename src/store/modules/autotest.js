@@ -443,6 +443,7 @@ const actions = {
     },
 
     updateAutoTestSet({ commit }, { autoTestId, autoTestSet, setProps }) {
+        console.log(autoTestSet, setProps);
         return axios
             .patch(`/api/v1/auto_tests/${autoTestId}/sets/${autoTestSet.id}`, setProps)
             .then(() =>
@@ -455,6 +456,8 @@ const actions = {
 
     createAutoTestSuite({ commit }, { autoTestId, autoTestSet }) {
         const suites = [...autoTestSet.suites, new AutoTestSuiteData(autoTestId, autoTestSet.id)];
+
+        console.log(suites);
 
         return commit(types.UPDATE_AUTO_TEST_SET, {
             autoTestSet,

@@ -160,6 +160,7 @@
 </template>
 
 <script>
+import { mapActions } from 'vuex';
 import { SlickList, SlickItem, HandleDirective } from 'vue-slicksort';
 
 import Icon from 'vue-awesome/components/Icon';
@@ -271,6 +272,10 @@ export default {
     },
 
     methods: {
+        ...mapActions('autotest', {
+            storeDeleteAutoTestSuite: 'deleteAutoTestSuite',
+        }),
+
         createTestStep(type) {
             const res = {
                 name: '',

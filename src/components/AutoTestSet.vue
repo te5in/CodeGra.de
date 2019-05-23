@@ -17,7 +17,7 @@
     </b-card-header>
 
     <component :is="noCard ? 'div' : 'b-card-body'">
-        <span v-if="hasSuites" class="text-muted">
+        <span v-if="!hasSuites" class="text-muted">
             You have no suites yet. Click the button below to create one.
         </span>
 
@@ -25,6 +25,7 @@
                  :cols="{default: (result ? 1 : 2), [$root.largeWidth]: 1 }"
                  :gutter="30"
                  class="outer-block">
+            {{ value.suites }}
             <auto-test-suite v-for="suite, j in value.suites"
                              v-if="!suite.deleted"
                              :editable="editable"
@@ -45,7 +46,7 @@
         </div>
     </component>
 
-    <transition v-if="!isLastSet" :name="disabledAnimations ? '' : 'setcontinue'">
+    <transition v-if="!isLastSet" :name="animations ? '' : 'setcontinue'">
         <b-card-footer
             v-if="editable"
             class="transition set-continue">
@@ -55,7 +56,7 @@
                 <input
                     class="form-control"
                     type="number"
-                    v-model="internalTest.set_stop_points[setId]"
+                    v-model="stopPoints"
                     @keyup.ctrl.enter="$refs.submitContinuePointsBtn[i].onClick()"
                     placeholder="0" />
                 <b-input-group-append>
@@ -122,10 +123,17 @@ export default {
             type: Array,
             required: true,
         },
+
+        animations: {
+            type: Boolean,
+            default: true,
+        },
     },
 
     data() {
-        return {};
+        return {
+            stopPoints: this.value.stop_points,
+        };
     },
 
     computed: {
@@ -147,7 +155,7 @@ export default {
         },
 
         hasSuites() {
-            return this.value.suites.filter(s => !s.isEmpty() && !s.deleted).length === 0;
+            return this.value.suites.filter(s => !s.deleted).length !== 0;
         },
 
         isLastSet() {
@@ -173,11 +181,10 @@ export default {
         },
 
         submitContinuePoints() {
-            const stopPoints = Number(this.internalTest.set_stop_points[this.setId]);
             return this.storeUpdateAutoTestSet({
                 autoTestId: this.autoTestId,
                 autoTestSet: this.value,
-                setProps: { stop_points: stopPoints },
+                setProps: { stop_points: Number(this.stopPoints) },
             });
         },
 
@@ -203,3 +210,45 @@ export default {
     },
 };
 </script>
+
+<style lang="less" scoped>
+.setcontinue-enter-active,
+.setcontinue-leave-active {
+    max-height: 2rem;
+    overflow-y: hidden;
+    margin-bottom: 0;
+}
+
+.setcontinue-enter-active,
+.setcontinue-leave-active {
+    max-height: 4rem;
+}
+
+.setcontinue-enter,
+.setcontinue-leave-to {
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+}
+
+.setcontinue-enter,
+.setcontinue-leave-to {
+    max-height: 0;
+    overflow-y: hidden;
+    margin: 0 !important;
+}
+
+.set-continue {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    .input-group {
+        width: initial;
+        margin-left: 5px;
+    }
+
+    code {
+        padding: 0 0.25rem;
+    }
+}
+</style>
