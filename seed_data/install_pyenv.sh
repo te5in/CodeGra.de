@@ -16,4 +16,3 @@ pyenv update
 
 bash -c 'env'
 bash -c 'which pyenv'
-bash -c 'echo $PATH | grep --color=auto "$(pyenv root)/shims"'
