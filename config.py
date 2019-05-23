@@ -510,7 +510,7 @@ if CONFIG['IS_AUTO_TEST_RUNNER']:
     assert CONFIG['SECRET_KEY'] == ''
     assert CONFIG['HEALTH_KEY'] == ''
 
-set_int(CONFIG, auto_test_ops, 'AUTO_TEST_MAX_TIME_SINGLE_RUN', 15)
+set_int(CONFIG, auto_test_ops, 'AUTO_TEST_MAX_TIME_SINGLE_RUN', 15 * 60)
 set_int(CONFIG, auto_test_ops, 'AUTO_TEST_MAX_TIME_TOTAL_RUN', 1440)
 set_int(CONFIG, auto_test_ops, 'AUTO_TEST_POLL_TIME', 30)
 set_int(CONFIG, auto_test_ops, 'AUTO_TEST_OUTPUT_LIMIT', 32768)

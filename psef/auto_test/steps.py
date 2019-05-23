@@ -154,7 +154,7 @@ class IoTest(TestStep):
     ) -> float:
         passed = models.AutoTestStepResultState.passed.name
         steps = t.cast(t.List, self.data['inputs'])
-        step_results = t.cast(t.Dict[str, t.List], result.log)['steps']
+        step_results = t.cast(t.Dict[str, t.List], result.log).get('steps', [])
         it = zip(steps, step_results)
 
         return sum(s['weight'] if sr['state'] == passed else 0 for s, sr in it)
