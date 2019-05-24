@@ -307,6 +307,8 @@ class StartedContainer:
             'HOME': home,
             'DEBIAN_FRONTEND': 'noninteractive',
             'TERM': 'dumb',
+            'FIXTURES': '/home/codegrade/fixtures/',
+            'STUDENT': '/home/codegrade/student/',
         }
 
     def _run_command(
