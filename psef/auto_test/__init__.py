@@ -77,6 +77,12 @@ def get_amount_cpus() -> int:
     return os.cpu_count() or 1
 
 
+def _stop_container(cont: lxc.Container) -> None:
+    if cont.running:
+        with timed_code('stop_container'):
+            assert cont.stop()
+            assert cont.wait('STOPPED', 3)
+
 def _start_container(cont: lxc.Container) -> None:
     maybe_stop_container()
 
@@ -210,6 +216,9 @@ class StartedContainer:
         self._config = config
         self._name = name
 
+    def stop_container(self) -> None:
+        _stop_container(self._container)
+
     def destroy_snapshots(self) -> None:
         self.stop_container()
         with timed_code(
@@ -222,11 +231,6 @@ class StartedContainer:
         success = self._container.set_cgroup_item(key, value)
         if not success:
             raise ValueError(f'Could not set "{key}" to "{value}"')
-
-    def stop_container(self) -> None:
-        with timed_code('stop_container', container=self._name):
-            assert self._container.stop()
-            assert self._container.wait('STOPPED', 3)
 
     def _create_snapshot(self) -> None:
         snap = self._container.snapshot()
@@ -574,11 +578,8 @@ class AutoTestContainer:
 
     def _stop_container(self, cont: t.Optional[StartedContainer]) -> None:
         with bound_to_logger(cont=self):
-            logger.info('Stopping container', cont=self)
             try:
-                if self._cont.running:
-                    self._cont.stop()
-                    self._cont.wait('STOPPED', 3)
+                _stop_container(self._cont)
                 if cont is not None:
                     logger.info('Destroying snapshots')
                     cont.destroy_snapshots()
@@ -797,7 +798,8 @@ class _SimpleAutoTestRunner(AutoTestRunner):
                 json={'state': result_state.name},
             )
 
-            with student_container.started_container() as cont:
+            with timed_code('running_single_student'
+                            ), student_container.started_container() as cont:
 
                 with timed_code('setting_cgroup_limits'):
                     cont.set_cgroup_item(
@@ -889,6 +891,7 @@ class _SimpleAutoTestRunner(AutoTestRunner):
             )
         )
         run_result_url = f'{self.base_url}/runs/{self.instructions["run_id"]}'
+        time_taken: t.Optional[float] = None
 
         with self.started_heartbeat():
             self.req.patch(
@@ -896,8 +899,9 @@ class _SimpleAutoTestRunner(AutoTestRunner):
                 json={'state': models.AutoTestRunState.starting.name},
             )
             try:
-                with timed_code('run_complete_auto_test'):
+                with timed_code('run_complete_auto_test') as get_time_taken:
                     self._run_test()
+                time_taken = get_time_taken()
             except:
                 logger.warning(
                     'Something went wrong running tests', exc_info=True
@@ -913,7 +917,10 @@ class _SimpleAutoTestRunner(AutoTestRunner):
                 finally:
                     self.req.patch(
                         run_result_url,
-                        json={'state': end_state},
+                        json={
+                            'state': end_state,
+                            'time_taken': time_taken,
+                        },
                     )
 
     def _run_test(self) -> None:
@@ -928,11 +935,13 @@ class _SimpleAutoTestRunner(AutoTestRunner):
             with timed_code('install_base_system'):
                 cont.run_command(['apt', 'update'])
                 cont.run_command(['apt', 'upgrade', '-y'])
+                # TODO : Don't do this if there is a template container
                 cont.run_command(
                     ['apt', 'install', '-y', 'wget', 'curl', 'unzip']
                 )
 
             with timed_code('run_setup_commands'):
+                # TODO : Don't do this if there is a template container
                 cont.run_command(
                     [
                         'adduser', '--shell', '/bin/bash',
