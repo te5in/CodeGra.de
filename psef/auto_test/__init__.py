@@ -110,7 +110,6 @@ class RunnerInstructions(TypedDict, total=True):
     auto_test_id: int
     result_ids: t.List[int]
     sets: t.List[SetInstructions]
-    base_systems: t.List[t.Dict[str, str]]
     fixtures: t.List[t.Tuple[str, int]]
     setup_script: str
     heartbeat_interval: int
@@ -574,17 +573,6 @@ class AutoTestContainer:
                 with timed_code('destroy_container'):
                     self._cont.destroy()
 
-    def create(self) -> None:
-        assert self._cont.create(
-            'download',
-            0, {
-                'dist': 'ubuntu',
-                'release': 'bionic',
-                'arch': 'amd64',
-            },
-            bdevtype=self._config['AUTO_TEST_BDEVTYPE']
-        )
-
     def clone(self, new_name: str = '') -> 'AutoTestContainer':
         maybe_stop_container()
 
@@ -610,25 +598,6 @@ class AutoTestRunner(abc.ABC):
             f'{base_url}/api/v-internal/auto_tests/{self.auto_test_id}'
         )
 
-        with open(
-            os.path.join(
-                os.path.dirname(__file__), '..', '..', 'seed_data',
-                'auto_test_base_systems.json'
-            ), 'r'
-        ) as f:
-            loaded = json.load(f)
-            enabled_systems = set(
-                b['id'] for b in self.instructions['base_systems']
-            )
-            self.base_systems = [
-                val for val in loaded if val['id'] in enabled_systems
-            ]
-            logger.info(
-                'Setting selected base systems',
-                got_base_systems=self.instructions['base_systems'],
-                loaded_base_systems=loaded,
-                base_systems=self.base_systems
-            )
         self.fixtures = self.instructions['fixtures']
 
         self.req = requests.Session()
@@ -658,44 +627,15 @@ class AutoTestRunner(abc.ABC):
 
     @classmethod
     def after_run(cls, runner: 'models.AutoTestRunner') -> None:
-        logger.info('Call after run!')
+        pass
 
-    def make_container(self) -> AutoTestContainer:
-        return AutoTestContainer(get_new_container_name(), self.config)
+    def get_base_container(self) -> AutoTestContainer:
+        template_name = self.config['AUTO_TEST_TEMPLATE_CONTAINER']
+        return AutoTestContainer(template_name, self.config).clone()
 
 
 @auto_test_runners.register('simple_runner')
 class _SimpleAutoTestRunner(AutoTestRunner):
-    def _install_base_systems(self, cont: StartedContainer) -> None:
-        for system in self.base_systems:
-            for cmd in system['setup_commands']:
-                if isinstance(cmd, list):
-                    cont.run_command(cmd, user='codegrade')
-                else:
-                    code, stdout, stderr = cont.run_student_command(cmd)
-                    logger.info(
-                        'Installed base system',
-                        cmd=cmd,
-                        exit_code=code,
-                        stdout=stdout,
-                        stderr=stderr,
-                    )
-
-    def _finalize_base_systems(self, cont: StartedContainer) -> None:
-        for system in self.base_systems:
-            for cmd in system.get('pre_start_commands', []):
-                if isinstance(cmd, list):
-                    cont.run_command(cmd, user='codegrade')
-                else:
-                    code, stdout, stderr = cont.run_student_command(cmd)
-                    logger.info(
-                        'Finalized base system',
-                        cmd=cmd,
-                        exit_code=code,
-                        stdout=stdout,
-                        stderr=stderr,
-                    )
-
     def copy_file(
         self, container: StartedContainer, src: str, dst: str
     ) -> None:
@@ -965,23 +905,18 @@ class _SimpleAutoTestRunner(AutoTestRunner):
         STOP_CONTAINERS.clear()
 
         # We use uuid1 as this is always unique for a single machine
-        base_container = self.make_container()
-        base_container.create()
+        base_container = self.get_base_container()
 
         with base_container.started_container() as cont:
             with timed_code('install_base_system'):
                 cont.run_command(['apt', 'update'])
                 cont.run_command(['apt', 'upgrade', '-y'])
-
-                # Install useful commands
                 cont.run_command(
                     [
                         'apt', 'install', '-y', 'wget', 'curl', 'unzip',
                         'software-properties-common'
                     ]
                 )
-                cont.run_command(['add-apt-repository', '-y', 'universe'])
-                cont.run_command(['apt', 'update'])
 
             self.copy_file(
                 cont,
@@ -1014,12 +949,8 @@ class _SimpleAutoTestRunner(AutoTestRunner):
             cont.run_command(['cat', '/etc/sudoers'])
             cont.run_command(['grep', 'codegrade', '/etc/sudoers'])
 
-            with timed_code('installing_base_systems'):
-                self._install_base_systems(cont)
-
             with timed_code('download_fixtures'):
                 self.download_fixtures(cont)
-            self._finalize_base_systems(cont)
 
             cont.stop_container()
             del cont
