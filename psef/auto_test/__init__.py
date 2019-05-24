@@ -688,33 +688,33 @@ class _SimpleAutoTestRunner(AutoTestRunner):
     ) -> None:
         url = f'{self.base_url}/results/{result_id}?type=submission_files'
 
-        logger.info('Downloading student code', url=url)
-        cont.run_command(
-            [
-                'wget',
-                *self.wget_headers,
-                url,
-                '-O',
-                '/home/codegrade/student.zip',
-            ],
-            user='codegrade'
-        )
-        logger.info('Downloaded student code', url=url)
+        with timed_code('download_student_code', url=url):
+            cont.run_command(
+                [
+                    'wget',
+                    *self.wget_headers,
+                    url,
+                    '-O',
+                    '/home/codegrade/student.zip',
+                ],
+                user='codegrade'
+            )
+            logger.info('Downloaded student code', url=url)
 
-        cont.run_command(
-            [
-                'unzip', '/home/codegrade/student.zip', '-d',
-                '/home/codegrade/student/'
-            ],
-            user='codegrade',
-        )
-        logger.info('Extracted student code')
+            cont.run_command(
+                [
+                    'unzip', '/home/codegrade/student.zip', '-d',
+                    '/home/codegrade/student/'
+                ],
+                user='codegrade',
+            )
+            logger.info('Extracted student code')
 
-        cont.run_command(
-            ['chmod', '-R', '+x', '/home/codegrade/student/'],
-            user='codegrade'
-        )
-        cont.run_command(['rm', '-f', '/home/codegrade/student.zip'])
+            cont.run_command(
+                ['chmod', '-R', '+x', '/home/codegrade/student/'],
+                user='codegrade'
+            )
+            cont.run_command(['rm', '-f', '/home/codegrade/student.zip'])
 
     def _run_test_suite(
         self, student_container: StartedContainer, result_id: int,
@@ -799,27 +799,29 @@ class _SimpleAutoTestRunner(AutoTestRunner):
 
             with student_container.started_container() as cont:
 
-                cont.set_cgroup_item(
-                    'memory.limit_in_bytes',
-                    self.config['AUTO_TEST_MEMORY_LIMIT']
-                )
-                cont.set_cgroup_item('cpuset.cpus', str(cpu_number))
-                cont.set_cgroup_item(
-                    'memory.memsw.limit_in_bytes',
-                    self.config['AUTO_TEST_MEMORY_LIMIT']
-                )
+                with timed_code('setting_cgroup_limits'):
+                    cont.set_cgroup_item(
+                        'memory.limit_in_bytes',
+                        self.config['AUTO_TEST_MEMORY_LIMIT']
+                    )
+                    cont.set_cgroup_item('cpuset.cpus', str(cpu_number))
+                    cont.set_cgroup_item(
+                        'memory.memsw.limit_in_bytes',
+                        self.config['AUTO_TEST_MEMORY_LIMIT']
+                    )
 
                 self.download_student_code(cont, result_id)
 
                 if self.setup_script:
-                    _, stdout, stderr, setup_time = cont.run_student_command(
-                        self.setup_script
-                    )
+                    with timed_code('setup_script') as get_time_spend:
+                        _, stdout, stderr, _ = cont.run_student_command(
+                            self.setup_script
+                        )
 
                     self.req.patch(
                         result_url,
                         json={
-                            'time_spend': setup_time,
+                            'time_spend': get_time_spend(),
                             'setup_stdout': stdout,
                             'setup_stderr': stderr
                         },
@@ -830,7 +832,9 @@ class _SimpleAutoTestRunner(AutoTestRunner):
                 cont.run_command(
                     ['sed', '-i', 's/^codegrade.*$//g', '/etc/sudoers']
                 )
-                cont.run_command(['cat', '/etc/sudoers'])
+                assert cont.run_command(
+                    ['grep', 'codegrade', '/etc/sudoers'], check=False
+                ) != 0, "Sudo was not dropped!"
 
                 total_points = 0.0
 
@@ -925,32 +929,31 @@ class _SimpleAutoTestRunner(AutoTestRunner):
                 cont.run_command(['apt', 'update'])
                 cont.run_command(['apt', 'upgrade', '-y'])
                 cont.run_command(
-                    [
-                        'apt', 'install', '-y', 'wget', 'curl', 'unzip',
-                        'software-properties-common'
-                    ]
+                    ['apt', 'install', '-y', 'wget', 'curl', 'unzip']
                 )
 
-            cont.run_command(
-                [
-                    'adduser', '--shell', '/bin/bash', '--disabled-password',
-                    '--gecos', '', 'codegrade'
-                ],
-            )
-            cont.run_command(
-                ['mkdir', '-p', '/home/codegrade/student/'], user='codegrade'
-            )
-            cont.run_command(
-                ['mkdir', '/home/codegrade/fixtures/'], user='codegrade'
-            )
+            with timed_code('run_setup_commands'):
+                cont.run_command(
+                    [
+                        'adduser', '--shell', '/bin/bash',
+                        '--disabled-password', '--gecos', '', 'codegrade'
+                    ],
+                )
+                cont.run_command(
+                    ['mkdir', '-p', '/home/codegrade/student/'],
+                    user='codegrade'
+                )
+                cont.run_command(
+                    ['mkdir', '/home/codegrade/fixtures/'], user='codegrade'
+                )
 
-            cont.run_command(['usermod', '-aG', 'sudo', 'codegrade'])
+                cont.run_command(['usermod', '-aG', 'sudo', 'codegrade'])
 
-            cont.run_command(
-                ['tee', '--append', '/etc/sudoers'],
-                stdin=b'\ncodegrade ALL=(ALL) NOPASSWD: ALL\n'
-            )
-            cont.run_command(['grep', 'codegrade', '/etc/sudoers'])
+                cont.run_command(
+                    ['tee', '--append', '/etc/sudoers'],
+                    stdin=b'\ncodegrade ALL=(ALL) NOPASSWD: ALL\n'
+                )
+                cont.run_command(['grep', 'codegrade', '/etc/sudoers'])
 
             with timed_code('download_fixtures'):
                 self.download_fixtures(cont)
