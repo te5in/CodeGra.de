@@ -52,11 +52,16 @@ class StopContainerException(Exception):
 
 class CommandTimeoutException(Exception):
     def __init__(
-        self, cmd: str = '', stdout: str = '', stderr: str = ''
+        self,
+        cmd: str = '',
+        stdout: str = '',
+        stderr: str = '',
+        time_spend: t.Optional[float] = None,
     ) -> None:
         self.cmd = cmd
         self.stdout = stdout
         self.stderr = stderr
+        self.time_spend = time_spend
 
 
 def maybe_stop_container() -> None:
@@ -344,7 +349,7 @@ class StartedContainer:
         self,
         cmd: str,
         stdin: t.Union[None, bytes, t.BinaryIO] = None,
-    ) -> t.Tuple[int, str, str]:
+    ) -> t.Tuple[int, str, str, float]:
         stdout: t.List[bytes] = []
         stderr: t.List[bytes] = []
 
@@ -385,24 +390,30 @@ class StartedContainer:
                 for v in [stdout, stderr]
             ]
 
+        time_spend = 0.0
         try:
-            code = self._run(
-                cmd=(cmd, cwd, user),
-                callback=self._run_shell,
-                stdout=make_add_function(stdout),
-                stderr=make_add_function(stderr),
-                stdin=stdin,
-                check=False,
-                timeout=timeout,
-            )
+            with timed_code('run_student_command') as get_time_spend:
+                code = self._run(
+                    cmd=(cmd, cwd, user),
+                    callback=self._run_shell,
+                    stdout=make_add_function(stdout),
+                    stderr=make_add_function(stderr),
+                    stdin=stdin,
+                    check=False,
+                    timeout=timeout,
+                )
+            time_spend = get_time_spend()
         except CommandTimeoutException as e:
             stdout_str, stderr_str = get_stdout_and_stderr()
             raise CommandTimeoutException(
-                cmd=cmd, stdout=stdout_str, stderr=stderr_str
+                cmd=cmd,
+                stdout=stdout_str,
+                stderr=stderr_str,
+                time_spend=time_spend,
             )
 
         stdout_str, stderr_str = get_stdout_and_stderr()
-        return code, stdout_str, stderr_str
+        return code, stdout_str, stderr_str, time_spend
 
     def run_command(
         self,
@@ -580,7 +591,7 @@ class AutoTestContainer:
 
         new_name = new_name or get_new_container_name()
 
-        with self._lock:
+        with self._lock, timed_code('clone_container'):
             cont = self._cont.clone(new_name)
             assert isinstance(cont, lxc.Container)
             return type(self)(new_name, self._config, cont)
@@ -801,14 +812,14 @@ class _SimpleAutoTestRunner(AutoTestRunner):
                 self.download_student_code(cont, result_id)
 
                 if self.setup_script:
-                    logger.info('Running setup script')
-                    _, stdout, stderr = cont.run_student_command(
+                    _, stdout, stderr, setup_time = cont.run_student_command(
                         self.setup_script
                     )
 
                     self.req.patch(
                         result_url,
                         json={
+                            'time_spend': setup_time,
                             'setup_stdout': stdout,
                             'setup_stderr': stderr
                         },
@@ -920,15 +931,6 @@ class _SimpleAutoTestRunner(AutoTestRunner):
                     ]
                 )
 
-            self.copy_file(
-                cont,
-                (
-                    f'{os.path.dirname(__file__)}/'
-                    '../../seed_data/install_pyenv.sh'
-                ),
-                '/usr/bin/install_pyenv.sh',
-            )
-
             cont.run_command(
                 [
                     'adduser', '--shell', '/bin/bash', '--disabled-password',
@@ -948,7 +950,6 @@ class _SimpleAutoTestRunner(AutoTestRunner):
                 ['tee', '--append', '/etc/sudoers'],
                 stdin=b'\ncodegrade ALL=(ALL) NOPASSWD: ALL\n'
             )
-            cont.run_command(['cat', '/etc/sudoers'])
             cont.run_command(['grep', 'codegrade', '/etc/sudoers'])
 
             with timed_code('download_fixtures'):

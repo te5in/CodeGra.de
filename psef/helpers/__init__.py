@@ -839,16 +839,18 @@ def defer(function: t.Callable[[], object]) -> t.Generator[None, None, None]:
 
 
 @contextlib.contextmanager
-def timed_code(code_block_name: str,
-               **other_keys: object) -> t.Generator[None, None, None]:
+def timed_code(code_block_name: str, **other_keys: object
+               ) -> t.Generator[t.Callable[[], float], None, None]:
     start_time = time.time()
     logger.info(
         'Starting timed code block',
         timed_code_block=code_block_name,
         **other_keys
     )
+    end_time = None
+
     try:
-        yield
+        yield lambda: (end_time or time.time()) - start_time
     except:
         exc_info = True
         raise

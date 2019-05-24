@@ -619,8 +619,6 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
                 self.auto_test_id,
             'result_ids': [r.id for r in self.results if not r.passed],
             'sets': [s.get_instructions() for s in self.auto_test.sets],
-            'base_systems':
-                t.cast(t.List[t.Dict[str, str]], self.auto_test.base_systems),
             'fixtures': [(f.name, f.id) for f in self.auto_test.fixtures],
             'setup_script':
                 self.auto_test.setup_script,

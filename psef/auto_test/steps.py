@@ -161,7 +161,7 @@ class IoTest(TestStep):
 
     def _execute(
         self,
-        container: 'StartedContainer',
+        cont: 'StartedContainer',
         update_test_result: UpdateResultFunction,
         _: 'StepInstructions',
         __: float,
@@ -177,8 +177,10 @@ class IoTest(TestStep):
             output = step['output'].rstrip('\n')
 
             options = t.cast(t.List[str], step['options'])
+            time_spend: t.Optional[float]
+
             try:
-                code, stdout, stderr = container.run_student_command(
+                code, stdout, stderr, time_spend = cont.run_student_command(
                     f'{prog} {step["args"]}',
                     stdin=step['stdin'].encode('utf-8')
                 )
@@ -186,6 +188,7 @@ class IoTest(TestStep):
                 code = -1
                 stdout = e.stdout
                 stderr = e.stderr
+                time_spend = e.time_spend
 
             success = code == 0
 
@@ -224,6 +227,7 @@ class IoTest(TestStep):
                     'stderr': stderr,
                     'state': state.name,
                     'exit_code': code,
+                    'time_spend': time_spend,
                 }
             )
             update_test_result(
@@ -255,7 +259,7 @@ class RunProgram(TestStep):
 
         res = 0.0
 
-        code, stdout, stderr = container.run_student_command(
+        code, stdout, stderr, time_spend = container.run_student_command(
             t.cast(str, self.data['program'])
         )
 
@@ -270,6 +274,7 @@ class RunProgram(TestStep):
                 'stdout': stdout,
                 'stderr': stderr,
                 'exit_code': code,
+                'time_spedn': time_spend,
             }
         )
 
@@ -335,7 +340,7 @@ class CustomOutput(TestStep):
         assert isinstance(self.data, dict)
         regex = t.cast(str, self.data['regex'])
 
-        code, stdout, stderr = container.run_student_command(
+        code, stdout, stderr, time_spend = container.run_student_command(
             t.cast(str, self.data['program'])
         )
         if code == 0:
@@ -359,6 +364,7 @@ class CustomOutput(TestStep):
                 'stderr': stderr,
                 'points': points,
                 'exit_code': code,
+                'time_spend': time_spend,
             }
         )
 
@@ -379,7 +385,7 @@ class CheckPoints(TestStep):
         with get_from_map_transaction(
             ensure_json_dict(data), ensure_empty=True
         ) as [get, _]:
-            get('min_points', numbers.Real)
+            get('min_points', numbers.Real)  # type: ignore
 
     def _execute(
         self,
