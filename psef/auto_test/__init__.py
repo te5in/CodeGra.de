@@ -7,6 +7,7 @@ import json
 import time
 import uuid
 import errno
+import random
 import signal
 import typing as t
 import datetime
@@ -14,6 +15,7 @@ import tempfile
 import threading
 import contextlib
 import subprocess
+from pathlib import Path
 from multiprocessing import Queue, context
 from multiprocessing.dummy import Pool
 
@@ -83,16 +85,17 @@ def _stop_container(cont: lxc.Container) -> None:
             assert cont.stop()
             assert cont.wait('STOPPED', 3)
 
+
 def _start_container(cont: lxc.Container) -> None:
     maybe_stop_container()
 
     with timed_code('start_container'):
         assert cont.start()
         assert cont.wait('RUNNING', 3)
-        for _ in range(30):
+        for _ in range(60):
             if cont.get_ips():
                 return
-            time.sleep(1)
+            time.sleep(0.5)
         else:
             raise Exception(f"Couldn't get ip for container {cont}")
 
@@ -164,8 +167,10 @@ def _push_logging(post_log: t.Callable[[JSONType], object]) -> RepeatedTimer:
 
 
 def start_polling(config: 'psef.FlaskConfig') -> None:
+    items = list(config['__S_AUTO_TEST_CREDENTIALS'].items())
     while True:
-        for url, url_config in config['__S_AUTO_TEST_CREDENTIALS'].items():
+        random.shuffle(items)
+        for url, url_config in items:
             logger.try_unbind('server')
             logger.bind(server=url)
             logger.info('Checking next server')
@@ -723,7 +728,7 @@ class _SimpleAutoTestRunner(AutoTestRunner):
     ) -> float:
         total_points = 0.0
 
-        with student_container.as_snapshot() as snap:
+        with timed_code('run_suite'), student_container.as_snapshot() as snap:
             url = f'{self.base_url}/results/{result_id}/step_results/'
 
             for test_step in test_suite['steps']:
@@ -754,27 +759,29 @@ class _SimpleAutoTestRunner(AutoTestRunner):
 
                 typ = auto_test_handlers[test_step['test_type_name']]
 
-                try:
-                    logger.bind(step=test_step)
-                    total_points += typ(test_step['data']).execute_step(
-                        snap, update_test_result, test_step, total_points
-                    )
-                except StopRunningStepsException:
-                    logger.info('Stopping steps', exc_info=True)
-                    break
-                except CommandTimeoutException as e:
-                    logger.warning('Command timed out', exc_info=True)
-                    update_test_result(
-                        models.AutoTestStepResultState.timed_out, {
-                            'exit_code': -1,
-                            'stdout': e.stdout,
-                            'stderr': e.stderr,
-                        }
-                    )
-                else:
-                    logger.info('Ran step')
-                finally:
-                    logger.try_unbind('step')
+                with timed_code('run_suite_step') as get_step_time:
+                    try:
+                        logger.bind(step=test_step)
+                        total_points += typ(test_step['data']).execute_step(
+                            snap, update_test_result, test_step, total_points
+                        )
+                    except StopRunningStepsException:
+                        logger.info('Stopping steps', exc_info=True)
+                        break
+                    except CommandTimeoutException as e:
+                        logger.warning('Command timed out', exc_info=True)
+                        update_test_result(
+                            models.AutoTestStepResultState.timed_out, {
+                                'exit_code': -1,
+                                'stdout': e.stdout,
+                                'stderr': e.stderr,
+                                'time_spend': get_step_time(),
+                            }
+                        )
+                    else:
+                        logger.info('Ran step')
+                    finally:
+                        logger.try_unbind('step')
 
         return total_points
 
@@ -798,10 +805,10 @@ class _SimpleAutoTestRunner(AutoTestRunner):
                 json={'state': result_state.name},
             )
 
-            with timed_code('running_single_student'
+            with timed_code('run_single_student'
                             ), student_container.started_container() as cont:
 
-                with timed_code('setting_cgroup_limits'):
+                with timed_code('set_cgroup_limits'):
                     cont.set_cgroup_item(
                         'memory.limit_in_bytes',
                         self.config['AUTO_TEST_MEMORY_LIMIT']
@@ -975,7 +982,7 @@ class _SimpleAutoTestRunner(AutoTestRunner):
                 json={'state': models.AutoTestRunState.running.name},
             )
 
-            with timed_code('running_students'), Pool(
+            with timed_code('run_all_students'), Pool(
                 get_amount_cpus()
             ) as pool:
                 q: 'Queue[int]' = Queue(maxsize=get_amount_cpus())
@@ -1041,3 +1048,18 @@ class _TransipAutoTestRunner(_SimpleAutoTestRunner):
                 'reverting snapshot',
                 lambda: vs.revert_snapshot(vps_name, snapshot['name']),
             )
+
+    def run_test(self) -> None:
+        dirty_flag = Path.home() / Path('.dirty')
+        if dirty_flag.exists():
+            return
+        dirty_flag.touch()
+        try:
+            super().run_test()
+        finally:
+            logger.info('Waiting for reset')
+            while True:
+                try:
+                    time.sleep(sys.maxsize)
+                except:
+                    pass

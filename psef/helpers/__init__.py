@@ -894,21 +894,26 @@ class RepeatedTimer(threading.Thread):
                 pass
 
         self.function = fun
-        self.finished = threading.Event()
+        self.__finish = threading.Event()
+        self.__finished = threading.Event()
         self.cleanup = cleanup
 
     def cancel(self) -> None:
-        self.finished.set()
+        self.__finish.set()
+        self.__finished.wait()
 
     def run(self) -> None:
         try:
             while True:
                 self.function()
-                if self.finished.wait(self.interval):
+                if self.__finish.wait(self.interval):
                     break
             self.function()
         finally:
-            self.cleanup()
+            try:
+                self.cleanup()
+            finally:
+                self.__finished.set()
 
 
 @contextlib.contextmanager

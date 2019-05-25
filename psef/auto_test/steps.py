@@ -274,7 +274,7 @@ class RunProgram(TestStep):
                 'stdout': stdout,
                 'stderr': stderr,
                 'exit_code': code,
-                'time_spedn': time_spend,
+                'time_spend': time_spend,
             }
         )
 
