@@ -345,16 +345,16 @@ def select_rubric_items(submission_id: int, ) -> EmptyResponse:
 
     if submission.assignment.auto_test is not None:
         changed_items = set(submission.selected_items) - set(items)
-        connected_rows = set(
-            s.rubric_row_id for s in submission.assignment.auto_test.all_suites
-        )
-        if any(item.rubricrow_id in connected_rows for item in changed_items):
+        if any(
+            item.rubricrow_id in submission.assignment.locked_rubric_rows
+            for item in changed_items
+        ):
             raise APIException(
                 (
                     'This rubric row is connected to an AutoTest suite, so you'
                     ' cannot change it.'
                 ), 'An item is connected to one of these rows: "{}"'.format(
-                    ', '.join(map(str, connected_rows))
+                    ', '.join(map(str, submission.assignment.locked_rubric_rows))
                 ), APICodes.INVALID_PARAM, 400
             )
 

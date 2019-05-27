@@ -534,27 +534,26 @@ class Work(Base):
 
         .. todo:: Remove the points object.
         """
+        res = {
+            'rubrics': self.assignment.rubric_rows,
+            'selected': [],
+            'points': {
+                'max': None,
+                'selected': None,
+            },
+        }
         try:
             psef.auth.ensure_can_see_grade(self)
-
-            return {
-                'rubrics': self.assignment.rubric_rows,
-                'selected': self.selected_items,
-                'points':
-                    {
-                        'max': self.assignment.max_rubric_points,
-                        'selected': self.selected_rubric_points,
-                    },
-            }
         except PermissionException:
-            return {
-                'rubrics': self.assignment.rubric_rows,
-                'selected': [],
-                'points': {
-                    'max': None,
-                    'selected': None,
-                },
+            pass
+        else:
+            res['selected'] = self.selected_items
+            res['points'] = {
+                'max': self.assignment.max_rubric_points,
+                'selected': self.selected_rubric_points,
             }
+
+        return res
 
     def add_file_tree(
         self, tree: 'psef.files.ExtractFileTreeDirectory'

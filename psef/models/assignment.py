@@ -681,6 +681,16 @@ class Assignment(Base):  # pylint: disable=too-many-public-methods
             return self._dynamic_max_points
 
     @cached_property
+    def locked_rubric_rows(self
+                           ) -> t.Dict[int, 'rubric_models.RubricLockReason']:
+        if self.auto_test is None:
+            return {}
+        return {
+            s.rubric_row_id: rubric_models.RubricLockReason.auto_test
+            for s in self.auto_test.all_suites
+        }
+
+    @cached_property
     def _dynamic_max_points(self) -> t.Optional[float]:
         sub = db.session.query(
             func.max(rubric_models.RubricItem.points).label('max_val')
