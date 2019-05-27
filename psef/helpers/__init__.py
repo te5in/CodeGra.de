@@ -1105,3 +1105,8 @@ def is_sublist(needle: t.Sequence[T], hay: t.Sequence[T]) -> bool:
             index += table.get(hay[index], len(needle))
             needle_index = len(needle) - 1
     return False
+
+
+class SerializableEnum(enum.Enum):
+    def __to_json__(self) -> str:
+        return self.name

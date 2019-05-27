@@ -367,7 +367,8 @@ def delete_auto_test_runs(auto_test_id: int, run_id: int) -> EmptyResponse:
         callback_after_this_request(
             lambda: tasks.remove_auto_test_runner(runner_id.hex)
         )
-    db.session.delete(run)
+
+    run.delete_and_clear_rubric()
     db.session.commit()
 
     return make_empty_response()

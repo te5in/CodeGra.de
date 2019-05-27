@@ -3,6 +3,7 @@
 SPDX-License-Identifier: AGPL-3.0-only
 """
 
+import enum
 import typing as t
 import numbers
 import datetime
@@ -13,6 +14,10 @@ from . import Base, db, _MyQuery
 from . import assignment as assignment_models
 from .. import helpers
 from ..exceptions import APICodes, APIException
+
+
+class RubricLockReason(helpers.SerializableEnum):
+    auto_test = enum.auto()
 
 
 class RubricItem(Base):
@@ -140,6 +145,7 @@ class RubricRow(Base):
             'header': self.header,
             'description': self.description,
             'items': self.items,
+            'locked': self.assignment.locked_rubric_rows.get(self.id, False)
         }
 
     def _get_item(self, item_id: int) -> t.Optional['RubricItem']:

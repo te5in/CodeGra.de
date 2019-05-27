@@ -352,6 +352,17 @@ class AutoTestResult(Base, TimestampMixin, IdMixin):
         self.setup_stderr = None
         self.setup_stdout = None
 
+    def clear_rubric(self) -> None:
+        own_rubric_rows = set(
+            suite.rubric_row_id for suite in self.run.auto_test.all_suites
+        )
+
+        self.work.selected_items = [
+            i for i in self.work.selected_items
+            if i.rubricrow_id not in own_rubric_rows
+        ]
+        self.work.set_grade(grade_origin=work_models.GradeOrigin.auto_test)
+
     def update_rubric(self) -> None:
         old_selected_items = set(self.work.selected_items)
         new_items = []
@@ -638,6 +649,11 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
             **self.__to_json__(),
             'results': self.results,
         }
+
+    def delete_and_clear_rubric(self) -> None:
+        for result in self.results:
+            result.clear_rubric()
+        db.session.delete(self)
 
 
 class AutoTest(Base, TimestampMixin, IdMixin):
