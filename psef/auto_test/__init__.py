@@ -79,7 +79,7 @@ def get_amount_cpus() -> int:
     return os.cpu_count() or 1
 
 
-def get_base_container(config: 'psef.FlaskConfig') -> AutoTestContainer:
+def get_base_container(config: 'psef.FlaskConfig') -> 'AutoTestContainer':
     ensure_on_test_server()
     template_name = config['AUTO_TEST_TEMPLATE_CONTAINER']
     if template_name is None:
