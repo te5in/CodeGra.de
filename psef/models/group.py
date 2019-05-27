@@ -205,7 +205,8 @@ class Group(Base):
     A group is a collection of real (non virtual) users that itself is
     connected to a virtual user. A group is connected to a :class:`.GroupSet`.
 
-    :ivar name: The name of the group. This has to be unique in a group set.
+    :ivar ~.Group.name: The name of the group. This has to be unique in a group
+        set.
     :ivar virtual_user: The virtual user this group is connected to. This user
         is used to submissions as the group.
     :ivar group_set: The :class:`.GroupSet` this group is connected to.

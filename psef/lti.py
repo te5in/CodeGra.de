@@ -133,7 +133,7 @@ class LTIRole:
     urn:lti:{kind}:ims/lis/{name}/{subname}.
 
     :ivar kind: Kind of the role.
-    :ivar name: Primary role name.
+    :ivar ~.LTIRole.name: Primary role name.
     :ivar subnames: Secondary role names.
     """
 
