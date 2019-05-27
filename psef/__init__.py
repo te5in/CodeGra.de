@@ -95,6 +95,13 @@ logger = structlog.get_logger()
 
 app: 'PsefFlask' = current_app  # pylint: disable=invalid-name
 
+_current_tester = None
+current_tester = LocalProxy(lambda: _current_tester)
+
+def enable_testing() -> None:
+    global _current_tester
+    _current_tester = True
+
 if t.TYPE_CHECKING:  # pragma: no cover
     import psef.models
     current_user: 'psef.models.User' = t.cast('psef.models.User', None)
@@ -113,13 +120,6 @@ def limiter_key_func() -> None:  # pragma: no cover
 
 limiter = Limiter(key_func=limiter_key_func)  # pylint: disable=invalid-name
 
-_current_tester = None
-current_tester = LocalProxy(lambda: _current_tester)
-
-
-def enable_testing() -> None:
-    global _current_tester
-    _current_tester = True
 
 def create_app(  # pylint: disable=too-many-statements
     config: t.Mapping = None,
