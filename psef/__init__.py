@@ -98,9 +98,11 @@ app: 'PsefFlask' = current_app  # pylint: disable=invalid-name
 _current_tester = None
 current_tester = LocalProxy(lambda: _current_tester)
 
+
 def enable_testing() -> None:
     global _current_tester
     _current_tester = True
+
 
 if t.TYPE_CHECKING:  # pragma: no cover
     import psef.models
