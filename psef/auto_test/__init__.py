@@ -241,7 +241,7 @@ class StartedContainer:
 
     def stop_container(self) -> 'AutoTestContainer':
         _stop_container(self._container)
-        return self._container
+        return AutoTestContainer(self._name, self._config, self._container)
 
     def destroy_snapshots(self) -> None:
         self.stop_container()
