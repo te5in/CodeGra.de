@@ -79,6 +79,17 @@ def get_amount_cpus() -> int:
     return os.cpu_count() or 1
 
 
+def get_base_container(config: 'psef.FlaskConfig') -> AutoTestContainer:
+    ensure_on_test_server()
+    template_name = config['AUTO_TEST_TEMPLATE_CONTAINER']
+    if template_name is None:
+        res = AutoTestContainer(get_new_container_name(), config)
+        res.create()
+    else:
+        res = AutoTestContainer(template_name, config).clone()
+    return res
+
+
 def _stop_container(cont: lxc.Container) -> None:
     if cont.running:
         with timed_code('stop_container'):
@@ -167,6 +178,13 @@ def _push_logging(post_log: t.Callable[[JSONType], object]) -> RepeatedTimer:
 
 
 def start_polling(config: 'psef.FlaskConfig') -> None:
+    with get_base_container(config).started_container() as cont:
+        _start_polling(config, cont)
+
+
+def _start_polling(
+    config: 'psef.FlaskConfig', cont: 'StartedContainer'
+) -> None:
     items = list(config['__S_AUTO_TEST_CREDENTIALS'].items())
     while True:
         random.shuffle(items)
@@ -198,7 +216,7 @@ def start_polling(config: 'psef.FlaskConfig') -> None:
                     t.cast(URL,
                            url_config.get('container_url') or url), data,
                     url_config['password'], config
-                ).run_test()
+                ).run_test(cont)
                 break
             else:
                 logger.info('No tests found', response=response)
@@ -221,8 +239,9 @@ class StartedContainer:
         self._config = config
         self._name = name
 
-    def stop_container(self) -> None:
+    def stop_container(self) -> 'AutoTestContainer':
         _stop_container(self._container)
+        return self._container
 
     def destroy_snapshots(self) -> None:
         self.stop_container()
@@ -570,6 +589,17 @@ class AutoTestContainer:
         else:
             self._cont = cont
 
+    def create(self) -> None:
+        assert self._cont.create(
+            'download',
+            0, {
+                'dist': 'ubuntu',
+                'release': 'bionic',
+                'arch': 'amd64',
+            },
+            bdevtype=self._config['AUTO_TEST_BDEVTYPE']
+        )
+
     @contextlib.contextmanager
     def started_container(self) -> t.Generator[StartedContainer, None, None]:
         started = None
@@ -641,16 +671,12 @@ class AutoTestRunner(abc.ABC):
         ]
 
     @abc.abstractmethod
-    def run_test(self) -> None:
+    def run_test(self, base_container: StartedContainer) -> None:
         ...
 
     @classmethod
     def after_run(cls, runner: 'models.AutoTestRunner') -> None:
         pass
-
-    def get_base_container(self) -> AutoTestContainer:
-        template_name = self.config['AUTO_TEST_TEMPLATE_CONTAINER']
-        return AutoTestContainer(template_name, self.config).clone()
 
 
 @auto_test_runners.register('simple_runner')
@@ -890,7 +916,7 @@ class _SimpleAutoTestRunner(AutoTestRunner):
         finally:
             timer.cancel()
 
-    def run_test(self) -> None:
+    def run_test(self, cont: StartedContainer) -> None:
         push_log_timer = _push_logging(
             lambda logs: self.req.post(
                 f'{self.base_url}/runs/{self.instructions["run_id"]}/logs/',
@@ -907,7 +933,7 @@ class _SimpleAutoTestRunner(AutoTestRunner):
             )
             try:
                 with timed_code('run_complete_auto_test') as get_time_taken:
-                    self._run_test()
+                    self._run_test(cont)
                 time_taken = get_time_taken()
             except:
                 logger.warning(
@@ -930,84 +956,76 @@ class _SimpleAutoTestRunner(AutoTestRunner):
                         },
                     )
 
-    def _run_test(self) -> None:
+    def _run_test(self, cont: StartedContainer) -> None:
         ensure_on_test_server()
 
         STOP_CONTAINERS.clear()
 
         # We use uuid1 as this is always unique for a single machine
-        base_container = self.get_base_container()
+        with timed_code('install_base_system'):
+            cont.run_command(['apt', 'update'])
+            cont.run_command(['apt', 'upgrade', '-y'])
+            # TODO : Don't do this if there is a template container
+            cont.run_command(['apt', 'install', '-y', 'wget', 'curl', 'unzip'])
 
-        with base_container.started_container() as cont:
-            with timed_code('install_base_system'):
-                cont.run_command(['apt', 'update'])
-                cont.run_command(['apt', 'upgrade', '-y'])
-                # TODO : Don't do this if there is a template container
-                cont.run_command(
-                    ['apt', 'install', '-y', 'wget', 'curl', 'unzip']
-                )
-
-            with timed_code('run_setup_commands'):
-                # TODO : Don't do this if there is a template container
-                cont.run_command(
-                    [
-                        'adduser', '--shell', '/bin/bash',
-                        '--disabled-password', '--gecos', '', 'codegrade'
-                    ],
-                )
-                cont.run_command(
-                    ['mkdir', '-p', '/home/codegrade/student/'],
-                    user='codegrade'
-                )
-                cont.run_command(
-                    ['mkdir', '/home/codegrade/fixtures/'], user='codegrade'
-                )
-
-                cont.run_command(['usermod', '-aG', 'sudo', 'codegrade'])
-
-                cont.run_command(
-                    ['tee', '--append', '/etc/sudoers'],
-                    stdin=b'\ncodegrade ALL=(ALL) NOPASSWD: ALL\n'
-                )
-                cont.run_command(['grep', 'codegrade', '/etc/sudoers'])
-
-            with timed_code('download_fixtures'):
-                self.download_fixtures(cont)
-
-            cont.stop_container()
-            del cont
-
-            self.req.patch(
-                f'{self.base_url}/runs/{self.instructions["run_id"]}',
-                json={'state': models.AutoTestRunState.running.name},
+        with timed_code('run_setup_commands'):
+            # TODO : Don't do this if there is a template container
+            cont.run_command(
+                [
+                    'adduser', '--shell', '/bin/bash', '--disabled-password',
+                    '--gecos', '', 'codegrade'
+                ],
+            )
+            cont.run_command(
+                ['mkdir', '-p', '/home/codegrade/student/'], user='codegrade'
+            )
+            cont.run_command(
+                ['mkdir', '/home/codegrade/fixtures/'], user='codegrade'
             )
 
-            with timed_code('run_all_students'), Pool(
-                get_amount_cpus()
-            ) as pool:
-                q: 'Queue[int]' = Queue(maxsize=get_amount_cpus())
-                for i in range(get_amount_cpus()):
-                    q.put(i)
+            cont.run_command(['usermod', '-aG', 'sudo', 'codegrade'])
 
-                try:
-                    res = pool.starmap_async(
-                        self.run_student, [
-                            (base_container, q, res_id)
-                            for res_id in self.instructions['result_ids']
-                        ]
-                    )
-                    while True:
-                        try:
-                            res.get(60)
-                        except context.TimeoutError:
-                            continue
-                        else:
-                            break
-                finally:
-                    logger.info('Done with containers, cleaning up')
-                    STOP_CONTAINERS.set()
-                    pool.terminate()
-                    pool.join()
+            cont.run_command(
+                ['tee', '--append', '/etc/sudoers'],
+                stdin=b'\ncodegrade ALL=(ALL) NOPASSWD: ALL\n'
+            )
+            cont.run_command(['grep', 'codegrade', '/etc/sudoers'])
+
+        with timed_code('download_fixtures'):
+            self.download_fixtures(cont)
+
+        base_container = cont.stop_container()
+        del cont
+
+        self.req.patch(
+            f'{self.base_url}/runs/{self.instructions["run_id"]}',
+            json={'state': models.AutoTestRunState.running.name},
+        )
+
+        with timed_code('run_all_students'), Pool(get_amount_cpus()) as pool:
+            q: 'Queue[int]' = Queue(maxsize=get_amount_cpus())
+            for i in range(get_amount_cpus()):
+                q.put(i)
+
+            try:
+                res = pool.starmap_async(
+                    self.run_student, [
+                        (base_container, q, res_id)
+                        for res_id in self.instructions['result_ids']
+                    ]
+                )
+                while True:
+                    try:
+                        res.get(60)
+                    except context.TimeoutError:
+                        continue
+                    else:
+                        break
+            finally:
+                logger.info('Done with containers, cleaning up')
+                STOP_CONTAINERS.set()
+                pool.terminate()
+                pool.join()
 
 
 @auto_test_runners.register('transip_runner')
@@ -1049,13 +1067,13 @@ class _TransipAutoTestRunner(_SimpleAutoTestRunner):
                 lambda: vs.revert_snapshot(vps_name, snapshot['name']),
             )
 
-    def run_test(self) -> None:
+    def run_test(self, base_container: StartedContainer) -> None:
         dirty_flag = Path.home() / Path('.dirty')
         if dirty_flag.exists():
             return
         dirty_flag.touch()
         try:
-            super().run_test()
+            super().run_test(base_container)
         finally:
             logger.info('Waiting for reset')
             while True:
