@@ -16,10 +16,10 @@ import itertools
 from operator import itemgetter
 
 import structlog
-from flask import g
+from flask import g, has_app_context
 from celery import Celery as _Celery
 from celery import signals
-from mypy_extensions import NamedArg
+from mypy_extensions import NamedArg, DefaultNamedArg
 
 import psef as p
 
@@ -90,6 +90,10 @@ if t.TYPE_CHECKING:  # pragma: no cover
 
     class CeleryTask(t.Generic[T]):  # pylint: disable=unsubscriptable-object
         @property
+        def __call__(self) -> T:
+            ...
+
+        @property
         def delay(self) -> T:
             # This hax is for sphinx as it can't parse the source otherwise
             return lambda *args, **kwargs: None  # type: ignore
@@ -159,7 +163,10 @@ class MyCelery(Celery):
                 # https://web.archive.org/web/20150617151604/http://slides.skien.cc/flask-hacks-and-best-practices/#15
 
                 # pylint: disable=protected-access
-                assert outer_self._flask_app  # pragma: no cover
+                assert outer_self._flask_app
+
+                if has_app_context():
+                    return TaskBase.__call__(self, *args, **kwargs)
 
                 log = logger.new(
                     request_id=self.request.id,
@@ -405,7 +412,7 @@ def _run_plagiarism_control_1(  # pylint: disable=too-many-branches,too-many-sta
                 f'-{sub.id}-{sub.user_id}'
             )
             submission_lookup[dir_name] = sub.id
-            parent = os.path.join(tempdir, dir_name)
+            parent = p.files.safe_join(tempdir, dir_name)
 
             if not main_assig:
                 old_subs.add(sub.id)
@@ -478,7 +485,7 @@ def _notify_slow_auto_test_run_1(auto_test_run_id: int) -> None:
     run = p.models.AutoTestRun.query.get(auto_test_run_id)
     if run is None:
         return
-    if run.state != p.models.AutoTestRunState.running:
+    if run.finished:
         return
 
     logger.warning(
@@ -497,9 +504,11 @@ def _stop_auto_test_run_1(auto_test_run_id: int) -> None:
         return
     if (
         run.kill_date is not None and
-        run.kill_date < datetime.datetime.utcnow()
+        run.kill_date > datetime.datetime.utcnow()
     ):
-        _stop_auto_test_run_1.apply_async((run.id, ), eta=run.kill_date)
+        _stop_auto_test_run_1.apply_async(
+            (auto_test_run_id, ), eta=run.kill_date
+        )
 
     if run.state != p.models.AutoTestRunState.running:
         return
@@ -511,9 +520,102 @@ def _stop_auto_test_run_1(auto_test_run_id: int) -> None:
     )
 
     run.state = p.models.AutoTestRunState.timed_out
-    if run.runner is not None:
-        run.runner.after_run()
     p.models.db.session.commit()
+
+
+@celery.task
+def _remove_auto_test_runner_1(auto_test_runner_id: str) -> None:
+    runner_id = uuid.UUID(hex=auto_test_runner_id)
+
+    _reset_auto_test_runner_1(runner_id.hex)
+
+    runner = p.models.AutoTestRunner.query.get(runner_id)
+    if runner is None:
+        return
+
+    p.models.db.session.delete(runner)
+    p.models.db.session.commit()
+
+
+@celery.task
+def _reset_auto_test_runner_1(auto_test_runner_id: str) -> None:
+    runner_id = uuid.UUID(hex=auto_test_runner_id)
+
+    runner = p.models.AutoTestRunner.query.get(runner_id)
+    if runner is None or runner.after_state != p.models.AutoTestAfterRunState.not_called:
+        logger.info('Runner already reset or not found', runner=runner)
+        return
+
+    runner.after_state = p.models.AutoTestAfterRunState.calling
+    p.models.db.session.commit()
+
+    try:
+        runner.after_run()
+    except:  # pylint: disable=broad-except
+        logger.error(
+            'Calling after_run failed', exc_info=True, runner_id=runner.id
+        )
+        raise
+
+    runner.after_state = p.models.AutoTestAfterRunState.called
+    p.models.db.session.commit()
+
+
+@celery.task
+def _check_heartbeat_stop_test_runner_1(auto_test_runner_id: str) -> None:
+    runner_id = uuid.UUID(hex=auto_test_runner_id)
+
+    runner = p.models.AutoTestRunner.query.get(runner_id)
+    if (
+        runner is None or
+        runner.after_state != p.models.AutoTestAfterRunState.not_called or
+        runner.run is None
+    ):
+        logger.info('Runner already reset or not found')
+        return
+
+    if runner.run.finished:
+        logger.info('Run already finished, heartbeats not required')
+
+    interval = p.app.config['AUTO_TEST_HEARTBEAT_INTERVAL']
+    max_missed = p.app.config['AUTO_TEST_HEARTBEAT_MAX_MISSED']
+    max_interval = datetime.timedelta(seconds=interval * max_missed)
+    needed_time = datetime.datetime.utcnow() - max_interval
+    expired = runner.last_heartbeat < needed_time
+
+    logger.info(
+        'Checking heartbeat',
+        last_heartbeat=runner.last_heartbeat.isoformat(),
+        deadline=needed_time.isoformat(),
+        max_internval=max_interval.total_seconds(),
+        expired=expired,
+    )
+
+    # In this case the heartbeat received was recently, so we schedule this
+    # task again.
+    if not expired:
+        check_heartbeat_auto_test_run(
+            (runner.id.hex, ), eta=runner.last_heartbeat + max_interval
+        )
+        return
+
+    run = runner.run
+    run.runner_id = None
+    p.models.db.session.commit()
+
+    try:
+        _reset_auto_test_runner_1(runner.id.hex)
+    except:
+        logger.warning('Resetting auto test runner went wrong', exc_info=True)
+        run.state = p.models.AutoTestRunState.crashed
+    else:
+        run.started_date = None
+        run.state = p.models.AutoTestRunState.changing_runner
+        for result in run.results:
+            if not result.passed:
+                result.clear()
+    finally:
+        p.models.db.session.commit()
 
 
 @celery.task
@@ -530,6 +632,8 @@ add = _add_1.delay  # pylint: disable=invalid-name
 send_done_mail = _send_done_mail_1.delay  # pylint: disable=invalid-name
 send_grader_status_mail = _send_grader_status_mail_1.delay  # pylint: disable=invalid-name
 run_plagiarism_control = _run_plagiarism_control_1.delay  # pylint: disable=invalid-name
+reset_auto_test_runner = _reset_auto_test_runner_1.delay  # pylint: disable=invalid-name
+remove_auto_test_runner = _remove_auto_test_runner_1.delay  # pylint: disable=invalid-name
 
 send_reminder_mails: t.Callable[[
     t.Tuple[int], NamedArg(t.Optional[datetime.datetime], 'eta')
@@ -537,8 +641,13 @@ send_reminder_mails: t.Callable[[
 
 stop_auto_test_run: t.Callable[[
     t.Tuple[int], NamedArg(t.Optional[datetime.datetime], 'eta')
-], t.Any] = _stop_auto_test_run_1.apply_async
+], t.Any] = _stop_auto_test_run_1.apply_async  # pylint: disable=invalid-name
 
 notify_slow_auto_test_run: t.Callable[[
     t.Tuple[int], NamedArg(t.Optional[datetime.datetime], 'eta')
-], t.Any] = _notify_slow_auto_test_run_1.apply_async
+], t.Any] = _notify_slow_auto_test_run_1.apply_async  # pylint: disable=invalid-name
+
+check_heartbeat_auto_test_run: t.Callable[
+    [t.Tuple[str],
+     DefaultNamedArg(t.Optional[datetime.datetime], 'eta')], t.
+    Any] = _check_heartbeat_stop_test_runner_1.apply_async  # pylint: disable=invalid-name

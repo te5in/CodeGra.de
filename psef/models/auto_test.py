@@ -8,7 +8,9 @@ import uuid
 import typing as t
 import numbers
 import datetime
+import itertools
 
+import structlog
 from sqlalchemy import orm
 from sqlalchemy.types import JSON
 from sqlalchemy_utils import UUIDType
@@ -27,6 +29,8 @@ from ..exceptions import APICodes, APIException
 
 if t.TYPE_CHECKING:
     from . import user as user_models
+
+logger = structlog.get_logger()
 
 
 class AutoTestStep(Base, TimestampMixin, IdMixin):
@@ -60,7 +64,8 @@ class AutoTestStep(Base, TimestampMixin, IdMixin):
     _test_type: str = db.Column(
         'test_type',
         db.Enum(
-            *auto_test_module.auto_test_handlers.keys(), native_enum=False
+            *auto_test_module.auto_test_handlers.keys(),
+            name='autoteststeptesttype'
         ),
         nullable=False,
     )
@@ -316,13 +321,9 @@ class AutoTestResult(Base, TimestampMixin, IdMixin):
     step_results = db.relationship(
         'AutoTestStepResult',
         back_populates='result',
-        cascade='all,delete',
+        cascade='all,delete,delete-orphan',
         order_by='AutoTestStepResult.created_at'
     )  # type: t.MutableSequence[AutoTestStepResult]
-
-    points_achieved: float = db.Column(
-        'points_achieved', db.Float, nullable=True, default=None
-    )
 
     state = db.Column(
         'state',
@@ -341,23 +342,32 @@ class AutoTestResult(Base, TimestampMixin, IdMixin):
         'Work', foreign_keys=work_id
     )  # type: work_models.Work
 
+    @property
+    def passed(self) -> bool:
+        return self.state == AutoTestStepResultState.passed
+
+    def clear(self) -> None:
+        self.step_results = []
+        self.state = AutoTestStepResultState.not_started
+        self.setup_stderr = None
+        self.setup_stdout = None
+
     def update_rubric(self) -> None:
         old_selected_items = set(self.work.selected_items)
         new_items = []
         updated_rubric_row_ids = set()
 
-        for auto_test_set in self.run.auto_test.sets:
-            for suite in auto_test_set.suites:
-                got, possible = self.get_amount_points_in_suite(suite)
-                percentage = got / possible
-                items = suite.rubric_row.items
-                new_item = items[-1 if percentage ==
-                                 1 else int(len(items) * percentage)]
-                if new_item in old_selected_items:
-                    continue
+        for suite in self.run.auto_test.all_suites:
+            got, possible = self.get_amount_points_in_suites(suite)
+            percentage = got / possible
+            items = suite.rubric_row.items
+            new_item = items[-1 if percentage ==
+                             1 else int(len(items) * percentage)]
+            if new_item in old_selected_items:
+                continue
 
-                new_items.append(new_item)
-                updated_rubric_row_ids.add(suite.rubric_row_id)
+            new_items.append(new_item)
+            updated_rubric_row_ids.add(suite.rubric_row_id)
 
         if not new_items:
             return
@@ -371,23 +381,30 @@ class AutoTestResult(Base, TimestampMixin, IdMixin):
         ]
         self.work.set_grade(grade_origin=work_models.GradeOrigin.auto_test)
 
-    def get_amount_points_in_suite(self, suite: 'AutoTestSuite'
-                                   ) -> t.Tuple[float, float]:
-        steps = suite.steps
+    def get_amount_points_in_suites(self, *suites: 'AutoTestSuite'
+                                    ) -> t.Tuple[float, float]:
+        steps = list(
+            itertools.chain.from_iterable(suite.steps for suite in suites)
+        )
+        step_ids = set(step.id for step in steps)
         possible = sum(step.weight for step in steps)
         achieved = sum(
-            step_result.step.test_type.get_amount_achieved_points(step_result)
+            step_result.step.step.get_amount_achieved_points(step_result)
             for step_result in self.step_results
+            if step_result.auto_test_step_id in step_ids
         )
         return achieved, possible
 
     def __to_json__(self) -> t.Mapping[str, object]:
+        points_achieved, _ = self.get_amount_points_in_suites(
+            *self.run.auto_test.all_suites
+        )
         return {
             'id': self.id,
             'created_at': self.created_at.isoformat(),
             'work': self.work,
             'state': self.state.name,
-            'points_achieved': self.points_achieved,
+            'points_achieved': points_achieved,
         }
 
     def __extended_to_json__(self) -> t.Mapping[str, object]:
@@ -400,24 +417,52 @@ class AutoTestResult(Base, TimestampMixin, IdMixin):
 
 
 class AutoTestRunState(enum.Enum):
-    not_started = enum.auto()
+    waiting_for_runner = enum.auto()
+    starting = enum.auto()
     running = enum.auto()
     done = enum.auto()
     timed_out = enum.auto()
+    crashed = enum.auto()
+    changing_runner = enum.auto()
+
+
+class AutoTestAfterRunState(enum.Enum):
+    not_called = enum.auto()
+    calling = enum.auto()
+    called = enum.auto()
 
 
 class AutoTestRunner(Base, TimestampMixin, UUIDMixin):
+    if t.TYPE_CHECKING:  # pragma: no cover
+        query: t.ClassVar[_MyQuery['AutoTestRunner']]
+
     __tablename__ = 'AutoTestRunner'
 
     _type: str = db.Column(
         'type',
-        db.Enum(*auto_test_module.auto_test_runners.keys(), native_enum=False),
+        db.Enum(
+            *auto_test_module.auto_test_runners.keys(),
+            name='autotestrunnertype'
+        ),
         nullable=False
     )
 
     _ipaddr: str = db.Column('ipaddr', db.Unicode, nullable=False)
 
-    run: 'AutoTestRun' = db.relationship(
+    last_heartbeat: datetime.datetime = db.Column(
+        'last_heartbeat', db.DateTime, default=datetime.datetime.utcnow
+    )
+
+    #: Is this runner completely finished. So is the `after_run` method called.
+    after_state = db.Column(
+        'after_run',
+        db.Enum(AutoTestAfterRunState),
+        nullable=False,
+        default=AutoTestAfterRunState.not_called,
+        server_default='called',
+    )
+
+    run: t.Optional['AutoTestRun'] = db.relationship(
         "AutoTestRun",
         back_populates="runner",
         cascade='all,delete',
@@ -435,6 +480,15 @@ class AutoTestRunner(Base, TimestampMixin, UUIDMixin):
     @property
     def runner_type(self) -> t.Type['auto_test_module.AutoTestRunner']:
         return auto_test_module.auto_test_runners[self._type]
+
+    @classmethod
+    def already_running(cls, ipaddr: str) -> bool:
+        return db.session.query(
+            cls.query.filter(
+                cls._ipaddr == ipaddr,
+                cls.after_state != AutoTestAfterRunState.called
+            ).exists()
+        ).scalar()
 
     @classmethod
     def create(
@@ -464,7 +518,7 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
         nullable=False
     )
 
-    runner_id: uuid.UUID = db.Column(
+    runner_id: t.Optional[uuid.UUID] = db.Column(
         'runner_id',
         UUIDType,
         db.ForeignKey('AutoTestRunner.id'),
@@ -495,8 +549,8 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
 
     _state = db.Column(
         'state',
-        db.Enum(AutoTestRunState, native_enum=False),
-        default=AutoTestRunState.not_started,
+        db.Enum(AutoTestRunState),
+        default=AutoTestRunState.waiting_for_runner,
         nullable=False,
     )
     started_date: t.Optional[datetime.datetime] = db.Column(
@@ -505,6 +559,14 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
     kill_date: t.Optional[datetime.datetime] = db.Column(
         'kill_date', db.DateTime, nullable=True, default=None
     )
+
+    @property
+    def finished(self) -> bool:
+        return self.state in {
+            AutoTestRunState.done,
+            AutoTestRunState.timed_out,
+            AutoTestRunState.crashed,
+        }
 
     @property
     def state(self) -> AutoTestRunState:
@@ -520,6 +582,9 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
             for result in self.results:
                 result.update_rubric()
 
+        if self.finished and self.runner_id is not None:
+            psef.tasks.reset_auto_test_runner(self.runner_id.hex)
+
     def start(
         self,
         runner_type: t.Type['auto_test_module.AutoTestRunner'],
@@ -533,10 +598,16 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
         now = datetime.datetime.utcnow()
         self.kill_date = now + max_duration
         self.runner = AutoTestRunner.create(runner_type, runner_ipaddr)
-        psef.tasks.notify_slow_auto_test_run(
-            (self.id, ), eta=now + (max_duration / 2)
-        )
-        psef.tasks.stop_auto_test_run((self.id, ), eta=self.kill_date)
+        db.session.add(self.runner)
+
+        @psef.helpers.callback_after_this_request
+        def start_tasks() -> None:
+            psef.tasks.notify_slow_auto_test_run(
+                (self.id, ), eta=now + (max_duration / 2)
+            )
+            psef.tasks.stop_auto_test_run((self.id, ), eta=self.kill_date)
+            logger.info('Checking heartbeat', runner_id=self.runner.id)
+            psef.tasks.check_heartbeat_auto_test_run((self.runner.id.hex, ))
 
     def get_instructions(self) -> auto_test_module.RunnerInstructions:
         return {
@@ -546,13 +617,13 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
                 self.id,
             'auto_test_id':
                 self.auto_test_id,
-            'result_ids': [r.id for r in self.results],
+            'result_ids': [r.id for r in self.results if not r.passed],
             'sets': [s.get_instructions() for s in self.auto_test.sets],
-            'base_systems':
-                t.cast(t.List[t.Dict[str, str]], self.auto_test.base_systems),
             'fixtures': [(f.name, f.id) for f in self.auto_test.fixtures],
             'setup_script':
                 self.auto_test.setup_script,
+            'heartbeat_interval':
+                psef.app.config['AUTO_TEST_HEARTBEAT_INTERVAL'],
         }
 
     def __to_json__(self) -> t.Mapping[str, object]:
@@ -621,6 +692,10 @@ class AutoTest(Base, TimestampMixin, IdMixin):
     finalize_script: str = db.Column(
         'finalize_script', db.Unicode, nullable=False
     )
+
+    @property
+    def all_suites(self) -> t.Iterable[AutoTestSuite]:
+        return itertools.chain.from_iterable(s.suites for s in self.sets)
 
     def __to_json__(self) -> t.Mapping[str, object]:
         return {

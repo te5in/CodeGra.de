@@ -1,10 +1,11 @@
 <template>
 <icon
-    class="auto-test-step-state"
+    class="auto-test-state"
     :class="className"
     :name="name"
     :spin="spin"
     v-b-popover.hover.top="popover"
+    v-if="name"
 />
 </template>
 
@@ -17,7 +18,7 @@ import 'vue-awesome/icons/circle-o-notch';
 import 'vue-awesome/icons/ban';
 
 export default {
-    name: 'auto-test-step-state',
+    name: 'auto-test-state',
 
     props: {
         state: {
@@ -30,12 +31,15 @@ export default {
         name() {
             switch (this.state) {
                 case 'passed':
+                case 'done':
                     return 'check';
                 case 'failed':
+                case 'crashed':
                     return 'times';
                 case 'skipped':
                     return 'ban';
                 case 'not_started':
+                case 'timed_out':
                     return 'clock-o';
                 case 'running':
                     return 'circle-o-notch';
@@ -60,6 +64,12 @@ export default {
                     return 'Waiting to be started';
                 case 'running':
                     return 'Running...';
+                case 'timed_out':
+                    return 'Timed out.';
+                case 'done':
+                    return 'Done';
+                case 'crashed':
+                    return 'Crashed';
                 default:
                     return '';
             }
@@ -70,6 +80,8 @@ export default {
                 case 'passed':
                     return 'text-success';
                 case 'failed':
+                case 'timed_out':
+                case 'crashed':
                     return 'text-danger';
                 case 'skipped':
                     return 'text-muted';

@@ -3,7 +3,7 @@ import datetime
 
 import werkzeug
 import structlog
-from flask import request, make_response, send_from_directory
+from flask import g, request, make_response, send_from_directory
 
 from . import api
 from .. import app, files, models, auto_test
@@ -14,14 +14,14 @@ from ..helpers import (
     get_json_dict_from_request
 )
 from ..parsers import parse_enum
+from ..features import Feature, feature_required
 from ..exceptions import APICodes, APIException, PermissionException
 
 logger = structlog.get_logger()
 LocalRunner = t.NewType('LocalRunner', t.Tuple[str, bool])
 
 
-def extract_local_password(password: str) -> LocalRunner:
-    local_password, global_password = password.split('@:@', maxsplit=1)
+def get_local_runner(global_password: str, local_password: str) -> LocalRunner:
     config_dict = app.config['AUTO_TEST_CREDENTIALS'].get(
         request.remote_addr, None
     )
@@ -49,7 +49,8 @@ def verify_runner(
     password, check_ip = local
 
     if (
-        runner is None or str(runner.id) != password or
+        runner is None or not password or str(runner.id) != password or
+        runner.after_state != models.AutoTestAfterRunState.not_called or
         (check_ip and runner.ipaddr != request.remote_addr)
     ):
         raise PermissionException(
@@ -57,7 +58,10 @@ def verify_runner(
             'No valid password given', APICodes.NOT_LOGGED_IN, 401
         )
 
-    if runner.run.state == models.AutoTestRunState.timed_out:
+    if (
+        runner.run is None or
+        runner.run.state == models.AutoTestRunState.timed_out
+    ):
         raise PermissionException(
             'You cannot update runs which timed out',
             f'The run {{ runner.run.id }} has timed out',
@@ -66,20 +70,29 @@ def verify_runner(
 
 
 def verify_global_header_password() -> LocalRunner:
-    with get_from_map_transaction(request.headers) as [get, _]:
+    with get_from_map_transaction(request.headers) as [get, opt_get]:
         global_password = get('CG-Internal-Api-Password', str)
-    return extract_local_password(global_password)
+        local_password = opt_get('CG-Internal-Api-Runner-Password', str, '')
+    return get_local_runner(global_password, local_password)
 
 
 @api.route('/auto_tests/', methods=['GET'])
+@feature_required(Feature.AUTO_TEST)
 def get_auto_test_status(
 ) -> t.Union[JSONResponse[auto_test.RunnerInstructions], EmptyResponse]:
-    verify_global_header_password()
-
     if request.args.get('get', object()) != 'tests_to_run':
         return make_empty_response()
 
+    verify_global_header_password()
+
     config_dict = app.config['AUTO_TEST_CREDENTIALS'][request.remote_addr]
+
+    if models.AutoTestRunner.already_running(request.remote_addr):
+        logger.warning(
+            'IP which had already ran tried getting tests',
+            remote_addr=request.remote_addr,
+        )
+        return make_empty_response()
 
     run = models.AutoTestRun.query.filter_by(
         started_date=None,
@@ -90,12 +103,14 @@ def get_auto_test_status(
 
     run.start(config_dict['type'], request.remote_addr)
     db.session.commit()
+
     return jsonify(run.get_instructions())
 
 
 @api.route(
     '/auto_tests/<int:auto_test_id>/runs/<int:run_id>', methods=['PATCH']
 )
+@feature_required(Feature.AUTO_TEST)
 def update_run(auto_test_id: int, run_id: int) -> EmptyResponse:
     password = verify_global_header_password()
 
@@ -120,6 +135,7 @@ def update_run(auto_test_id: int, run_id: int) -> EmptyResponse:
 @api.route(
     '/auto_tests/<int:auto_test_id>/results/<int:result_id>', methods=['GET']
 )
+@feature_required(Feature.AUTO_TEST)
 def get_result_data(auto_test_id: int, result_id: int
                     ) -> t.Union[werkzeug.wrappers.Response, EmptyResponse]:
     password = verify_global_header_password()
@@ -145,8 +161,29 @@ def get_result_data(auto_test_id: int, result_id: int
 
 
 @api.route(
+    '/auto_tests/<int:auto_test_id>/runs/<int:run_id>/heartbeats/',
+    methods=['POST']
+)
+def post_heartbeat(auto_test_id: int, run_id: int) -> EmptyResponse:
+    password = verify_global_header_password()
+
+    run = filter_single_or_404(
+        models.AutoTestRun,
+        models.AutoTestRun.id == run_id,
+        models.AutoTest.id == auto_test_id,
+    )
+    verify_runner(run.runner, password)
+    assert run.runner is not None
+
+    run.runner.last_heartbeat = g.request_start_time
+    db.session.commit()
+    return make_empty_response()
+
+
+@api.route(
     '/auto_tests/<int:auto_test_id>/runs/<int:run_id>/logs/', methods=['POST']
 )
+@feature_required(Feature.AUTO_TEST)
 def emit_log_for_runner(auto_test_id: int, run_id: int) -> EmptyResponse:
     password = verify_global_header_password()
 
@@ -177,6 +214,7 @@ def emit_log_for_runner(auto_test_id: int, run_id: int) -> EmptyResponse:
     '/auto_tests/<int:auto_test_id>/fixtures/<int:fixture_id>',
     methods=['GET']
 )
+@feature_required(Feature.AUTO_TEST)
 def get_fixture(
     auto_test_id: int, fixture_id: int
 ) -> werkzeug.wrappers.Response:
@@ -202,6 +240,7 @@ def get_fixture(
     '/auto_tests/<int:auto_test_id>/results/<int:result_id>',
     methods=['PATCH']
 )
+@feature_required(Feature.AUTO_TEST)
 def update_result(auto_test_id: int, result_id: int) -> EmptyResponse:
     password = verify_global_header_password()
 
@@ -236,6 +275,7 @@ def update_result(auto_test_id: int, result_id: int) -> EmptyResponse:
     '/auto_tests/<int:auto_test_id>/results/<int:result_id>/step_results/',
     methods=['PUT']
 )
+@feature_required(Feature.AUTO_TEST)
 def update_step_result(auto_test_id: int, result_id: int
                        ) -> JSONResponse[models.AutoTestStepResult]:
     password = verify_global_header_password()

@@ -77,9 +77,8 @@ class TestStep(abc.ABC):
     ) -> float:
         raise NotImplementedError
 
-    @staticmethod
     def get_amount_achieved_points(
-        result: 'models.AutoTestStepResult'
+        self, result: 'models.AutoTestStepResult'
     ) -> float:
         if result.state == models.AutoTestStepResultState.passed:
             return result.step.weight
@@ -88,6 +87,8 @@ class TestStep(abc.ABC):
 
 @auto_test_handlers.register('io_test')
 class IoTest(TestStep):
+    data: t.Dict[str, object]
+
     @classmethod
     def validate_data(cls, data: JSONType) -> None:
         with get_from_map_transaction(
@@ -148,14 +149,25 @@ class IoTest(TestStep):
                 invalid_cases=errs,
             )
 
+    def get_amount_achieved_points(
+        self, result: 'models.AutoTestStepResult'
+    ) -> float:
+        passed = models.AutoTestStepResultState.passed.name
+        steps = t.cast(t.List, self.data['inputs'])
+        step_results = t.cast(t.Dict[str, t.List], result.log).get('steps', [])
+        it = zip(steps, step_results)
+
+        return sum(s['weight'] if sr['state'] == passed else 0 for s, sr in it)
+
     def _execute(
         self,
-        container: 'StartedContainer',
+        cont: 'StartedContainer',
         update_test_result: UpdateResultFunction,
         _: 'StepInstructions',
         __: float,
     ) -> float:
         test_result: t.Dict[str, t.Any] = {'steps': []}
+
         assert isinstance(self.data, dict)
         prog = t.cast(str, self.data['program'])
         total_state = models.AutoTestStepResultState.failed
@@ -165,9 +177,21 @@ class IoTest(TestStep):
             output = step['output'].rstrip('\n')
 
             options = t.cast(t.List[str], step['options'])
-            code, stdout, stderr = container.run_student_command(
-                f'{prog} {step["args"]}', stdin=step['stdin'].encode('utf-8')
-            )
+            time_spend: t.Optional[float]
+
+            try:
+                code, stdout, stderr, time_spend = cont.run_student_command(
+                    f'{prog} {step["args"]}',
+                    stdin=step['stdin'].encode('utf-8')
+                )
+            except psef.auto_test.CommandTimeoutException as e:
+                code = -1
+                stdout = e.stdout
+                stderr = e.stderr
+                time_spend = e.time_spend
+
+            success = code == 0
+
             if code == 0:
                 to_test = stdout.rstrip('\n')
 
@@ -187,17 +211,13 @@ class IoTest(TestStep):
                     success = output in to_test
                 else:
                     success = output == to_test
-            else:
-                success = False
-                if code < 0:
-                    state = models.AutoTestStepResultState.timed_out
-                else:
-                    state = models.AutoTestStepResultState.failed
 
             if success:
                 total_state = models.AutoTestStepResultState.passed
                 state = models.AutoTestStepResultState.passed
                 total_weight += step['weight']
+            elif code < 0:
+                state = models.AutoTestStepResultState.timed_out
             else:
                 state = models.AutoTestStepResultState.failed
 
@@ -206,6 +226,8 @@ class IoTest(TestStep):
                     'stdout': stdout,
                     'stderr': stderr,
                     'state': state.name,
+                    'exit_code': code,
+                    'time_spend': time_spend,
                 }
             )
             update_test_result(
@@ -237,7 +259,7 @@ class RunProgram(TestStep):
 
         res = 0.0
 
-        code, stdout, stderr = container.run_student_command(
+        code, stdout, stderr, time_spend = container.run_student_command(
             t.cast(str, self.data['program'])
         )
 
@@ -247,10 +269,14 @@ class RunProgram(TestStep):
         else:
             state = models.AutoTestStepResultState.failed
 
-        update_test_result(state, {
-            'stdout': stdout,
-            'stderr': stderr,
-        })
+        update_test_result(
+            state, {
+                'stdout': stdout,
+                'stderr': stderr,
+                'exit_code': code,
+                'time_spend': time_spend,
+            }
+        )
 
         return res
 
@@ -313,9 +339,8 @@ class CustomOutput(TestStep):
     ) -> float:
         assert isinstance(self.data, dict)
         regex = t.cast(str, self.data['regex'])
-        res = 0
 
-        code, stdout, stderr = container.run_student_command(
+        code, stdout, stderr, time_spend = container.run_student_command(
             t.cast(str, self.data['program'])
         )
         if code == 0:
@@ -338,18 +363,19 @@ class CustomOutput(TestStep):
                 'stdout': stdout,
                 'stderr': stderr,
                 'points': points,
+                'exit_code': code,
+                'time_spend': time_spend,
             }
         )
 
         return points * test_instructions['weight']
 
-    @staticmethod
     def get_amount_achieved_points(
-        result: 'models.AutoTestStepResult'
+        _, result: 'models.AutoTestStepResult'
     ) -> float:
         if not isinstance(result.log, dict):
             return 0
-        return t.cast(float, result.log['points']) * result.step.weight
+        return t.cast(float, result.log.get('points', 0)) * result.step.weight
 
 
 @auto_test_handlers.register('check_points')
@@ -359,7 +385,7 @@ class CheckPoints(TestStep):
         with get_from_map_transaction(
             ensure_json_dict(data), ensure_empty=True
         ) as [get, _]:
-            get('min_points', float)
+            get('min_points', numbers.Real)  # type: ignore
 
     def _execute(
         self,
@@ -379,6 +405,7 @@ class CheckPoints(TestStep):
             update_test_result(models.AutoTestStepResultState.failed, {})
             raise StopRunningStepsException('Not enough points')
 
-    @staticmethod
-    def get_amount_achieved_points(_: 'models.AutoTestStepResult') -> float:
+    def get_amount_achieved_points(
+        _, __: 'models.AutoTestStepResult'
+    ) -> float:
         return 0

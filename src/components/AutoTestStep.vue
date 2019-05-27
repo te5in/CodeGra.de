@@ -74,7 +74,7 @@
                            @input="updateValue('min_points', $event.target.value)"/>
                 </template>
 
-                <template v-if="value.type === 'capture_points'">
+                <template v-if="value.type === 'custom_output'">
                     <hr/>
 
                     <label :for="regexId">
@@ -203,7 +203,7 @@
                 Stop when you got less than {{ value.data.min_points }} points.
             </td>
             <td class="passed" v-if="result">
-                <auto-test-step-state :state="stepResult.state" />
+                <auto-test-state :state="stepResult.state" />
             </td>
         </tr>
 
@@ -212,20 +212,8 @@
                 <b-collapse :id="resultsCollapseId" class="container-fluid">
                     <div class="row">
                         <div class="col-12">
-                            <span>
-                                Exit status code
-                                <code>{{ stepResult.log.status || '(unknown) :-(' }}</code>
-                            </span>
-                        </div>
-
-                        <div class="col-6">
-                            <label>Output</label>
-                            <pre class="form-control">{{ stepResult.log.stdout }}</pre>
-                        </div>
-
-                        <div class="col-6">
-                            <label>Errors</label>
-                            <pre class="form-control">{{ stepResult.log.stderr }}</pre>
+                            You {{ stepResult.state === 'passed' ? 'scored' : 'did not score' }}
+                            enough points.
                         </div>
                     </div>
                 </b-collapse>
@@ -247,7 +235,7 @@
             </td>
             <td class="weight">{{ value.weight }}</td>
             <td class="passed" v-if="result">
-                <auto-test-step-state :state="stepResult.state" />
+                <auto-test-state :state="stepResult.state" />
             </td>
         </tr>
 
@@ -257,8 +245,8 @@
                     <div class="row">
                         <div class="col-12">
                             <span>
-                                Exit status code
-                                <code>{{ stepResult.log.status || '(unknown) :-(' }}</code>
+                                Exit status code:
+                                <code>{{ getProps(stepResult.log, '(unknown)', 'exit_code') }}</code>
                             </span>
                         </div>
 
@@ -277,7 +265,7 @@
         </tr>
     </template>
 
-    <template v-else-if="value.type === 'capture_points'">
+    <template v-else-if="value.type === 'custom_output'">
         <tr class="step-summary" v-b-toggle="resultsCollapseId">
             <td class="expand" v-if="result">
                 <icon v-if="canViewOutput" name="chevron-down" :scale="0.75" />
@@ -291,7 +279,7 @@
             </td>
             <td class="weight">{{ value.weight }}</td>
             <td class="passed" v-if="result">
-                <auto-test-step-state :state="stepResult.state" />
+                <auto-test-state :state="stepResult.state" />
             </td>
         </tr>
 
@@ -305,8 +293,8 @@
                                 <code>{{ value.data.regex }}</code>
                             </label>
                             <label>
-                                Exit status code
-                                <code>{{ stepResult.log.status || '(unknown) :-(' }}</code>
+                                Exit status code:
+                                <code>{{ getProps(stepResult.log, '(unknown)', 'exit_code') }}</code>
                             </label>
                         </div>
 
@@ -351,7 +339,7 @@
                 <td class="summary">{{ input.name }}</td>
                 <td class="weight">{{ input.weight }}</td>
                 <td class="passed" v-if="result">
-                    <auto-test-step-state :state="stepResult.log ? stepResult.log.steps[i].state : 'skipped'" />
+                    <auto-test-state :state="stepResult.log ? stepResult.log.steps[i].state : 'skipped'" />
                 </td>
             </tr>
 
@@ -424,7 +412,7 @@ import { getUniqueId, deepCopy, getProps } from '@/utils';
 
 import SubmitButton from './SubmitButton';
 import DescriptionPopover from './DescriptionPopover';
-import AutoTestStepState from './AutoTestStepState';
+import AutoTestState from './AutoTestState';
 
 export default {
     name: 'auto-test-step',
@@ -465,6 +453,7 @@ export default {
         const id = getUniqueId();
 
         return {
+            getProps,
             id,
             collapseState: {},
             mainCollapseState: this.collapseOpen,
@@ -635,27 +624,34 @@ export default {
         },
 
         updateValue(key, value) {
+            const copy = deepCopy(this.value);
+
             if (key === 'weight') {
                 this.$emit(
                     'input',
-                    Object.assign(deepCopy(this.value), {
-                        weight: value,
+                    Object.assign(copy, {
+                        weight: Number(value),
                     }),
                 );
                 return;
             }
 
-            let weight = this.value.weight;
+            let weight = Number(this.value.weight);
             if (key === 'inputs') {
                 weight = (value || []).reduce((res, cur) => res + Number(cur.weight), 0);
-                if (Number.isNaN(weight)) {
-                    weight = '-';
-                }
+                (value || []).forEach(cur => {
+                    if (typeof cur.weight !== 'number' || !(cur.weight instanceof Number)) {
+                        cur.weight = Number(cur.weight);
+                    }
+                });
+            } else if (key === 'min_points') {
+                // eslint-disable-next-line
+                value = Number(value);
             }
 
             this.$emit(
                 'input',
-                Object.assign(deepCopy(this.value), {
+                Object.assign(copy, {
                     data: {
                         ...this.value.data,
                         [key]: value,
@@ -670,7 +666,7 @@ export default {
         Icon,
         SubmitButton,
         DescriptionPopover,
-        AutoTestStepState,
+        AutoTestState,
     },
 };
 </script>
@@ -844,7 +840,7 @@ hr {
     }
 
     td {
-        &.chevron,
+        &.expand,
         &.index,
         &.weight,
         &.passed {
@@ -897,6 +893,9 @@ hr {
 
     pre.form-control {
         flex: 1 1 auto;
+        min-height: 2rem;
+        max-height: 15rem;
+        font-size: 87.5%;
     }
 }
 </style>

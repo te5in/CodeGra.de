@@ -61,6 +61,10 @@ FlaskConfig = TypedDict(
         'AUTO_TEST_POLL_TIME': int,
         'AUTO_TEST_OUTPUT_LIMIT': int,
         'AUTO_TEST_MEMORY_LIMIT': str,
+        'AUTO_TEST_BDEVTYPE': str,
+        'AUTO_TEST_HEARTBEAT_INTERVAL': int,
+        'AUTO_TEST_HEARTBEAT_MAX_MISSED': int,
+        'AUTO_TEST_TEMPLATE_CONTAINER': str,
         '__S_AUTO_TEST_CREDENTIALS': t.Mapping[str, t.Any],
         'Celery': CeleryConfig,
         'LTI Consumer keys': t.Mapping[str, str],
@@ -100,6 +104,8 @@ FlaskConfig = TypedDict(
         'PYLINT_PROGRAM': t.List[str],
         'FLAKE8_PROGRAM': t.List[str],
         '_USING_SQLITE': str,
+        '_TRANSIP_PRIVATE_KEY_FILE': str,
+        '_TRANSIP_USERNAME': str,
     },
     total=True
 )
@@ -428,6 +434,9 @@ set_list(
     ]
 )
 
+set_str(CONFIG, backend_ops, '_TRANSIP_PRIVATE_KEY_FILE', '')
+set_str(CONFIG, backend_ops, '_TRANSIP_USERNAME', '')
+
 ############
 # FEATURES #
 ############
@@ -502,8 +511,12 @@ if CONFIG['IS_AUTO_TEST_RUNNER']:
     assert CONFIG['SECRET_KEY'] == ''
     assert CONFIG['HEALTH_KEY'] == ''
 
-set_int(CONFIG, auto_test_ops, 'AUTO_TEST_MAX_TIME_SINGLE_RUN', 15)
+set_int(CONFIG, auto_test_ops, 'AUTO_TEST_MAX_TIME_SINGLE_RUN', 15 * 60)
 set_int(CONFIG, auto_test_ops, 'AUTO_TEST_MAX_TIME_TOTAL_RUN', 1440)
 set_int(CONFIG, auto_test_ops, 'AUTO_TEST_POLL_TIME', 30)
 set_int(CONFIG, auto_test_ops, 'AUTO_TEST_OUTPUT_LIMIT', 32768)
 set_str(CONFIG, auto_test_ops, 'AUTO_TEST_MEMORY_LIMIT', '512M')
+set_str(CONFIG, auto_test_ops, 'AUTO_TEST_BDEVTYPE', 'best')
+set_int(CONFIG, auto_test_ops, 'AUTO_TEST_HEARTBEAT_INTERVAL', 10)
+set_int(CONFIG, auto_test_ops, 'AUTO_TEST_HEARTBEAT_MAX_MISSED', 6)
+set_str(CONFIG, auto_test_ops, 'AUTO_TEST_TEMPLATE_CONTAINER', None)

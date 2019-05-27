@@ -305,8 +305,8 @@
 # The maximum amount of minutes that a auto test run may take.
 # auto_test_max_time_total_run = 1440
 
-# The maximum amount of minutes a single run may take.
-# auto_test_max_time_single_run = 15
+# The maximum amount of seconds a single run may take. Defaults to 15 minutes.
+# auto_test_max_time_single_run = 900
 
 # The maximum amount of bytes that command may emit.
 # auto_test_output_limit = 32768
@@ -316,3 +316,12 @@
 
 # The time between polls in seconds to the test servers
 # auto_test_poll_time = 30
+
+# The bdevtype that should be used by lxc
+# auto_test_bdevtype = best
+
+# The interval in seconds a running AutoTest runner should send a heartbeat.
+# auto_test_heartbeat_interval = 10
+
+# The amount of heartbeats missed before a AutoTest runner should be killed.
+# auto_test_heartbeat_max_missed = 6

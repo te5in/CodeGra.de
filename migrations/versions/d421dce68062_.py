@@ -23,14 +23,25 @@ def upgrade():
     sa.Column('id', sqlalchemy_utils.types.uuid.UUIDType(), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('updated_at', sa.DateTime(), nullable=False),
-    sa.Column('type', sa.Enum('simple_runner', native_enum=False), nullable=False),
+    sa.Column('type', sa.Enum('simple_runner', name='autotestrunnertype'), nullable=False),
     sa.Column('ipaddr', sa.Unicode(), nullable=False),
     sa.PrimaryKeyConstraint('id')
     )
+    bind = op.get_bind()
+
+    context = op.get_context()
+    if context.bind.dialect.name == 'postgresql':
+        bind = op.get_bind()
+        has_size_type = bind.execute(
+                "select exists (select 1 from pg_type "
+                "where typname='autotestrunstate')").scalar()
+        if not has_size_type:
+            op.execute("CREATE TYPE autotestrunstate AS ENUM ('not_started', 'running', 'done', 'timed_out')")
+
     op.add_column('AutoTestRun', sa.Column('kill_date', sa.DateTime(), nullable=True))
     op.add_column('AutoTestRun', sa.Column('runner_id', sqlalchemy_utils.types.uuid.UUIDType(), nullable=True))
     op.add_column('AutoTestRun', sa.Column('started_date', sa.DateTime(), nullable=True))
-    op.add_column('AutoTestRun', sa.Column('state', sa.Enum('not_started', 'running', 'done', 'timed_out', name='autotestrunstate', native_enum=False), nullable=False))
+    op.add_column('AutoTestRun', sa.Column('state', sa.Enum('not_started', 'running', 'done', 'timed_out', name='autotestrunstate'), nullable=False))
     op.create_foreign_key(None, 'AutoTestRun', 'AutoTestRunner', ['runner_id'], ['id'])
     # ### end Alembic commands ###
 

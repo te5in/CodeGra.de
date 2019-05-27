@@ -1555,7 +1555,7 @@ def start_plagiarism_check(
                 child,
                 psef.files.ExtractFileTreeFile,
             ) and archive.Archive.is_archive(child.name):
-                child_path = os.path.join(
+                child_path = psef.files.safe_join(
                     current_app.config['UPLOAD_DIR'], child.disk_name
                 )
                 with open(child_path, 'rb') as f:

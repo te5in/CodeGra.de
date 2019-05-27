@@ -65,7 +65,10 @@ class ArchiveMemberInfo(t.Generic[TT]):  # pylint: disable=unsubscriptable-objec
 
 
 def _safe_join(*args: str) -> str:
-    return path.normpath(path.realpath(path.join(*args)))
+    assert args
+    res = path.normpath(path.realpath(path.join(*args)))
+    assert res.startswith(args[0])
+    return res
 
 
 class ArchiveException(Exception):
@@ -643,7 +646,7 @@ class _7ZipArchive(_BaseArchive[py7zlib.ArchiveFile]):  # pylint: disable=unsubs
         :param member: The member to extract.
         :param to_path: The location to which it should be extracted.
         """
-        with open(os.path.join(to_path, member.name), 'wb') as f:
+        with open(_safe_join(to_path, member.name), 'wb') as f:
             f.write(member.orig_file.read())
 
     def get_members(self

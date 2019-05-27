@@ -214,5 +214,6 @@ if True:  # pylint: disable=using-constant-test
     from .auto_test import (
         AutoTest, AutoTestSet, AutoTestSuite, AutoTestStep, AutoTestRun,
         AutoTestResult, AutoTestRunState, AutoTestRunner,
-        AutoTestStepResultState, AutoTestStepResult, AutoTestRunState
+        AutoTestStepResultState, AutoTestStepResult, AutoTestRunState,
+        AutoTestAfterRunState
     )

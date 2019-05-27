@@ -2,7 +2,7 @@
 import Vue from 'vue';
 import axios from 'axios';
 
-import { deepCopy, getProps, getUniqueId, withOrdinalSuffix } from '@/utils';
+import { deepCopy, getUniqueId, withOrdinalSuffix } from '@/utils';
 import * as types from '../mutation-types';
 
 class AutoTestSuiteData {
@@ -274,7 +274,7 @@ class AutoTestRun {
 
     update(run, autoTest) {
         this.state = run.state;
-        this.finished = ['done', 'timed_out'].indexOf(this.state) !== -1;
+        this.finished = ['done', 'crashed', 'timed_out'].indexOf(this.state) !== -1;
 
         this.updateResults(run.results, autoTest);
     }
@@ -297,6 +297,7 @@ const getters = {
 const loaders = {
     tests: {},
     results: {},
+    runs: {},
 };
 
 const actions = {
@@ -359,344 +360,12 @@ const actions = {
         if (loaders.tests[autoTestId] == null) {
             loaders.tests[autoTestId] = axios.get(`/api/v1/auto_tests/${autoTestId}`).then(
                 ({ data }) => {
-                    // FIXME: uncomment
-                    // commit(types.SET_AUTO_TEST, data);
-                    // FIXME: remove
-                    console.log(data);
-                    commit(types.SET_AUTO_TEST, {
-                        id: autoTestId,
-                        assignment_id: 3,
-                        base_systems: [
-                            {
-                                group: 'python',
-                                id: 2,
-                                name: 'Python 3.6',
-                            },
-                        ],
-                        setup_script: 'setup.py',
-                        finalize_script: '',
-                        fixtures: [
-                            {
-                                hidden: true,
-                                id: 1,
-                                name: 'Programmeertalen-Go (1).csv',
-                            },
-                            {
-                                hidden: false,
-                                id: 3,
-                                name: 'Programmeertalen-Python (1).csv',
-                            },
-                            {
-                                hidden: true,
-                                id: 4,
-                                name: 'Programmeertalen-Python (2).csv',
-                            },
-                            {
-                                hidden: false,
-                                id: 2,
-                                name: 'Programmeertalen-Python.csv',
-                            },
-                        ],
-                        sets: [
-                            {
-                                id: 1,
-                                stop_points: 3,
-                                suites: [
-                                    {
-                                        autoTestSetId: 1,
-                                        autoTestId: 1,
-                                        id: 1,
-                                        steps: [
-                                            {
-                                                data: {
-                                                    inputs: [
-                                                        {
-                                                            args: 'abc',
-                                                            id: 4,
-                                                            name: 'Sort 1',
-                                                            options: [],
-                                                            output: 'cba',
-                                                            stdin: 'abc',
-                                                            weight: 1,
-                                                        },
-                                                        {
-                                                            args: 'def',
-                                                            name: 'Sort 2',
-                                                            options: [],
-                                                            output: 'fed',
-                                                            stdin: 'def',
-                                                            weight: 1,
-                                                        },
-                                                    ],
-                                                    program: 'abc',
-                                                },
-                                                hidden: true,
-                                                id: 1,
-                                                name: 'Simple test',
-                                                type: 'io_test',
-                                                weight: 2,
-                                            },
-                                            {
-                                                data: {
-                                                    inputs: [
-                                                        {
-                                                            args: 'abc',
-                                                            id: 18,
-                                                            name: 'Sort 3',
-                                                            options: ['regex', 'case', 'substring'],
-                                                            output: 'ABC',
-                                                            stdin: 'abc',
-                                                            weight: 1,
-                                                        },
-                                                        {
-                                                            args: 'def',
-                                                            name: 'Sort 4',
-                                                            options: [],
-                                                            output: 'DEF',
-                                                            stdin: 'def',
-                                                            weight: 1,
-                                                        },
-                                                    ],
-                                                    program: 'xyz',
-                                                },
-                                                hidden: false,
-                                                id: 3,
-                                                name: 'Advanced test',
-                                                type: 'io_test',
-                                                weight: 2,
-                                            },
-                                        ],
-                                        rubric_row: {
-                                            description:
-                                                'The style of the code is conform to the styleguide.',
-                                            header: 'Style',
-                                            id: 9,
-                                            items: [
-                                                {
-                                                    description:
-                                                        'You have no style.You have no style.You have no style.You have no style.You have no style.',
-                                                    header: 'Novice',
-                                                    id: 3,
-                                                    points: 1,
-                                                },
-                                                {
-                                                    description:
-                                                        "You don't know how to use some tools.You don't know how to use some tools.You don't know how to use some tools.You don't know how to use some tools.You don't know how to use some tools.",
-                                                    header: 'Competent',
-                                                    id: 2,
-                                                    points: 2,
-                                                },
-                                                {
-                                                    description:
-                                                        'You know how to use some tools.You know how to use some tools.You know how to use some tools.You know how to use some tools.You know how to use some tools.',
-                                                    header: 'Expert',
-                                                    id: 1,
-                                                    points: 3,
-                                                },
-                                            ],
-                                        },
-                                    },
-                                    {
-                                        autoTestSetId: 1,
-                                        autoTestId: 1,
-                                        id: 2,
-                                        steps: [
-                                            {
-                                                data: {
-                                                    program: './test_run',
-                                                },
-                                                hidden: false,
-                                                id: 2,
-                                                name: 'Test run',
-                                                type: 'run_program',
-                                                weight: 1,
-                                            },
-                                            {
-                                                data: {
-                                                    program: 'valgrind ./test_run',
-                                                },
-                                                hidden: true,
-                                                id: 4,
-                                                name: 'Valgrind',
-                                                type: 'run_program',
-                                                weight: 1,
-                                            },
-                                            {
-                                                data: {
-                                                    min_points: 4,
-                                                    program: 'check_points ./test_run',
-                                                },
-                                                hidden: false,
-                                                id: 5,
-                                                name: 'Check points',
-                                                type: 'check_points',
-                                                weight: 0,
-                                            },
-                                            {
-                                                data: {
-                                                    program: 'get_points ./test_run',
-                                                    regex: '(\\d+\\.?\\d*|\\.\\d+) points$',
-                                                },
-                                                hidden: false,
-                                                id: 6,
-                                                name: 'Get points',
-                                                type: 'capture_points',
-                                                weight: 1,
-                                            },
-                                        ],
-                                        rubric_row: {
-                                            description: 'abc',
-                                            header: 'Code structure',
-                                            id: 7,
-                                            items: [
-                                                {
-                                                    description: 'rubric row description',
-                                                    header: 'Novice',
-                                                    id: 9,
-                                                    points: 1,
-                                                },
-                                                {
-                                                    description: 'blaksdfasdg',
-                                                    header: 'Competent',
-                                                    id: 8,
-                                                    points: 2.5,
-                                                },
-                                                {
-                                                    description: 'ja hsaas a ahsdg',
-                                                    header: 'Expert',
-                                                    id: 7,
-                                                    points: 4,
-                                                },
-                                            ],
-                                        },
-                                    },
-                                ],
-                            },
-                            {
-                                id: 2,
-                                stop_points: 0,
-                                suites: [
-                                    {
-                                        autoTestSetId: 2,
-                                        autoTestId: 1,
-                                        id: 3,
-                                        steps: [
-                                            {
-                                                data: {
-                                                    inputs: [
-                                                        {
-                                                            args: '-a -b 1',
-                                                            id: 13,
-                                                            name: '-a -b 1',
-                                                            options: [
-                                                                'trailing_whitespace',
-                                                                'substring',
-                                                            ],
-                                                            output: 'Python script',
-                                                            stdin: 'Input input',
-                                                            weight: 1,
-                                                        },
-                                                    ],
-                                                    program: 'python python_runner.py',
-                                                },
-                                                hidden: false,
-                                                id: 8,
-                                                name: 'Python runner',
-                                                type: 'io_test',
-                                                weight: 1,
-                                            },
-                                        ],
-                                        rubric_row: {
-                                            description:
-                                                'The documentation of the code is well written and complete.',
-                                            header: 'Documentation',
-                                            id: 8,
-                                            items: [
-                                                {
-                                                    description:
-                                                        'You typed a lot of wrong things.You typed a lot of wrong things.You typed a lot of wrong things.You typed a lot of wrong things.You typed a lot of wrong things.',
-                                                    header: 'Novice',
-                                                    id: 6,
-                                                    points: 1,
-                                                },
-                                                {
-                                                    description:
-                                                        'You typed a lot of things, some wrong.You typed a lot of things, some wrong.You typed a lot of things, some wrong.You typed a lot of things, some wrong.You typed a lot of things, some wrong.',
-                                                    header: 'Competent',
-                                                    id: 5,
-                                                    points: 1.5,
-                                                },
-                                                {
-                                                    description:
-                                                        'You typed a lot of things.You typed a lot of things.You typed a lot of things.You typed a lot of things.You typed a lot of things.',
-                                                    header: 'Expert',
-                                                    id: 4,
-                                                    points: 2,
-                                                },
-                                            ],
-                                        },
-                                    },
-                                ],
-                            },
-                        ],
-                        runs: [
-                            {
-                                id: 1,
-                                state: 'running',
-                                results: [
-                                    {
-                                        id: 1,
-                                        work: {
-                                            id: 14,
-                                            user: { name: 'Thomas Schaper', id: 1 },
-                                        },
-                                        points_achieved: 0,
-                                        state: 'not_started',
-                                        setup_stdout: 'stdout!!!',
-                                        setup_stderr: 'stderr!!!',
-                                    },
-                                    {
-                                        id: 2,
-                                        work: {
-                                            id: 2,
-                                            user: { name: 'Olmo Kramer', id: 2 },
-                                            grade_overridden: true,
-                                        },
-                                        points_achieved: 12,
-                                        state: 'passed',
-                                        setup_stdout: 'stdout!!!',
-                                        setup_stderr: 'stderr!!!',
-                                    },
-                                    {
-                                        id: 3,
-                                        work: {
-                                            id: 3,
-                                            user: { name: 'Student 2', id: 3 },
-                                        },
-                                        points_achieved: 0,
-                                        state: 'running',
-                                        setup_stdout: 'stdout!!!',
-                                        setup_stderr: 'stderr!!!',
-                                    },
-                                    {
-                                        id: 4,
-                                        work: {
-                                            id: 4,
-                                            user: { name: 'Olmo Kramer', id: 4 },
-                                        },
-                                        points_achieved: 0,
-                                        state: 'running',
-                                        setup_stdout: 'stdout!!!',
-                                        setup_stderr: 'stderr!!!',
-                                    },
-                                ],
-                            },
-                        ],
-                    });
+                    delete loaders.tests[autoTestId];
+                    commit(types.SET_AUTO_TEST, data);
                 },
                 err => {
                     delete loaders.tests[autoTestId];
-                    throw new Error(err.response.data.message);
+                    throw err;
                 },
             );
         }
@@ -704,79 +373,45 @@ const actions = {
         return loaders.tests[autoTestId];
     },
 
+    async createAutoTestRun({ commit, dispatch, state }, { autoTestId }) {
+        await dispatch('loadAutoTest', { autoTestId });
+        const autoTest = state.tests[autoTestId];
+
+        if (autoTest.runs.length > 0) {
+            throw new Error('AutoTest has already been run.');
+        }
+
+        return axios
+            .post(`/api/v1/auto_tests/${autoTestId}/runs/`)
+            .then(({ data }) => commit(types.UPDATE_AUTO_TEST_RUNS, { autoTest, run: data }));
+    },
+
     async loadAutoTestRun({ commit, dispatch, state }, { autoTestId }) {
         await dispatch('loadAutoTest', { autoTestId });
         const autoTest = state.tests[autoTestId];
 
         const oldRun = autoTest.runs[0];
-        if (oldRun && oldRun.done) {
+        if (!oldRun) {
+            throw new Error('AutoTest has not been run yet.');
+        } else if (oldRun.done) {
             return null;
         }
 
-        return axios.get(`/api/v1/auto_tests/${autoTestId}/runs/${autoTest.runs[0].id}`).then(
-            run => commit(types.UPDATE_AUTO_TEST_RUNS, { autoTest, run, index: 0 }),
-            err => {
-                // FIXME: uncomment
-                // throw new Error(err.response.data.message);
-                // FIXME: remove
-                console.log('REMOVE THIS CONSOLE.LOG()', err);
-                commit(types.UPDATE_AUTO_TEST_RUNS, {
-                    autoTest,
-                    index: 0,
-                    run: {
-                        id: 1,
-                        state: 'done',
-                        results: [
-                            {
-                                id: 1,
-                                work: {
-                                    id: 14,
-                                    user: { name: 'Thomas Schaper', id: 1 },
-                                },
-                                points_achieved: 0,
-                                state: 'timed_out',
-                                setup_stdout: 'stdout!!!',
-                                setup_stderr: 'stderr!!!',
-                            },
-                            {
-                                id: 2,
-                                work: {
-                                    id: 2,
-                                    user: { name: 'Olmo Kramer', id: 2 },
-                                    grade_overridden: true,
-                                },
-                                points_achieved: 13,
-                                state: 'passed',
-                                setup_stdout: 'stdout!!!',
-                                setup_stderr: 'stderr!!!',
-                            },
-                            {
-                                id: 3,
-                                work: {
-                                    id: 3,
-                                    user: { name: 'Student 2', id: 3 },
-                                },
-                                points_achieved: 12,
-                                state: 'passed',
-                                setup_stdout: 'stdout!!!',
-                                setup_stderr: 'stderr!!!',
-                            },
-                            {
-                                id: 4,
-                                work: {
-                                    id: 4,
-                                    user: { name: 'Olmo Kramer', id: 4 },
-                                },
-                                points_achieved: 6,
-                                state: 'failed',
-                                setup_stdout: 'stdout!!!',
-                                setup_stderr: 'stderr!!!',
-                            },
-                        ],
-                    },
-                });
-            },
-        );
+        const runId = oldRun.id;
+        if (loaders.runs[runId] == null) {
+            loaders.runs[runId] = axios.get(`/api/v1/auto_tests/${autoTestId}/runs/${runId}`).then(
+                ({ data }) => {
+                    delete loaders.runs[runId];
+                    commit(types.UPDATE_AUTO_TEST_RUNS, { autoTest, run: data });
+                },
+                err => {
+                    delete loaders.runs[runId];
+                    throw err;
+                },
+            );
+        }
+
+        return loaders.runs[runId];
     },
 
     async createAutoTestSet({ commit, dispatch, state }, { autoTestId }) {
@@ -819,7 +454,7 @@ const actions = {
     },
 
     createAutoTestSuite({ commit }, { autoTestId, autoTestSet }) {
-        const suites = autoTestSet.suites.concat(new AutoTestSuiteData(autoTestId, autoTestSet.id));
+        const suites = [...autoTestSet.suites, new AutoTestSuiteData(autoTestId, autoTestSet.id)];
 
         return commit(types.UPDATE_AUTO_TEST_SET, {
             autoTestSet,
@@ -877,149 +512,7 @@ const actions = {
                     },
                     err => {
                         delete loaders.results[resultId];
-                        // FIXME: uncomment
-                        // throw new Error(err.response.data.message);
-                        // FIXME: remove
-                        console.log('REMOVE THIS CONSOLE.LOG()', err);
-                        commit(types.UPDATE_AUTO_TEST_RESULT, {
-                            autoTest,
-                            result: {
-                                id: resultId,
-                                setup_stdout: 'Setup script:\nSUCCESS!',
-                                setup_stderr: '',
-                                points_achieved: 3,
-                                state: 'running',
-                                step_results: [
-                                    {
-                                        auto_test_step: getProps(
-                                            autoTest,
-                                            {},
-                                            'sets',
-                                            0,
-                                            'suites',
-                                            0,
-                                            'steps',
-                                            0,
-                                        ),
-                                        state: 'passed',
-                                        log: {
-                                            steps: [
-                                                {
-                                                    state: 'passed',
-                                                    stdout: 'ABC',
-                                                    stderr: 'WARNING: ...',
-                                                },
-                                                {
-                                                    state: 'passed',
-                                                    stdout: 'DEF',
-                                                    stderr: '',
-                                                },
-                                            ],
-                                        },
-                                    },
-                                    {
-                                        auto_test_step: getProps(
-                                            autoTest,
-                                            {},
-                                            'sets',
-                                            0,
-                                            'suites',
-                                            0,
-                                            'steps',
-                                            1,
-                                        ),
-                                        state: 'passed',
-                                        log: {
-                                            steps: [
-                                                {
-                                                    state: 'failed',
-                                                    stdout: 'ABC',
-                                                    stderr: 'ERROR: ...',
-                                                },
-                                                {
-                                                    state: 'passed',
-                                                    stdout: 'def',
-                                                    stderr: 'WARNING: ...',
-                                                },
-                                            ],
-                                        },
-                                    },
-                                    {
-                                        auto_test_step: getProps(
-                                            autoTest,
-                                            {},
-                                            'sets',
-                                            0,
-                                            'suites',
-                                            1,
-                                            'steps',
-                                            0,
-                                        ),
-                                        state: 'passed',
-                                        log: {
-                                            stdout: 'passed!',
-                                            stderr: '',
-                                        },
-                                    },
-                                    {
-                                        auto_test_step: getProps(
-                                            autoTest,
-                                            {},
-                                            'sets',
-                                            0,
-                                            'suites',
-                                            1,
-                                            'steps',
-                                            1,
-                                        ),
-                                        state: 'passed',
-                                        log: {
-                                            stdout: 'passed!',
-                                            stderr: '',
-                                        },
-                                    },
-                                    {
-                                        auto_test_step: getProps(
-                                            autoTest,
-                                            {},
-                                            'sets',
-                                            0,
-                                            'suites',
-                                            1,
-                                            'steps',
-                                            2,
-                                        ),
-                                        state: 'failed',
-                                        log: {
-                                            stdout: 'Not enough points!!!',
-                                            stderr: '',
-                                        },
-                                    },
-                                    {
-                                        auto_test_step: getProps(
-                                            autoTest,
-                                            {},
-                                            'sets',
-                                            1,
-                                            'suites',
-                                            0,
-                                            'steps',
-                                            0,
-                                        ),
-                                        state: 'running',
-                                        log: {
-                                            steps: [
-                                                {
-                                                    state: 'running',
-                                                    stdout: '',
-                                                    stderr: '',
-                                                },
-                                            ],
-                                        },
-                                    },
-                                ],
-                            },
-                        });
+                        throw err;
                     },
                 );
         }
@@ -1027,7 +520,7 @@ const actions = {
         return loaders.results[resultId];
     },
 
-    async deleteAutoTestResults({ commit, dispatch, state }, { autoTestId, runId }) {
+    async deleteAutoTestResults({ commit, dispatch, state }, { autoTestId, runId, force }) {
         await dispatch('loadAutoTest', { autoTestId });
         const autoTest = state.tests[autoTestId];
 
@@ -1035,14 +528,17 @@ const actions = {
             return null;
         }
 
-        return axios.delete(`/api/v1/auto_tests/${autoTestId}/runs/${runId}`).then(() =>
+        const c = () =>
             commit(types.UPDATE_AUTO_TEST, {
                 autoTestId,
                 autoTestProps: {
                     runs: autoTest.runs.filter(run => run.id !== runId),
                 },
-            }),
-        );
+            });
+
+        return axios
+            .delete(`/api/v1/auto_tests/${autoTestId}/runs/${runId}`)
+            .then(c, () => force && c());
     },
 
     createFixtures({ commit }, { autoTestId, fixtures }) {
@@ -1081,16 +577,20 @@ const mutations = {
             set.suites = set.suites.map(suite => new AutoTestSuiteData(autoTest.id, set.id, suite));
         });
 
-        autoTest.pointsPossible = autoTest.sets.reduce(
-            (acc1, set) =>
-                acc1 +
-                set.suites.reduce(
-                    (acc2, suite) =>
-                        acc2 + suite.steps.reduce((acc3, step) => acc3 + step.weight, 0),
+        Object.defineProperty(autoTest, 'pointsPossible', {
+            get() {
+                return autoTest.sets.reduce(
+                    (acc1, set) =>
+                        acc1 +
+                        set.suites.reduce(
+                            (acc2, suite) =>
+                                acc2 + suite.steps.reduce((acc3, step) => acc3 + step.weight, 0),
+                            0,
+                        ),
                     0,
-                ),
-            0,
-        );
+                );
+            },
+        });
 
         autoTest.runs = autoTest.runs.map(run => new AutoTestRun(run, autoTest));
 
@@ -1098,11 +598,9 @@ const mutations = {
     },
 
     [types.DELETE_AUTO_TEST](state, autoTestId) {
-        state.tests[autoTestId].runs.forEach(run => {
-            run.results.forEach(result => {
-                Vue.delete(state.results, result.id);
-            });
-        });
+        state.tests[autoTestId].runs.forEach(run =>
+            run.results.forEach(result => Vue.delete(state.results, result.id)),
+        );
 
         Vue.delete(state.tests, autoTestId);
     },
@@ -1114,9 +612,17 @@ const mutations = {
     },
 
     [types.UPDATE_AUTO_TEST_RUNS](state, { autoTest, run }) {
-        const runIndex = autoTest.runs.findIndex(r => r.id === run.id);
-        const storeRun = autoTest.runs[runIndex];
-        storeRun.update(run, autoTest);
+        let runIndex = autoTest.runs.findIndex(r => r.id === run.id);
+        let storeRun;
+
+        if (runIndex === -1) {
+            storeRun = new AutoTestRun(run, autoTest);
+            runIndex = 0;
+        } else {
+            storeRun = autoTest.runs[runIndex];
+            storeRun.update(run, autoTest);
+        }
+
         Vue.set(autoTest.runs, runIndex, storeRun);
     },
 

@@ -9,6 +9,7 @@ import enum
 import time
 import typing as t
 import datetime
+import threading
 import contextlib
 import subprocess
 from functools import wraps
@@ -838,15 +839,90 @@ def defer(function: t.Callable[[], object]) -> t.Generator[None, None, None]:
 
 
 @contextlib.contextmanager
-def timed_code(start_msg: str, end_msg: str,
-               **other_keys: object) -> t.Generator[None, None, None]:
+def timed_code(code_block_name: str, **other_keys: object
+               ) -> t.Generator[t.Callable[[], float], None, None]:
     start_time = time.time()
-    logger.info(start_msg, **other_keys)
-    # This should not be wrapped in a `try`, `finally` block as we only want to
-    # log when the when block succeeds.
-    yield
-    end_time = time.time()
-    logger.info(end_msg, **other_keys, elapsed_time=end_time - start_time)
+    logger.info(
+        'Starting timed code block',
+        timed_code_block=code_block_name,
+        **other_keys
+    )
+    end_time = None
+
+    try:
+        yield lambda: (end_time or time.time()) - start_time
+    except:
+        exc_info = True
+        raise
+    else:
+        exc_info = False
+    finally:
+        end_time = time.time()
+        logger.info(
+            'Finished timed code block',
+            timed_code_block=code_block_name,
+            exc_info=exc_info,
+            exception_occurred=exc_info,
+            elapsed_time=end_time - start_time,
+            **other_keys,
+        )
+
+
+class RepeatedTimer(threading.Thread):
+    """Call a function repeatedly in a separate thread.
+
+    .. warning::
+
+        This class doesn't work when threads don't work, which is the case when
+        using it in a flask context.
+    """
+
+    def __init__(
+        self,
+        interval: int,
+        function: t.Callable[[], None],
+        cleanup: t.Callable[[], None] = lambda: None,
+    ) -> None:
+        super().__init__()
+        self.interval = interval
+
+        def fun() -> None:
+            try:
+                with timed_code('repeated_function', function=function):
+                    function()
+            except:
+                pass
+
+        self.function = fun
+        self.__finish = threading.Event()
+        self.__finished = threading.Event()
+        self.cleanup = cleanup
+
+    def cancel(self) -> None:
+        self.__finish.set()
+        self.__finished.wait()
+
+    def run(self) -> None:
+        try:
+            while True:
+                self.function()
+                if self.__finish.wait(self.interval):
+                    break
+            self.function()
+        finally:
+            try:
+                self.cleanup()
+            finally:
+                self.__finished.set()
+
+
+@contextlib.contextmanager
+def bound_to_logger(**vals: object) -> t.Generator[None, None, None]:
+    logger.bind(**vals)
+    try:
+        yield
+    finally:
+        logger.try_unbind(*vals.keys())
 
 
 def call_external(

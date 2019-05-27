@@ -77,7 +77,7 @@
                 <submit-button variant="danger"
                                confirm="Are you sure you want to delete this suite?"
                                :submit="() => internalValue.delete()"
-                               @after-success="$emit('delete', internalValue)"
+                               @after-success="deleteSuite"
                                label="Delete"/>
                 <submit-button
                     variant="outline-danger"
@@ -160,6 +160,7 @@
 </template>
 
 <script>
+import { mapActions } from 'vuex';
 import { SlickList, SlickItem, HandleDirective } from 'vue-slicksort';
 
 import Icon from 'vue-awesome/components/Icon';
@@ -251,7 +252,7 @@ export default {
                     color: '#E6DCCD',
                 },
                 {
-                    name: 'capture_points',
+                    name: 'custom_output',
                     title: 'Capture Points',
                     color: '#DFD3AA',
                 },
@@ -271,6 +272,10 @@ export default {
     },
 
     methods: {
+        ...mapActions('autotest', {
+            storeDeleteAutoTestSuite: 'deleteAutoTestSuite',
+        }),
+
         createTestStep(type) {
             const res = {
                 name: '',
@@ -296,7 +301,7 @@ export default {
                         },
                     ];
                     break;
-                case 'capture_points':
+                case 'custom_output':
                     res.data.regex = '(\\d+\\.?\\d*|\\.\\d+)';
                     break;
                 case 'check_points':
@@ -312,7 +317,7 @@ export default {
             return res;
         },
 
-        async editSuite() {
+        editSuite() {
             this.internalValue = this.value.copy();
             this.internalValue.steps.forEach(val => {
                 val.opened = false;
@@ -334,6 +339,12 @@ export default {
                 modal.hide();
                 this.$emit('save-cancelled');
             }
+        },
+
+        deleteSuite() {
+            return this.storeDeleteAutoTestSuite({
+                autoTestSuite: this.value,
+            });
         },
     },
 
@@ -434,6 +445,10 @@ export default {
 .suite-steps {
     max-height: 20rem;
     overflow: auto;
+
+    .single-result & {
+        max-height: 40rem;
+    }
 }
 
 .steps-table {
