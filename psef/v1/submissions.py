@@ -354,7 +354,9 @@ def select_rubric_items(submission_id: int, ) -> EmptyResponse:
                     'This rubric row is connected to an AutoTest suite, so you'
                     ' cannot change it.'
                 ), 'An item is connected to one of these rows: "{}"'.format(
-                    ', '.join(map(str, submission.assignment.locked_rubric_rows))
+                    ', '.join(
+                        map(str, submission.assignment.locked_rubric_rows)
+                    )
                 ), APICodes.INVALID_PARAM, 400
             )
 

@@ -13,6 +13,7 @@ import typing as t
 import datetime
 import tempfile
 import threading
+import traceback
 import contextlib
 import subprocess
 from pathlib import Path
@@ -31,8 +32,8 @@ import psef
 from .. import app, log, models
 from .steps import TestStep, StopRunningStepsException, auto_test_handlers
 from ..helpers import (
-    JSONType, RepeatedTimer, defer, register, timed_code, bound_to_logger,
-    ensure_on_test_server
+    JSONType, RepeatedTimer, defer, register, timed_code, timed_function,
+    bound_to_logger, ensure_on_test_server
 )
 
 logger = structlog.get_logger()
@@ -46,6 +47,8 @@ URL = t.NewType('URL', str)
 STOP_CONTAINERS = threading.Event()
 
 T = t.TypeVar('T')
+
+Network = t.NewType('Network', t.Tuple[str, t.List[t.Tuple[str, str]]])
 
 
 class StopContainerException(Exception):
@@ -97,18 +100,23 @@ def _stop_container(cont: lxc.Container) -> None:
             assert cont.wait('STOPPED', 3)
 
 
-def _start_container(cont: lxc.Container) -> None:
+def _start_container(cont: lxc.Container, check_network: bool = True) -> None:
     maybe_stop_container()
+
+    if cont.running:
+        return
 
     with timed_code('start_container'):
         assert cont.start()
         assert cont.wait('RUNNING', 3)
-        for _ in range(60):
-            if cont.get_ips():
-                return
-            time.sleep(0.5)
-        else:
-            raise Exception(f"Couldn't get ip for container {cont}")
+        if check_network:
+            for _ in range(60):
+                if cont.get_ips():
+                    return
+                time.sleep(0.5)
+                maybe_stop_container()
+            else:
+                raise Exception(f"Couldn't get ip for container {cont}")
 
 
 class StepInstructions(TypedDict, total=True):
@@ -121,6 +129,7 @@ class StepInstructions(TypedDict, total=True):
 class SuiteInstructions(TypedDict, total=True):
     id: int
     steps: t.List[StepInstructions]
+    network_disabled: bool
 
 
 class SetInstructions(TypedDict, total=True):
@@ -230,6 +239,8 @@ def _start_polling(
 
 
 class StartedContainer:
+    _NETWORK_LOCK = threading.Lock()
+
     def __init__(
         self, container: lxc.Container, name: str, config: 'psef.FlaskConfig'
     ) -> None:
@@ -262,8 +273,42 @@ class StartedContainer:
         self._snapshots.append(snap)
         self._dirty = False
 
+    @timed_function
+    def _disable_network(self) -> t.List[Network]:
+        self.stop_container()
+
+        with self._NETWORK_LOCK:
+            res: t.List[Network] = []
+            for network in self._container.network:
+                net = (
+                    network.type,
+                    [(attr, getattr(network, attr)) for attr in dir(network)]
+                )
+                res.append(Network(net))
+            for network_idx in range(len(self._container.network)):
+                assert self._container.network.remove(network_idx)
+
+        _start_container(self._container, check_network=False)
+        return res
+
+    @timed_function
+    def _enable_network(self, networks: t.List[Network]) -> None:
+        self.stop_container()
+
+        with self._NETWORK_LOCK:
+            for typ, network in networks:
+                assert self._container.network.add(typ)
+
+                # -1 index doesn't work, as this isn't a true list
+                last_index = len(self._container.network) - 1
+                for key, value in network:
+                    setattr(self._container.network[last_index], key, value)
+
+        _start_container(self._container, check_network=True)
+
     @contextlib.contextmanager
-    def as_snapshot(self) -> t.Generator['StartedContainer', None, None]:
+    def as_snapshot(self, disable_network: bool = False
+                    ) -> t.Generator['StartedContainer', None, None]:
         maybe_stop_container()
 
         # NOTE: This code never destroys snapshots, as this logic makes the
@@ -271,6 +316,9 @@ class StartedContainer:
         # snapsnot will probably be created.
 
         try:
+            if disable_network:
+                networks = self._disable_network()
+
             if self._dirty or not self._snapshots:
                 with timed_code(
                     'create_snapshot',
@@ -279,7 +327,9 @@ class StartedContainer:
                 ):
                     self.stop_container()
                     self._create_snapshot()
-                    _start_container(self._container)
+                    _start_container(
+                        self._container, check_network=not disable_network
+                    )
             else:
                 logger.info(
                     'Snapshot creation not needed',
@@ -294,6 +344,10 @@ class StartedContainer:
                 with timed_code('restore_snapshots'):
                     self._container.snapshot_restore(self._snapshots[-1])
                 self._dirty = False
+
+            if disable_network:
+                self._enable_network(networks)
+
             _start_container(self._container)
 
     def _read_fifo(
@@ -715,46 +769,49 @@ class _SimpleAutoTestRunner(AutoTestRunner):
             user='codegrade',
         )
 
+    @timed_function
     def download_student_code(
         self, cont: StartedContainer, result_id: int
     ) -> None:
         url = f'{self.base_url}/results/{result_id}?type=submission_files'
 
-        with timed_code('download_student_code', url=url):
-            cont.run_command(
-                [
-                    'wget',
-                    *self.wget_headers,
-                    url,
-                    '-O',
-                    '/home/codegrade/student.zip',
-                ],
-                user='codegrade'
-            )
-            logger.info('Downloaded student code', url=url)
+        cont.run_command(
+            [
+                'wget',
+                *self.wget_headers,
+                url,
+                '-O',
+                '/home/codegrade/student.zip',
+            ],
+            user='codegrade'
+        )
+        logger.info('Downloaded student code', url=url)
 
-            cont.run_command(
-                [
-                    'unzip', '/home/codegrade/student.zip', '-d',
-                    '/home/codegrade/student/'
-                ],
-                user='codegrade',
-            )
-            logger.info('Extracted student code')
+        cont.run_command(
+            [
+                'unzip', '/home/codegrade/student.zip', '-d',
+                '/home/codegrade/student/'
+            ],
+            user='codegrade',
+        )
+        logger.info('Extracted student code')
 
-            cont.run_command(
-                ['chmod', '-R', '+x', '/home/codegrade/student/'],
-                user='codegrade'
-            )
-            cont.run_command(['rm', '-f', '/home/codegrade/student.zip'])
+        cont.run_command(
+            ['chmod', '-R', '+x', '/home/codegrade/student/'],
+            user='codegrade'
+        )
+        cont.run_command(['rm', '-f', '/home/codegrade/student.zip'])
 
+    @timed_function
     def _run_test_suite(
         self, student_container: StartedContainer, result_id: int,
         test_suite: SuiteInstructions
     ) -> float:
         total_points = 0.0
 
-        with timed_code('run_suite'), student_container.as_snapshot() as snap:
+        with student_container.as_snapshot(
+            test_suite['network_disabled']
+        ) as snap:
             url = f'{self.base_url}/results/{result_id}/step_results/'
 
             for test_step in test_suite['steps']:
@@ -811,6 +868,7 @@ class _SimpleAutoTestRunner(AutoTestRunner):
 
         return total_points
 
+    @timed_function
     def run_student(
         self,
         base_container: AutoTestContainer,
@@ -831,8 +889,7 @@ class _SimpleAutoTestRunner(AutoTestRunner):
                 json={'state': result_state.name},
             )
 
-            with timed_code('run_single_student'
-                            ), student_container.started_container() as cont:
+            with student_container.started_container() as cont:
 
                 with timed_code('set_cgroup_limits'):
                     cont.set_cgroup_item(
@@ -936,9 +993,6 @@ class _SimpleAutoTestRunner(AutoTestRunner):
                     self._run_test(cont)
                 time_taken = get_time_taken()
             except:
-                logger.warning(
-                    'Something went wrong running tests', exc_info=True
-                )
                 end_state = models.AutoTestRunState.crashed.name
                 raise
             else:
@@ -1021,11 +1075,26 @@ class _SimpleAutoTestRunner(AutoTestRunner):
                         continue
                     else:
                         break
-            finally:
+            except:
+                STOP_CONTAINERS.set()
+                time.sleep(1)
+
+                tracebacks = []
+                for th in threading.enumerate():
+                    if th.ident is not None:
+                        tb = traceback.format_stack(
+                            sys._current_frames()[th.ident]
+                        )
+                        tracebacks.append([th.ident, tb])
+                logger.error(
+                    'AutoTest crashed',
+                    tracebacks=tracebacks,
+                    exc_info=True,
+                )
+                raise
+            else:
                 logger.info('Done with containers, cleaning up')
                 STOP_CONTAINERS.set()
-                pool.terminate()
-                pool.join()
 
 
 @auto_test_runners.register('transip_runner')

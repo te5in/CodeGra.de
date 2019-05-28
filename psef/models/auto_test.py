@@ -140,6 +140,14 @@ class AutoTestSuite(Base, TimestampMixin, IdMixin):
         innerjoin=True,
     )
 
+    network_disabled = db.Column(
+        'network_disabled',
+        db.Boolean,
+        nullable=False,
+        default=True,
+        server_default='FALSE',
+    )
+
     auto_test_set_id: int = db.Column(
         'auto_test_set_id',
         db.Integer,
@@ -166,6 +174,7 @@ class AutoTestSuite(Base, TimestampMixin, IdMixin):
         return {
             'id': self.id,
             'steps': [s.get_instructions() for s in self.steps],
+            'network_disabled': self.network_disabled,
         }
 
     def __to_json__(self) -> t.Mapping[str, object]:
@@ -173,6 +182,7 @@ class AutoTestSuite(Base, TimestampMixin, IdMixin):
             'id': self.id,
             'steps': self.steps,
             'rubric_row': self.rubric_row,
+            'network_disabled': self.network_disabled,
         }
 
 

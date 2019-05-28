@@ -2,20 +2,24 @@ import json
 import typing as t
 import numbers
 
-from flask import request
+import werkzeug
+import structlog
+from flask import request, make_response
 
 from . import api
 from .. import app, files, tasks, models, parsers, auto_test
 from ..models import db
 from ..helpers import (
     JSONResponse, EmptyResponse, ExtendedJSONResponse, jsonify, get_or_404,
-    ensure_json_dict, extended_jsonify, ensure_keys_in_dict,
+    add_warning, ensure_json_dict, extended_jsonify, ensure_keys_in_dict,
     make_empty_response, filter_single_or_404, get_files_from_request,
     get_from_map_transaction, get_json_dict_from_request,
     callback_after_this_request
 )
 from ..features import Feature, feature_required
-from ..exceptions import APICodes, APIException
+from ..exceptions import APICodes, APIWarnings, APIException
+
+logger = structlog.get_logger()
 
 
 @api.route('/auto_tests/', methods=['POST'])
@@ -49,6 +53,28 @@ def delete_auto_test(auto_test_id: int) -> EmptyResponse:
     db.session.commit()
 
     return make_empty_response()
+
+
+@api.route(
+    '/auto_tests/<int:auto_test_id>/fixtures/<int:fixture_id>',
+    methods=['GET']
+)
+@feature_required(Feature.AUTO_TEST)
+def get_fixture_contents(
+    auto_test_id: int, fixture_id: int
+) -> werkzeug.wrappers.Response:
+    fixture = filter_single_or_404(
+        models.AutoTestFixture,
+        models.AutoTest.id == auto_test_id,
+        models.AutoTestFixture.id == fixture_id,
+    )
+
+    fixture.hidden = request.method == 'POST'
+
+    contents = files.get_file_contents(fixture)
+    res: werkzeug.wrappers.Response = make_response(contents)
+    res.headers['Content-Type'] = 'application/octet-stream'
+    return res
 
 
 @api.route(
@@ -110,7 +136,15 @@ def update_or_create_auto_test(auto_test_id: int
                     filename=filename,
                 )
             )
-        files.fix_duplicate_filenames(auto_test.fixtures)
+        renames = files.fix_duplicate_filenames(auto_test.fixtures)
+        if renames:
+            logger.info('Fixtures were renamed', renamed_fixtures=renames)
+            add_warning(
+                (
+                    'Some fixtures were renamed as fixtures with the same name'
+                    ' already existed'
+                ), APIWarnings.RENAMED_FIXTURE
+            )
 
     if setup_script is not None:
         auto_test.setup_script = setup_script
@@ -226,6 +260,7 @@ def update_or_create_auto_test_suite(auto_test_id: int, auto_test_set_id: int
     with get_from_map_transaction(get_json_dict_from_request()) as [get, opt]:
         steps = get('steps', list)
         rubric_row_id = get('rubric_row_id', int)
+        network_disabled = get('network_disabled', bool)
         suite_id = opt('id', int, None)
 
     if suite_id is None:
@@ -233,6 +268,7 @@ def update_or_create_auto_test_suite(auto_test_id: int, auto_test_set_id: int
     else:
         suite = get_or_404(models.AutoTestSuite, suite_id)
 
+    suite.network_disabled = network_disabled
     rubric_row = get_or_404(models.RubricRow, rubric_row_id)
     # TODO: This sometimes fails?
     if rubric_row.assignment.id != suite.auto_test_set.auto_test.assignment.id:

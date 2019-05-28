@@ -108,7 +108,8 @@ class FileLike(Protocol):
         ...
 
 
-def fix_duplicate_filenames(files: t.Sequence[FileLike]) -> None:
+def fix_duplicate_filenames(files: t.Sequence[FileLike]
+                            ) -> t.List[t.Dict[str, str]]:
     file_occurrence_lookup: t.Dict[str, t.Dict[str, int]] = defaultdict(
         lambda: {
             'amount': 0,
@@ -119,6 +120,8 @@ def fix_duplicate_filenames(files: t.Sequence[FileLike]) -> None:
     for f in files:
         file_occurrence_lookup[f.name]['amount'] += 1
 
+    res = []
+
     if any(v['amount'] > 1 for v in file_occurrence_lookup.values()):
         for f in files:
             if file_occurrence_lookup[f.name]['fixed'] > 0:
@@ -126,12 +129,19 @@ def fix_duplicate_filenames(files: t.Sequence[FileLike]) -> None:
                 while f'{f.name} ({num})' in file_occurrence_lookup:
                     num += 1
                 file_occurrence_lookup[f.name]['fixed'] = num
+                old_name = f.name
                 f.name = f'{f.name} ({num})'
+                res.append({
+                    'old_name': old_name,
+                    'new_name': f.name,
+                })
                 # This isn't really needed (as num always is incremented
                 # after this block). However, this is simply an extra
                 # safety check.
                 file_occurrence_lookup[f.name]['amount'] += 1
             file_occurrence_lookup[f.name]['fixed'] += 1
+
+    return res
 
 
 def escape_logical_filename(name: str) -> str:

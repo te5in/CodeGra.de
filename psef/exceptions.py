@@ -19,6 +19,7 @@ class APIWarnings(IntEnum):
     WEAK_PASSWORD = 5
     UNASSIGNED_ASSIGNMENTS = 6
     INTERNAL_API = 7
+    RENAMED_FIXTURE = 8
 
 
 @unique
