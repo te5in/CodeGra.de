@@ -51,6 +51,7 @@
                 </b-card>
             </div>
         </b-tab>
+
         <b-tab title="General feedback">
             <b-card class="file-card">
                 <span v-if="!!submission.comment_author" slot="header">
@@ -63,6 +64,7 @@
                 </span>
             </b-card>
         </b-tab>
+
         <b-tab title="Changed files" class="code" v-if="canSeeRevision">
             <b-card v-if="changedFiles.length === 0" class="file-card">
                 <span>
@@ -85,6 +87,7 @@
                              :context="context"/>
             </b-card>
         </b-tab>
+
         <b-tab title="Added or deleted files" v-if="canSeeRevision">
             <b-card v-if="newFiles.length + deletedFiles.length === 0" class="file-card">
                 No files were added or deleted.
@@ -122,6 +125,7 @@
                 </b-card>
             </div>
         </b-tab>
+
         <b-tab title="AutoTest" v-if="assignment.auto_test_id">
             <auto-test
                 no-card

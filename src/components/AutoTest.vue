@@ -118,51 +118,14 @@
                         <icon v-if="singleResult" name="chevron-right" :scale="0.75" />
                         Environment setup
                     </span>
-                    <template v-else slot="header">Environment setup</template>
+                    <template v-else slot="header">
+                        Environment setup
+                    </template>
 
                     <b-collapse
                         :id="autoTestSetupEnvWrapperId"
                         :visible="!singleResult">
                         <b-card-body>
-                            <b-form-fieldset>
-                                <label :for="baseSystemId">Base systems</label>
-
-                                <b-input-group v-if="configEditable">
-                                    <multiselect
-                                        :close-on-select="false"
-                                        :id="baseSystemId"
-                                        class="base-system-selector"
-                                        v-model="internalTest.base_systems"
-                                        :options="baseSystems"
-                                        :searchable="true"
-                                        :custom-label="a => a.name"
-                                        multiple
-                                        track-by="id"
-                                        label="label"
-                                        :hide-selected="false"
-                                        placeholder="Select base systems"
-                                        :internal-search="true"
-                                        :loading="false">
-                                        <span slot="noResult" class="text-muted">
-                                            No results were found.
-                                        </span>
-                                    </multiselect>
-                                    <b-input-group-append>
-                                        <submit-button :submit="() => submitProp('base_systems')" />
-                                    </b-input-group-append>
-                                </b-input-group>
-                                <div v-else class="multiselect">
-                                    <div class="multiselect__tags">
-                                        <div class="multiselect__tags-wrap">
-                                            <span v-for="base in test.base_systems"
-                                                  class="multiselect__tag no-close">
-                                                {{ base.name }}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </b-form-fieldset>
-
                             <transition :name="disabledAnimations ? '' : 'fixtureswrapper'">
                                 <div v-if="test.fixtures.length > 0" class="transition">
                                     <b-form-fieldset>
@@ -343,8 +306,6 @@
 </template>
 
 <script>
-import Multiselect from 'vue-multiselect';
-
 import { mapActions, mapGetters } from 'vuex';
 
 import Icon from 'vue-awesome/components/Icon';
@@ -412,7 +373,6 @@ export default {
             configCollapseId: `auto-test-config-collapse-${id}`,
             resultsCollapseId: `auto-test-results-collapse-${id}`,
             resultsModalId: `auto-test-results-modal-${id}`,
-            baseSystemId: `auto-test-base-system-${id}`,
             fixtureUploadId: `auto-test-base-upload-${id}`,
             uploadedFixturesId: `auto-test-base-fixtures-${id}`,
             preStartScriptId: `auto-test-base-pre-start-script-${id}`,
@@ -457,7 +417,6 @@ export default {
                     this.internalTest = {};
                 } else {
                     this.internalTest = {
-                        base_systems: this.test.base_systems,
                         setup_script: this.test.setup_script,
                         set_stop_points: this.test.sets.reduce(
                             (acc, set) => Object.assign(acc, { [set.id]: set.stop_points }),
@@ -739,31 +698,6 @@ export default {
             }, []);
         },
 
-        baseSystems() {
-            const langSet = new Set();
-            const selectedSet = new Set();
-            this.internalTest.base_systems.forEach(t => {
-                langSet.add(t.group);
-                selectedSet.add(t.id);
-            });
-
-            return AutoTestBaseSystems.reduce((res, cur) => {
-                if (langSet.has(cur.group) && !selectedSet.has(cur.id)) {
-                    res.push({
-                        ...cur,
-                        $isDisabled: true,
-                    });
-                } else {
-                    res.push(cur);
-                }
-                return res;
-            }, []);
-        },
-
-        selectedBaseSystems() {
-            return this.internalTest.base_systems;
-        },
-
         configEditable() {
             return this.editable && !this.autoTestRun;
         },
@@ -787,7 +721,6 @@ export default {
 
     components: {
         Icon,
-        Multiselect,
         AutoTestSet,
         AutoTestState,
         SubmitButton,
@@ -1025,20 +958,6 @@ export default {
 </style>
 
 <style lang="less">
-.auto-test .base-system-selector {
-    flex: 1;
-
-    .multiselect__tags {
-        z-index: 10;
-        border-bottom-right-radius: 0;
-        border-top-right-radius: 0;
-    }
-}
-
-.multiselect__tag.no-close {
-    padding-right: 10px;
-}
-
 .result-modal {
     .modal-dialog {
         max-width: calc(100vw - 8rem);
