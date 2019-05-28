@@ -16,7 +16,7 @@ from .. import helpers
 from ..exceptions import APICodes, APIException
 
 
-class RubricLockReason(helpers.SerializableEnum):
+class RubricLockReason(helpers.SerializableEnum, enum.Enum):
     auto_test = enum.auto()
 
 

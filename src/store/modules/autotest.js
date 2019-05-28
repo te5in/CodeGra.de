@@ -2,7 +2,7 @@
 import Vue from 'vue';
 import axios from 'axios';
 
-import { deepCopy, getUniqueId, withOrdinalSuffix } from '@/utils';
+import { deepCopy, getUniqueId, withOrdinalSuffix, getProps } from '@/utils';
 import * as types from '../mutation-types';
 
 class AutoTestSuiteData {
@@ -22,6 +22,7 @@ class AutoTestSuiteData {
         Vue.set(this, 'id', d.id);
         Vue.set(this, 'steps', d.steps || []);
         Vue.set(this, 'rubricRow', d.rubric_row || {});
+        Vue.set(this, 'networkDisabled', getProps(d, true, 'network_disabled'));
     }
 
     copy() {
@@ -32,6 +33,7 @@ class AutoTestSuiteData {
                 id: this.id,
                 steps: deepCopy(this.steps),
                 rubric_row: this.rubricRow,
+                network_disabled: this.networkDisabled,
             },
             this.trackingId,
         );
@@ -62,6 +64,7 @@ class AutoTestSuiteData {
                     weight: Number(step.weight),
                 })),
                 rubric_row_id: this.rubricRow.id,
+                network_disabled: this.networkDisabled == null ? true : this.networkDisabled,
             })
             .then(
                 ({ data }) => {

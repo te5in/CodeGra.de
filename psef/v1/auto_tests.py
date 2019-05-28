@@ -226,6 +226,7 @@ def update_or_create_auto_test_suite(auto_test_id: int, auto_test_set_id: int
     with get_from_map_transaction(get_json_dict_from_request()) as [get, opt]:
         steps = get('steps', list)
         rubric_row_id = get('rubric_row_id', int)
+        network_disabled = get('network_disabled', bool)
         suite_id = opt('id', int, None)
 
     if suite_id is None:
@@ -233,6 +234,7 @@ def update_or_create_auto_test_suite(auto_test_id: int, auto_test_set_id: int
     else:
         suite = get_or_404(models.AutoTestSuite, suite_id)
 
+    suite.network_disabled = network_disabled
     rubric_row = get_or_404(models.RubricRow, rubric_row_id)
     # TODO: This sometimes fails?
     if rubric_row.assignment.id != suite.auto_test_set.auto_test.assignment.id:

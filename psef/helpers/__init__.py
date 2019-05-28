@@ -37,6 +37,7 @@ logger = structlog.get_logger()
 
 #: Type vars
 T = t.TypeVar('T')
+T_CAL = t.TypeVar('T_CAL', bound=t.Callable)
 TT = t.TypeVar('TT')
 TTT = t.TypeVar('TTT', bound='IsInstanceType')
 ZZ = t.TypeVar('ZZ')
@@ -866,6 +867,14 @@ def timed_code(code_block_name: str, **other_keys: object
             elapsed_time=end_time - start_time,
             **other_keys,
         )
+
+
+def timed_function(fun: T_CAL) -> T_CAL:
+    def _wrapper(*args: object, **kwargs: object) -> object:
+        with timed_code(fun.__qualname__):
+            return fun(*args, **kwargs)
+
+    return t.cast(T_CAL, _wrapper)
 
 
 class RepeatedTimer(threading.Thread):
