@@ -2,8 +2,9 @@ import json
 import typing as t
 import numbers
 
+import werkzeug
 import structlog
-from flask import request
+from flask import request, make_response
 
 from . import api
 from .. import app, files, tasks, models, parsers, auto_test
@@ -52,6 +53,28 @@ def delete_auto_test(auto_test_id: int) -> EmptyResponse:
     db.session.commit()
 
     return make_empty_response()
+
+
+@api.route(
+    '/auto_tests/<int:auto_test_id>/fixtures/<int:fixture_id>',
+    methods=['GET']
+)
+@feature_required(Feature.AUTO_TEST)
+def get_fixture_contents(
+    auto_test_id: int, fixture_id: int
+) -> werkzeug.wrappers.Response:
+    fixture = filter_single_or_404(
+        models.AutoTestFixture,
+        models.AutoTest.id == auto_test_id,
+        models.AutoTestFixture.id == fixture_id,
+    )
+
+    fixture.hidden = request.method == 'POST'
+
+    contents = files.get_file_contents(fixture)
+    res: werkzeug.wrappers.Response = make_response(contents)
+    res.headers['Content-Type'] = 'application/octet-stream'
+    return res
 
 
 @api.route(
