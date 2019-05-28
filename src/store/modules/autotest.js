@@ -544,13 +544,17 @@ const actions = {
             .then(c, () => force && c());
     },
 
-    createFixtures({ commit }, { autoTestId, fixtures }) {
-        return axios.patch(`/api/v1/auto_tests/${autoTestId}`, fixtures).then(({ data }) =>
-            commit(types.UPDATE_AUTO_TEST, {
+    createFixtures({ commit }, { autoTestId, fixtures, delay }) {
+        return axios.patch(`/api/v1/auto_tests/${autoTestId}`, fixtures).then(async res => {
+            await commit(types.UPDATE_AUTO_TEST, {
                 autoTestId,
-                autoTestProps: { fixtures: data.fixtures },
-            }),
-        );
+                autoTestProps: { fixtures: res.data.fixtures },
+            });
+            await new Promise(resolve => {
+                setTimeout(resolve, delay == null ? 500 : delay);
+            });
+            return res;
+        });
     },
 
     async toggleFixture({ commit, dispatch, state }, { autoTestId, fixture }) {

@@ -2,6 +2,7 @@ import json
 import typing as t
 import numbers
 
+import structlog
 from flask import request
 
 from . import api
@@ -9,13 +10,15 @@ from .. import app, files, tasks, models, parsers, auto_test
 from ..models import db
 from ..helpers import (
     JSONResponse, EmptyResponse, ExtendedJSONResponse, jsonify, get_or_404,
-    ensure_json_dict, extended_jsonify, ensure_keys_in_dict,
+    add_warning, ensure_json_dict, extended_jsonify, ensure_keys_in_dict,
     make_empty_response, filter_single_or_404, get_files_from_request,
     get_from_map_transaction, get_json_dict_from_request,
     callback_after_this_request
 )
 from ..features import Feature, feature_required
-from ..exceptions import APICodes, APIException
+from ..exceptions import APICodes, APIWarnings, APIException
+
+logger = structlog.get_logger()
 
 
 @api.route('/auto_tests/', methods=['POST'])
@@ -110,7 +113,15 @@ def update_or_create_auto_test(auto_test_id: int
                     filename=filename,
                 )
             )
-        files.fix_duplicate_filenames(auto_test.fixtures)
+        renames = files.fix_duplicate_filenames(auto_test.fixtures)
+        if renames:
+            logger.info('Fixtures were renamed', renamed_fixtures=renames)
+            add_warning(
+                (
+                    'Some fixtures were renamed as fixtures with the same name'
+                    ' already existed'
+                ), APIWarnings.RENAMED_FIXTURE
+            )
 
     if setup_script is not None:
         auto_test.setup_script = setup_script
