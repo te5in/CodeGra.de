@@ -25,93 +25,93 @@
                         </span>
                     </div>
                 </b-dropdown-item>
-        </b-dropdown>
+            </b-dropdown>
         </b-input-group>
 
-        <hr/>
+            <hr/>
 
-        <h5 style="text-align: center;">Steps</h5>
-        <p v-if="internalValue.steps.length === 0" class="help-text">
-            This suite contains no steps. Please add some using the buttons
-            below.
-        </p>
-        <SlickList lock-axis="y"
-                   lock-to-container-edges
-                   @sort-start="slickItemMoving = true"
-                   @sort-end="slickItemMoving = false"
-                   use-drag-handle
-                   v-model="internalValue.steps"
-                   append-to=".edit-suite-modal">
-            <SlickItem v-for="item, index in internalValue.steps"
-                       :index="index"
-                       :key="item.id"
-                       class="auto-test-suite slick-item"
-                       :class="slickItemMoving ? 'no-text-select' : ''">
-                <div class="auto-test-suite-step item-wrapper">
-                    <span v-handle class="handle">
-                        <icon name="bars"/>
-                    </span>
-                    <auto-test-step v-model="internalValue.steps[index]"
-                                    :index="index + 1"
-                                    :test-types="stepTypes"
-                                    @delete="internalValue.removeItem(index)"
-                                    editable/>
-                </div>
-            </SlickItem>
-        </SlickList>
-
-        <b-button-toolbar class="add-step-btns-wrapper">
-            <b-btn v-for="stepType in stepTypes"
-                   :key="stepType.value"
-                   @click="internalValue.addStep(createTestStep(stepType.name))"
-                   class="add-step-btn text-muted"
-                   v-b-popover.top.hover="`Add a new ${stepType.name} step`"
-                   :style="{ 'background-color': stepType.color }"
-                   variant="primary">
-                <icon name="plus" /> {{ stepType.title }}
-            </b-btn>
-        </b-button-toolbar>
-
-        <template slot="modal-footer">
-            <b-button-toolbar justify style="width: 100%;">
-                <submit-button variant="danger"
-                               confirm="Are you sure you want to delete this suite?"
-                               :submit="() => internalValue.delete()"
-                               @after-success="deleteSuite"
-                               label="Delete"/>
-                <submit-button
-                    variant="outline-danger"
-                    :disabled="value.isEmpty()"
-                    label="Cancel"
-                    :submit="cancelEdit"/>
-                <submit-button :submit="saveSuite"
-                               label="Save">
-                    <div slot="error"
-                         slot-scope="scope"
-                         class="custom-error-popover">
-                        <template v-for="err in scope.error.messages.general">
-                            {{ err }}
-                        </template>
-                        <template v-if="scope.error.messages.steps.length > 0">
-                            Some steps are not valid:
-                            <ul>
-                                <li v-for="[step, errs], i in scope.error.messages.steps"
-                                    :key="step.id"
-                                    v-if="errs.length > 0">
-                                    {{ withOrdinalSuffix(i + 1) }} step<span v-if="step.name">
-                                        with name "{{ step.name }}"</span>:
-                                    <ul>
-                                        <li v-for="err in errs" :key="err">
-                                            {{ err }}
-                                        </li>
-                                    </ul>
-                                </li>
-                            </ul>
-                        </template>
+            <h5 style="text-align: center;">Steps</h5>
+            <p v-if="internalValue.steps.length === 0" class="help-text">
+                This suite contains no steps. Please add some using the buttons
+                below.
+            </p>
+            <SlickList lock-axis="y"
+                    lock-to-container-edges
+                    @sort-start="slickItemMoving = true"
+                    @sort-end="slickItemMoving = false"
+                    use-drag-handle
+                    v-model="internalValue.steps"
+                    append-to=".edit-suite-modal">
+                <SlickItem v-for="item, index in internalValue.steps"
+                        :index="index"
+                        :key="item.id"
+                        class="auto-test-suite slick-item"
+                        :class="slickItemMoving ? 'no-text-select' : ''">
+                    <div class="auto-test-suite-step item-wrapper">
+                        <span v-handle class="handle">
+                            <icon name="bars"/>
+                        </span>
+                        <auto-test-step v-model="internalValue.steps[index]"
+                                        :index="index + 1"
+                                        :test-types="stepTypes"
+                                        @delete="internalValue.removeItem(index)"
+                                        editable/>
                     </div>
-                </submit-button>
+                </SlickItem>
+            </SlickList>
+
+            <b-button-toolbar class="add-step-btns-wrapper">
+                <b-btn v-for="stepType in stepTypes"
+                    :key="stepType.value"
+                    @click="internalValue.addStep(createTestStep(stepType.name))"
+                    class="add-step-btn text-muted"
+                    v-b-popover.top.hover="`Add a new ${stepType.name} step`"
+                    :style="{ 'background-color': stepType.color }"
+                    variant="primary">
+                    <icon name="plus" /> {{ stepType.title }}
+                </b-btn>
             </b-button-toolbar>
-        </template>
+
+            <template slot="modal-footer">
+                <b-button-toolbar justify style="width: 100%;">
+                    <submit-button variant="danger"
+                                confirm="Are you sure you want to delete this suite?"
+                                :submit="() => internalValue.delete()"
+                                @after-success="deleteSuite"
+                                label="Delete"/>
+                    <submit-button
+                        variant="outline-danger"
+                        :disabled="value.isEmpty()"
+                        label="Cancel"
+                        :submit="cancelEdit"/>
+                    <submit-button :submit="saveSuite"
+                                label="Save">
+                        <div slot="error"
+                            slot-scope="scope"
+                            class="custom-error-popover">
+                            <template v-for="err in scope.error.messages.general">
+                                {{ err }}
+                            </template>
+                            <template v-if="scope.error.messages.steps.length > 0">
+                                Some steps are not valid:
+                                <ul>
+                                    <li v-for="[step, errs], i in scope.error.messages.steps"
+                                        :key="step.id"
+                                        v-if="errs.length > 0">
+                                        {{ withOrdinalSuffix(i + 1) }} step<span v-if="step.name">
+                                            with name "{{ step.name }}"</span>:
+                                        <ul>
+                                            <li v-for="err in errs" :key="err">
+                                                {{ err }}
+                                            </li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                            </template>
+                        </div>
+                    </submit-button>
+                </b-button-toolbar>
+            </template>
     </b-modal>
 
     <b-card no-body v-if="!value.isEmpty()">

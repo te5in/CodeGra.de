@@ -132,6 +132,7 @@
                                         <label :for="uploadedFixturesId">
                                             Uploaded fixtures
                                         </label>
+
                                         <ul class="fixture-list">
                                             <transition-group :name="disabledAnimations ? '' : 'fixtures'">
                                                 <li v-for="fixture, index in test.fixtures"
@@ -253,8 +254,7 @@
                     </div>
                 </transition>
 
-                <hr>
-                <h5 v-if="singleResult">Test sets</h5>
+                <h5 v-if="singleResult" style="margin-top: 1rem;">Test suites</h5>
 
                 <transition-group :name="disabledAnimations ? '' : 'list'">
 
@@ -840,13 +840,18 @@ export default {
 }
 
 .fixture-list {
+    max-height: 20rem;
+    overflow: auto;
     border-radius: 0.25rem;
     border: 1px solid @color-border-gray-lighter;
+
     #app.dark & {
         border-color: @color-primary-darker;
     }
+
     padding: 0;
     margin: 0;
+
     .fixture-row {
         padding: 5px 0.75rem;
         display: flex;
@@ -855,6 +860,7 @@ export default {
         &:not(:last-child) {
             border-bottom: 1px solid @color-border-gray-lighter;
         }
+
         #app.dark & {
             border-color: @color-primary-darker;
         }

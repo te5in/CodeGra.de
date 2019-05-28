@@ -22,11 +22,6 @@
                         v-b-popover.hover.top="progressPopover"/>
                 </template>
 
-                <div v-show="autoTestProgress[rubric.id]"
-                     class="progress">
-                    <div ref="progressMeter" class="meter" />
-                </div>
-
                 <b-card-group
                     class="rubric-items-group"
                     :class="{ disabled: autoTestProgress[rubric.id] }">
@@ -65,6 +60,10 @@
                         </p>
                     </b-card>
                 </b-card-group>
+
+                <div v-show="autoTestProgress[rubric.id]" class="progress">
+                    <div ref="progressMeter" class="meter" />
+                </div>
             </b-card>
         </b-tab>
     </b-tabs>
@@ -235,7 +234,7 @@ export default {
             this.autoTestConfig.sets.forEach(set => {
                 set.suites.forEach(suite => {
                     const result = suiteResults[suite.id];
-                    prog[suite.rubricRow.id] = (100 * result.achieved / result.possible).toFixed(2);
+                    prog[suite.rubricRow.id] = (75 * result.achieved / result.possible).toFixed(2);
                 });
             });
 
@@ -477,6 +476,7 @@ export default {
 
 .rubric-item {
     border-width: 0;
+    border-radius: 0;
 
     &:not(:last-child) {
         border-right-width: 1px;
@@ -551,25 +551,23 @@ export default {
     position: relative;
 }
 
-.rubric-item {
-    background-color: transparent !important;
-}
-
 .progress {
     position: absolute;
-    top: 0;
     left: 0;
+    top: 0;
     height: 100%;
     width: 100%;
     box-sizing: content-box;
     border-right: 1px solid transparent;
     border-radius: 0;
     background-color: transparent !important;
+    pointer-events: none;
 
     .meter {
         box-sizing: content-box;
         background-color: fade(@color-secondary, 10%);
         border-right: 1px solid fade(@color-secondary, 15%);
+        margin-right: -1px;
         width: 0;
         transition: width 1250ms ease-in-out;
 
