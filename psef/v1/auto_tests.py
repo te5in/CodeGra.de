@@ -33,6 +33,7 @@ def create_auto_test() -> JSONResponse[models.AutoTest]:
     auto_test = models.AutoTest(
         assignment=get_or_404(models.Assignment, assignment_id),
         setup_script='',
+        run_setup_script='',
         finalize_script='',
     )
     db.session.add(auto_test)
@@ -111,6 +112,7 @@ def update_or_create_auto_test(auto_test_id: int
         old_fixtures = optional_get('fixtures', list, None)
         base_systems = optional_get('base_systems', list, None)
         setup_script = optional_get('setup_script', str, None)
+        run_setup_script = optional_get('run_setup_script', str, None)
         has_new_fixtures = optional_get('has_new_fixtures', bool, False)
 
     if old_fixtures is not None:
@@ -148,6 +150,8 @@ def update_or_create_auto_test(auto_test_id: int
 
     if setup_script is not None:
         auto_test.setup_script = setup_script
+    if run_setup_script is not None:
+        auto_test.run_setup_script = run_setup_script
 
     if base_systems is not None:
         new_base_systems = []

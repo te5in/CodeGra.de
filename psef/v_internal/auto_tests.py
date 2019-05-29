@@ -119,8 +119,10 @@ def get_auto_test_status() -> t.Union[JSONResponse[
 def update_run(auto_test_id: int, run_id: int) -> EmptyResponse:
     password = verify_global_header_password()
 
-    with get_from_map_transaction(get_json_dict_from_request()) as [get, _]:
-        state = get('state', str)
+    with get_from_map_transaction(get_json_dict_from_request()) as [_, opt]:
+        state = opt('state', str, None)
+        setup_stdout = opt('setup_stdout', str, None)
+        setup_stderr = opt('setup_stderr', str, None)
 
     run = filter_single_or_404(
         models.AutoTestRun,
@@ -129,9 +131,15 @@ def update_run(auto_test_id: int, run_id: int) -> EmptyResponse:
     )
     verify_runner(run.runner, password)
 
-    new_state = parse_enum(state, models.AutoTestRunState)
-    assert new_state is not None
-    run.state = new_state
+    if state is not None:
+        new_state = parse_enum(state, models.AutoTestRunState)
+        assert new_state is not None
+        run.state = new_state
+    if setup_stdout is not None:
+        run.setup_stdout = setup_stdout
+    if setup_stderr is not None:
+        run.setup_stderr = setup_stderr
+
     db.session.commit()
 
     return make_empty_response()

@@ -167,6 +167,7 @@ class RunnerInstructions(TypedDict, total=True):
     fixtures: t.List[t.Tuple[str, int]]
     setup_script: str
     heartbeat_interval: int
+    run_setup_script: str
 
 
 def init_app(app: 'psef.PsefFlask') -> None:
@@ -237,8 +238,9 @@ def _make_sure_not_running(
                 break
 
             if res.status_code != 200:
-                logger.info('One of the servers returned an error',
-                            response=res)
+                logger.info(
+                    'One of the servers returned an error', response=res
+                )
                 break
             elif res.json()['running']:
                 logger.info(
@@ -993,20 +995,7 @@ class _BaseAutoTestRunner(AutoTestRunner):
 
                 self.download_student_code(cont, result_id)
 
-                if self.setup_script:
-                    with timed_code('setup_script') as get_time_spend:
-                        _, stdout, stderr, _ = cont.run_student_command(
-                            self.setup_script
-                        )
-
-                    self.req.patch(
-                        result_url,
-                        json={
-                            'time_spend': get_time_spend(),
-                            'setup_stdout': stdout,
-                            'setup_stderr': stderr
-                        },
-                    )
+                self._maybe_run_setup(cont, self.setup_script, result_url)
 
                 logger.info('Dropping sudo rights')
                 cont.run_command(['deluser', 'codegrade', 'sudo'])
@@ -1098,6 +1087,24 @@ class _BaseAutoTestRunner(AutoTestRunner):
                         },
                     )
 
+    def _maybe_run_setup(
+        self, cont: 'StartedContainer', cmd: str, url: str
+    ) -> None:
+        if cmd:
+            with timed_code(
+                'run_setup_script', setup_cmd=cmd
+            ) as get_time_spend:
+                _, stdout, stderr, _ = cont.run_student_command(cmd)
+
+            self.req.patch(
+                f'{self.base_url}/runs/{self.instructions["run_id"]}',
+                json={
+                    'setup_time_spend': get_time_spend(),
+                    'setup_stdout': stdout,
+                    'setup_stderr': stderr
+                },
+            )
+
     def _run_test(self, cont: StartedContainer) -> None:
         ensure_on_test_server()
 
@@ -1132,6 +1139,12 @@ class _BaseAutoTestRunner(AutoTestRunner):
 
         with timed_code('download_fixtures'):
             self.download_fixtures(cont)
+
+        self._maybe_run_setup(
+            cont,
+            self.instructions['run_setup_script'],
+            f'{self.base_url}/runs/{self.instructions["run_id"]}',
+        )
 
         self.req.patch(
             f'{self.base_url}/runs/{self.instructions["run_id"]}',

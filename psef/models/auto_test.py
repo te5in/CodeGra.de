@@ -543,6 +543,22 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
         nullable=False
     )
 
+    setup_stdout: t.Optional[str] = orm.deferred(
+        db.Column(
+            'setup_stdout',
+            db.Unicode,
+            default=None,
+        )
+    )
+
+    setup_stderr: t.Optional[str] = orm.deferred(
+        db.Column(
+            'setup_stderr',
+            db.Unicode,
+            default=None,
+        )
+    )
+
     runner_id: t.Optional[uuid.UUID] = db.Column(
         'runner_id',
         UUIDType,
@@ -649,6 +665,8 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
                 self.auto_test.setup_script,
             'heartbeat_interval':
                 psef.app.config['AUTO_TEST_HEARTBEAT_INTERVAL'],
+            'run_setup_script':
+                self.auto_test.run_setup_script,
         }
 
     def __to_json__(self) -> t.Mapping[str, object]:
@@ -719,6 +737,9 @@ class AutoTest(Base, TimestampMixin, IdMixin):
     )  # type: t.MutableSequence[file_models.AutoTestFixture]
 
     setup_script: str = db.Column('setup_script', db.Unicode, nullable=False)
+    run_setup_script: str = db.Column(
+        'run_setup_script', db.Unicode, nullable=False
+    )
     finalize_script: str = db.Column(
         'finalize_script', db.Unicode, nullable=False
     )
