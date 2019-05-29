@@ -20,6 +20,7 @@ class APIWarnings(IntEnum):
     UNASSIGNED_ASSIGNMENTS = 6
     INTERNAL_API = 7
     RENAMED_FIXTURE = 8
+    IN_USE_RUBRIC_ROW = 9
 
 
 @unique

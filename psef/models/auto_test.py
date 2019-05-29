@@ -239,12 +239,17 @@ class AutoTestStepResult(Base, TimestampMixin, IdMixin):
         default=None,
     )
 
+    @property
+    def achieved_points(self) -> float:
+        return self.step.step.get_amount_achieved_points(self)
+
     def __to_json__(self) -> t.Mapping[str, object]:
         return {
             'id': self.id,
             'auto_test_step': self.step,
             'state': self.state.name,
             'log': self.log,
+            'achieved_points': self.achieved_points,
         }
 
 
@@ -410,8 +415,7 @@ class AutoTestResult(Base, TimestampMixin, IdMixin):
         step_ids = set(step.id for step in steps)
         possible = sum(step.weight for step in steps)
         achieved = sum(
-            step_result.step.step.get_amount_achieved_points(step_result)
-            for step_result in self.step_results
+            step_result.achieved_points for step_result in self.step_results
             if step_result.auto_test_step_id in step_ids
         )
         return achieved, possible

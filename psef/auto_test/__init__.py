@@ -44,11 +44,27 @@ auto_test_runners: register.Register[str, t.Type['AutoTestRunner']
 OutputCallback = t.Callable[[bytes], None]
 URL = t.NewType('URL', str)
 
-STOP_CONTAINERS = threading.Event()
+_STOP_CONTAINERS = threading.Event()
 
 T = t.TypeVar('T')
 
 Network = t.NewType('Network', t.Tuple[str, t.List[t.Tuple[str, str]]])
+
+
+class CpuCores():
+    def __init__(self, number_of_cores: t.Optional[int] = None) -> None:
+        self._number_of_cores = number_of_cores or _get_amount_cpus()
+        self._available_cores: Queue[int] = Queue(self._number_of_cores)
+        for core in range(self._number_of_cores):
+            self._available_cores.put(core)
+
+    @contextlib.contextmanager
+    def reserved_core(self) -> t.Generator[int, None, None]:
+        core = self._available_cores.get()
+        try:
+            yield core
+        finally:
+            self._available_cores.put(core)
 
 
 class StopContainerException(Exception):
@@ -69,24 +85,24 @@ class CommandTimeoutException(Exception):
         self.time_spend = time_spend
 
 
-def maybe_stop_container() -> None:
-    if STOP_CONTAINERS.is_set():
+def _maybe_quit_running() -> None:
+    if _STOP_CONTAINERS.is_set():
         raise StopContainerException
 
 
-def get_new_container_name() -> str:
+def _get_new_container_name() -> str:
     return str(uuid.uuid1())
 
 
-def get_amount_cpus() -> int:
+def _get_amount_cpus() -> int:
     return os.cpu_count() or 1
 
 
-def get_base_container(config: 'psef.FlaskConfig') -> 'AutoTestContainer':
+def _get_base_container(config: 'psef.FlaskConfig') -> 'AutoTestContainer':
     ensure_on_test_server()
     template_name = config['AUTO_TEST_TEMPLATE_CONTAINER']
     if template_name is None:
-        res = AutoTestContainer(get_new_container_name(), config)
+        res = AutoTestContainer(_get_new_container_name(), config)
         res.create()
     else:
         res = AutoTestContainer(template_name, config).clone()
@@ -100,8 +116,11 @@ def _stop_container(cont: lxc.Container) -> None:
             assert cont.wait('STOPPED', 3)
 
 
-def _start_container(cont: lxc.Container, check_network: bool = True) -> None:
-    maybe_stop_container()
+def _start_container(
+    cont: lxc.Container, check_network: bool = True, always: bool = False
+) -> None:
+    if not always:
+        _maybe_quit_running()
 
     if cont.running:
         return
@@ -114,7 +133,8 @@ def _start_container(cont: lxc.Container, check_network: bool = True) -> None:
                 if cont.get_ips():
                     return
                 time.sleep(0.5)
-                maybe_stop_container()
+                if not always:
+                    _maybe_quit_running()
             else:
                 raise Exception(f"Couldn't get ip for container {cont}")
 
@@ -187,17 +207,67 @@ def _push_logging(post_log: t.Callable[[JSONType], object]) -> RepeatedTimer:
 
 
 def start_polling(config: 'psef.FlaskConfig') -> None:
-    with get_base_container(config).started_container() as cont:
+    with _get_base_container(config).started_container() as cont:
+        cont.run_command(['apt', 'update'])
+        cont.run_command(['apt', 'upgrade', '-y'])
+        if config['AUTO_TEST_TEMPLATE_CONTAINER'] is None:
+            cont.run_command(['apt', 'install', '-y', 'wget', 'curl', 'unzip'])
         _start_polling(config, cont)
+
+
+def _make_sure_not_running(
+    items: t.List[t.Tuple[str, t.Mapping[str, t.Any]]], sleep_time: int
+) -> None:
+    while True:
+        logger.info('Making sure server is not already running somewhere')
+        for url, url_config in items:
+            headers = {
+                'CG-Internal-Api-Password': url_config["password"],
+            }
+            try:
+                res = requests.get(
+                    f'{url}/api/v-internal/auto_tests/',
+                    params={
+                        'get': 'own_status',
+                    },
+                    headers=headers
+                )
+            except requests.exceptions.RequestException:
+                logger.error('Failed to get server', exc_info=True)
+                break
+
+            if res.status_code != 200:
+                logger.info('One of the servers returned an error',
+                            response=res)
+                break
+            elif res.json()['running']:
+                logger.info(
+                    'Already running on one of the servers, sleeping',
+                    url=url,
+                    sleep_time=sleep_time,
+                )
+                break
+        else:
+            logger.info('Not running anywhere')
+            return
+
+        time.sleep(sleep_time)
 
 
 def _start_polling(
     config: 'psef.FlaskConfig', cont: 'StartedContainer'
 ) -> None:
     items = list(config['__S_AUTO_TEST_CREDENTIALS'].items())
+    sleep_time = config['AUTO_TEST_POLL_TIME']
+
     while True:
+        _make_sure_not_running(items, sleep_time)
         random.shuffle(items)
+
         for url, url_config in items:
+            headers = {
+                'CG-Internal-Api-Password': url_config["password"],
+            }
             logger.try_unbind('server')
             logger.bind(server=url)
             logger.info('Checking next server')
@@ -208,9 +278,7 @@ def _start_polling(
                     params={
                         'get': 'tests_to_run',
                     },
-                    headers={
-                        'CG-Internal-Api-Password': url_config["password"],
-                    }
+                    headers=headers
                 )
             except requests.exceptions.RequestException:
                 logger.error('Failed to get server', exc_info=True)
@@ -231,7 +299,6 @@ def _start_polling(
                 logger.info('No tests found', response=response)
                 continue
         else:
-            sleep_time = config['AUTO_TEST_POLL_TIME']
             logger.info('Tried all servers, sleeping', sleep_time=sleep_time)
             time.sleep(sleep_time)
 
@@ -240,6 +307,7 @@ def _start_polling(
 
 class StartedContainer:
     _NETWORK_LOCK = threading.Lock()
+    _SNAPSHOT_LOCK = threading.Lock()
 
     def __init__(
         self, container: lxc.Container, name: str, config: 'psef.FlaskConfig'
@@ -250,13 +318,21 @@ class StartedContainer:
         self._config = config
         self._name = name
 
-    def stop_container(self) -> 'AutoTestContainer':
+    def _stop_container(self) -> None:
         _stop_container(self._container)
-        return AutoTestContainer(self._name, self._config, self._container)
+
+    @contextlib.contextmanager
+    def stopped_container(self
+                          ) -> t.Generator['AutoTestContainer', None, None]:
+        self._stop_container()
+        try:
+            yield AutoTestContainer(self._name, self._config, self._container)
+        finally:
+            _start_container(self._container, always=True)
 
     def destroy_snapshots(self) -> None:
-        self.stop_container()
-        with timed_code(
+        self._stop_container()
+        with self._SNAPSHOT_LOCK, timed_code(
             'destroy_snapshots', snapshot_amount=len(self._snapshots)
         ):
             while self._snapshots:
@@ -268,14 +344,15 @@ class StartedContainer:
             raise ValueError(f'Could not set "{key}" to "{value}"')
 
     def _create_snapshot(self) -> None:
-        snap = self._container.snapshot()
-        assert isinstance(snap, str)
-        self._snapshots.append(snap)
-        self._dirty = False
+        with self._SNAPSHOT_LOCK:
+            snap = self._container.snapshot()
+            assert isinstance(snap, str)
+            self._snapshots.append(snap)
+            self._dirty = False
 
     @timed_function
     def _disable_network(self) -> t.List[Network]:
-        self.stop_container()
+        self._stop_container()
 
         with self._NETWORK_LOCK:
             res: t.List[Network] = []
@@ -293,7 +370,7 @@ class StartedContainer:
 
     @timed_function
     def _enable_network(self, networks: t.List[Network]) -> None:
-        self.stop_container()
+        self._stop_container()
 
         with self._NETWORK_LOCK:
             for typ, network in networks:
@@ -309,7 +386,7 @@ class StartedContainer:
     @contextlib.contextmanager
     def as_snapshot(self, disable_network: bool = False
                     ) -> t.Generator['StartedContainer', None, None]:
-        maybe_stop_container()
+        _maybe_quit_running()
 
         # NOTE: This code never destroys snapshots, as this logic makes the
         # function way harder to follow. As we keep a dirty flag, only one
@@ -325,7 +402,7 @@ class StartedContainer:
                     container=self._name,
                     amount_of_snapshots=len(self._snapshots)
                 ):
-                    self.stop_container()
+                    self._stop_container()
                     self._create_snapshot()
                     _start_container(
                         self._container, check_network=not disable_network
@@ -338,10 +415,10 @@ class StartedContainer:
                 )
             yield self
         finally:
-            self.stop_container()
+            self._stop_container()
             # Creating the snapshot, so we might not have a snapshot
             if self._snapshots:
-                with timed_code('restore_snapshots'):
+                with self._SNAPSHOT_LOCK, timed_code('restore_snapshots'):
                     self._container.snapshot_restore(self._snapshots[-1])
                 self._dirty = False
 
@@ -355,7 +432,7 @@ class StartedContainer:
     ) -> None:
         with open(fname, 'rb') as f:
             while True:
-                maybe_stop_container()
+                _maybe_quit_running()
                 line = f.readline()
                 if not line:
                     return
@@ -587,7 +664,7 @@ class StartedContainer:
             ) as err:
                 assert timeout is None or timeout > 0
                 start = datetime.datetime.utcnow()
-                maybe_stop_container()
+                _maybe_quit_running()
 
                 pid = self._container.attach(
                     callback,
@@ -596,18 +673,31 @@ class StartedContainer:
                     stderr=err,
                     stdin=stdin_file,
                 )
-                while not STOP_CONTAINERS.is_set() and (
+                while not _STOP_CONTAINERS.is_set() and (
                     timeout is None or
                     (datetime.datetime.utcnow() - start).total_seconds() <
                     timeout
                 ):
                     try:
+                        # Make sure pid already exists
                         new_pid, status = os.waitpid(pid, os.WNOHANG)
-                        if new_pid == status == 0 or not os.WIFEXITED(status):
+                        if new_pid == status == 0:
                             time.sleep(0.5)
-                            continue
-                        res = os.WEXITSTATUS(status)
-                        break
+                        elif os.WIFEXITED(status):
+                            res = os.WEXITSTATUS(status)
+                            break
+                        elif os.WIFSIGNALED(status) or os.WCOREDUMP(status):
+                            logger.warning(
+                                'Unusual process exit',
+                                pid=pid,
+                                new_pid=new_pid,
+                                status=status
+                            )
+                            res = -1
+                            break
+                        else:
+                            logger.warning('Unknown process error!')
+                            time.sleep(0.5)
                     except OSError as e:
                         if e.errno == errno.EINTR:
                             continue
@@ -617,10 +707,10 @@ class StartedContainer:
                     os.kill(pid, signal.SIGKILL)
                     os.waitpid(pid, 0)
                     logger.warning('Killing done', pid=pid)
-                    maybe_stop_container()
+                    _maybe_quit_running()
                     raise CommandTimeoutException
 
-            maybe_stop_container()
+            _maybe_quit_running()
 
             if check and res != 0:
                 raise RuntimeError(f'Command "{cmd}" crashed: {res}')
@@ -677,9 +767,9 @@ class AutoTestContainer:
                     self._cont.destroy()
 
     def clone(self, new_name: str = '') -> 'AutoTestContainer':
-        maybe_stop_container()
+        _maybe_quit_running()
 
-        new_name = new_name or get_new_container_name()
+        new_name = new_name or _get_new_container_name()
 
         with self._lock, timed_code('clone_container'):
             cont = self._cont.clone(new_name)
@@ -733,8 +823,7 @@ class AutoTestRunner(abc.ABC):
         pass
 
 
-@auto_test_runners.register('simple_runner')
-class _SimpleAutoTestRunner(AutoTestRunner):
+class _BaseAutoTestRunner(AutoTestRunner):
     def copy_file(
         self, container: StartedContainer, src: str, dst: str
     ) -> None:
@@ -872,11 +961,10 @@ class _SimpleAutoTestRunner(AutoTestRunner):
     def run_student(
         self,
         base_container: AutoTestContainer,
-        cpu_queue: 'Queue[int]',
+        cpu_cores: CpuCores,
         result_id: int,
     ) -> None:
         student_container = base_container.clone()
-        cpu_number = cpu_queue.get()
 
         result_url = f'{self.base_url}/results/{result_id}'
         result_state = models.AutoTestStepResultState.running
@@ -889,7 +977,8 @@ class _SimpleAutoTestRunner(AutoTestRunner):
                 json={'state': result_state.name},
             )
 
-            with student_container.started_container() as cont:
+            with student_container.started_container(
+            ) as cont, cpu_cores.reserved_core() as cpu_number:
 
                 with timed_code('set_cgroup_limits'):
                     cont.set_cgroup_item(
@@ -947,7 +1036,6 @@ class _SimpleAutoTestRunner(AutoTestRunner):
         else:
             result_state = models.AutoTestStepResultState.passed
         finally:
-            cpu_queue.put(cpu_number)
             logger.try_unbind('result_id')
             self.req.patch(
                 result_url,
@@ -1013,17 +1101,14 @@ class _SimpleAutoTestRunner(AutoTestRunner):
     def _run_test(self, cont: StartedContainer) -> None:
         ensure_on_test_server()
 
-        STOP_CONTAINERS.clear()
+        _STOP_CONTAINERS.clear()
 
         # We use uuid1 as this is always unique for a single machine
         with timed_code('install_base_system'):
             cont.run_command(['apt', 'update'])
             cont.run_command(['apt', 'upgrade', '-y'])
-            # TODO : Don't do this if there is a template container
-            cont.run_command(['apt', 'install', '-y', 'wget', 'curl', 'unzip'])
 
         with timed_code('run_setup_commands'):
-            # TODO : Don't do this if there is a template container
             cont.run_command(
                 [
                     'adduser', '--shell', '/bin/bash', '--disabled-password',
@@ -1048,23 +1133,22 @@ class _SimpleAutoTestRunner(AutoTestRunner):
         with timed_code('download_fixtures'):
             self.download_fixtures(cont)
 
-        base_container = cont.stop_container()
-        del cont
-
         self.req.patch(
             f'{self.base_url}/runs/{self.instructions["run_id"]}',
             json={'state': models.AutoTestRunState.running.name},
         )
 
-        with timed_code('run_all_students'), Pool(get_amount_cpus()) as pool:
-            q: 'Queue[int]' = Queue(maxsize=get_amount_cpus())
-            for i in range(get_amount_cpus()):
-                q.put(i)
+        with cont.stopped_container(
+        ) as base_container, timed_code('run_all_students'), Pool(
+            # Over provision a bit so clones can be made quicker.
+            _get_amount_cpus() + 4
+        ) as pool:
+            cpu_cores = CpuCores()
 
             try:
                 res = pool.starmap_async(
                     self.run_student, [
-                        (base_container, q, res_id)
+                        (base_container, cpu_cores, res_id)
                         for res_id in self.instructions['result_ids']
                     ]
                 )
@@ -1076,7 +1160,7 @@ class _SimpleAutoTestRunner(AutoTestRunner):
                     else:
                         break
             except:
-                STOP_CONTAINERS.set()
+                _STOP_CONTAINERS.set()
                 time.sleep(1)
 
                 tracebacks = []
@@ -1094,11 +1178,21 @@ class _SimpleAutoTestRunner(AutoTestRunner):
                 raise
             else:
                 logger.info('Done with containers, cleaning up')
-                STOP_CONTAINERS.set()
+                _STOP_CONTAINERS.set()
+
+
+@auto_test_runners.register('simple_runner')
+class _SimpleAutoTestRunner(_BaseAutoTestRunner):
+    def run_test(self, base_container: StartedContainer) -> None:
+        with base_container.as_snapshot() as cont:
+            try:
+                return super().run_test(cont)
+            finally:
+                _STOP_CONTAINERS.clear()
 
 
 @auto_test_runners.register('transip_runner')
-class _TransipAutoTestRunner(_SimpleAutoTestRunner):
+class _TransipAutoTestRunner(_BaseAutoTestRunner):
     @staticmethod
     def _retry_vps_action(
         action_name: str, func: t.Callable[[], object], max_tries: int = 50

@@ -78,33 +78,38 @@ def verify_global_header_password() -> LocalRunner:
 
 @api.route('/auto_tests/', methods=['GET'])
 @feature_required(Feature.AUTO_TEST)
-def get_auto_test_status(
-) -> t.Union[JSONResponse[auto_test.RunnerInstructions], EmptyResponse]:
-    if request.args.get('get', object()) != 'tests_to_run':
-        return make_empty_response()
-
+def get_auto_test_status() -> t.Union[JSONResponse[
+    auto_test.RunnerInstructions], JSONResponse[t.Dict[str, bool]], EmptyResponse]:
     verify_global_header_password()
+    to_get = request.args.get('get', object())
 
-    config_dict = app.config['AUTO_TEST_CREDENTIALS'][request.remote_addr]
-
-    if models.AutoTestRunner.already_running(request.remote_addr):
-        logger.warning(
-            'IP which had already ran tried getting tests',
-            remote_addr=request.remote_addr,
+    if to_get == 'own_status':
+        return jsonify(
+            {'running': models.AutoTestRunner.already_running(request.remote_addr)}
         )
+    elif to_get == 'tests_to_run':
+        config_dict = app.config['AUTO_TEST_CREDENTIALS'][request.remote_addr]
+
+        if models.AutoTestRunner.already_running(request.remote_addr):
+            logger.warning(
+                'IP which had already ran tried getting tests',
+                remote_addr=request.remote_addr,
+            )
+            return make_empty_response()
+
+        run = models.AutoTestRun.query.filter_by(
+            started_date=None,
+        ).with_for_update().first()
+
+        if run is None:
+            return make_empty_response()
+
+        run.start(config_dict['type'], request.remote_addr)
+        db.session.commit()
+
+        return jsonify(run.get_instructions())
+    else:
         return make_empty_response()
-
-    run = models.AutoTestRun.query.filter_by(
-        started_date=None,
-    ).with_for_update().first()
-
-    if run is None:
-        return make_empty_response()
-
-    run.start(config_dict['type'], request.remote_addr)
-    db.session.commit()
-
-    return jsonify(run.get_instructions())
 
 
 @api.route(

@@ -604,7 +604,9 @@ class LinterRunner:
         del tmpdir
 
         def __do(tree: files.FileTree, parent: str) -> None:
-            parent = files.safe_join(parent, tree['name'])
+            # We can safely use os.path.join here as the contents of this path
+            # will never be read.
+            parent = os.path.join(parent, tree['name'])
             if 'entries' in tree:  # this is dir:
                 for entry in tree['entries']:
                     __do(entry, parent)
@@ -613,6 +615,10 @@ class LinterRunner:
                 del temp_res[parent]
 
         __do(tree_root, '')
+        meth = logger.info
+        if temp_res:
+            meth = logger.warning
+        meth('Finished adding linter comments', comments_left=temp_res)
 
         models.LinterComment.query.filter_by(linter_id=linter_instance.id
                                              ).delete()

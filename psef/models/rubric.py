@@ -14,6 +14,7 @@ from . import Base, db, _MyQuery
 from . import assignment as assignment_models
 from .. import helpers
 from ..exceptions import APICodes, APIException
+from .link_tables import work_rubric_item
 
 
 class RubricLockReason(helpers.SerializableEnum, enum.Enum):
@@ -125,6 +126,18 @@ class RubricRow(Base):
             assignment_id=self.assignment_id,
             items=[item.copy() for item in self.items]
         )
+
+    def is_selected(self) -> bool:
+        if not self.items:
+            return False
+
+        return db.session.query(
+            db.session.query(work_rubric_item).filter(
+                work_rubric_item.c.rubricitem_id.in_(
+                    [item.id for item in self.items]
+                )
+            ).exists()
+        ).scalar()
 
     @property
     def is_valid(self) -> bool:
