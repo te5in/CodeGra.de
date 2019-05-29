@@ -5,7 +5,7 @@ To make CodeGrade AutoTest as flexible as possible, it is possible to customize
 the complete environment the tests are run in. Each separate assignment that
 makes use of AutoTest runs on its own Virtual Private Server, to which you have
 superuser rights and network access during the setup phase. Every VPS is shipped
-with the latest LTS version of Ubuntu, which at time of writing is **Ubuntu
+with the latest LTS version of Ubuntu, which is **Ubuntu
 18.04.2 LTS**.
 
 After the Setup Phase is finished, a snapshot is created which is used to
@@ -13,7 +13,7 @@ initialize the containers used to run the actual tests on the student
 submissions. The Setup Phase consists of the default installed software,
 fixtures (which are available in the ``../fixtures/`` folder) and setup script.
 
-There are multiple options for setting up your environment, which make AutoTest
+There are multiple options for setting up your environment, which makes AutoTest
 easy to use for simple cases yet very flexible for all advanced cases.
 
 Default Installed Software
@@ -48,7 +48,7 @@ Uploading fixtures
 
 Fixtures can be optionally uploaded to the AutoTest VPS. Fixtures are files you
 can upload prior to the test, which will be available in every separate test
-container. Use cases are files used as set up script (see next section), unit
+container. Use cases are files used as setup script (see next section), unit
 tests, custom software to run or install and test input.
 
 Select the fixtures to be uploaded and submit these to upload. A list of
@@ -57,7 +57,7 @@ here too.
 
 .. warning::
     Archives are **not** automatically extracted when uploading fixtures. This
-    was chosen to make possible to use *unextracted* archives as fixtures too.
+    makes it possible to use *unextracted* archives as fixtures too.
 
 Setup script
 --------------
@@ -65,6 +65,9 @@ Setup script
 A setup script can be specified which runs prior to the tests to customize the
 initial environment. Any script can be uploaded as fixture and subsequently
 run with the command given in the *Setup script to run* input field.
+
+This can be, for example, a bash script that installs software using apt and
+extracts archives, or compiles unit tests.
 
 .. note::
     **Network access** and **Superuser rights** are available during the Setup
