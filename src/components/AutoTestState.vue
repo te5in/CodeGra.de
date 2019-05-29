@@ -1,12 +1,18 @@
 <template>
-<icon
-    class="auto-test-state"
-    :class="className"
-    :name="name"
-    :spin="spin"
-    v-b-popover.hover.top="popover"
-    v-if="name"
-/>
+<component :is="btn ? 'b-btn' : 'span'"
+           class="auto-test-state"
+           variant="secondary"
+           style="pointer-events: none;" >
+    <icon :class="iconClass"
+          :name="icon"
+          :spin="icon == 'circle-o-notch'"
+          v-b-popover.hover.top="popover"
+          v-if="icon" />
+
+    <template v-if="btn">
+        {{ $capitalize(state.replace(/_/g, ' ')) }}
+    </template>
+</component>
 </template>
 
 <script>
@@ -14,8 +20,8 @@ import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/check';
 import 'vue-awesome/icons/times';
 import 'vue-awesome/icons/clock-o';
-import 'vue-awesome/icons/circle-o-notch';
 import 'vue-awesome/icons/ban';
+import 'vue-awesome/icons/circle-o-notch';
 
 export default {
     name: 'auto-test-state',
@@ -25,10 +31,15 @@ export default {
             type: String,
             required: true,
         },
+
+        btn: {
+            type: Boolean,
+            default: false,
+        },
     },
 
     computed: {
-        name() {
+        icon() {
             switch (this.state) {
                 case 'passed':
                 case 'done':
@@ -48,8 +59,19 @@ export default {
             }
         },
 
-        spin() {
-            return this.name === 'circle-o-notch';
+        iconClass() {
+            switch (this.state) {
+                case 'passed':
+                    return 'text-success';
+                case 'failed':
+                case 'timed_out':
+                case 'crashed':
+                    return 'text-danger';
+                case 'skipped':
+                    return 'text-muted';
+                default:
+                    return '';
+            }
         },
 
         popover() {
@@ -70,21 +92,6 @@ export default {
                     return 'Done';
                 case 'crashed':
                     return 'Crashed';
-                default:
-                    return '';
-            }
-        },
-
-        className() {
-            switch (this.state) {
-                case 'passed':
-                    return 'text-success';
-                case 'failed':
-                case 'timed_out':
-                case 'crashed':
-                    return 'text-danger';
-                case 'skipped':
-                    return 'text-muted';
                 default:
                     return '';
             }

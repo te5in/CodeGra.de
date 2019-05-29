@@ -144,7 +144,10 @@
                         <th v-if="result"></th>
                         <th>No</th>
                         <th>Summary</th>
-                        <th>Weight</th>
+                        <th>
+                            <template v-if="result">Score</template>
+                            <template v-else>Weight</template>
+                        </th>
                         <th v-if="result">Pass</th>
                     </tr>
                 </thead>

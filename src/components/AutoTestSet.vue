@@ -46,17 +46,36 @@
     </component>
 
     <transition v-if="!isLastSet" :name="animations ? '' : 'setcontinue'">
-        <b-card-footer
-            v-if="editable"
-            class="transition set-continue">
-            Only execute other test sets when achieved grade by AutoTest is higher than
+        <b-card v-if="result" class="set-continue">
+            <template v-if="setResult.finished">
+                Scored <code>{{ setResult.achieved }}</code> points, which is
+
+                <template v-if="setResult.passed">
+                    greater than or equal to <code>{{ stopPoints }}</code>.
+                    Continuing with the next set.
+                </template>
+
+                <template v-else>
+                    less than <code>{{ stopPoints }}</code>.
+                    No further tests will be run.
+                </template>
+            </template>
+
+            <template v-else>
+                Only execute further test sets when achieved grade by AutoTest is higher than
+                <code>{{ stopPoints }}</code>
+            </template>
+        </b-card>
+
+        <b-card-footer v-else-if="editable" class="auto-test-header editable transition set-continue" >
+            Only execute further test sets when achieved grade by AutoTest is higher than
 
             <b-input-group class="input-group">
                 <input
                     class="form-control"
                     type="number"
                     v-model="stopPoints"
-                    @keyup.ctrl.enter="$refs.submitContinuePointsBtn[i].onClick()"
+                    @keyup.ctrl.enter="$refs.submitContinuePointsBtn.onClick()"
                     placeholder="0" />
                 <b-input-group-append>
                     <submit-button
@@ -66,19 +85,11 @@
             </b-input-group>
         </b-card-footer>
 
-        <b-card-footer
-            v-else-if="result"
-            class="set-continue">
-            <template v-if="value.passed">
-                Scored <code>{{ result.setResults[setId].achieved }}</code> points,
-                which is greater than <code>{{ value.stop_points }}</code>. Continuing
-                with the next set.
-            </template>
-            <template v-else>
-                Scored <code>{{ result.setResults[setId].achieved }}</code> points,
-                which is less than <code>{{ value.stop_points }}</code>. No further
-                tests will be run.
-            </template>
+        <b-card-footer v-else class="auto-test-header editable transition set-continue" >
+            <span class="font-italic text-muted">
+                Only execute further test sets when achieved grade by AutoTest is higher than
+                <code>{{ stopPoints }}</code>
+            </span>
         </b-card-footer>
     </transition>
 </component>
@@ -146,6 +157,10 @@ export default {
 
         setId() {
             return this.value.id;
+        },
+
+        setResult() {
+            return this.result.setResults[this.setId];
         },
 
         hasSuites() {
@@ -238,7 +253,11 @@ export default {
 .set-continue {
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: space-between;
+
+    &.card {
+        margin-top: 1rem;
+    }
 
     .input-group {
         width: initial;

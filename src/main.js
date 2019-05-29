@@ -17,7 +17,7 @@ import moment from 'moment';
 import '@/polyfills';
 import App from '@/App';
 import router, { setRestoreRoute } from '@/router';
-import { htmlEscape } from '@/utils';
+import { capitalize, htmlEscape } from '@/utils';
 import store from './store';
 import * as mutationTypes from './store/mutation-types';
 
@@ -171,6 +171,7 @@ localforage.defineDriver(memoryStorageDriver).then(() => {
         driver: DRIVERS,
     });
 
+    Vue.prototype.$capitalize = capitalize;
     Vue.prototype.$htmlEscape = htmlEscape;
 
     Vue.prototype.$hasPermission = (permission, courseId, asMap) => {

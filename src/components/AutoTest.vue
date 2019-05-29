@@ -1,10 +1,14 @@
 <template>
-<b-alert v-if="error"
+<b-alert v-if="message && message.isError"
          show
          variant="danger"
          class="error-message">
-    {{ error }}
+    {{ message.text }}
 </b-alert>
+
+<div v-else-if="message" class="text-muted p-3">
+    {{ message.text }}
+</div>
 
 <loader v-else-if="loading" />
 
@@ -18,10 +22,8 @@
                 </div>
 
                 <div v-if="editable" class="btn-wrapper">
-                    <div class="btn btn-secondary" style="pointer-events: none;">
-                        <auto-test-state :state="run.state" />
-                        {{ capitalize(run.state.replace(/_/g, ' ')) }}
-                    </div>
+                    <auto-test-state btn :state="run.state" />
+
                     <submit-button
                         :submit="() => deleteResults(run.id)"
                         variant="danger"
@@ -364,7 +366,7 @@ export default {
             newFixtures: [],
             internalTest: {},
             loading: true,
-            error: '',
+            message: null,
             permissions: {},
             currentResult: null,
             pollingInterval: 3000,
@@ -457,10 +459,14 @@ export default {
             }).then(
                 () => {
                     this.loadAutoTestRun();
+                    this.message = null;
                     return this.loadSingleResult();
                 },
                 err => {
-                    this.error = `Could not load AutoTest: ${getErrorMessage(err)}`;
+                    this.message = {
+                        text: `Could not load AutoTest: ${getErrorMessage(err)}`,
+                        isError: true,
+                    };
                 },
             );
         },
@@ -514,9 +520,13 @@ export default {
                     if (!this.result.finished) {
                         this.pollingTimer = setTimeout(this.loadSingleResult, this.pollingInterval);
                     }
+                    this.message = null;
                 },
                 err => {
-                    this.error = `Could not load AutoTest result: ${getErrorMessage(err)}`;
+                    this.message = {
+                        text: getErrorMessage(err),
+                        isError: false,
+                    };
                 },
             );
         },
@@ -840,7 +850,7 @@ export default {
 }
 
 .fixture-list {
-    max-height: 20rem;
+    max-height: 15rem;
     overflow: auto;
     border-radius: 0.25rem;
     border: 1px solid @color-border-gray-lighter;

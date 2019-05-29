@@ -192,17 +192,17 @@
 <tbody v-else class="auto-test-step" :class="{ 'with-output': canViewOutput }">
     <template v-if="value.type === 'check_points'">
         <tr class="step-summary" v-b-toggle="resultsCollapseId">
-            <td class="expand" v-if="result">
+            <td class="expand shrink" v-if="result">
                 <icon v-if="canViewOutput" name="chevron-down" :scale="0.75" />
                 <icon v-else-if="value.hidden" name="eye-slash" :scale="0.85"
                         v-b-popover.hover.top="'You cannot view this step\'s results.'" />
             </td>
-            <td class="index">{{ index }}</td>
-            <td class="summary" colspan="2">
+            <td class="shrink">{{ index }}</td>
+            <td colspan="2">
                 <b>{{ stepName }}</b>
                 Stop when you got less than {{ value.data.min_points }} points.
             </td>
-            <td class="passed" v-if="result">
+            <td class="shrink text-center" v-if="result">
                 <auto-test-state :state="stepResult.state" />
             </td>
         </tr>
@@ -212,7 +212,7 @@
                 <b-collapse :id="resultsCollapseId" class="container-fluid">
                     <div class="row">
                         <div class="col-12">
-                            You {{ stepResult.state === 'passed' ? 'scored' : 'did not score' }}
+                            You {{ stepResult.passed ? 'scored' : 'did not score' }}
                             enough points.
                         </div>
                     </div>
@@ -223,18 +223,23 @@
 
     <template v-else-if="value.type === 'run_program'">
         <tr class="step-summary" v-b-toggle="resultsCollapseId">
-            <td class="expand" v-if="result">
+            <td class="expand shrink" v-if="result">
                 <icon v-if="canViewOutput" name="chevron-down" :scale="0.75" />
                 <icon v-else-if="value.hidden" name="eye-slash" :scale="0.85"
                         v-b-popover.hover.top="'You cannot view this step\'s results.'" />
             </td>
-            <td class="index">{{ index }}</td>
-            <td class="summary">
+            <td class="shrink">{{ index }}</td>
+            <td>
                 <b>{{ stepName }}</b>
                 Run <code>{{ value.data.program }}</code> and check for successful completion.
             </td>
-            <td class="weight">{{ value.weight }}</td>
-            <td class="passed" v-if="result">
+            <td class="shrink text-center">
+                <template v-if="result">
+                    {{ getProps(stepResult, '-', 'achieved_points') }} /
+                </template>
+                {{ value.weight }}
+            </td>
+            <td class="shrink text-center" v-if="result">
                 <auto-test-state :state="stepResult.state" />
             </td>
         </tr>
@@ -243,22 +248,22 @@
             <td colspan="5">
                 <b-collapse :id="resultsCollapseId" class="container-fluid">
                     <div class="row">
-                        <div class="col-12">
-                            <span>
+                        <b-tabs no-fade class="col-12" v-if="result">
+                            <b-tab title="info">
                                 Exit status code:
                                 <code>{{ getProps(stepResult.log, '(unknown)', 'exit_code') }}</code>
-                            </span>
-                        </div>
+                            </b-tab>
 
-                        <div class="col-6">
-                            <label>Output</label>
-                            <pre class="form-control">{{ stepResult.log.stdout }}</pre>
-                        </div>
+                            <b-tab title="stdout">
+                                <pre v-if="result.setupStdout">{{ stepResult.log.stdout }}</pre>
+                                <pre v-else class="text-muted">No output.</pre>
+                            </b-tab>
 
-                        <div class="col-6">
-                            <label>Errors</label>
-                            <pre class="form-control">{{ stepResult.log.stderr }}</pre>
-                        </div>
+                            <b-tab title="stderr">
+                                <pre v-if="result.setupStderr">{{ stepResult.log.stderr }}</pre>
+                                <pre v-else class="text-muted">No output.</pre>
+                            </b-tab>
+                        </b-tabs>
                     </div>
                 </b-collapse>
             </td>
@@ -267,18 +272,23 @@
 
     <template v-else-if="value.type === 'custom_output'">
         <tr class="step-summary" v-b-toggle="resultsCollapseId">
-            <td class="expand" v-if="result">
+            <td class="expand shrink" v-if="result">
                 <icon v-if="canViewOutput" name="chevron-down" :scale="0.75" />
                 <icon v-else-if="value.hidden" name="eye-slash" :scale="0.85"
                         v-b-popover.hover.top="'You cannot view this step\'s results.'" />
             </td>
-            <td class="index">{{ index }}</td>
-            <td class="summary">
+            <td class="shrink">{{ index }}</td>
+            <td>
                 <b>{{ stepName }}</b>
                 Run <code>{{ value.data.program }}</code> and parse its output.
             </td>
-            <td class="weight">{{ value.weight }}</td>
-            <td class="passed" v-if="result">
+            <td class="shrink text-center">
+                <template v-if="result">
+                    {{ getProps(stepResult, '-', 'achieved_points') }} /
+                </template>
+                {{ value.weight }}
+            </td>
+            <td class="shrink text-center" v-if="result">
                 <auto-test-state :state="stepResult.state" />
             </td>
         </tr>
@@ -287,26 +297,29 @@
             <td colspan="5">
                 <b-collapse :id="resultsCollapseId" class="container-fluid">
                     <div class="row">
-                        <div class="col-12">
-                            <label>
-                                Match output on
-                                <code>{{ value.data.regex }}</code>
-                            </label>
-                            <label>
-                                Exit status code:
-                                <code>{{ getProps(stepResult.log, '(unknown)', 'exit_code') }}</code>
-                            </label>
-                        </div>
+                            <b-tab title="info">
+                                <label>
+                                    Match output on
+                                    <code>{{ value.data.regex }}</code>
+                                </label>
+                                <label>
+                                    Exit status code:
+                                    <code>
+                                        {{ getProps(stepResult.log, '(unknown)', 'exit_code') }}
+                                    </code>
+                                </label>
+                            </b-tab>
 
-                        <div class="col-6">
-                            <label>Output</label>
-                            <pre class="form-control">{{ stepResult.log.stdout }}</pre>
-                        </div>
+                            <b-tab title="stdout">
+                                <pre v-if="result.setupStdout">{{ stepResult.log.stdout }}</pre>
+                                <pre v-else class="text-muted">No output.</pre>
+                            </b-tab>
 
-                        <div class="col-6">
-                            <label>Errors</label>
-                            <pre class="form-control">{{ stepResult.log.stderr }}</pre>
-                        </div>
+                            <b-tab title="stderr">
+                                <pre v-if="result.setupStderr">{{ stepResult.log.stderr }}</pre>
+                                <pre v-else class="text-muted">No output.</pre>
+                            </b-tab>
+                        </b-tabs>
                     </div>
                 </b-collapse>
             </td>
@@ -315,30 +328,40 @@
 
     <template v-else-if="value.type === 'io_test'">
         <tr>
-            <td class="expand" v-if="result">
+            <td class="expand shrink" v-if="result">
                 <icon v-if="value.hidden" name="eye-slash" :scale="0.85"
                     v-b-popover.hover.top="'You cannot view this step\'s results.'" />
             </td>
-            <td class="index"><b>{{ index }}</b></td>
-            <td class="summary">
+            <td class="shrink"><b>{{ index }}</b></td>
+            <td>
                 <b>{{ stepName }}</b>
                 Run <code>{{ value.data.program }}</code> and match its output to an expected value.
             </td>
-            <td class="weight"><b>{{ value.weight }}</b></td>
-            <td class="passed" v-if="result"></td>
+                <td class="shrink text-center">
+                    <template v-if="result">
+                    {{ getProps(stepResult, '-', 'achieved_points') }} /
+                    </template>
+                    {{ value.weight }}
+                </td>
+            <td class="shrink text-center" v-if="result"></td>
         </tr>
 
         <template v-for="input, i in inputs">
             <tr class="step-summary" v-b-toggle="`${resultsCollapseId}-${i}`">
-                <td class="expand" v-if="result">
+                <td class="expand shrink" v-if="result">
                     <icon v-if="canViewOutput" name="chevron-down" :scale="0.75" />
                     <icon v-else-if="value.hidden" name="eye-slash" :scale="0.85"
                         v-b-popover.hover.top="'You cannot view this step\'s results.'" />
                 </td>
-                <td class="index">{{ index }}.{{ i + 1 }}</td>
-                <td class="summary">{{ input.name }}</td>
-                <td class="weight">{{ input.weight }}</td>
-                <td class="passed" v-if="result">
+                <td class="shrink">{{ index }}.{{ i + 1 }}</td>
+                <td>{{ input.name }}</td>
+                <td class="shrink text-center">
+                    <template v-if="result">
+                        {{ getProps(stepResult.log.steps, '-', 'i', 'achieved_points') }} /
+                    </template>
+                    {{ input.weight }}
+                </td>
+                <td class="shrink text-center" v-if="result">
                     <auto-test-state :state="stepResult.log ? stepResult.log.steps[i].state : 'skipped'" />
                 </td>
             </tr>
@@ -839,19 +862,9 @@ hr {
         }
     }
 
-    td {
-        &.expand,
-        &.index,
-        &.weight,
-        &.passed {
-            width: 1px;
-            white-space: nowrap;
-        }
-
-        &.weight,
-        &.passed {
-            text-align: center;
-        }
+    td.shrink {
+        width: 1px;
+        white-space: nowrap;
     }
 }
 
@@ -896,6 +909,10 @@ hr {
         min-height: 2rem;
         max-height: 15rem;
         font-size: 87.5%;
+    }
+
+    .tabs {
+        margin-top: 0.5rem;
     }
 }
 </style>

@@ -179,11 +179,15 @@ class AutoTestResult {
     update(result, autoTest) {
         this.state = result.state;
         this.finished = ['passed', 'failed', 'timed_out'].indexOf(result.state) !== -1;
-        this.setupStdout = result.setup_stdout;
-        this.setupStderr = result.setup_stderr;
         this.pointsAchieved = result.points_achieved;
 
         this.updateStepResults(result.step_results, autoTest);
+    }
+
+    updateExtended(result, autoTest) {
+        this.update(result, autoTest);
+        this.setupStdout = result.setup_stdout;
+        this.setupStderr = result.setup_stderr;
     }
 
     // eslint-disable-next-line
@@ -199,72 +203,63 @@ class AutoTestResult {
             return acc;
         }, {});
 
-        let setCheckpointFailed = false;
+        let setFailed = false;
+
         autoTest.sets.forEach(set => {
-            this.setResults[set.id] = {
-                achieved: 0,
-                possible: 0,
-            };
+            const setResult = set.suites.reduce((acc1, suite) => {
+                const suiteResult = suite.steps.reduce((acc2, step) => {
+                    let stepResult = this.stepResults[step.id];
+                    acc2.possible += step.weight;
 
-            set.suites.forEach(suite => {
-                let suiteCheckpointFailed = false;
-                this.suiteResults[suite.id] = {
-                    achieved: 0,
-                    possible: 0,
-                };
-
-                suite.steps.forEach(step => {
-                    this.suiteResults[suite.id].possible += step.weight;
-
-                    if (setCheckpointFailed || suiteCheckpointFailed) {
-                        this.stepResults[step.id] = {
+                    if (setFailed && !acc2.passed) {
+                        stepResult = {
                             state: 'skipped',
                             log: null,
                         };
-                    } else if (this.stepResults[step.id] == null) {
-                        this.stepResults[step.id] = {
+                    } else if (stepResult == null) {
+                        stepResult = {
                             state: 'not_started',
                             log: null,
                         };
+                        acc1.finished = false;
+                        acc2.finished = false;
                     } else if (
                         step.type === 'check_points' &&
-                        this.stepResults[step.id].state === 'failed'
+                        stepResult.state === 'failed'
                     ) {
-                        suiteCheckpointFailed = true;
-                    } else if (this.stepResults[step.id].state === 'passed') {
-                        switch (step.type) {
-                            case 'io_test':
-                                this.suiteResults[suite.id].achieved += step.data.inputs.reduce(
-                                    (acc, input, i) => {
-                                        if (
-                                            this.stepResults[step.id].log.steps[i].state ===
-                                            'passed'
-                                        ) {
-                                            return acc + input.weight;
-                                        } else {
-                                            return acc;
-                                        }
-                                    },
-                                    0,
-                                );
-                                break;
-                            default:
-                                this.suiteResults[suite.id].achieved += step.weight;
-                        }
+                        acc2.passed = false;
+                    } else {
+                        stepResult.passed = stepResult.state === 'passed';
+                        acc2.achieved += stepResult.achieved_points;
                     }
+
+                    this.stepResults[step.id] = stepResult;
+
+                    return acc2;
+                }, {
+                    achieved: 0,
+                    possible: 0,
+                    passed: true,
+                    finished: true,
                 });
 
-                this.setResults[set.id].achieved += this.suiteResults[suite.id].achieved;
-                this.setResults[set.id].possible += this.suiteResults[suite.id].possible;
+                acc1.achieved += suiteResult.achieved;
+                acc1.possible += suiteResult.possible;
 
-                suite.passed = suiteCheckpointFailed;
+                this.suiteResults[suite.id] = suiteResult;
+
+                return acc1;
+            }, {
+                achieved: 0,
+                possible: 0,
+                passed: true,
+                finished: true,
             });
 
-            if (this.setResults[set.id] < set.stop_points) {
-                setCheckpointFailed = true;
-            }
+            setResult.passed = setResult.achieved >= set.stop_points;
+            setFailed = setFailed || (setResult.finished && !setResult.passed);
 
-            set.passed = setCheckpointFailed;
+            this.setResults[set.id] = setResult;
         });
     }
 }
@@ -646,7 +641,8 @@ const mutations = {
         const run = autoTest.runs[0];
         const resultIndex = run.results.findIndex(r => r.id === result.id);
         const storeResult = run.results[resultIndex];
-        storeResult.update(result, autoTest);
+
+        storeResult.updateExtended(result, autoTest);
 
         Vue.set(run.results, resultIndex, storeResult);
         Vue.set(state.results, result.id, storeResult);

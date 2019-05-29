@@ -185,7 +185,7 @@ export default {
 
 .multiple-files-uploader {
     &:not(.no-border) .dropzone {
-        border: 1px solid #dee2e6;
+        border: 1px solid rgba(0, 0, 0, 0.125);
         border-top-left-radius: 0.25rem;
         border-top-right-radius: 0.25rem;
 
@@ -251,8 +251,8 @@ export default {
                 align-items: center;
 
                 #app.dark & {
-                    color: @color-light-gray;
-                    border-color: @color-light-gray;
+                    color: rgba(0, 0, 0, 0.125);
+                    border-color: rgba(0, 0, 0, 0.125);
                 }
             }
         }
@@ -281,7 +281,7 @@ export default {
         .dz-preview {
             display: flex;
             padding: 0.75rem;
-            border-bottom: 1px solid #dee2e6;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.125);
 
             #app.dark & {
                 border-color: @color-primary-darker;
