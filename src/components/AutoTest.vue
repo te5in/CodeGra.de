@@ -126,8 +126,12 @@
 
                     <b-collapse
                         :id="autoTestSetupEnvWrapperId"
-                        :visible="!singleResult">
-                        <b-card-body>
+                        :visible="!singleResult" >
+                        <b-card-body v-if="!configEditable && !test.fixtures.length && !test.setup_script" class="text-muted">
+                            No fixtures or setup scripts were defined.
+                        </b-card-body>
+
+                        <b-card-body v-else>
                             <transition :name="disabledAnimations ? '' : 'fixtureswrapper'">
                                 <div v-if="test.fixtures.length > 0" class="transition">
                                     <b-form-fieldset>
