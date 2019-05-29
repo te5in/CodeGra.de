@@ -67,8 +67,9 @@ class AutoTestSuiteData {
                 network_disabled: this.networkDisabled == null ? true : this.networkDisabled,
             })
             .then(
-                ({ data }) => {
-                    this.setFromServerData(data);
+                res => {
+                    this.setFromServerData(res.data);
+                    return res;
                 },
                 err => {
                     const newErr = new Error('The suite is not valid');

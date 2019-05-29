@@ -85,6 +85,7 @@
                     label="Cancel"
                     :submit="cancelEdit"/>
                 <submit-button :submit="saveSuite"
+                               @success="afterSaveSuite"
                                label="Save">
                     <div slot="error"
                          slot-scope="scope"
@@ -325,12 +326,15 @@ export default {
             this.showModal = true;
         },
 
+        async afterSaveSuite() {
+            this.$refs.editModal.hide();
+            await this.$nextTick();
+            this.$emit('input', this.internalValue);
+            this.internalValue = null;
+        },
+
         saveSuite() {
-            return this.internalValue.save().then(() => {
-                this.$refs.editModal.hide();
-                this.$emit('input', this.internalValue);
-                this.internalValue = null;
-            });
+            return this.internalValue.save();
         },
 
         cancelEdit() {

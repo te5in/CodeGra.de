@@ -269,11 +269,25 @@ def update_or_create_auto_test_suite(auto_test_id: int, auto_test_set_id: int
         suite = get_or_404(models.AutoTestSuite, suite_id)
 
     suite.network_disabled = network_disabled
-    rubric_row = get_or_404(models.RubricRow, rubric_row_id)
-    # TODO: This sometimes fails?
-    if rubric_row.assignment.id != suite.auto_test_set.auto_test.assignment.id:
-        raise Exception
-    suite.rubric_row = rubric_row
+    if suite.rubric_row_id != rubric_row_id:
+        if (
+            rubric_row_id in
+            auto_test_set.auto_test.assignment.locked_rubric_rows
+        ):
+            raise Exception
+        rubric_row = get_or_404(models.RubricRow, rubric_row_id)
+        # TODO: This sometimes fails?
+        if (
+            rubric_row.assignment.id !=
+            suite.auto_test_set.auto_test.assignment.id
+        ):
+            raise Exception
+        suite.rubric_row = rubric_row
+        if rubric_row.is_selected():
+            add_warning(
+                'This rubric category is already used for manual grading',
+                APIWarnings.IN_USE_RUBRIC_ROW
+            )
 
     new_steps = []
     for idx, step_data in enumerate(steps):
