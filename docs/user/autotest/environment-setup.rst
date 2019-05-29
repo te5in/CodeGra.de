@@ -4,14 +4,15 @@ Environment setup
 To make CodeGrade AutoTest as flexible as possible, it is possible to customize
 the complete environment the tests are run in. Each separate assignment that
 makes use of AutoTest runs on its own Virtual Private Server, to which you have
-superuser rights and network access during the setup phase. Every VPS is shipped
-with the latest LTS version of Ubuntu, which is **Ubuntu
-18.04.2 LTS**.
+superuser rights and network access during the setup phase. Every VPS on
+official CodeGrade instances runs with the latest LTS version of Ubuntu, which
+is **Ubuntu 18.04.2 LTS**.
 
 After the Setup Phase is finished, a snapshot is created which is used to
 initialize the containers used to run the actual tests on the student
 submissions. The Setup Phase consists of the default installed software,
-fixtures (which are available in the ``../fixtures/`` folder) and setup script.
+fixtures (which are available in the ``../fixtures/`` folder, or using the
+``FIXTURES`` environment variable) and setup script.
 
 There are multiple options for setting up your environment, which makes AutoTest
 easy to use for simple cases yet very flexible for all advanced cases.
@@ -24,21 +25,24 @@ commonly used for testing and running student submissions. This body of software
 is sufficient for most cases, which allows you to skip manually further setting
 up the environment.
 
-The following software is automatically installed in all environments:
+The following software is automatically installed in all environments, all
+versions, except for Python, are lower bounds, as all packages are always
+updated to the latest version shipped by Ubuntu:
 
 - Python 2.7 *(with pip)*
 - Python 3.6 *(with pip3)*
 - Python 3.7 *(with pip3)*
 - Java 8 *(openjdk-8-jdk)*
 - Java 11 *(openjdk-11-jdk)*
-- R *(r-base)*
-- C *(clang)*
-- Go *(golang)*
+- R *(r-base 3.4)*
+- C/C++ *(gcc 7 and clang 6 as compilers)*
+- Go *(golang 1.10)*
 - Git
 - Maven
 - Flake8
 - Numpy *(for Python2, Python3.6 and Python3.7)*
 - SciPy *(for Python2, Python3.6 and Python3.7)*
+- Check *(unit test framework for C)*
 
 Read the following sections to find out about extending this environment with
 other required software.
