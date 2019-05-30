@@ -14,12 +14,13 @@ assignment runs on a dedicated Virtual Private Server (VPS) providing a hard
 division between assignments and maximum security and privacy. AutoTest is
 secure by default and by design.
 
-AutoTest Tests are grouped into Test Suites, these Test Suites are then connected
-to a rubric category. This gives maximum feedback to students and forces teachers
+AutoTest Tests are grouped into Categories, each AutoTest Category is then connected
+to a Rubric Category. By connecting AutoTest to the rubric, students still get
+feedback even when automatically grading. It also forces teachers
 to group their tests in a meaningful way.
 
-Test Suites are grouped into Test Sets. Usually one Test Set is enough, but there
-are some use-cases in which you would want to create multiple Test Sets.
+AutoTest Categories are grouped into Levels. Usually one Level is enough, but there
+are some use-cases in which you would want to create multiple Levels.
 
 Running AutoTest is easy and straightforward. After a run the results are visible
 to students from within the Code Viewer.
@@ -28,8 +29,8 @@ to students from within the Code Viewer.
     :maxdepth: 1
 
     environment-setup
-    test-sets
-    test-suites
+    levels
+    categories
     tests
     running-autotest
     student-experience
