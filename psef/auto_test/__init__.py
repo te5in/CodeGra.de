@@ -17,8 +17,7 @@ import traceback
 import contextlib
 import subprocess
 from pathlib import Path
-from multiprocessing import Queue, context
-from multiprocessing.dummy import Pool
+from multiprocessing import Pool, Event, Queue, Manager, context
 
 import lxc  # typing: ignore
 import requests
@@ -44,7 +43,7 @@ auto_test_runners: register.Register[str, t.Type['AutoTestRunner']
 OutputCallback = t.Callable[[bytes], None]
 URL = t.NewType('URL', str)
 
-_STOP_CONTAINERS = threading.Event()
+_STOP_CONTAINERS = Event()
 
 T = t.TypeVar('T')
 
@@ -52,9 +51,13 @@ Network = t.NewType('Network', t.Tuple[str, t.List[t.Tuple[str, str]]])
 
 
 class CpuCores():
-    def __init__(self, number_of_cores: t.Optional[int] = None) -> None:
+    def __init__(
+        self,
+        number_of_cores: t.Optional[int] = None,
+        make_queue: t.Callable[[int], Queue] = Queue
+    ) -> None:
         self._number_of_cores = number_of_cores or _get_amount_cpus()
-        self._available_cores: Queue[int] = Queue(self._number_of_cores)
+        self._available_cores: Queue[int] = make_queue(self._number_of_cores)
         for core in range(self._number_of_cores):
             self._available_cores.put(core)
 
@@ -202,9 +205,16 @@ def _push_logging(post_log: t.Callable[[JSONType], object]) -> RepeatedTimer:
         if logs_copy:
             post_log(logs_copy)
 
-    res = RepeatedTimer(15, push_logs, cleanup=log_line.disable)
-    res.start()
-    return res
+    return RepeatedTimer(
+        15, push_logs, cleanup=log_line.disable, use_process=False
+    )
+
+
+# This wrapper function is needed for Python multiprocessing
+def _run_student(
+    cont: '_BaseAutoTestRunner', bc_name: str, cores: CpuCores, result_id: int
+) -> None:
+    cont.run_student(bc_name, cores, result_id)
 
 
 def start_polling(config: 'psef.FlaskConfig') -> None:
@@ -735,6 +745,10 @@ class AutoTestContainer:
         else:
             self._cont = cont
 
+    @property
+    def name(self) -> str:
+        return self._name
+
     def create(self) -> None:
         assert self._cont.create(
             'download',
@@ -962,17 +976,20 @@ class _BaseAutoTestRunner(AutoTestRunner):
     @timed_function
     def run_student(
         self,
-        base_container: AutoTestContainer,
+        base_container_name: str,
         cpu_cores: CpuCores,
         result_id: int,
     ) -> None:
+        base_container = AutoTestContainer(base_container_name, self.config)
         student_container = base_container.clone()
 
         result_url = f'{self.base_url}/results/{result_id}'
         result_state = models.AutoTestStepResultState.running
+        push_logger = _push_logging(self._push_log)
 
         try:
             logger.bind(result_id=result_id)
+            push_logger.start()
 
             self.req.patch(
                 result_url,
@@ -1026,13 +1043,13 @@ class _BaseAutoTestRunner(AutoTestRunner):
             result_state = models.AutoTestStepResultState.passed
         finally:
             logger.try_unbind('result_id')
+            push_logger.cancel()
             self.req.patch(
                 result_url,
                 json={'state': result_state.name},
             )
 
-    @contextlib.contextmanager
-    def started_heartbeat(self) -> t.Generator[None, None, None]:
+    def started_heartbeat(self) -> 'RepeatedTimer':
         def push_heartbeat() -> None:
             logger.info('Pushing heartbeat')
             res = self.req.post(
@@ -1043,22 +1060,18 @@ class _BaseAutoTestRunner(AutoTestRunner):
 
         interval = self.instructions['heartbeat_interval']
         logger.info('Starting heartbeat interval', interval=interval)
-        timer = RepeatedTimer(interval, push_heartbeat)
-        try:
-            timer.start()
-            yield
-        finally:
-            timer.cancel()
+        return RepeatedTimer(interval, push_heartbeat, use_process=True)
+
+    def _push_log(self, logs: JSONType) -> object:
+        return self.req.post(
+            f'{self.base_url}/runs/{self.instructions["run_id"]}/logs/',
+            json={'logs': logs},
+        )
 
     def run_test(self, cont: StartedContainer) -> None:
-        push_log_timer = _push_logging(
-            lambda logs: self.req.post(
-                f'{self.base_url}/runs/{self.instructions["run_id"]}/logs/',
-                json={'logs': logs},
-            )
-        )
         run_result_url = f'{self.base_url}/runs/{self.instructions["run_id"]}'
         time_taken: t.Optional[float] = None
+        push_log_timer = _push_logging(self._push_log).start()
 
         with self.started_heartbeat():
             self.req.patch(
@@ -1151,17 +1164,21 @@ class _BaseAutoTestRunner(AutoTestRunner):
             json={'state': models.AutoTestRunState.running.name},
         )
 
-        with cont.stopped_container(
-        ) as base_container, timed_code('run_all_students'), Pool(
+        with cont.stopped_container() as base_container, timed_code(
+            'run_all_students'
+        ), Manager() as m, Pool(
             # Over provision a bit so clones can be made quicker.
             _get_amount_cpus() + 4
         ) as pool:
-            cpu_cores = CpuCores()
+            # Known issue from typeshed:
+            # https://github.com/python/typeshed/issues/3018
+            make_queue: t.Callable[[int], Queue] = m.Queue  # type: ignore
+            cpu_cores = CpuCores(make_queue=make_queue)
 
             try:
                 res = pool.starmap_async(
-                    self.run_student, [
-                        (base_container, cpu_cores, res_id)
+                    _run_student, [
+                        (self, base_container.name, cpu_cores, res_id)
                         for res_id in self.instructions['result_ids']
                     ]
                 )

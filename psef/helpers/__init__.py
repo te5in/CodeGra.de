@@ -12,6 +12,7 @@ import datetime
 import threading
 import contextlib
 import subprocess
+import multiprocessing
 from functools import wraps
 
 import flask
@@ -589,6 +590,7 @@ def ensure_keys_in_dict(
 
 def get_json_dict_from_request(
     replace_log: t.Optional[t.Callable[[str, object], object]] = None,
+    log_object: bool = True,
 ) -> t.Dict[str, JSONType]:
     """Get the JSON dict from this request.
 
@@ -598,12 +600,13 @@ def get_json_dict_from_request(
     :raises psef.errors.APIException: If the found JSON is not a dictionary.
         (INVALID_PARAM)
     """
-    return ensure_json_dict(request.get_json(), replace_log)
+    return ensure_json_dict(request.get_json(), replace_log, log_object)
 
 
 def ensure_json_dict(
     json_value: JSONType,
-    replace_log: t.Optional[t.Callable[[str, object], object]] = None
+    replace_log: t.Optional[t.Callable[[str, object], object]] = None,
+    log_object: bool = True,
 ) -> t.Dict[str, JSONType]:
     """Make sure that the given json is a JSON dictionary
 
@@ -615,10 +618,11 @@ def ensure_json_dict(
         (INVALID_PARAM)
     """
     if isinstance(json_value, t.Dict):
-        to_log = json_value
-        if replace_log is not None:
-            to_log = {k: replace_log(k, v) for k, v in json_value.items()}
-        logger.info('JSON request processed', request_data=to_log)
+        if log_object:
+            to_log = json_value
+            if replace_log is not None:
+                to_log = {k: replace_log(k, v) for k, v in json_value.items()}
+            logger.info('JSON request processed', request_data=to_log)
 
         return json_value
     raise psef.errors.APIException(
@@ -877,7 +881,7 @@ def timed_function(fun: T_CAL) -> T_CAL:
     return t.cast(T_CAL, _wrapper)
 
 
-class RepeatedTimer(threading.Thread):
+class RepeatedTimer:
     """Call a function repeatedly in a separate thread.
 
     .. warning::
@@ -891,9 +895,10 @@ class RepeatedTimer(threading.Thread):
         interval: int,
         function: t.Callable[[], None],
         cleanup: t.Callable[[], None] = lambda: None,
+        use_process: bool = False,
     ) -> None:
         super().__init__()
-        self.interval = interval
+        self.__interval = interval
 
         def fun() -> None:
             try:
@@ -902,27 +907,46 @@ class RepeatedTimer(threading.Thread):
             except:
                 pass
 
-        self.function = fun
-        self.__finish = threading.Event()
-        self.__finished = threading.Event()
-        self.cleanup = cleanup
+        get_event = multiprocessing.Event
+
+        self.__function = fun
+        self.__finish = get_event()
+        self.__finished = get_event()
+        self.__cleanup = cleanup
+        self.__use_process = use_process
 
     def cancel(self) -> None:
-        self.__finish.set()
-        self.__finished.wait()
+        if not self.__finish.is_set():
+            self.__finish.set()
+            self.__finished.wait()
 
-    def run(self) -> None:
-        try:
-            while True:
-                self.function()
-                if self.__finish.wait(self.interval):
-                    break
-            self.function()
-        finally:
+    def start(self) -> 'RepeatedTimer':
+        self.__finish.clear()
+
+        def fun() -> None:
             try:
-                self.cleanup()
+                while True:
+                    self.__function()
+                    if self.__finish.wait(self.__interval):
+                        break
+                self.__function()
             finally:
-                self.__finished.set()
+                try:
+                    self.__cleanup()
+                finally:
+                    self.__finished.set()
+
+        if self.__use_process:
+            multiprocessing.Process(target=fun).start()
+        else:
+            threading.Thread(target=fun).start()
+        return self
+
+    def __exit__(self, exc_type: object, exc_value: object, traceback: object) -> None:
+        self.cancel()
+
+    def __enter__(self) -> 'RepeatedTimer':
+        return self.start()
 
 
 @contextlib.contextmanager
