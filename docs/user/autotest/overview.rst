@@ -1,7 +1,7 @@
-AutoTest Overview
+AutoTest
 ================================
 
-AutoTest is the CodeGrade's highly flexible and highly customizable Automatic
+AutoTest is CodeGrade's highly flexible and highly customizable Automatic
 Grading Environment. With AutoTest you can fully configure a Virtual Machine
 to suit the needs of your assignments. Via the intuitive user interface you can
 easily create simple input/output tests or run custom programs or unit tests.
