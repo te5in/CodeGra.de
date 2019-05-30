@@ -590,6 +590,7 @@ def ensure_keys_in_dict(
 
 def get_json_dict_from_request(
     replace_log: t.Optional[t.Callable[[str, object], object]] = None,
+    log_object: bool = True,
 ) -> t.Dict[str, JSONType]:
     """Get the JSON dict from this request.
 
@@ -599,12 +600,13 @@ def get_json_dict_from_request(
     :raises psef.errors.APIException: If the found JSON is not a dictionary.
         (INVALID_PARAM)
     """
-    return ensure_json_dict(request.get_json(), replace_log)
+    return ensure_json_dict(request.get_json(), replace_log, log_object)
 
 
 def ensure_json_dict(
     json_value: JSONType,
-    replace_log: t.Optional[t.Callable[[str, object], object]] = None
+    replace_log: t.Optional[t.Callable[[str, object], object]] = None,
+    log_object: bool = True,
 ) -> t.Dict[str, JSONType]:
     """Make sure that the given json is a JSON dictionary
 
@@ -616,10 +618,11 @@ def ensure_json_dict(
         (INVALID_PARAM)
     """
     if isinstance(json_value, t.Dict):
-        to_log = json_value
-        if replace_log is not None:
-            to_log = {k: replace_log(k, v) for k, v in json_value.items()}
-        logger.info('JSON request processed', request_data=to_log)
+        if log_object:
+            to_log = json_value
+            if replace_log is not None:
+                to_log = {k: replace_log(k, v) for k, v in json_value.items()}
+            logger.info('JSON request processed', request_data=to_log)
 
         return json_value
     raise psef.errors.APIException(

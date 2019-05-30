@@ -70,13 +70,6 @@ class CpuCores():
             self._available_cores.put(core)
 
 
-# This wrapper function is needed for Python multiprocessing
-def _run_student(
-    cont: '_BaseAutoTestRunner', bc_name: str, cores: CpuCores, result_id: int
-) -> None:
-    cont.run_student(bc_name, cores, result_id)
-
-
 class StopContainerException(Exception):
     pass
 
@@ -213,8 +206,15 @@ def _push_logging(post_log: t.Callable[[JSONType], object]) -> RepeatedTimer:
             post_log(logs_copy)
 
     return RepeatedTimer(
-        15, push_logs, cleanup=log_line.disable, use_process=True
+        15, push_logs, cleanup=log_line.disable, use_process=False
     )
+
+
+# This wrapper function is needed for Python multiprocessing
+def _run_student(
+    cont: '_BaseAutoTestRunner', bc_name: str, cores: CpuCores, result_id: int
+) -> None:
+    cont.run_student(bc_name, cores, result_id)
 
 
 def start_polling(config: 'psef.FlaskConfig') -> None:
@@ -985,9 +985,11 @@ class _BaseAutoTestRunner(AutoTestRunner):
 
         result_url = f'{self.base_url}/results/{result_id}'
         result_state = models.AutoTestStepResultState.running
+        push_logger = _push_logging(self._push_log)
 
         try:
             logger.bind(result_id=result_id)
+            push_logger.start()
 
             self.req.patch(
                 result_url,
@@ -1041,6 +1043,7 @@ class _BaseAutoTestRunner(AutoTestRunner):
             result_state = models.AutoTestStepResultState.passed
         finally:
             logger.try_unbind('result_id')
+            push_logger.cancel()
             self.req.patch(
                 result_url,
                 json={'state': result_state.name},
@@ -1059,15 +1062,16 @@ class _BaseAutoTestRunner(AutoTestRunner):
         logger.info('Starting heartbeat interval', interval=interval)
         return RepeatedTimer(interval, push_heartbeat, use_process=True)
 
+    def _push_log(self, logs: JSONType) -> object:
+        return self.req.post(
+            f'{self.base_url}/runs/{self.instructions["run_id"]}/logs/',
+            json={'logs': logs},
+        )
+
     def run_test(self, cont: StartedContainer) -> None:
         run_result_url = f'{self.base_url}/runs/{self.instructions["run_id"]}'
         time_taken: t.Optional[float] = None
-        push_log_timer = _push_logging(
-            lambda logs: self.req.post(
-                f'{self.base_url}/runs/{self.instructions["run_id"]}/logs/',
-                json={'logs': logs},
-            )
-        ).start()
+        push_log_timer = _push_logging(self._push_log).start()
 
         with self.started_heartbeat():
             self.req.patch(

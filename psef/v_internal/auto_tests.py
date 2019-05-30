@@ -78,14 +78,18 @@ def verify_global_header_password() -> LocalRunner:
 
 @api.route('/auto_tests/', methods=['GET'])
 @feature_required(Feature.AUTO_TEST)
-def get_auto_test_status() -> t.Union[JSONResponse[
-    auto_test.RunnerInstructions], JSONResponse[t.Dict[str, bool]], EmptyResponse]:
+def get_auto_test_status(
+) -> t.Union[JSONResponse[auto_test.RunnerInstructions], JSONResponse[
+    t.Dict[str, bool]], EmptyResponse]:
     verify_global_header_password()
     to_get = request.args.get('get', object())
 
     if to_get == 'own_status':
         return jsonify(
-            {'running': models.AutoTestRunner.already_running(request.remote_addr)}
+            {
+                'running':
+                    models.AutoTestRunner.already_running(request.remote_addr)
+            }
         )
     elif to_get == 'tests_to_run':
         config_dict = app.config['AUTO_TEST_CREDENTIALS'][request.remote_addr]
@@ -200,7 +204,9 @@ def post_heartbeat(auto_test_id: int, run_id: int) -> EmptyResponse:
 def emit_log_for_runner(auto_test_id: int, run_id: int) -> EmptyResponse:
     password = verify_global_header_password()
 
-    with get_from_map_transaction(get_json_dict_from_request()) as [get, _]:
+    with get_from_map_transaction(
+        get_json_dict_from_request(log_object=False)
+    ) as [get, _]:
         logs = get('logs', list)
 
     run = filter_single_or_404(
