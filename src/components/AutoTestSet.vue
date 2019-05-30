@@ -62,13 +62,13 @@
             </template>
 
             <template v-else>
-                Only execute further test sets when achieved grade by AutoTest is higher than
+                Only execute further test sets when achieved points by AutoTest is higher than
                 <code>{{ stopPoints }}</code>
             </template>
         </b-card>
 
         <b-card-footer v-else-if="editable" class="auto-test-header editable transition set-continue" >
-            Only execute further test sets when achieved grade by AutoTest is higher than
+            Only execute further test sets when achieved points by AutoTest is higher than
 
             <b-input-group class="input-group">
                 <input
@@ -87,7 +87,7 @@
 
         <b-card-footer v-else class="auto-test-header editable transition set-continue" >
             <span class="font-italic text-muted">
-                Only execute further test sets when achieved grade by AutoTest is higher than
+                Only execute further test sets when achieved points by AutoTest is higher than
                 <code>{{ stopPoints }}</code>
             </span>
         </b-card-footer>

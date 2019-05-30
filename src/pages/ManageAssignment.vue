@@ -410,6 +410,11 @@ export default {
             return this.permissions.manage_rubrics && UserConfig.features.rubrics;
         },
 
+        canUseAutoTest() {
+            // TODO: Add permissions.can_manage_auto_test
+            return UserConfig.features.auto_test;
+        },
+
         categories() {
             return [
                 {
@@ -442,7 +447,7 @@ export default {
                 },
                 {
                     name: 'AutoTest',
-                    enabled: true,
+                    enabled: this.canUseAutoTest,
                 },
             ];
         },

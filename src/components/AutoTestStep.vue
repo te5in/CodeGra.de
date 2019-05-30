@@ -357,12 +357,12 @@
                 <td>{{ input.name }}</td>
                 <td class="shrink text-center">
                     <template v-if="result">
-                        {{ getProps(stepResult.log.steps, '-', 'i', 'achieved_points') }} /
+                        {{ getProps(stepResult, '-', 'log', 'steps', i, 'achieved_points') }} /
                     </template>
                     {{ input.weight }}
                 </td>
                 <td class="shrink text-center" v-if="result">
-                    <auto-test-state :state="stepResult.log ? stepResult.log.steps[i].state : 'skipped'" />
+                    <auto-test-state :state="ioSubStepState(i)" />
                 </td>
             </tr>
 
@@ -683,6 +683,17 @@ export default {
                 }),
             );
         },
+
+        ioSubStepState(i) {
+            return getProps(
+                this.stepResult,
+                this.stepResult.state,
+                'log',
+                'steps',
+                i,
+                'state',
+            );
+        },
     },
 
     components: {
@@ -892,6 +903,7 @@ hr {
 
     code.form-control,
     pre.form-control {
+        min-height: 2rem;
         background-color: rgba(0, 0, 0, 0.03);
         margin-bottom: 1rem;
 
@@ -906,7 +918,6 @@ hr {
 
     pre.form-control {
         flex: 1 1 auto;
-        min-height: 2rem;
         max-height: 15rem;
         font-size: 87.5%;
     }

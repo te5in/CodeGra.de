@@ -6,7 +6,7 @@
     {{ message.text }}
 </b-alert>
 
-<div v-else-if="message" class="text-muted p-3">
+<div v-else-if="message" class="text-muted font-italic p-3">
     {{ message.text }}
 </div>
 
@@ -79,11 +79,12 @@
                     Configuration
                 </span>
                 <div class="btn-wrapper"
-                    v-b-popover.hover.top="!configEditable ? 'The AutoTest configuration cannot be deleted because there are results associated with it.' : ''">
+                    v-b-popover.hover.top="createAutoTestPopover">
                     <submit-button
                         v-if="!loading && test == null"
                         label="Create AutoTest"
                         key="create-btn"
+                        :disabled="this.assignment.rubric == null"
                         :submit="createAutoTest"
                         @success="afterCreateAutoTest"/>
                     <submit-button
@@ -106,7 +107,7 @@
             </b-card-header>
         </template>
 
-        <b-card-body v-if="test == null" key="empty" class="text-muted">
+        <b-card-body v-if="test == null" key="empty" class="text-muted font-italic">
             You have no AutoTest yet for this assignment
         </b-card-body>
         <b-collapse v-else :id="configCollapseId" :visible="singleResult || !autoTestRun">
@@ -124,10 +125,9 @@
                         Environment setup
                     </template>
 
-                    <b-collapse
-                        :id="autoTestSetupEnvWrapperId"
-                        :visible="!singleResult" >
-                        <b-card-body v-if="!configEditable && !test.fixtures.length && !test.setup_script" class="text-muted">
+                    <b-collapse :id="autoTestSetupEnvWrapperId"
+                                :visible="!singleResult" >
+                        <b-card-body v-if="hasEnvironmentSetup" class="text-muted font-italic">
                             No fixtures or setup scripts were defined.
                         </b-card-body>
 
@@ -514,12 +514,10 @@ export default {
                 return null;
             }
 
-            return Promise.all([
-                this.storeLoadAutoTestResult({
-                    autoTestId: this.autoTestId,
-                    submissionId: this.submissionId,
-                }),
-            ]).then(
+            return this.storeLoadAutoTestResult({
+                autoTestId: this.autoTestId,
+                submissionId: this.submissionId,
+            }).then(
                 () => {
                     if (!this.result.finished) {
                         this.pollingTimer = setTimeout(this.loadSingleResult, this.pollingInterval);
@@ -730,6 +728,20 @@ export default {
                 return null;
             }
             return this.test.runs[0].results.find(r => r.submission.id === this.submissionId);
+        },
+
+        createAutoTestPopover() {
+            if (this.assignment.rubric == null) {
+                return 'You cannot create an AutoTest for this assignment because it does not have a rubric.';
+            } else if (this.editable && !this.configEditable) {
+                return 'The AutoTest configuration cannot be deleted because there are results associated with it.';
+            } else {
+                return '';
+            }
+        },
+
+        hasEnvironmentSetup() {
+            return !this.configEditable && !this.test.fixtures.length && !this.test.setup_script;
         },
     },
 
