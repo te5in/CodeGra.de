@@ -351,7 +351,7 @@ def select_rubric_items(submission_id: int, ) -> EmptyResponse:
         ):
             raise APIException(
                 (
-                    'This rubric row is connected to an AutoTest suite, so you'
+                    'This rubric row is connected to an AutoTest category, so you'
                     ' cannot change it.'
                 ), 'An item is connected to one of these rows: "{}"'.format(
                     ', '.join(

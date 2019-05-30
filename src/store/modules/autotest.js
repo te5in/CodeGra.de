@@ -51,7 +51,7 @@ class AutoTestSuiteData {
         const errors = this.getErrors();
 
         if (errors != null) {
-            const err = new Error('The suite is not valid');
+            const err = new Error('The category is not valid');
             err.messages = errors;
             return Promise.reject(err);
         }
@@ -72,7 +72,7 @@ class AutoTestSuiteData {
                     return res;
                 },
                 err => {
-                    const newErr = new Error('The suite is not valid');
+                    const newErr = new Error('The category is not valid');
                     newErr.messages = {
                         general: [err.response.data.message],
                         steps: [],
@@ -162,7 +162,7 @@ class AutoTestSuiteData {
         }
 
         if (!this.rubricRow || !this.rubricRow.id) {
-            caseErrors.general.push('You should select a rubric category for this test suite.');
+            caseErrors.general.push('You should select a rubric category for this test category.');
         }
 
         return caseErrors.isEmpty() ? null : caseErrors;

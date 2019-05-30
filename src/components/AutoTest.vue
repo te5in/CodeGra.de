@@ -256,11 +256,11 @@
                 <transition :name="disabledAnimations ? '' : 'emptytext'">
                     <div class="text-muted empty-text transition"
                             v-if="test.sets.filter(s => !s.deleted).length === 0">
-                        You have no test sets yet. Click the button below to create one.
+                        You have no levels yet. Click the button below to create one.
                     </div>
                 </transition>
 
-                <h5 v-if="singleResult" style="margin-top: 1rem;">Test suites</h5>
+                <h5 v-if="singleResult" style="margin-top: 1rem;">Test categories</h5>
 
                 <transition-group :name="disabledAnimations ? '' : 'list'">
 
@@ -280,7 +280,7 @@
                 <div v-if="configEditable"
                      class="add-btn-wrapper transition">
                     <submit-button :submit="addSet"
-                                   label="Add set"
+                                   label="Add level"
                                    class="transition"/>
                 </div>
             </b-card-body>

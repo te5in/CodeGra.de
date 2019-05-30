@@ -66,7 +66,7 @@
                 </template>
                 <template v-else-if="value.type === 'check_points'">
                     <label>
-                        Stop test suite if amount of points is below
+                        Stop test category if amount of points is below
                     </label>
                     <input class="form-control min-points-input"
                            type="number"
