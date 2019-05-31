@@ -7,7 +7,7 @@ import structlog
 from flask import request, make_response
 
 from . import api
-from .. import app, files, tasks, models, parsers, auto_test
+from .. import app, auth, files, tasks, models, parsers, auto_test, exceptions
 from ..models import db
 from ..helpers import (
     JSONResponse, EmptyResponse, ExtendedJSONResponse, jsonify, get_or_404,
@@ -18,6 +18,7 @@ from ..helpers import (
 )
 from ..features import Feature, feature_required
 from ..exceptions import APICodes, APIWarnings, APIException
+from ..permissions import CoursePermission as CPerm
 
 logger = structlog.get_logger()
 
@@ -28,10 +29,11 @@ def create_auto_test() -> JSONResponse[models.AutoTest]:
     with get_from_map_transaction(get_json_dict_from_request()) as [get, _]:
         assignment_id = get('assignment_id', int)
 
-    # TODO: permission
+    assignment = get_or_404(models.Assignment, assignment_id)
+    auth.ensure_permission(CPerm.can_edit_autotest, assignment.course_id)
 
     auto_test = models.AutoTest(
-        assignment=get_or_404(models.Assignment, assignment_id),
+        assignment=assignment,
         setup_script='',
         run_setup_script='',
         finalize_script='',
@@ -45,6 +47,10 @@ def create_auto_test() -> JSONResponse[models.AutoTest]:
 @feature_required(Feature.AUTO_TEST)
 def delete_auto_test(auto_test_id: int) -> EmptyResponse:
     auto_test = get_or_404(models.AutoTest, auto_test_id)
+
+    auth.ensure_permission(
+        CPerm.can_edit_autotest, auto_test.assignment.course_id
+    )
 
     for f in auto_test.fixtures:
         db.session.delete(f)
@@ -64,13 +70,13 @@ def delete_auto_test(auto_test_id: int) -> EmptyResponse:
 def get_fixture_contents(
     auto_test_id: int, fixture_id: int
 ) -> werkzeug.wrappers.Response:
-    fixture = filter_single_or_404(
+    fixture = get_or_404(
         models.AutoTestFixture,
-        models.AutoTest.id == auto_test_id,
-        models.AutoTestFixture.id == fixture_id,
+        fixture_id,
+        also_error=lambda obj: obj.auto_test_id != auto_test_id,
     )
 
-    fixture.hidden = request.method == 'POST'
+    auth.ensure_can_view_fixture(fixture)
 
     contents = files.get_file_contents(fixture)
     res: werkzeug.wrappers.Response = make_response(contents)
@@ -90,6 +96,10 @@ def hide_or_open_fixture(auto_test_id: int, fixture_id: int) -> EmptyResponse:
         models.AutoTestFixture.id == fixture_id,
     )
 
+    auth.ensure_permission(
+        CPerm.can_edit_autotest, fixture.auto_test.assignment.course_id
+    )
+
     fixture.hidden = request.method == 'POST'
     db.session.commit()
 
@@ -98,11 +108,12 @@ def hide_or_open_fixture(auto_test_id: int, fixture_id: int) -> EmptyResponse:
 
 @api.route('/auto_tests/<int:auto_test_id>', methods=['PATCH'])
 @feature_required(Feature.AUTO_TEST)
-def update_or_create_auto_test(auto_test_id: int
-                               ) -> JSONResponse[models.AutoTest]:
+def update_auto_test(auto_test_id: int) -> JSONResponse[models.AutoTest]:
     auto_test = get_or_404(models.AutoTest, auto_test_id)
+    auth.ensure_permission(
+        CPerm.can_edit_autotest, auto_test.assignment.course_id
+    )
 
-    # TODO: Permission check
     content = ensure_json_dict(
         ('json' in request.files and json.loads(request.files['json'].read()))
         or request.get_json()
@@ -190,7 +201,9 @@ def update_or_create_auto_test(auto_test_id: int
 def create_auto_test_set(auto_test_id: int
                          ) -> JSONResponse[models.AutoTestSet]:
     auto_test = get_or_404(models.AutoTest, auto_test_id)
-    # TODO: Permission check
+    auth.ensure_permission(
+        CPerm.can_edit_autotest, auto_test.assignment.course_id
+    )
 
     auto_test.sets.append(models.AutoTestSet())
     db.session.commit()
@@ -210,6 +223,10 @@ def update_auto_test_set(
         models.AutoTestSet,
         models.AutoTestSet.id == auto_test_set_id,
         models.AutoTest.id == auto_test_id,
+    )
+
+    auth.ensure_permission(
+        CPerm.can_edit_autotest, auto_test_set.auto_test.assignment.course_id
     )
 
     with get_from_map_transaction(get_json_dict_from_request()) as [get, opt]:
@@ -239,7 +256,9 @@ def delete_auto_test_set(
         models.AutoTestSet.id == auto_test_set_id,
         models.AutoTest.id == auto_test_id,
     )
-    # TODO: Permission check
+    auth.ensure_permission(
+        CPerm.can_edit_autotest, auto_test_set.auto_test.assignment.course_id
+    )
 
     db.session.delete(auto_test_set)
     db.session.commit()
@@ -259,7 +278,9 @@ def update_or_create_auto_test_suite(auto_test_id: int, auto_test_set_id: int
         models.AutoTestSet.id == auto_test_set_id,
         models.AutoTest.id == auto_test_id,
     )
-    # TODO: Permission check
+    auth.ensure_permission(
+        CPerm.can_edit_autotest, auto_test_set.auto_test.assignment.course_id
+    )
 
     with get_from_map_transaction(get_json_dict_from_request()) as [get, opt]:
         steps = get('steps', list)
@@ -354,19 +375,24 @@ def delete_suite(test_id: int, set_id: int, suite_id: int) -> EmptyResponse:
         models.AutoTestSet.id == set_id,
         models.AutoTest.id == test_id,
     )
+    auth.ensure_permission(
+        CPerm.can_edit_autotest,
+        suite.auto_test_set.auto_test.assignment.course_id
+    )
 
     db.session.delete(suite)
     db.session.commit()
     return make_empty_response()
-    # TODO: Permission check
 
 
 @api.route('/auto_tests/<int:auto_test_id>', methods=['GET'])
 @feature_required(Feature.AUTO_TEST)
 def get_auto_test(auto_test_id: int) -> ExtendedJSONResponse[models.AutoTest]:
+    test = get_or_404(models.AutoTest, auto_test_id)
+    auth.ensure_can_view_autotest(test)
+
     return extended_jsonify(
-        get_or_404(models.AutoTest, auto_test_id),
-        use_extended=(models.AutoTest, models.AutoTestRun)
+        test, use_extended=(models.AutoTest, models.AutoTestRun)
     )
 
 
@@ -379,14 +405,18 @@ def get_auto_test_run(auto_test_id: int,
         models.AutoTestRun.id == run_id,
         models.AutoTest.id == auto_test_id,
     )
+    auth.ensure_can_view_autotest(run.auto_test)
     return extended_jsonify(run, use_extended=models.AutoTestRun)
 
 
 @api.route('/auto_tests/<int:auto_test_id>/runs/', methods=['POST'])
 @feature_required(Feature.AUTO_TEST)
-def start_auto_test_run(auto_test_id: int
-                        ) -> ExtendedJSONResponse[models.AutoTestRun]:
+def start_auto_test_run(auto_test_id: int) -> t.Union[JSONResponse[
+    t.Mapping[str, None]], ExtendedJSONResponse[models.AutoTestRun]]:
     test = get_or_404(models.AutoTest, auto_test_id)
+
+    auth.ensure_permission(CPerm.can_run_autotest, test.assignment.course_id)
+
     if test.runs:
         raise APIException(
             'This test already has a run',
@@ -400,9 +430,15 @@ def start_auto_test_run(auto_test_id: int
     )
     results = [models.AutoTestResult(work_id=sub_id) for sub_id, in sub_ids]
     test.runs.append(models.AutoTestRun(results=results))
+
     db.session.commit()
 
-    return extended_jsonify(test.runs[0], use_extended=models.AutoTestRun)
+    try:
+        auth.ensure_can_view_autotest(test)
+    except exceptions.PermissionException:
+        return jsonify({})
+    else:
+        return extended_jsonify(test.runs[0], use_extended=models.AutoTestRun)
 
 
 @api.route(
@@ -410,10 +446,15 @@ def start_auto_test_run(auto_test_id: int
 )
 @feature_required(Feature.AUTO_TEST)
 def delete_auto_test_runs(auto_test_id: int, run_id: int) -> EmptyResponse:
-    run = filter_single_or_404(
+    test = get_or_404(models.AutoTest, auto_test_id)
+    auth.ensure_permission(
+        CPerm.can_delete_autotest_run, test.assignment.course_id
+    )
+
+    run = get_or_404(
         models.AutoTestRun,
-        models.AutoTestRun.id == run_id,
-        models.AutoTest.id == auto_test_id,
+        run_id,
+        also_error=lambda obj: obj.auto_test_id != test.id,
     )
 
     if run.runner_id is not None:
@@ -435,10 +476,20 @@ def delete_auto_test_runs(auto_test_id: int, run_id: int) -> EmptyResponse:
 @feature_required(Feature.AUTO_TEST)
 def get_auto_test_result(auto_test_id: int, run_id: int, result_id: int
                          ) -> ExtendedJSONResponse[models.AutoTestResult]:
-    result = filter_single_or_404(
+    test = get_or_404(models.AutoTest, auto_test_id)
+    auth.ensure_can_view_autotest(test)
+
+    def also_error(obj: models.AutoTestResult) -> bool:
+        return (
+            obj.auto_test_run_id != run_id or obj.run.auto_test_id != test.id
+        )
+
+    result = get_or_404(
         models.AutoTestResult,
-        models.AutoTestResult.id == result_id,
-        models.AutoTestRun.id == run_id,
-        models.AutoTest.id == auto_test_id,
+        result_id,
+        also_error=also_error,
     )
+
+    auth.ensure_can_see_grade(result.work)
+
     return extended_jsonify(result, use_extended=models.AutoTestResult)

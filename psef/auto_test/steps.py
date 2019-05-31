@@ -84,6 +84,10 @@ class TestStep(abc.ABC):
             return result.step.weight
         return 0
 
+    @staticmethod
+    def remove_step_details(log: JSONType) -> JSONType:
+        return {}
+
 
 @auto_test_handlers.register('io_test')
 class IoTest(TestStep):
@@ -212,10 +216,12 @@ class IoTest(TestStep):
                 else:
                     success = output == to_test
 
+            achieved_points = 0
             if success:
                 total_state = models.AutoTestStepResultState.passed
                 state = models.AutoTestStepResultState.passed
                 total_weight += step['weight']
+                achieved_points = step['weight']
             elif code < 0:
                 state = models.AutoTestStepResultState.timed_out
             else:
@@ -228,6 +234,7 @@ class IoTest(TestStep):
                     'state': state.name,
                     'exit_code': code,
                     'time_spend': time_spend,
+                    'achieved_points': achieved_points,
                 }
             )
             update_test_result(
@@ -236,6 +243,19 @@ class IoTest(TestStep):
 
         update_test_result(total_state, test_result)
         return total_weight
+
+    @staticmethod
+    def remove_step_details(log: JSONType) -> JSONType:
+        l = t.cast(t.Dict, log if isinstance(log, dict) else {})
+
+        return {
+            'steps':
+                [
+                    {
+                        'achieved_points': step.get('achieved_points', None)
+                    } for step in l.get('steps', [])
+                ],
+        }
 
 
 @auto_test_handlers.register('run_program')

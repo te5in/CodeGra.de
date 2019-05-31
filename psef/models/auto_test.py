@@ -23,9 +23,12 @@ from . import work as work_models
 from . import rubric as rubric_models
 from . import _MyQuery
 from . import assignment as assignment_models
+from .. import auth
 from .. import auto_test as auto_test_module
+from .. import exceptions, current_user
 from .mixins import IdMixin, UUIDMixin, TimestampMixin
 from ..exceptions import APICodes, APIException
+from ..permissions import CoursePermission as CPerm
 
 if t.TYPE_CHECKING:
     from . import user as user_models
@@ -112,14 +115,21 @@ class AutoTestStep(Base, TimestampMixin, IdMixin):
         }
 
     def __to_json__(self) -> t.Mapping[str, object]:
-        return {
+        res = {
             'id': self.id,
             'name': self.name,
             'type': self._test_type,
             'weight': self.weight,
-            'data': self.data,
             'hidden': self.hidden
         }
+        try:
+            auth.ensure_can_view_autotest_step_details(self)
+        except exceptions.PermissionException:
+            pass
+        else:
+            res['data'] = self.data
+
+        return res
 
 
 class AutoTestSuite(Base, TimestampMixin, IdMixin):
@@ -244,13 +254,22 @@ class AutoTestStepResult(Base, TimestampMixin, IdMixin):
         return self.step.step.get_amount_achieved_points(self)
 
     def __to_json__(self) -> t.Mapping[str, object]:
-        return {
+        res = {
             'id': self.id,
             'auto_test_step': self.step,
             'state': self.state.name,
-            'log': self.log,
             'achieved_points': self.achieved_points,
+            'log': self.log,
         }
+        if self.step.hidden:
+            try:
+                auth.ensure_can_view_autotest_step_details(self.step)
+            except exceptions.PermissionException:
+                res['log'] = self.step.test_type.remove_step_details(
+                    self.log
+                )
+
+        return res
 
 
 class AutoTestSet(Base, TimestampMixin, IdMixin):
@@ -677,9 +696,18 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
         }
 
     def __extended_to_json__(self) -> t.Mapping[str, object]:
+        results = []
+        for result in self.results:
+            try:
+                auth.ensure_can_see_grade(result.work)
+            except exceptions.PermissionException:
+                continue
+            else:
+                results.append(result)
+
         return {
             **self.__to_json__(),
-            'results': self.results,
+            'results': results,
         }
 
     def delete_and_clear_rubric(self) -> None:
@@ -704,10 +732,6 @@ class AutoTest(Base, TimestampMixin, IdMixin):
     __tablename__ = 'AutoTest'
 
     id: int = db.Column('id', db.Integer, primary_key=True)
-
-    base_systems: 'psef.helpers.JSONType' = db.Column(
-        'base_systems', JSON, nullable=False, default=[]
-    )
 
     assignment: 'assignment_models.Assignment' = db.relationship(
         'Assignment',
@@ -749,6 +773,13 @@ class AutoTest(Base, TimestampMixin, IdMixin):
         return itertools.chain.from_iterable(s.suites for s in self.sets)
 
     def __to_json__(self) -> t.Mapping[str, object]:
+        runs: t.Sequence[AutoTestRun] = []
+
+        if self.assignment.is_done or current_user.has_permission(
+            CPerm.can_see_grade_before_open, self.assignment.course_id
+        ):
+            runs = self.runs
+
         return {
             'id': self.id,
             'fixtures': self.fixtures,
@@ -756,6 +787,5 @@ class AutoTest(Base, TimestampMixin, IdMixin):
             'finalize_script': self.finalize_script,
             'sets': self.sets,
             'assignment_id': self.assignment.id,
-            'base_systems': self.base_systems,
-            'runs': self.runs,
+            'runs': runs,
         }

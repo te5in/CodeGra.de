@@ -173,6 +173,13 @@ class CoursePermission(BasePermission):
     :ivar can_view_course_snippets: Users with this permission can see the snippets of this course, and use them while writing feedback.
     :ivar can_manage_course_snippets: Users with this permission can create, edit, and delete snippets for this course.
     :ivar can_view_hidden_fixtures: Users with this permission can view hidden autotest fixtures.
+    :ivar can_run_autotest: Users with this permission can start AutoTest runs
+    :ivar can_delete_autotest_run: Users with this permission can delete AutoTest runs
+    :ivar can_edit_autotest: Users with this permission can create, delete, edit the fixtures of, setup scripts of, and test sets of an AutoTest
+    :ivar can_view_hidden_autotest_steps: Users with this permission can view hidden AutoTest steps if they have the permission to view the summary of this step
+    :ivar can_view_autotest_before_done: Users with this permission can view AutoTest, such as sets, before the state of the assignment is "Open"
+    :ivar can_view_autotest_step_details: Users with this permission are allowed to see the details of non hidden AutoTest steps
+    :ivar can_view_autotest_fixture: Users with this permission are allowed to see non hidden AutoTest fixtures
     """
 
     @staticmethod
@@ -217,5 +224,12 @@ class CoursePermission(BasePermission):
     can_view_course_snippets = _PermissionValue(item=35, default_value=False)
     can_manage_course_snippets = _PermissionValue(item=36, default_value=False)
     can_view_hidden_fixtures = _PermissionValue(item=37, default_value=False)
+    can_run_autotest = _PermissionValue(item=38, default_value=False)
+    can_delete_autotest_run = _PermissionValue(item=39, default_value=False)
+    can_edit_autotest = _PermissionValue(item=40, default_value=False)
+    can_view_hidden_autotest_steps = _PermissionValue(item=41, default_value=False)
+    can_view_autotest_before_done = _PermissionValue(item=42, default_value=False)
+    can_view_autotest_step_details = _PermissionValue(item=43, default_value=True)
+    can_view_autotest_fixture = _PermissionValue(item=44, default_value=True)
 
 # yapf: enable

@@ -335,6 +335,33 @@ def ensure_can_see_assignment(assignment: 'psef.models.Assignment') -> None:
 
 
 @login_required
+def ensure_can_view_autotest_step_details(
+    step: 'psef.models.AutoTestStep'
+) -> None:
+    course_id = step.suite.auto_test_set.auto_test.assignment.course_id
+
+    ensure_permission(CPerm.can_view_autotest_step_details, course_id)
+    if step.hidden:
+        ensure_permission(CPerm.can_view_hidden_autotest_steps, course_id)
+
+
+@login_required
+def ensure_can_view_autotest(auto_test: 'psef.models.AutoTest') -> None:
+    course_id = auto_test.assignment.course_id
+    ensure_enrolled(course_id)
+    if not auto_test.assignment.is_done:
+        ensure_permission(CPerm.can_view_autotest_before_done, course_id)
+
+
+@login_required
+def ensure_can_view_fixture(fixture: 'psef.models.AutoTestFixture') -> None:
+    course_id = fixture.auto_test.assignment.course_id
+    ensure_permission(CPerm.can_view_autotest_fixture, course_id)
+    if fixture.hidden:
+        ensure_permission(CPerm.can_view_hidden_fixtures, course_id)
+
+
+@login_required
 def ensure_can_view_files(
     work: 'psef.models.Work', teacher_files: bool
 ) -> None:

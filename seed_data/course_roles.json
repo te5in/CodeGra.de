@@ -7,7 +7,9 @@
       "can_see_assignments",
       "can_edit_own_groups",
       "can_view_others_groups",
-      "can_create_groups"
+      "can_create_groups",
+      "can_view_autotest_step_details",
+      "can_view_autotest_fixture"
     ],
     "initial_role": false
   },
@@ -29,7 +31,11 @@
       "can_view_others_groups",
       "can_create_groups",
       "can_view_course_snippets",
-      "can_view_hidden_fixtures"
+      "can_view_hidden_fixtures",
+      "can_view_hidden_autotest_steps",
+      "can_view_autotest_before_done",
+      "can_view_autotest_step_details",
+      "can_view_autotest_fixture"
     ],
     "initial_role": false
   },
@@ -72,14 +78,22 @@
       "can_create_groups",
       "can_view_course_snippets",
       "can_manage_course_snippets",
-      "can_view_hidden_fixtures"
+      "can_view_hidden_fixtures",
+      "can_run_autotest",
+      "can_delete_autotest_run",
+      "can_edit_autotest",
+      "can_view_hidden_autotest_steps",
+      "can_view_autotest_before_done",
+      "can_view_autotest_step_details",
+      "can_view_autotest_fixture"
     ],
     "initial_role": true
   },
   "Observer": {
     "permissions": [
       "can_list_course_users",
-      "can_create_groups"
+      "can_create_groups",
+      "can_view_autotest_step_details"
     ],
     "initial_role": false
   },
@@ -106,7 +120,14 @@
       "can_edit_group_assignment",
       "can_edit_group_set",
       "can_create_groups",
-      "can_view_hidden_fixtures"
+      "can_view_hidden_fixtures",
+      "can_run_autotest",
+      "can_delete_autotest_run",
+      "can_edit_autotest",
+      "can_view_hidden_autotest_steps",
+      "can_view_autotest_before_done",
+      "can_view_autotest_step_details",
+      "can_view_autotest_fixture"
     ],
     "initial_role": false
   }

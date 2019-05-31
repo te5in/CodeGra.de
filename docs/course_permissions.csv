@@ -37,3 +37,10 @@ Name,Description
 **View course snippets**,"Users with this permission can see the snippets of this course, and use them while writing feedback."
 **Manage course snippets**,"Users with this permission can create, edit, and delete snippets for this course."
 **View hidden autotest fixtures**,Users with this permission can view hidden autotest fixtures.
+**Run an AutoTest configuration**,Users with this permission can start AutoTest runs
+**Delete an AutoTest run**,Users with this permission can delete AutoTest runs
+**Edit the configuration of an AutoTest**,"Users with this permission can create, delete, edit the fixtures of, setup scripts of, and test sets of an AutoTest"
+**View the details of hidden AutoTest steps**,Users with this permission can view hidden AutoTest steps if they have the permission to view the summary of this step
+**View AutoTest details before done**,"Users with this permission can view AutoTest, such as sets, before the state of the assignment is ""Open"""
+**View the details of AutoTest steps** \*,Users with this permission are allowed to see the details of non hidden AutoTest steps
+**View non hidden AutoTest fixtures** \*,Users with this permission are allowed to see non hidden AutoTest fixtures
