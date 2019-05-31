@@ -4,7 +4,9 @@
 <div v-else class="rubric-editor" :class="{ editable }">
     <b-tabs no-fade
             v-model="currentCategory">
-        <b-nav-item slot="tabs" @click.prevent="appendRow" href="#"
+        <b-nav-item slot="tabs"
+                    @click.prevent="appendRow"
+                    href="#"
                     v-if="editable">
             +
         </b-nav-item>
@@ -332,15 +334,7 @@ export default {
         },
 
         curMaxPoints() {
-            return this.rubrics.reduce((cur, row) => {
-                const extra = Math.max(
-                    ...row.items.map(val => Number(val.points)).filter(item => !Number.isNaN(item)),
-                );
-                if (extra === -Infinity) {
-                    return cur;
-                }
-                return cur + extra;
-            }, 0);
+            return this.calcMaxPoints(this.rubrics);
         },
     },
 
@@ -367,6 +361,12 @@ export default {
         afterLoadOldRubric(response) {
             this.importAssignment = null;
             this.setRubricData(response.data);
+            this.setRubric({
+                assignmentId: this.assignmentId,
+                rubric: response.data,
+                maxPoints: this.calcMaxPoints(response.data),
+            });
+            this.forceLoadSubmissions(this.assignmentId);
         },
 
         loadAssignments() {
@@ -649,6 +649,18 @@ ${arrayToSentence(wrongCategories)}.`);
 
         rubricCategoryTitle(category) {
             return category.header || '<span class="unnamed">Unnamed category</span>';
+        },
+
+        calcMaxPoints(rubrics) {
+            return rubrics.reduce((cur, row) => {
+                const extra = Math.max(
+                    ...row.items.map(val => Number(val.points)).filter(item => !Number.isNaN(item)),
+                );
+                if (extra === -Infinity) {
+                    return cur;
+                }
+                return cur + extra;
+            }, 0);
         },
     },
 

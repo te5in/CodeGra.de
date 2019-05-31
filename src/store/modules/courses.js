@@ -286,6 +286,9 @@ const mutations = {
 
             Vue.set(assignment, key, assignmentProps[key]);
         });
+
+        const i = assignment.course.assignments.indexOf(assignment);
+        Vue.set(assignment.course.assignments, i, assignment);
     },
 
     [types.ADD_SUBMISSION](state, { assignmentId, submission }) {

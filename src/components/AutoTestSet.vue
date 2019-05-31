@@ -5,20 +5,20 @@
     class="test-group auto-test-set"
     :class="{ editable }">
     <b-card-header v-if="!result" class="auto-test-header" :class="{ editable }">
-        Test set
+        Level
         <div v-if="editable">
             <submit-button
                 :submit="deleteSet"
-                label="Delete set"
+                label="Delete level"
                 variant="outline-danger"
-                confirm="Are you sure you want to delete this test set and
+                confirm="Are you sure you want to delete this level and
                             all suits in it."/>
         </div>
     </b-card-header>
 
     <component :is="result ? 'div' : 'b-card-body'">
         <span v-if="!hasSuites" class="text-muted">
-            You have no suites yet. Click the button below to create one.
+            You have no categories yet. Click the button below to create one.
         </span>
 
         <masonry v-else
@@ -52,7 +52,7 @@
 
                 <template v-if="setResult.passed">
                     greater than or equal to <code>{{ stopPoints }}</code>.
-                    Continuing with the next set.
+                    Continuing with the next level.
                 </template>
 
                 <template v-else>
@@ -62,13 +62,13 @@
             </template>
 
             <template v-else>
-                Only execute further test sets when achieved grade by AutoTest is higher than
+                Only execute further levels achieved points by AutoTest is higher than
                 <code>{{ stopPoints }}</code>
             </template>
         </b-card>
 
         <b-card-footer v-else-if="editable" class="auto-test-header editable transition set-continue" >
-            Only execute further test sets when achieved grade by AutoTest is higher than
+            Only execute further levels achieved points by AutoTest is higher than
 
             <b-input-group class="input-group">
                 <input
@@ -87,7 +87,7 @@
 
         <b-card-footer v-else class="auto-test-header editable transition set-continue" >
             <span class="font-italic text-muted">
-                Only execute further test sets when achieved grade by AutoTest is higher than
+                Only execute further levels achieved points by AutoTest is higher than
                 <code>{{ stopPoints }}</code>
             </span>
         </b-card-footer>

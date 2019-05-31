@@ -51,7 +51,7 @@ class AutoTestSuiteData {
         const errors = this.getErrors();
 
         if (errors != null) {
-            const err = new Error('The suite is not valid');
+            const err = new Error('The category is not valid');
             err.messages = errors;
             return Promise.reject(err);
         }
@@ -72,7 +72,7 @@ class AutoTestSuiteData {
                     return res;
                 },
                 err => {
-                    const newErr = new Error('The suite is not valid');
+                    const newErr = new Error('The category is not valid');
                     newErr.messages = {
                         general: [err.response.data.message],
                         steps: [],
@@ -162,7 +162,7 @@ class AutoTestSuiteData {
         }
 
         if (!this.rubricRow || !this.rubricRow.id) {
-            caseErrors.general.push('You should select a rubric category for this test suite.');
+            caseErrors.general.push('You should select a rubric category for this test category.');
         }
 
         return caseErrors.isEmpty() ? null : caseErrors;
@@ -190,15 +190,14 @@ class AutoTestResult {
         this.setupStderr = result.setup_stderr;
     }
 
-    // eslint-disable-next-line
     updateStepResults(steps, autoTest) {
         if (steps == null) {
             return;
         }
 
-        this.setResults = {};
-        this.suiteResults = {};
-        this.stepResults = steps.reduce((acc, step) => {
+        const setResults = {};
+        const suiteResults = {};
+        const stepResults = steps.reduce((acc, step) => {
             acc[step.auto_test_step.id] = step;
             return acc;
         }, {});
@@ -208,21 +207,21 @@ class AutoTestResult {
         autoTest.sets.forEach(set => {
             const setResult = set.suites.reduce((acc1, suite) => {
                 const suiteResult = suite.steps.reduce((acc2, step) => {
-                    let stepResult = this.stepResults[step.id];
+                    let stepResult = stepResults[step.id];
                     acc2.possible += step.weight;
 
-                    if (setFailed && !acc2.passed) {
-                        stepResult = {
-                            state: 'skipped',
-                            log: null,
-                        };
-                    } else if (stepResult == null) {
+                    if (stepResult == null) {
                         stepResult = {
                             state: 'not_started',
                             log: null,
                         };
                         acc1.finished = false;
                         acc2.finished = false;
+                    } else if (setFailed && !acc2.passed) {
+                        stepResult = {
+                            state: 'skipped',
+                            log: null,
+                        };
                     } else if (
                         step.type === 'check_points' &&
                         stepResult.state === 'failed'
@@ -233,7 +232,7 @@ class AutoTestResult {
                         acc2.achieved += stepResult.achieved_points;
                     }
 
-                    this.stepResults[step.id] = stepResult;
+                    stepResults[step.id] = stepResult;
 
                     return acc2;
                 }, {
@@ -246,7 +245,7 @@ class AutoTestResult {
                 acc1.achieved += suiteResult.achieved;
                 acc1.possible += suiteResult.possible;
 
-                this.suiteResults[suite.id] = suiteResult;
+                suiteResults[suite.id] = suiteResult;
 
                 return acc1;
             }, {
@@ -259,8 +258,12 @@ class AutoTestResult {
             setResult.passed = setResult.achieved >= set.stop_points;
             setFailed = setFailed || (setResult.finished && !setResult.passed);
 
-            this.setResults[set.id] = setResult;
+            setResults[set.id] = setResult;
         });
+
+        Vue.set(this, 'stepResults', stepResults);
+        Vue.set(this, 'suiteResults', suiteResults);
+        Vue.set(this, 'setResults', setResults);
     }
 }
 

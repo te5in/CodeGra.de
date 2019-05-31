@@ -1,13 +1,13 @@
 <template>
 <component :is="btn ? 'b-btn' : 'span'"
            class="auto-test-state"
-           variant="secondary"
-           style="pointer-events: none;" >
-    <icon :class="iconClass"
-          :name="icon"
-          :spin="icon == 'circle-o-notch'"
-          v-b-popover.hover.top="popover"
-          v-if="icon" />
+           variant="secondary" >
+    <span v-b-popover.hover.top="popover">
+        <icon :class="iconClass"
+              :name="icon"
+              :spin="icon == 'circle-o-notch'"
+              v-if="icon" />
+    </span>
 
     <template v-if="btn">
         {{ $capitalize(state.replace(/_/g, ' ')) }}
@@ -103,3 +103,9 @@ export default {
     },
 };
 </script>
+
+<style lang="less" scoped>
+.auto-test-state.btn {
+    pointer-events: none;
+}
+</style>

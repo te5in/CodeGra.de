@@ -66,7 +66,7 @@
                 </template>
                 <template v-else-if="value.type === 'check_points'">
                     <label>
-                        Stop test suite if amount of points is below
+                        Stop test category if amount of points is below
                     </label>
                     <input class="form-control min-points-input"
                            type="number"
@@ -235,7 +235,7 @@
             </td>
             <td class="shrink text-center">
                 <template v-if="result">
-                    {{ getProps(stepResult, '-', 'achieved_points') }} /
+                    {{ achievedPoints }} /
                 </template>
                 {{ value.weight }}
             </td>
@@ -284,7 +284,7 @@
             </td>
             <td class="shrink text-center">
                 <template v-if="result">
-                    {{ getProps(stepResult, '-', 'achieved_points') }} /
+                    {{ achievedPoints }} /
                 </template>
                 {{ value.weight }}
             </td>
@@ -339,7 +339,7 @@
             </td>
                 <td class="shrink text-center">
                     <template v-if="result">
-                    {{ getProps(stepResult, '-', 'achieved_points') }} /
+                        {{ achievedPoints }} /
                     </template>
                     {{ value.weight }}
                 </td>
@@ -357,12 +357,12 @@
                 <td>{{ input.name }}</td>
                 <td class="shrink text-center">
                     <template v-if="result">
-                        {{ getProps(stepResult.log.steps, '-', 'i', 'achieved_points') }} /
+                        {{ ioSubStepProps(i, '-', 'achieved_points') }} /
                     </template>
                     {{ input.weight }}
                 </td>
                 <td class="shrink text-center" v-if="result">
-                    <auto-test-state :state="stepResult.log ? stepResult.log.steps[i].state : 'skipped'" />
+                    <auto-test-state :state="ioSubStepProps(i, stepResult.state, 'state')" />
                 </td>
             </tr>
 
@@ -380,7 +380,7 @@
 
                                     <div class="col-6">
                                         <label>Actual output</label>
-                                        <pre class="form-control">{{ stepResult.log.steps[i].stdout }}</pre>
+                                        <pre class="form-control">{{ ioSubStepProps(i, '', 'stdout') }}</pre>
                                     </div>
                                 </b-tab>
 
@@ -402,10 +402,10 @@
                                     </div>
                                 </b-tab>
 
-                                <b-tab title="Errors" class="row" v-if="stepResult.log.steps[i].stderr">
+                                <b-tab title="Errors" class="row" v-if="ioSubStepProps(i, '', 'stderr')">
                                     <div class="col-12">
                                         <label>Errors</label>
-                                        <pre class="form-control">{{ stepResult.log.steps[i].stderr }}</pre>
+                                        <pre class="form-control">{{ ioSubStepProps(i, '', 'stderr') }}</pre>
                                     </div>
                                 </b-tab>
                             </b-tabs>
@@ -587,6 +587,10 @@ export default {
             return getProps(this, null, 'result', 'stepResults', this.value.id);
         },
 
+        achievedPoints() {
+            return getProps(this, '-', 'result', 'achieved_points');
+        },
+
         canViewOutput() {
             if (!this.stepResult) {
                 return false;
@@ -681,6 +685,17 @@ export default {
                     },
                     weight,
                 }),
+            );
+        },
+
+        ioSubStepProps(i, defaultValue, ...props) {
+            return getProps(
+                this.stepResult,
+                defaultValue,
+                'log',
+                'steps',
+                i,
+                ...props,
             );
         },
     },
@@ -892,6 +907,7 @@ hr {
 
     code.form-control,
     pre.form-control {
+        min-height: 2rem;
         background-color: rgba(0, 0, 0, 0.03);
         margin-bottom: 1rem;
 
@@ -906,7 +922,6 @@ hr {
 
     pre.form-control {
         flex: 1 1 auto;
-        min-height: 2rem;
         max-height: 15rem;
         font-size: 87.5%;
     }

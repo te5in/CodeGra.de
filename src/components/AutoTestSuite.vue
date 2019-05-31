@@ -17,7 +17,7 @@
                                  :key="cat.id"
                                  :disabled="!!disabledCategories[cat.id]"
                                  @click="$set(internalValue, 'rubricRow', cat)">
-                    <div v-b-popover.top.hover="disabledCategories[cat.id] ? 'This category is already used by another suite.' : ''"
+                    <div v-b-popover.top.hover="disabledCategories[cat.id] ? 'This rubric category is already in use.' : ''"
                          class="category-wrapper">
                         <h5>{{ cat.header }}</h5>
                         <span class="rubric-description">
@@ -32,7 +32,7 @@
 
         <h5 style="text-align: center;">Steps</h5>
         <p v-if="internalValue.steps.length === 0" class="help-text">
-            This suite contains no steps. Please add some using the buttons
+            This category contains no steps. Please add some using the buttons
             below.
         </p>
         <SlickList lock-axis="y"
@@ -75,7 +75,7 @@
         <template slot="modal-footer">
             <b-button-toolbar justify style="width: 100%;">
                 <submit-button variant="danger"
-                               confirm="Are you sure you want to delete this suite?"
+                               confirm="Are you sure you want to delete the tests for this category?"
                                :submit="() => internalValue.delete()"
                                @after-success="deleteSuite"
                                label="Delete"/>

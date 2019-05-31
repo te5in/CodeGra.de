@@ -217,7 +217,7 @@ export function getProps(object, defaultValue, ...props) {
     for (let i = 0; res != null && i < props.length; ++i) {
         res = res[props[i]];
     }
-    if (res === undefined) {
+    if (res == null) {
         res = defaultValue;
     }
     return res;
