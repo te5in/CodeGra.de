@@ -261,7 +261,7 @@
                     </div>
                 </transition>
 
-                <h5 v-if="singleResult" style="margin-top: 1rem;">Test categories</h5>
+                <h5 v-if="singleResult" style="margin-top: 1rem;">Categories</h5>
 
                 <transition-group :name="disabledAnimations ? '' : 'list'">
 

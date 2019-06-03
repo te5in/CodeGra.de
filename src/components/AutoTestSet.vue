@@ -11,8 +11,7 @@
                 :submit="deleteSet"
                 label="Delete level"
                 variant="outline-danger"
-                confirm="Are you sure you want to delete this level and
-                            all suits in it."/>
+                confirm="Are you sure you want to delete this level and all categories in it?"/>
         </div>
     </b-card-header>
 
@@ -41,7 +40,7 @@
                 style="float: right;">
             <submit-button
                 :submit="addSuite"
-                label="Add suite"/>
+                label="Add category"/>
         </div>
     </component>
 
