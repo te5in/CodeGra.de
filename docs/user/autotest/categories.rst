@@ -26,10 +26,10 @@ Firstly, select the Rubric Category you want to connect it to.
 Next, you can add tests to this category. You have several different types of
 tests you can add to this.
 
-- IO Tests for simple input/output tests.
-- Run Program tests to run a program and check if the program exited successfully.
-- Capture Points test to run a custom test program (such as a unit test) which captures a number between 0 and 1 and converts this to an amount of points.
-- Check Points, which check if the tests before this special test is high enough to continue with the tests after the Check Points test. This makes it possible to have certain tests only execute if tests before it were successful.
+- **IO Tests** for simple input/output tests.
+- **Run Program Tests** to run a program and check if the program exited successfully.
+- **Capture Points Tests** to run a custom test program (such as a unit test) which captures a number between 0 and 1 and converts this to an amount of points.
+- **Check Points**, which check if the tests before this special test is high enough to continue with the tests after the Check Points test. This makes it possible to have certain tests only execute if tests before it were successful.
 
 Running
 --------------------
