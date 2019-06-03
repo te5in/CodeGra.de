@@ -90,7 +90,8 @@
                     <submit-button
                         v-if="!loading && test != null"
                         label="Run"
-                        :submit="runAutoTest" />
+                        :submit="runAutoTest"
+                        :disabled="!configEditable"/>
                     <submit-button
                         v-if="!loading && test != null"
                         :submit="deleteAutoTest"
@@ -734,7 +735,7 @@ export default {
             if (this.assignment.rubric == null) {
                 return 'You cannot create an AutoTest for this assignment because it does not have a rubric.';
             } else if (this.editable && !this.configEditable) {
-                return 'The AutoTest configuration cannot be deleted because there are results associated with it.';
+                return 'The AutoTest cannot be run or deleted because there are results associated with it.';
             } else {
                 return '';
             }
