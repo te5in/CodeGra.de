@@ -191,7 +191,7 @@
 <!-- Not editable -->
 <tbody v-else class="auto-test-step" :class="{ 'with-output': canViewOutput }">
     <template v-if="value.type === 'check_points'">
-        <tr class="step-summary" :key="getUniqueId()" v-b-toggle="resultsCollapseId">
+        <tr class="step-summary" :key="uniq()" v-b-toggle="resultsCollapseId">
             <td class="expand shrink" v-if="result">
                 <icon v-if="canViewOutput" name="chevron-down" :scale="0.75" />
                 <icon v-else-if="value.hidden" name="eye-slash" :scale="0.85"
@@ -222,7 +222,7 @@
     </template>
 
     <template v-else-if="value.type === 'run_program'">
-        <tr class="step-summary" v-b-toggle="resultsCollapseId">
+        <tr class="step-summary" :key="uniq()" v-b-toggle="resultsCollapseId">
             <td class="expand shrink" v-if="result">
                 <icon v-if="canViewOutput" name="chevron-down" :scale="0.75" />
                 <icon v-else-if="value.hidden" name="eye-slash" :scale="0.85"
@@ -246,32 +246,38 @@
 
         <tr v-if="canViewOutput" class="results-log-collapse-row">
             <td colspan="5">
-                <b-collapse :id="resultsCollapseId" class="container-fluid">
-                    <div class="row">
-                        <b-tabs no-fade class="col-12" v-if="result">
-                            <b-tab title="info">
-                                Exit status code:
-                                <code>{{ getProps(stepResult.log, '(unknown)', 'exit_code') }}</code>
+                <b-collapse :id="resultsCollapseId">
+                    <b-card no-body>
+                        <b-tabs card no-fade class="container-fluid">
+                            <b-tab title="info" class="row">
+                                <p class="col-12">
+                                    Exit status code:
+                                    <code>{{ getProps(stepResult.log, '(unknown)', 'exit_code') }}</code>
+                                </p>
                             </b-tab>
 
-                            <b-tab title="stdout">
-                                <pre v-if="result.setupStdout">{{ stepResult.log.stdout }}</pre>
-                                <pre v-else class="text-muted">No output.</pre>
+                            <b-tab title="stdout" class="row">
+                                <div class="col-12">
+                                    <pre v-if="result.setupStdout">{{ stepResult.log.stdout }}</pre>
+                                    <pre v-else class="text-muted">No output.</pre>
+                                </div>
                             </b-tab>
 
-                            <b-tab title="stderr">
-                                <pre v-if="result.setupStderr">{{ stepResult.log.stderr }}</pre>
-                                <pre v-else class="text-muted">No output.</pre>
+                            <b-tab title="stderr" class="row">
+                                <div class="col-12">
+                                    <pre v-if="result.setupStderr">{{ stepResult.log.stderr }}</pre>
+                                    <pre v-else class="text-muted">No output.</pre>
+                                </div>
                             </b-tab>
                         </b-tabs>
-                    </div>
+                    </b-card>
                 </b-collapse>
             </td>
         </tr>
     </template>
 
     <template v-else-if="value.type === 'custom_output'">
-        <tr class="step-summary" v-b-toggle="resultsCollapseId">
+        <tr class="step-summary" :key="uniq()" v-b-toggle="resultsCollapseId">
             <td class="expand shrink" v-if="result">
                 <icon v-if="canViewOutput" name="chevron-down" :scale="0.75" />
                 <icon v-else-if="value.hidden" name="eye-slash" :scale="0.85"
@@ -295,32 +301,35 @@
 
         <tr v-if="canViewOutput" class="results-log-collapse-row">
             <td colspan="5">
-                <b-collapse :id="resultsCollapseId" class="container-fluid">
-                    <div class="row">
-                            <b-tab title="info">
-                                <label>
-                                    Match output on
+                <b-collapse :id="resultsCollapseId">
+                    <b-card no-body>
+                        <b-tabs card no-fade class="container-fluid">
+                            <b-tab title="info" class="row">
+                                <p class="col-12">
+                                    Match output on:
                                     <code>{{ value.data.regex }}</code>
-                                </label>
-                                <label>
+                                </p>
+                                <p class="col-12">
                                     Exit status code:
-                                    <code>
-                                        {{ getProps(stepResult.log, '(unknown)', 'exit_code') }}
-                                    </code>
-                                </label>
+                                    <code>{{ getProps(stepResult.log, '(unknown)', 'exit_code') }}</code>
+                                </p>
                             </b-tab>
 
-                            <b-tab title="stdout">
-                                <pre v-if="result.setupStdout">{{ stepResult.log.stdout }}</pre>
-                                <pre v-else class="text-muted">No output.</pre>
+                            <b-tab title="stdout" class="row">
+                                <div class="col-12">
+                                    <pre v-if="result.setupStdout">{{ stepResult.log.stdout }}</pre>
+                                    <pre v-else class="text-muted">No output.</pre>
+                                </div>
                             </b-tab>
 
-                            <b-tab title="stderr">
-                                <pre v-if="result.setupStderr">{{ stepResult.log.stderr }}</pre>
-                                <pre v-else class="text-muted">No output.</pre>
+                            <b-tab title="stderr" class="row">
+                                <div class="col-12">
+                                    <pre v-if="result.setupStderr">{{ stepResult.log.stderr }}</pre>
+                                    <pre v-else class="text-muted">No output.</pre>
+                                </div>
                             </b-tab>
                         </b-tabs>
-                    </div>
+                    </b-card>
                 </b-collapse>
             </td>
         </tr>
@@ -347,7 +356,7 @@
         </tr>
 
         <template v-for="input, i in inputs">
-            <tr class="step-summary" v-b-toggle="`${resultsCollapseId}-${i}`">
+            <tr class="step-summary" :key="uniq()" v-b-toggle="`${resultsCollapseId}-${i}`">
                 <td class="expand shrink" v-if="result">
                     <icon v-if="canViewOutput" name="chevron-down" :scale="0.75" />
                     <icon v-else-if="value.hidden" name="eye-slash" :scale="0.85"
@@ -366,11 +375,10 @@
                 </td>
             </tr>
 
-            <tr v-if="canViewOutput"
-                class="results-log-collapse-row">
+            <tr v-if="canViewOutput" class="results-log-collapse-row">
                 <td colspan="5">
                     <b-collapse :id="`${resultsCollapseId}-${i}`">
-                        <b-card no-body style="border: 0;">
+                        <b-card no-body>
                             <b-tabs card no-fade class="container-fluid">
                                 <b-tab title="Output" class="row">
                                     <div class="col-6">
@@ -476,7 +484,7 @@ export default {
         const id = getUniqueId();
 
         return {
-            getUniqueId,
+            uniq: getUniqueId,
             getProps,
 
             id,
@@ -907,6 +915,10 @@ hr {
         flex-direction: column;
     }
 
+    .card {
+        border: 0;
+    }
+
     code.form-control,
     pre.form-control {
         min-height: 2rem;
@@ -926,10 +938,6 @@ hr {
         flex: 1 1 auto;
         max-height: 15rem;
         font-size: 87.5%;
-    }
-
-    .tabs {
-        margin-top: 0.5rem;
     }
 }
 </style>
