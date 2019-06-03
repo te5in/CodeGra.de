@@ -55,9 +55,8 @@
 
         <b-collapse :visible="value.opened"
                     @input="updateCollapse"
-                    :id="collapseId"
-                    v-if="!value.metatest">
-            <div class="io-test-wrapper card-body">
+                    :id="collapseId" >
+            <div class="card-body">
                 <template v-if="!stepType.meta">
                     <label :for="programNameId">
                         Program to test
@@ -67,6 +66,7 @@
                            :id="programNameId"
                            @input="updateValue('program', $event.target.value)"/>
                 </template>
+
                 <template v-else-if="value.type === 'check_points'">
                     <label>
                         Stop test category if amount of points is below
@@ -95,6 +95,7 @@
                            class="form-control"
                            @input="updateValue('regex', $event.target.value)">
                 </template>
+
                 <template v-else-if="value.type === 'io_test'">
                     <hr/>
 
@@ -191,6 +192,7 @@
         </b-collapse>
     </b-card>
 </div>
+
 <!-- Not editable -->
 <tbody v-else class="auto-test-step" :class="{ 'with-output': canViewOutput }">
     <template v-if="value.type === 'check_points'">

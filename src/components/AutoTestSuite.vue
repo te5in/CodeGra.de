@@ -100,6 +100,7 @@
                         <template v-for="err in scope.error.messages.general">
                             {{ err }}
                         </template>
+
                         <template v-if="scope.error.messages.steps.length > 0">
                             Some steps are not valid:
                             <ul>
@@ -299,7 +300,6 @@ export default {
                 name: '',
                 type,
                 weight: 1,
-                program: '',
                 opened: true,
                 hidden: false,
                 data: {},
@@ -324,9 +324,10 @@ export default {
                     ];
                     break;
                 case 'custom_output':
-                    res.data.regex = '(\\d+\\.?\\d*|\\.\\d+)';
+                    res.data.regex = '1(\\.0*)?|0(\\.\\d*)?';
                     break;
                 case 'check_points':
+                    res.weight = 0;
                     res.data.min_points = 0;
                     break;
                 case 'run_program':
