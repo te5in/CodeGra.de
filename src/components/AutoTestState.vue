@@ -17,10 +17,10 @@
 
 <script>
 import Icon from 'vue-awesome/components/Icon';
+import 'vue-awesome/icons/ban';
 import 'vue-awesome/icons/check';
 import 'vue-awesome/icons/times';
 import 'vue-awesome/icons/clock-o';
-import 'vue-awesome/icons/ban';
 import 'vue-awesome/icons/circle-o-notch';
 
 export default {
@@ -50,10 +50,11 @@ export default {
                 case 'skipped':
                     return 'ban';
                 case 'not_started':
-                case 'timed_out':
                     return 'clock-o';
                 case 'running':
                     return 'circle-o-notch';
+                case 'timed_out':
+                    return 'exclamation-triangle';
                 default:
                     return '';
             }
