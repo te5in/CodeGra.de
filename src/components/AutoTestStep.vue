@@ -12,6 +12,7 @@
                  :style="{ 'background-color': typeColor }">
                 {{ typeTitle }}
             </div>
+
             <b-input-group prepend="Name"
                            class="name-input header-item">
                 <input class="form-control"
@@ -19,9 +20,11 @@
                        :value="value.name"
                        @input="updateName($event.target.value)"/>
             </b-input-group>
+
             <b-input-group prepend="Weight"
                            class="points-input header-item"
-                           v-b-popover.top.hover="weightPopoverText">
+                           v-b-popover.top.hover="weightPopoverText"
+                           v-if="hasWeight">
                 <input class="form-control"
                        type="number"
                        :disabled="!hasWeight"
@@ -200,7 +203,7 @@
             <td class="shrink">{{ index }}</td>
             <td colspan="2">
                 <b>{{ stepName }}</b>
-                Stop when you got less than {{ value.data.min_points }} points.
+                Stop when you achieve less than <code>{{ value.data.min_points }}</code> points.
             </td>
             <td class="shrink text-center" v-if="result">
                 <auto-test-state :state="stepResult.state" />
@@ -237,7 +240,7 @@
                 <template v-if="result">
                     {{ achievedPoints }} /
                 </template>
-                {{ value.weight }}
+                {{ toMaxNDecimals(value.weight, 2) }}
             </td>
             <td class="shrink text-center" v-if="result">
                 <auto-test-state :state="stepResult.state" />
@@ -291,7 +294,7 @@
                 <template v-if="result">
                     {{ achievedPoints }} /
                 </template>
-                {{ value.weight }}
+                {{ toMaxNDecimals(value.weight, 2) }}
             </td>
             <td class="shrink text-center" v-if="result">
                 <auto-test-state :state="stepResult.state" />
@@ -348,7 +351,7 @@
                     <template v-if="result">
                         {{ achievedPoints }} /
                     </template>
-                    {{ value.weight }}
+                    {{ toMaxNDecimals(value.weight, 2) }}
                 </td>
             <td class="shrink text-center" v-if="result"></td>
         </tr>
@@ -366,7 +369,7 @@
                     <template v-if="result">
                         {{ ioSubStepProps(i, '-', 'achieved_points') }} /
                     </template>
-                    {{ input.weight }}
+                    {{ toMaxNDecimals(input.weight, 2) }}
                 </td>
                 <td class="shrink text-center" v-if="result">
                     <auto-test-state :state="ioSubStepProps(i, stepResult.state, 'state')" />
@@ -443,6 +446,8 @@ import SubmitButton from './SubmitButton';
 import DescriptionPopover from './DescriptionPopover';
 import AutoTestState from './AutoTestState';
 
+window.toMaxNDecimals = toMaxNDecimals;
+
 export default {
     name: 'auto-test-step',
 
@@ -484,6 +489,7 @@ export default {
         return {
             uniq: getUniqueId,
             getProps,
+            toMaxNDecimals,
 
             id,
             collapseState: {},
