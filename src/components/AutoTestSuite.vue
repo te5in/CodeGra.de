@@ -449,15 +449,6 @@ export default {
     }
 }
 
-.suite-steps {
-    max-height: 20rem;
-    overflow: auto;
-
-    .single-result & {
-        max-height: 40rem;
-    }
-}
-
 .steps-table {
     margin-bottom: 0;
 }

@@ -545,13 +545,15 @@ const actions = {
 
     createFixtures({ commit }, { autoTestId, fixtures, delay }) {
         return axios.patch(`/api/v1/auto_tests/${autoTestId}`, fixtures).then(async res => {
-            await commit(types.UPDATE_AUTO_TEST, {
-                autoTestId,
-                autoTestProps: { fixtures: res.data.fixtures },
-            });
-            await new Promise(resolve => {
-                setTimeout(resolve, delay == null ? 500 : delay);
-            });
+            await Promise.resolve([
+                commit(types.UPDATE_AUTO_TEST, {
+                    autoTestId,
+                    autoTestProps: { fixtures: res.data.fixtures },
+                }),
+                new Promise(resolve => {
+                    setTimeout(resolve, delay == null ? 500 : delay);
+                }),
+            ]);
             return res;
         });
     },
