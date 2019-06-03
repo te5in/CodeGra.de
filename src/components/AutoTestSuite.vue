@@ -89,7 +89,8 @@
                     variant="outline-danger"
                     :disabled="value.isEmpty()"
                     label="Cancel"
-                    :submit="cancelEdit"/>
+                    :submit="cancelEdit"
+                    confirm="Are you sure? Cancelling will lose all your changes."/>
                 <submit-button :submit="saveSuite"
                                @success="afterSaveSuite"
                                label="Save">
