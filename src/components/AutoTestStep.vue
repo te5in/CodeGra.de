@@ -191,11 +191,11 @@
 <!-- Not editable -->
 <tbody v-else class="auto-test-step" :class="{ 'with-output': canViewOutput }">
     <template v-if="value.type === 'check_points'">
-        <tr class="step-summary" v-b-toggle="resultsCollapseId">
+        <tr class="step-summary" :key="getUniqueId()" v-b-toggle="resultsCollapseId">
             <td class="expand shrink" v-if="result">
                 <icon v-if="canViewOutput" name="chevron-down" :scale="0.75" />
                 <icon v-else-if="value.hidden" name="eye-slash" :scale="0.85"
-                        v-b-popover.hover.top="'You cannot view this step\'s results.'" />
+                      v-b-popover.hover.top="'You cannot view this step\'s results.'" />
             </td>
             <td class="shrink">{{ index }}</td>
             <td colspan="2">
@@ -476,7 +476,9 @@ export default {
         const id = getUniqueId();
 
         return {
+            getUniqueId,
             getProps,
+
             id,
             collapseState: {},
             mainCollapseState: this.collapseOpen,
