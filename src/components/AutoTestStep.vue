@@ -646,7 +646,11 @@ export default {
                 args: '',
                 stdin: '',
                 output: '',
-                options: [],
+                options: [
+                    'case',
+                    'substring',
+                    'trailing_whitespace',
+                ],
                 weight: 1,
             };
         },
