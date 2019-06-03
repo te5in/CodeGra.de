@@ -588,7 +588,7 @@ export default {
         },
 
         achievedPoints() {
-            return getProps(this, '-', 'result', 'achieved_points');
+            return getProps(this, '-', 'stepResult', 'achieved_points');
         },
 
         canViewOutput() {
