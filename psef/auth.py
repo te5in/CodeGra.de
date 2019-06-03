@@ -336,7 +336,7 @@ def ensure_can_see_assignment(assignment: 'psef.models.Assignment') -> None:
 
 @login_required
 def ensure_can_view_autotest_step_details(
-    step: 'psef.models.AutoTestStep'
+    step: 'psef.models.AutoTestStepBase'
 ) -> None:
     course_id = step.suite.auto_test_set.auto_test.assignment.course_id
 

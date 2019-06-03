@@ -17,6 +17,7 @@ from ..helpers import (
     callback_after_this_request
 )
 from ..features import Feature, feature_required
+from ..registry import auto_test_handlers
 from ..exceptions import APICodes, APIWarnings, APIException
 from ..permissions import CoursePermission as CPerm
 
@@ -121,7 +122,6 @@ def update_auto_test(auto_test_id: int) -> JSONResponse[models.AutoTest]:
 
     with get_from_map_transaction(content) as [get, optional_get]:
         old_fixtures = optional_get('fixtures', list, None)
-        base_systems = optional_get('base_systems', list, None)
         setup_script = optional_get('setup_script', str, None)
         run_setup_script = optional_get('run_setup_script', str, None)
         has_new_fixtures = optional_get('has_new_fixtures', bool, False)
@@ -163,33 +163,6 @@ def update_auto_test(auto_test_id: int) -> JSONResponse[models.AutoTest]:
         auto_test.setup_script = setup_script
     if run_setup_script is not None:
         auto_test.run_setup_script = run_setup_script
-
-    if base_systems is not None:
-        new_base_systems = []
-        for base_system in base_systems:
-            with get_from_map_transaction(ensure_json_dict(base_system)) as [
-                get, _
-            ]:
-                base_system_id = get('id', int)
-                base_system_name = get('name', str)
-
-            new_base_system = app.auto_test_base_systems.get(
-                base_system_id, {}
-            )
-            if (
-                base_system_id not in app.auto_test_base_systems or
-                new_base_system.get('name') != base_system_name
-            ):
-                raise Exception
-            new_base_systems.append(
-                {key: new_base_system[key]
-                 for key in ['id', 'name', 'group']}
-            )
-        if len(new_base_systems) != len(
-            set(a['group'] for a in new_base_systems)
-        ):
-            raise Exception
-        auto_test.base_systems = new_base_systems
 
     db.session.commit()
 
@@ -327,8 +300,9 @@ def update_or_create_auto_test_suite(auto_test_id: int, auto_test_set_id: int
             hidden = get('hidden', bool)
             weight = t.cast(float, get('weight', numbers.Real))  # type: ignore
 
-        step_type = auto_test.auto_test_handlers.get(typ_str)
-        if step_type is None:
+        try:
+            step_type = auto_test_handlers[typ_str]
+        except KeyError:
             raise APIException(
                 'The given test type is not valid',
                 f'The given test type "{typ_str}" is not known',
@@ -336,27 +310,23 @@ def update_or_create_auto_test_suite(auto_test_id: int, auto_test_set_id: int
             )
 
         if step_id is None:
-            step = models.AutoTestStep(name=name, weight=weight)
+            step = step_type()
             db.session.add(step)
-            step.test_type = step_type
         else:
-            step = get_or_404(models.AutoTestStep, step_id)
-            if step.test_type != step_type:
-                raise APIException(
-                    'You cannot change the test type of a step after creation',
-                    (
-                        f'Trying to change the test type to "{typ_str}" for'
-                        f' step "{step_id}" is not valid'
-                    ), APICodes.INVALID_PARAM, 400
-                )
+            step = get_or_404(
+                step_type,
+                step_id,
+                also_error=lambda obj: not isinstance(obj, step_type),
+            )
 
         step.hidden = hidden
         step.order = idx
         step.name = name
         step.weight = weight
 
-        step.update_from_json(data)
+        step.update_data_from_json(data)
         new_steps.append(step)
+
     suite.steps = new_steps
 
     db.session.commit()

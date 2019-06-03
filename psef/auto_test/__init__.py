@@ -29,11 +29,12 @@ from mypy_extensions import TypedDict
 import psef
 
 from .. import app, log, models
-from .steps import TestStep, StopRunningStepsException, auto_test_handlers
 from ..helpers import (
     JSONType, RepeatedTimer, defer, register, timed_code, timed_function,
     bound_to_logger, ensure_on_test_server
 )
+from ..registry import auto_test_handlers
+from ..exceptions import StopRunningStepsException
 
 logger = structlog.get_logger()
 
@@ -48,6 +49,8 @@ _STOP_CONTAINERS = Event()
 T = t.TypeVar('T')
 
 Network = t.NewType('Network', t.Tuple[str, t.List[t.Tuple[str, str]]])
+UpdateResultFunction = t.Callable[
+    ['models.AutoTestStepResultState', t.Dict[str, object]], None]
 
 
 class CpuCores():
@@ -951,8 +954,9 @@ class _BaseAutoTestRunner(AutoTestRunner):
                 with timed_code('run_suite_step') as get_step_time:
                     try:
                         logger.bind(step=test_step)
-                        total_points += typ(test_step['data']).execute_step(
-                            snap, update_test_result, test_step, total_points
+                        total_points += typ.execute_step(
+                            test_step['data'], snap, update_test_result,
+                            test_step, total_points
                         )
                     except StopRunningStepsException:
                         logger.info('Stopping steps', exc_info=True)

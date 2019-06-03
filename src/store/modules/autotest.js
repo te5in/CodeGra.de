@@ -2,12 +2,11 @@
 import Vue from 'vue';
 import axios from 'axios';
 
-import { deepCopy, getUniqueId, withOrdinalSuffix, getProps } from '@/utils';
+import { deepCopy, withOrdinalSuffix, getProps } from '@/utils';
 import * as types from '../mutation-types';
 
 class AutoTestSuiteData {
-    constructor(autoTestId, autoTestSetId, serverData = {}, trackingId = getUniqueId()) {
-        this.trackingId = trackingId;
+    constructor(autoTestId, autoTestSetId, serverData = {}) {
         this.autoTestSetId = autoTestSetId;
         this.autoTestId = autoTestId;
 
@@ -35,7 +34,6 @@ class AutoTestSuiteData {
                 rubric_row: this.rubricRow,
                 network_disabled: this.networkDisabled,
             },
-            this.trackingId,
         );
     }
 
@@ -106,14 +104,17 @@ class AutoTestSuiteData {
         const isEmpty = val => !val.match(/[a-zA-Z0-9]/);
         const errs = [];
 
-        if (step.checkName && isEmpty(step.name)) {
+        if (isEmpty(step.name)) {
             errs.push('The name may not be empty.');
         }
-        if (step.checkProgram && isEmpty(step.program)) {
+
+        const program = getProps(step, null, 'data', 'program');
+        if (program != null && isEmpty(program)) {
             errs.push('The program may not be empty.');
         }
-        if (step.checkWeight && Number(step.weight) <= 0) {
-            errs.push('The weight should be a number higher than 0.');
+
+        if (step.type !== 'check_points' && Number(step.weight) <= 0) {
+            errs.push('The weight should be a number greater than 0.');
         }
 
         if (step.type === 'io_test') {
@@ -126,21 +127,22 @@ class AutoTestSuiteData {
                         errs.push(`The name of the ${name} is emtpy.`);
                     }
                     if (Number(input.weight) <= 0) {
-                        errs.push(`The weight of the ${name} should be a number higher than 0.`);
+                        errs.push(`The weight of the ${name} should be a number greater than 0.`);
                     }
                 });
             }
         } else if (step.type === 'check_points') {
             let weightBefore = 0;
             for (let i = 0; i < this.steps.length > 0; ++i) {
-                if (this.steps[i].id === this.id) {
+                if (this.steps[i] === step) {
                     break;
                 }
                 weightBefore += Number(this.steps[i].weight);
             }
-            if (step.data.min_pints <= 0 || step.data.min_points > weightBefore) {
+            if (step.data.min_points <= 0 || step.data.min_points > weightBefore) {
                 errs.push(
-                    `The minimal amount of points should be achievable (which is ${weightBefore}) and higher than 0.`,
+                    `The minimal amount of points should be achievable (at most
+                    ${weightBefore}) and greater than 0.`,
                 );
             }
         }

@@ -23,6 +23,7 @@ from . import work as work_models
 from . import rubric as rubric_models
 from . import _MyQuery
 from . import assignment as assignment_models
+from . import auto_test_step as auto_test_step_models
 from .. import auth
 from .. import auto_test as auto_test_module
 from .. import exceptions, current_user
@@ -34,102 +35,6 @@ if t.TYPE_CHECKING:
     from . import user as user_models
 
 logger = structlog.get_logger()
-
-
-class AutoTestStep(Base, TimestampMixin, IdMixin):
-    if t.TYPE_CHECKING:  # pragma: no cover
-        query: t.ClassVar[_MyQuery['AutoTestStep']]
-    __tablename__ = 'AutoTestStep'
-    id: int = db.Column('id', db.Integer, primary_key=True)
-
-    order = db.Column('order', db.Integer, nullable=False)
-
-    name: str = db.Column('name', db.Unicode, nullable=False)
-    weight: float = db.Column('weight', db.Float, nullable=False)
-
-    hidden: bool = db.Column('hidden', db.Boolean, nullable=False)
-
-    auto_test_suite_id: int = db.Column(
-        'auto_test_suite_id',
-        db.Integer,
-        db.ForeignKey('AutoTestSuite.id'),
-        nullable=False
-    )
-
-    suite: 'AutoTestSuite' = db.relationship(
-        'AutoTestSuite',
-        foreign_keys=auto_test_suite_id,
-        back_populates='steps',
-        lazy='joined',
-        innerjoin=True,
-    )
-
-    _test_type: str = db.Column(
-        'test_type',
-        db.Enum(
-            *auto_test_module.auto_test_handlers.keys(),
-            name='autoteststeptesttype'
-        ),
-        nullable=False,
-    )
-
-    _data: 'psef.helpers.JSONType' = db.Column(
-        'data', JSON, nullable=False, default={}
-    )
-
-    @property
-    def test_type(self) -> t.Type[auto_test_module.TestStep]:
-        return auto_test_module.auto_test_handlers[self._test_type]
-
-    @test_type.setter
-    def test_type(self, test_type: t.Type[auto_test_module.TestStep]) -> None:
-        typ = auto_test_module.auto_test_handlers.find(test_type, None)
-        assert typ is not None
-        self._test_type = typ
-
-    @property
-    def data(self) -> 'psef.helpers.JSONType':
-        return self._data
-
-    @data.setter
-    def data(self, data: 'psef.helpers.JSONType') -> None:
-        self.test_type.validate_data(data)
-        self._data = data
-
-    @property
-    def step(self) -> auto_test_module.TestStep:
-        return self.test_type(self.data)
-
-    def update_from_json(
-        self, json: t.Dict[str, 'psef.helpers.JSONType']
-    ) -> None:
-        self.test_type.validate_data(json)
-        self.data = json
-
-    def get_instructions(self) -> auto_test_module.StepInstructions:
-        return {
-            'id': self.id,
-            'weight': self.weight,
-            'test_type_name': self._test_type,
-            'data': self.data,
-        }
-
-    def __to_json__(self) -> t.Mapping[str, object]:
-        res = {
-            'id': self.id,
-            'name': self.name,
-            'type': self._test_type,
-            'weight': self.weight,
-            'hidden': self.hidden
-        }
-        try:
-            auth.ensure_can_view_autotest_step_details(self)
-        except exceptions.PermissionException:
-            pass
-        else:
-            res['data'] = self.data
-
-        return res
 
 
 class AutoTestSuite(Base, TimestampMixin, IdMixin):
@@ -174,11 +79,11 @@ class AutoTestSuite(Base, TimestampMixin, IdMixin):
     )
 
     steps = db.relationship(
-        "AutoTestStep",
+        "AutoTestStepBase",
         back_populates="suite",
         cascade='all,delete',
-        order_by='AutoTestStep.order'
-    )  # type: t.MutableSequence[AutoTestStep]
+        order_by='AutoTestStepBase.order'
+    )  # type: t.MutableSequence[auto_test_step_models.AutoTestStepBase]
 
     def get_instructions(self) -> auto_test_module.SuiteInstructions:
         return {
@@ -194,82 +99,6 @@ class AutoTestSuite(Base, TimestampMixin, IdMixin):
             'rubric_row': self.rubric_row,
             'network_disabled': self.network_disabled,
         }
-
-
-class AutoTestStepResultState(enum.Enum):
-    not_started = enum.auto()
-    running = enum.auto()
-    passed = enum.auto()
-    failed = enum.auto()
-    timed_out = enum.auto()
-
-
-class AutoTestStepResult(Base, TimestampMixin, IdMixin):
-    if t.TYPE_CHECKING:  # pragma: no cover
-        query: t.ClassVar[_MyQuery['AutoTestStepResult']]
-
-    auto_test_step_id: int = db.Column(
-        'auto_test_step_id',
-        db.Integer,
-        db.ForeignKey('AutoTestStep.id'),
-        nullable=False
-    )
-
-    step: AutoTestStep = db.relationship(
-        'AutoTestStep',
-        foreign_keys=auto_test_step_id,
-        lazy='joined',
-        innerjoin=True,
-    )
-
-    auto_test_result_id = db.Column(
-        'auto_test_result_id',
-        db.Integer,
-        db.ForeignKey('AutoTestResult.id'),
-    )
-
-    result: 'AutoTestResult' = db.relationship(
-        'AutoTestResult',
-        foreign_keys=auto_test_result_id,
-        innerjoin=True,
-        back_populates='step_results',
-    )
-
-    state = db.Column(
-        'state',
-        db.Enum(AutoTestStepResultState),
-        default=AutoTestStepResultState.not_started,
-        nullable=False,
-    )
-
-    log: 'psef.helpers.JSONType' = db.Column(
-        'log',
-        JSON,
-        nullable=True,
-        default=None,
-    )
-
-    @property
-    def achieved_points(self) -> float:
-        return self.step.step.get_amount_achieved_points(self)
-
-    def __to_json__(self) -> t.Mapping[str, object]:
-        res = {
-            'id': self.id,
-            'auto_test_step': self.step,
-            'state': self.state.name,
-            'achieved_points': self.achieved_points,
-            'log': self.log,
-        }
-        if self.step.hidden:
-            try:
-                auth.ensure_can_view_autotest_step_details(self.step)
-            except exceptions.PermissionException:
-                res['log'] = self.step.test_type.remove_step_details(
-                    self.log
-                )
-
-        return res
 
 
 class AutoTestSet(Base, TimestampMixin, IdMixin):
@@ -357,12 +186,12 @@ class AutoTestResult(Base, TimestampMixin, IdMixin):
         back_populates='result',
         cascade='all,delete,delete-orphan',
         order_by='AutoTestStepResult.created_at'
-    )  # type: t.MutableSequence[AutoTestStepResult]
+    )  # type: t.MutableSequence[auto_test_step_models.AutoTestStepResult]
 
     state = db.Column(
         'state',
-        db.Enum(AutoTestStepResultState),
-        default=AutoTestStepResultState.not_started,
+        db.Enum(auto_test_step_models.AutoTestStepResultState),
+        default=auto_test_step_models.AutoTestStepResultState.not_started,
         nullable=False,
     )
 
@@ -378,11 +207,11 @@ class AutoTestResult(Base, TimestampMixin, IdMixin):
 
     @property
     def passed(self) -> bool:
-        return self.state == AutoTestStepResultState.passed
+        return self.state == auto_test_step_models.AutoTestStepResultState.passed
 
     def clear(self) -> None:
         self.step_results = []
-        self.state = AutoTestStepResultState.not_started
+        self.state = auto_test_step_models.AutoTestStepResultState.not_started
         self.setup_stderr = None
         self.setup_stdout = None
 

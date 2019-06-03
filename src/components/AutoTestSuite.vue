@@ -89,7 +89,8 @@
                     variant="outline-danger"
                     :disabled="value.isEmpty()"
                     label="Cancel"
-                    :submit="cancelEdit"/>
+                    :submit="cancelEdit"
+                    confirm="Are you sure? Cancelling will lose all your changes."/>
                 <submit-button :submit="saveSuite"
                                @success="afterSaveSuite"
                                label="Save">
@@ -99,6 +100,7 @@
                         <template v-for="err in scope.error.messages.general">
                             {{ err }}
                         </template>
+
                         <template v-if="scope.error.messages.steps.length > 0">
                             Some steps are not valid:
                             <ul>
@@ -298,7 +300,6 @@ export default {
                 name: '',
                 type,
                 weight: 1,
-                program: '',
                 opened: true,
                 hidden: false,
                 data: {},
@@ -323,9 +324,10 @@ export default {
                     ];
                     break;
                 case 'custom_output':
-                    res.data.regex = '(\\d+\\.?\\d*|\\.\\d+)';
+                    res.data.regex = '1(\\.0*)?|0(\\.\\d*)?';
                     break;
                 case 'check_points':
+                    res.weight = 0;
                     res.data.min_points = 0;
                     break;
                 case 'run_program':
