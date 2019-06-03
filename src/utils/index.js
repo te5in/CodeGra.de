@@ -27,6 +27,17 @@ export function formatGrade(grade) {
     return Number.isNaN(g) ? null : g.toFixed(2);
 }
 
+export function toMaxNDecimals(num, n) {
+    let str = num.toFixed(n);
+    while (str[str.length - 1] === '0') {
+        str = str.slice(0, -1);
+    }
+    if (str[str.length - 1] === '.') {
+        str = str.slice(0, -1);
+    }
+    return str;
+}
+
 export function cmpOneNull(first, second) {
     if (first == null && second == null) {
         return 0;

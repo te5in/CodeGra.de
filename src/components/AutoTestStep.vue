@@ -12,6 +12,7 @@
                  :style="{ 'background-color': typeColor }">
                 {{ typeTitle }}
             </div>
+
             <b-input-group prepend="Name"
                            class="name-input header-item">
                 <input class="form-control"
@@ -19,9 +20,11 @@
                        :value="value.name"
                        @input="updateName($event.target.value)"/>
             </b-input-group>
+
             <b-input-group prepend="Weight"
                            class="points-input header-item"
-                           v-b-popover.top.hover="weightPopoverText">
+                           v-b-popover.top.hover="weightPopoverText"
+                           v-if="hasWeight">
                 <input class="form-control"
                        type="number"
                        :disabled="!hasWeight"
@@ -200,7 +203,8 @@
             <td class="shrink">{{ index }}</td>
             <td colspan="2">
                 <b>{{ stepName }}</b>
-                Stop when you got less than {{ value.data.min_points }} points.
+                Stop when you achieve less than <code>{{ value.data.min_points }}</code>
+                points.
             </td>
             <td class="shrink text-center" v-if="result">
                 <auto-test-state :state="stepResult.state" />
@@ -237,7 +241,7 @@
                 <template v-if="result">
                     {{ achievedPoints }} /
                 </template>
-                {{ value.weight }}
+                {{ toMaxNDecimals(value.weight, 2) }}
             </td>
             <td class="shrink text-center" v-if="result">
                 <auto-test-state :state="stepResult.state" />
@@ -249,24 +253,23 @@
                 <b-collapse :id="resultsCollapseId">
                     <b-card no-body>
                         <b-tabs card no-fade class="container-fluid">
-                            <b-tab title="info" class="row">
+                            <b-tab title="Settings" class="row">
                                 <p class="col-12">
                                     Exit status code:
                                     <code>{{ getProps(stepResult.log, '(unknown)', 'exit_code') }}</code>
                                 </p>
                             </b-tab>
 
-                            <b-tab title="stdout" class="row">
+                            <b-tab title="Output" class="row">
                                 <div class="col-12">
-                                    <pre v-if="result.setupStdout">{{ stepResult.log.stdout }}</pre>
-                                    <pre v-else class="text-muted">No output.</pre>
+                                    <pre v-if="stepResult.log.stdout" class="form-control">{{ stepResult.log.stdout }}</pre>
+                                    <pre v-else class="text-muted form-control">No output.</pre>
                                 </div>
                             </b-tab>
 
-                            <b-tab title="stderr" class="row">
+                            <b-tab title="Errors" class="row" v-if="stepResult.log.stderr">
                                 <div class="col-12">
-                                    <pre v-if="result.setupStderr">{{ stepResult.log.stderr }}</pre>
-                                    <pre v-else class="text-muted">No output.</pre>
+                                    <pre class="form-control">{{ stepResult.log.stderr }}</pre>
                                 </div>
                             </b-tab>
                         </b-tabs>
@@ -292,7 +295,7 @@
                 <template v-if="result">
                     {{ achievedPoints }} /
                 </template>
-                {{ value.weight }}
+                {{ toMaxNDecimals(value.weight, 2) }}
             </td>
             <td class="shrink text-center" v-if="result">
                 <auto-test-state :state="stepResult.state" />
@@ -304,7 +307,7 @@
                 <b-collapse :id="resultsCollapseId">
                     <b-card no-body>
                         <b-tabs card no-fade class="container-fluid">
-                            <b-tab title="info" class="row">
+                            <b-tab title="Settings" class="row">
                                 <p class="col-12">
                                     Match output on:
                                     <code>{{ value.data.regex }}</code>
@@ -315,17 +318,16 @@
                                 </p>
                             </b-tab>
 
-                            <b-tab title="stdout" class="row">
+                            <b-tab title="Output" class="row">
                                 <div class="col-12">
-                                    <pre v-if="result.setupStdout">{{ stepResult.log.stdout }}</pre>
-                                    <pre v-else class="text-muted">No output.</pre>
+                                    <pre v-if="stepResult.log.stdout" class="form-control">{{ stepResult.log.stdout }}</pre>
+                                    <pre v-else class="text-muted form-control">No output.</pre>
                                 </div>
                             </b-tab>
 
-                            <b-tab title="stderr" class="row">
+                            <b-tab title="Errors" class="row" v-if="stepResult.log.stderr">
                                 <div class="col-12">
-                                    <pre v-if="result.setupStderr">{{ stepResult.log.stderr }}</pre>
-                                    <pre v-else class="text-muted">No output.</pre>
+                                    <pre class="form-control">{{ stepResult.log.stderr }}</pre>
                                 </div>
                             </b-tab>
                         </b-tabs>
@@ -350,7 +352,7 @@
                     <template v-if="result">
                         {{ achievedPoints }} /
                     </template>
-                    {{ value.weight }}
+                    {{ toMaxNDecimals(value.weight, 2) }}
                 </td>
             <td class="shrink text-center" v-if="result"></td>
         </tr>
@@ -368,7 +370,7 @@
                     <template v-if="result">
                         {{ ioSubStepProps(i, '-', 'achieved_points') }} /
                     </template>
-                    {{ input.weight }}
+                    {{ toMaxNDecimals(input.weight, 2) }}
                 </td>
                 <td class="shrink text-center" v-if="result">
                     <auto-test-state :state="ioSubStepProps(i, stepResult.state, 'state')" />
@@ -439,11 +441,13 @@ import 'vue-awesome/icons/chevron-down';
 import 'vue-awesome/icons/clock-o';
 import 'vue-awesome/icons/ban';
 
-import { getUniqueId, deepCopy, getProps } from '@/utils';
+import { getUniqueId, deepCopy, getProps, toMaxNDecimals } from '@/utils';
 
 import SubmitButton from './SubmitButton';
 import DescriptionPopover from './DescriptionPopover';
 import AutoTestState from './AutoTestState';
+
+window.toMaxNDecimals = toMaxNDecimals;
 
 export default {
     name: 'auto-test-step',
@@ -486,6 +490,7 @@ export default {
         return {
             uniq: getUniqueId,
             getProps,
+            toMaxNDecimals,
 
             id,
             collapseState: {},
@@ -598,7 +603,11 @@ export default {
         },
 
         achievedPoints() {
-            return getProps(this, '-', 'stepResult', 'achieved_points');
+            let points = getProps(this, '-', 'stepResult', 'achieved_points');
+            if (typeof points === 'number' || points instanceof Number) {
+                points = toMaxNDecimals(points, 2);
+            }
+            return points;
         },
 
         canViewOutput() {
