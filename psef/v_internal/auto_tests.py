@@ -316,7 +316,7 @@ def update_step_result(auto_test_id: int, result_id: int
 
     if res_id is None:
         step_result = models.AutoTestStepResult(
-            step=get_or_404(models.AutoTestStep, auto_test_step_id),
+            step=get_or_404(models.AutoTestStepBase, auto_test_step_id),  # type: ignore
             result=result
         )
         db.session.add(result)
