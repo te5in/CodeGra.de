@@ -39,6 +39,23 @@ combination.
 
 Use-cases
 ~~~~~~~~~~
+As the name suggests, IO Tests are used to check the output of a program given
+an input. IO Tests are very useful to check the functionality of simple student
+created programs. To for instance check whether a program correctly outputs
+``Hello World``, correctly sorts a list of numbers or correctly solves a sudoku.
+Additionally, IO Tests can be used to check the correct handling of incorrect
+input.
+
+.. note::
+
+    If you require files as input to your tests, upload these files as fixtures
+    to find them in ``../fixtures/[FILE]``.
+
+.. note::
+
+    Combine IO Tests with Run Program, Capture Points and Check Points Tests to
+    thoroughly check student code.
+
 
 Run Program Test
 -----------------
@@ -49,6 +66,15 @@ code or exit status of this program. Meaning, an exit status of 0 (or
 
 Use-cases
 ~~~~~~~~~~~~
+Run Program Tests are easy to set up and effective to check program execution
+when specific output is not important. Use Run Program Tests to for instance
+check the successful compilation of student code or to run single unit tests
+that you provide as fixtures.
+
+.. note::
+
+    Combine Run Program Tests with IO, Capture Points and Check Points Tests to
+    thoroughly check student code.
 
 Capture Points Test
 ---------------------
@@ -59,15 +85,29 @@ the output of this program. The output of the program can be captured using a
 and 1**. This number is then multiplied with the weight of the Capture Points
 Test to get to the final score of the test.
 
-
 Use-cases
 ~~~~~~~~~~~
+Capture Points Tests are especially useful to run programs of which the output
+is of importance. Use Capture Points Tests to execute and evaluate your own
+unit test scripts or any other specific programs you want to use to evaluate
+student code.
+
+.. note::
+
+    Combine Capture Points Tests with IO, Run Program and Check Points Tests to
+    thoroughly check student code.
+
 
 Checkpoints
 ---------------
 Checkpoints can be used to add conditions to your Test Categories. A Check
-Points block can be put in between tests, to only execute the proceeding tests
-if enough points have been scored in the tests prior to the Check Points block.
+Points block can be put in between tests, to only execute the following tests
+if enough points have been scored in the tests preceding to the Check Points
+block.
 
 Use-cases
 ~~~~~~~~~~
+It can be necessary to add conditionality between tests in your Test Category.
+This can be done with Check Points, which is for instance useful if you check
+compilation in a first test and you only want to run following tests if this
+test succeeded. 
