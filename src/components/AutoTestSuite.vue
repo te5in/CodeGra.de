@@ -31,11 +31,13 @@
 
         <hr/>
 
-        <h5 style="text-align: center;">Steps</h5>
-        <p v-if="internalValue.steps.length === 0" class="help-text">
+        <h5 class="text-center mb-3">Steps</h5>
+
+        <p v-if="internalValue.steps.length === 0" class="text-muted font-italic py-2">
             This category contains no steps. Please add some using the buttons
             below.
         </p>
+
         <SlickList lock-axis="y"
                    lock-to-container-edges
                    @sort-start="slickItemMoving = true"
@@ -61,17 +63,20 @@
             </SlickItem>
         </SlickList>
 
-        <b-button-toolbar class="add-step-btns-wrapper">
-            <b-btn v-for="stepType in stepTypes"
-                   :key="stepType.value"
-                   @click="internalValue.addStep(createTestStep(stepType.name))"
-                   class="add-step-btn text-muted"
-                   v-b-popover.top.hover="`Add a new ${stepType.name} step`"
-                   :style="{ 'background-color': stepType.color }"
-                   variant="primary">
-                <icon name="plus" /> {{ stepType.title }}
-            </b-btn>
-        </b-button-toolbar>
+        <div class="add-step-btns-wrapper">
+            <label>Add new step:</label>
+
+            <b-button-toolbar>
+                <b-btn v-for="stepType in stepTypes"
+                    :key="stepType.value"
+                    @click="internalValue.addStep(createTestStep(stepType.name))"
+                    class="add-step-btn text-muted"
+                    :style="{ 'background-color': stepType.color }"
+                    variant="primary">
+                    <icon name="plus" /> {{ stepType.title }}
+                </b-btn>
+            </b-button-toolbar>
+        </div>
 
         <template slot="modal-footer">
             <b-button-toolbar justify style="width: 100%;">
@@ -308,7 +313,11 @@ export default {
                             args: '',
                             stdin: '',
                             output: '',
-                            options: [],
+                            options: [
+                                'case',
+                                'substring',
+                                'trailing_whitespace',
+                            ],
                             weight: 1,
                         },
                     ];
@@ -410,14 +419,22 @@ export default {
 }
 
 .add-step-btns-wrapper {
-    justify-content: center;
+    display: flex;
+    align-items: center;
+
+    label {
+        margin-right: 0.5rem;
+        margin-bottom: 0;
+    }
 
     .add-step-btn {
         border-color: rgba(0, 0, 0, 0.125) !important;
         box-shadow: none !important;
+
         &:not(:first-child) {
             margin-left: 1rem;
         }
+
         &:hover {
             filter: brightness(95%);
         }

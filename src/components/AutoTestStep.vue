@@ -203,7 +203,8 @@
             <td class="shrink">{{ index }}</td>
             <td colspan="2">
                 <b>{{ stepName }}</b>
-                Stop when you achieve less than <code>{{ value.data.min_points }}</code> points.
+                Stop when you achieve less than <code>{{ value.data.min_points }}</code>
+                points.
             </td>
             <td class="shrink text-center" v-if="result">
                 <auto-test-state :state="stepResult.state" />
