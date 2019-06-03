@@ -43,6 +43,10 @@ class AutoTestSuiteData {
         return this.steps.length === 0;
     }
 
+    isValid() {
+        return !this.isEmpty() && !this.deleted;
+    }
+
     get url() {
         return `/api/v1/auto_tests/${this.autoTestId}/sets/${this.autoTestSetId}/suites/`;
     }

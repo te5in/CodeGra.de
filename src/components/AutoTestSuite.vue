@@ -116,7 +116,7 @@
         </template>
     </b-modal>
 
-    <b-card no-body v-if="!value.isEmpty()">
+    <b-card no-body v-if="value.isValid()">
         <div slot="header" class="title title-display">
             <a v-if="result"
                href="#"
@@ -238,7 +238,6 @@ export default {
 
     computed: {
         disabledCategories() {
-            console.log(this.otherSuites);
             return this.otherSuites.reduce((res, other) => {
                 if (other.id !== this.internalValue.id) {
                     res[other.rubricRow.id] = other;
@@ -364,7 +363,6 @@ export default {
         },
 
         setRubricRow(cat) {
-            console.log(cat);
             this.$set(this.internalValue, 'rubricRow', cat);
         },
     },

@@ -765,22 +765,6 @@ export default {
     border: 0;
 }
 
-.auto-test-suite:not(.empty-auto-test-suite) {
-    margin-bottom: 1rem;
-}
-
-.auto-test {
-    &:not(.config-editable) .auto-test-suite:last-child {
-        margin-bottom: 0;
-    }
-
-    @media @media-large {
-        &.config-editable .auto-test-suite:nth-last-child(2) {
-            margin-bottom: 0;
-        }
-    }
-}
-
 .transition {
     transition: all 0.3s linear;
 }

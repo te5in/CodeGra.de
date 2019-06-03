@@ -16,12 +16,11 @@
     </b-card-header>
 
     <component :is="result ? 'div' : 'b-card-body'">
-        <span v-if="!hasSuites" class="text-muted">
+        <span v-if="!hasSuites" class="text-muted font-italic">
             You have no categories yet. Click the button below to create one.
         </span>
 
-        <masonry v-else
-                 :cols="{default: (result ? 1 : 2), [$root.largeWidth]: 1 }"
+        <masonry :cols="{default: (result ? 1 : 2), [$root.largeWidth]: 1 }"
                  :gutter="30"
                  class="outer-block">
             <auto-test-suite v-for="suite, j in value.suites"
@@ -61,13 +60,13 @@
             </template>
 
             <template v-else>
-                Only execute further levels achieved points by AutoTest is higher than
+                Only execute further levels if achieved points by AutoTest is higher than
                 <code>{{ stopPoints }}</code>
             </template>
         </b-card>
 
         <b-card-footer v-else-if="editable" class="auto-test-header editable transition set-continue" >
-            Only execute further levels achieved points by AutoTest is higher than
+            Only execute further levels if achieved points by AutoTest is higher than
 
             <b-input-group class="input-group">
                 <input
@@ -86,7 +85,7 @@
 
         <b-card-footer v-else class="auto-test-header editable transition set-continue" >
             <span class="font-italic text-muted">
-                Only execute further levels achieved points by AutoTest is higher than
+                Only execute further levels if achieved points by AutoTest is higher than
                 <code>{{ stopPoints }}</code>
             </span>
         </b-card-footer>
@@ -163,7 +162,7 @@ export default {
         },
 
         hasSuites() {
-            return this.value.suites.filter(s => !s.deleted).length !== 0;
+            return this.value.suites.filter(s => s.isValid()).length !== 0;
         },
 
         isLastSet() {
@@ -220,6 +219,8 @@ export default {
 </script>
 
 <style lang="less" scoped>
+@import "~mixins.less";
+
 .transition {
     transition: all 0.3s linear;
 }
@@ -265,6 +266,22 @@ export default {
 
     code {
         padding: 0 0.25rem;
+    }
+}
+
+.auto-test-suite:not(.empty-auto-test-suite) {
+    margin-bottom: 1rem;
+}
+
+.auto-test {
+    &:not(.config-editable) .auto-test-suite:last-child {
+        margin-bottom: 0;
+    }
+
+    @media @media-large {
+        &.config-editable .auto-test-suite:nth-last-child(2) {
+            margin-bottom: 0;
+        }
     }
 }
 
