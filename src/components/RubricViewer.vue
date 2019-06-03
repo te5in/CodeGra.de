@@ -16,10 +16,9 @@
                         {{ rubric.description }}
                     </div>
 
-                    <icon
-                        name="lock"
-                        v-if="autoTestProgress[rubric.id]"
-                        v-b-popover.hover.top="progressPopover"/>
+                    <icon name="lock"
+                          v-if="autoTestProgress[rubric.id]"
+                          v-b-popover.hover.top="progressPopover"/>
                 </template>
 
                 <b-card-group
@@ -234,7 +233,7 @@ export default {
             this.autoTestConfig.sets.forEach(set => {
                 set.suites.forEach(suite => {
                     const result = suiteResults[suite.id];
-                    prog[suite.rubricRow.id] = (75 * result.achieved / result.possible).toFixed(2);
+                    prog[suite.rubricRow.id] = result.achieved / result.possible * 100;
                 });
             });
 
