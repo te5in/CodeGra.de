@@ -132,14 +132,15 @@ def _start_container(
         assert cont.start()
         assert cont.wait('RUNNING', 3)
         if check_network:
-            for _ in range(60):
-                if cont.get_ips():
-                    return
-                time.sleep(0.5)
-                if not always:
-                    _maybe_quit_running()
-            else:
-                raise Exception(f"Couldn't get ip for container {cont}")
+            with timed_code('wait_for_network'):
+                for _ in range(60):
+                    if cont.get_ips():
+                        return
+                    time.sleep(0.5)
+                    if not always:
+                        _maybe_quit_running()
+                else:
+                    raise Exception(f"Couldn't get ip for container {cont}")
 
 
 class StepInstructions(TypedDict, total=True):
