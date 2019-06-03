@@ -233,7 +233,9 @@ export default {
             this.autoTestConfig.sets.forEach(set => {
                 set.suites.forEach(suite => {
                     const result = suiteResults[suite.id];
-                    prog[suite.rubricRow.id] = result.achieved / result.possible * 100;
+                    if (result != null) {
+                        prog[suite.rubricRow.id] = result.achieved / result.possible * 100;
+                    }
                 });
             });
 
@@ -249,7 +251,7 @@ export default {
                 return (
                     `You scored ${this.currentProgress}% in the corresponding ` +
                     `AutoTest category, which scores you ${selectedInRow.points} ` +
-                    'points in the rubric category.'
+                    'points in this rubric category.'
                 );
             }
         },
