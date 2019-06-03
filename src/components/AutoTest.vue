@@ -53,7 +53,8 @@
                                     <icon v-if="result.submission.grade_overridden"
                                           v-b-popover.top.hover="'This submission\'s calculated grade has been manually overridden'"
                                           name="exclamation-triangle"/>
-                                    {{ getProps(result.pointsAchieved, '-') }} / {{ test.pointsPossible }}
+                                    {{ toMaxNDecimals(getProps(result, '-', 'pointsAchieved'), 2) }} /
+                                    {{ toMaxNDecimals(test.pointsPossible, 2) }}
                                 </td>
                                 <td class="state">
                                     <auto-test-state :state="result.state" />
@@ -325,7 +326,7 @@ import 'vue-awesome/icons/circle-o-notch';
 import 'vue-awesome/icons/clock-o';
 import 'vue-awesome/icons/check';
 
-import { deepCopy, getErrorMessage, getProps, nameOfUser, getUniqueId, capitalize } from '@/utils';
+import { deepCopy, getErrorMessage, getProps, nameOfUser, getUniqueId, toMaxNDecimals } from '@/utils';
 
 import AutoTestSet from './AutoTestSet';
 import AutoTestState from './AutoTestState';
@@ -365,7 +366,7 @@ export default {
         return {
             getProps,
             nameOfUser,
-            capitalize,
+            toMaxNDecimals,
 
             disabledAnimations: true,
             newFixtures: [],
@@ -763,22 +764,6 @@ export default {
 
 .auto-test.no-card > .card {
     border: 0;
-}
-
-.auto-test-suite:not(.empty-auto-test-suite) {
-    margin-bottom: 1rem;
-}
-
-.auto-test {
-    &:not(.config-editable) .auto-test-suite:last-child {
-        margin-bottom: 0;
-    }
-
-    @media @media-large {
-        &.config-editable .auto-test-suite:nth-last-child(2) {
-            margin-bottom: 0;
-        }
-    }
 }
 
 .transition {

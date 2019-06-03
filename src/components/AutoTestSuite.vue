@@ -16,7 +16,8 @@
                 <b-dropdown-item v-for="cat in assignment.rubric"
                                  :key="cat.id"
                                  :disabled="!!disabledCategories[cat.id]"
-                                 @click="$set(internalValue, 'rubricRow', cat)">
+                                 @click="setRubricRow(cat)"
+                                 :active="internalValue.rubricRow.id === cat.id" >
                     <div v-b-popover.top.hover="disabledCategories[cat.id] ? 'This rubric category is already in use.' : ''"
                          class="category-wrapper">
                         <h5>{{ cat.header }}</h5>
@@ -30,11 +31,13 @@
 
         <hr/>
 
-        <h5 style="text-align: center;">Steps</h5>
-        <p v-if="internalValue.steps.length === 0" class="help-text">
+        <h5 class="text-center mb-3">Steps</h5>
+
+        <p v-if="internalValue.steps.length === 0" class="text-muted font-italic py-2">
             This category contains no steps. Please add some using the buttons
             below.
         </p>
+
         <SlickList lock-axis="y"
                    lock-to-container-edges
                    @sort-start="slickItemMoving = true"
@@ -60,17 +63,20 @@
             </SlickItem>
         </SlickList>
 
-        <b-button-toolbar class="add-step-btns-wrapper">
-            <b-btn v-for="stepType in stepTypes"
-                   :key="stepType.value"
-                   @click="internalValue.addStep(createTestStep(stepType.name))"
-                   class="add-step-btn text-muted"
-                   v-b-popover.top.hover="`Add a new ${stepType.name} step`"
-                   :style="{ 'background-color': stepType.color }"
-                   variant="primary">
-                <icon name="plus" /> {{ stepType.title }}
-            </b-btn>
-        </b-button-toolbar>
+        <div class="add-step-btns-wrapper">
+            <label>Add new step:</label>
+
+            <b-button-toolbar>
+                <b-btn v-for="stepType in stepTypes"
+                    :key="stepType.value"
+                    @click="internalValue.addStep(createTestStep(stepType.name))"
+                    class="add-step-btn text-muted"
+                    :style="{ 'background-color': stepType.color }"
+                    variant="primary">
+                    <icon name="plus" /> {{ stepType.title }}
+                </b-btn>
+            </b-button-toolbar>
+        </div>
 
         <template slot="modal-footer">
             <b-button-toolbar justify style="width: 100%;">
@@ -83,7 +89,8 @@
                     variant="outline-danger"
                     :disabled="value.isEmpty()"
                     label="Cancel"
-                    :submit="cancelEdit"/>
+                    :submit="cancelEdit"
+                    confirm="Are you sure? Cancelling will lose all your changes."/>
                 <submit-button :submit="saveSuite"
                                @success="afterSaveSuite"
                                label="Save">
@@ -93,6 +100,7 @@
                         <template v-for="err in scope.error.messages.general">
                             {{ err }}
                         </template>
+
                         <template v-if="scope.error.messages.steps.length > 0">
                             Some steps are not valid:
                             <ul>
@@ -115,7 +123,7 @@
         </template>
     </b-modal>
 
-    <b-card no-body v-if="!value.isEmpty()">
+    <b-card no-body v-if="value.isValid()">
         <div slot="header" class="title title-display">
             <a v-if="result"
                href="#"
@@ -173,7 +181,7 @@ import 'vue-awesome/icons/times';
 import 'vue-awesome/icons/check';
 import 'vue-awesome/icons/pencil';
 
-import { getUniqueId, withOrdinalSuffix } from '@/utils';
+import { getProps, getUniqueId, withOrdinalSuffix } from '@/utils';
 
 import SubmitButton from './SubmitButton';
 import AutoTestStep from './AutoTestStep';
@@ -238,7 +246,9 @@ export default {
     computed: {
         disabledCategories() {
             return this.otherSuites.reduce((res, other) => {
-                res[other.rubricRow.id] = other;
+                if (other.id !== this.internalValue.id) {
+                    res[other.rubricRow.id] = other;
+                }
                 return res;
             }, {});
         },
@@ -269,6 +279,10 @@ export default {
             ];
         },
 
+        rubricRow() {
+            return getProps(this, null, 'internalValue', 'rubricRow');
+        },
+
         pointPercentage() {
             const result = this.result.suiteResults[this.value.id];
             return (100 * result.achieved / result.possible).toFixed(2);
@@ -278,6 +292,7 @@ export default {
     methods: {
         ...mapActions('autotest', {
             storeDeleteAutoTestSuite: 'deleteAutoTestSuite',
+            storeUpdateAutoTestSuite: 'updateAutoTestSuite',
         }),
 
         createTestStep(type) {
@@ -285,7 +300,6 @@ export default {
                 name: '',
                 type,
                 weight: 1,
-                program: '',
                 opened: true,
                 hidden: false,
                 data: {},
@@ -300,15 +314,20 @@ export default {
                             args: '',
                             stdin: '',
                             output: '',
-                            options: [],
+                            options: [
+                                'case',
+                                'substring',
+                                'trailing_whitespace',
+                            ],
                             weight: 1,
                         },
                     ];
                     break;
                 case 'custom_output':
-                    res.data.regex = '(\\d+\\.?\\d*|\\.\\d+)';
+                    res.data.regex = '1(\\.0*)?|0(\\.\\d*)?';
                     break;
                 case 'check_points':
+                    res.weight = 0;
                     res.data.min_points = 0;
                     break;
                 case 'run_program':
@@ -352,6 +371,10 @@ export default {
             return this.storeDeleteAutoTestSuite({
                 autoTestSuite: this.value,
             });
+        },
+
+        setRubricRow(cat) {
+            this.$set(this.internalValue, 'rubricRow', cat);
         },
     },
 
@@ -398,14 +421,22 @@ export default {
 }
 
 .add-step-btns-wrapper {
-    justify-content: center;
+    display: flex;
+    align-items: center;
+
+    label {
+        margin-right: 0.5rem;
+        margin-bottom: 0;
+    }
 
     .add-step-btn {
         border-color: rgba(0, 0, 0, 0.125) !important;
         box-shadow: none !important;
+
         &:not(:first-child) {
             margin-left: 1rem;
         }
+
         &:hover {
             filter: brightness(95%);
         }
@@ -461,11 +492,13 @@ export default {
 
 .auto-test-suite .category-dropdown {
     flex: 1 1 auto;
+
     .dropdown-toggle {
         flex: 1 1 auto;
         border-top-left-radius: 0;
         border-bottom-left-radius: 0;
     }
+
     .dropdown-menu.show {
         overflow-y: auto;
         padding: 0;
