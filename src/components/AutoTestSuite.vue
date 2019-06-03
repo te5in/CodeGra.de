@@ -16,7 +16,8 @@
                 <b-dropdown-item v-for="cat in assignment.rubric"
                                  :key="cat.id"
                                  :disabled="!!disabledCategories[cat.id]"
-                                 @click="$set(internalValue, 'rubricRow', cat)">
+                                 @click="setRubricRow(cat)"
+                                 :active="internalValue.rubricRow.id === cat.id" >
                     <div v-b-popover.top.hover="disabledCategories[cat.id] ? 'This rubric category is already in use.' : ''"
                          class="category-wrapper">
                         <h5>{{ cat.header }}</h5>
@@ -173,7 +174,7 @@ import 'vue-awesome/icons/times';
 import 'vue-awesome/icons/check';
 import 'vue-awesome/icons/pencil';
 
-import { getUniqueId, withOrdinalSuffix } from '@/utils';
+import { getProps, getUniqueId, withOrdinalSuffix } from '@/utils';
 
 import SubmitButton from './SubmitButton';
 import AutoTestStep from './AutoTestStep';
@@ -237,8 +238,11 @@ export default {
 
     computed: {
         disabledCategories() {
+            console.log(this.otherSuites);
             return this.otherSuites.reduce((res, other) => {
-                res[other.rubricRow.id] = other;
+                if (other.id !== this.internalValue.id) {
+                    res[other.rubricRow.id] = other;
+                }
                 return res;
             }, {});
         },
@@ -269,6 +273,10 @@ export default {
             ];
         },
 
+        rubricRow() {
+            return getProps(this, null, 'internalValue', 'rubricRow');
+        },
+
         pointPercentage() {
             const result = this.result.suiteResults[this.value.id];
             return (100 * result.achieved / result.possible).toFixed(2);
@@ -278,6 +286,7 @@ export default {
     methods: {
         ...mapActions('autotest', {
             storeDeleteAutoTestSuite: 'deleteAutoTestSuite',
+            storeUpdateAutoTestSuite: 'updateAutoTestSuite',
         }),
 
         createTestStep(type) {
@@ -352,6 +361,11 @@ export default {
             return this.storeDeleteAutoTestSuite({
                 autoTestSuite: this.value,
             });
+        },
+
+        setRubricRow(cat) {
+            console.log(cat);
+            this.$set(this.internalValue, 'rubricRow', cat);
         },
     },
 
@@ -461,11 +475,13 @@ export default {
 
 .auto-test-suite .category-dropdown {
     flex: 1 1 auto;
+
     .dropdown-toggle {
         flex: 1 1 auto;
         border-top-left-radius: 0;
         border-bottom-left-radius: 0;
     }
+
     .dropdown-menu.show {
         overflow-y: auto;
         padding: 0;
