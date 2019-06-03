@@ -974,7 +974,7 @@ class _BaseAutoTestRunner(AutoTestRunner):
         return total_points
 
     @timed_function
-    def run_student(
+    def _run_student(
         self,
         base_container_name: str,
         cpu_cores: CpuCores,
@@ -985,12 +985,8 @@ class _BaseAutoTestRunner(AutoTestRunner):
 
         result_url = f'{self.base_url}/results/{result_id}'
         result_state = models.AutoTestStepResultState.running
-        push_logger = _push_logging(self._push_log)
 
         try:
-            logger.bind(result_id=result_id)
-            push_logger.start()
-
             self.req.patch(
                 result_url,
                 json={'state': result_state.name},
@@ -1042,12 +1038,20 @@ class _BaseAutoTestRunner(AutoTestRunner):
         else:
             result_state = models.AutoTestStepResultState.passed
         finally:
-            logger.try_unbind('result_id')
-            push_logger.cancel()
             self.req.patch(
                 result_url,
                 json={'state': result_state.name},
             )
+
+    def run_student(
+        self,
+        base_container_name: str,
+        cpu_cores: CpuCores,
+        result_id: int,
+    ) -> None:
+        with _push_logging(self._push_log
+                           ), bound_to_logger(result_id=result_id):
+            self._run_student(base_container_name, cpu_cores, result_id)
 
     def started_heartbeat(self) -> 'RepeatedTimer':
         def push_heartbeat() -> None:
