@@ -120,3 +120,7 @@ class ValidationException(APIException):
 class WeakPasswordException(ValidationException):
     """Thrown when a password is too weak.
     """
+
+
+class StopRunningStepsException(Exception):
+    pass
