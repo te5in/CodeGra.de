@@ -146,14 +146,17 @@
                                                 <li v-for="fixture, index in test.fixtures"
                                                     class="transition fixture-row"
                                                     :key="fixture.id">
-                                                    <template v-if="configEditable">
-                                                        <a
-                                                            class="fixture-name"
-                                                            href="#"
-                                                            @click="openFile(fixture, $event)">
-                                                            {{ fixture.name }}
-                                                        </a>
+                                                    <a v-if="canViewFixture(fixture)"
+                                                        class="fixture-name"
+                                                        href="#"
+                                                        @click.capture.prevent.stop="downloadFixture(fixture)">
+                                                        {{ fixture.name }}
+                                                    </a>
+                                                    <span v-else>
+                                                        {{ fixture.name }}
+                                                    </span>
 
+                                                    <template v-if="configEditable">
                                                         <b-button-group>
                                                             <submit-button
                                                                 :variant="fixture.hidden ? 'primary' : 'secondary'"
@@ -170,19 +173,9 @@
                                                             </submit-button>
                                                         </b-button-group>
                                                     </template>
-                                                    <template v-else>
-                                                        <component
-                                                            :is="canViewFixture(fixture) ? 'a' : 'span'"
-                                                            class="fixture-name"
-                                                            href="#">
-                                                            {{ fixture.name }}
-                                                        </component>
-
-                                                        <icon
-                                                            v-if="fixture.hidden"
-                                                            name="eye-slash"
-                                                            v-b-popover.top.hover="`This fixture is hidden. ${singleResult && !canViewFixture(fixture) ? 'You' : 'Students'} may not view its contents.`"/>
-                                                    </template>
+                                                    <icon v-else-if="fixture.hidden"
+                                                          name="eye-slash"
+                                                          v-b-popover.top.hover="`This fixture is hidden. ${singleResult && !canViewFixture(fixture) ? 'You' : 'Students'} may not view its contents.`"/>
                                                 </li>
                                             </transition-group>
                                         </ul>
@@ -539,10 +532,6 @@ export default {
             });
         },
 
-        openFile(_, event) {
-            event.preventDefault();
-        },
-
         submitProp(prop) {
             return this.storeUpdateAutoTest({
                 autoTestId: this.autoTestId,
@@ -607,6 +596,18 @@ export default {
                 autoTestId: this.autoTestId,
                 fixture: this.test.fixtures[index],
             });
+        },
+
+        downloadFixture(fixture) {
+            if (fixture.hidden && !this.permissions.can_view_hidden_fixtures) {
+                throw new Error('You do not have permission to view the content of this fixture.');
+            }
+
+            this.$http
+                .get(`/api/v1/auto_tests/${this.autoTestId}/fixtures/${fixture.id}`)
+                .then(({ data }) => {
+                    this.$utils.downloadFile(data, fixture.name, 'application/octet-stream');
+                });
         },
 
         createAutoTest() {

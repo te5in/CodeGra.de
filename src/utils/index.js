@@ -302,3 +302,23 @@ export function getErrorMessage(err) {
 
     return msg || 'Something unknown went wrong';
 }
+
+// https://stackoverflow.com/questions/13405129/javascript-create-and-save-file
+export function downloadFile(data, filename, contentType) {
+    const file = new Blob([data], { type: contentType });
+    if (window.navigator.msSaveOrOpenBlob) {
+        // IE10+
+        window.navigator.msSaveOrOpenBlob(file, filename);
+    } else {
+        const url = URL.createObjectURL(file);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }, 0);
+    }
+}
