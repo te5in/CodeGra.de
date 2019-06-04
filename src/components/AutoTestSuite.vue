@@ -314,11 +314,7 @@ export default {
                             args: '',
                             stdin: '',
                             output: '',
-                            options: [
-                                'case',
-                                'substring',
-                                'trailing_whitespace',
-                            ],
+                            options: ['case', 'substring', 'trailing_whitespace'],
                             weight: 1,
                         },
                     ];

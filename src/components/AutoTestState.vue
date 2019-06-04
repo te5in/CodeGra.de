@@ -4,7 +4,7 @@
            variant="secondary" >
     <span v-b-popover.hover.top="readable">
         <div v-if="state == 'running'" class="running">
-            <template v-if="showTimer">
+            <template v-if="!noTimer">
                 {{ minutes }}:{{ seconds }}
             </template>
         </div>
@@ -34,7 +34,7 @@ export default {
     props: {
         result: {
             type: Object,
-            required: true,
+            default: null,
         },
 
         btn: {
@@ -46,13 +46,6 @@ export default {
             type: Boolean,
             default: false,
         },
-    },
-
-    data() {
-        return {
-            minutes: null,
-            seconds: null,
-        };
     },
 
     computed: {
@@ -113,31 +106,17 @@ export default {
             }
         },
 
-        showTimer() {
-            return !this.noTimer && this.minutes != null && this.seconds != null;
+        passedSinceStart() {
+            return (this.$root.$epoch - this.startMSec) / 1000;
         },
-    },
 
-    methods: {
-        updateEpoch(epoch) {
-            if (this.startMSec != null) {
-                const duration = (epoch - this.startMSec) / 1000;
-                this.minutes = this.$utils.formatTimePart(Math.floor(duration / 60));
-                this.seconds = this.$utils.formatTimePart(Math.floor(duration % 60));
-            }
+        minutes() {
+            return this.$utils.formatTimePart(Math.floor(this.passedSinceStart / 60));
         },
-    },
 
-    mounted() {
-        if (!this.noTimer) {
-            this.$root.$on('epoch', this.updateEpoch);
-        }
-    },
-
-    destroyed() {
-        if (!this.noTimer) {
-            this.$root.$off('epoch', this.updateEpoch);
-        }
+        seconds() {
+            return this.$utils.formatTimePart(Math.floor(this.passedSinceStart % 60));
+        },
     },
 
     components: {

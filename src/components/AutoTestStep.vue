@@ -646,11 +646,7 @@ export default {
                 args: '',
                 stdin: '',
                 output: '',
-                options: [
-                    'case',
-                    'substring',
-                    'trailing_whitespace',
-                ],
+                options: ['case', 'substring', 'trailing_whitespace'],
                 weight: 1,
             };
         },
@@ -714,14 +710,7 @@ export default {
         },
 
         ioSubStepProps(i, defaultValue, ...props) {
-            return getProps(
-                this.stepResult,
-                defaultValue,
-                'log',
-                'steps',
-                i,
-                ...props,
-            );
+            return getProps(this.stepResult, defaultValue, 'log', 'steps', i, ...props);
         },
     },
 
