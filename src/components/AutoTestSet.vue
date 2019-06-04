@@ -219,7 +219,7 @@ export default {
 </script>
 
 <style lang="less" scoped>
-@import "~mixins.less";
+@import '~mixins.less';
 
 .transition {
     transition: all 0.3s linear;

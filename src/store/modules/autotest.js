@@ -26,16 +26,12 @@ class AutoTestSuiteData {
     }
 
     copy() {
-        return new AutoTestSuiteData(
-            this.autoTestId,
-            this.autoTestSetId,
-            {
-                id: this.id,
-                steps: deepCopy(this.steps),
-                rubric_row: this.rubricRow,
-                network_disabled: this.networkDisabled,
-            },
-        );
+        return new AutoTestSuiteData(this.autoTestId, this.autoTestSetId, {
+            id: this.id,
+            steps: deepCopy(this.steps),
+            rubric_row: this.rubricRow,
+            network_disabled: this.networkDisabled,
+        });
     }
 
     isEmpty() {
@@ -213,55 +209,69 @@ class AutoTestResult {
         let setFailed = false;
 
         autoTest.sets.forEach(set => {
-            const setResult = set.suites.reduce((acc1, suite) => {
-                const suiteResult = suite.steps.reduce((acc2, step) => {
-                    let stepResult = stepResults[step.id];
-                    acc2.possible += step.weight;
+            if (set.deleted) {
+                return;
+            }
 
-                    if (stepResult == null) {
-                        stepResult = {
-                            state: 'not_started',
-                            log: null,
-                        };
-                        acc1.finished = false;
-                        acc2.finished = false;
-                    } else if (setFailed && !acc2.passed) {
-                        stepResult = {
-                            state: 'skipped',
-                            log: null,
-                        };
-                    } else if (
-                        step.type === 'check_points' &&
-                        stepResult.state === 'failed'
-                    ) {
-                        acc2.passed = false;
-                    } else {
-                        stepResult.passed = stepResult.state === 'passed';
-                        acc2.achieved += stepResult.achieved_points;
+            const setResult = set.suites.reduce(
+                (acc1, suite) => {
+                    if (suite.deleted) {
+                        return acc1;
                     }
 
-                    stepResults[step.id] = stepResult;
+                    const suiteResult = suite.steps.reduce(
+                        (acc2, step) => {
+                            let stepResult = stepResults[step.id];
+                            acc2.possible += step.weight;
 
-                    return acc2;
-                }, {
+                            if (stepResult == null) {
+                                stepResult = {
+                                    state: 'not_started',
+                                    log: null,
+                                };
+                                acc1.finished = false;
+                                acc2.finished = false;
+                            } else if (setFailed && !acc2.passed) {
+                                stepResult = {
+                                    state: 'skipped',
+                                    log: null,
+                                };
+                            } else if (
+                                step.type === 'check_points' &&
+                                stepResult.state === 'failed'
+                            ) {
+                                acc2.passed = false;
+                            } else {
+                                stepResult.passed = stepResult.state === 'passed';
+                                acc2.achieved += stepResult.achieved_points;
+                            }
+
+                            stepResults[step.id] = stepResult;
+
+                            return acc2;
+                        },
+                        {
+                            achieved: 0,
+                            possible: 0,
+                            passed: true,
+                            finished: true,
+                        },
+                    );
+
+                    acc1.achieved += suiteResult.achieved;
+                    acc1.possible += suiteResult.possible;
+
+                    suiteResults[suite.id] = suiteResult;
+
+                    return acc1;
+                },
+                {
                     achieved: 0,
                     possible: 0,
                     passed: true,
                     finished: true,
-                });
-
-                acc1.achieved += suiteResult.achieved;
-                acc1.possible += suiteResult.possible;
-
-                suiteResults[suite.id] = suiteResult;
-
-                return acc1;
-            }, {
-                achieved: 0,
-                possible: 0,
-                passed: true,
-                finished: true,
-            });
+                },
+            );
 
             setResult.passed = setResult.achieved >= set.stop_points;
             setFailed = setFailed || (setResult.finished && !setResult.passed);
@@ -596,13 +606,25 @@ const mutations = {
         Object.defineProperty(autoTest, 'pointsPossible', {
             get() {
                 return autoTest.sets.reduce(
-                    (acc1, set) =>
-                        acc1 +
-                        set.suites.reduce(
-                            (acc2, suite) =>
-                                acc2 + suite.steps.reduce((acc3, step) => acc3 + step.weight, 0),
+                    (acc1, set) => {
+                        if (set.deleted) {
+                            return acc1;
+                        }
+
+                        return acc1 + set.suites.reduce(
+                            (acc2, suite) => {
+                                if (suite.deleted) {
+                                    return acc2;
+                                }
+
+                                return acc2 + suite.steps.reduce(
+                                    (acc3, step) => acc3 + step.weight,
+                                    0,
+                                );
+                            },
                             0,
-                        ),
+                        );
+                    },
                     0,
                 );
             },
