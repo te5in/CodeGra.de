@@ -1,4 +1,5 @@
 import abc
+import copy
 import enum
 import typing as t
 import numbers
@@ -29,9 +30,12 @@ T = t.TypeVar('T', bound=t.Type['AutoTestStepBase'])
 if t.TYPE_CHECKING and not getattr(t, 'SPHINX', False):  # pragma: no cover
     from .. import auto_test as auto_test_module
 
-_all_auto_test_handlers = sorted([
-    'io_test', 'run_program', 'custom_output', 'check_output', 'check_points'
-])
+_all_auto_test_handlers = sorted(
+    [
+        'io_test', 'run_program', 'custom_output', 'check_output',
+        'check_points'
+    ]
+)
 _registered_test_handlers: t.Set[str] = set()
 
 
@@ -252,15 +256,8 @@ class _IoTest(AutoTestStepBase):
                 )
             if len(options) != len(set(options)):
                 errs.append((idx, 'Duplicate options are not allowed'))
-            if 'regex' in options and len(options) > 1:
-                errs.append(
-                    (
-                        idx, (
-                            'The "regex" option cannot be used in combination'
-                            ' with other options.'
-                        )
-                    )
-                )
+            if 'regex' in options and 'substring' not in options:
+                errs.append((idx, ('The "regex" option implies "substring"')))
 
         sum_weight = sum(i['weight'] for i in inputs)
         if sum_weight != self.weight:
@@ -308,11 +305,11 @@ class _IoTest(AutoTestStepBase):
         inputs = t.cast(t.List[dict], data['inputs'])
 
         default_result = {
-            'state': AutoTestStepResultState.not_started,
+            'state': AutoTestStepResultState.not_started.name,
             'created_at': now(),
         }
         test_result: t.Dict[str, t.Any] = {
-            'steps': [default_result for _ in inputs]
+            'steps': [copy.deepcopy(default_result) for _ in inputs]
         }
         update_test_result(AutoTestStepResultState.running, test_result)
 
@@ -323,13 +320,13 @@ class _IoTest(AutoTestStepBase):
         for idx, step in enumerate(inputs):
             test_result['steps'][idx].update(
                 {
-                    'state': AutoTestStepResultState.running,
+                    'state': AutoTestStepResultState.running.name,
                     'started_at': now(),
                 }
             )
             update_test_result(AutoTestStepResultState.running, test_result)
 
-            output = step['output'].rstrip('\n')
+            expected_output = step['output'].rstrip('\n')
 
             options = t.cast(t.List[str], step['options'])
             time_spend: t.Optional[float]
@@ -354,18 +351,49 @@ class _IoTest(AutoTestStepBase):
                     to_test = '\n'.join(
                         line.rstrip() for line in to_test.splitlines()
                     )
-                    output = '\n'.join(
-                        line.rstrip() for line in output.splitlines()
+                    expected_output = '\n'.join(
+                        line.rstrip() for line in expected_output.splitlines()
                     )
+                regex_flags = 0
 
                 if 'case' in options:
-                    to_test = to_test.lower()
-                    output = output.lower()
+                    if 'regex' in options:
+                        regex_flags |= re.IGNORECASE
+                    else:
+                        to_test = to_test.lower()
+                        expexted_output = expected_output.lower()
 
-                if 'substring' in options:
-                    success = output in to_test
+                if 'regex' in options:
+                    try:
+                        success = bool(
+                            re.search(
+                                expected_output,
+                                to_test,
+                                flags=regex_flags,
+                                timeout=2,
+                            )
+                        )
+                        logger.info(
+                            'Doing regex search',
+                            output=expected_output,
+                            to_test=to_test,
+                            flags=regex_flags,
+                            match=re.search(
+                                expected_output,
+                                to_test,
+                                flags=regex_flags,
+                                timeout=2,
+                            ),
+                            success=success,
+                            idx=idx,
+                        )
+                    except TimeoutError:
+                        code = -2
+                        success = False
+                elif 'substring' in options:
+                    success = expected_output in to_test
                 else:
-                    success = output == to_test
+                    success = expected_output == to_test
 
             achieved_points = 0
             if success:

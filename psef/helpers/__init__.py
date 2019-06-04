@@ -942,7 +942,9 @@ class RepeatedTimer:
             threading.Thread(target=fun).start()
         return self
 
-    def __exit__(self, exc_type: object, exc_value: object, traceback: object) -> None:
+    def __exit__(
+        self, exc_type: object, exc_value: object, traceback: object
+    ) -> None:
         self.cancel()
 
     def __enter__(self) -> 'RepeatedTimer':
