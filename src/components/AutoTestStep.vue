@@ -196,7 +196,7 @@
 <!-- Not editable -->
 <tbody v-else class="auto-test-step" :class="{ 'with-output': canViewOutput }">
     <template v-if="value.type === 'check_points'">
-        <tr class="step-summary" :key="uniq()" v-b-toggle="resultsCollapseId">
+        <tr class="step-summary" :key="resultsCollapseId" v-b-toggle="resultsCollapseId">
             <td class="expand shrink" v-if="result">
                 <icon v-if="canViewOutput" name="chevron-down" :scale="0.75" />
                 <icon v-else-if="value.hidden" name="eye-slash" :scale="0.85"
@@ -228,7 +228,7 @@
     </template>
 
     <template v-else-if="value.type === 'run_program'">
-        <tr class="step-summary" :key="uniq()" v-b-toggle="resultsCollapseId">
+        <tr class="step-summary" :key="resultsCollapseId" v-b-toggle="resultsCollapseId">
             <td class="expand shrink" v-if="result">
                 <icon v-if="canViewOutput" name="chevron-down" :scale="0.75" />
                 <icon v-else-if="value.hidden" name="eye-slash" :scale="0.85"
@@ -282,7 +282,7 @@
     </template>
 
     <template v-else-if="value.type === 'custom_output'">
-        <tr class="step-summary" :key="uniq()" v-b-toggle="resultsCollapseId">
+        <tr class="step-summary" :key="resultsCollapseId" v-b-toggle="resultsCollapseId">
             <td class="expand shrink" v-if="result">
                 <icon v-if="canViewOutput" name="chevron-down" :scale="0.75" />
                 <icon v-else-if="value.hidden" name="eye-slash" :scale="0.85"
@@ -360,7 +360,7 @@
         </tr>
 
         <template v-for="input, i in inputs">
-            <tr class="step-summary" :key="uniq()" v-b-toggle="`${resultsCollapseId}-${i}`">
+            <tr class="step-summary" :key="`${resultsCollapseId}-${i}`" v-b-toggle="`${resultsCollapseId}-${i}`">
                 <td class="expand shrink" v-if="result">
                     <icon v-if="canViewOutput" name="chevron-down" :scale="0.75" />
                     <icon v-else-if="value.hidden" name="eye-slash" :scale="0.85"
@@ -646,7 +646,11 @@ export default {
                 args: '',
                 stdin: '',
                 output: '',
-                options: [],
+                options: [
+                    'case',
+                    'substring',
+                    'trailing_whitespace',
+                ],
                 weight: 1,
             };
         },
