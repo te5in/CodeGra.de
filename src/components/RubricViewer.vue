@@ -17,13 +17,13 @@
                     </div>
 
                     <icon name="lock"
-                          v-if="autoTestProgress[rubric.id]"
+                          v-if="autoTestProgress[rubric.id] != null"
                           v-b-popover.hover.top="progressPopover"/>
                 </template>
 
                 <b-card-group
                     class="rubric-items-group"
-                    :class="{ disabled: autoTestProgress[rubric.id] }">
+                    :class="{ disabled: autoTestProgress[rubric.id] != null }">
                     <b-card class="rubric-item"
                             v-for="item in rubric.items"
                             :key="`rubric-${rubric.id}-${item.id}`"
@@ -60,7 +60,7 @@
                     </b-card>
                 </b-card-group>
 
-                <div v-show="autoTestProgress[rubric.id]" class="progress">
+                <div v-show="autoTestProgress[rubric.id] != null" class="progress">
                     <div ref="progressMeter" class="meter" />
                 </div>
             </b-card>
@@ -375,7 +375,7 @@ export default {
         },
 
         toggleItem(row, item) {
-            if (!this.editable || this.autoTestProgress[row.id]) {
+            if (!this.editable || this.autoTestProgress[row.id] != null) {
                 return;
             }
 
