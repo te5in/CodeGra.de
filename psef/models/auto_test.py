@@ -173,6 +173,10 @@ class AutoTestResult(Base, TimestampMixin, IdMixin):
         )
     )
 
+    started_at: t.Optional[datetime.datetime] = db.Column(
+        'started_at', db.DateTime, default=None, nullable=True
+    )
+
     setup_stderr: t.Optional[str] = orm.deferred(
         db.Column(
             'setup_stderr',
@@ -188,7 +192,7 @@ class AutoTestResult(Base, TimestampMixin, IdMixin):
         order_by='AutoTestStepResult.created_at'
     )  # type: t.MutableSequence[auto_test_step_models.AutoTestStepResult]
 
-    state = db.Column(
+    _state = db.Column(
         'state',
         db.Enum(auto_test_step_models.AutoTestStepResultState),
         default=auto_test_step_models.AutoTestStepResultState.not_started,
@@ -204,6 +208,21 @@ class AutoTestResult(Base, TimestampMixin, IdMixin):
     work = db.relationship(
         'Work', foreign_keys=work_id
     )  # type: work_models.Work
+
+    @property
+    def state(self) -> auto_test_step_models.AutoTestStepResultState:
+        return self._state
+
+    @state.setter
+    def state(self, s: auto_test_step_models.AutoTestStepResultState) -> None:
+        if s == self._state:
+            return
+
+        self._state = s
+        if s == auto_test_step_models.AutoTestStepResultState.running:
+            self.started_at = datetime.datetime.utcnow()
+        else:
+            self.started_at = None
 
     @property
     def passed(self) -> bool:
