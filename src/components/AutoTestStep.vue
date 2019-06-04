@@ -209,7 +209,7 @@
                 points.
             </td>
             <td class="shrink text-center" v-if="result">
-                <auto-test-state :state="stepResult.state" />
+                <auto-test-state :result="stepResult" />
             </td>
         </tr>
 
@@ -246,7 +246,7 @@
                 {{ toMaxNDecimals(value.weight, 2) }}
             </td>
             <td class="shrink text-center" v-if="result">
-                <auto-test-state :state="stepResult.state" />
+                <auto-test-state :result="stepResult" />
             </td>
         </tr>
 
@@ -300,7 +300,7 @@
                 {{ toMaxNDecimals(value.weight, 2) }}
             </td>
             <td class="shrink text-center" v-if="result">
-                <auto-test-state :state="stepResult.state" />
+                <auto-test-state :result="stepResult" />
             </td>
         </tr>
 
@@ -375,7 +375,7 @@
                     {{ toMaxNDecimals(input.weight, 2) }}
                 </td>
                 <td class="shrink text-center" v-if="result">
-                    <auto-test-state :state="ioSubStepProps(i, stepResult.state, 'state')" />
+                    <auto-test-state :result="ioSubStepProps(i, null)" />
                 </td>
             </tr>
 

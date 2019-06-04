@@ -27,6 +27,10 @@ export function formatGrade(grade) {
     return Number.isNaN(g) ? null : g.toFixed(2);
 }
 
+export function formatTimePart(num) {
+    return `${num < 10 ? '0' : ''}${num}`;
+}
+
 export function toMaxNDecimals(num, n) {
     let str = num.toFixed(n);
     while (str[str.length - 1] === '0') {
@@ -301,4 +305,24 @@ export function getErrorMessage(err) {
     }
 
     return msg || 'Something unknown went wrong';
+}
+
+// https://stackoverflow.com/questions/13405129/javascript-create-and-save-file
+export function downloadFile(data, filename, contentType) {
+    const file = new Blob([data], { type: contentType });
+    if (window.navigator.msSaveOrOpenBlob) {
+        // IE10+
+        window.navigator.msSaveOrOpenBlob(file, filename);
+    } else {
+        const url = URL.createObjectURL(file);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }, 0);
+    }
 }

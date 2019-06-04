@@ -22,7 +22,7 @@
                 </div>
 
                 <div v-if="editable" class="btn-wrapper">
-                    <auto-test-state btn :state="run.state" />
+                    <auto-test-state btn no-timer :result="run" />
 
                     <submit-button
                         :submit="() => deleteResults(run.id)"
@@ -48,16 +48,16 @@
                             <tr v-for="result in run.results"
                                 :key="result.submission.user.id"
                                 @click="openResult(result)">
-                                <td class="name">{{ nameOfUser(result.submission.user) }}</td>
+                                <td class="name">{{ $utils.nameOfUser(result.submission.user) }}</td>
                                 <td class="score">
                                     <icon v-if="result.submission.grade_overridden"
                                           v-b-popover.top.hover="'This submission\'s calculated grade has been manually overridden'"
                                           name="exclamation-triangle"/>
-                                    {{ toMaxNDecimals(getProps(result, '-', 'pointsAchieved'), 2) }} /
-                                    {{ toMaxNDecimals(test.pointsPossible, 2) }}
+                                    {{ $utils.toMaxNDecimals($utils.getProps(result, '-', 'pointsAchieved'), 2) }} /
+                                    {{ $utils.toMaxNDecimals(test.pointsPossible, 2) }}
                                 </td>
                                 <td class="state">
-                                    <auto-test-state :state="result.state" />
+                                    <auto-test-state :result="result" />
                                 </td>
                             </tr>
                         </template>
@@ -146,14 +146,17 @@
                                                 <li v-for="fixture, index in test.fixtures"
                                                     class="transition fixture-row"
                                                     :key="fixture.id">
-                                                    <template v-if="configEditable">
-                                                        <a
-                                                            class="fixture-name"
-                                                            href="#"
-                                                            @click="openFile(fixture, $event)">
-                                                            {{ fixture.name }}
-                                                        </a>
+                                                    <a v-if="canViewFixture(fixture)"
+                                                        class="fixture-name"
+                                                        href="#"
+                                                        @click.capture.prevent.stop="downloadFixture(fixture)">
+                                                        {{ fixture.name }}
+                                                    </a>
+                                                    <span v-else class="fixture-name">
+                                                        {{ fixture.name }}
+                                                    </span>
 
+                                                    <template v-if="configEditable">
                                                         <b-button-group>
                                                             <submit-button
                                                                 :variant="fixture.hidden ? 'primary' : 'secondary'"
@@ -170,19 +173,9 @@
                                                             </submit-button>
                                                         </b-button-group>
                                                     </template>
-                                                    <template v-else>
-                                                        <component
-                                                            :is="canViewFixture(fixture) ? 'a' : 'span'"
-                                                            class="fixture-name"
-                                                            href="#">
-                                                            {{ fixture.name }}
-                                                        </component>
-
-                                                        <icon
-                                                            v-if="fixture.hidden"
-                                                            name="eye-slash"
-                                                            v-b-popover.top.hover="`This fixture is hidden. ${singleResult && !canViewFixture(fixture) ? 'You' : 'Students'} may not view its contents.`"/>
-                                                    </template>
+                                                    <icon v-else-if="fixture.hidden"
+                                                          name="eye-slash"
+                                                          v-b-popover.top.hover="`This fixture is hidden. ${singleResult && !canViewFixture(fixture) ? 'You' : 'Students'} may not view its contents.`"/>
                                                 </li>
                                             </transition-group>
                                         </ul>
@@ -256,10 +249,10 @@
                 </b-card>
 
                 <transition :name="disabledAnimations ? '' : 'emptytext'">
-                    <div class="text-muted empty-text transition"
+                    <p class="text-muted font-italic empty-text transition"
                             v-if="test.sets.filter(s => !s.deleted).length === 0">
                         You have no levels yet. Click the button below to create one.
-                    </div>
+                    </p>
                 </transition>
 
                 <h5 v-if="singleResult" style="margin-top: 1rem;">Categories</h5>
@@ -296,7 +289,7 @@
         @hidden="currentResult = null"
         class="result-modal">
         <template slot="modal-title">
-            {{ nameOfUser(currentResult.submission.user) }} -
+            {{ $utils.nameOfUser(currentResult.submission.user) }} -
             {{ currentResult.pointsAchieved }} / {{ test.pointsPossible }} points
         </template>
 
@@ -325,8 +318,6 @@ import 'vue-awesome/icons/exclamation-triangle';
 import 'vue-awesome/icons/circle-o-notch';
 import 'vue-awesome/icons/clock-o';
 import 'vue-awesome/icons/check';
-
-import { deepCopy, getErrorMessage, getProps, nameOfUser, getUniqueId, toMaxNDecimals } from '@/utils';
 
 import AutoTestSet from './AutoTestSet';
 import AutoTestState from './AutoTestState';
@@ -361,13 +352,9 @@ export default {
     },
 
     data() {
-        const id = getUniqueId();
+        const id = this.$utils.getUniqueId();
 
         return {
-            getProps,
-            nameOfUser,
-            toMaxNDecimals,
-
             disabledAnimations: true,
             newFixtures: [],
             internalTest: {},
@@ -470,7 +457,7 @@ export default {
                 },
                 err => {
                     this.message = {
-                        text: `Could not load AutoTest: ${getErrorMessage(err)}`,
+                        text: `Could not load AutoTest: ${this.$utils.getErrorMessage(err)}`,
                         isError: true,
                     };
                 },
@@ -488,7 +475,7 @@ export default {
                 }).then(
                     () => this.loadAutoTestRun(),
                     err => {
-                        switch (getProps(err, 500, 'response', 'status')) {
+                        switch (this.$utils.getProps(err, 500, 'response', 'status')) {
                             case 404:
                                 clearTimeout(this.pollingTimer);
                                 if (this.autoTestRun) {
@@ -528,7 +515,7 @@ export default {
                 },
                 err => {
                     this.message = {
-                        text: getErrorMessage(err),
+                        text: this.$utils.getErrorMessage(err),
                         isError: false,
                     };
                 },
@@ -543,10 +530,6 @@ export default {
                     this.permissions[names[i]] = value;
                 });
             });
-        },
-
-        openFile(_, event) {
-            event.preventDefault();
         },
 
         submitProp(prop) {
@@ -615,6 +598,18 @@ export default {
             });
         },
 
+        downloadFixture(fixture) {
+            if (fixture.hidden && !this.permissions.can_view_hidden_fixtures) {
+                throw new Error('You do not have permission to view the content of this fixture.');
+            }
+
+            this.$http
+                .get(`/api/v1/auto_tests/${this.autoTestId}/fixtures/${fixture.id}`)
+                .then(({ data }) => {
+                    this.$utils.downloadFile(data, fixture.name, 'application/octet-stream');
+                });
+        },
+
         createAutoTest() {
             if (this.singleResult) {
                 throw new Error('AutoTest cannot be created on a single result page.');
@@ -665,7 +660,7 @@ export default {
 
             this.currentResult = Object.assign({}, result, {
                 rubric: Object.assign(rubric, {
-                    rubrics: deepCopy(this.assignment.rubric),
+                    rubrics: this.$utils.deepCopy(this.assignment.rubric),
                 }),
             });
 

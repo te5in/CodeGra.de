@@ -291,13 +291,17 @@ class AutoTestResult(Base, TimestampMixin, IdMixin):
         points_achieved, _ = self.get_amount_points_in_suites(
             *self.run.auto_test.all_suites
         )
-        return {
+        ret = {
             'id': self.id,
             'created_at': self.created_at.isoformat(),
+            'started_at': self.started_at,
             'work': self.work,
             'state': self.state.name,
             'points_achieved': points_achieved,
         }
+        if ret['started_at'] is not None:
+            ret['started_at'] = ret['started_at'].isoformat()
+        return ret
 
     def __extended_to_json__(self) -> t.Mapping[str, object]:
         return {

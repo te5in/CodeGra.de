@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import Vue from 'vue';
 import axios from 'axios';
+import moment from 'moment';
 
 import { deepCopy, withOrdinalSuffix, getProps } from '@/utils';
 import * as types from '../mutation-types';
@@ -185,6 +186,7 @@ class AutoTestResult {
     update(result, autoTest) {
         this.state = result.state;
         this.finished = ['passed', 'failed', 'timed_out'].indexOf(result.state) !== -1;
+        this.startedAt = result.started_at ? moment(result.started_at).utc() : null;
         this.pointsAchieved = result.points_achieved;
 
         this.updateStepResults(result.step_results, autoTest);
