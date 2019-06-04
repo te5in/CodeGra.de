@@ -1,10 +1,11 @@
-import re
 import abc
 import enum
 import typing as t
 import numbers
+import datetime
 import multiprocessing
 
+import regex as re
 import structlog
 from sqlalchemy.types import JSON
 
@@ -28,9 +29,9 @@ T = t.TypeVar('T', bound=t.Type['AutoTestStepBase'])
 if t.TYPE_CHECKING and not getattr(t, 'SPHINX', False):  # pragma: no cover
     from .. import auto_test as auto_test_module
 
-_all_auto_test_handlers = [
+_all_auto_test_handlers = sorted([
     'io_test', 'run_program', 'custom_output', 'check_output', 'check_points'
-]
+])
 _registered_test_handlers: t.Set[str] = set()
 
 
@@ -300,14 +301,34 @@ class _IoTest(AutoTestStepBase):
         _: 'auto_test_module.StepInstructions',
         __: float,
     ) -> float:
-        test_result: t.Dict[str, t.Any] = {'steps': []}
+        def now() -> str:
+            return datetime.datetime.utcnow().isoformat()
 
         assert isinstance(data, dict)
+        inputs = t.cast(t.List[dict], data['inputs'])
+
+        default_result = {
+            'state': AutoTestStepResultState.not_started,
+            'created_at': now(),
+        }
+        test_result: t.Dict[str, t.Any] = {
+            'steps': [default_result for _ in inputs]
+        }
+        update_test_result(AutoTestStepResultState.running, test_result)
+
         prog = t.cast(str, data['program'])
         total_state = AutoTestStepResultState.failed
         total_weight = 0
 
-        for step in t.cast(t.List[dict], data['inputs']):
+        for idx, step in enumerate(inputs):
+            test_result['steps'][idx].update(
+                {
+                    'state': AutoTestStepResultState.running,
+                    'started_at': now(),
+                }
+            )
+            update_test_result(AutoTestStepResultState.running, test_result)
+
             output = step['output'].rstrip('\n')
 
             options = t.cast(t.List[str], step['options'])
@@ -357,7 +378,7 @@ class _IoTest(AutoTestStepBase):
             else:
                 state = AutoTestStepResultState.failed
 
-            test_result['steps'].append(
+            test_result['steps'][idx].update(
                 {
                     'stdout': stdout,
                     'stderr': stderr,
@@ -365,6 +386,7 @@ class _IoTest(AutoTestStepBase):
                     'exit_code': code,
                     'time_spend': time_spend,
                     'achieved_points': achieved_points,
+                    'started_at': None,
                 }
             )
             update_test_result(AutoTestStepResultState.running, test_result)
@@ -448,42 +470,13 @@ class _CustomOutput(AutoTestStepBase):
 
         _ensure_program(program)
 
-        # We check the regex in another process to make sure that a very
-        # complicated regex doesn't create a DOS attack. This should be
-        # sufficient for now.
-        with multiprocessing.Manager() as manager:
-            # It does have this attribute:
-            # https://docs.python.org/3/library/multiprocessing.html#sharing-state-between-processes
-            d = manager.dict()  # type: ignore
-
-            def worker(pattern: str, res: t.Dict[str, t.Any]) -> None:
-                try:
-                    re.compile(pattern)
-                except re.error as e:
-                    res['err'] = True
-                    # It does have this attribute:
-                    # https://docs.python.org/3/library/re.html#re.error
-                    res['msg'] = e.msg  # type: ignore
-                else:
-                    res['err'] = False
-
-            proc = multiprocessing.Process(target=worker, args=(regex, d))
-            proc.start()
-            proc.join(1)
-
-            if proc.is_alive():
-                proc.terminate()
-                proc.join()
-                raise APIException(
-                    'Compiling the regex took too long, try a simpler regex',
-                    'Compiling the regex took longer than 1 second',
-                    APICodes.INVALID_PARAM, 400
-                )
-            elif d['err']:
-                raise APIException(
-                    'Compiling the regex failed: {}'.format(d['msg']),
-                    'Compiling was not successful', APICodes.INVALID_PARAM, 400
-                )
+        try:
+            re.compile(regex)
+        except re.error as e:
+            raise APIException(
+                f'Compiling the regex failed: {e.msg}',
+                'Compiling was not successful', APICodes.INVALID_PARAM, 400
+            )
 
     @staticmethod
     def _execute(
@@ -501,7 +494,11 @@ class _CustomOutput(AutoTestStepBase):
         )
         if code == 0:
             state = AutoTestStepResultState.passed
-            match = re.match(regex, stdout)
+            try:
+                match = re.search(regex, stdout, flags=re.REVERSE, timeout=2)
+            except TimeoutError:
+                code = -3
+                stderr += '\nSearching with the regex took too long'
             if match is None:
                 code = -1
             else:
@@ -606,11 +603,15 @@ class AutoTestStepResult(Base, TimestampMixin, IdMixin):
         back_populates='step_results',
     )
 
-    state = db.Column(
+    _state = db.Column(
         'state',
         db.Enum(AutoTestStepResultState),
         default=AutoTestStepResultState.not_started,
         nullable=False,
+    )
+
+    started_at: t.Optional[datetime.datetime] = db.Column(
+        'started_at', db.DateTime, default=None, nullable=True
     )
 
     log: 'psef.helpers.JSONType' = db.Column(
@@ -619,6 +620,21 @@ class AutoTestStepResult(Base, TimestampMixin, IdMixin):
         nullable=True,
         default=None,
     )
+
+    @property
+    def state(self) -> AutoTestStepResultState:
+        return self._state
+
+    @state.setter
+    def state(self, new_state: AutoTestStepResultState) -> None:
+        if self._state == new_state:
+            return
+
+        self._state = new_state
+        if new_state == AutoTestStepResultState.running:
+            self.started_at = datetime.datetime.utcnow()
+        else:
+            self.started_at = None
 
     @property
     def achieved_points(self) -> float:
@@ -631,6 +647,7 @@ class AutoTestStepResult(Base, TimestampMixin, IdMixin):
             'state': self.state.name,
             'achieved_points': self.achieved_points,
             'log': self.log,
+            'started_at': self.started_at and self.started_at.isoformat(),
         }
         if self.step.hidden:
             try:
