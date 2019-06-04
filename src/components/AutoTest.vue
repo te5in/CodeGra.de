@@ -48,13 +48,13 @@
                             <tr v-for="result in run.results"
                                 :key="result.submission.user.id"
                                 @click="openResult(result)">
-                                <td class="name">{{ nameOfUser(result.submission.user) }}</td>
+                                <td class="name">{{ $utils.nameOfUser(result.submission.user) }}</td>
                                 <td class="score">
                                     <icon v-if="result.submission.grade_overridden"
                                           v-b-popover.top.hover="'This submission\'s calculated grade has been manually overridden'"
                                           name="exclamation-triangle"/>
-                                    {{ toMaxNDecimals(getProps(result, '-', 'pointsAchieved'), 2) }} /
-                                    {{ toMaxNDecimals(test.pointsPossible, 2) }}
+                                    {{ $utils.toMaxNDecimals($utils.getProps(result, '-', 'pointsAchieved'), 2) }} /
+                                    {{ $utils.toMaxNDecimals(test.pointsPossible, 2) }}
                                 </td>
                                 <td class="state">
                                     <auto-test-state :state="result.state" />
@@ -296,7 +296,7 @@
         @hidden="currentResult = null"
         class="result-modal">
         <template slot="modal-title">
-            {{ nameOfUser(currentResult.submission.user) }} -
+            {{ $utils.nameOfUser(currentResult.submission.user) }} -
             {{ currentResult.pointsAchieved }} / {{ test.pointsPossible }} points
         </template>
 
@@ -325,8 +325,6 @@ import 'vue-awesome/icons/exclamation-triangle';
 import 'vue-awesome/icons/circle-o-notch';
 import 'vue-awesome/icons/clock-o';
 import 'vue-awesome/icons/check';
-
-import { deepCopy, getErrorMessage, getProps, nameOfUser, getUniqueId, toMaxNDecimals } from '@/utils';
 
 import AutoTestSet from './AutoTestSet';
 import AutoTestState from './AutoTestState';
@@ -361,13 +359,9 @@ export default {
     },
 
     data() {
-        const id = getUniqueId();
+        const id = this.$utils.getUniqueId();
 
         return {
-            getProps,
-            nameOfUser,
-            toMaxNDecimals,
-
             disabledAnimations: true,
             newFixtures: [],
             internalTest: {},
@@ -470,7 +464,7 @@ export default {
                 },
                 err => {
                     this.message = {
-                        text: `Could not load AutoTest: ${getErrorMessage(err)}`,
+                        text: `Could not load AutoTest: ${this.$utils.getErrorMessage(err)}`,
                         isError: true,
                     };
                 },
@@ -488,7 +482,7 @@ export default {
                 }).then(
                     () => this.loadAutoTestRun(),
                     err => {
-                        switch (getProps(err, 500, 'response', 'status')) {
+                        switch (this.$utils.getProps(err, 500, 'response', 'status')) {
                             case 404:
                                 clearTimeout(this.pollingTimer);
                                 if (this.autoTestRun) {
@@ -528,7 +522,7 @@ export default {
                 },
                 err => {
                     this.message = {
-                        text: getErrorMessage(err),
+                        text: this.$utils.getErrorMessage(err),
                         isError: false,
                     };
                 },
@@ -665,7 +659,7 @@ export default {
 
             this.currentResult = Object.assign({}, result, {
                 rubric: Object.assign(rubric, {
-                    rubrics: deepCopy(this.assignment.rubric),
+                    rubrics: this.$utils.deepCopy(this.assignment.rubric),
                 }),
             });
 

@@ -281,16 +281,16 @@ export default {
 
         getHeadHtml(rubric) {
             const selected = this.selectedRows[rubric.id];
-            const maxPoints = this.$htmlEscape(Math.max(...rubric.items.map(i => i.points)));
+            const maxPoints = this.$utils.htmlEscape(Math.max(...rubric.items.map(i => i.points)));
             const header =
-                this.$htmlEscape(`${rubric.header}`) ||
+                this.$utils.htmlEscape(`${rubric.header}`) ||
                 '<span class="unnamed">Unnamed category</span>';
 
             const getFraction = (upper, lower) => `<sup>${upper}</sup>&frasl;<sub>${lower}</sub>`;
             let res;
 
             if (selected) {
-                const selectedPoints = this.$htmlEscape(selected.points);
+                const selectedPoints = this.$utils.htmlEscape(selected.points);
                 res = `<span>${header}</span> - <span>${getFraction(
                     selectedPoints,
                     maxPoints,

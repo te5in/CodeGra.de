@@ -371,7 +371,7 @@ export default {
                         responseType: 'arraybuffer',
                     });
                     const content = decodeBuffer(data, true);
-                    file.content = content.split('\n').map(this.$htmlEscape);
+                    file.content = content.split('\n').map(this.$utils.htmlEscape);
                 }),
             );
 

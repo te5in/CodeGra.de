@@ -185,7 +185,7 @@ export default {
                             this.highlightCode(this.selectedLanguage);
                         },
                         ({ response: { data: { message } } }) => {
-                            error.push(this.$htmlEscape(message));
+                            error.push(this.$utils.htmlEscape(message));
                         },
                     ),
 
@@ -200,7 +200,7 @@ export default {
                         this.feedback = feedback.data;
                     },
                     ({ response: { data: { message } } }) => {
-                        error.push(this.$htmlEscape(message));
+                        error.push(this.$utils.htmlEscape(message));
                     },
                 ),
             ]).then(() => {
