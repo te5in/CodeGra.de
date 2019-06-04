@@ -27,6 +27,10 @@ export function formatGrade(grade) {
     return Number.isNaN(g) ? null : g.toFixed(2);
 }
 
+export function formatTimePart(num) {
+    return `${num < 10 ? '0' : ''}${num}`;
+}
+
 export function toMaxNDecimals(num, n) {
     let str = num.toFixed(n);
     while (str[str.length - 1] === '0') {

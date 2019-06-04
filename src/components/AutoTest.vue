@@ -22,7 +22,7 @@
                 </div>
 
                 <div v-if="editable" class="btn-wrapper">
-                    <auto-test-state btn :state="run.state" />
+                    <auto-test-state btn no-timer :result="run" />
 
                     <submit-button
                         :submit="() => deleteResults(run.id)"
@@ -57,7 +57,7 @@
                                     {{ $utils.toMaxNDecimals(test.pointsPossible, 2) }}
                                 </td>
                                 <td class="state">
-                                    <auto-test-state :state="result.state" />
+                                    <auto-test-state :result="result" />
                                 </td>
                             </tr>
                         </template>
@@ -152,7 +152,7 @@
                                                         @click.capture.prevent.stop="downloadFixture(fixture)">
                                                         {{ fixture.name }}
                                                     </a>
-                                                    <span v-else>
+                                                    <span v-else class="fixture-name">
                                                         {{ fixture.name }}
                                                     </span>
 
@@ -249,10 +249,10 @@
                 </b-card>
 
                 <transition :name="disabledAnimations ? '' : 'emptytext'">
-                    <div class="text-muted empty-text transition"
+                    <p class="text-muted font-italic empty-text transition"
                             v-if="test.sets.filter(s => !s.deleted).length === 0">
                         You have no levels yet. Click the button below to create one.
-                    </div>
+                    </p>
                 </transition>
 
                 <h5 v-if="singleResult" style="margin-top: 1rem;">Categories</h5>

@@ -216,9 +216,15 @@ localforage.defineDriver(memoryStorageDriver).then(() => {
                 this.screenWidth = window.innerWidth;
             });
 
-            setTimeout(() => {
+            setInterval(() => {
                 this.now = moment();
             }, 60000);
+
+            setInterval(() => {
+                const d = new Date();
+                const offset = 60 * 1000 * d.getTimezoneOffset();
+                this.$root.$emit('epoch', d.getTime() + offset);
+            }, 1000);
         },
 
         computed: {
