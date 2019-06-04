@@ -138,12 +138,17 @@ class AutoTestStepBase(Base, TimestampMixin, IdMixin):
         self.validate_data(json)
         self._data = json
 
+    @property
+    def command_time_limit(self) -> float:
+        return self.suite.command_time_limit
+
     def get_instructions(self) -> 'auto_test_module.StepInstructions':
         return {
             'id': self.id,
             'weight': self.weight,
             'test_type_name': self._test_type,
             'data': self.data,
+            'command_time_limit': self.command_time_limit,
         }
 
     def __to_json__(self) -> t.Mapping[str, object]:
@@ -295,7 +300,7 @@ class _IoTest(AutoTestStepBase):
         data: JSONType,
         cont: 'auto_test_module.StartedContainer',
         update_test_result: 'auto_test_module.UpdateResultFunction',
-        _: 'auto_test_module.StepInstructions',
+        instructions: 'auto_test_module.StepInstructions',
         __: float,
     ) -> float:
         def now() -> str:
@@ -314,6 +319,7 @@ class _IoTest(AutoTestStepBase):
         update_test_result(AutoTestStepResultState.running, test_result)
 
         prog = t.cast(str, data['program'])
+        time_limit = instructions['command_time_limit']
         total_state = AutoTestStepResultState.failed
         total_weight = 0
 
@@ -334,6 +340,7 @@ class _IoTest(AutoTestStepBase):
             try:
                 code, stdout, stderr, time_spend = cont.run_student_command(
                     f'{prog} {step["args"]}',
+                    time_limit,
                     stdin=step['stdin'].encode('utf-8')
                 )
             except psef.auto_test.CommandTimeoutException as e:
@@ -462,7 +469,8 @@ class _RunProgram(AutoTestStepBase):
         res = 0.0
 
         code, stdout, stderr, time_spend = container.run_student_command(
-            t.cast(str, data['program'])
+            t.cast(str, data['program']),
+            test_instructions['command_time_limit'],
         )
 
         if code == 0:
@@ -518,7 +526,8 @@ class _CustomOutput(AutoTestStepBase):
         regex = t.cast(str, data['regex'])
 
         code, stdout, stderr, time_spend = container.run_student_command(
-            t.cast(str, data['program'])
+            t.cast(str, data['program']),
+            test_instructions['command_time_limit'],
         )
         if code == 0:
             state = AutoTestStepResultState.passed

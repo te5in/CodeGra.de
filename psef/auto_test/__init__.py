@@ -30,8 +30,8 @@ import psef
 
 from .. import app, log, models
 from ..helpers import (
-    JSONType, RepeatedTimer, defer, register, timed_code, timed_function,
-    bound_to_logger, ensure_on_test_server
+    JSONType, RepeatedTimer, defer, between, register, timed_code,
+    timed_function, bound_to_logger, ensure_on_test_server
 )
 from ..registry import auto_test_handlers
 from ..exceptions import StopRunningStepsException
@@ -151,6 +151,7 @@ class StepInstructions(TypedDict, total=True):
     weight: float
     test_type_name: str
     data: 'psef.helpers.JSONType'
+    command_time_limit: float
 
 
 class SuiteInstructions(TypedDict, total=True):
@@ -523,6 +524,7 @@ class StartedContainer:
     def run_student_command(
         self,
         cmd: str,
+        timeout: float,
         stdin: t.Union[None, bytes, t.BinaryIO] = None,
     ) -> t.Tuple[int, str, str, float]:
         stdout: t.List[bytes] = []
@@ -530,7 +532,6 @@ class StartedContainer:
 
         user = 'codegrade'
         cwd = '/home/codegrade/student/'
-        timeout = self._config['AUTO_TEST_MAX_TIME_SINGLE_RUN']
         assert timeout > 0
         max_size = self._config['AUTO_TEST_OUTPUT_LIMIT']
         assert max_size > 0
@@ -617,7 +618,7 @@ class StartedContainer:
         stderr: t.Optional[OutputCallback],
         stdin: t.Union[None, bytes, t.BinaryIO],
         check: bool,
-        timeout: t.Optional[int],
+        timeout: t.Union[None, float, int],
     ) -> int:
         self._dirty = True
 
@@ -689,16 +690,25 @@ class StartedContainer:
                     stderr=err,
                     stdin=stdin_file,
                 )
-                while not _STOP_CONTAINERS.is_set() and (
-                    timeout is None or
-                    (datetime.datetime.utcnow() - start).total_seconds() <
-                    timeout
-                ):
+
+                def get_time_left() -> float:
+                    if timeout is None:
+                        return sys.maxsize
+                    time_spend = datetime.datetime.utcnow() - start
+                    return timeout - time_spend.total_seconds()
+
+                def timed_out() -> bool:
+                    return get_time_left() < 0
+
+                def get_sleep_time() -> float:
+                    return between(0.025, get_time_left() / 4, 0.5)
+
+                while not _STOP_CONTAINERS.is_set() and not timed_out():
                     try:
                         # Make sure pid already exists
                         new_pid, status = os.waitpid(pid, os.WNOHANG)
                         if new_pid == status == 0:
-                            time.sleep(0.5)
+                            time.sleep(get_sleep_time())
                         elif os.WIFEXITED(status):
                             res = os.WEXITSTATUS(status)
                             break
@@ -713,7 +723,7 @@ class StartedContainer:
                             break
                         else:
                             logger.warning('Unknown process error!')
-                            time.sleep(0.5)
+                            time.sleep(get_sleep_time())
                     except OSError as e:
                         if e.errno == errno.EINTR:
                             continue
@@ -992,13 +1002,9 @@ class _BaseAutoTestRunner(AutoTestRunner):
         result_state = models.AutoTestStepResultState.running
 
         try:
-            self.req.patch(
-                result_url,
-                json={'state': result_state.name},
-            )
-
             with student_container.started_container(
             ) as cont, cpu_cores.reserved_core() as cpu_number:
+                self.req.patch(result_url, json={'state': result_state.name})
 
                 with timed_code('set_cgroup_limits'):
                     cont.set_cgroup_item(
@@ -1116,7 +1122,7 @@ class _BaseAutoTestRunner(AutoTestRunner):
             with timed_code(
                 'run_setup_script', setup_cmd=cmd
             ) as get_time_spend:
-                _, stdout, stderr, _ = cont.run_student_command(cmd)
+                _, stdout, stderr, _ = cont.run_student_command(cmd, 900)
 
             self.req.patch(
                 f'{self.base_url}/runs/{self.instructions["run_id"]}',

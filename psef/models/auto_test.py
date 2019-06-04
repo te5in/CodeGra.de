@@ -85,6 +85,10 @@ class AutoTestSuite(Base, TimestampMixin, IdMixin):
         order_by='AutoTestStepBase.order'
     )  # type: t.MutableSequence[auto_test_step_models.AutoTestStepBase]
 
+    command_time_limit = db.Column(
+        'command_time_limit', db.Float, nullable=True, default=None
+    )
+
     def get_instructions(self) -> auto_test_module.SuiteInstructions:
         return {
             'id': self.id,
@@ -98,6 +102,7 @@ class AutoTestSuite(Base, TimestampMixin, IdMixin):
             'steps': self.steps,
             'rubric_row': self.rubric_row,
             'network_disabled': self.network_disabled,
+            'command_time_limit': self.command_time_limit,
         }
 
 

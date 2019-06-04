@@ -260,11 +260,22 @@ def update_or_create_auto_test_suite(auto_test_id: int, auto_test_set_id: int
         rubric_row_id = get('rubric_row_id', int)
         network_disabled = get('network_disabled', bool)
         suite_id = opt('id', int, None)
+        time_limit = t.cast(
+            t.Optional[float],
+            opt('time_limit', numbers.Real, None)  # type: ignore
+        )
 
     if suite_id is None:
-        suite = models.AutoTestSuite(auto_test_set=auto_test_set)
+        if time_limit is None:
+            time_limit = app.config['AUTO_TEST_MAX_TIME_COMMAND']
+        suite = models.AutoTestSuite(
+            auto_test_set=auto_test_set, command_time_limit=time_limit
+        )
     else:
         suite = get_or_404(models.AutoTestSuite, suite_id)
+
+    if time_limit is not None:
+        suite.command_time_limit = time_limit
 
     suite.network_disabled = network_disabled
     if suite.rubric_row_id != rubric_row_id:
