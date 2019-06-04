@@ -202,6 +202,8 @@ class AutoTestResult {
         const setResults = {};
         const suiteResults = {};
         const stepResults = steps.reduce((acc, step) => {
+            step.startedAt = step.started_at ? moment(step.started_at).utc() : null;
+
             acc[step.auto_test_step.id] = step;
             return acc;
         }, {});
