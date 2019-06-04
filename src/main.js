@@ -193,6 +193,12 @@ localforage.defineDriver(memoryStorageDriver).then(() => {
         }
     };
 
+    function getUTCEpoch() {
+        const d = new Date();
+        const offset = 60 * 1000 * d.getTimezoneOffset();
+        return d.getTime() + offset;
+    }
+
     /* eslint-disable no-new */
     const app = new Vue({
         el: '#app',
@@ -208,6 +214,7 @@ localforage.defineDriver(memoryStorageDriver).then(() => {
                 mediumWidth: 768,
                 largeWidth: 992,
                 now: moment(),
+                epoch: getUTCEpoch(),
             };
         },
 
@@ -221,9 +228,7 @@ localforage.defineDriver(memoryStorageDriver).then(() => {
             }, 60000);
 
             setInterval(() => {
-                const d = new Date();
-                const offset = 60 * 1000 * d.getTimezoneOffset();
-                this.$root.$emit('epoch', d.getTime() + offset);
+                this.epoch = getUTCEpoch();
             }, 1000);
         },
 
@@ -269,6 +274,10 @@ localforage.defineDriver(memoryStorageDriver).then(() => {
 
             $now() {
                 return this.now;
+            },
+
+            $epoch() {
+                return this.epoch;
             },
         },
     });
