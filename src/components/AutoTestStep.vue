@@ -361,7 +361,7 @@
         <template v-for="input, i in inputs">
             <tr class="step-summary" :key="`${resultsCollapseId}-${i}`" v-b-toggle="`${resultsCollapseId}-${i}`">
                 <td class="expand shrink" v-if="result">
-                    <icon v-if="canViewOutput" name="chevron-down" :scale="0.75" />
+                    <icon v-if="canViewSubStepOutput(i)" name="chevron-down" :scale="0.75" />
                     <icon v-else-if="value.hidden" name="eye-slash" :scale="0.85"
                         v-b-popover.hover.top="'You cannot view this step\'s results.'" />
                 </td>
@@ -378,7 +378,7 @@
                 </td>
             </tr>
 
-            <tr v-if="canViewOutput" class="results-log-collapse-row">
+            <tr v-if="canViewSubStepOutput(i)" class="results-log-collapse-row">
                 <td colspan="5">
                     <b-collapse :id="`${resultsCollapseId}-${i}`">
                         <b-card no-body>
@@ -619,7 +619,15 @@ export default {
 
         canViewOutput() {
             // TODO: Check can_view_autotest_output permission
-            return getProps(this, false, 'stepResult', 'finished') && !this.value.hidden;
+            if (this.value.hidden) {
+                return false;
+            }
+
+            if (this.value.type === 'io_test') {
+                return Array(this.value.data.inputs.length).map(i => this.canViewSubStepOutput(i));
+            } else {
+                return getProps(this, false, 'stepResult', 'finished');
+            }
         },
     },
 
@@ -710,6 +718,10 @@ export default {
 
         ioSubStepProps(i, defaultValue, ...props) {
             return getProps(this.stepResult, defaultValue, 'log', 'steps', i, ...props);
+        },
+
+        canViewSubStepOutput(i) {
+            return ['passed', 'failed', 'timed_out'].indexOf(this.ioSubStepProps(i, false, 'state')) !== -1;
         },
     },
 
