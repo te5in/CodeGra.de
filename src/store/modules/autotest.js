@@ -21,6 +21,11 @@ class AutoTestSuiteData {
         Vue.set(this, 'id', d.id);
         Vue.set(this, 'steps', d.steps || []);
         Vue.set(this, 'rubricRow', d.rubric_row || {});
+        Vue.set(
+            this,
+            'commandTimeLimit',
+            getProps(d, UserConfig.features.autoTest.auto_test_max_command_time, 'command_time_limit'),
+        );
         Vue.set(this, 'networkDisabled', getProps(d, true, 'network_disabled'));
     }
 
@@ -30,6 +35,7 @@ class AutoTestSuiteData {
             steps: deepCopy(this.steps),
             rubric_row: this.rubricRow,
             network_disabled: this.networkDisabled,
+            command_time_limit: this.commandTimeLimit,
         });
     }
 
@@ -62,7 +68,8 @@ class AutoTestSuiteData {
                     weight: Number(step.weight),
                 })),
                 rubric_row_id: this.rubricRow.id,
-                network_disabled: this.networkDisabled == null ? true : this.networkDisabled,
+                command_time_limit: Number(this.commandTimeLimit),
+                network_disabled: getProps(this, true, 'networkDisabled'),
             })
             .then(
                 res => {

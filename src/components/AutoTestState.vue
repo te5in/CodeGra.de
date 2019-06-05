@@ -108,7 +108,12 @@ export default {
                 this.result.started_at,
                 'startedAt',
             );
-            return startedAt && moment(startedAt).utc().valueOf();
+            return (
+                startedAt &&
+                moment(startedAt)
+                    .utc()
+                    .valueOf()
+            );
         },
 
         passedSinceStart() {

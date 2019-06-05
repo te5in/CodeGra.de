@@ -262,7 +262,7 @@ def update_or_create_auto_test_suite(auto_test_id: int, auto_test_set_id: int
         suite_id = opt('id', int, None)
         time_limit = t.cast(
             t.Optional[float],
-            opt('time_limit', numbers.Real, None)  # type: ignore
+            opt('command_time_limit', numbers.Real, None)  # type: ignore
         )
 
     if suite_id is None:

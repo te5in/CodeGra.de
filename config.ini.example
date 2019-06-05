@@ -307,7 +307,7 @@
 
 # The maximum amount of seconds a command may take if nothing is set in the
 # config.
-# auto_test_max_time_command = 900
+# auto_test_max_time_command = 300
 
 # The maximum amount of bytes that command may emit.
 # auto_test_output_limit = 32768

@@ -27,7 +27,7 @@
                              v-if="!suite.deleted"
                              :editable="editable"
                              :editing="suite.steps.length === 0"
-                             :key="suite.id"
+                             :key="`suite-${suite.id}`"
                              :assignment="assignment"
                              :other-suites="otherSuites"
                              :value="value.suites[j]"

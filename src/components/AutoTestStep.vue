@@ -369,7 +369,10 @@
                 <td>
                     {{ input.name }}
 
-                    <b-badge v-for="opt in input.options" class="mr-1" variant="info">
+                    <b-badge v-for="opt in input.options"
+                             :key="`${input.id}-${opt}`"
+                             class="mr-1"
+                             variant="info">
                         {{ opt.replace(/_/g, ' ') }}
                     </b-badge>
                 </td>
@@ -969,7 +972,7 @@ hr {
     }
 
     .io-input-options-wrapper .custom-checkbox {
-        margin-right: .5rem;
+        margin-right: 0.5rem;
     }
 }
 </style>
