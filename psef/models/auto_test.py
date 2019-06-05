@@ -81,7 +81,7 @@ class AutoTestSuite(Base, TimestampMixin, IdMixin):
     steps = db.relationship(
         "AutoTestStepBase",
         back_populates="suite",
-        cascade='all,delete',
+        cascade='all,delete,delete-orphan',
         order_by='AutoTestStepBase.order'
     )  # type: t.MutableSequence[auto_test_step_models.AutoTestStepBase]
 
