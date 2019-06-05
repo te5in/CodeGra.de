@@ -127,7 +127,7 @@
         <div slot="header" class="title title-display">
             <a v-if="result"
                href="#"
-               @click="$root.$emit('open-rubric-category', value.rubricRow.id)">
+               @click.capture.prevent.stop="$root.$emit('open-rubric-category', value.rubricRow.id)">
                 {{ value.rubricRow.header }}
             </a>
             <span v-else>
