@@ -28,7 +28,7 @@
                         :submit="() => deleteResults(run.id)"
                         variant="danger"
                         confirm="Are you sure you want to delete the results?"
-                        label="Delete"/>
+                        :label="autoTestRun.finished ? 'Delete' : 'Stop'"/>
                 </div>
             </b-card-header>
 
