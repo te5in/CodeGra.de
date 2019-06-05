@@ -20,6 +20,8 @@
 </template>
 
 <script>
+import moment from 'moment';
+
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/ban';
 import 'vue-awesome/icons/check';
@@ -51,12 +53,6 @@ export default {
     computed: {
         state() {
             return this.$utils.getProps(this.result, 'not_started', 'state');
-        },
-
-        startMSec() {
-            let startMSec = this.$utils.getProps(this.result, null, 'startedAt');
-            if (startMSec) startMSec = startMSec.valueOf();
-            return startMSec;
         },
 
         icon() {
@@ -104,6 +100,15 @@ export default {
                 default:
                     return this.$utils.capitalize(this.state.replace(/_/g, ' '));
             }
+        },
+
+        startMSec() {
+            const startedAt = this.$utils.getProps(
+                this.result,
+                this.result.started_at,
+                'startedAt',
+            );
+            return startedAt && moment(startedAt).utc().valueOf();
         },
 
         passedSinceStart() {
