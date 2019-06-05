@@ -87,6 +87,7 @@
                     <input class="form-control"
                             type="number"
                             min="0"
+                            step="30"
                             v-model="internalValue.commandTimeLimit" />
                 </b-form-group>
 
