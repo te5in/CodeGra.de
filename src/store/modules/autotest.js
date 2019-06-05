@@ -607,28 +607,22 @@ const mutations = {
 
         Object.defineProperty(autoTest, 'pointsPossible', {
             get() {
-                return autoTest.sets.reduce(
-                    (acc1, set) => {
-                        if (set.deleted) {
-                            return acc1;
-                        }
+                return autoTest.sets.reduce((acc1, set) => {
+                    if (set.deleted) {
+                        return acc1;
+                    }
 
-                        return acc1 + set.suites.reduce(
-                            (acc2, suite) => {
-                                if (suite.deleted) {
-                                    return acc2;
-                                }
+                    return (
+                        acc1 +
+                        set.suites.reduce((acc2, suite) => {
+                            if (suite.deleted) {
+                                return acc2;
+                            }
 
-                                return acc2 + suite.steps.reduce(
-                                    (acc3, step) => acc3 + step.weight,
-                                    0,
-                                );
-                            },
-                            0,
-                        );
-                    },
-                    0,
-                );
+                            return acc2 + suite.steps.reduce((acc3, step) => acc3 + step.weight, 0);
+                        }, 0)
+                    );
+                }, 0);
             },
         });
 

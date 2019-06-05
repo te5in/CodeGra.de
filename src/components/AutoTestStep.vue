@@ -99,8 +99,7 @@
                 <template v-else-if="value.type === 'io_test'">
                     <hr/>
 
-                    <div v-for="input, index in inputs"
-                         :key="input.id">
+                    <div v-for="input, index in inputs" :key="input.id">
                         <div class="io-input-wrapper">
                             <div class="left-column column">
                                 <b-form-fieldset>
@@ -132,7 +131,8 @@
                                 <label :for="optionsId(index)">
                                     Options
                                 </label>
-                                <b-form-checkbox-group :checked="input.options"
+                                <b-form-checkbox-group stacked
+                                                       :checked="input.options"
                                                        :options="ioOptions"
                                                        :id="optionsId(index)"
                                                        class="io-options"
@@ -163,16 +163,15 @@
                         <b-collapse :id="collapseAdvancedId(index)"
                                     class="advanced-collapse"
                                     v-model="collapseState[index]">
-                            <div class="step-footer">
-                                <b-form-fieldset>
-                                    <label :for="weightId(index)">
-                                        Weight
-                                    </label>
-                                    <input class="form-control weight-input"
-                                           :id="weightId(index)"
-                                           type="number"
-                                           :value="input.weight"
-                                           @input="updateInput(index, 'weight', $event.target.value)"/>
+                            <div class="p-3 bg-light border rounded">
+                                <b-form-fieldset class="m-0">
+                                    <b-input-group prepend="Weight">
+                                        <input class="form-control weight-input"
+                                            :id="weightId(index)"
+                                            type="number"
+                                            :value="input.weight"
+                                            @input="updateInput(index, 'weight', $event.target.value)"/>
+                                    </b-input-group>
                                 </b-form-fieldset>
                             </div>
                         </b-collapse>
@@ -257,7 +256,7 @@
                         <b-tabs card no-fade class="container-fluid">
                             <b-tab title="Settings" class="row">
                                 <p class="col-12">
-                                    Exit status code:
+                                    Exit code:
                                     <code>{{ getProps(stepResult.log, '(unknown)', 'exit_code') }}</code>
                                 </p>
                             </b-tab>
@@ -315,7 +314,7 @@
                                     <code>{{ value.data.regex }}</code>
                                 </p>
                                 <p class="col-12">
-                                    Exit status code:
+                                    Exit code:
                                     <code>{{ getProps(stepResult.log, '(unknown)', 'exit_code') }}</code>
                                 </p>
                             </b-tab>
@@ -367,7 +366,13 @@
                         v-b-popover.hover.top="'You cannot view this step\'s results.'" />
                 </td>
                 <td class="shrink">{{ index }}.{{ i + 1 }}</td>
-                <td>{{ input.name }}</td>
+                <td>
+                    {{ input.name }}
+
+                    <b-badge v-for="opt in input.options" class="mr-1" variant="info">
+                        {{ opt.replace(/_/g, ' ') }}
+                    </b-badge>
+                </td>
                 <td class="shrink text-center">
                     <template v-if="result">
                         {{ ioSubStepProps(i, '-', 'achieved_points') }} /
@@ -385,42 +390,48 @@
                         <b-card no-body>
                             <b-tabs card no-fade class="container-fluid">
                                 <b-tab title="Output" class="row">
+                                    <p v-if="ioSubStepProps(i, '', 'exit_code')" class="col-12">
+                                        <label>Exit code:</label>
+                                        <code>{{ ioSubStepProps(i, '', 'exit_code') }}</code>
+                                    </p>
+
                                     <div class="col-6">
-                                        <label>Expected output</label>
+                                        <label>Expected output:</label>
                                         <pre class="form-control">{{ input.output }}</pre>
                                     </div>
 
                                     <div class="col-6">
-                                        <label>Actual output</label>
+                                        <label>Actual output:</label>
                                         <pre class="form-control">{{ ioSubStepProps(i, '', 'stdout') }}</pre>
                                     </div>
                                 </b-tab>
 
                                 <b-tab title="Input" class="row">
                                     <div class="col-6">
-                                        <label>Input arguments</label>
+                                        <label>Input arguments:</label>
                                         <code class="form-control">{{ input.args }}</code>
-
-                                        <label>Options</label>
-                                        <b-form-checkbox-group
-                                            :options="ioOptions"
-                                            :checked="input.options"
-                                            @click.native.capture.prevent.stop/>
                                     </div>
 
                                     <div class="col-6">
-                                        <label>Input</label>
+                                        <label>Input:</label>
                                         <pre class="form-control">{{ input.stdin }}</pre>
                                     </div>
                                 </b-tab>
 
                                 <b-tab title="Errors" class="row" v-if="ioSubStepProps(i, '', 'stderr')">
                                     <div class="col-12">
-                                        <label>Errors</label>
                                         <pre class="form-control">{{ ioSubStepProps(i, '', 'stderr') }}</pre>
                                     </div>
                                 </b-tab>
                             </b-tabs>
+
+                            <b-input-group class="io-input-options-wrapper px-3 pb-3" prepend="Options">
+                                <b-form-checkbox-group
+                                    class="form-control"
+                                    :options="ioOptions"
+                                    :checked="input.options"
+                                    @click.native.capture.prevent.stop/>
+                            </b-input-group>
                         </b-card>
                     </b-collapse>
                 </td>
@@ -803,14 +814,7 @@ export default {
 }
 
 .step-footer {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0.25rem;
     background-color: rgba(0, 0, 0, 0.03);
-    border: 1px solid rgba(0, 0, 0, 0.125);
-    border-radius: 0.25rem;
-    padding: 0.375rem 1rem;
 }
 
 hr {
@@ -925,7 +929,7 @@ hr {
 
     code.form-control,
     pre.form-control {
-        min-height: 2rem;
+        min-height: 5rem;
         background-color: rgba(0, 0, 0, 0.03);
         margin-bottom: 1rem;
 
@@ -944,18 +948,28 @@ hr {
         font-size: 87.5%;
     }
 }
+
+.io-input-options-wrapper {
+    pointer-events: none;
+}
 </style>
 
 <style lang="less">
-.auto-test-step .results-log-collapse-row {
-    .card-header {
-        background-color: inherit;
-        border-bottom: 0;
+.auto-test-step {
+    .results-log-collapse-row {
+        .card-header {
+            background-color: inherit;
+            border-bottom: 0;
+        }
+
+        .tab-pane {
+            display: flex;
+            padding: 0.75rem 0 0;
+        }
     }
 
-    .tab-pane {
-        display: flex;
-        padding: 0.75rem 0 0;
+    .io-input-options-wrapper .custom-checkbox {
+        margin-right: .5rem;
     }
 }
 </style>
