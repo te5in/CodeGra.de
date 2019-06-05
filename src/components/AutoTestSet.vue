@@ -44,26 +44,31 @@
     </component>
 
     <transition v-if="!isLastSet" :name="animations ? '' : 'setcontinue'">
-        <b-card v-if="result" class="set-continue">
-            <template v-if="setResult.finished">
-                Scored <code>{{ setResult.achieved }}</code> points, which is
+        <template v-if="result">
+            <template v-if="stopPoints > 0">
+                <b-alert show
+                        v-if="setResult.finished"
+                        :variant="setResult.achieved >= stopPoints ? 'success' : 'danger'"
+                        class="mt-3">
+                    Scored <code>{{ setResult.achieved }}</code> points, which is
 
-                <template v-if="setResult.passed">
-                    greater than or equal to <code>{{ stopPoints }}</code>.
-                    Continuing with the next level.
-                </template>
+                    <template v-if="setResult.achieved >= stopPoints">
+                        greater than or equal to <code>{{ stopPoints }}</code>.
+                        Continuing with the next level.
+                    </template>
 
-                <template v-else>
-                    less than <code>{{ stopPoints }}</code>.
-                    No further tests will be run.
-                </template>
+                    <template v-else>
+                        less than <code>{{ stopPoints }}</code>.
+                        No further tests will be run.
+                    </template>
+                </b-alert>
+
+                <div v-else class="border rounded mt-3 p-3">
+                    Only execute further levels if achieved points by AutoTest is higher than
+                    <code>{{ stopPoints }}</code>
+                </div>
             </template>
-
-            <template v-else>
-                Only execute further levels if achieved points by AutoTest is higher than
-                <code>{{ stopPoints }}</code>
-            </template>
-        </b-card>
+        </template>
 
         <b-card-footer v-else-if="editable" class="auto-test-header editable transition set-continue" >
             Only execute further levels if achieved points by AutoTest is higher than
@@ -83,7 +88,7 @@
             </b-input-group>
         </b-card-footer>
 
-        <b-card-footer v-else class="auto-test-header editable transition set-continue" >
+        <b-card-footer v-else-if="stopPoints > 0" class="auto-test-header editable transition set-continue">
             <span class="font-italic text-muted">
                 Only execute further levels if achieved points by AutoTest is higher than
                 <code>{{ stopPoints }}</code>

@@ -217,7 +217,7 @@
                 <b-collapse :id="resultsCollapseId" class="container-fluid">
                     <div class="row">
                         <div class="col-12">
-                            You {{ stepResult.passed ? 'scored' : 'did not score' }}
+                            You {{ stepResult.finished ? 'scored' : 'did not score' }}
                             enough points.
                         </div>
                     </div>
@@ -366,16 +366,7 @@
                         v-b-popover.hover.top="'You cannot view this step\'s results.'" />
                 </td>
                 <td class="shrink">{{ index }}.{{ i + 1 }}</td>
-                <td>
-                    {{ input.name }}
-
-                    <b-badge v-for="opt in input.options"
-                             :key="`${input.id}-${opt}`"
-                             class="mr-1"
-                             variant="info">
-                        {{ opt.replace(/_/g, ' ') }}
-                    </b-badge>
-                </td>
+                <td>{{ input.name }}</td>
                 <td class="shrink text-center">
                     <template v-if="result">
                         {{ ioSubStepProps(i, '-', 'achieved_points') }} /
@@ -627,14 +618,8 @@ export default {
         },
 
         canViewOutput() {
-            if (!this.stepResult) {
-                return false;
-            }
-
-            const { state, log } = this.stepResult;
-
             // TODO: Check can_view_autotest_output permission
-            return (state === 'passed' || state === 'failed') && log != null && !this.value.hidden;
+            return getProps(this, false, 'stepResult', 'finished') && !this.value.hidden;
         },
     },
 

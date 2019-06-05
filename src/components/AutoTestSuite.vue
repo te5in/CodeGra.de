@@ -62,15 +62,13 @@
         </SlickList>
 
         <div class="add-step-btns-wrapper">
-            <label>Add new step:</label>
-
-            <b-button-toolbar>
+            <b-button-toolbar class="m-auto">
                 <b-btn v-for="stepType in stepTypes"
-                    :key="stepType.value"
-                    @click="internalValue.addStep(createTestStep(stepType.name))"
-                    class="add-step-btn text-muted"
-                    :style="{ 'background-color': stepType.color }"
-                    variant="primary">
+                       :key="stepType.value"
+                       @click="internalValue.addStep(createTestStep(stepType.name))"
+                       class="add-step-btn text-muted"
+                       :style="{ 'background-color': stepType.color }"
+                       v-b-popover.top.hover="stepType.help">
                     <icon name="plus" /> {{ stepType.title }}
                 </b-btn>
             </b-button-toolbar>
@@ -285,21 +283,25 @@ export default {
                     name: 'io_test',
                     title: 'IO Test',
                     color: '#E7EEE9',
+                    help: 'IO test!',
                 },
                 {
                     name: 'run_program',
                     title: 'Run Program',
                     color: '#E6DCCD',
+                    help: 'Run program!',
                 },
                 {
                     name: 'custom_output',
                     title: 'Capture Points',
                     color: '#DFD3AA',
+                    help: 'Capture points!',
                 },
                 {
                     name: 'check_points',
                     title: 'Check Points',
                     color: '#D6CE5B',
+                    help: 'Check points test!',
                     meta: true,
                 },
             ];
@@ -311,7 +313,8 @@ export default {
 
         pointPercentage() {
             const result = this.result.suiteResults[this.value.id];
-            return (100 * result.achieved / result.possible).toFixed(2);
+            const points = (100 * result.achieved / result.possible);
+            return Number.isNaN(points) ? '0.00' : points.toFixed(2);
         },
     },
 
