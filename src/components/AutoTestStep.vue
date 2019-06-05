@@ -254,7 +254,7 @@
                 <b-collapse :id="resultsCollapseId">
                     <b-card no-body>
                         <b-tabs card no-fade class="container-fluid">
-                            <b-tab title="Settings" class="row">
+                            <b-tab title="Info" class="row">
                                 <p class="col-12">
                                     Exit code:
                                     <code>{{ getProps(stepResult.log, '(unknown)', 'exit_code') }}</code>
@@ -308,7 +308,7 @@
                 <b-collapse :id="resultsCollapseId">
                     <b-card no-body>
                         <b-tabs card no-fade class="container-fluid">
-                            <b-tab title="Settings" class="row">
+                            <b-tab title="Info" class="row">
                                 <p class="col-12">
                                     Match output on:
                                     <code>{{ value.data.regex }}</code>
