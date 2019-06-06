@@ -214,12 +214,13 @@ class AutoTestResult {
         const suiteResults = {};
 
         let setFailed = false;
+        let totalAchieved = 0;
 
         autoTest.sets.forEach(set => {
             if (set.deleted) return;
 
             const setResult = {
-                achieved: 0,
+                achieved: totalAchieved,
                 possible: 0,
                 finished: false,
             };
@@ -271,9 +272,10 @@ class AutoTestResult {
                 return suiteResult;
             });
 
+            totalAchieved = setResult.achieved;
             setResult.finished = setResult.suiteResults.every(s => s && s.finished);
 
-            if (setResult.finished && setResult.achieved < set.stop_points) {
+            if (setResult.finished && totalAchieved <= set.stop_points) {
                 setFailed = true;
             }
 
