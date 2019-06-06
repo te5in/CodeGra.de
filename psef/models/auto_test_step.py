@@ -137,7 +137,10 @@ class AutoTestStepBase(Base, TimestampMixin, IdMixin):
 
     @property
     def command_time_limit(self) -> float:
-        return self.suite.command_time_limit
+        return (
+            self.suite.command_time_limit or
+            psef.app.config['AUTO_TEST_MAX_TIME_COMMAND']
+        )
 
     def get_instructions(self) -> 'auto_test_module.StepInstructions':
         return {
@@ -538,7 +541,7 @@ class _CustomOutput(AutoTestStepBase):
             else:
                 try:
                     points = between(0, float(match.group(1)), 1)
-                except ValueError:
+                except (ValueError, IndexError):
                     code = -2
 
         if code != 0:
