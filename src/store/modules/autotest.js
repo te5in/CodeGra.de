@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import Vue from 'vue';
 import axios from 'axios';
-import moment from 'moment';
 
 import { deepCopy, withOrdinalSuffix, getProps } from '@/utils';
 import * as types from '../mutation-types';
@@ -22,6 +21,11 @@ class AutoTestSuiteData {
         Vue.set(this, 'id', d.id);
         Vue.set(this, 'steps', d.steps || []);
         Vue.set(this, 'rubricRow', d.rubric_row || {});
+        Vue.set(
+            this,
+            'commandTimeLimit',
+            getProps(d, UserConfig.features.autoTest.auto_test_max_command_time, 'command_time_limit'),
+        );
         Vue.set(this, 'networkDisabled', getProps(d, true, 'network_disabled'));
     }
 
@@ -31,6 +35,7 @@ class AutoTestSuiteData {
             steps: deepCopy(this.steps),
             rubric_row: this.rubricRow,
             network_disabled: this.networkDisabled,
+            command_time_limit: this.commandTimeLimit,
         });
     }
 
@@ -63,7 +68,8 @@ class AutoTestSuiteData {
                     weight: Number(step.weight),
                 })),
                 rubric_row_id: this.rubricRow.id,
-                network_disabled: this.networkDisabled == null ? true : this.networkDisabled,
+                command_time_limit: Number(this.commandTimeLimit),
+                network_disabled: getProps(this, true, 'networkDisabled'),
             })
             .then(
                 res => {
@@ -181,8 +187,8 @@ class AutoTestResult {
 
     update(result, autoTest) {
         this.state = result.state;
-        this.finished = ['passed', 'failed', 'timed_out'].indexOf(result.state) !== -1;
-        this.startedAt = result.started_at ? moment(result.started_at).utc() : null;
+        this.finished = this.isFinishedState(result.state);
+        this.startedAt = result.started_at;
         this.pointsAchieved = result.points_achieved;
 
         this.updateStepResults(result.step_results, autoTest);
@@ -199,84 +205,79 @@ class AutoTestResult {
             return;
         }
 
-        const setResults = {};
-        const suiteResults = {};
         const stepResults = steps.reduce((acc, step) => {
-            step.startedAt = step.started_at ? moment(step.started_at).utc() : null;
-
             acc[step.auto_test_step.id] = step;
             return acc;
         }, {});
 
+        const setResults = {};
+        const suiteResults = {};
+
         let setFailed = false;
+        let totalAchieved = 0;
 
         autoTest.sets.forEach(set => {
-            if (set.deleted) {
-                return;
-            }
+            if (set.deleted) return;
 
-            const setResult = set.suites.reduce(
-                (acc1, suite) => {
-                    if (suite.deleted) {
-                        return acc1;
-                    }
+            const setResult = {
+                achieved: totalAchieved,
+                possible: 0,
+                finished: false,
+            };
 
-                    const suiteResult = suite.steps.reduce(
-                        (acc2, step) => {
-                            let stepResult = stepResults[step.id];
-                            acc2.possible += step.weight;
+            setResult.suiteResults = set.suites.map(suite => {
+                if (suite.deleted) {
+                    return null;
+                }
 
-                            if (stepResult == null) {
-                                stepResult = {
-                                    state: 'not_started',
-                                    log: null,
-                                };
-                                acc1.finished = false;
-                                acc2.finished = false;
-                            } else if (setFailed && !acc2.passed) {
-                                stepResult = {
-                                    state: 'skipped',
-                                    log: null,
-                                };
-                            } else if (
-                                step.type === 'check_points' &&
-                                stepResult.state === 'failed'
-                            ) {
-                                acc2.passed = false;
-                            } else {
-                                stepResult.passed = stepResult.state === 'passed';
-                                acc2.achieved += stepResult.achieved_points;
-                            }
+                let suiteFailed = false;
 
-                            stepResults[step.id] = stepResult;
-
-                            return acc2;
-                        },
-                        {
-                            achieved: 0,
-                            possible: 0,
-                            passed: true,
-                            finished: true,
-                        },
-                    );
-
-                    acc1.achieved += suiteResult.achieved;
-                    acc1.possible += suiteResult.possible;
-
-                    suiteResults[suite.id] = suiteResult;
-
-                    return acc1;
-                },
-                {
+                const suiteResult = {
                     achieved: 0,
                     possible: 0,
-                    passed: true,
                     finished: true,
-                },
-            );
+                };
 
-            setResult.passed = setResult.achieved >= set.stop_points;
-            setFailed = setFailed || (setResult.finished && !setResult.passed);
+                suiteResult.stepResults = suite.steps.map(step => {
+                    suiteResult.possible += step.weight;
+
+                    let stepResult = stepResults[step.id];
+
+                    if (stepResult == null) {
+                        stepResult = {
+                            state: setFailed || suiteFailed ? 'skipped' : 'not_started',
+                            log: null,
+                        };
+                    }
+
+                    stepResult.finished = this.isFinishedState(stepResult.state);
+
+                    if (step.type === 'check_points' && stepResult.state !== 'passed') {
+                        suiteFailed = true;
+                    } else {
+                        suiteResult.achieved += getProps(stepResult, 0, 'achieved_points');
+                    }
+
+                    stepResults[step.id] = stepResult;
+                    return stepResult;
+                });
+
+                suiteResult.finished = suiteResult.stepResults.every(s => s.finished);
+                suiteResults[suite.id] = suiteResult;
+
+                setResult.achieved += suiteResult.achieved;
+                setResult.possible += suiteResult.possible;
+
+                suiteResults[suite.id] = suiteResult;
+                return suiteResult;
+            });
+
+            totalAchieved = setResult.achieved;
+            setResult.finished = setResult.suiteResults.every(s => s && s.finished);
+
+            if (setResult.finished && totalAchieved <= set.stop_points) {
+                setFailed = true;
+            }
 
             setResults[set.id] = setResult;
         });
@@ -284,6 +285,11 @@ class AutoTestResult {
         Vue.set(this, 'stepResults', stepResults);
         Vue.set(this, 'suiteResults', suiteResults);
         Vue.set(this, 'setResults', setResults);
+    }
+
+    // eslint-disable-next-line
+    isFinishedState(state) {
+        return ['passed', 'failed', 'timed_out'].indexOf(state) !== -1;
     }
 }
 
@@ -297,6 +303,8 @@ class AutoTestRun {
     update(run, autoTest) {
         this.state = run.state;
         this.finished = ['done', 'crashed', 'timed_out'].indexOf(this.state) !== -1;
+        this.setupStdout = run.setup_stdout;
+        this.setupStderr = run.setup_stderr;
 
         this.updateResults(run.results, autoTest);
     }
@@ -607,28 +615,22 @@ const mutations = {
 
         Object.defineProperty(autoTest, 'pointsPossible', {
             get() {
-                return autoTest.sets.reduce(
-                    (acc1, set) => {
-                        if (set.deleted) {
-                            return acc1;
-                        }
+                return autoTest.sets.reduce((acc1, set) => {
+                    if (set.deleted) {
+                        return acc1;
+                    }
 
-                        return acc1 + set.suites.reduce(
-                            (acc2, suite) => {
-                                if (suite.deleted) {
-                                    return acc2;
-                                }
+                    return (
+                        acc1 +
+                        set.suites.reduce((acc2, suite) => {
+                            if (suite.deleted) {
+                                return acc2;
+                            }
 
-                                return acc2 + suite.steps.reduce(
-                                    (acc3, step) => acc3 + step.weight,
-                                    0,
-                                );
-                            },
-                            0,
-                        );
-                    },
-                    0,
-                );
+                            return acc2 + suite.steps.reduce((acc3, step) => acc3 + step.weight, 0);
+                        }, 0)
+                    );
+                }, 0);
             },
         });
 

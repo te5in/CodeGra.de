@@ -222,6 +222,12 @@ export default {
         if (this.showRubric) {
             this.rubric.points.grade = this.grade;
         }
+
+        this.$root.$on('open-rubric-category', this.openRubricCategory);
+    },
+
+    destroyed() {
+        this.$root.$off('open-rubric-category', this.openRubricCategory);
     },
 
     methods: {
@@ -307,6 +313,10 @@ export default {
                 !UserConfig.features.incremental_rubric_submission &&
                 this.$refs.rubricViewer.outOfSync.size > 0
             );
+        },
+
+        openRubricCategory() {
+            this.rubricOpen = true;
         },
     },
 

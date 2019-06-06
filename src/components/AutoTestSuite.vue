@@ -21,9 +21,7 @@
                     <div v-b-popover.top.hover="disabledCategories[cat.id] ? 'This rubric category is already in use.' : ''"
                          class="category-wrapper">
                         <h5>{{ cat.header }}</h5>
-                        <span class="rubric-description">
-                            {{ cat.description }}
-                        </span>
+                        <span class="rubric-description">{{ cat.description }}</span>
                     </div>
                 </b-dropdown-item>
             </b-dropdown>
@@ -51,7 +49,7 @@
                        class="auto-test-suite slick-item"
                        :class="slickItemMoving ? 'no-text-select' : ''">
                 <div class="auto-test-suite-step item-wrapper">
-                    <span v-handle class="handle">
+                    <span v-handle class="drag-handle text-muted">
                         <icon name="bars"/>
                     </span>
                     <auto-test-step v-model="internalValue.steps[index]"
@@ -64,18 +62,42 @@
         </SlickList>
 
         <div class="add-step-btns-wrapper">
-            <label>Add new step:</label>
-
-            <b-button-toolbar>
+            <b-button-toolbar class="m-auto">
                 <b-btn v-for="stepType in stepTypes"
-                    :key="stepType.value"
-                    @click="internalValue.addStep(createTestStep(stepType.name))"
-                    class="add-step-btn text-muted"
-                    :style="{ 'background-color': stepType.color }"
-                    variant="primary">
+                       :key="stepType.value"
+                       @click="internalValue.addStep(createTestStep(stepType.name))"
+                       class="add-step-btn text-muted"
+                       :style="{ 'background-color': stepType.color }"
+                       v-b-popover.top.hover="stepType.help">
                     <icon name="plus" /> {{ stepType.title }}
                 </b-btn>
             </b-button-toolbar>
+        </div>
+
+        <hr />
+
+        <div class="advanced-options-collapse">
+            <p class="collapse-handle mb-2 text-muted" v-b-toggle="advancedOptionsCollapseId">
+                <icon name="caret-right" />
+                Advanced options
+            </p>
+
+            <b-collapse :id="advancedOptionsCollapseId">
+                <b-form-group label="Timeout per step in seconds">
+                    <input class="form-control"
+                            type="number"
+                            min="0"
+                            step="30"
+                            v-model="internalValue.commandTimeLimit" />
+                </b-form-group>
+
+                <b-form-group>
+                    <b-form-checkbox name="network-disabled"
+                                     v-model="internalValue.networkDisabled">
+                        Network disabled: tests do not have internet access.
+                    </b-form-checkbox>
+                </b-form-group>
+            </b-collapse>
         </div>
 
         <template slot="modal-footer">
@@ -107,7 +129,7 @@
                                 <li v-for="[step, errs], i in scope.error.messages.steps"
                                     :key="step.id"
                                     v-if="errs.length > 0">
-                                    {{ withOrdinalSuffix(i + 1) }} step<span v-if="step.name">
+                                    {{ $utils.withOrdinalSuffix(i + 1) }} step<span v-if="step.name">
                                         with name "{{ step.name }}"</span>:
                                     <ul>
                                         <li v-for="err in errs" :key="err">
@@ -127,7 +149,7 @@
         <div slot="header" class="title title-display">
             <a v-if="result"
                href="#"
-               @click="$root.$emit('open-rubric-category', value.rubricRow.id)">
+               @click.capture.prevent.stop="$root.$emit('open-rubric-category', value.rubricRow.id)">
                 {{ value.rubricRow.header }}
             </a>
             <span v-else>
@@ -181,7 +203,7 @@ import 'vue-awesome/icons/times';
 import 'vue-awesome/icons/check';
 import 'vue-awesome/icons/pencil';
 
-import { getProps, getUniqueId, withOrdinalSuffix } from '@/utils';
+import { getProps, getUniqueId } from '@/utils';
 
 import SubmitButton from './SubmitButton';
 import AutoTestStep from './AutoTestStep';
@@ -222,13 +244,16 @@ export default {
     },
 
     data() {
+        const id = this.$utils.getUniqueId();
+
         return {
             editingSet: false,
             newName: '',
             showModal: false,
             internalValue: null,
             slickItemMoving: false,
-            withOrdinalSuffix,
+
+            advancedOptionsCollapseId: `advanced-options-collapse-${id}`,
         };
     },
 
@@ -259,21 +284,25 @@ export default {
                     name: 'io_test',
                     title: 'IO Test',
                     color: '#E7EEE9',
+                    help: 'IO test!',
                 },
                 {
                     name: 'run_program',
                     title: 'Run Program',
                     color: '#E6DCCD',
+                    help: 'Run program!',
                 },
                 {
                     name: 'custom_output',
                     title: 'Capture Points',
                     color: '#DFD3AA',
+                    help: 'Capture points!',
                 },
                 {
                     name: 'check_points',
                     title: 'Check Points',
                     color: '#D6CE5B',
+                    help: 'Check points test!',
                     meta: true,
                 },
             ];
@@ -285,7 +314,9 @@ export default {
 
         pointPercentage() {
             const result = this.result.suiteResults[this.value.id];
-            return (100 * result.achieved / result.possible).toFixed(2);
+            return (result == null || result.achieved == null || result.possible == null)
+                ? 0
+                : (100 * result.achieved / result.possible).toFixed(0);
         },
     },
 
@@ -401,11 +432,11 @@ export default {
     }
 }
 
-.handle {
+.drag-handle {
     display: block;
-    color: @text-color-muted;
     margin-right: 20px;
     cursor: grab;
+
     &.disabled-handle {
         cursor: not-allowed;
         color: @text-color-dark;
@@ -478,6 +509,27 @@ export default {
 
 .steps-table {
     margin-bottom: 0;
+}
+
+.advanced-options-collapse {
+    .collapse-handle {
+        cursor: pointer;
+
+        .fa-icon {
+            position: relative;
+            top: 2px;
+            margin-right: 0.5rem;
+            transition: transform 300ms;
+        }
+
+        &:not(.collapsed) .fa-icon {
+            transform: rotate(90deg);
+        }
+    }
+
+    fieldset:last-child {
+        margin-bottom: 0;
+    }
 }
 </style>
 

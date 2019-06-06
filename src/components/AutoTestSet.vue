@@ -5,7 +5,7 @@
     class="test-group auto-test-set"
     :class="{ editable }">
     <b-card-header v-if="!result" class="auto-test-header" :class="{ editable }">
-        Level
+        Level {{ setIndex + 1 }}
         <div v-if="editable">
             <submit-button
                 :submit="deleteSet"
@@ -27,7 +27,7 @@
                              v-if="!suite.deleted"
                              :editable="editable"
                              :editing="suite.steps.length === 0"
-                             :key="suite.id"
+                             :key="`suite-${suite.id}`"
                              :assignment="assignment"
                              :other-suites="otherSuites"
                              :value="value.suites[j]"
@@ -44,29 +44,34 @@
     </component>
 
     <transition v-if="!isLastSet" :name="animations ? '' : 'setcontinue'">
-        <b-card v-if="result" class="set-continue">
-            <template v-if="setResult.finished">
-                Scored <code>{{ setResult.achieved }}</code> points, which is
+        <template v-if="result">
+            <template v-if="stopPoints > 0">
+                <b-alert show
+                        v-if="setResult.finished"
+                        :variant="setResult.achieved >= stopPoints ? 'success' : 'danger'"
+                        class="mt-3">
+                    Scored <code>{{ setResult.achieved }}</code> points, which is
 
-                <template v-if="setResult.passed">
-                    greater than or equal to <code>{{ stopPoints }}</code>.
-                    Continuing with the next level.
-                </template>
+                    <template v-if="setResult.achieved >= stopPoints">
+                        greater than or equal to <code>{{ stopPoints }}</code>.
+                        Continuing with the next level.
+                    </template>
 
-                <template v-else>
-                    less than <code>{{ stopPoints }}</code>.
-                    No further tests will be run.
-                </template>
+                    <template v-else>
+                        less than <code>{{ stopPoints }}</code>.
+                        No further tests will be run.
+                    </template>
+                </b-alert>
+
+                <div v-else class="border rounded mt-3 p-3">
+                    Only execute further levels if total achieved points by AutoTest is higher than
+                    <code>{{ stopPoints }}</code>
+                </div>
             </template>
-
-            <template v-else>
-                Only execute further levels if achieved points by AutoTest is higher than
-                <code>{{ stopPoints }}</code>
-            </template>
-        </b-card>
+        </template>
 
         <b-card-footer v-else-if="editable" class="auto-test-header editable transition set-continue" >
-            Only execute further levels if achieved points by AutoTest is higher than
+            Only execute further levels if total achieved points by AutoTest is higher than
 
             <b-input-group class="input-group">
                 <input
@@ -83,9 +88,9 @@
             </b-input-group>
         </b-card-footer>
 
-        <b-card-footer v-else class="auto-test-header editable transition set-continue" >
+        <b-card-footer v-else-if="stopPoints > 0" class="auto-test-header editable transition set-continue">
             <span class="font-italic text-muted">
-                Only execute further levels if achieved points by AutoTest is higher than
+                Only execute further levels if total achieved points by AutoTest is higher than
                 <code>{{ stopPoints }}</code>
             </span>
         </b-card-footer>
@@ -165,9 +170,12 @@ export default {
             return this.value.suites.filter(s => s.isValid()).length !== 0;
         },
 
+        setIndex() {
+            return this.test.sets.indexOf(this.value);
+        },
+
         isLastSet() {
-            const i = this.test.sets.indexOf(this.value);
-            return !this.test.sets.some((s, j) => j > i && !s.deleted);
+            return !this.test.sets.some((s, j) => j > this.setIndex && !s.deleted);
         },
     },
 
@@ -188,10 +196,30 @@ export default {
         },
 
         submitContinuePoints() {
+            const stopPoints = Number(this.stopPoints);
+
+            const prevSetHasGreater = this.test.sets.some(
+                (s, j) => j < this.setIndex && s.stop_points > stopPoints && stopPoints !== 0,
+            );
+            if (prevSetHasGreater) {
+                throw new RangeError(
+                    'The value must be greater than or equal to all previous levels.',
+                );
+            }
+
+            const nextHasSmaller = this.test.sets.some(
+                (s, j) => j > this.setIndex && s.stop_points < stopPoints && s.stop_points !== 0,
+            );
+            if (nextHasSmaller) {
+                throw new RangeError(
+                    'The value must be less than or equal to all following levels.',
+                );
+            }
+
             return this.storeUpdateAutoTestSet({
                 autoTestId: this.autoTestId,
                 autoTestSet: this.value,
-                setProps: { stop_points: Number(this.stopPoints) },
+                setProps: { stop_points: stopPoints },
             });
         },
 

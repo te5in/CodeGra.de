@@ -81,7 +81,7 @@ class AutoTestSuite(Base, TimestampMixin, IdMixin):
     steps = db.relationship(
         "AutoTestStepBase",
         back_populates="suite",
-        cascade='all,delete',
+        cascade='all,delete,delete-orphan',
         order_by='AutoTestStepBase.order'
     )  # type: t.MutableSequence[auto_test_step_models.AutoTestStepBase]
 
@@ -559,9 +559,12 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
             else:
                 results.append(result)
 
+        # TODO: Check permissions for setup_stdout/setup_stderr
         return {
             **self.__to_json__(),
             'results': results,
+            'setup_stdout': self.setup_stdout,
+            'setup_stderr': self.setup_stderr,
         }
 
     def delete_and_clear_rubric(self) -> None:
@@ -638,6 +641,7 @@ class AutoTest(Base, TimestampMixin, IdMixin):
             'id': self.id,
             'fixtures': self.fixtures,
             'setup_script': self.setup_script,
+            'run_setup_script': self.run_setup_script,
             'finalize_script': self.finalize_script,
             'sets': self.sets,
             'assignment_id': self.assignment.id,

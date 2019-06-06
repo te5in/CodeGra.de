@@ -31,10 +31,7 @@ if t.TYPE_CHECKING and not getattr(t, 'SPHINX', False):  # pragma: no cover
     from .. import auto_test as auto_test_module
 
 _all_auto_test_handlers = sorted(
-    [
-        'io_test', 'run_program', 'custom_output', 'check_output',
-        'check_points'
-    ]
+    ['io_test', 'run_program', 'custom_output', 'check_points']
 )
 _registered_test_handlers: t.Set[str] = set()
 

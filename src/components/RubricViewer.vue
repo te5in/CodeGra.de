@@ -442,13 +442,17 @@ export default {
             const selectedInRow = this.selectedRows[this.currentRow.id];
 
             if (selectedInRow == null || this.currentProgress == null) {
-                return 'This is an AutoTest category. It will be filled once the ' +
-                    'AutoTest for this assignment is done running.';
+                return (
+                    'This is an AutoTest category. It will be filled once the ' +
+                    'AutoTest for this assignment is done running.'
+                );
             }
 
-            return `You scored ${this.currentProgress}% in the corresponding ` +
+            return (
+                `You scored ${this.currentProgress}% in the corresponding ` +
                 `AutoTest category, which scores you ${selectedInRow.points} ` +
-                'points in this rubric category.';
+                'points in this rubric category.'
+            );
         },
     },
 
