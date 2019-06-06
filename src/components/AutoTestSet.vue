@@ -5,7 +5,7 @@
     class="test-group auto-test-set"
     :class="{ editable }">
     <b-card-header v-if="!result" class="auto-test-header" :class="{ editable }">
-        Level
+        Level {{ setIndex + 1 }}
         <div v-if="editable">
             <submit-button
                 :submit="deleteSet"
