@@ -139,7 +139,7 @@
                         <b-card-body v-else>
                             <transition :name="disabledAnimations ? '' : 'fixtureswrapper'">
                                 <div v-if="test.fixtures.length > 0" class="transition">
-                                    <b-form-fieldset>
+                                    <b-form-fieldset class="mb-3">
                                         <label :for="uploadedFixturesId">
                                             Uploaded fixtures
                                         </label>
@@ -190,11 +190,13 @@
                                 <label :for="fixtureUploadId">
                                     Upload fixtures
                                 </label>
+
                                 <multiple-files-uploader
                                     v-model="newFixtures"
                                     :id="fixtureUploadId">
                                     Click here or drop file(s) add fixtures and test files.
                                 </multiple-files-uploader>
+
                                 <b-input-group>
                                     <b-input-group-prepend is-text
                                                             class="fixture-upload-information">
@@ -209,12 +211,12 @@
                                 </b-input-group>
                             </b-form-fieldset>
 
-                            <b-form-fieldset>
-                                <template v-if="configEditable">
-                                    <label :for="globalPreStartScriptId">
-                                        Global setup script to run
-                                    </label>
+                            <b-form-fieldset v-if="configEditable || test.run_setup_script">
+                                <label :for="globalPreStartScriptId">
+                                    Global setup script to run
+                                </label>
 
+                                <template v-if="configEditable">
                                     <b-input-group>
                                         <input class="form-control"
                                                 @keydown.ctrl.enter="$refs.runSetupScriptBtn.onClick"
@@ -228,42 +230,34 @@
                                     </b-input-group>
                                 </template>
 
-                                <template v-else-if="editable && test.run_setup_script">
-                                    <label>
-                                        Global setup script to run:
-                                        <code>{{ test.run_setup_script }}</code>
-                                    </label>
-                                </template>
+                                <div v-else-if="test.run_setup_script">
+                                    <code>{{ test.run_setup_script }}</code>
 
-                                <template v-else-if="test.run_setup_script">
-                                    <label>
-                                        Global setup script output:
-                                        <code>{{ test.run_setup_script }}</code>
-                                    </label>
-
-                                    <b-tabs no-fade>
-                                        <b-tab title="stdout">
-                                            <pre v-if="autoTestRun.setupStdout">{{
-                                                autoTestRun.setupStdout
-                                            }}</pre>
-                                            <pre v-else class="text-muted">No output.</pre>
-                                        </b-tab>
-                                        <b-tab title="stderr">
-                                            <pre v-if="autoTestRun.setupStderr">{{
-                                                autoTestRun.setupStderr
-                                            }}</pre>
-                                            <pre v-else class="text-muted">No output.</pre>
-                                        </b-tab>
-                                    </b-tabs>
-                                </template>
+                                    <template v-if="result">
+                                        <b-tabs no-fade>
+                                            <b-tab title="stdout">
+                                                <pre v-if="autoTestRun.setupStdout">{{
+                                                    autoTestRun.setupStdout
+                                                }}</pre>
+                                                <pre v-else class="text-muted">No output.</pre>
+                                            </b-tab>
+                                            <b-tab title="stderr">
+                                                <pre v-if="autoTestRun.setupStderr">{{
+                                                    autoTestRun.setupStderr
+                                                }}</pre>
+                                                <pre v-else class="text-muted">No output.</pre>
+                                            </b-tab>
+                                        </b-tabs>
+                                    </template>
+                                </div>
                             </b-form-fieldset>
 
-                            <b-form-fieldset class="mb-0">
-                                <template v-if="configEditable">
-                                    <label :for="preStartScriptId">
-                                        Setup script to run
-                                    </label>
+                            <b-form-fieldset v-if="configEditable || test.setup_script">
+                                <label :for="preStartScriptId">
+                                    Setup script to run
+                                </label>
 
+                                <template v-if="configEditable">
                                     <b-input-group>
                                         <input class="form-control"
                                                 @keydown.ctrl.enter="$refs.setupScriptBtn.onClick"
@@ -277,30 +271,22 @@
                                     </b-input-group>
                                 </template>
 
-                                <template v-else-if="editable && test.setup_script">
-                                    <label>
-                                        Setup script to run:
-                                        <code>{{ test.setup_script }}</code>
-                                    </label>
-                                </template>
+                                <div v-else-if="test.setup_script">
+                                    <code>{{ test.setup_script }}</code>
 
-                                <template v-else-if="test.setup_script">
-                                    <label>
-                                        Setup script output:
-                                        <code>{{ test.setup_script }}</code>
-                                    </label>
-
-                                    <b-tabs no-fade v-if="result">
-                                        <b-tab title="stdout">
-                                            <pre v-if="result.setupStdout">{{ result.setupStdout }}</pre>
-                                            <pre v-else class="text-muted">No output.</pre>
-                                        </b-tab>
-                                        <b-tab title="stderr">
-                                            <pre v-if="result.setupStderr">{{ result.setupStderr }}</pre>
-                                            <pre v-else class="text-muted">No output.</pre>
-                                        </b-tab>
-                                    </b-tabs>
-                                </template>
+                                    <template v-if="result">
+                                        <b-tabs no-fade>
+                                            <b-tab title="stdout">
+                                                <pre v-if="result.setupStdout">{{ result.setupStdout }}</pre>
+                                                <pre v-else class="text-muted">No output.</pre>
+                                            </b-tab>
+                                            <b-tab title="stderr">
+                                                <pre v-if="result.setupStderr">{{ result.setupStderr }}</pre>
+                                                <pre v-else class="text-muted">No output.</pre>
+                                            </b-tab>
+                                        </b-tabs>
+                                    </template>
+                                </div>
                             </b-form-fieldset>
                         </b-card-body>
                     </b-collapse>
@@ -799,10 +785,10 @@ export default {
 
         hasEnvironmentSetup() {
             return (
-                this.test
-                && this.test.fixtures.length
-                && this.test.setup_script
-                && this.test.run_setup_script
+                this.test != null
+                && this.test.fixtures.length != null
+                && this.test.setup_script != null
+                && this.test.run_setup_script != null
             );
         },
     },
@@ -959,6 +945,8 @@ export default {
     .upload-fixture-btn {
         border-top-right-radius: 0;
     }
+
+
 }
 
 .results-card {
@@ -1004,6 +992,12 @@ export default {
 
         &:not(.collapsed) .fa-icon {
             transform: rotate(90deg);
+        }
+    }
+
+    fieldset {
+        &:last-child {
+            margin-bottom: 0;
         }
     }
 
