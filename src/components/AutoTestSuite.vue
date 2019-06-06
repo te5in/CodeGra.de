@@ -314,8 +314,9 @@ export default {
 
         pointPercentage() {
             const result = this.result.suiteResults[this.value.id];
-            const points = (100 * result.achieved / result.possible);
-            return Number.isNaN(points) ? '0.00' : points.toFixed(2);
+            return (result == null || result.achieved == null || result.possible == null)
+                ? 0
+                : (100 * result.achieved / result.possible).toFixed(0);
         },
     },
 
