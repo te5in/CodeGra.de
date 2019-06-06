@@ -478,6 +478,12 @@ textarea:disabled {
     }
 }
 
-#app.dark .border {
-    border-color: @color-primary-darker !important;
+#app.dark {
+    .border,
+    .border-top,
+    .border-bottom,
+    .border-left,
+    .border-right {
+        border-color: @color-primary-darker !important;
+    }
 }

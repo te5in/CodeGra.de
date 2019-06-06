@@ -314,7 +314,7 @@ export default {
 
         pointPercentage() {
             const result = this.result.suiteResults[this.value.id];
-            return (result == null || result.achieved == null || result.possible == null)
+            return result == null || result.achieved == null || result.possible == null
                 ? 0
                 : (100 * result.achieved / result.possible).toFixed(0);
         },
@@ -351,7 +351,7 @@ export default {
                     ];
                     break;
                 case 'custom_output':
-                    res.data.regex = '1(\\.0*)?|0(\\.\\d*)?';
+                    res.data.regex = '((?:-\\s*)?1(?:\\.0*)?|0(?:\\.\\d*)?)';
                     break;
                 case 'check_points':
                     res.weight = 0;

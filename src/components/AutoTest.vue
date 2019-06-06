@@ -2,7 +2,7 @@
 <b-alert v-if="message && message.isError"
          show
          variant="danger"
-         class="error-message">
+         class="error-message mb-3">
     {{ message.text }}
 </b-alert>
 
@@ -12,16 +12,23 @@
 
 <loader v-else-if="loading" />
 
-<div v-else class="auto-test" :class="{ editable, 'config-editable': configEditable, 'no-card': noCard, 'single-result': singleResult }">
+<div v-else class="auto-test" :class="{ 'no-card': noCard }">
     <template v-if="autoTestRun && !singleResult">
-        <b-card no-body v-for="run in test.runs" :key="run.id" class="results-card">
-            <b-card-header class="auto-test-header" :class="{ editable }">
-                <div class="toggle" :key="resultsCollapseId" v-b-toggle="resultsCollapseId">
-                    <icon class="expander" name="chevron-right" :scale="0.75" />
+        <b-card no-body
+                v-for="run in test.runs"
+                :key="run.id"
+                class="results-card">
+            <b-card-header
+                class="d-flex justify-content-between align-items-center"
+                :class="{ 'py-1': editable }">
+                <div class="toggle flex-grow-1"
+                     :key="resultsCollapseId"
+                     v-b-toggle="resultsCollapseId">
+                    <icon name="chevron-right" :scale="0.75" />
                     Results
                 </div>
 
-                <div v-if="editable" class="btn-wrapper">
+                <div v-if="editable">
                     <auto-test-state btn no-timer :result="run" />
 
                     <submit-button
@@ -74,13 +81,13 @@
 
     <b-card no-body>
         <template v-if="!noCard">
-            <b-card-header v-if="editable" class="auto-test-header editable">
-                <span class="toggle" :key="configCollapseId" v-b-toggle="configCollapseId">
-                    <icon class="expander" name="chevron-right" :scale="0.75" />
+            <b-card-header class="py-1 d-flex justify-content-between align-items-center">
+                <span class="toggle flex-grow-1" :key="configCollapseId" v-b-toggle="configCollapseId">
+                    <icon name="chevron-right" :scale="0.75" />
                     Configuration
                 </span>
-                <div class="btn-wrapper"
-                    v-b-popover.hover.top="createAutoTestPopover">
+
+                <div v-b-popover.hover.top="createAutoTestPopover">
                     <submit-button
                         v-if="!loading && test == null"
                         label="Create AutoTest"
@@ -88,11 +95,13 @@
                         :disabled="this.assignment.rubric == null"
                         :submit="createAutoTest"
                         @success="afterCreateAutoTest"/>
+
                     <submit-button
                         v-if="!loading && test != null"
                         label="Run"
                         :submit="runAutoTest"
                         :disabled="!configEditable"/>
+
                     <submit-button
                         v-if="!loading && test != null"
                         :submit="deleteAutoTest"
@@ -103,9 +112,6 @@
                         label="Delete"
                         :disabled="!configEditable"/>
                 </div>
-            </b-card-header>
-            <b-card-header v-else class="auto-test-header">
-                AutoTest
             </b-card-header>
         </template>
 
@@ -118,14 +124,13 @@
                     class="setup-env-wrapper">
             <b-card-body key="full">
                 <b-card no-body>
-                    <span
-                        slot="header"
-                        class="setup-env-wrapper-header"
-                        v-if="singleResult"
-                        v-b-toggle="autoTestSetupEnvWrapperId">
+                    <div slot="header"
+                         class="toggle"
+                         v-if="singleResult"
+                         v-b-toggle="autoTestSetupEnvWrapperId">
                         <icon v-if="singleResult" name="chevron-right" :scale="0.75" />
                         Setup
-                    </span>
+                    </div>
                     <template v-else slot="header">
                         Setup
                     </template>
@@ -142,17 +147,21 @@
                                     Uploaded fixtures
                                 </label>
 
-                                <ul class="fixture-list">
+                                <div v-if="!test.fixtures.length" class="text-muted font-italic border rounded p-2">
+                                    No fixtures have been uploaded.
+                                </div>
+
+                                <ul v-else class="fixture-list border rounded p-0 mb-0">
                                     <li v-for="fixture, index in test.fixtures"
-                                        class="transition fixture-row"
+                                        class="px-3 py-1 d-flex align-items-center justify-content-between border-bottom"
                                         :key="fixture.id">
                                         <a v-if="canViewFixture(fixture)"
-                                            class="fixture-name"
+                                            class="flex-grow-1"
                                             href="#"
                                             @click.capture.prevent.stop="downloadFixture(fixture)">
                                             {{ fixture.name }}
                                         </a>
-                                        <span v-else class="fixture-name">
+                                        <span v-else>
                                             {{ fixture.name }}
                                         </span>
 
@@ -173,6 +182,7 @@
                                                 </submit-button>
                                             </b-button-group>
                                         </template>
+
                                         <icon v-else-if="fixture.hidden"
                                                 name="eye-slash"
                                                 v-b-popover.top.hover="`This fixture is hidden. ${singleResult && !canViewFixture(fixture) ? 'You' : 'Students'} may not view its contents.`"/>
@@ -211,6 +221,7 @@
                                                 @keydown.ctrl.enter="$refs.runSetupScriptBtn.onClick"
                                                 :id="globalPreStartScriptId"
                                                 v-model="internalTest.run_setup_script"/>
+
                                         <b-input-group-append>
                                             <submit-button
                                                 :submit="() => submitProp('run_setup_script')"
@@ -225,16 +236,17 @@
                                     <template v-if="result">
                                         <b-tabs no-fade>
                                             <b-tab title="stdout">
-                                                <pre v-if="autoTestRun.setupStdout">{{
-                                                    autoTestRun.setupStdout
+                                                <pre class="border border-top-0 rounded-bottom"
+                                                     :class="{ 'text-muted': !autoTestRun.setupStdout }">{{
+                                                    autoTestRun.setupStdout || 'No output.'
                                                 }}</pre>
-                                                <pre v-else class="text-muted">No output.</pre>
                                             </b-tab>
+
                                             <b-tab title="stderr">
-                                                <pre v-if="autoTestRun.setupStderr">{{
-                                                    autoTestRun.setupStderr
+                                                <pre class="border border-top-0 rounded-bottom"
+                                                     :class="{ 'text-muted': !autoTestRun.setupStderr }">{{
+                                                    autoTestRun.setupStderr || 'No output.'
                                                 }}</pre>
-                                                <pre v-else class="text-muted">No output.</pre>
                                             </b-tab>
                                         </b-tabs>
                                     </template>
@@ -252,6 +264,7 @@
                                                 @keydown.ctrl.enter="$refs.setupScriptBtn.onClick"
                                                 :id="preStartScriptId"
                                                 v-model="internalTest.setup_script"/>
+
                                         <b-input-group-append>
                                             <submit-button
                                                 :submit="() => submitProp('setup_script')"
@@ -266,12 +279,17 @@
                                     <template v-if="result">
                                         <b-tabs no-fade>
                                             <b-tab title="stdout">
-                                                <pre v-if="result.setupStdout">{{ result.setupStdout }}</pre>
-                                                <pre v-else class="text-muted">No output.</pre>
+                                                <pre class="border border-top-0 rounded-bottom"
+                                                     :class="{ 'text-muted': !result.setupStdout }">{{
+                                                    result.setupStdout || 'No output.'
+                                                }}</pre>
                                             </b-tab>
+
                                             <b-tab title="stderr">
-                                                <pre v-if="result.setupStderr">{{ result.setupStderr }}</pre>
-                                                <pre v-else class="text-muted">No output.</pre>
+                                                <pre class="border border-top-0 rounded-bottom"
+                                                     :class="{ 'text-muted': !result.setupStderr }">{{
+                                                    result.setupStderr || 'No output.'
+                                                }}</pre>
                                             </b-tab>
                                         </b-tabs>
                                     </template>
@@ -281,36 +299,32 @@
                     </b-collapse>
                 </b-card>
 
-                <transition :name="disabledAnimations ? '' : 'emptytext'">
-                    <p class="text-muted font-italic empty-text transition"
-                            v-if="test.sets.filter(s => !s.deleted).length === 0">
-                        You have no levels yet. Click the button below to create one.
-                    </p>
-                </transition>
+                <p class="text-muted font-italic mt-3"
+                   v-if="test.sets.filter(s => !s.deleted).length === 0">
+                    You have no levels yet. Click the button below to create one.
+                </p>
 
-                <h5 v-if="singleResult" style="margin-top: 1rem;">Categories</h5>
+                <h5 v-if="singleResult" class="mt-3">
+                    Categories
+                </h5>
 
-                <transition-group :name="disabledAnimations ? '' : 'list'">
-
-                    <div v-for="set, i in test.sets"
-                            v-if="!set.deleted"
-                            :key="set.id"
-                            class="list-item transition">
-                        <auto-test-set
-                            :value="set"
-                            :assignment="assignment"
-                            :editable="configEditable"
-                            :result="result"
-                            :other-suites="allNonDeletedSuites"
-                            :animations="disabledAnimations" />
-                    </div>
-                </transition-group>
-                <div v-if="configEditable"
-                     class="add-btn-wrapper transition">
-                    <submit-button :submit="addSet"
-                                   label="Add level"
-                                   class="transition"/>
+                <div v-for="set, i in test.sets"
+                     v-if="!set.deleted"
+                     :key="set.id"
+                     class="mt-3">
+                    <auto-test-set :value="set"
+                                   :assignment="assignment"
+                                   :editable="configEditable"
+                                   :result="result"
+                                   :other-suites="allNonDeletedSuites"
+                                   :animations="disabledAnimations" />
                 </div>
+
+                <b-button-toolbar v-if="configEditable"
+                     class="mt-3 justify-content-end">
+                    <submit-button :submit="addSet"
+                                   label="Add level" />
+                </b-button-toolbar>
             </b-card-body>
         </b-collapse>
     </b-card>
@@ -332,6 +346,7 @@
             :submission-id="currentResult.submission.id" />
 
         <rubric-viewer
+            class="mx-3 mb-3"
             :assignment="assignment"
             :submission="currentResult.submission"
             :rubric="currentResult.rubric" />
@@ -774,10 +789,10 @@ export default {
 
         hasEnvironmentSetup() {
             return (
-                this.test != null
-                && this.test.fixtures.length != null
-                && this.test.setup_script != null
-                && this.test.run_setup_script != null
+                this.test != null &&
+                this.test.fixtures.length != null &&
+                this.test.setup_script != null &&
+                this.test.run_setup_script != null
             );
         },
     },
@@ -803,16 +818,6 @@ export default {
 
 .transition {
     transition: all 0.3s linear;
-}
-
-.list-item {
-    margin-top: 1rem;
-}
-
-.add-btn-wrapper {
-    display: flex;
-    justify-content: flex-end;
-    margin-top: 1rem;
 }
 
 .list-enter-active {
@@ -851,10 +856,6 @@ export default {
     margin: 0 !important;
 }
 
-.empty-text {
-    margin-top: 1rem;
-}
-
 .fixtureswrapper-leave-active,
 .fixtureswrapper-enter-active,
 .fixtures-leave-active,
@@ -882,36 +883,10 @@ export default {
     border-color: transparent;
 }
 
-.fixture-name {
-    flex: 1 1 auto;
-}
-
 .fixture-list {
+    min-height: 2.5rem;
     max-height: 15rem;
     overflow: auto;
-    border-radius: 0.25rem;
-    border: 1px solid @color-border-gray-lighter;
-
-    #app.dark & {
-        border-color: @color-primary-darker;
-    }
-
-    padding: 0;
-    margin: 0;
-
-    .fixture-row {
-        padding: 5px 0.75rem;
-        display: flex;
-        align-items: center;
-
-        &:not(:last-child) {
-            border-bottom: 1px solid @color-border-gray-lighter;
-        }
-
-        #app.dark & {
-            border-color: @color-primary-darker;
-        }
-    }
 }
 
 .results-card {
@@ -947,19 +922,6 @@ export default {
 }
 
 .setup-env-wrapper {
-    &-header {
-        cursor: pointer;
-
-        .fa-icon {
-            margin-right: 0.25rem;
-            transition: transform 300ms;
-        }
-
-        &:not(.collapsed) .fa-icon {
-            transform: rotate(90deg);
-        }
-    }
-
     fieldset {
         &:last-child {
             margin-bottom: 0;
@@ -981,12 +943,17 @@ export default {
     }
 }
 
-.error-message {
-    margin: 1rem;
-}
+.toggle {
+    cursor: pointer;
 
-.rubric-viewer {
-    margin: 0 1rem 1rem;
+    .fa-icon {
+        margin-right: 0.5rem;
+        transition: transform 300ms;
+    }
+
+    &:not(.collapsed) .fa-icon {
+        transform: rotate(90deg);
+    }
 }
 </style>
 
@@ -1001,29 +968,6 @@ export default {
 
         .modal-body {
             padding: 0;
-        }
-    }
-
-    .auto-test-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-
-        &.editable {
-            padding: 5px 1.25rem;
-        }
-
-        .toggle {
-            cursor: pointer;
-
-            .fa-icon {
-                margin-right: 0.5rem;
-                transition: transform 300ms;
-            }
-
-            &:not(.collapsed) .fa-icon {
-                transform: rotate(90deg);
-            }
         }
     }
 }
