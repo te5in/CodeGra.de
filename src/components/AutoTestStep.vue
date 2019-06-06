@@ -263,12 +263,15 @@
 
                             <b-tab title="Output" class="row">
                                 <div class="col-12">
-                                    <pre v-if="stepResult.log.stdout" class="form-control">{{ stepResult.log.stdout }}</pre>
+                                    <pre v-if="$utils.getProps(stepResult, null, 'log', 'stdout')"
+                                         class="form-control">{{
+                                        stepResult.log.stdout
+                                    }}</pre>
                                     <pre v-else class="text-muted form-control">No output.</pre>
                                 </div>
                             </b-tab>
 
-                            <b-tab title="Errors" class="row" v-if="stepResult.log.stderr">
+                            <b-tab title="Errors" class="row" v-if="$utils.getProps(stepResult, null, 'log', 'stderr')">
                                 <div class="col-12">
                                     <pre class="form-control">{{ stepResult.log.stderr }}</pre>
                                 </div>
@@ -321,12 +324,15 @@
 
                             <b-tab title="Output" class="row">
                                 <div class="col-12">
-                                    <pre v-if="stepResult.log.stdout" class="form-control">{{ stepResult.log.stdout }}</pre>
+                                    <pre v-if="$utils.getProps(stepResult, null, 'log', 'stdout')"
+                                         class="form-control">{{
+                                        stepResult.log.stdout
+                                    }}</pre>
                                     <pre v-else class="text-muted form-control">No output.</pre>
                                 </div>
                             </b-tab>
 
-                            <b-tab title="Errors" class="row" v-if="stepResult.log.stderr">
+                            <b-tab title="Errors" class="row" v-if="$utils.getProps(stepResult, null, 'log', 'stderr')">
                                 <div class="col-12">
                                     <pre class="form-control">{{ stepResult.log.stderr }}</pre>
                                 </div>
