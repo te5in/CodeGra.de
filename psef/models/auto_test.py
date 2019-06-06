@@ -638,6 +638,7 @@ class AutoTest(Base, TimestampMixin, IdMixin):
             'id': self.id,
             'fixtures': self.fixtures,
             'setup_script': self.setup_script,
+            'run_setup_script': self.run_setup_script,
             'finalize_script': self.finalize_script,
             'sets': self.sets,
             'assignment_id': self.assignment.id,
