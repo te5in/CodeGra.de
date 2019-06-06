@@ -137,56 +137,50 @@
                         </b-card-body>
 
                         <b-card-body v-else>
-                            <transition :name="disabledAnimations ? '' : 'fixtureswrapper'">
-                                <div v-if="test.fixtures.length > 0" class="transition">
-                                    <b-form-fieldset class="mb-3">
-                                        <label :for="uploadedFixturesId">
-                                            Uploaded fixtures
-                                        </label>
+                            <b-form-fieldset>
+                                <label :for="uploadedFixturesId">
+                                    Uploaded fixtures
+                                </label>
 
-                                        <ul class="fixture-list">
-                                            <transition-group :name="disabledAnimations ? '' : 'fixtures'">
-                                                <li v-for="fixture, index in test.fixtures"
-                                                    class="transition fixture-row"
-                                                    :key="fixture.id">
-                                                    <a v-if="canViewFixture(fixture)"
-                                                        class="fixture-name"
-                                                        href="#"
-                                                        @click.capture.prevent.stop="downloadFixture(fixture)">
-                                                        {{ fixture.name }}
-                                                    </a>
-                                                    <span v-else class="fixture-name">
-                                                        {{ fixture.name }}
-                                                    </span>
+                                <ul class="fixture-list">
+                                    <li v-for="fixture, index in test.fixtures"
+                                        class="transition fixture-row"
+                                        :key="fixture.id">
+                                        <a v-if="canViewFixture(fixture)"
+                                            class="fixture-name"
+                                            href="#"
+                                            @click.capture.prevent.stop="downloadFixture(fixture)">
+                                            {{ fixture.name }}
+                                        </a>
+                                        <span v-else class="fixture-name">
+                                            {{ fixture.name }}
+                                        </span>
 
-                                                    <template v-if="configEditable">
-                                                        <b-button-group>
-                                                            <submit-button
-                                                                :variant="fixture.hidden ? 'primary' : 'secondary'"
-                                                                :submit="() => toggleHidden(index)"
-                                                                size="sm">
-                                                                <icon :name="fixture.hidden ? 'eye-slash' : 'eye'" />
-                                                            </submit-button>
-                                                            <submit-button
-                                                                variant="danger"
-                                                                confirm="Are you sure you want to delete this fixture?"
-                                                                size="sm"
-                                                                :submit="() => removeFixture(index)">
-                                                                <icon name="times"/>
-                                                            </submit-button>
-                                                        </b-button-group>
-                                                    </template>
-                                                    <icon v-else-if="fixture.hidden"
-                                                          name="eye-slash"
-                                                          v-b-popover.top.hover="`This fixture is hidden. ${singleResult && !canViewFixture(fixture) ? 'You' : 'Students'} may not view its contents.`"/>
-                                                </li>
-                                            </transition-group>
-                                        </ul>
-                                    </b-form-fieldset>
-                                </div>
-                            </transition>
+                                        <template v-if="configEditable">
+                                            <b-button-group>
+                                                <submit-button
+                                                    :variant="fixture.hidden ? 'primary' : 'secondary'"
+                                                    :submit="() => toggleHidden(index)"
+                                                    size="sm">
+                                                    <icon :name="fixture.hidden ? 'eye-slash' : 'eye'" />
+                                                </submit-button>
+                                                <submit-button
+                                                    variant="danger"
+                                                    confirm="Are you sure you want to delete this fixture?"
+                                                    size="sm"
+                                                    :submit="() => removeFixture(index)">
+                                                    <icon name="times"/>
+                                                </submit-button>
+                                            </b-button-group>
+                                        </template>
+                                        <icon v-else-if="fixture.hidden"
+                                                name="eye-slash"
+                                                v-b-popover.top.hover="`This fixture is hidden. ${singleResult && !canViewFixture(fixture) ? 'You' : 'Students'} may not view its contents.`"/>
+                                    </li>
+                                </ul>
+                            </b-form-fieldset>
 
-                            <b-form-fieldset class="fixture-upload-wrapper" v-if="configEditable">
+                            <b-form-fieldset v-if="configEditable">
                                 <label :for="fixtureUploadId">
                                     Upload fixtures
                                 </label>
@@ -197,17 +191,12 @@
                                     Click here or drop file(s) add fixtures and test files.
                                 </multiple-files-uploader>
 
-                                <b-input-group>
-                                    <b-input-group-prepend is-text
-                                                            class="fixture-upload-information">
-                                    </b-input-group-prepend>
-                                    <b-input-group-append>
-                                        <submit-button
-                                            :disabled="newFixtures.length === 0"
-                                            @after-success="afterAddFixtures"
-                                            class="upload-fixture-btn"
-                                            :submit="addFixtures" />
-                                    </b-input-group-append>
+                                <b-input-group class="justify-content-end border rounded-bottom">
+                                    <submit-button
+                                        :disabled="newFixtures.length === 0"
+                                        @after-success="afterAddFixtures"
+                                        class="rounded-0"
+                                        :submit="addFixtures" />
                                 </b-input-group>
                             </b-form-fieldset>
 
@@ -923,30 +912,6 @@ export default {
             border-color: @color-primary-darker;
         }
     }
-}
-
-.fixture-upload-wrapper {
-    .fixture-upload-information {
-        flex: 1 1 auto;
-
-        .input-group-text {
-            border-top: none;
-            border-top-left-radius: 0;
-            border-top-right-radius: 0;
-            width: 100%;
-            background-color: transparent !important;
-
-            #app.dark & {
-                color: @text-color-dark !important;
-            }
-        }
-    }
-
-    .upload-fixture-btn {
-        border-top-right-radius: 0;
-    }
-
-
 }
 
 .results-card {
