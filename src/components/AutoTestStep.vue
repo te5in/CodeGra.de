@@ -625,7 +625,7 @@ export default {
 
         canViewOutput() {
             // TODO: Check can_view_autotest_output permission
-            if (this.value.hidden) {
+            if (this.value.hidden || !this.result) {
                 return false;
             }
 
@@ -727,7 +727,11 @@ export default {
         },
 
         canViewSubStepOutput(i) {
-            return ['passed', 'failed', 'timed_out'].indexOf(this.ioSubStepProps(i, false, 'state')) !== -1;
+            return (
+                ['passed', 'failed', 'timed_out'].indexOf(
+                    this.ioSubStepProps(i, false, 'state'),
+                ) !== -1
+            );
         },
     },
 

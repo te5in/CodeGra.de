@@ -1,18 +1,19 @@
 <template>
-<component
-    :is="result ? 'div' : 'b-card'"
-    no-body
-    class="test-group auto-test-set"
-    :class="{ editable }">
-    <b-card-header v-if="!result" class="auto-test-header" :class="{ editable }">
+<component :is="result ? 'div' : 'b-card'"
+           no-body
+           class="auto-test-set" >
+    <b-card-header
+        v-if="!result"
+        class="py-1 d-flex justify-content-between align-items-center">
         Level {{ setIndex + 1 }}
-        <div v-if="editable">
+
+        <template v-if="editable">
             <submit-button
                 :submit="deleteSet"
                 label="Delete level"
                 variant="outline-danger"
                 confirm="Are you sure you want to delete this level and all categories in it?"/>
-        </div>
+        </template>
     </b-card-header>
 
     <component :is="result ? 'div' : 'b-card-body'">
@@ -21,8 +22,7 @@
         </span>
 
         <masonry :cols="{default: (result ? 1 : 2), [$root.largeWidth]: 1 }"
-                 :gutter="30"
-                 class="outer-block">
+                 :gutter="30" >
             <auto-test-suite v-for="suite, j in value.suites"
                              v-if="!suite.deleted"
                              :editable="editable"
@@ -35,12 +35,11 @@
                              @input="updateSuite(j, $event)" />
         </masonry>
 
-        <div v-if="editable"
-                style="float: right;">
-            <submit-button
-                :submit="addSuite"
-                label="Add category"/>
-        </div>
+        <b-button-toolbar v-if="editable"
+                          class="justify-content-end">
+            <submit-button :submit="addSuite"
+                           label="Add category"/>
+        </b-button-toolbar>
     </component>
 
     <transition v-if="!isLastSet" :name="animations ? '' : 'setcontinue'">
@@ -70,16 +69,16 @@
             </template>
         </template>
 
-        <b-card-footer v-else-if="editable" class="auto-test-header editable transition set-continue" >
+        <b-card-footer v-else-if="editable" class="py-1 transition set-continue" >
             Only execute further levels if total achieved points by AutoTest is higher than
 
-            <b-input-group class="input-group">
-                <input
-                    class="form-control"
-                    type="number"
-                    v-model="stopPoints"
-                    @keyup.ctrl.enter="$refs.submitContinuePointsBtn.onClick()"
-                    placeholder="0" />
+            <b-input-group class="ml-1">
+                <input class="form-control"
+                       type="number"
+                       v-model="stopPoints"
+                       placeholder="0"
+                       @keyup.ctrl.enter="$refs.submitContinuePointsBtn.onClick()" />
+
                 <b-input-group-append>
                     <submit-button
                         ref="submitContinuePointsBtn"
@@ -88,7 +87,7 @@
             </b-input-group>
         </b-card-footer>
 
-        <b-card-footer v-else-if="stopPoints > 0" class="auto-test-header editable transition set-continue">
+        <b-card-footer v-else-if="stopPoints > 0" class="py-1 transition set-continue">
             <span class="font-italic text-muted">
                 Only execute further levels if total achieved points by AutoTest is higher than
                 <code>{{ stopPoints }}</code>
@@ -289,7 +288,6 @@ export default {
 
     .input-group {
         width: initial;
-        margin-left: 5px;
     }
 
     code {
@@ -297,7 +295,8 @@ export default {
     }
 }
 
-.auto-test-suite:not(.empty-auto-test-suite) {
+.auto-test-suite:not(.empty-auto-test-suite),
+.auto-test-suite:not(:last-child) {
     margin-bottom: 1rem;
 }
 
@@ -311,9 +310,5 @@ export default {
             margin-bottom: 0;
         }
     }
-}
-
-.auto-test-suite:not(:last-child) {
-    margin-bottom: 1rem;
 }
 </style>

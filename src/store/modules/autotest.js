@@ -24,7 +24,11 @@ class AutoTestSuiteData {
         Vue.set(
             this,
             'commandTimeLimit',
-            getProps(d, UserConfig.features.autoTest.auto_test_max_command_time, 'command_time_limit'),
+            getProps(
+                d,
+                UserConfig.features.autoTest.auto_test_max_command_time,
+                'command_time_limit',
+            ),
         );
         Vue.set(this, 'networkDisabled', getProps(d, true, 'network_disabled'));
     }
