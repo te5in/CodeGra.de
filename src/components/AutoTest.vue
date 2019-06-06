@@ -112,7 +112,10 @@
         <b-card-body v-if="test == null" key="empty" class="text-muted font-italic">
             You have no AutoTest yet for this assignment
         </b-card-body>
-        <b-collapse v-else :id="configCollapseId" :visible="singleResult || !autoTestRun">
+        <b-collapse v-else
+                    :id="configCollapseId"
+                    :visible="singleResult || !autoTestRun"
+                    class="setup-env-wrapper">
             <b-card-body key="full">
                 <b-card no-body>
                     <span
@@ -121,15 +124,15 @@
                         v-if="singleResult"
                         v-b-toggle="autoTestSetupEnvWrapperId">
                         <icon v-if="singleResult" name="chevron-right" :scale="0.75" />
-                        Environment setup
+                        Setup
                     </span>
                     <template v-else slot="header">
-                        Environment setup
+                        Setup
                     </template>
 
                     <b-collapse :id="autoTestSetupEnvWrapperId"
                                 :visible="!singleResult" >
-                        <b-card-body v-if="hasEnvironmentSetup" class="text-muted font-italic">
+                        <b-card-body v-if="!configEditable && !hasEnvironmentSetup" class="text-muted font-italic">
                             No fixtures or setup scripts were defined.
                         </b-card-body>
 
@@ -206,11 +209,61 @@
                                 </b-input-group>
                             </b-form-fieldset>
 
-                            <b-form-fieldset class="setup-output-wrapper">
+                            <b-form-fieldset>
+                                <template v-if="configEditable">
+                                    <label :for="globalPreStartScriptId">
+                                        Global setup script to run
+                                    </label>
+
+                                    <b-input-group>
+                                        <input class="form-control"
+                                                @keydown.ctrl.enter="$refs.runSetupScriptBtn.onClick"
+                                                :id="globalPreStartScriptId"
+                                                v-model="internalTest.run_setup_script"/>
+                                        <b-input-group-append>
+                                            <submit-button
+                                                :submit="() => submitProp('run_setup_script')"
+                                                ref="runSetupScriptBtn"/>
+                                        </b-input-group-append>
+                                    </b-input-group>
+                                </template>
+
+                                <template v-else-if="editable && test.run_setup_script">
+                                    <label>
+                                        Global setup script to run:
+                                        <code>{{ test.run_setup_script }}</code>
+                                    </label>
+                                </template>
+
+                                <template v-else-if="test.run_setup_script">
+                                    <label>
+                                        Global setup script output:
+                                        <code>{{ test.run_setup_script }}</code>
+                                    </label>
+
+                                    <b-tabs no-fade>
+                                        <b-tab title="stdout">
+                                            <pre v-if="autoTestRun.setupStdout">{{
+                                                autoTestRun.setupStdout
+                                            }}</pre>
+                                            <pre v-else class="text-muted">No output.</pre>
+                                        </b-tab>
+                                        <b-tab title="stderr">
+                                            <pre v-if="autoTestRun.setupStderr">{{
+                                                autoTestRun.setupStderr
+                                            }}</pre>
+                                            <pre v-else class="text-muted">No output.</pre>
+                                        </b-tab>
+                                    </b-tabs>
+                                </template>
+                            </b-form-fieldset>
+
+                            <b-form-fieldset class="mb-0">
                                 <template v-if="configEditable">
                                     <label :for="preStartScriptId">
                                         Setup script to run
                                     </label>
+
                                     <b-input-group>
                                         <input class="form-control"
                                                 @keydown.ctrl.enter="$refs.setupScriptBtn.onClick"
@@ -223,15 +276,20 @@
                                         </b-input-group-append>
                                     </b-input-group>
                                 </template>
+
                                 <template v-else-if="editable && test.setup_script">
-                                    <label :for="preStartScriptId">
-                                        Setup script to run: <code>{{ test.setup_script }}</code>
+                                    <label>
+                                        Setup script to run:
+                                        <code>{{ test.setup_script }}</code>
                                     </label>
                                 </template>
+
                                 <template v-else-if="test.setup_script">
                                     <label>
-                                        Setup script output: <code>{{ test.setup_script }}</code>
+                                        Setup script output:
+                                        <code>{{ test.setup_script }}</code>
                                     </label>
+
                                     <b-tabs no-fade v-if="result">
                                         <b-tab title="stdout">
                                             <pre v-if="result.setupStdout">{{ result.setupStdout }}</pre>
@@ -371,6 +429,7 @@ export default {
             fixtureUploadId: `auto-test-base-upload-${id}`,
             uploadedFixturesId: `auto-test-base-fixtures-${id}`,
             preStartScriptId: `auto-test-base-pre-start-script-${id}`,
+            globalPreStartScriptId: `auto-test-base-pre-start-script-${id}`,
             autoTestSetupEnvWrapperId: `auto-test-setup-env-${id}`,
         };
     },
@@ -413,6 +472,7 @@ export default {
                 } else {
                     this.internalTest = {
                         setup_script: this.test.setup_script,
+                        run_setup_script: this.test.run_setup_script,
                         set_stop_points: this.test.sets.reduce(
                             (acc, set) => Object.assign(acc, { [set.id]: set.stop_points }),
                             {},
@@ -738,7 +798,12 @@ export default {
         },
 
         hasEnvironmentSetup() {
-            return !this.configEditable && !this.test.fixtures.length && !this.test.setup_script;
+            return (
+                this.test
+                && this.test.fixtures.length
+                && this.test.setup_script
+                && this.test.run_setup_script
+            );
         },
     },
 
@@ -928,21 +993,19 @@ export default {
     }
 }
 
-.setup-env-wrapper-header {
-    cursor: pointer;
+.setup-env-wrapper {
+    &-header {
+        cursor: pointer;
 
-    .fa-icon {
-        margin-right: 0.25rem;
-        transition: transform 300ms;
+        .fa-icon {
+            margin-right: 0.25rem;
+            transition: transform 300ms;
+        }
+
+        &:not(.collapsed) .fa-icon {
+            transform: rotate(90deg);
+        }
     }
-
-    &:not(.collapsed) .fa-icon {
-        transform: rotate(90deg);
-    }
-}
-
-.setup-output-wrapper {
-    margin-bottom: 0;
 
     pre {
         margin-bottom: 0;
@@ -951,10 +1014,8 @@ export default {
         border-bottom-left-radius: 0.25rem;
         border-bottom-right-radius: 0.25rem;
         padding: 1rem;
-    }
 
-    #app.dark & {
-        pre {
+        #app.dark & {
             color: @text-color-dark;
             border-color: @color-primary-darker;
         }
@@ -971,37 +1032,39 @@ export default {
 </style>
 
 <style lang="less">
-.result-modal {
-    .modal-dialog {
-        max-width: calc(100vw - 8rem);
-        width: calc(100vw - 8rem);
-        margin-top: 2rem;
-    }
-
-    .auto-test & .modal-body {
-        padding: 0;
-    }
-}
-
-.auto-test .auto-test-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-
-    &.editable {
-        padding: 5px 1.25rem;
-    }
-
-    .toggle {
-        cursor: pointer;
-
-        .fa-icon {
-            margin-right: 0.5rem;
-            transition: transform 300ms;
+.auto-test {
+    .result-modal {
+        .modal-dialog {
+            max-width: calc(100vw - 8rem);
+            width: calc(100vw - 8rem);
+            margin-top: 2rem;
         }
 
-        &:not(.collapsed) .fa-icon {
-            transform: rotate(90deg);
+        .modal-body {
+            padding: 0;
+        }
+    }
+
+    .auto-test-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+
+        &.editable {
+            padding: 5px 1.25rem;
+        }
+
+        .toggle {
+            cursor: pointer;
+
+            .fa-icon {
+                margin-right: 0.5rem;
+                transition: transform 300ms;
+            }
+
+            &:not(.collapsed) .fa-icon {
+                transform: rotate(90deg);
+            }
         }
     }
 }

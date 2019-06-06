@@ -559,9 +559,12 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
             else:
                 results.append(result)
 
+        # TODO: Check permissions for setup_stdout/setup_stderr
         return {
             **self.__to_json__(),
             'results': results,
+            'setup_stdout': self.setup_stdout,
+            'setup_stderr': self.setup_stderr,
         }
 
     def delete_and_clear_rubric(self) -> None:

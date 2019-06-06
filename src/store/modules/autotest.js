@@ -301,6 +301,8 @@ class AutoTestRun {
     update(run, autoTest) {
         this.state = run.state;
         this.finished = ['done', 'crashed', 'timed_out'].indexOf(this.state) !== -1;
+        this.setupStdout = run.setup_stdout;
+        this.setupStderr = run.setup_stderr;
 
         this.updateResults(run.results, autoTest);
     }
