@@ -541,7 +541,7 @@ class _CustomOutput(AutoTestStepBase):
             else:
                 try:
                     points = between(0, float(match.group(1)), 1)
-                except ValueError:
+                except (ValueError, IndexError):
                     code = -2
 
         if code != 0:
