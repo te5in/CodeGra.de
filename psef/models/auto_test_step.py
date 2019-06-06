@@ -140,7 +140,10 @@ class AutoTestStepBase(Base, TimestampMixin, IdMixin):
 
     @property
     def command_time_limit(self) -> float:
-        return self.suite.command_time_limit
+        return (
+            self.suite.command_time_limit or
+            psef.app.config['AUTO_TEST_MAX_TIME_COMMAND']
+        )
 
     def get_instructions(self) -> 'auto_test_module.StepInstructions':
         return {
