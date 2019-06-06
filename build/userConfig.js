@@ -53,6 +53,7 @@ config.release = {
 };
 
 config.features = Object.assign({
+    auto_test: false,
     blackboard_zip_upload: true,
     rubrics: true,
     automatic_lti_role: true,
