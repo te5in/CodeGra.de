@@ -12,78 +12,27 @@
 
 <loader v-else-if="loading" />
 
-<div v-else class="auto-test" :class="{ 'no-card': noCard }">
+<div v-else class="auto-test" :class="{ editable }">
     <template v-if="autoTestRun && !singleResult">
-        <b-card no-body
-                v-for="run in test.runs"
-                :key="run.id"
-                class="results-card">
-            <b-card-header
-                class="d-flex justify-content-between align-items-center"
-                :class="{ 'py-1': editable }">
-                <div class="toggle flex-grow-1"
-                     :key="resultsCollapseId"
-                     v-b-toggle="resultsCollapseId">
-                    <icon name="chevron-right" :scale="0.75" />
-                    Results
-                </div>
-
-                <div v-if="editable">
-                    <auto-test-state btn no-timer :result="run" />
-
-                    <submit-button
-                        :submit="() => deleteResults(run.id)"
-                        variant="danger"
-                        confirm="Are you sure you want to delete the results?"
-                        :label="autoTestRun.finished ? 'Delete' : 'Stop'"/>
-                </div>
-            </b-card-header>
-
-            <b-collapse :id="resultsCollapseId" visible>
-                <table class="table table-striped results-table"
-                        :class="{ 'table-hover': run.results.length > 0 }">
-                    <thead>
-                        <tr>
-                            <th class="name">Name</th>
-                            <th class="score">Score</th>
-                            <th class="state">State</th>
-                        </tr>
-                    </thead>
-
-                    <tbody>
-                        <template v-if="run.results.length > 0">
-                            <tr v-for="result in run.results"
-                                :key="result.submission.user.id"
-                                @click="openResult(result)">
-                                <td class="name">{{ $utils.nameOfUser(result.submission.user) }}</td>
-                                <td class="score">
-                                    <icon v-if="result.submission.grade_overridden"
-                                          v-b-popover.top.hover="'This submission\'s calculated grade has been manually overridden'"
-                                          name="exclamation-triangle"/>
-                                    {{ $utils.toMaxNDecimals($utils.getProps(result, '-', 'pointsAchieved'), 2) }} /
-                                    {{ $utils.toMaxNDecimals(test.pointsPossible, 2) }}
-                                </td>
-                                <td class="state">
-                                    <auto-test-state :result="result" />
-                                </td>
-                            </tr>
-                        </template>
-                        <template v-else>
-                            <tr>
-                                <td colspan="3">No results</td>
-                            </tr>
-                        </template>
-                    </tbody>
-                </table>
-            </b-collapse>
-        </b-card>
+        <auto-test-run
+            v-for="run in test.runs"
+            :key="`auto-test-run-${run.id}`"
+            class="mb-3"
+            :assignment="assignment"
+            :auto-test="test"
+            :run="run"
+            :editable="editable"
+            @open-result="openResult"
+            @results-deleted="afterDeleteResults" />
     </template>
 
     <b-card no-body>
-        <template v-if="!noCard">
-            <b-card-header class="py-1 d-flex justify-content-between align-items-center">
-                <span class="toggle flex-grow-1" :key="configCollapseId" v-b-toggle="configCollapseId">
-                    <icon name="chevron-right" :scale="0.75" />
+        <collapse v-model="configCollapsed">
+            <b-card-header v-if="editable"
+                           slot="handle"
+                           class="py-1 d-flex justify-content-between align-items-center">
+                <span class="toggle">
+                    <icon name="chevron-down" :scale="0.75" />
                     Configuration
                 </span>
 
@@ -113,45 +62,39 @@
                         :disabled="!configEditable"/>
                 </div>
             </b-card-header>
-        </template>
 
-        <b-card-body v-if="test == null" key="empty" class="text-muted font-italic">
-            You have no AutoTest yet for this assignment
-        </b-card-body>
-        <b-collapse v-else
-                    :id="configCollapseId"
-                    :visible="singleResult || !autoTestRun"
-                    class="setup-env-wrapper">
-            <b-card-body key="full">
+            <b-card-body v-if="test == null"
+                         slot="content"
+                         key="empty"
+                         class="text-muted font-italic">
+                You have no AutoTest yet for this assignment
+            </b-card-body>
+            <b-card-body v-else
+                         slot="content"
+                         key="full"
+                         class="setup-env-wrapper">
                 <b-card no-body>
-                    <div slot="header"
-                         class="toggle"
-                         v-if="singleResult"
-                         v-b-toggle="autoTestSetupEnvWrapperId">
-                        <icon v-if="singleResult" name="chevron-right" :scale="0.75" />
-                        Setup
-                    </div>
-                    <template v-else slot="header">
-                        Setup
-                    </template>
+                    <collapse v-model="setupCollapsed" :disabled="!singleResult">
+                        <b-card-header slot="handle">
+                            <span class="toggle">
+                                <icon v-if="singleResult" name="chevron-down" :scale="0.75" />
+                                Setup
+                            </span>
+                        </b-card-header>
 
-                    <b-collapse :id="autoTestSetupEnvWrapperId"
-                                :visible="!singleResult" >
-                        <b-card-body v-if="!configEditable && !hasEnvironmentSetup" class="text-muted font-italic">
+                        <b-card-body v-if="!configEditable && !hasEnvironmentSetup"
+                                     slot="content"
+                                     class="text-muted font-italic">
                             No fixtures or setup scripts were defined.
                         </b-card-body>
 
-                        <b-card-body v-else>
-                            <b-form-fieldset>
+                        <b-card-body v-else slot="content">
+                            <b-form-fieldset v-if="test.fixtures.length">
                                 <label :for="uploadedFixturesId">
                                     Uploaded fixtures
                                 </label>
 
-                                <div v-if="!test.fixtures.length" class="text-muted font-italic border rounded p-2">
-                                    No fixtures have been uploaded.
-                                </div>
-
-                                <ul v-else class="fixture-list border rounded p-0 mb-0">
+                                <ul class="fixture-list border rounded p-0 mb-0">
                                     <li v-for="fixture, index in test.fixtures"
                                         class="px-3 py-1 d-flex align-items-center justify-content-between border-bottom"
                                         :key="fixture.id">
@@ -237,14 +180,14 @@
                                         <b-tabs no-fade>
                                             <b-tab title="stdout">
                                                 <pre class="border border-top-0 rounded-bottom"
-                                                     :class="{ 'text-muted': !autoTestRun.setupStdout }">{{
+                                                    :class="{ 'text-muted': !autoTestRun.setupStdout }">{{
                                                     autoTestRun.setupStdout || 'No output.'
                                                 }}</pre>
                                             </b-tab>
 
                                             <b-tab title="stderr">
                                                 <pre class="border border-top-0 rounded-bottom"
-                                                     :class="{ 'text-muted': !autoTestRun.setupStderr }">{{
+                                                    :class="{ 'text-muted': !autoTestRun.setupStderr }">{{
                                                     autoTestRun.setupStderr || 'No output.'
                                                 }}</pre>
                                             </b-tab>
@@ -280,14 +223,14 @@
                                         <b-tabs no-fade>
                                             <b-tab title="stdout">
                                                 <pre class="border border-top-0 rounded-bottom"
-                                                     :class="{ 'text-muted': !result.setupStdout }">{{
+                                                    :class="{ 'text-muted': !result.setupStdout }">{{
                                                     result.setupStdout || 'No output.'
                                                 }}</pre>
                                             </b-tab>
 
                                             <b-tab title="stderr">
                                                 <pre class="border border-top-0 rounded-bottom"
-                                                     :class="{ 'text-muted': !result.setupStderr }">{{
+                                                    :class="{ 'text-muted': !result.setupStderr }">{{
                                                     result.setupStderr || 'No output.'
                                                 }}</pre>
                                             </b-tab>
@@ -296,7 +239,7 @@
                                 </div>
                             </b-form-fieldset>
                         </b-card-body>
-                    </b-collapse>
+                    </collapse>
                 </b-card>
 
                 <p class="text-muted font-italic mt-3"
@@ -309,28 +252,28 @@
                 </h5>
 
                 <div v-for="set, i in test.sets"
-                     v-if="!set.deleted"
-                     :key="set.id"
-                     class="mt-3">
+                    v-if="!set.deleted"
+                    :key="set.id"
+                    class="mt-3">
                     <auto-test-set :value="set"
-                                   :assignment="assignment"
-                                   :editable="configEditable"
-                                   :result="result"
-                                   :other-suites="allNonDeletedSuites"
-                                   :animations="disabledAnimations" />
+                                :assignment="assignment"
+                                :editable="configEditable"
+                                :result="result"
+                                :other-suites="allNonDeletedSuites"
+                                :animations="disabledAnimations" />
                 </div>
 
                 <b-button-toolbar v-if="configEditable"
-                     class="mt-3 justify-content-end">
+                    class="mt-3 justify-content-end">
                     <submit-button :submit="addSet"
-                                   label="Add level" />
+                                label="Add level" />
                 </b-button-toolbar>
             </b-card-body>
-        </b-collapse>
+        </collapse>
     </b-card>
 
     <b-modal
-        v-if="!singleResult && currentResult"
+        v-if="currentResult"
         :id="resultsModalId"
         hide-footer
         @hidden="currentResult = null"
@@ -341,7 +284,6 @@
         </template>
 
         <auto-test
-            no-card
             :assignment="assignment"
             :submission-id="currentResult.submission.id" />
 
@@ -361,18 +303,20 @@ import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/times';
 import 'vue-awesome/icons/eye';
 import 'vue-awesome/icons/eye-slash';
-import 'vue-awesome/icons/chevron-right';
+import 'vue-awesome/icons/chevron-down';
 import 'vue-awesome/icons/exclamation-triangle';
 import 'vue-awesome/icons/circle-o-notch';
 import 'vue-awesome/icons/clock-o';
 import 'vue-awesome/icons/check';
 
+import Collapse from './Collapse';
+import AutoTestRun from './AutoTestRun';
 import AutoTestSet from './AutoTestSet';
 import AutoTestState from './AutoTestState';
 import SubmitButton from './SubmitButton';
 import MultipleFilesUploader from './MultipleFilesUploader';
-import Loader from './Loader';
 import RubricViewer from './RubricViewer';
+import Loader from './Loader';
 
 export default {
     name: 'auto-test',
@@ -392,15 +336,11 @@ export default {
             type: Number,
             default: null,
         },
-
-        noCard: {
-            type: Boolean,
-            default: false,
-        },
     },
 
     data() {
         const id = this.$utils.getUniqueId();
+        const singleResult = this.submissionId != null;
 
         return {
             disabledAnimations: true,
@@ -413,14 +353,16 @@ export default {
             pollingInterval: 3000,
             pollingTimer: null,
 
+            configCollapsed: !singleResult,
+            setupCollapsed: singleResult,
+
             configCollapseId: `auto-test-config-collapse-${id}`,
-            resultsCollapseId: `auto-test-results-collapse-${id}`,
-            resultsModalId: `auto-test-results-modal-${id}`,
             fixtureUploadId: `auto-test-base-upload-${id}`,
             uploadedFixturesId: `auto-test-base-fixtures-${id}`,
             preStartScriptId: `auto-test-base-pre-start-script-${id}`,
             globalPreStartScriptId: `auto-test-base-pre-start-script-${id}`,
             autoTestSetupEnvWrapperId: `auto-test-setup-env-${id}`,
+            resultsModalId: `auto-test-results-modal-${id}`,
         };
     },
 
@@ -444,13 +386,11 @@ export default {
                 this.loading = true;
 
                 Promise.all([this.loadAutoTest(), this.loadPermissions()]).then(
-                    () => {
-                        this.loading = false;
-                    },
-                    () => {
-                        this.loading = false;
-                    },
-                );
+                    () => {},
+                    () => {},
+                ).then(() => {
+                    this.loading = false;
+                });
             },
         },
 
@@ -486,14 +426,16 @@ export default {
             storeCreateFixtures: 'createFixtures',
             storeToggleFixture: 'toggleFixture',
             storeLoadAutoTestResult: 'loadAutoTestResult',
-            storeDeleteAutoTestResults: 'deleteAutoTestResults',
             storeCreateAutoTestSet: 'createAutoTestSet',
         }),
 
         runAutoTest() {
             this.storeCreateAutoTestRun({
                 autoTestId: this.autoTestId,
-            }).then(() => this.loadAutoTestRun());
+            }).then(() => {
+                this.configCollapsed = true;
+                return this.loadAutoTestRun();
+            });
         },
 
         loadAutoTest() {
@@ -501,6 +443,8 @@ export default {
                 autoTestId: this.autoTestId,
             }).then(
                 () => {
+                    this.configCollapsed = !!this.autoTestRun && !this.singleResult;
+
                     this.loadAutoTestRun();
                     this.message = null;
                     return this.loadSingleResult();
@@ -672,6 +616,7 @@ export default {
         async afterCreateAutoTest() {
             await this.$nextTick();
             this.disabledAnimations = false;
+            this.configCollapsed = false;
         },
 
         deleteAutoTest() {
@@ -688,15 +633,14 @@ export default {
             this.disabledAnimations = false;
         },
 
-        deleteResults(id) {
-            if (this.singleResult) {
-                throw new Error('All results cannot be deleted on a single result page.');
-            }
+        canViewFixture(fixture) {
+            return !fixture.hidden || this.permissions.can_view_hidden_fixtures;
+        },
 
-            return this.storeDeleteAutoTestResults({
+        addSet() {
+            return this.storeCreateAutoTestSet({
                 autoTestId: this.autoTestId,
-                runId: id,
-            }).then(() => clearTimeout(this.pollingTimer));
+            });
         },
 
         async openResult(result) {
@@ -716,16 +660,6 @@ export default {
 
             await this.$nextTick();
             this.$root.$emit('bv::show::modal', this.resultsModalId);
-        },
-
-        canViewFixture(fixture) {
-            return !fixture.hidden || this.permissions.can_view_hidden_fixtures;
-        },
-
-        addSet() {
-            return this.storeCreateAutoTestSet({
-                autoTestId: this.autoTestId,
-            });
         },
     },
 
@@ -798,13 +732,15 @@ export default {
     },
 
     components: {
+        Collapse,
         Icon,
+        AutoTestRun,
         AutoTestSet,
         AutoTestState,
         SubmitButton,
         MultipleFilesUploader,
-        Loader,
         RubricViewer,
+        Loader,
     },
 };
 </script>
@@ -812,7 +748,7 @@ export default {
 <style lang="less" scoped>
 @import '~mixins.less';
 
-.auto-test.no-card > .card {
+.auto-test:not(.editable) > .card {
     border: 0;
 }
 
@@ -889,38 +825,6 @@ export default {
     overflow: auto;
 }
 
-.results-card {
-    margin-bottom: 1rem;
-}
-
-.results-table {
-    margin-bottom: 0;
-
-    th {
-        border-top: 0;
-    }
-
-    .caret,
-    .score,
-    .state {
-        width: 1px;
-        white-space: nowrap;
-    }
-
-    .score {
-        text-align: right;
-
-        .fa-icon {
-            transform: translateY(2px);
-            margin-right: 0.5rem;
-        }
-    }
-
-    .state {
-        text-align: center;
-    }
-}
-
 .setup-env-wrapper {
     fieldset {
         &:last-child {
@@ -942,19 +846,6 @@ export default {
         }
     }
 }
-
-.toggle {
-    cursor: pointer;
-
-    .fa-icon {
-        margin-right: 0.5rem;
-        transition: transform 300ms;
-    }
-
-    &:not(.collapsed) .fa-icon {
-        transform: rotate(90deg);
-    }
-}
 </style>
 
 <style lang="less">
@@ -969,6 +860,18 @@ export default {
         .modal-body {
             padding: 0;
         }
+    }
+}
+
+.toggle {
+    .auto-test & .fa-icon {
+        margin-right: 0.5rem;
+        transition: transform 300ms;
+    }
+
+    .auto-test .x-collapsing > .handle & .fa-icon,
+    .auto-test .x-collapsed > .handle & .fa-icon {
+        transform: rotate(-90deg);
     }
 }
 </style>

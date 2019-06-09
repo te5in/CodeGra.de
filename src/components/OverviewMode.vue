@@ -128,7 +128,6 @@
 
         <b-tab title="AutoTest" v-if="assignment.auto_test_id">
             <auto-test
-                no-card
                 :assignment="assignment"
                 :submission-id="submission.id" />
         </b-tab>
