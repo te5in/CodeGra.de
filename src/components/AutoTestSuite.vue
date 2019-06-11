@@ -247,8 +247,6 @@ export default {
         const id = this.$utils.getUniqueId();
 
         return {
-            editingSet: false,
-            newName: '',
             showModal: false,
             internalValue: null,
             slickItemMoving: false,

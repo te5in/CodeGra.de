@@ -68,7 +68,7 @@
                          slot="content"
                          key="empty"
                          class="text-muted font-italic">
-                You have no AutoTest yet for this assignment
+                This assignment does not yet have an AutoTest configuration.
             </b-card-body>
             <b-card-body v-else
                          slot="content"
@@ -205,9 +205,9 @@
                                 <template v-if="configEditable">
                                     <b-input-group>
                                         <input class="form-control"
-                                                @keydown.ctrl.enter="$refs.setupScriptBtn.onClick"
-                                                :id="preStartScriptId"
-                                                v-model="internalTest.setup_script"/>
+                                               @keydown.ctrl.enter="$refs.setupScriptBtn.onClick"
+                                               :id="preStartScriptId"
+                                               v-model="internalTest.setup_script"/>
 
                                         <b-input-group-append>
                                             <submit-button
@@ -225,13 +225,13 @@
                                             <b-tab title="stdout">
                                                 <pre class="border border-top-0 rounded-bottom"
                                                     :class="{ 'text-muted': !result.setupStdout }">{{
-                                                    result.setupStdout || 'No output.'
+                                                     result.setupStdout || 'No output.'
                                                 }}</pre>
                                             </b-tab>
 
                                             <b-tab title="stderr">
                                                 <pre class="border border-top-0 rounded-bottom"
-                                                    :class="{ 'text-muted': !result.setupStderr }">{{
+                                                     :class="{ 'text-muted': !result.setupStderr }">{{
                                                     result.setupStderr || 'No output.'
                                                 }}</pre>
                                             </b-tab>
@@ -248,21 +248,19 @@
                     You have no levels yet. Click the button below to create one.
                 </p>
 
-                <h5 v-if="singleResult" class="mt-3">
+                <h5 v-if="singleResult" class="my-3">
                     Categories
                 </h5>
 
-                <div v-for="set, i in test.sets"
-                    v-if="!set.deleted"
-                    :key="set.id"
-                    class="mt-3">
-                    <auto-test-set :value="set"
-                                :assignment="assignment"
-                                :editable="configEditable"
-                                :result="result"
-                                :other-suites="allNonDeletedSuites"
-                                :animations="disabledAnimations" />
-                </div>
+                <auto-test-set v-for="set, i in test.sets"
+                               v-if="!set.deleted"
+                               :key="set.id"
+                               :value="set"
+                               :assignment="assignment"
+                               :editable="configEditable"
+                               :result="result"
+                               :other-suites="allNonDeletedSuites"
+                               :animations="disabledAnimations" />
 
                 <b-button-toolbar v-if="configEditable"
                     class="mt-3 justify-content-end">
@@ -577,7 +575,7 @@ export default {
                 throw new Error('Cannot remove fixtures in single result mode.');
             }
 
-            this.storeUpdateAutoTest({
+            return this.storeUpdateAutoTest({
                 autoTestId: this.autoTestId,
                 autoTestProps: {
                     fixtures: this.test.fixtures.filter((_, i) => i !== index),

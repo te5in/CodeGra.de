@@ -1,7 +1,8 @@
 <template>
 <component :is="result ? 'div' : 'b-card'"
            no-body
-           class="auto-test-set" >
+           class="auto-test-set"
+           :class="{ 'mt-3': !result }">
     <b-card-header
         v-if="!result"
         class="d-flex justify-content-between align-items-center"
@@ -18,8 +19,8 @@
     </b-card-header>
 
     <component :is="result ? 'div' : 'b-card-body'">
-        <span v-if="!hasSuites" class="text-muted font-italic">
-            You have no categories yet. Click the button below to create one.
+        <span v-if="!hasSuites && !result" class="text-muted font-italic">
+            This level has no categories yet. Click the button below to create one.
         </span>
 
         <masonry :cols="{default: (result ? 1 : 2), [$root.largeWidth]: 1 }"
