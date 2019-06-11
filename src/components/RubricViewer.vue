@@ -234,7 +234,8 @@ export default {
                 set.suites.forEach(suite => {
                     const result = suiteResults[suite.id];
                     if (result != null) {
-                        prog[suite.rubricRow.id] = result.achieved / result.possible * 100;
+                        const p = (result.achieved / result.possible * 100);
+                        prog[suite.rubricRow.id] = p.toFixed(0);
                     }
                 });
             });
@@ -505,7 +506,7 @@ export default {
         }
     }
 
-    .editable .rubric-items-group:not(.disabled) & {
+    .rubric-viewer.editable .rubric-items-group:not(.disabled) & {
         cursor: pointer;
 
         &:hover {

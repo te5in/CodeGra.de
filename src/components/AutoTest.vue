@@ -5,7 +5,6 @@
          class="error-message mb-3">
     {{ message.text }}
 </b-alert>
-
 <div v-else-if="message" class="text-muted font-italic p-3">
     {{ message.text }}
 </div>
@@ -14,16 +13,15 @@
 
 <div v-else class="auto-test" :class="{ editable }">
     <template v-if="autoTestRun && !singleResult">
-        <auto-test-run
-            v-for="run in test.runs"
-            :key="`auto-test-run-${run.id}`"
-            class="mb-3"
-            :assignment="assignment"
-            :auto-test="test"
-            :run="run"
-            :editable="editable"
-            @open-result="openResult"
-            @delete-results="deleteResults" />
+        <auto-test-run v-for="run in test.runs"
+                       :key="`auto-test-run-${run.id}`"
+                       class="mb-3"
+                       :assignment="assignment"
+                       :auto-test="test"
+                       :run="run"
+                       :editable="editable"
+                       @open-result="openResult"
+                       @delete-results="deleteResults" />
     </template>
 
     <b-card no-body>
@@ -36,43 +34,42 @@
                     Configuration
                 </span>
 
-                <div v-b-popover.hover.top="createAutoTestPopover">
-                    <submit-button
-                        v-if="!loading && test == null"
-                        label="Create AutoTest"
-                        key="create-btn"
-                        :disabled="this.assignment.rubric == null"
-                        :submit="createAutoTest"
-                        @success="afterCreateAutoTest"/>
+                <b-button-toolbar v-if="test == null">
+                    <div v-b-popover.hover.top="createAutoTestPopover">
+                        <submit-button label="Create AutoTest"
+                                       :disabled="!canCreateAutoTest"
+                                       :submit="createAutoTest"
+                                       @success="afterCreateAutoTest"/>
+                    </div>
+                </b-button-toolbar>
 
-                    <submit-button
-                        v-if="!loading && test != null"
-                        label="Run"
-                        :submit="runAutoTest"
-                        @after-success="afterRunAutoTest"
-                        :disabled="!configEditable"/>
+                <b-button-toolbar v-else>
+                    <div v-b-popover.hover.top="runAutoTestPopover">
+                        <submit-button label="Run"
+                                       :disabled="!canRunAutoTest"
+                                       :submit="runAutoTest"
+                                       @after-success="afterRunAutoTest" />
+                    </div>
 
-                    <submit-button
-                        v-if="!loading && test != null"
-                        :submit="deleteAutoTest"
-                        key="delete-btn"
-                        @after-success="afterDeleteAutoTest"
-                        variant="danger"
-                        confirm="Are you sure you want to delete this AutoTest configuration?"
-                        label="Delete"
-                        :disabled="!configEditable"/>
-                </div>
+                    <div v-b-popover.hover.top="deleteAutoTestPopover">
+                        <submit-button label="Delete"
+                                       variant="danger"
+                                       class="ml-1"
+                                       confirm="Are you sure you want to delete this AutoTest configuration?"
+                                       :disabled="!canDeleteAutoTest"
+                                       :submit="deleteAutoTest"
+                                       @after-success="afterDeleteAutoTest" />
+                    </div>
+                </b-button-toolbar>
             </b-card-header>
 
             <b-card-body v-if="test == null"
                          slot="content"
-                         key="empty"
                          class="text-muted font-italic">
                 This assignment does not yet have an AutoTest configuration.
             </b-card-body>
             <b-card-body v-else
                          slot="content"
-                         key="full"
                          class="setup-env-wrapper">
                 <b-card no-body>
                     <collapse v-model="setupCollapsed" :disabled="!singleResult">
@@ -90,7 +87,7 @@
                         </b-card-body>
 
                         <b-card-body v-else slot="content">
-                            <b-form-fieldset v-if="test.fixtures.length">
+                            <b-form-fieldset v-if="canViewFixtures">
                                 <label :for="uploadedFixturesId">
                                     Uploaded fixtures
                                 </label>
@@ -129,7 +126,9 @@
 
                                         <icon v-else-if="fixture.hidden"
                                                 name="eye-slash"
-                                                v-b-popover.top.hover="`This fixture is hidden. ${singleResult && !canViewFixture(fixture) ? 'You' : 'Students'} may not view its contents.`"/>
+                                                v-b-popover.top.hover="`This fixture is hidden. ${
+                                                    singleResult && !canViewFixture(fixture) ? 'You' : 'Students'
+                                                } may not view its contents.`"/>
                                     </li>
                                 </ul>
                             </b-form-fieldset>
@@ -271,26 +270,23 @@
         </collapse>
     </b-card>
 
-    <b-modal
-        v-if="currentResult"
-        :id="resultsModalId"
-        hide-footer
-        @hidden="currentResult = null"
-        class="result-modal">
+    <b-modal v-if="currentResult"
+             :id="resultsModalId"
+             hide-footer
+             @hidden="currentResult = null"
+             class="result-modal">
         <template slot="modal-title">
             {{ $utils.nameOfUser(currentResult.submission.user) }} -
             {{ currentResult.pointsAchieved }} / {{ test.pointsPossible }} points
         </template>
 
-        <auto-test
-            :assignment="assignment"
-            :submission-id="currentResult.submission.id" />
+        <auto-test :assignment="assignment"
+                   :submission-id="currentResult.submission.id" />
 
-        <rubric-viewer
-            class="mx-3 mb-3"
-            :assignment="assignment"
-            :submission="currentResult.submission"
-            :rubric="currentResult.rubric" />
+        <rubric-viewer class="mx-3 mb-3"
+                       :assignment="assignment"
+                       :submission="currentResult.submission"
+                       :rubric="currentResult.rubric" />
     </b-modal>
 </div>
 </template>
@@ -347,7 +343,6 @@ export default {
             internalTest: {},
             loading: true,
             message: null,
-            permissions: {},
             currentResult: null,
             pollingInterval: 3000,
             pollingTimer: null,
@@ -384,7 +379,7 @@ export default {
 
                 this.loading = true;
 
-                Promise.all([this.loadAutoTest(), this.loadPermissions()]).then(
+                this.loadAutoTest().then(
                     () => {},
                     () => {},
                 ).then(() => {
@@ -516,16 +511,6 @@ export default {
                     };
                 },
             );
-        },
-
-        loadPermissions() {
-            const names = ['can_view_hidden_fixtures'];
-
-            return this.$hasPermission(names, this.assignment.course.id).then(perms => {
-                perms.forEach((value, i) => {
-                    this.permissions[names[i]] = value;
-                });
-            });
         },
 
         submitProp(prop) {
@@ -671,8 +656,6 @@ export default {
                     runId,
                 })
                 .then(() => {
-                    console.log('results deleted!');
-
                     clearTimeout(this.pollingTimer);
                     this.configCollapsed = false;
                 });
@@ -684,6 +667,10 @@ export default {
             storeTests: 'tests',
             storeResults: 'results',
         }),
+
+        permissions() {
+            return this.$utils.getProps(this, {}, 'assignment', 'course', 'permissions');
+        },
 
         assignmentId() {
             return this.assignment.id;
@@ -708,7 +695,7 @@ export default {
         },
 
         configEditable() {
-            return this.editable && !this.autoTestRun;
+            return this.permissions.can_edit_autotest && this.editable && !this.autoTestRun;
         },
 
         singleResult() {
@@ -728,10 +715,30 @@ export default {
         },
 
         createAutoTestPopover() {
-            if (this.assignment.rubric == null) {
+            if (!this.permissions.can_edit_autotest) {
+                return 'You do not have permission to create an AutoTest configuration.';
+            } else if (this.assignment.rubric == null) {
                 return 'You cannot create an AutoTest for this assignment because it does not have a rubric.';
-            } else if (this.editable && !this.configEditable) {
-                return 'The AutoTest cannot be run or deleted because there are results associated with it.';
+            } else {
+                return '';
+            }
+        },
+
+        deleteAutoTestPopover() {
+            if (!this.permissions.can_edit_autotest) {
+                return 'You do not have permission to delete the AutoTest configuration.';
+            } else if (!this.configEditable) {
+                return 'The AutoTest cannot be deleted because there are results associated with it.';
+            } else {
+                return '';
+            }
+        },
+
+        runAutoTestPopover() {
+            if (!this.permissions.can_run_autotest) {
+                return 'You do not have permission to start an AutoTest.';
+            } else if (this.autoTestRun) {
+                return 'The AutoTest cannot be run because there are already results.';
             } else {
                 return '';
             }
@@ -744,6 +751,22 @@ export default {
                 this.test.setup_script != null &&
                 this.test.run_setup_script != null
             );
+        },
+
+        canCreateAutoTest() {
+            return this.permissions.can_edit_autotest && this.assignment.rubric == null;
+        },
+
+        canRunAutoTest() {
+            return this.permissions.can_run_autotest && !this.autoTestRun;
+        },
+
+        canDeleteAutoTest() {
+            return this.permissions.can_edit_autotest && !this.autoTestRun;
+        },
+
+        canViewFixtures() {
+            return this.permissions.can_view_autotest_fixture && this.test.fixtures.length;
         },
     },
 

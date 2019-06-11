@@ -411,8 +411,10 @@ export default {
         },
 
         canUseAutoTest() {
-            // TODO: Add permissions.can_manage_auto_test
-            return UserConfig.features.auto_test;
+            return (
+                this.permissions.can_run_autotest ||
+                this.permissions.can_edit_autotest
+            ) && UserConfig.features.auto_test;
         },
 
         categories() {

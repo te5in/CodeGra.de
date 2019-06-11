@@ -3,24 +3,26 @@
            no-body
            class="auto-test-set"
            :class="{ 'mt-3': !result }">
-    <b-card-header
-        v-if="!result"
-        class="d-flex justify-content-between align-items-center"
-        :class="{ 'py-1': editable }">
+    <b-card-header v-if="!result"
+                   class="d-flex justify-content-between align-items-center"
+                   :class="{ 'py-1': editable }">
         Level {{ setIndex + 1 }}
 
         <template v-if="editable">
-            <submit-button
-                :submit="deleteSet"
-                label="Delete level"
-                variant="outline-danger"
-                confirm="Are you sure you want to delete this level and all categories in it?"/>
+            <submit-button :submit="deleteSet"
+                           label="Delete level"
+                           variant="outline-danger"
+                           confirm="Are you sure you want to delete this level and all categories in it?"/>
         </template>
     </b-card-header>
 
     <component :is="result ? 'div' : 'b-card-body'">
         <span v-if="!hasSuites && !result" class="text-muted font-italic">
-            This level has no categories yet. Click the button below to create one.
+            This level has no categories yet.
+
+            <template v-if="editable">
+                Click the button below to create one.
+            </template>
         </span>
 
         <masonry :cols="{default: (result ? 1 : 2), [$root.largeWidth]: 1 }"
@@ -64,7 +66,7 @@
                     </template>
                 </b-alert>
 
-                <div v-else class="border rounded mt-3 p-3">
+                <div v-else class="border rounded my-3 p-3">
                     Only execute further levels if total achieved points by AutoTest is higher than
                     <code>{{ stopPoints }}</code>
                 </div>
@@ -150,6 +152,10 @@ export default {
             storeTests: 'tests',
             storeResults: 'results',
         }),
+
+        permissions() {
+            return this.$utils.getProps(this, {}, 'assignment', 'course', 'permissions');
+        },
 
         autoTestId() {
             return this.assignment.auto_test_id;

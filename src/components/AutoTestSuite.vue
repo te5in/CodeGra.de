@@ -55,6 +55,7 @@
                     <auto-test-step v-model="internalValue.steps[index]"
                                     :index="index + 1"
                                     :test-types="stepTypes"
+                                    :assignment="assignment"
                                     @delete="internalValue.removeItem(index)"
                                     editable/>
                 </div>
@@ -181,12 +182,13 @@
                         <th v-if="result">Pass</th>
                     </tr>
                 </thead>
-                <auto-test-step :value="testStep"
-                                v-for="testStep, i in value.steps"
+                <auto-test-step v-for="testStep, i in value.steps"
+                                :value="testStep"
                                 :test-types="stepTypes"
                                 :key="i"
                                 :index="i + 1"
-                                :result="result"/>
+                                :result="result"
+                                :assignment="assignment" />
             </table>
         </div>
     </b-card>
@@ -267,6 +269,10 @@ export default {
     },
 
     computed: {
+        permissions() {
+            return this.$utils.getProps(this, {}, 'assignment', 'course', 'permissions');
+        },
+
         disabledCategories() {
             return this.otherSuites.reduce((res, other) => {
                 if (other.id !== this.internalValue.id) {

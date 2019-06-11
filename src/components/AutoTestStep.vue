@@ -1,6 +1,5 @@
 <template>
-<div class="auto-test-step"
-     v-if="editable">
+<div class="auto-test-step" v-if="editable">
     <b-card no-body>
         <div class="step-header">
             <div v-b-toggle="collapseId"
@@ -495,6 +494,11 @@ export default {
             type: Object,
             default: null,
         },
+
+        assignment: {
+            type: Object,
+            required: true,
+        },
     },
 
     data() {
@@ -519,6 +523,10 @@ export default {
     },
 
     computed: {
+        permissions() {
+            return this.$utils.getProps(this, {}, 'assignment', 'course', 'permissions');
+        },
+
         type() {
             return this.testTypes.find(x => x.name === this.value.type);
         },
@@ -624,13 +632,20 @@ export default {
         },
 
         canViewOutput() {
-            // TODO: Check can_view_autotest_output permission
-            if (this.value.hidden || !this.result) {
+            if (
+                !this.result ||
+                !this.permissions.can_view_autotest_step_details ||
+                (this.value.hidden && !this.permissions.can_view_hidden_autotest_steps) ||
+                (this.assignment.state !== 'done' &&
+                    !this.permissions.can_view_autotest_before_done)
+            ) {
                 return false;
             }
 
             if (this.value.type === 'io_test') {
-                return Array(this.value.data.inputs.length).map(i => this.canViewSubStepOutput(i));
+                return Array(this.value.data.inputs.length).every(
+                    i => this.canViewSubStepOutput(i),
+                );
             } else {
                 return getProps(this, false, 'stepResult', 'finished');
             }
@@ -727,6 +742,16 @@ export default {
         },
 
         canViewSubStepOutput(i) {
+            if (
+                !this.result ||
+                !this.permissions.can_view_autotest_step_details ||
+                (this.value.hidden && !this.permissions.can_view_hidden_autotest_steps) ||
+                (this.assignment.state !== 'done' &&
+                    !this.permissions.can_view_autotest_before_done)
+            ) {
+                return false;
+            }
+
             return (
                 ['passed', 'failed', 'timed_out'].indexOf(
                     this.ioSubStepProps(i, false, 'state'),

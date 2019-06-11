@@ -10,17 +10,20 @@
                 Results
             </span>
 
-            <div>
+            <b-button-toolbar>
                 <auto-test-state btn no-timer :result="run" />
 
-                <submit-button
-                    v-if="editable"
-                    :submit="deleteResults"
-                    @after-success="$emit('results-deleted')"
-                    variant="danger"
-                    confirm="Are you sure you want to delete the results?"
-                    :label="run.finished ? 'Delete' : 'Stop'"/>
-            </div>
+                <div v-if="editable"
+                     v-b-popover.hover.top="deleteResultsPopover">
+                    <submit-button variant="danger"
+                                   class="ml-1"
+                                   :label="run.finished ? 'Delete' : 'Stop'"
+                                   confirm="Are you sure you want to delete the results?"
+                                   :disabled="!permissions.can_delete_autotest_run"
+                                   :submit="deleteResults"
+                                   @after-success="$emit('results-deleted')" />
+                </div>
+            </b-button-toolbar>
         </b-card-header>
 
         <table slot="content"
@@ -42,7 +45,7 @@
                         <td class="name">{{ $utils.nameOfUser(result.submission.user) }}</td>
                         <td class="score">
                             <icon v-if="result.submission.grade_overridden"
-                                    v-b-popover.top.hover="'This submission\'s calculated grade has been manually overridden'"
+                                  v-b-popover.top.hover="'This submission\'s calculated grade has been manually overridden'"
                                     name="exclamation-triangle"/>
                             {{ $utils.toMaxNDecimals($utils.getProps(result, '-', 'pointsAchieved'), 2) }} /
                             {{ $utils.toMaxNDecimals(autoTest.pointsPossible, 2) }}
@@ -104,6 +107,20 @@ export default {
             resultsCollapsed: false,
             resultsCollapseId: `auto-test-results-collapse-${id}`,
         };
+    },
+
+    computed: {
+        permissions() {
+            return this.$utils.getProps(this, {}, 'assignment', 'course', 'permissions');
+        },
+
+        deleteResultsPopover() {
+            if (!this.permissions.can_delete_autotest_run) {
+                return 'You do not have permission to delete AutoTest results.';
+            } else {
+                return '';
+            }
+        },
     },
 
     methods: {
