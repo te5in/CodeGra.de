@@ -15,7 +15,8 @@
 
                 <submit-button
                     v-if="editable"
-                    :submit="() => deleteResults(run.id)"
+                    :submit="deleteResults"
+                    @after-success="$emit('results-deleted')"
                     variant="danger"
                     confirm="Are you sure you want to delete the results?"
                     :label="run.finished ? 'Delete' : 'Stop'"/>
@@ -63,8 +64,6 @@
 </template>
 
 <script>
-import { mapActions } from 'vuex';
-
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/chevron-down';
 import 'vue-awesome/icons/exclamation-triangle';
@@ -108,15 +107,8 @@ export default {
     },
 
     methods: {
-        ...mapActions('autotest', {
-            storeDeleteAutoTestResults: 'deleteAutoTestResults',
-        }),
-
-        deleteResults(id) {
-            return this.storeDeleteAutoTestResults({
-                autoTestId: this.autoTest.id,
-                runId: id,
-            });
+        deleteResults() {
+            this.$emit('delete-results', this.run.id);
         },
 
         openResult(result) {

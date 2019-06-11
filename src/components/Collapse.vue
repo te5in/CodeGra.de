@@ -1,5 +1,5 @@
 <template>
-<div class="x-collapse" :class="className">
+<div class="x-collapse" :class="`x-${state}`">
     <span class="handle" :class="{ disabled }" ref="handle" @click.stop="onClick">
         <slot name="handle"/>
     </span>
@@ -34,11 +34,16 @@ export default {
             type: Number,
             default: 1000,
         },
+
+        maxDuration: {
+            type: Number,
+            default: 750,
+        },
     },
 
     data() {
         return {
-            className: this.collapsed ? 'x-collapsed' : 'x-expanded',
+            state: this.collapsed ? 'collapsed' : 'expanded',
             contentStyle: {
                 height: this.collapsed ? '0px' : 'auto',
             },
@@ -47,7 +52,6 @@ export default {
 
     watch: {
         collapsed(newValue, oldValue) {
-            console.log('collapse changed from', oldValue, 'to', newValue, this.$el);
             if (newValue !== oldValue) {
                 this.toggle();
             }
@@ -62,6 +66,11 @@ export default {
             }
         },
 
+        setState(name) {
+            this.state = name;
+            this.$emit(name);
+        },
+
         async toggle() {
             if (this.disabled) {
                 return;
@@ -72,19 +81,19 @@ export default {
             const wrapperHeight = this.getHeight(wrapperEl);
             const contentHeight = this.getHeight(contentEl);
             const newHeight = this.collapsed ? 0 : contentHeight;
-            const duration = 1000 * contentHeight / this.speed;
+            const duration = Math.min(1000 * contentHeight / this.speed, this.maxDuration);
 
-            this.className = newHeight ? 'x-expanding' : 'x-collapsing';
+            this.setState(newHeight ? 'expanding' : 'collapsing');
+
             this.contentStyle = {
                 height: `${wrapperHeight}px`,
                 transitionDuration: `${duration}ms`,
             };
 
+            // Wait until height/transisionDuration have been applied.
             await Promise.all([
                 this.$nextTick(),
-                new Promise(resolve => {
-                    setTimeout(resolve, 10);
-                }),
+                new Promise(resolve => setTimeout(resolve, 10)),
             ]);
 
             this.contentStyle = {
@@ -92,16 +101,20 @@ export default {
                 transitionDuration: `${duration}ms`,
             };
 
-            const onTransitionEnd = () => {
+            const transitionId = this.$utils.getUniqueId();
+            this.transitionId = transitionId;
+
+            const comp = this;
+            wrapperEl.addEventListener('transitionend', function onTransitionEnd() {
                 wrapperEl.removeEventListener('transitionend', onTransitionEnd);
 
-                this.className = newHeight ? 'x-expanded' : 'x-collapsed';
-                this.contentStyle = {
-                    height: newHeight ? 'auto' : '0px',
-                };
-            };
-
-            wrapperEl.addEventListener('transitionend', onTransitionEnd);
+                if (this.transitionId === transitionId) {
+                    comp.setState(newHeight ? 'expanded' : 'collapsed');
+                    comp.contentStyle = {
+                        height: newHeight ? 'auto' : '0px',
+                    };
+                }
+            });
         },
 
         expand() {

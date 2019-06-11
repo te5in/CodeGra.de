@@ -4,7 +4,8 @@
            class="auto-test-set" >
     <b-card-header
         v-if="!result"
-        class="py-1 d-flex justify-content-between align-items-center">
+        class="d-flex justify-content-between align-items-center"
+        :class="{ 'py-1': editable }">
         Level {{ setIndex + 1 }}
 
         <template v-if="editable">

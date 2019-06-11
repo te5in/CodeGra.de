@@ -279,7 +279,7 @@ class AutoTestResult {
             totalAchieved = setResult.achieved;
             setResult.finished = setResult.suiteResults.every(s => s && s.finished);
 
-            if (setResult.finished && totalAchieved <= set.stop_points) {
+            if (setResult.finished && totalAchieved < set.stop_points) {
                 setFailed = true;
             }
 

@@ -23,7 +23,7 @@
             :run="run"
             :editable="editable"
             @open-result="openResult"
-            @results-deleted="afterDeleteResults" />
+            @delete-results="deleteResults" />
     </template>
 
     <b-card no-body>
@@ -49,6 +49,7 @@
                         v-if="!loading && test != null"
                         label="Run"
                         :submit="runAutoTest"
+                        @after-success="afterRunAutoTest"
                         :disabled="!configEditable"/>
 
                     <submit-button
@@ -427,15 +428,18 @@ export default {
             storeToggleFixture: 'toggleFixture',
             storeLoadAutoTestResult: 'loadAutoTestResult',
             storeCreateAutoTestSet: 'createAutoTestSet',
+            storeDeleteAutoTestResults: 'deleteAutoTestResults',
         }),
 
         runAutoTest() {
-            this.storeCreateAutoTestRun({
+            return this.storeCreateAutoTestRun({
                 autoTestId: this.autoTestId,
-            }).then(() => {
-                this.configCollapsed = true;
-                return this.loadAutoTestRun();
             });
+        },
+
+        afterRunAutoTest() {
+            this.configCollapsed = true;
+            this.loadAutoTestRun();
         },
 
         loadAutoTest() {
@@ -660,6 +664,20 @@ export default {
 
             await this.$nextTick();
             this.$root.$emit('bv::show::modal', this.resultsModalId);
+        },
+
+        deleteResults(runId) {
+            return this
+                .storeDeleteAutoTestResults({
+                    autoTestId: this.test.id,
+                    runId,
+                })
+                .then(() => {
+                    console.log('results deleted!');
+
+                    clearTimeout(this.pollingTimer);
+                    this.configCollapsed = false;
+                });
         },
     },
 
