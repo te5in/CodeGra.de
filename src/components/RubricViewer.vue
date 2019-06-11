@@ -23,7 +23,7 @@
 
                 <b-card-group
                     class="rubric-items-group"
-                    :class="{ disabled: autoTestProgress[rubric.id] != null }">
+                    :class="{ disabled: rubric.locked }">
                     <b-card class="rubric-item"
                             v-for="item in rubric.items"
                             :key="`rubric-${rubric.id}-${item.id}`"
@@ -372,8 +372,8 @@ export default {
         },
 
         toggleItem(row, item) {
-            if (!this.editable || this.autoTestProgress[row.id] != null) {
-                return;
+            if (!this.editable || row.locked) {
+                throw Error('This rubric row is not editable.');
             }
 
             this.$set(this.itemStates, item.id, '__LOADING__');
