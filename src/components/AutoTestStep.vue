@@ -241,7 +241,7 @@
                 <template v-if="result">
                     {{ achievedPoints }} /
                 </template>
-                {{ toMaxNDecimals(value.weight, 2) }}
+                {{ $utils.toMaxNDecimals(value.weight, 2) }}
             </td>
             <td class="shrink text-center" v-if="result">
                 <auto-test-state :result="stepResult" />
@@ -256,7 +256,7 @@
                             <b-tab title="Info" class="row">
                                 <p class="col-12">
                                     Exit code:
-                                    <code>{{ getProps(stepResult.log, '(unknown)', 'exit_code') }}</code>
+                                    <code>{{ $utils.getProps(stepResult.log, '(unknown)', 'exit_code') }}</code>
                                 </p>
                             </b-tab>
 
@@ -298,7 +298,7 @@
                 <template v-if="result">
                     {{ achievedPoints }} /
                 </template>
-                {{ toMaxNDecimals(value.weight, 2) }}
+                {{ $utils.toMaxNDecimals(value.weight, 2) }}
             </td>
             <td class="shrink text-center" v-if="result">
                 <auto-test-state :result="stepResult" />
@@ -317,7 +317,7 @@
                                 </p>
                                 <p class="col-12">
                                     Exit code:
-                                    <code>{{ getProps(stepResult.log, '(unknown)', 'exit_code') }}</code>
+                                    <code>{{ $utils.getProps(stepResult.log, '(unknown)', 'exit_code') }}</code>
                                 </p>
                             </b-tab>
 
@@ -358,7 +358,7 @@
                     <template v-if="result">
                         {{ achievedPoints }} /
                     </template>
-                    {{ toMaxNDecimals(value.weight, 2) }}
+                    {{ $utils.toMaxNDecimals(value.weight, 2) }}
                 </td>
             <td class="shrink text-center" v-if="result"></td>
         </tr>
@@ -376,7 +376,7 @@
                     <template v-if="result">
                         {{ ioSubStepProps(i, '-', 'achieved_points') }} /
                     </template>
-                    {{ toMaxNDecimals(input.weight, 2) }}
+                    {{ $utils.toMaxNDecimals(input.weight, 2) }}
                 </td>
                 <td class="shrink text-center" v-if="result">
                     <auto-test-state :result="ioSubStepProps(i, null)" />
@@ -453,13 +453,9 @@ import 'vue-awesome/icons/chevron-down';
 import 'vue-awesome/icons/clock-o';
 import 'vue-awesome/icons/ban';
 
-import { getUniqueId, deepCopy, getProps, toMaxNDecimals } from '@/utils';
-
 import SubmitButton from './SubmitButton';
 import DescriptionPopover from './DescriptionPopover';
 import AutoTestState from './AutoTestState';
-
-window.toMaxNDecimals = toMaxNDecimals;
 
 export default {
     name: 'auto-test-step',
@@ -502,13 +498,9 @@ export default {
     },
 
     data() {
-        const id = getUniqueId();
+        const id = this.$utils.getUniqueId();
 
         return {
-            uniq: getUniqueId,
-            getProps,
-            toMaxNDecimals,
-
             id,
             collapseState: {},
             mainCollapseState: this.collapseOpen,
@@ -606,7 +598,7 @@ export default {
         },
 
         inputs() {
-            return getProps(this, [], 'value', 'data', 'inputs');
+            return this.$utils.getProps(this, [], 'value', 'data', 'inputs');
         },
 
         weightPopoverText() {
@@ -620,13 +612,13 @@ export default {
         },
 
         stepResult() {
-            return getProps(this, null, 'result', 'stepResults', this.value.id);
+            return this.$utils.getProps(this, null, 'result', 'stepResults', this.value.id);
         },
 
         achievedPoints() {
-            let points = getProps(this, '-', 'stepResult', 'achieved_points');
+            let points = this.$utils.getProps(this, '-', 'stepResult', 'achieved_points');
             if (typeof points === 'number' || points instanceof Number) {
-                points = toMaxNDecimals(points, 2);
+                points = this.$utils.toMaxNDecimals(points, 2);
             }
             return points;
         },
@@ -647,7 +639,7 @@ export default {
                     i => this.canViewSubStepOutput(i),
                 );
             } else {
-                return getProps(this, false, 'stepResult', 'finished');
+                return this.$utils.getProps(this, false, 'stepResult', 'finished');
             }
         },
     },
@@ -674,7 +666,7 @@ export default {
                 args: '',
                 stdin: '',
                 output: '',
-                options: ['case', 'substring', 'trailing_whitespace'],
+                options: this.$utils.deepCopy(this.inputs[this.inputs.length - 1].options),
                 weight: 1,
             };
         },
@@ -688,19 +680,19 @@ export default {
         },
 
         updateName(name) {
-            this.$emit('input', Object.assign(deepCopy(this.value), { name }));
+            this.$emit('input', Object.assign(this.$utils.deepCopy(this.value), { name }));
         },
 
         updateHidden(hidden) {
-            this.$emit('input', Object.assign(deepCopy(this.value), { hidden }));
+            this.$emit('input', Object.assign(this.$utils.deepCopy(this.value), { hidden }));
         },
 
         updateCollapse(opened) {
-            this.$emit('input', Object.assign(deepCopy(this.value), { opened }));
+            this.$emit('input', Object.assign(this.$utils.deepCopy(this.value), { opened }));
         },
 
         updateValue(key, value) {
-            const copy = deepCopy(this.value);
+            const copy = this.$utils.deepCopy(this.value);
 
             if (key === 'weight') {
                 this.$emit(
@@ -738,7 +730,7 @@ export default {
         },
 
         ioSubStepProps(i, defaultValue, ...props) {
-            return getProps(this.stepResult, defaultValue, 'log', 'steps', i, ...props);
+            return this.$utils.getProps(this.stepResult, defaultValue, 'log', 'steps', i, ...props);
         },
 
         canViewSubStepOutput(i) {
