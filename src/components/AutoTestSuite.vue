@@ -43,20 +43,20 @@
                    use-drag-handle
                    v-model="internalValue.steps"
                    append-to=".edit-suite-modal">
-            <SlickItem v-for="item, index in internalValue.steps"
-                       :index="index"
-                       :key="item.id"
+            <SlickItem v-for="step, i in internalValue.steps"
+                       :index="i"
+                       :key="`auto-test-step-${step.id}`"
                        class="auto-test-suite slick-item"
                        :class="slickItemMoving ? 'no-text-select' : ''">
                 <div class="auto-test-suite-step item-wrapper">
                     <span v-handle class="drag-handle text-muted">
                         <icon name="bars"/>
                     </span>
-                    <auto-test-step v-model="internalValue.steps[index]"
-                                    :index="index + 1"
+                    <auto-test-step v-model="internalValue.steps[i]"
+                                    :index="i + 1"
                                     :test-types="stepTypes"
                                     :assignment="assignment"
-                                    @delete="internalValue.removeItem(index)"
+                                    @delete="internalValue.removeItem(i)"
                                     editable/>
                 </div>
             </SlickItem>
@@ -185,7 +185,7 @@
                 <auto-test-step v-for="testStep, i in value.steps"
                                 :value="testStep"
                                 :test-types="stepTypes"
-                                :key="i"
+                                :key="`auto-test-step-${i}`"
                                 :index="i + 1"
                                 :result="result"
                                 :assignment="assignment" />

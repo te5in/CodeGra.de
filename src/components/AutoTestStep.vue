@@ -8,8 +8,8 @@
                 <icon name="chevron-down" :scale="0.75"/>
             </div>
             <div class="step-type header-item"
-                 :style="{ 'background-color': typeColor }">
-                {{ typeTitle }}
+                 :style="{ 'background-color': stepType.color }">
+                {{ stepType.title }}
             </div>
 
             <b-input-group prepend="Name"
@@ -192,19 +192,26 @@
 </div>
 
 <!-- Not editable -->
-<tbody v-else class="auto-test-step" :class="{ 'with-output': canViewOutput }">
+<tbody v-else class="auto-test-step">
     <template v-if="value.type === 'check_points'">
-        <tr class="step-summary" :key="resultsCollapseId" v-b-toggle="resultsCollapseId">
+        <tr class="step-summary"
+            :class="{ 'with-output': canViewOutput }"
+            :key="resultsCollapseId"
+            v-b-toggle="resultsCollapseId">
             <td class="expand shrink" v-if="result">
                 <icon v-if="canViewOutput" name="chevron-down" :scale="0.75" />
-                <icon v-else-if="value.hidden" name="eye-slash" :scale="0.85"
-                      v-b-popover.hover.top="'You cannot view this step\'s results.'" />
+                <icon v-else-if="!canViewDetails" name="eye-slash" :scale="0.85"
+                      v-b-popover.hover.top="'You cannot view this step\'s details.'" />
             </td>
             <td class="shrink">{{ index }}</td>
             <td colspan="2">
                 <b>{{ stepName }}</b>
-                Stop when you achieve less than <code>{{ value.data.min_points }}</code>
-                points.
+
+                <template v-if="canViewDetails">
+                    Stop when you achieve less than
+                    <code>{{ value.data.min_points }}</code>
+                    points.
+                </template>
             </td>
             <td class="shrink text-center" v-if="result">
                 <auto-test-state :result="stepResult" />
@@ -226,16 +233,23 @@
     </template>
 
     <template v-else-if="value.type === 'run_program'">
-        <tr class="step-summary" :key="resultsCollapseId" v-b-toggle="resultsCollapseId">
+        <tr class="step-summary"
+            :class="{ 'with-output': canViewOutput }"
+            :key="resultsCollapseId"
+            v-b-toggle="resultsCollapseId">
             <td class="expand shrink" v-if="result">
                 <icon v-if="canViewOutput" name="chevron-down" :scale="0.75" />
-                <icon v-else-if="value.hidden" name="eye-slash" :scale="0.85"
-                        v-b-popover.hover.top="'You cannot view this step\'s results.'" />
+                <icon v-else-if="!canViewDetails" name="eye-slash" :scale="0.85"
+                        v-b-popover.hover.top="'You cannot view this step\'s details.'" />
             </td>
             <td class="shrink">{{ index }}</td>
             <td>
                 <b>{{ stepName }}</b>
-                Run <code>{{ value.data.program }}</code> and check for successful completion.
+
+                <template v-if="canViewDetails">
+                    Run <code>{{ value.data.program }}</code>
+                    and check for successful completion.
+                </template>
             </td>
             <td class="shrink text-center">
                 <template v-if="result">
@@ -283,16 +297,22 @@
     </template>
 
     <template v-else-if="value.type === 'custom_output'">
-        <tr class="step-summary" :key="resultsCollapseId" v-b-toggle="resultsCollapseId">
+        <tr class="step-summary"
+            :class="{ 'with-output': canViewOutput }"
+            :key="resultsCollapseId"
+            v-b-toggle="resultsCollapseId">
             <td class="expand shrink" v-if="result">
                 <icon v-if="canViewOutput" name="chevron-down" :scale="0.75" />
-                <icon v-else-if="value.hidden" name="eye-slash" :scale="0.85"
-                        v-b-popover.hover.top="'You cannot view this step\'s results.'" />
+                <icon v-else-if="!canViewDetails" name="eye-slash" :scale="0.85"
+                        v-b-popover.hover.top="'You cannot view this step\'s details.'" />
             </td>
             <td class="shrink">{{ index }}</td>
             <td>
                 <b>{{ stepName }}</b>
-                Run <code>{{ value.data.program }}</code> and parse its output.
+
+                <template v-if="canViewDetails">
+                    Run <code>{{ value.data.program }}</code> and parse its output.
+                </template>
             </td>
             <td class="shrink text-center">
                 <template v-if="result">
@@ -311,7 +331,7 @@
                     <b-card no-body>
                         <b-tabs card no-fade class="container-fluid">
                             <b-tab title="Info" class="row">
-                                <p class="col-12">
+                                <p class="col-12" v-if="canViewDetails">
                                     Match output on:
                                     <code>{{ value.data.regex }}</code>
                                 </p>
@@ -346,13 +366,17 @@
     <template v-else-if="value.type === 'io_test'">
         <tr>
             <td class="expand shrink" v-if="result">
-                <icon v-if="value.hidden" name="eye-slash" :scale="0.85"
-                    v-b-popover.hover.top="'You cannot view this step\'s results.'" />
+                <icon v-if="!canViewDetails" name="eye-slash" :scale="0.85"
+                    v-b-popover.hover.top="'You cannot view this step\'s details.'" />
             </td>
             <td class="shrink"><b>{{ index }}</b></td>
             <td>
                 <b>{{ stepName }}</b>
-                Run <code>{{ value.data.program }}</code> and match its output to an expected value.
+
+                <template v-if="canViewDetails">
+                    Run <code>{{ value.data.program }}</code>
+                    and match its output to an expected value.
+                </template>
             </td>
                 <td class="shrink text-center">
                     <template v-if="result">
@@ -364,11 +388,14 @@
         </tr>
 
         <template v-for="input, i in inputs">
-            <tr class="step-summary" :key="`${resultsCollapseId}-${i}`" v-b-toggle="`${resultsCollapseId}-${i}`">
+            <tr class="step-summary"
+                :class="{ 'with-output': canViewSubStepOutput(i) }"
+                :key="`${resultsCollapseId}-${i}`"
+                v-b-toggle="`${resultsCollapseId}-${i}`">
                 <td class="expand shrink" v-if="result">
                     <icon v-if="canViewSubStepOutput(i)" name="chevron-down" :scale="0.75" />
-                    <icon v-else-if="value.hidden" name="eye-slash" :scale="0.85"
-                        v-b-popover.hover.top="'You cannot view this step\'s results.'" />
+                    <icon v-else-if="!canViewDetails" name="eye-slash" :scale="0.85"
+                        v-b-popover.hover.top="'You cannot view this step\'s details.'" />
                 </td>
                 <td class="shrink">{{ index }}.{{ i + 1 }}</td>
                 <td>{{ input.name }}</td>
@@ -453,6 +480,7 @@ import 'vue-awesome/icons/chevron-down';
 import 'vue-awesome/icons/clock-o';
 import 'vue-awesome/icons/ban';
 
+import Collapse from './Collapse';
 import SubmitButton from './SubmitButton';
 import DescriptionPopover from './DescriptionPopover';
 import AutoTestState from './AutoTestState';
@@ -519,16 +547,9 @@ export default {
             return this.$utils.getProps(this, {}, 'assignment', 'course', 'permissions');
         },
 
-        type() {
-            return this.testTypes.find(x => x.name === this.value.type);
-        },
-
-        typeTitle() {
-            return this.type.title;
-        },
-
-        typeColor() {
-            return this.type.color;
+        stepType() {
+            const type = this.value.type;
+            return this.testTypes.find(t => t.name === type);
         },
 
         stepName() {
@@ -579,11 +600,6 @@ export default {
             return `auto-test-step-result-collapse-${this.id}`;
         },
 
-        stepType() {
-            const type = this.value.type;
-            return this.testTypes.find(t => t.name === type);
-        },
-
         hasWeight() {
             return !this.stepType.meta && this.value.type !== 'io_test';
         },
@@ -623,11 +639,17 @@ export default {
             return points;
         },
 
+        canViewDetails() {
+            return (
+                this.permissions.can_view_autotest_step_details &&
+                (!this.value.hidden || this.permissions.can_view_hidden_autotest_steps)
+            );
+        },
+
         canViewOutput() {
             if (
                 !this.result ||
-                !this.permissions.can_view_autotest_step_details ||
-                (this.value.hidden && !this.permissions.can_view_hidden_autotest_steps) ||
+                !this.canViewDetails ||
                 (this.assignment.state !== 'done' &&
                     !this.permissions.can_view_autotest_before_done)
             ) {
@@ -736,8 +758,7 @@ export default {
         canViewSubStepOutput(i) {
             if (
                 !this.result ||
-                !this.permissions.can_view_autotest_step_details ||
-                (this.value.hidden && !this.permissions.can_view_hidden_autotest_steps) ||
+                !this.canViewDetails ||
                 (this.assignment.state !== 'done' &&
                     !this.permissions.can_view_autotest_before_done)
             ) {
@@ -754,6 +775,7 @@ export default {
 
     components: {
         Icon,
+        Collapse,
         SubmitButton,
         DescriptionPopover,
         AutoTestState,
@@ -903,12 +925,12 @@ hr {
         border-top-width: 1px;
     }
 
-    &.with-output .step-summary:hover {
-        background-color: rgba(0, 0, 0, 0.03);
-        cursor: pointer;
-    }
-
     .step-summary {
+        &.with-output:hover {
+            background-color: rgba(0, 0, 0, 0.03);
+            cursor: pointer;
+        }
+
         td:not(.expand) .fa-icon {
             transform: translateY(2px);
         }

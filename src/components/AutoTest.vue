@@ -2,7 +2,7 @@
 <b-alert v-if="message && message.isError"
          show
          variant="danger"
-         class="error-message mb-3">
+         class="mb-3">
     {{ message.text }}
 </b-alert>
 <div v-else-if="message" class="text-muted font-italic p-3">

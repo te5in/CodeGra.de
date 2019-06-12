@@ -61,7 +61,6 @@ export default {
     methods: {
         onClick() {
             if (!this.disabled) {
-                this.toggle();
                 this.$emit('change', !this.collapsed);
             }
         },

@@ -12,7 +12,7 @@
             v-model="tabIndex">
         <b-tab title="Line feedback"
                class="code">
-            <b-card v-if="fileIds.length === 0" class="file-card">
+            <b-card v-if="fileIds.length === 0" class="file-card text-muted font-italic">
                 This submission has no line comments.
             </b-card>
             <div class="scroller" v-else>
@@ -59,7 +59,7 @@
                 </span>
                 <pre class="general-feedback"
                      v-if="submission.comment">{{ submission.comment }}</pre>
-                <span v-else>
+                <span class="text-muted font-italic" v-else>
                     No general feedback given :(
                 </span>
             </b-card>
@@ -67,7 +67,7 @@
 
         <b-tab title="Changed files" class="code" v-if="canSeeRevision">
             <b-card v-if="changedFiles.length === 0" class="file-card">
-                <span>
+                <span class="text-muted font-italic">
                     No files were changed
                 </span>
             </b-card>
@@ -89,7 +89,7 @@
         </b-tab>
 
         <b-tab title="Added or deleted files" v-if="canSeeRevision">
-            <b-card v-if="newFiles.length + deletedFiles.length === 0" class="file-card">
+            <b-card v-if="newFiles.length + deletedFiles.length === 0" class="file-card text-muted font-italic">
                 No files were added or deleted.
             </b-card>
             <div v-else>
