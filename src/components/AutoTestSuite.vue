@@ -53,7 +53,6 @@
                     </span>
                     <auto-test-step v-model="internalValue.steps[i]"
                                     class="w-100"
-                                    :key="`auto-test-step-${internalValue.id}-${step.id}`"
                                     :index="i + 1"
                                     :test-types="stepTypes"
                                     :assignment="assignment"

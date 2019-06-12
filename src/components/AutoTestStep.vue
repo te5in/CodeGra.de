@@ -5,8 +5,7 @@
                   :speed="500"
                   :collapsed="value.collapsed"
                   @change="updateCollapse"
-                  :id="`step-collapse-${index}`"
-                  :key="`step-collapse-${index}`">
+                  :id="`step-collapse-${index}`">
             <b-card-header slot="handle" class="step-header p-1 d-flex align-items-center">
                 <icon v-if="canViewDetails" :key="`collapse-toggle-${index}`" class="toggle mx-3" name="chevron-down" :scale="0.75" />
                 <icon v-else class="mx-3" name="eye-slash" :scale="0.85" />
@@ -63,9 +62,9 @@
                     </label>
 
                     <input class="form-control"
-                        :value="value.data.program"
-                        :id="programNameId"
-                        @input="updateValue('program', $event.target.value)"/>
+                           :value="value.data.program"
+                           :id="programNameId"
+                           @input="updateValue('program', $event.target.value)"/>
                 </template>
 
                 <template v-else-if="value.type === 'check_points'">
@@ -84,6 +83,7 @@
 
                     <label :for="regexId">
                         Regex that matches one grade in the first capture group
+
                         <description-popover hug-text>
                             This regex will be applied line by line, starting
                             from the <b>last</b> line. The regex should be
@@ -94,9 +94,9 @@
                     </label>
 
                     <input :value="value.data.regex"
-                        :id="regexId"
-                        class="form-control"
-                        @input="updateValue('regex', $event.target.value)">
+                           :id="regexId"
+                           class="form-control"
+                           @input="updateValue('regex', $event.target.value)">
                 </template>
 
                 <template v-else-if="value.type === 'io_test'">
@@ -131,9 +131,7 @@
                                 </div>
                             </div>
                             <div class="right-column column">
-                                <label :for="optionsId(index)">
-                                    Options
-                                </label>
+                                <label :for="optionsId(index)">Options</label>
                                 <b-form-checkbox-group stacked
                                                        :checked="input.options"
                                                        :options="ioOptions"
@@ -282,17 +280,27 @@
 
                             <b-tab title="Output" class="row">
                                 <div class="col-12">
-                                    <pre v-if="$utils.getProps(stepResult, null, 'log', 'stdout')"
-                                         class="form-control">{{
-                                        stepResult.log.stdout
-                                    }}</pre>
-                                    <pre v-else class="text-muted form-control">No output.</pre>
+                                    <inner-code-viewer class="rounded border"
+                                                       :assignment="assignment"
+                                                       :code-lines="stepStdout"
+                                                       :file-id="-1"
+                                                       :feedback="{}"
+                                                       :start-line="0"
+                                                       :show-whitespace="true"
+                                                       :warn-no-newline="false" />
                                 </div>
                             </b-tab>
 
                             <b-tab title="Errors" class="row" v-if="$utils.getProps(stepResult, null, 'log', 'stderr')">
                                 <div class="col-12">
-                                    <pre class="form-control">{{ stepResult.log.stderr }}</pre>
+                                    <inner-code-viewer class="rounded border"
+                                                       :assignment="assignment"
+                                                       :code-lines="stepStderr"
+                                                       :file-id="-1"
+                                                       :feedback="{}"
+                                                       :start-line="0"
+                                                       :show-whitespace="true"
+                                                       :warn-no-newline="false" />
                                 </div>
                             </b-tab>
                         </b-tabs>
@@ -349,17 +357,27 @@
 
                             <b-tab title="Output" class="row">
                                 <div class="col-12">
-                                    <pre v-if="$utils.getProps(stepResult, null, 'log', 'stdout')"
-                                         class="form-control">{{
-                                        stepResult.log.stdout
-                                    }}</pre>
-                                    <pre v-else class="text-muted form-control">No output.</pre>
+                                    <inner-code-viewer class="rounded border"
+                                                       :assignment="assignment"
+                                                       :code-lines="stepStdout"
+                                                       :file-id="-1"
+                                                       :feedback="{}"
+                                                       :start-line="0"
+                                                       :show-whitespace="true"
+                                                       :warn-no-newline="false" />
                                 </div>
                             </b-tab>
 
                             <b-tab title="Errors" class="row" v-if="$utils.getProps(stepResult, null, 'log', 'stderr')">
                                 <div class="col-12">
-                                    <pre class="form-control">{{ stepResult.log.stderr }}</pre>
+                                    <inner-code-viewer class="rounded border"
+                                                       :assignment="assignment"
+                                                       :code-lines="stepStderr"
+                                                       :file-id="-1"
+                                                       :feedback="{}"
+                                                       :start-line="0"
+                                                       :show-whitespace="true"
+                                                       :warn-no-newline="false" />
                                 </div>
                             </b-tab>
                         </b-tabs>
@@ -373,7 +391,7 @@
         <tr>
             <td class="expand shrink" v-if="result">
                 <icon v-if="!canViewDetails" name="eye-slash" :scale="0.85"
-                    v-b-popover.hover.top="'You cannot view this step\'s details.'" />
+                      v-b-popover.hover.top="'You cannot view this step\'s details.'" />
             </td>
             <td class="shrink"><b>{{ index }}</b></td>
             <td>
@@ -429,12 +447,26 @@
 
                                     <div class="col-6">
                                         <label>Expected output:</label>
-                                        <pre class="form-control">{{ input.output }}</pre>
+                                        <inner-code-viewer class="rounded border"
+                                                           :assignment="assignment"
+                                                           :code-lines="prepareOutput(input.output)"
+                                                           :file-id="-1"
+                                                           :feedback="{}"
+                                                           :start-line="0"
+                                                           :show-whitespace="true"
+                                                           :warn-no-newline="false" />
                                     </div>
 
                                     <div class="col-6">
                                         <label>Actual output:</label>
-                                        <pre class="form-control">{{ ioSubStepProps(i, '', 'stdout') }}</pre>
+                                        <inner-code-viewer class="rounded border"
+                                                           :assignment="assignment"
+                                                           :code-lines="prepareOutput(ioSubStepProps(i, '', 'stdout'))"
+                                                           :file-id="-1"
+                                                           :feedback="{}"
+                                                           :start-line="0"
+                                                           :show-whitespace="true"
+                                                           :warn-no-newline="false" />
                                     </div>
                                 </b-tab>
 
@@ -446,13 +478,27 @@
 
                                     <div class="col-6">
                                         <label>Input:</label>
-                                        <pre class="form-control">{{ input.stdin }}</pre>
+                                        <inner-code-viewer class="rounded border"
+                                                           :assignment="assignment"
+                                                           :code-lines="prepareOutput(input.stdin)"
+                                                           :file-id="-1"
+                                                           :feedback="{}"
+                                                           :start-line="0"
+                                                           :show-whitespace="true"
+                                                           :warn-no-newline="false" />
                                     </div>
                                 </b-tab>
 
                                 <b-tab title="Errors" class="row" v-if="ioSubStepProps(i, '', 'stderr')">
                                     <div class="col-12">
-                                        <pre class="form-control">{{ ioSubStepProps(i, '', 'stderr') }}</pre>
+                                        <inner-code-viewer class="rounded border"
+                                                           :assignment="assignment"
+                                                           :code-lines="prepareOutput(ioSubStepProps(i, '', 'stderr'))"
+                                                           :file-id="-1"
+                                                           :feedback="{}"
+                                                           :start-line="0"
+                                                           :show-whitespace="true"
+                                                           :warn-no-newline="false" />
                                     </div>
                                 </b-tab>
                             </b-tabs>
@@ -486,15 +532,23 @@ import 'vue-awesome/icons/chevron-down';
 import 'vue-awesome/icons/clock-o';
 import 'vue-awesome/icons/ban';
 
+import { visualizeWhitespace } from '@/utils/visualize';
+
 import Collapse from './Collapse';
 import SubmitButton from './SubmitButton';
 import DescriptionPopover from './DescriptionPopover';
 import AutoTestState from './AutoTestState';
+import InnerCodeViewer from './InnerCodeViewer';
 
 export default {
     name: 'auto-test-step',
 
     props: {
+        assignment: {
+            type: Object,
+            required: true,
+        },
+
         value: {
             type: Object,
             required: true,
@@ -523,11 +577,6 @@ export default {
         result: {
             type: Object,
             default: null,
-        },
-
-        assignment: {
-            type: Object,
-            required: true,
         },
     },
 
@@ -678,6 +727,16 @@ export default {
                 return this.$utils.getProps(this, false, 'stepResult', 'finished');
             }
         },
+
+        stepStdout() {
+            const stdout = this.$utils.getProps(this, '', 'stepResult', 'log', 'stdout');
+            return this.prepareOutput(stdout);
+        },
+
+        stepStderr() {
+            const stderr = this.$utils.getProps(this, '', 'stepResult', 'log', 'stderr');
+            return this.prepareOutput(stderr);
+        },
     },
 
     mounted() {
@@ -779,6 +838,11 @@ export default {
                 ) !== -1
             );
         },
+
+        prepareOutput(output) {
+            const lines = output ? output.split('\n') : ['No output.'];
+            return lines.map(this.$utils.htmlEscape).map(visualizeWhitespace);
+        },
     },
 
     components: {
@@ -787,6 +851,7 @@ export default {
         SubmitButton,
         DescriptionPopover,
         AutoTestState,
+        InnerCodeViewer,
     },
 };
 </script>

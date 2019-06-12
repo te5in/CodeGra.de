@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
-<ol :class="{ editable, 'lint-whitespace': assignment.whitespace_linter, 'show-whitespace': showWhitespace }"
+<ol :class="{ editable: editable, 'lint-whitespace': assignment.whitespace_linter, 'show-whitespace': showWhitespace }"
     :start="computedStartLine"
     :style="{
             paddingLeft: `${3 + Math.log10(computedEndLine) * 2/3}em`,
@@ -219,7 +219,7 @@ li {
         cursor: text;
     }
 
-    .editable &:hover {
+    .code-viewer.editable &:hover {
         cursor: pointer;
     }
 }
