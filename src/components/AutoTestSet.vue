@@ -1,33 +1,37 @@
 <template>
-<component
-    :is="result ? 'div' : 'b-card'"
-    no-body
-    class="test-group auto-test-set"
-    :class="{ editable }">
-    <b-card-header v-if="!result" class="auto-test-header" :class="{ editable }">
-        Level
-        <div v-if="editable">
-            <submit-button
-                :submit="deleteSet"
-                label="Delete level"
-                variant="outline-danger"
-                confirm="Are you sure you want to delete this level and all categories in it?"/>
-        </div>
+<component :is="result ? 'div' : 'b-card'"
+           no-body
+           class="auto-test-set"
+           :class="{ 'mt-3': !result }">
+    <b-card-header v-if="!result"
+                   class="d-flex justify-content-between align-items-center"
+                   :class="{ 'py-1': editable }">
+        Level {{ setIndex + 1 }}
+
+        <template v-if="editable">
+            <submit-button :submit="deleteSet"
+                           label="Delete level"
+                           variant="outline-danger"
+                           confirm="Are you sure you want to delete this level and all categories in it?"/>
+        </template>
     </b-card-header>
 
     <component :is="result ? 'div' : 'b-card-body'">
-        <span v-if="!hasSuites" class="text-muted font-italic">
-            You have no categories yet. Click the button below to create one.
+        <span v-if="!hasSuites && !result" class="text-muted font-italic">
+            This level has no categories yet.
+
+            <template v-if="editable">
+                Click the button below to create one.
+            </template>
         </span>
 
         <masonry :cols="{default: (result ? 1 : 2), [$root.largeWidth]: 1 }"
-                 :gutter="30"
-                 class="outer-block">
+                 :gutter="30" >
             <auto-test-suite v-for="suite, j in value.suites"
                              v-if="!suite.deleted"
                              :editable="editable"
                              :editing="suite.steps.length === 0"
-                             :key="suite.id"
+                             :key="`suite-${suite.id}`"
                              :assignment="assignment"
                              :other-suites="otherSuites"
                              :value="value.suites[j]"
@@ -35,46 +39,50 @@
                              @input="updateSuite(j, $event)" />
         </masonry>
 
-        <div v-if="editable"
-                style="float: right;">
-            <submit-button
-                :submit="addSuite"
-                label="Add category"/>
-        </div>
+        <b-button-toolbar v-if="editable"
+                          class="justify-content-end">
+            <submit-button :submit="addSuite"
+                           label="Add category"/>
+        </b-button-toolbar>
     </component>
 
     <transition v-if="!isLastSet" :name="animations ? '' : 'setcontinue'">
-        <b-card v-if="result" class="set-continue">
-            <template v-if="setResult.finished">
-                Scored <code>{{ setResult.achieved }}</code> points, which is
+        <template v-if="result">
+            <template v-if="stopPoints > 0">
+                <b-alert show
+                        v-if="setResult.finished"
+                        :variant="setResult.achieved >= stopPoints ? 'success' : 'danger'"
+                        class="mt-3">
+                    Scored <code>{{ setResult.achieved }}</code> points, which is
 
-                <template v-if="setResult.passed">
-                    greater than or equal to <code>{{ stopPoints }}</code>.
-                    Continuing with the next level.
-                </template>
+                    <template v-if="setResult.achieved >= stopPoints">
+                        greater than or equal to <code>{{ stopPoints }}</code>.
+                        Continuing with the next level.
+                    </template>
 
-                <template v-else>
-                    less than <code>{{ stopPoints }}</code>.
-                    No further tests will be run.
-                </template>
+                    <template v-else>
+                        less than <code>{{ stopPoints }}</code>.
+                        No further tests will be run.
+                    </template>
+                </b-alert>
+
+                <div v-else class="border rounded my-3 p-3">
+                    Only execute further levels if total achieved points by AutoTest is higher than
+                    <code>{{ stopPoints }}</code>
+                </div>
             </template>
+        </template>
 
-            <template v-else>
-                Only execute further levels if achieved points by AutoTest is higher than
-                <code>{{ stopPoints }}</code>
-            </template>
-        </b-card>
+        <b-card-footer v-else-if="editable" class="py-1 transition set-continue" >
+            Only execute further levels if total achieved points by AutoTest is higher than
 
-        <b-card-footer v-else-if="editable" class="auto-test-header editable transition set-continue" >
-            Only execute further levels if achieved points by AutoTest is higher than
+            <b-input-group class="ml-1">
+                <input class="form-control"
+                       type="number"
+                       v-model="stopPoints"
+                       placeholder="0"
+                       @keyup.ctrl.enter="$refs.submitContinuePointsBtn.onClick()" />
 
-            <b-input-group class="input-group">
-                <input
-                    class="form-control"
-                    type="number"
-                    v-model="stopPoints"
-                    @keyup.ctrl.enter="$refs.submitContinuePointsBtn.onClick()"
-                    placeholder="0" />
                 <b-input-group-append>
                     <submit-button
                         ref="submitContinuePointsBtn"
@@ -83,9 +91,9 @@
             </b-input-group>
         </b-card-footer>
 
-        <b-card-footer v-else class="auto-test-header editable transition set-continue" >
+        <b-card-footer v-else-if="stopPoints > 0" class="py-1 transition set-continue">
             <span class="font-italic text-muted">
-                Only execute further levels if achieved points by AutoTest is higher than
+                Only execute further levels if total achieved points by AutoTest is higher than
                 <code>{{ stopPoints }}</code>
             </span>
         </b-card-footer>
@@ -145,6 +153,10 @@ export default {
             storeResults: 'results',
         }),
 
+        permissions() {
+            return this.$utils.getProps(this, {}, 'assignment', 'course', 'permissions');
+        },
+
         autoTestId() {
             return this.assignment.auto_test_id;
         },
@@ -165,9 +177,12 @@ export default {
             return this.value.suites.filter(s => s.isValid()).length !== 0;
         },
 
+        setIndex() {
+            return this.test.sets.indexOf(this.value);
+        },
+
         isLastSet() {
-            const i = this.test.sets.indexOf(this.value);
-            return !this.test.sets.some((s, j) => j > i && !s.deleted);
+            return !this.test.sets.some((s, j) => j > this.setIndex && !s.deleted);
         },
     },
 
@@ -188,10 +203,30 @@ export default {
         },
 
         submitContinuePoints() {
+            const stopPoints = Number(this.stopPoints);
+
+            const prevSetHasGreater = this.test.sets.some(
+                (s, j) => j < this.setIndex && s.stop_points > stopPoints && stopPoints !== 0,
+            );
+            if (prevSetHasGreater) {
+                throw new RangeError(
+                    'The value must be greater than or equal to all previous levels.',
+                );
+            }
+
+            const nextHasSmaller = this.test.sets.some(
+                (s, j) => j > this.setIndex && s.stop_points < stopPoints && s.stop_points !== 0,
+            );
+            if (nextHasSmaller) {
+                throw new RangeError(
+                    'The value must be less than or equal to all following levels.',
+                );
+            }
+
             return this.storeUpdateAutoTestSet({
                 autoTestId: this.autoTestId,
                 autoTestSet: this.value,
-                setProps: { stop_points: Number(this.stopPoints) },
+                setProps: { stop_points: stopPoints },
             });
         },
 
@@ -219,7 +254,7 @@ export default {
 </script>
 
 <style lang="less" scoped>
-@import "~mixins.less";
+@import '~mixins.less';
 
 .transition {
     transition: all 0.3s linear;
@@ -261,7 +296,6 @@ export default {
 
     .input-group {
         width: initial;
-        margin-left: 5px;
     }
 
     code {
@@ -269,7 +303,8 @@ export default {
     }
 }
 
-.auto-test-suite:not(.empty-auto-test-suite) {
+.auto-test-suite:not(.empty-auto-test-suite),
+.auto-test-suite:not(:last-child) {
     margin-bottom: 1rem;
 }
 
@@ -283,9 +318,5 @@ export default {
             margin-bottom: 0;
         }
     }
-}
-
-.auto-test-suite:not(:last-child) {
-    margin-bottom: 1rem;
 }
 </style>

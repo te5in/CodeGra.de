@@ -18,21 +18,25 @@
 
             <b-card no-block>
                 <div class="card-header rubric-header">
-                    <b-input-group style="margin-bottom: 1em;"
-                                   v-if="editable">
+                    <b-input-group v-if="editable" class="mb-3">
                         <b-input-group-prepend is-text>
                             Category name
                         </b-input-group-prepend>
+
                         <input class="form-control"
                                placeholder="Category name"
                                @keydown.ctrl.enter="clickSubmit"
                                v-model="rubric.header"/>
+
                         <b-input-group-append>
-                            <b-btn size="sm" variant="danger" class="float-right" @click="(e)=>deleteRow(i, e)">
-                                Remove category
-                            </b-btn>
+                            <submit-button variant="danger"
+                                           label="Remove category"
+                                           :submit="() => deleteRow(i)"
+                                           @after-success="afterDeleteRow"
+                                           confirm="Do you really want to delete this category?" />
                         </b-input-group-append>
                     </b-input-group>
+
                     <textarea class="form-control"
                               placeholder="Category description"
                               :tabindex="currentCategory === i ? null: -1"
@@ -637,14 +641,18 @@ ${arrayToSentence(wrongCategories)}.`);
             });
         },
 
-        deleteRow(i, e) {
+        deleteRow(index) {
+            const row = this.rubrics[index];
+
             if (!this.editable) {
                 throw Error('This rubric editor is not editable.');
+            } else if (row.locked) {
+                throw Error(`This rubric category is locked by: ${row.locked}.`);
             }
+        },
 
-            this.rubrics.splice(i, 1);
-            e.preventDefault();
-            e.stopPropagation();
+        afterDeleteRow(index) {
+            this.rubrics.splice(index, 1);
         },
 
         rubricCategoryTitle(category) {

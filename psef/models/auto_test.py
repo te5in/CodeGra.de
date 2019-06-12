@@ -81,9 +81,13 @@ class AutoTestSuite(Base, TimestampMixin, IdMixin):
     steps = db.relationship(
         "AutoTestStepBase",
         back_populates="suite",
-        cascade='all,delete',
+        cascade='all,delete,delete-orphan',
         order_by='AutoTestStepBase.order'
     )  # type: t.MutableSequence[auto_test_step_models.AutoTestStepBase]
+
+    command_time_limit = db.Column(
+        'command_time_limit', db.Float, nullable=True, default=None
+    )
 
     def get_instructions(self) -> auto_test_module.SuiteInstructions:
         return {
@@ -98,6 +102,7 @@ class AutoTestSuite(Base, TimestampMixin, IdMixin):
             'steps': self.steps,
             'rubric_row': self.rubric_row,
             'network_disabled': self.network_disabled,
+            'command_time_limit': self.command_time_limit,
         }
 
 
@@ -173,6 +178,10 @@ class AutoTestResult(Base, TimestampMixin, IdMixin):
         )
     )
 
+    started_at: t.Optional[datetime.datetime] = db.Column(
+        'started_at', db.DateTime, default=None, nullable=True
+    )
+
     setup_stderr: t.Optional[str] = orm.deferred(
         db.Column(
             'setup_stderr',
@@ -188,7 +197,7 @@ class AutoTestResult(Base, TimestampMixin, IdMixin):
         order_by='AutoTestStepResult.created_at'
     )  # type: t.MutableSequence[auto_test_step_models.AutoTestStepResult]
 
-    state = db.Column(
+    _state = db.Column(
         'state',
         db.Enum(auto_test_step_models.AutoTestStepResultState),
         default=auto_test_step_models.AutoTestStepResultState.not_started,
@@ -204,6 +213,21 @@ class AutoTestResult(Base, TimestampMixin, IdMixin):
     work = db.relationship(
         'Work', foreign_keys=work_id
     )  # type: work_models.Work
+
+    @property
+    def state(self) -> auto_test_step_models.AutoTestStepResultState:
+        return self._state
+
+    @state.setter
+    def state(self, s: auto_test_step_models.AutoTestStepResultState) -> None:
+        if s == self._state:
+            return
+
+        self._state = s
+        if s == auto_test_step_models.AutoTestStepResultState.running:
+            self.started_at = datetime.datetime.utcnow()
+        else:
+            self.started_at = None
 
     @property
     def passed(self) -> bool:
@@ -275,6 +299,7 @@ class AutoTestResult(Base, TimestampMixin, IdMixin):
         return {
             'id': self.id,
             'created_at': self.created_at.isoformat(),
+            'started_at': self.started_at and self.started_at.isoformat(),
             'work': self.work,
             'state': self.state.name,
             'points_achieved': points_achieved,
@@ -534,9 +559,12 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
             else:
                 results.append(result)
 
+        # TODO: Check permissions for setup_stdout/setup_stderr
         return {
             **self.__to_json__(),
             'results': results,
+            'setup_stdout': self.setup_stdout,
+            'setup_stderr': self.setup_stderr,
         }
 
     def delete_and_clear_rubric(self) -> None:
@@ -613,6 +641,7 @@ class AutoTest(Base, TimestampMixin, IdMixin):
             'id': self.id,
             'fixtures': self.fixtures,
             'setup_script': self.setup_script,
+            'run_setup_script': self.run_setup_script,
             'finalize_script': self.finalize_script,
             'sets': self.sets,
             'assignment_id': self.assignment.id,

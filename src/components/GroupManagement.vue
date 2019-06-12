@@ -215,8 +215,8 @@ export default {
             const divEnd = '</div>';
             const { myId } = this;
 
-            const makeName = user => (myId === user.id ? 'You' : this.$htmlEscape(user.name));
-            const lmsName = this.$htmlEscape(this.assignment.lms_name);
+            const makeName = user => (myId === user.id ? 'You' : this.$utils.htmlEscape(user.name));
+            const lmsName = this.$utils.htmlEscape(this.assignment.lms_name);
 
             const loading = user => `${divStart}We cannot submit the
 submission. ${makeName(user)} should open the assignment through

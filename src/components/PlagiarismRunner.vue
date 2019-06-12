@@ -427,8 +427,8 @@ export default {
                 ))
                     .reduce((a, b) => a.concat(b))
                     .map(assig => {
-                        const courseName = this.$htmlEscape(assig.course.name);
-                        const assigName = this.$htmlEscape(assig.name);
+                        const courseName = this.$utils.htmlEscape(assig.course.name);
+                        const assigName = this.$utils.htmlEscape(assig.name);
                         assig.label = `${courseName} - ${assigName}`;
                         return assig;
                     })

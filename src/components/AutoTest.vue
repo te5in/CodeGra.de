@@ -2,227 +2,212 @@
 <b-alert v-if="message && message.isError"
          show
          variant="danger"
-         class="error-message">
+         class="error-message mb-3">
     {{ message.text }}
 </b-alert>
-
 <div v-else-if="message" class="text-muted font-italic p-3">
     {{ message.text }}
 </div>
 
 <loader v-else-if="loading" />
 
-<div v-else class="auto-test" :class="{ editable, 'config-editable': configEditable, 'no-card': noCard, 'single-result': singleResult }">
+<div v-else class="auto-test" :class="{ editable }">
     <template v-if="autoTestRun && !singleResult">
-        <b-card no-body v-for="run in test.runs" :key="run.id" class="results-card">
-            <b-card-header class="auto-test-header" :class="{ editable }">
-                <div class="toggle" :key="resultsCollapseId" v-b-toggle="resultsCollapseId">
-                    <icon class="expander" name="chevron-right" :scale="0.75" />
-                    Results
-                </div>
-
-                <div v-if="editable" class="btn-wrapper">
-                    <auto-test-state btn :state="run.state" />
-
-                    <submit-button
-                        :submit="() => deleteResults(run.id)"
-                        variant="danger"
-                        confirm="Are you sure you want to delete the results?"
-                        label="Delete"/>
-                </div>
-            </b-card-header>
-
-            <b-collapse :id="resultsCollapseId" visible>
-                <table class="table table-striped results-table"
-                        :class="{ 'table-hover': run.results.length > 0 }">
-                    <thead>
-                        <tr>
-                            <th class="name">Name</th>
-                            <th class="score">Score</th>
-                            <th class="state">State</th>
-                        </tr>
-                    </thead>
-
-                    <tbody>
-                        <template v-if="run.results.length > 0">
-                            <tr v-for="result in run.results"
-                                :key="result.submission.user.id"
-                                @click="openResult(result)">
-                                <td class="name">{{ nameOfUser(result.submission.user) }}</td>
-                                <td class="score">
-                                    <icon v-if="result.submission.grade_overridden"
-                                          v-b-popover.top.hover="'This submission\'s calculated grade has been manually overridden'"
-                                          name="exclamation-triangle"/>
-                                    {{ toMaxNDecimals(getProps(result, '-', 'pointsAchieved'), 2) }} /
-                                    {{ toMaxNDecimals(test.pointsPossible, 2) }}
-                                </td>
-                                <td class="state">
-                                    <auto-test-state :state="result.state" />
-                                </td>
-                            </tr>
-                        </template>
-                        <template v-else>
-                            <tr>
-                                <td colspan="3">No results</td>
-                            </tr>
-                        </template>
-                    </tbody>
-                </table>
-            </b-collapse>
-        </b-card>
+        <auto-test-run v-for="run in test.runs"
+                       :key="`auto-test-run-${run.id}`"
+                       class="mb-3"
+                       :assignment="assignment"
+                       :auto-test="test"
+                       :run="run"
+                       :editable="editable"
+                       @open-result="openResult"
+                       @delete-results="deleteResults" />
     </template>
 
     <b-card no-body>
-        <template v-if="!noCard">
-            <b-card-header v-if="editable" class="auto-test-header editable">
-                <span class="toggle" :key="configCollapseId" v-b-toggle="configCollapseId">
-                    <icon class="expander" name="chevron-right" :scale="0.75" />
+        <collapse v-model="configCollapsed">
+            <b-card-header v-if="editable"
+                           slot="handle"
+                           class="py-1 d-flex justify-content-between align-items-center">
+                <span class="toggle">
+                    <icon name="chevron-down" :scale="0.75" />
                     Configuration
                 </span>
-                <div class="btn-wrapper"
-                    v-b-popover.hover.top="createAutoTestPopover">
-                    <submit-button
-                        v-if="!loading && test == null"
-                        label="Create AutoTest"
-                        key="create-btn"
-                        :disabled="this.assignment.rubric == null"
-                        :submit="createAutoTest"
-                        @success="afterCreateAutoTest"/>
-                    <submit-button
-                        v-if="!loading && test != null"
-                        label="Run"
-                        :submit="runAutoTest"
-                        :disabled="!configEditable"/>
-                    <submit-button
-                        v-if="!loading && test != null"
-                        :submit="deleteAutoTest"
-                        key="delete-btn"
-                        @after-success="afterDeleteAutoTest"
-                        variant="danger"
-                        confirm="Are you sure you want to delete this AutoTest configuration?"
-                        label="Delete"
-                        :disabled="!configEditable"/>
-                </div>
-            </b-card-header>
-            <b-card-header v-else class="auto-test-header">
-                AutoTest
-            </b-card-header>
-        </template>
 
-        <b-card-body v-if="test == null" key="empty" class="text-muted font-italic">
-            You have no AutoTest yet for this assignment
-        </b-card-body>
-        <b-collapse v-else :id="configCollapseId" :visible="singleResult || !autoTestRun">
-            <b-card-body key="full">
+                <b-button-toolbar v-if="test == null">
+                    <div v-b-popover.hover.top="createAutoTestPopover">
+                        <submit-button label="Create AutoTest"
+                                       :disabled="!canCreateAutoTest"
+                                       :submit="createAutoTest"
+                                       @success="afterCreateAutoTest"/>
+                    </div>
+                </b-button-toolbar>
+
+                <b-button-toolbar v-else>
+                    <div v-b-popover.hover.top="runAutoTestPopover">
+                        <submit-button label="Run"
+                                       :disabled="!canRunAutoTest"
+                                       :submit="runAutoTest"
+                                       @after-success="afterRunAutoTest" />
+                    </div>
+
+                    <div v-b-popover.hover.top="deleteAutoTestPopover">
+                        <submit-button label="Delete"
+                                       variant="danger"
+                                       class="ml-1"
+                                       confirm="Are you sure you want to delete this AutoTest configuration?"
+                                       :disabled="!canDeleteAutoTest"
+                                       :submit="deleteAutoTest"
+                                       @after-success="afterDeleteAutoTest" />
+                    </div>
+                </b-button-toolbar>
+            </b-card-header>
+
+            <b-card-body v-if="test == null"
+                         slot="content"
+                         class="text-muted font-italic">
+                This assignment does not yet have an AutoTest configuration.
+            </b-card-body>
+            <b-card-body v-else
+                         slot="content"
+                         class="setup-env-wrapper">
                 <b-card no-body>
-                    <span
-                        slot="header"
-                        class="setup-env-wrapper-header"
-                        v-if="singleResult"
-                        v-b-toggle="autoTestSetupEnvWrapperId">
-                        <icon v-if="singleResult" name="chevron-right" :scale="0.75" />
-                        Environment setup
-                    </span>
-                    <template v-else slot="header">
-                        Environment setup
-                    </template>
+                    <collapse v-model="setupCollapsed" :disabled="!singleResult">
+                        <b-card-header slot="handle">
+                            <span class="toggle">
+                                <icon v-if="singleResult" name="chevron-down" :scale="0.75" />
+                                Setup
+                            </span>
+                        </b-card-header>
 
-                    <b-collapse :id="autoTestSetupEnvWrapperId"
-                                :visible="!singleResult" >
-                        <b-card-body v-if="hasEnvironmentSetup" class="text-muted font-italic">
+                        <b-card-body v-if="!configEditable && !hasEnvironmentSetup"
+                                     slot="content"
+                                     class="text-muted font-italic">
                             No fixtures or setup scripts were defined.
                         </b-card-body>
 
-                        <b-card-body v-else>
-                            <transition :name="disabledAnimations ? '' : 'fixtureswrapper'">
-                                <div v-if="test.fixtures.length > 0" class="transition">
-                                    <b-form-fieldset>
-                                        <label :for="uploadedFixturesId">
-                                            Uploaded fixtures
-                                        </label>
+                        <b-card-body v-else slot="content">
+                            <b-form-fieldset v-if="canViewFixtures">
+                                <label :for="uploadedFixturesId">
+                                    Uploaded fixtures
+                                </label>
 
-                                        <ul class="fixture-list">
-                                            <transition-group :name="disabledAnimations ? '' : 'fixtures'">
-                                                <li v-for="fixture, index in test.fixtures"
-                                                    class="transition fixture-row"
-                                                    :key="fixture.id">
-                                                    <template v-if="configEditable">
-                                                        <a
-                                                            class="fixture-name"
-                                                            href="#"
-                                                            @click="openFile(fixture, $event)">
-                                                            {{ fixture.name }}
-                                                        </a>
+                                <ul class="fixture-list border rounded p-0 mb-0">
+                                    <li v-for="fixture, index in test.fixtures"
+                                        class="px-3 py-1 d-flex align-items-center justify-content-between border-bottom"
+                                        :key="fixture.id">
+                                        <a v-if="canViewFixture(fixture)"
+                                            class="flex-grow-1"
+                                            href="#"
+                                            @click.capture.prevent.stop="downloadFixture(fixture)">
+                                            {{ fixture.name }}
+                                        </a>
+                                        <span v-else>
+                                            {{ fixture.name }}
+                                        </span>
 
-                                                        <b-button-group>
-                                                            <submit-button
-                                                                :variant="fixture.hidden ? 'primary' : 'secondary'"
-                                                                :submit="() => toggleHidden(index)"
-                                                                size="sm">
-                                                                <icon :name="fixture.hidden ? 'eye-slash' : 'eye'" />
-                                                            </submit-button>
-                                                            <submit-button
-                                                                variant="danger"
-                                                                confirm="Are you sure you want to delete this fixture?"
-                                                                size="sm"
-                                                                :submit="() => removeFixture(index)">
-                                                                <icon name="times"/>
-                                                            </submit-button>
-                                                        </b-button-group>
-                                                    </template>
-                                                    <template v-else>
-                                                        <component
-                                                            :is="canViewFixture(fixture) ? 'a' : 'span'"
-                                                            class="fixture-name"
-                                                            href="#">
-                                                            {{ fixture.name }}
-                                                        </component>
+                                        <template v-if="configEditable">
+                                            <b-button-group>
+                                                <submit-button
+                                                    :variant="fixture.hidden ? 'primary' : 'secondary'"
+                                                    :submit="() => toggleHidden(index)"
+                                                    size="sm">
+                                                    <icon :name="fixture.hidden ? 'eye-slash' : 'eye'" />
+                                                </submit-button>
+                                                <submit-button
+                                                    variant="danger"
+                                                    confirm="Are you sure you want to delete this fixture?"
+                                                    size="sm"
+                                                    :submit="() => removeFixture(index)">
+                                                    <icon name="times"/>
+                                                </submit-button>
+                                            </b-button-group>
+                                        </template>
 
-                                                        <icon
-                                                            v-if="fixture.hidden"
-                                                            name="eye-slash"
-                                                            v-b-popover.top.hover="`This fixture is hidden. ${singleResult && !canViewFixture(fixture) ? 'You' : 'Students'} may not view its contents.`"/>
-                                                    </template>
-                                                </li>
-                                            </transition-group>
-                                        </ul>
-                                    </b-form-fieldset>
-                                </div>
-                            </transition>
+                                        <icon v-else-if="fixture.hidden"
+                                                name="eye-slash"
+                                                v-b-popover.top.hover="`This fixture is hidden. ${
+                                                    singleResult && !canViewFixture(fixture) ? 'You' : 'Students'
+                                                } may not view its contents.`"/>
+                                    </li>
+                                </ul>
+                            </b-form-fieldset>
 
-                            <b-form-fieldset class="fixture-upload-wrapper" v-if="configEditable">
+                            <b-form-fieldset v-if="configEditable">
                                 <label :for="fixtureUploadId">
                                     Upload fixtures
                                 </label>
+
                                 <multiple-files-uploader
                                     v-model="newFixtures"
                                     :id="fixtureUploadId">
                                     Click here or drop file(s) add fixtures and test files.
                                 </multiple-files-uploader>
-                                <b-input-group>
-                                    <b-input-group-prepend is-text
-                                                            class="fixture-upload-information">
-                                    </b-input-group-prepend>
-                                    <b-input-group-append>
-                                        <submit-button
-                                            :disabled="newFixtures.length === 0"
-                                            @after-success="afterAddFixtures"
-                                            class="upload-fixture-btn"
-                                            :submit="addFixtures" />
-                                    </b-input-group-append>
+
+                                <b-input-group class="justify-content-end border rounded-bottom">
+                                    <submit-button
+                                        :disabled="newFixtures.length === 0"
+                                        @after-success="afterAddFixtures"
+                                        class="rounded-0"
+                                        :submit="addFixtures" />
                                 </b-input-group>
                             </b-form-fieldset>
 
-                            <b-form-fieldset class="setup-output-wrapper">
+                            <b-form-fieldset v-if="configEditable || test.run_setup_script">
+                                <label :for="globalPreStartScriptId">
+                                    Global setup script to run
+                                </label>
+
                                 <template v-if="configEditable">
-                                    <label :for="preStartScriptId">
-                                        Setup script to run
-                                    </label>
                                     <b-input-group>
                                         <input class="form-control"
-                                                @keydown.ctrl.enter="$refs.setupScriptBtn.onClick"
-                                                :id="preStartScriptId"
-                                                v-model="internalTest.setup_script"/>
+                                                @keydown.ctrl.enter="$refs.runSetupScriptBtn.onClick"
+                                                :id="globalPreStartScriptId"
+                                                v-model="internalTest.run_setup_script"/>
+
+                                        <b-input-group-append>
+                                            <submit-button
+                                                :submit="() => submitProp('run_setup_script')"
+                                                ref="runSetupScriptBtn"/>
+                                        </b-input-group-append>
+                                    </b-input-group>
+                                </template>
+
+                                <div v-else-if="test.run_setup_script">
+                                    <code>{{ test.run_setup_script }}</code>
+
+                                    <template v-if="result">
+                                        <b-tabs no-fade>
+                                            <b-tab title="stdout">
+                                                <pre class="border border-top-0 rounded-bottom"
+                                                    :class="{ 'text-muted': !autoTestRun.setupStdout }">{{
+                                                    autoTestRun.setupStdout || 'No output.'
+                                                }}</pre>
+                                            </b-tab>
+
+                                            <b-tab title="stderr">
+                                                <pre class="border border-top-0 rounded-bottom"
+                                                    :class="{ 'text-muted': !autoTestRun.setupStderr }">{{
+                                                    autoTestRun.setupStderr || 'No output.'
+                                                }}</pre>
+                                            </b-tab>
+                                        </b-tabs>
+                                    </template>
+                                </div>
+                            </b-form-fieldset>
+
+                            <b-form-fieldset v-if="configEditable || test.setup_script">
+                                <label :for="preStartScriptId">
+                                    Setup script to run
+                                </label>
+
+                                <template v-if="configEditable">
+                                    <b-input-group>
+                                        <input class="form-control"
+                                               @keydown.ctrl.enter="$refs.setupScriptBtn.onClick"
+                                               :id="preStartScriptId"
+                                               v-model="internalTest.setup_script"/>
+
                                         <b-input-group-append>
                                             <submit-button
                                                 :submit="() => submitProp('setup_script')"
@@ -230,85 +215,78 @@
                                         </b-input-group-append>
                                     </b-input-group>
                                 </template>
-                                <template v-else-if="editable && test.setup_script">
-                                    <label :for="preStartScriptId">
-                                        Setup script to run: <code>{{ test.setup_script }}</code>
-                                    </label>
-                                </template>
-                                <template v-else-if="test.setup_script">
-                                    <label>
-                                        Setup script output: <code>{{ test.setup_script }}</code>
-                                    </label>
-                                    <b-tabs no-fade v-if="result">
-                                        <b-tab title="stdout">
-                                            <pre v-if="result.setupStdout">{{ result.setupStdout }}</pre>
-                                            <pre v-else class="text-muted">No output.</pre>
-                                        </b-tab>
-                                        <b-tab title="stderr">
-                                            <pre v-if="result.setupStderr">{{ result.setupStderr }}</pre>
-                                            <pre v-else class="text-muted">No output.</pre>
-                                        </b-tab>
-                                    </b-tabs>
-                                </template>
+
+                                <div v-else-if="test.setup_script">
+                                    <code>{{ test.setup_script }}</code>
+
+                                    <template v-if="result">
+                                        <b-tabs no-fade>
+                                            <b-tab title="stdout">
+                                                <pre class="border border-top-0 rounded-bottom"
+                                                    :class="{ 'text-muted': !result.setupStdout }">{{
+                                                     result.setupStdout || 'No output.'
+                                                }}</pre>
+                                            </b-tab>
+
+                                            <b-tab title="stderr">
+                                                <pre class="border border-top-0 rounded-bottom"
+                                                     :class="{ 'text-muted': !result.setupStderr }">{{
+                                                    result.setupStderr || 'No output.'
+                                                }}</pre>
+                                            </b-tab>
+                                        </b-tabs>
+                                    </template>
+                                </div>
                             </b-form-fieldset>
                         </b-card-body>
-                    </b-collapse>
+                    </collapse>
                 </b-card>
 
-                <transition :name="disabledAnimations ? '' : 'emptytext'">
-                    <div class="text-muted empty-text transition"
-                            v-if="test.sets.filter(s => !s.deleted).length === 0">
-                        You have no levels yet. Click the button below to create one.
-                    </div>
-                </transition>
+                <p class="text-muted font-italic mt-3"
+                   v-if="test.sets.filter(s => !s.deleted).length === 0">
+                    You have no levels yet. Click the button below to create one.
+                </p>
 
-                <h5 v-if="singleResult" style="margin-top: 1rem;">Categories</h5>
+                <h5 v-if="singleResult" class="my-3">
+                    Categories
+                </h5>
 
-                <transition-group :name="disabledAnimations ? '' : 'list'">
+                <auto-test-set v-for="set, i in test.sets"
+                               v-if="!set.deleted"
+                               :key="set.id"
+                               :value="set"
+                               :assignment="assignment"
+                               :editable="configEditable"
+                               :result="result"
+                               :other-suites="allNonDeletedSuites"
+                               :animations="disabledAnimations" />
 
-                    <div v-for="set, i in test.sets"
-                            v-if="!set.deleted"
-                            :key="set.id"
-                            class="list-item transition">
-                        <auto-test-set
-                            :value="set"
-                            :assignment="assignment"
-                            :editable="configEditable"
-                            :result="result"
-                            :other-suites="allNonDeletedSuites"
-                            :animations="disabledAnimations" />
-                    </div>
-                </transition-group>
-                <div v-if="configEditable"
-                     class="add-btn-wrapper transition">
+                <b-button-toolbar v-if="configEditable"
+                    class="mt-3 justify-content-end">
                     <submit-button :submit="addSet"
-                                   label="Add level"
-                                   class="transition"/>
-                </div>
+                                label="Add level" />
+                </b-button-toolbar>
             </b-card-body>
-        </b-collapse>
+        </collapse>
     </b-card>
 
-    <b-modal
-        v-if="!singleResult && currentResult"
-        :id="resultsModalId"
-        hide-footer
-        @hidden="currentResult = null"
-        class="result-modal">
+    <b-modal v-if="currentResult"
+             :id="resultsModalId"
+             hide-footer
+             @hidden="currentResult = null"
+             class="result-modal">
         <template slot="modal-title">
-            {{ nameOfUser(currentResult.submission.user) }} -
+            {{ $utils.nameOfUser(currentResult.submission.user) }} -
             {{ currentResult.pointsAchieved }} / {{ test.pointsPossible }} points
         </template>
 
-        <auto-test
-            no-card
-            :assignment="assignment"
-            :submission-id="currentResult.submission.id" />
+        <auto-test :assignment="assignment"
+                   :submission-id="currentResult.submission.id" />
 
-        <rubric-viewer
-            :assignment="assignment"
-            :submission="currentResult.submission"
-            :rubric="currentResult.rubric" />
+        <rubric-viewer class="mx-3 mb-3"
+                       :assignment="assignment"
+                       :submission="currentResult.submission"
+                       :rubric="currentResult.rubric" />
     </b-modal>
 </div>
 </template>
@@ -320,20 +298,20 @@ import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/times';
 import 'vue-awesome/icons/eye';
 import 'vue-awesome/icons/eye-slash';
-import 'vue-awesome/icons/chevron-right';
+import 'vue-awesome/icons/chevron-down';
 import 'vue-awesome/icons/exclamation-triangle';
 import 'vue-awesome/icons/circle-o-notch';
 import 'vue-awesome/icons/clock-o';
 import 'vue-awesome/icons/check';
 
-import { deepCopy, getErrorMessage, getProps, nameOfUser, getUniqueId, toMaxNDecimals } from '@/utils';
-
+import Collapse from './Collapse';
+import AutoTestRun from './AutoTestRun';
 import AutoTestSet from './AutoTestSet';
 import AutoTestState from './AutoTestState';
 import SubmitButton from './SubmitButton';
 import MultipleFilesUploader from './MultipleFilesUploader';
-import Loader from './Loader';
 import RubricViewer from './RubricViewer';
+import Loader from './Loader';
 
 export default {
     name: 'auto-test',
@@ -353,38 +331,32 @@ export default {
             type: Number,
             default: null,
         },
-
-        noCard: {
-            type: Boolean,
-            default: false,
-        },
     },
 
     data() {
-        const id = getUniqueId();
+        const id = this.$utils.getUniqueId();
+        const singleResult = this.submissionId != null;
 
         return {
-            getProps,
-            nameOfUser,
-            toMaxNDecimals,
-
             disabledAnimations: true,
             newFixtures: [],
             internalTest: {},
             loading: true,
             message: null,
-            permissions: {},
             currentResult: null,
             pollingInterval: 3000,
             pollingTimer: null,
 
+            configCollapsed: !singleResult,
+            setupCollapsed: singleResult,
+
             configCollapseId: `auto-test-config-collapse-${id}`,
-            resultsCollapseId: `auto-test-results-collapse-${id}`,
-            resultsModalId: `auto-test-results-modal-${id}`,
             fixtureUploadId: `auto-test-base-upload-${id}`,
             uploadedFixturesId: `auto-test-base-fixtures-${id}`,
             preStartScriptId: `auto-test-base-pre-start-script-${id}`,
+            globalPreStartScriptId: `auto-test-base-pre-start-script-${id}`,
             autoTestSetupEnvWrapperId: `auto-test-setup-env-${id}`,
+            resultsModalId: `auto-test-results-modal-${id}`,
         };
     },
 
@@ -407,14 +379,12 @@ export default {
 
                 this.loading = true;
 
-                Promise.all([this.loadAutoTest(), this.loadPermissions()]).then(
-                    () => {
-                        this.loading = false;
-                    },
-                    () => {
-                        this.loading = false;
-                    },
-                );
+                this.loadAutoTest().then(
+                    () => {},
+                    () => {},
+                ).then(() => {
+                    this.loading = false;
+                });
             },
         },
 
@@ -426,6 +396,7 @@ export default {
                 } else {
                     this.internalTest = {
                         setup_script: this.test.setup_script,
+                        run_setup_script: this.test.run_setup_script,
                         set_stop_points: this.test.sets.reduce(
                             (acc, set) => Object.assign(acc, { [set.id]: set.stop_points }),
                             {},
@@ -449,14 +420,19 @@ export default {
             storeCreateFixtures: 'createFixtures',
             storeToggleFixture: 'toggleFixture',
             storeLoadAutoTestResult: 'loadAutoTestResult',
-            storeDeleteAutoTestResults: 'deleteAutoTestResults',
             storeCreateAutoTestSet: 'createAutoTestSet',
+            storeDeleteAutoTestResults: 'deleteAutoTestResults',
         }),
 
         runAutoTest() {
-            this.storeCreateAutoTestRun({
+            return this.storeCreateAutoTestRun({
                 autoTestId: this.autoTestId,
-            }).then(() => this.loadAutoTestRun());
+            });
+        },
+
+        afterRunAutoTest() {
+            this.configCollapsed = true;
+            this.loadAutoTestRun();
         },
 
         loadAutoTest() {
@@ -464,13 +440,15 @@ export default {
                 autoTestId: this.autoTestId,
             }).then(
                 () => {
+                    this.configCollapsed = !!this.autoTestRun && !this.singleResult;
+
                     this.loadAutoTestRun();
                     this.message = null;
                     return this.loadSingleResult();
                 },
                 err => {
                     this.message = {
-                        text: `Could not load AutoTest: ${getErrorMessage(err)}`,
+                        text: `Could not load AutoTest: ${this.$utils.getErrorMessage(err)}`,
                         isError: true,
                     };
                 },
@@ -488,7 +466,7 @@ export default {
                 }).then(
                     () => this.loadAutoTestRun(),
                     err => {
-                        switch (getProps(err, 500, 'response', 'status')) {
+                        switch (this.$utils.getProps(err, 500, 'response', 'status')) {
                             case 404:
                                 clearTimeout(this.pollingTimer);
                                 if (this.autoTestRun) {
@@ -528,25 +506,11 @@ export default {
                 },
                 err => {
                     this.message = {
-                        text: getErrorMessage(err),
+                        text: this.$utils.getErrorMessage(err),
                         isError: false,
                     };
                 },
             );
-        },
-
-        loadPermissions() {
-            const names = ['can_view_hidden_fixtures'];
-
-            return this.$hasPermission(names, this.assignment.course.id).then(perms => {
-                perms.forEach((value, i) => {
-                    this.permissions[names[i]] = value;
-                });
-            });
-        },
-
-        openFile(_, event) {
-            event.preventDefault();
         },
 
         submitProp(prop) {
@@ -596,7 +560,7 @@ export default {
                 throw new Error('Cannot remove fixtures in single result mode.');
             }
 
-            this.storeUpdateAutoTest({
+            return this.storeUpdateAutoTest({
                 autoTestId: this.autoTestId,
                 autoTestProps: {
                     fixtures: this.test.fixtures.filter((_, i) => i !== index),
@@ -615,6 +579,18 @@ export default {
             });
         },
 
+        downloadFixture(fixture) {
+            if (fixture.hidden && !this.permissions.can_view_hidden_fixtures) {
+                throw new Error('You do not have permission to view the content of this fixture.');
+            }
+
+            this.$http
+                .get(`/api/v1/auto_tests/${this.autoTestId}/fixtures/${fixture.id}`)
+                .then(({ data }) => {
+                    this.$utils.downloadFile(data, fixture.name, 'application/octet-stream');
+                });
+        },
+
         createAutoTest() {
             if (this.singleResult) {
                 throw new Error('AutoTest cannot be created on a single result page.');
@@ -627,6 +603,7 @@ export default {
         async afterCreateAutoTest() {
             await this.$nextTick();
             this.disabledAnimations = false;
+            this.configCollapsed = false;
         },
 
         deleteAutoTest() {
@@ -643,15 +620,14 @@ export default {
             this.disabledAnimations = false;
         },
 
-        deleteResults(id) {
-            if (this.singleResult) {
-                throw new Error('All results cannot be deleted on a single result page.');
-            }
+        canViewFixture(fixture) {
+            return !fixture.hidden || this.permissions.can_view_hidden_fixtures;
+        },
 
-            return this.storeDeleteAutoTestResults({
+        addSet() {
+            return this.storeCreateAutoTestSet({
                 autoTestId: this.autoTestId,
-                runId: id,
-            }).then(() => clearTimeout(this.pollingTimer));
+            });
         },
 
         async openResult(result) {
@@ -665,7 +641,7 @@ export default {
 
             this.currentResult = Object.assign({}, result, {
                 rubric: Object.assign(rubric, {
-                    rubrics: deepCopy(this.assignment.rubric),
+                    rubrics: this.$utils.deepCopy(this.assignment.rubric),
                 }),
             });
 
@@ -673,14 +649,16 @@ export default {
             this.$root.$emit('bv::show::modal', this.resultsModalId);
         },
 
-        canViewFixture(fixture) {
-            return !fixture.hidden || this.permissions.can_view_hidden_fixtures;
-        },
-
-        addSet() {
-            return this.storeCreateAutoTestSet({
-                autoTestId: this.autoTestId,
-            });
+        deleteResults(runId) {
+            return this
+                .storeDeleteAutoTestResults({
+                    autoTestId: this.test.id,
+                    runId,
+                })
+                .then(() => {
+                    clearTimeout(this.pollingTimer);
+                    this.configCollapsed = false;
+                });
         },
     },
 
@@ -689,6 +667,10 @@ export default {
             storeTests: 'tests',
             storeResults: 'results',
         }),
+
+        permissions() {
+            return this.$utils.getProps(this, {}, 'assignment', 'course', 'permissions');
+        },
 
         assignmentId() {
             return this.assignment.id;
@@ -713,7 +695,7 @@ export default {
         },
 
         configEditable() {
-            return this.editable && !this.autoTestRun;
+            return this.permissions.can_edit_autotest && this.editable && !this.autoTestRun;
         },
 
         singleResult() {
@@ -733,28 +715,71 @@ export default {
         },
 
         createAutoTestPopover() {
-            if (this.assignment.rubric == null) {
+            if (!this.permissions.can_edit_autotest) {
+                return 'You do not have permission to create an AutoTest configuration.';
+            } else if (this.assignment.rubric == null) {
                 return 'You cannot create an AutoTest for this assignment because it does not have a rubric.';
-            } else if (this.editable && !this.configEditable) {
-                return 'The AutoTest cannot be run or deleted because there are results associated with it.';
+            } else {
+                return '';
+            }
+        },
+
+        deleteAutoTestPopover() {
+            if (!this.permissions.can_edit_autotest) {
+                return 'You do not have permission to delete the AutoTest configuration.';
+            } else if (!this.configEditable) {
+                return 'The AutoTest cannot be deleted because there are results associated with it.';
+            } else {
+                return '';
+            }
+        },
+
+        runAutoTestPopover() {
+            if (!this.permissions.can_run_autotest) {
+                return 'You do not have permission to start an AutoTest.';
+            } else if (this.autoTestRun) {
+                return 'The AutoTest cannot be run because there are already results.';
             } else {
                 return '';
             }
         },
 
         hasEnvironmentSetup() {
-            return !this.configEditable && !this.test.fixtures.length && !this.test.setup_script;
+            return (
+                this.test != null &&
+                this.test.fixtures.length != null &&
+                this.test.setup_script != null &&
+                this.test.run_setup_script != null
+            );
+        },
+
+        canCreateAutoTest() {
+            return this.permissions.can_edit_autotest && this.assignment.rubric == null;
+        },
+
+        canRunAutoTest() {
+            return this.permissions.can_run_autotest && !this.autoTestRun;
+        },
+
+        canDeleteAutoTest() {
+            return this.permissions.can_edit_autotest && !this.autoTestRun;
+        },
+
+        canViewFixtures() {
+            return this.permissions.can_view_autotest_fixture && this.test.fixtures.length;
         },
     },
 
     components: {
+        Collapse,
         Icon,
+        AutoTestRun,
         AutoTestSet,
         AutoTestState,
         SubmitButton,
         MultipleFilesUploader,
-        Loader,
         RubricViewer,
+        Loader,
     },
 };
 </script>
@@ -762,22 +787,12 @@ export default {
 <style lang="less" scoped>
 @import '~mixins.less';
 
-.auto-test.no-card > .card {
+.auto-test:not(.editable) > .card {
     border: 0;
 }
 
 .transition {
     transition: all 0.3s linear;
-}
-
-.list-item {
-    margin-top: 1rem;
-}
-
-.add-btn-wrapper {
-    display: flex;
-    justify-content: flex-end;
-    margin-top: 1rem;
 }
 
 .list-enter-active {
@@ -816,10 +831,6 @@ export default {
     margin: 0 !important;
 }
 
-.empty-text {
-    margin-top: 1rem;
-}
-
 .fixtureswrapper-leave-active,
 .fixtureswrapper-enter-active,
 .fixtures-leave-active,
@@ -847,107 +858,18 @@ export default {
     border-color: transparent;
 }
 
-.fixture-name {
-    flex: 1 1 auto;
-}
-
 .fixture-list {
+    min-height: 2.5rem;
     max-height: 15rem;
     overflow: auto;
-    border-radius: 0.25rem;
-    border: 1px solid @color-border-gray-lighter;
+}
 
-    #app.dark & {
-        border-color: @color-primary-darker;
-    }
-
-    padding: 0;
-    margin: 0;
-
-    .fixture-row {
-        padding: 5px 0.75rem;
-        display: flex;
-        align-items: center;
-
-        &:not(:last-child) {
-            border-bottom: 1px solid @color-border-gray-lighter;
-        }
-
-        #app.dark & {
-            border-color: @color-primary-darker;
+.setup-env-wrapper {
+    fieldset {
+        &:last-child {
+            margin-bottom: 0;
         }
     }
-}
-
-.fixture-upload-wrapper {
-    .fixture-upload-information {
-        flex: 1 1 auto;
-
-        .input-group-text {
-            border-top: none;
-            border-top-left-radius: 0;
-            border-top-right-radius: 0;
-            width: 100%;
-            background-color: transparent !important;
-
-            #app.dark & {
-                color: @text-color-dark !important;
-            }
-        }
-    }
-
-    .upload-fixture-btn {
-        border-top-right-radius: 0;
-    }
-}
-
-.results-card {
-    margin-bottom: 1rem;
-}
-
-.results-table {
-    margin-bottom: 0;
-
-    th {
-        border-top: 0;
-    }
-
-    .caret,
-    .score,
-    .state {
-        width: 1px;
-        white-space: nowrap;
-    }
-
-    .score {
-        text-align: right;
-
-        .fa-icon {
-            transform: translateY(2px);
-            margin-right: 0.5rem;
-        }
-    }
-
-    .state {
-        text-align: center;
-    }
-}
-
-.setup-env-wrapper-header {
-    cursor: pointer;
-
-    .fa-icon {
-        margin-right: 0.25rem;
-        transition: transform 300ms;
-    }
-
-    &:not(.collapsed) .fa-icon {
-        transform: rotate(90deg);
-    }
-}
-
-.setup-output-wrapper {
-    margin-bottom: 0;
 
     pre {
         margin-bottom: 0;
@@ -956,58 +878,39 @@ export default {
         border-bottom-left-radius: 0.25rem;
         border-bottom-right-radius: 0.25rem;
         padding: 1rem;
-    }
 
-    #app.dark & {
-        pre {
+        #app.dark & {
             color: @text-color-dark;
             border-color: @color-primary-darker;
         }
     }
 }
-
-.error-message {
-    margin: 1rem;
-}
-
-.rubric-viewer {
-    margin: 0 1rem 1rem;
-}
 </style>
 
 <style lang="less">
-.result-modal {
-    .modal-dialog {
-        max-width: calc(100vw - 8rem);
-        width: calc(100vw - 8rem);
-        margin-top: 2rem;
-    }
+.auto-test {
+    .result-modal {
+        .modal-dialog {
+            max-width: calc(100vw - 8rem);
+            width: calc(100vw - 8rem);
+            margin-top: 2rem;
+        }
 
-    .auto-test & .modal-body {
-        padding: 0;
+        .modal-body {
+            padding: 0;
+        }
     }
 }
 
-.auto-test .auto-test-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-
-    &.editable {
-        padding: 5px 1.25rem;
+.toggle {
+    .auto-test & .fa-icon {
+        margin-right: 0.5rem;
+        transition: transform 300ms;
     }
 
-    .toggle {
-        cursor: pointer;
-
-        .fa-icon {
-            margin-right: 0.5rem;
-            transition: transform 300ms;
-        }
-
-        &:not(.collapsed) .fa-icon {
-            transform: rotate(90deg);
-        }
+    .auto-test .x-collapsing > .handle & .fa-icon,
+    .auto-test .x-collapsed > .handle & .fa-icon {
+        transform: rotate(-90deg);
     }
 }
 </style>

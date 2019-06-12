@@ -4,6 +4,7 @@ import typing as t
 import logging as system_logging
 import datetime
 import threading
+import multiprocessing
 
 import structlog
 import flask_jwt_extended as flask_jwt
@@ -88,6 +89,7 @@ def configure_logging(debug: bool, testing: bool) -> None:
         logger: object, method_name: object, event_dict: dict
     ) -> dict:
         event_dict['thread_id'] = threading.current_thread().name
+        event_dict['process_id'] = multiprocessing.current_process().name
         return event_dict
 
     def log_callbacks(logger: object, method_name: str,

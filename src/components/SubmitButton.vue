@@ -6,7 +6,7 @@
           :disabled="isDisabled"
           :variant="currentVariant"
           :size="size"
-          @click="onClick">
+          @click.stop="onClick">
 
     <span class="label success">
         <slot name="success-label">

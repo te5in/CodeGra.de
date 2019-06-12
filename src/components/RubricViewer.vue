@@ -17,13 +17,13 @@
                     </div>
 
                     <icon name="lock"
-                          v-if="autoTestProgress[rubric.id]"
-                          v-b-popover.hover.top="progressPopover"/>
+                          v-if="rubric.locked"
+                          v-b-popover.hover.top="lockPopover"/>
                 </template>
 
                 <b-card-group
                     class="rubric-items-group"
-                    :class="{ disabled: autoTestProgress[rubric.id] }">
+                    :class="{ disabled: rubric.locked }">
                     <b-card class="rubric-item"
                             v-for="item in rubric.items"
                             :key="`rubric-${rubric.id}-${item.id}`"
@@ -60,7 +60,7 @@
                     </b-card>
                 </b-card-group>
 
-                <div v-show="autoTestProgress[rubric.id]" class="progress">
+                <div v-show="autoTestProgress[rubric.id] != null" class="progress">
                     <div ref="progressMeter" class="meter" />
                 </div>
             </b-card>
@@ -234,7 +234,8 @@ export default {
                 set.suites.forEach(suite => {
                     const result = suiteResults[suite.id];
                     if (result != null) {
-                        prog[suite.rubricRow.id] = result.achieved / result.possible * 100;
+                        const p = (result.achieved / result.possible * 100);
+                        prog[suite.rubricRow.id] = p.toFixed(0);
                     }
                 });
             });
@@ -242,17 +243,14 @@ export default {
             return prog;
         },
 
-        progressPopover() {
-            const selectedInRow = this.selectedRows[this.currentRow.id];
+        lockPopover() {
+            const lockReason = this.rubrics[this.current].locked;
 
-            if (selectedInRow == null || this.currentProgress == null) {
-                return '';
-            } else {
-                return (
-                    `You scored ${this.currentProgress}% in the corresponding ` +
-                    `AutoTest category, which scores you ${selectedInRow.points} ` +
-                    'points in this rubric category.'
-                );
+            switch (lockReason) {
+                case 'auto_test':
+                    return this.autoTestLockPopover();
+                default:
+                    return '';
             }
         },
     },
@@ -281,16 +279,16 @@ export default {
 
         getHeadHtml(rubric) {
             const selected = this.selectedRows[rubric.id];
-            const maxPoints = this.$htmlEscape(Math.max(...rubric.items.map(i => i.points)));
+            const maxPoints = this.$utils.htmlEscape(Math.max(...rubric.items.map(i => i.points)));
             const header =
-                this.$htmlEscape(`${rubric.header}`) ||
+                this.$utils.htmlEscape(`${rubric.header}`) ||
                 '<span class="unnamed">Unnamed category</span>';
 
             const getFraction = (upper, lower) => `<sup>${upper}</sup>&frasl;<sub>${lower}</sub>`;
             let res;
 
             if (selected) {
-                const selectedPoints = this.$htmlEscape(selected.points);
+                const selectedPoints = this.$utils.htmlEscape(selected.points);
                 res = `<span>${header}</span> - <span>${getFraction(
                     selectedPoints,
                     maxPoints,
@@ -375,8 +373,8 @@ export default {
         },
 
         toggleItem(row, item) {
-            if (!this.editable || this.autoTestProgress[row.id]) {
-                return;
+            if (!this.editable || row.locked) {
+                throw Error('This rubric row is not editable.');
             }
 
             this.$set(this.itemStates, item.id, '__LOADING__');
@@ -440,6 +438,23 @@ export default {
                 },
             );
         },
+
+        autoTestLockPopover() {
+            const selectedInRow = this.selectedRows[this.currentRow.id];
+
+            if (selectedInRow == null || this.currentProgress == null) {
+                return (
+                    'This is an AutoTest category. It will be filled once the ' +
+                    'AutoTest for this assignment is done running.'
+                );
+            }
+
+            return (
+                `You scored ${this.currentProgress}% in the corresponding ` +
+                `AutoTest category, which scores you ${selectedInRow.points} ` +
+                'points in this rubric category.'
+            );
+        },
     },
 
     components: {
@@ -491,7 +506,7 @@ export default {
         }
     }
 
-    .editable .rubric-items-group:not(.disabled) & {
+    .rubric-viewer.editable .rubric-items-group:not(.disabled) & {
         cursor: pointer;
 
         &:hover {

@@ -85,6 +85,10 @@ main {
     }
 }
 
+.fa-icon {
+    flex: 0 0 auto;
+}
+
 .custom-control-input {
     .default-custom-control-input-colors;
 }
@@ -471,5 +475,15 @@ textarea:disabled {
     border-radius: 0.25rem;
     #app.dark & {
         background-color: @color-primary-darker;
+    }
+}
+
+#app.dark {
+    .border,
+    .border-top,
+    .border-bottom,
+    .border-left,
+    .border-right {
+        border-color: @color-primary-darker !important;
     }
 }

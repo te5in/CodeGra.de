@@ -56,7 +56,7 @@ FlaskConfig = TypedDict(
         '__S_FEATURES': t.Mapping[str, bool],
         'IS_AUTO_TEST_RUNNER': bool,
         'AUTO_TEST_CREDENTIALS': AutoTestCredentials,
-        'AUTO_TEST_MAX_TIME_SINGLE_RUN': int,
+        'AUTO_TEST_MAX_TIME_COMMAND': int,
         'AUTO_TEST_MAX_TIME_TOTAL_RUN': int,
         'AUTO_TEST_POLL_TIME': int,
         'AUTO_TEST_OUTPUT_LIMIT': int,
@@ -511,7 +511,7 @@ if CONFIG['IS_AUTO_TEST_RUNNER']:
     assert CONFIG['SECRET_KEY'] == ''
     assert CONFIG['HEALTH_KEY'] == ''
 
-set_int(CONFIG, auto_test_ops, 'AUTO_TEST_MAX_TIME_SINGLE_RUN', 15 * 60)
+set_int(CONFIG, auto_test_ops, 'AUTO_TEST_MAX_TIME_COMMAND', 5 * 60)
 set_int(CONFIG, auto_test_ops, 'AUTO_TEST_MAX_TIME_TOTAL_RUN', 1440)
 set_int(CONFIG, auto_test_ops, 'AUTO_TEST_POLL_TIME', 30)
 set_int(CONFIG, auto_test_ops, 'AUTO_TEST_OUTPUT_LIMIT', 32768)
