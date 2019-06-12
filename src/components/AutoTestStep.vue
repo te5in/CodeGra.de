@@ -1,76 +1,79 @@
 <template>
 <div class="auto-test-step" v-if="editable">
     <b-card no-body>
-        <div class="step-header">
-            <div v-b-toggle="collapseId"
-                 class="collapse-toggle header-item"
-                 :class="value.opened ? 'collapse-open' : ''">
-                <icon name="chevron-down" :scale="0.75"/>
-            </div>
-            <div class="step-type header-item"
-                 :style="{ 'background-color': stepType.color }">
-                {{ stepType.title }}
-            </div>
+        <collapse :disabled="!canViewDetails"
+                  :speed="500"
+                  :collapsed="value.collapsed"
+                  @change="updateCollapse"
+                  :id="`step-collapse-${index}`"
+                  :key="`step-collapse-${index}`">
+            <b-card-header slot="handle" class="step-header p-1 d-flex align-items-center">
+                <icon v-if="canViewDetails" :key="`collapse-toggle-${index}`" class="toggle mx-3" name="chevron-down" :scale="0.75" />
+                <icon v-else class="mx-3" name="eye-slash" :scale="0.85" />
 
-            <b-input-group prepend="Name"
-                           class="name-input header-item">
-                <input class="form-control"
-                       ref="nameInput"
-                       :value="value.name"
-                       @input="updateName($event.target.value)"/>
-            </b-input-group>
+                <div class="step-type mr-1 btn"
+                     :style="{ 'background-color': stepType.color }">
+                    {{ stepType.title }}
+                </div>
 
-            <b-input-group prepend="Weight"
-                           class="points-input header-item"
-                           v-b-popover.top.hover="weightPopoverText"
-                           v-if="hasWeight">
-                <input class="form-control"
-                       type="number"
-                       :disabled="!hasWeight"
-                       :value="value.weight"
-                       @input="updateValue('weight', $event.target.value)"/>
-            </b-input-group>
+                <b-input-group prepend="Name"
+                               class="name-input mr-1">
+                    <input class="form-control"
+                           ref="nameInput"
+                           :value="value.name"
+                           @click.stop
+                           @input="updateName($event.target.value)"/>
+                </b-input-group>
 
-            <b-button-group class="header-item">
-                <b-btn class="hide-header" :variant="value.hidden ? 'primary' : 'secondary'"
-                    @click="updateHidden(!value.hidden)"
-                    v-b-popover.top.hover="'Should the contents of this test be hidden from the student?'">
-                    <icon :name="value.hidden ? 'eye-slash' : 'eye'"/>
-                </b-btn>
+                <b-input-group prepend="Weight"
+                               class="points-input mr-1"
+                               v-b-popover.top.hover="weightPopoverText"
+                               v-if="hasWeight">
+                    <input class="form-control"
+                           type="number"
+                           :disabled="!hasWeight"
+                           :value="value.weight"
+                           @click.stop
+                           @input="updateValue('weight', $event.target.value)"/>
+                </b-input-group>
 
-                <submit-button
-                    :disabled="disableDelete"
-                    class="delete-btn"
-                    :submit="() => null"
-                    :wait-at-least="0"
-                    v-b-popover.top.hover="'Delete this step'"
-                    @after-success="$emit('delete')"
-                    confirm="Are you sure you want to delete this step?"
-                    variant="danger">
-                    <icon name="times"/>
-                </submit-button>
-            </b-button-group>
-        </div>
+                <b-button-group>
+                    <b-btn :variant="value.hidden ? 'primary' : 'secondary'"
+                           @click.stop="updateHidden(!value.hidden)"
+                           v-b-popover.top.hover="'Should the contents of this step be hidden from the student?'">
+                        <icon :name="value.hidden ? 'eye-slash' : 'eye'"/>
+                    </b-btn>
 
-        <b-collapse :visible="value.opened"
-                    @input="updateCollapse"
-                    :id="collapseId" >
-            <div class="card-body">
+                    <submit-button :disabled="disableDelete"
+                                   :submit="() => null"
+                                   :wait-at-least="0"
+                                   v-b-popover.top.hover="'Delete this step'"
+                                   @after-success="$emit('delete')"
+                                   confirm="Are you sure you want to delete this step?"
+                                   variant="danger">
+                        <icon name="times"/>
+                    </submit-button>
+                </b-button-group>
+            </b-card-header>
+
+            <b-card-body slot="content" v-if="canViewDetails">
                 <template v-if="!stepType.meta">
                     <label :for="programNameId">
                         Program to test
                     </label>
+
                     <input class="form-control"
-                           :value="value.data.program"
-                           :id="programNameId"
-                           @input="updateValue('program', $event.target.value)"/>
+                        :value="value.data.program"
+                        :id="programNameId"
+                        @input="updateValue('program', $event.target.value)"/>
                 </template>
 
                 <template v-else-if="value.type === 'check_points'">
                     <label>
                         Stop test category if amount of points is below
                     </label>
-                    <input class="form-control min-points-input"
+
+                    <input class="form-control text-left"
                            type="number"
                            :value="value.data.min_points"
                            @input="updateValue('min_points', $event.target.value)"/>
@@ -89,10 +92,11 @@
                             regex captures a single float.
                         </description-popover>
                     </label>
+
                     <input :value="value.data.regex"
-                           :id="regexId"
-                           class="form-control"
-                           @input="updateValue('regex', $event.target.value)">
+                        :id="regexId"
+                        class="form-control"
+                        @input="updateValue('regex', $event.target.value)">
                 </template>
 
                 <template v-else-if="value.type === 'io_test'">
@@ -120,10 +124,10 @@
                                 <div class="stdin-wrapper">
                                     <label :for="stdinId(index)">Input</label>
                                     <textarea class="form-control stdin-input"
-                                              :value="input.stdin"
-                                              :id="stdinId"
-                                              rows="2"
-                                              @input="updateInput(index, 'stdin', $event.target.value)"/>
+                                            :value="input.stdin"
+                                            :id="stdinId"
+                                            rows="4"
+                                            @input="updateInput(index, 'stdin', $event.target.value)"/>
                                 </div>
                             </div>
                             <div class="right-column column">
@@ -134,38 +138,40 @@
                                                        :checked="input.options"
                                                        :options="ioOptions"
                                                        :id="optionsId(index)"
-                                                       class="io-options"
+                                                       class="form-control mb-3"
                                                        @input="updateInput(index, 'options', $event)"/>
+
                                 <label :for="stdoutId(index)">Expected output</label>
                                 <textarea class="form-control expected-output"
-                                          :value="input.output"
-                                          rows="4"
-                                          :id="stdoutId"
-                                          @input="updateInput(index, 'output', $event.target.value)"/>
+                                        :value="input.output"
+                                        rows="4"
+                                        :id="stdoutId"
+                                        @input="updateInput(index, 'output', $event.target.value)"/>
                             </div>
                         </div>
 
-                        <div class="footer-wrapper">
+                        <div class="footer-wrapper mt-3 mb-2 d-flex flex-row justify-content-between">
                             <div v-b-toggle="collapseAdvancedId(index)"
-                                 class="collapse-toggle"
-                                 :class="collapseState[index] ? 'collapse-open' : ''">
-                                <icon name="caret-down"/>
-                                Advanced
+                                 class="collapse-toggle text-muted font-italic">
+                                <icon name="caret-down" />
+                                Advanced options
                             </div>
+
                             <b-btn variant="danger"
                                    v-b-popover.top.hover="'Delete this input and output case.'"
                                    @click="deleteInput(index)"
                                    :disabled="value.data.inputs.length < 2">
-                                <icon name="times"/>
+                                <icon name="times"/> Delete
                             </b-btn>
                         </div>
+
                         <b-collapse :id="collapseAdvancedId(index)"
                                     class="advanced-collapse"
                                     v-model="collapseState[index]">
                             <div class="p-3 bg-light border rounded">
                                 <b-form-fieldset class="m-0">
                                     <b-input-group prepend="Weight">
-                                        <input class="form-control weight-input"
+                                        <input class="form-control text-left"
                                             :id="weightId(index)"
                                             type="number"
                                             :value="input.weight"
@@ -180,14 +186,14 @@
 
                     <div class="add-input-btn-wrapper">
                         <b-btn class="add-input-btn"
-                            v-b-popover.top.hover="'Add another input and output case.'"
-                            @click="addInput">
+                               @click="addInput"
+                               v-b-popover.top.hover="'Add another input and output case.'">
                             <icon name="plus"/>
                         </b-btn>
                     </div>
                 </template>
-            </div>
-        </b-collapse>
+            </b-card-body>
+        </collapse>
     </b-card>
 </div>
 
@@ -451,7 +457,7 @@
                                 </b-tab>
                             </b-tabs>
 
-                            <b-input-group class="io-input-options-wrapper px-3 pb-3" prepend="Options">
+                            <b-input-group class="mr-1 px-3 pb-3" prepend="Options">
                                 <b-form-checkbox-group
                                     class="form-control"
                                     :options="ioOptions"
@@ -530,19 +536,27 @@ export default {
 
         return {
             id,
+            stepCollapsed: true,
             collapseState: {},
-            mainCollapseState: this.collapseOpen,
             autoTestStepModalId: `auto-test-step-modal-${id}`,
         };
     },
 
     watch: {
+        value() {
+            console.log(this.value);
+        },
+
         editable() {
             this.collapseState = {};
         },
     },
 
     computed: {
+        valueCopy() {
+            return this.$utils.deepCopy(this.value);
+        },
+
         permissions() {
             return this.$utils.getProps(this, {}, 'assignment', 'course', 'permissions');
         },
@@ -683,13 +697,15 @@ export default {
         },
 
         createInput() {
+            const options = this.inputs[this.inputs.length - 1].options;
+
             return {
                 name: '',
                 args: '',
                 stdin: '',
                 output: '',
-                options: this.$utils.deepCopy(this.inputs[this.inputs.length - 1].options),
                 weight: 1,
+                options,
             };
         },
 
@@ -702,27 +718,23 @@ export default {
         },
 
         updateName(name) {
-            this.$emit('input', Object.assign(this.$utils.deepCopy(this.value), { name }));
+            this.$emit('input', Object.assign(this.valueCopy, { name }));
         },
 
         updateHidden(hidden) {
-            this.$emit('input', Object.assign(this.$utils.deepCopy(this.value), { hidden }));
+            this.$emit('input', Object.assign(this.valueCopy, { hidden, collapsed: true }));
         },
 
-        updateCollapse(opened) {
-            this.$emit('input', Object.assign(this.$utils.deepCopy(this.value), { opened }));
+        updateCollapse(collapsed) {
+            this.$emit('input', Object.assign(this.valueCopy, { collapsed }));
         },
 
         updateValue(key, value) {
-            const copy = this.$utils.deepCopy(this.value);
+            const copy = this.valueCopy;
 
             if (key === 'weight') {
-                this.$emit(
-                    'input',
-                    Object.assign(copy, {
-                        weight: Number(value),
-                    }),
-                );
+                copy.weight = Number(value);
+                this.$emit('input', copy);
                 return;
             }
 
@@ -739,16 +751,12 @@ export default {
                 value = Number(value);
             }
 
-            this.$emit(
-                'input',
-                Object.assign(copy, {
-                    data: {
-                        ...this.value.data,
-                        [key]: value,
-                    },
-                    weight,
-                }),
-            );
+            copy.data = {
+                ...this.value.data,
+                [key]: value,
+            };
+            copy.weight = weight;
+            this.$emit('input', copy);
         },
 
         ioSubStepProps(i, defaultValue, ...props) {
@@ -819,92 +827,38 @@ export default {
 }
 
 .step-header {
-    background-color: rgba(0, 0, 0, 0.03);
-    display: flex;
-    align-content: center;
-    align-items: center;
-
-    .header-item {
-        margin: 0.25rem;
-    }
-
-    .hide-header {
-        box-shadow: none;
-    }
-
     .step-type {
-        padding: 0.375rem 1rem;
-        flex: 0 1 auto;
-        color: @text-color-muted;
+        height: 100%;
+        width: auto;
+        color: rgba(0, 0, 0, 0.5);
         border: 1px solid rgba(0, 0, 0, 0.125);
-        border-radius: 0.25rem;
     }
 
     .name-input {
-        border-radius: 0;
         flex: 1 1 18rem;
     }
 
     .points-input {
         flex: 0 1 12rem;
-        .input-group-text,
-        .form-control {
-            border-left: 1px solid rgba(0, 0, 0, 0.125);
-        }
     }
-
-    .cur-prog-title {
-        flex: 1;
-        background-color: @footer-color;
-        padding: 0.375rem 1rem;
-        border-radius: 0.25rem;
-        border: 1px solid rgba(0, 0, 0, 0.125);
-    }
-}
-
-.step-footer {
-    background-color: rgba(0, 0, 0, 0.03);
-}
-
-hr {
-    margin: 1rem 0;
-}
-
-.form-group,
-.io-options {
-    margin-bottom: 0.5rem;
 }
 
 .collapse-toggle {
     cursor: pointer;
 
     .fa-icon {
-        transition: all 300ms linear;
+        transition: transform 250ms linear;
+    }
+
+    .x-collapsing .handle .fa-icon,
+    .x-collapsed .handle .fa-icon,
+    &.collapsed .fa-icon {
         transform: rotate(-90deg);
     }
-
-    &.collapse-open .fa-icon {
-        transform: rotate(0deg);
-    }
-
-    &.header-item {
-        padding: 0 1rem;
-        display: flex;
-    }
-}
-
-.min-points-input,
-.weight-input {
-    text-align: left;
 }
 
 .footer-wrapper {
-    display: flex;
     flex-direction: row;
-    align-items: end;
-    justify-content: space-between;
-    margin-top: 1rem;
-    margin-bottom: 0.25rem;
 }
 
 .add-input-btn-wrapper {

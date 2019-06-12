@@ -30,7 +30,7 @@
                            slot="handle"
                            class="py-1 d-flex justify-content-between align-items-center">
                 <span class="toggle">
-                    <icon name="chevron-down" :scale="0.75" />
+                    <icon class="toggle" name="chevron-down" :scale="0.75" />
                     Configuration
                 </span>
 
@@ -745,11 +745,10 @@ export default {
         },
 
         hasEnvironmentSetup() {
-            return (
-                this.test != null &&
-                this.test.fixtures.length != null &&
-                this.test.setup_script != null &&
-                this.test.run_setup_script != null
+            return this.test != null && (
+                this.test.fixtures.length ||
+                this.test.setup_script ||
+                this.test.run_setup_script
             );
         },
 
@@ -900,17 +899,19 @@ export default {
             padding: 0;
         }
     }
-}
 
-.toggle {
-    .auto-test & .fa-icon {
+    .toggle .fa-icon,
+    .toggle.fa-icon {
         margin-right: 0.5rem;
         transition: transform 300ms;
     }
 
-    .auto-test .x-collapsing > .handle & .fa-icon,
-    .auto-test .x-collapsed > .handle & .fa-icon {
-        transform: rotate(-90deg);
+    .x-collapsing > .handle,
+    .x-collapsed > .handle {
+        .toggle .fa-icon,
+        .toggle.fa-icon {
+            transform: rotate(-90deg);
+        }
     }
 }
 </style>

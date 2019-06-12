@@ -18,8 +18,12 @@ class AutoTestSuiteData {
     }
 
     setFromServerData(d) {
+        const steps = (d.steps || []).map(step => Object.assign(step, {
+            collapsed: true,
+        }));
+
         Vue.set(this, 'id', d.id);
-        Vue.set(this, 'steps', d.steps || []);
+        Vue.set(this, 'steps', steps);
         Vue.set(this, 'rubricRow', d.rubric_row || {});
         Vue.set(
             this,

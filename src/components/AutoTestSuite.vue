@@ -32,8 +32,7 @@
         <h5 class="text-center mb-3">Steps</h5>
 
         <p v-if="internalValue.steps.length === 0" class="text-muted font-italic py-2">
-            This category contains no steps. Please add some using the buttons
-            below.
+            This category contains no steps. Please add some using the buttons below.
         </p>
 
         <SlickList lock-axis="y"
@@ -45,7 +44,7 @@
                    append-to=".edit-suite-modal">
             <SlickItem v-for="step, i in internalValue.steps"
                        :index="i"
-                       :key="`auto-test-step-${step.id}`"
+                       :key="`auto-test-slick-item-${internalValue.id}-${step.id}`"
                        class="auto-test-suite slick-item"
                        :class="slickItemMoving ? 'no-text-select' : ''">
                 <div class="auto-test-suite-step item-wrapper">
@@ -53,6 +52,8 @@
                         <icon name="bars"/>
                     </span>
                     <auto-test-step v-model="internalValue.steps[i]"
+                                    class="w-100"
+                                    :key="`auto-test-step-${internalValue.id}-${step.id}`"
                                     :index="i + 1"
                                     :test-types="stepTypes"
                                     :assignment="assignment"
@@ -62,28 +63,24 @@
             </SlickItem>
         </SlickList>
 
-        <div class="add-step-btns-wrapper">
-            <b-button-toolbar class="m-auto">
-                <b-btn v-for="stepType in stepTypes"
-                       :key="stepType.value"
-                       @click="internalValue.addStep(createTestStep(stepType.name))"
-                       class="add-step-btn text-muted"
-                       :style="{ 'background-color': stepType.color }"
-                       v-b-popover.top.hover="stepType.help">
-                    <icon name="plus" /> {{ stepType.title }}
-                </b-btn>
-            </b-button-toolbar>
-        </div>
+        <b-button-toolbar class="justify-content-center">
+            <b-btn v-for="stepType in stepTypes"
+                    :key="stepType.value"
+                    @click="createTestStep(stepType.name)"
+                    class="add-step-btn ml-2"
+                    :style="{ 'background-color': stepType.color }"
+                    v-b-popover.top.hover="stepType.help">
+                <icon name="plus" /> {{ stepType.title }}
+            </b-btn>
+        </b-button-toolbar>
 
-        <hr />
-
-        <div class="advanced-options-collapse">
-            <p class="collapse-handle mb-2 text-muted" v-b-toggle="advancedOptionsCollapseId">
+        <div class="border rounded px-3 py-2 mt-3">
+            <p class="collapse-handle mb-0 text-muted font-italic" v-b-toggle="advancedOptionsCollapseId">
                 <icon name="caret-right" />
                 Advanced options
             </p>
 
-            <b-collapse :id="advancedOptionsCollapseId">
+            <b-collapse :id="advancedOptionsCollapseId" class="mt-3">
                 <b-form-group label="Timeout per step in seconds">
                     <input class="form-control"
                             type="number"
@@ -304,9 +301,9 @@ export default {
                 },
                 {
                     name: 'check_points',
-                    title: 'Check Points',
+                    title: 'Checkpoint',
                     color: '#D6CE5B',
-                    help: 'Check points test!',
+                    help: 'Checkpoint test!',
                     meta: true,
                 },
             ];
@@ -330,12 +327,12 @@ export default {
             storeUpdateAutoTestSuite: 'updateAutoTestSuite',
         }),
 
-        createTestStep(type) {
+        async createTestStep(type) {
             const res = {
                 name: '',
                 type,
                 weight: 1,
-                opened: true,
+                collapsed: true,
                 hidden: false,
                 data: {},
             };
@@ -368,13 +365,17 @@ export default {
                     throw new Error('Unknown test type!');
             }
 
-            return res;
+            this.internalValue.addStep(res);
+
+            // Wait to set collapsed, so the collapse will animate.
+            await this.$nextTick();
+            res.collapsed = false;
         },
 
         editSuite() {
             this.internalValue = this.value.copy();
             this.internalValue.steps.forEach(val => {
-                val.opened = false;
+                val.collapsed = true;
             });
             this.showModal = true;
         },
@@ -438,7 +439,7 @@ export default {
 
 .drag-handle {
     display: block;
-    margin-right: 20px;
+    margin-right: 1rem;
     cursor: grab;
 
     &.disabled-handle {
@@ -448,29 +449,15 @@ export default {
 }
 
 .auto-test-step {
-    flex: 1 1 auto;
+    // flex: 1 1 auto;
 }
 
-.add-step-btns-wrapper {
-    display: flex;
-    align-items: center;
+.add-step-btn {
+    color: rgba(0, 0, 0, 0.5) !important;
+    border-color: rgba(0, 0, 0, 0.125) !important;
 
-    label {
-        margin-right: 0.5rem;
-        margin-bottom: 0;
-    }
-
-    .add-step-btn {
-        border-color: rgba(0, 0, 0, 0.125) !important;
-        box-shadow: none !important;
-
-        &:not(:first-child) {
-            margin-left: 1rem;
-        }
-
-        &:hover {
-            filter: brightness(95%);
-        }
+    &:hover {
+        filter: brightness(95%);
     }
 }
 
@@ -485,8 +472,10 @@ export default {
 
 .dropdown-item {
     padding: 0;
+
     .category-wrapper {
         .rubric-description,
+
         h5 {
             padding: 0.25rem 1.5rem;
             margin: 0;
@@ -515,24 +504,18 @@ export default {
     margin-bottom: 0;
 }
 
-.advanced-options-collapse {
-    .collapse-handle {
-        cursor: pointer;
+.collapse-handle {
+    cursor: pointer;
 
-        .fa-icon {
-            position: relative;
-            top: 2px;
-            margin-right: 0.5rem;
-            transition: transform 300ms;
-        }
-
-        &:not(.collapsed) .fa-icon {
-            transform: rotate(90deg);
-        }
+    .fa-icon {
+        position: relative;
+        top: 2px;
+        margin-right: 0.5rem;
+        transition: transform 300ms;
     }
 
-    fieldset:last-child {
-        margin-bottom: 0;
+    &:not(.collapsed) .fa-icon {
+        transform: rotate(90deg);
     }
 }
 </style>

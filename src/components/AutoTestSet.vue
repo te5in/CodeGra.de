@@ -67,14 +67,14 @@
                 </b-alert>
 
                 <div v-else class="border rounded my-3 p-3">
-                    Only execute further levels if total achieved points by AutoTest is higher than
+                    Only execute further levels if total points achieved by AutoTest is higher than
                     <code>{{ stopPoints }}</code>
                 </div>
             </template>
         </template>
 
-        <b-card-footer v-else-if="editable" class="py-1 transition set-continue" >
-            Only execute further levels if total achieved points by AutoTest is higher than
+        <b-card-footer v-else-if="editable" class="text-muted font-italic py-1 set-continue">
+            Only execute further levels if total points achieved by AutoTest is higher than
 
             <b-input-group class="ml-1">
                 <input class="form-control"
@@ -91,11 +91,9 @@
             </b-input-group>
         </b-card-footer>
 
-        <b-card-footer v-else-if="stopPoints > 0" class="py-1 transition set-continue">
-            <span class="font-italic text-muted">
-                Only execute further levels if total achieved points by AutoTest is higher than
-                <code>{{ stopPoints }}</code>
-            </span>
+        <b-card-footer v-else-if="stopPoints > 0" class="text-muted font-italic py-1">
+            Only execute further levels if total achieved points by AutoTest is higher than
+            <code>{{ stopPoints }}</code>
         </b-card-footer>
     </transition>
 </component>
@@ -290,16 +288,8 @@ export default {
     align-items: center;
     justify-content: space-between;
 
-    &.card {
-        margin-top: 1rem;
-    }
-
     .input-group {
         width: initial;
-    }
-
-    code {
-        padding: 0 0.25rem;
     }
 }
 
