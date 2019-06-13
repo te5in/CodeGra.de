@@ -14,8 +14,6 @@ from .models import db
 
 celery = CGCelery(__name__, signals)
 logger = structlog.get_logger()
-logger.error('hello')
-
 
 def init_app(app: BrokerFlask) -> None:
     celery.init_flask_app(app)
