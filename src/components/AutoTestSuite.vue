@@ -51,7 +51,7 @@
                    append-to=".edit-suite-modal">
             <SlickItem v-for="step, i in internalValue.steps"
                        :index="i"
-                       :key="step.id"
+                       :key="step.trackingId"
                        class="slick-item d-flex align-items-center pb-3"
                        :class="slickItemMoving ? 'no-text-select' : ''">
                 <div v-handle class="drag-handle d-flex align-self-stretch pr-3 text-muted">
@@ -185,7 +185,7 @@
                 <auto-test-step v-for="step, i in value.steps"
                                 :value="step"
                                 :test-types="stepTypes"
-                                :key="step.id"
+                                :key="step.trackingId"
                                 :index="i + 1"
                                 :result="result"
                                 :assignment="assignment" />
@@ -337,13 +337,7 @@ export default {
         }),
 
         async createTestStep(type) {
-            let id = getUniqueId();
-            while (this.value.steps.some(s => s.id === id)) {
-                id = getUniqueId();
-            }
-
             const res = {
-                id: getUniqueId(),
                 name: '',
                 type,
                 weight: 1,

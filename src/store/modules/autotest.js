@@ -2,13 +2,14 @@
 import Vue from 'vue';
 import axios from 'axios';
 
-import { deepCopy, withOrdinalSuffix, getProps } from '@/utils';
+import { deepCopy, withOrdinalSuffix, getProps, getUniqueId } from '@/utils';
 import * as types from '../mutation-types';
 
 class AutoTestSuiteData {
     constructor(autoTestId, autoTestSetId, serverData = {}) {
         this.autoTestSetId = autoTestSetId;
         this.autoTestId = autoTestId;
+        this.trackingId = getUniqueId();
 
         this.id = null;
         this.steps = [];
@@ -18,7 +19,10 @@ class AutoTestSuiteData {
     }
 
     setFromServerData(d) {
+        const trackingIds = this.getStepTrackingIds();
+
         const steps = (d.steps || []).map(step => Object.assign(step, {
+            trackingId: getProps(trackingIds, getUniqueId(), step.id),
             collapsed: true,
         }));
 
@@ -35,6 +39,13 @@ class AutoTestSuiteData {
             ),
         );
         Vue.set(this, 'networkDisabled', getProps(d, true, 'network_disabled'));
+    }
+
+    getStepTrackingIds() {
+        return this.steps.reduce((acc, step) => {
+            acc[step.id] = step.trackingId;
+            return acc;
+        }, {});
     }
 
     copy() {
@@ -108,6 +119,7 @@ class AutoTestSuiteData {
     }
 
     addStep(step) {
+        step.trackingId = getUniqueId();
         this.steps.push(step);
     }
 
