@@ -106,6 +106,7 @@ def _get_base_container(config: 'psef.FlaskConfig') -> 'AutoTestContainer':
     ensure_on_test_server()
     template_name = config['AUTO_TEST_TEMPLATE_CONTAINER']
     if template_name is None:
+        logger.info('No base template set, creating new container')
         res = AutoTestContainer(_get_new_container_name(), config)
         res.create()
     else:
