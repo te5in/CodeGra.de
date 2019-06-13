@@ -99,7 +99,7 @@
                                         <a v-if="canViewFixture(fixture)"
                                             class="flex-grow-1"
                                             href="#"
-                                            @click.capture.prevent.stop="downloadFixture(fixture)">
+                                            @click.capture.prevent.stop="openFixture(fixture)">
                                             {{ fixture.name }}
                                         </a>
                                         <span v-else>
@@ -304,6 +304,30 @@
                        :submission="currentResult.submission"
                        :rubric="currentResult.rubric" />
     </b-modal>
+
+    <b-modal v-if="currentFixture"
+             :id="fixtureModalId"
+             @hidden="currentFixture = null"
+             class="fixture-modal">
+        <template slot="modal-title">
+            {{ currentFixture.name }}
+        </template>
+
+        <inner-code-viewer class="rounded border"
+                           :assignment="assignment"
+                           :code-lines="prepareOutput(currentFixture.data)"
+                           :file-id="-1"
+                           :feedback="{}"
+                           :start-line="0"
+                           :show-whitespace="true"
+                           :warn-no-newline="false" />
+
+        <b-button-toolbar slot="modal-footer">
+            <b-button variant="primary" @click="downloadFixture">
+                Download
+            </b-button>
+        </b-button-toolbar>
+    </b-modal>
 </div>
 </template>
 
@@ -362,6 +386,7 @@ export default {
             internalTest: {},
             loading: true,
             message: null,
+            currentFixture: null,
             currentResult: null,
             pollingInterval: 3000,
             pollingTimer: null,
@@ -371,6 +396,7 @@ export default {
 
             configCollapseId: `auto-test-config-collapse-${id}`,
             fixtureUploadId: `auto-test-base-upload-${id}`,
+            fixtureModalId: `auto-test-fixture-modal-${id}`,
             uploadedFixturesId: `auto-test-base-fixtures-${id}`,
             preStartScriptId: `auto-test-base-pre-start-script-${id}`,
             globalPreStartScriptId: `auto-test-base-pre-start-script-${id}`,
@@ -598,16 +624,27 @@ export default {
             });
         },
 
-        downloadFixture(fixture) {
+        async openFixture(fixture) {
             if (fixture.hidden && !this.permissions.can_view_hidden_fixtures) {
                 throw new Error('You do not have permission to view the content of this fixture.');
             }
 
-            this.$http
-                .get(`/api/v1/auto_tests/${this.autoTestId}/fixtures/${fixture.id}`)
-                .then(({ data }) => {
-                    this.$utils.downloadFile(data, fixture.name, 'application/octet-stream');
-                });
+            const { data } = await this.$http.get(
+                `/api/v1/auto_tests/${this.autoTestId}/fixtures/${fixture.id}`,
+            );
+
+            this.currentFixture = Object.assign({}, fixture, { data });
+
+            await this.$nextTick();
+            this.$root.$emit('bv::show::modal', this.fixtureModalId);
+        },
+
+        downloadFixture() {
+            this.$utils.downloadFile(
+                this.currentFixture.data,
+                this.currentFixture.name,
+                'application/octet-stream',
+            );
         },
 
         createAutoTest() {
