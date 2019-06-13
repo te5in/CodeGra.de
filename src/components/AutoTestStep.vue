@@ -133,10 +133,10 @@
                             <div class="right-column column">
                                 <label :for="optionsId(index)">Options</label>
                                 <b-form-checkbox-group stacked
+                                                       class="form-control mb-3"
                                                        :checked="input.options"
                                                        :options="ioOptions"
                                                        :id="optionsId(index)"
-                                                       class="form-control mb-3"
                                                        @input="updateInput(index, 'options', $event)"/>
 
                                 <label :for="stdoutId(index)">Expected output</label>
@@ -225,7 +225,7 @@
         <tr v-if="canViewOutput" class="results-log-collapse-row">
             <td colspan="5">
                 <b-collapse :id="resultsCollapseId" class="container-fluid">
-                    <div class="row">
+                    <div class="row mb-3">
                         <div class="col-12">
                             You {{ stepResult.finished ? 'scored' : 'did not score' }}
                             enough points.
@@ -271,14 +271,14 @@
                 <b-collapse :id="resultsCollapseId">
                     <b-card no-body>
                         <b-tabs card no-fade class="container-fluid">
-                            <b-tab title="Info" class="row">
+                            <b-tab title="Info" class="row mb-3">
                                 <p class="col-12">
                                     Exit code:
                                     <code>{{ $utils.getProps(stepResult.log, '(unknown)', 'exit_code') }}</code>
                                 </p>
                             </b-tab>
 
-                            <b-tab title="Output" class="row">
+                            <b-tab title="Output" class="row mb-3">
                                 <div class="col-12">
                                     <inner-code-viewer class="rounded border"
                                                        :assignment="assignment"
@@ -291,7 +291,7 @@
                                 </div>
                             </b-tab>
 
-                            <b-tab title="Errors" class="row" v-if="$utils.getProps(stepResult, null, 'log', 'stderr')">
+                            <b-tab title="Errors" class="row mb-3" v-if="$utils.getProps(stepResult, null, 'log', 'stderr')">
                                 <div class="col-12">
                                     <inner-code-viewer class="rounded border"
                                                        :assignment="assignment"
@@ -344,7 +344,7 @@
                 <b-collapse :id="resultsCollapseId">
                     <b-card no-body>
                         <b-tabs card no-fade class="container-fluid">
-                            <b-tab title="Info" class="row">
+                            <b-tab title="Info" class="row mb-3">
                                 <p class="col-12" v-if="canViewDetails">
                                     Match output on:
                                     <code>{{ value.data.regex }}</code>
@@ -355,7 +355,7 @@
                                 </p>
                             </b-tab>
 
-                            <b-tab title="Output" class="row">
+                            <b-tab title="Output" class="row mb-3">
                                 <div class="col-12">
                                     <inner-code-viewer class="rounded border"
                                                        :assignment="assignment"
@@ -368,7 +368,7 @@
                                 </div>
                             </b-tab>
 
-                            <b-tab title="Errors" class="row" v-if="$utils.getProps(stepResult, null, 'log', 'stderr')">
+                            <b-tab title="Errors" class="row mb-3" v-if="$utils.getProps(stepResult, null, 'log', 'stderr')">
                                 <div class="col-12">
                                     <inner-code-viewer class="rounded border"
                                                        :assignment="assignment"
@@ -439,7 +439,7 @@
                     <b-collapse :id="`${resultsCollapseId}-${i}`">
                         <b-card no-body>
                             <b-tabs card no-fade class="container-fluid">
-                                <b-tab title="Output" class="row">
+                                <b-tab title="Output" class="row mb-3">
                                     <p v-if="ioSubStepProps(i, '', 'exit_code')" class="col-12">
                                         <label>Exit code:</label>
                                         <code>{{ ioSubStepProps(i, '', 'exit_code') }}</code>
@@ -470,17 +470,24 @@
                                     </div>
                                 </b-tab>
 
-                                <b-tab title="Input" class="row">
+                                <b-tab title="Input" class="row mb-3">
                                     <div class="col-6">
                                         <label>Input arguments:</label>
-                                        <code class="form-control">{{ input.args }}</code>
+                                        <inner-code-viewer class="rounded border"
+                                                           :assignment="assignment"
+                                                           :code-lines="prepareOutput(input.args, 'No arguments.')"
+                                                           :file-id="-1"
+                                                           :feedback="{}"
+                                                           :start-line="0"
+                                                           :show-whitespace="true"
+                                                           :warn-no-newline="false" />
                                     </div>
 
                                     <div class="col-6">
                                         <label>Input:</label>
                                         <inner-code-viewer class="rounded border"
                                                            :assignment="assignment"
-                                                           :code-lines="prepareOutput(input.stdin)"
+                                                           :code-lines="prepareOutput(input.stdin, 'No input.')"
                                                            :file-id="-1"
                                                            :feedback="{}"
                                                            :start-line="0"
@@ -489,7 +496,7 @@
                                     </div>
                                 </b-tab>
 
-                                <b-tab title="Errors" class="row" v-if="ioSubStepProps(i, '', 'stderr')">
+                                <b-tab title="Errors" class="row mb-3" v-if="ioSubStepProps(i, '', 'stderr')">
                                     <div class="col-12">
                                         <inner-code-viewer class="rounded border"
                                                            :assignment="assignment"
@@ -839,8 +846,8 @@ export default {
             );
         },
 
-        prepareOutput(output) {
-            const lines = output ? output.split('\n') : ['No output.'];
+        prepareOutput(output, ifEmpty = 'No output.') {
+            const lines = (output || ifEmpty).split('\n');
             return lines.map(this.$utils.htmlEscape).map(visualizeWhitespace);
         },
     },
@@ -970,19 +977,13 @@ export default {
 }
 
 .results-log-collapse-row {
-    cursor: initial;
-
-    &:hover {
-        background-color: initial;
+    p:last-child {
+        margin-bottom: 0;
     }
 
     td {
         border-top: 0;
         padding: 0;
-    }
-
-    .row {
-        margin-bottom: 1rem;
     }
 
     .col-6,
@@ -994,31 +995,6 @@ export default {
     .card {
         border: 0;
     }
-
-    code.form-control,
-    pre.form-control {
-        min-height: 5rem;
-        background-color: rgba(0, 0, 0, 0.03);
-        margin-bottom: 1rem;
-
-        &:last-child {
-            margin-bottom: 0;
-        }
-    }
-
-    code.form-control {
-        flex: 0 0 auto;
-    }
-
-    pre.form-control {
-        flex: 1 1 auto;
-        max-height: 15rem;
-        font-size: 87.5%;
-    }
-}
-
-.io-input-options-wrapper {
-    pointer-events: none;
 }
 </style>
 
@@ -1034,10 +1010,11 @@ export default {
             display: flex;
             padding: 0.75rem 0 0;
         }
-    }
 
-    .io-input-options-wrapper .custom-checkbox {
-        margin-right: 0.5rem;
+        .custom-checkbox {
+            margin-right: 0.75rem;
+            pointer-events: none;
+        }
     }
 }
 </style>

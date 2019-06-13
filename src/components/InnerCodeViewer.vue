@@ -5,7 +5,7 @@
     :style="{
             paddingLeft: `${3 + Math.log10(computedEndLine) * 2/3}em`,
             fontSize: `${fontSize}px`,
-            }"
+    }"
     class="hljs inner-code-viewer"
     @click="editable && addFeedback($event)">
 

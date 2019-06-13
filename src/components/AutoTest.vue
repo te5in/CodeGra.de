@@ -179,17 +179,25 @@
                                     <template v-if="result">
                                         <b-tabs no-fade>
                                             <b-tab title="stdout">
-                                                <pre class="border border-top-0 rounded-bottom"
-                                                    :class="{ 'text-muted': !autoTestRun.setupStdout }">{{
-                                                    autoTestRun.setupStdout || 'No output.'
-                                                }}</pre>
+                                                <inner-code-viewer class="rounded border"
+                                                                   :assignment="assignment"
+                                                                   :code-lines="prepareOutput(autoTestRun.setupStdout)"
+                                                                   :file-id="-1"
+                                                                   :feedback="{}"
+                                                                   :start-line="0"
+                                                                   :show-whitespace="true"
+                                                                   :warn-no-newline="false" />
                                             </b-tab>
 
                                             <b-tab title="stderr">
-                                                <pre class="border border-top-0 rounded-bottom"
-                                                    :class="{ 'text-muted': !autoTestRun.setupStderr }">{{
-                                                    autoTestRun.setupStderr || 'No output.'
-                                                }}</pre>
+                                                <inner-code-viewer class="rounded border"
+                                                                   :assignment="assignment"
+                                                                   :code-lines="prepareOutput(autoTestRun.setupStderr)"
+                                                                   :file-id="-1"
+                                                                   :feedback="{}"
+                                                                   :start-line="0"
+                                                                   :show-whitespace="true"
+                                                                   :warn-no-newline="false" />
                                             </b-tab>
                                         </b-tabs>
                                     </template>
@@ -222,17 +230,25 @@
                                     <template v-if="result">
                                         <b-tabs no-fade>
                                             <b-tab title="stdout">
-                                                <pre class="border border-top-0 rounded-bottom"
-                                                    :class="{ 'text-muted': !result.setupStdout }">{{
-                                                     result.setupStdout || 'No output.'
-                                                }}</pre>
+                                                <inner-code-viewer class="rounded border"
+                                                                   :assignment="assignment"
+                                                                   :code-lines="prepareOutput(result.setupStdout)"
+                                                                   :file-id="-1"
+                                                                   :feedback="{}"
+                                                                   :start-line="0"
+                                                                   :show-whitespace="true"
+                                                                   :warn-no-newline="false" />
                                             </b-tab>
 
                                             <b-tab title="stderr">
-                                                <pre class="border border-top-0 rounded-bottom"
-                                                     :class="{ 'text-muted': !result.setupStderr }">{{
-                                                    result.setupStderr || 'No output.'
-                                                }}</pre>
+                                                <inner-code-viewer class="rounded border"
+                                                                   :assignment="assignment"
+                                                                   :code-lines="prepareOutput(result.setupStdout)"
+                                                                   :file-id="-1"
+                                                                   :feedback="{}"
+                                                                   :start-line="0"
+                                                                   :show-whitespace="true"
+                                                                   :warn-no-newline="false" />
                                             </b-tab>
                                         </b-tabs>
                                     </template>
@@ -304,6 +320,8 @@ import 'vue-awesome/icons/circle-o-notch';
 import 'vue-awesome/icons/clock-o';
 import 'vue-awesome/icons/check';
 
+import { visualizeWhitespace } from '@/utils/visualize';
+
 import Collapse from './Collapse';
 import AutoTestRun from './AutoTestRun';
 import AutoTestSet from './AutoTestSet';
@@ -312,6 +330,7 @@ import SubmitButton from './SubmitButton';
 import MultipleFilesUploader from './MultipleFilesUploader';
 import RubricViewer from './RubricViewer';
 import Loader from './Loader';
+import InnerCodeViewer from './InnerCodeViewer';
 
 export default {
     name: 'auto-test',
@@ -660,6 +679,11 @@ export default {
                     this.configCollapsed = false;
                 });
         },
+
+        prepareOutput(output) {
+            const lines = output ? output.split('\n') : ['No output.'];
+            return lines.map(this.$utils.htmlEscape).map(visualizeWhitespace);
+        },
     },
 
     computed: {
@@ -779,6 +803,7 @@ export default {
         MultipleFilesUploader,
         RubricViewer,
         Loader,
+        InnerCodeViewer,
     },
 };
 </script>
@@ -870,18 +895,10 @@ export default {
         }
     }
 
-    pre {
-        margin-bottom: 0;
-        border: 1px solid @color-border-gray-lighter;
-        border-top-width: 0;
-        border-bottom-left-radius: 0.25rem;
-        border-bottom-right-radius: 0.25rem;
-        padding: 1rem;
-
-        #app.dark & {
-            color: @text-color-dark;
-            border-color: @color-primary-darker;
-        }
+    .inner-code-viewer {
+        border-top-width: 0 !important;
+        border-top-left-radius: 0 !important;
+        border-top-right-radius: 0 !important;
     }
 }
 </style>
