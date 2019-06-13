@@ -135,7 +135,7 @@ def create_app(  # pylint: disable=too-many-statements
                          ] = False
 
     if not resulting_app.debug:
-        assert not app.config['AUTO_TEST_DISABLE_ORIGIN_CHECK']
+        assert not resulting_app.config['AUTO_TEST_DISABLE_ORIGIN_CHECK']
 
     @resulting_app.before_request
     def __set_request_start_time() -> None:  # pylint: disable=unused-variable
