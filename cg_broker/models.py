@@ -201,7 +201,6 @@ class AWSRunner(Runner):
             logger.info('Started AWS instance, waiting for network')
 
             self.instance_id = inst.id
-            db.session.commit()
 
             for _ in range(120):
                 inst = ec2.Instance(inst.id)
