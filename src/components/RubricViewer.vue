@@ -235,7 +235,7 @@ export default {
                     const result = suiteResults[suite.id];
                     if (result != null) {
                         const p = (result.achieved / result.possible * 100);
-                        prog[suite.rubricRow.id] = p.toFixed(0);
+                        prog[suite.rubricRow.id] = p;
                     }
                 });
             });
@@ -450,9 +450,9 @@ export default {
             }
 
             return (
-                `You scored ${this.currentProgress}% in the corresponding ` +
-                `AutoTest category, which scores you ${selectedInRow.points} ` +
-                'points in this rubric category.'
+                `You scored ${this.currentProgress.toFixed(0)}% in the corresponding ` +
+                `AutoTest category, which scores you ${selectedInRow.points} points ` +
+                'in this rubric category.'
             );
         },
     },
