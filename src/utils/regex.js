@@ -10,7 +10,7 @@ export function ensurePythonRegexHasCaptureGroup(regex) {
                 break;
             case '(':
                 nesting++;
-                if (regex[i + 1] !== '?' || regex[i + 2] === 'P') {
+                if (regex[i + 1] !== '?') {
                     hasGroup = true;
                 } else if (regex[i + 2] === 'P') {
                     hasGroup = true;
