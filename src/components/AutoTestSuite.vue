@@ -29,7 +29,14 @@
 
         <hr/>
 
-        <h5 class="text-center mb-3">Steps</h5>
+        <h5 class="text-center mb-3">
+            <icon class="expand-all-btn float-left text-muted"
+                  :name="this.expandedSteps.length ? 'minus-square' : 'plus-square'"
+                  @click.native="toggleAllSteps"
+                  v-b-popover.hover.top="`${this.expandedSteps.length ? 'Collapse' : 'Expand'} all steps.`" />
+
+            Steps
+        </h5>
 
         <p v-if="internalValue.steps.length === 0" class="text-muted font-italic py-2">
             This category contains no steps. Please add some using the buttons below.
@@ -197,8 +204,10 @@ import 'vue-awesome/icons/bars';
 import 'vue-awesome/icons/times';
 import 'vue-awesome/icons/check';
 import 'vue-awesome/icons/pencil';
+import 'vue-awesome/icons/minus-square';
+import 'vue-awesome/icons/plus-square';
 
-import { getProps, getUniqueId } from '@/utils';
+import { getProps } from '@/utils';
 
 import SubmitButton from './SubmitButton';
 import AutoTestStep from './AutoTestStep';
@@ -315,6 +324,10 @@ export default {
                 ? 0
                 : (100 * result.achieved / result.possible).toFixed(0);
         },
+
+        expandedSteps() {
+            return this.internalValue.steps.filter(s => !s.collapsed);
+        },
     },
 
     methods: {
@@ -408,6 +421,13 @@ export default {
 
         setRubricRow(cat) {
             this.$set(this.internalValue, 'rubricRow', cat);
+        },
+
+        toggleAllSteps() {
+            const doExpand = this.expandedSteps.length === 0;
+            this.internalValue.steps.forEach(step => {
+                step.collapsed = !doExpand;
+            });
         },
     },
 
@@ -505,6 +525,15 @@ export default {
 
     &:not(.collapsed) .fa-icon {
         transform: rotate(90deg);
+    }
+}
+
+.expand-all-btn {
+    cursor: pointer;
+    opacity: 0.8;
+
+    &:hover {
+        opacity: 1;
     }
 }
 </style>
