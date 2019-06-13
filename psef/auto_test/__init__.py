@@ -1086,7 +1086,7 @@ class AutoTestRunner:
                 _, stdout, stderr, _ = cont.run_student_command(cmd, 900)
 
             self.req.patch(
-                f'{self.base_url}/runs/{self.instructions["run_id"]}',
+                url,
                 json={
                     'setup_time_spend': get_time_spend(),
                     'setup_stdout': stdout,

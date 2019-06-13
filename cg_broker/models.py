@@ -192,11 +192,18 @@ class AWSRunner(Runner):
         ).get('Images', [])
         assert images
         image = max(images, key=lambda image: image['CreationDate'])
+
+        logger.info(
+            'Creating AWS instance',
+            instance_type=app.config['AWS_INSTANCE_TYPE'],
+            image_id=image['ImageId'])
+
         inst, = ec2.create_instances(
             ImageId=image['ImageId'],
             InstanceType=app.config['AWS_INSTANCE_TYPE'],
             MaxCount=1,
             MinCount=1)
+
         with bound_to_logger(instance=inst):
             logger.info('Started AWS instance, waiting for network')
 
