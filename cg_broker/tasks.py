@@ -45,6 +45,7 @@ def _start_runner(runner_hex_id: str) -> None:
     runner_id = uuid.UUID(hex=runner_hex_id)
     runner = db.session.query(
         models.Runner).filter_by(id=runner_id).with_for_update().one_or_none()
+
     if runner is None:
         logger.info('Cannot find runner')
         return
@@ -54,6 +55,9 @@ def _start_runner(runner_hex_id: str) -> None:
             runner=runner,
             state=runner.state)
         return
+
+    runner.state = models.RunnerState.creating
+    db.session.commit()
 
     try:
         runner.start_runner()

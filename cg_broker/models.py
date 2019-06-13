@@ -46,6 +46,7 @@ _Y = t.TypeVar('_Y', bound='Runner')
 @enum.unique
 class RunnerState(enum.IntEnum):
     not_running = enum.auto()
+    creating = enum.auto()
     running = enum.auto()
     cleaning = enum.auto()
     cleaned = enum.auto()
