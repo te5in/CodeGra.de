@@ -3,6 +3,7 @@ import Vue from 'vue';
 import axios from 'axios';
 
 import { deepCopy, withOrdinalSuffix, getProps, getUniqueId } from '@/utils';
+import { ensurePythonRegexHasCaptureGroup } from '@/utils/regex';
 import * as types from '../mutation-types';
 
 class AutoTestSuiteData {
@@ -167,6 +168,12 @@ class AutoTestSuiteData {
                     `The minimal amount of points should be achievable (at most
                     ${weightBefore}) and greater than 0.`,
                 );
+            }
+        } else if (step.type === 'custom_output') {
+            try {
+                ensurePythonRegexHasCaptureGroup(step.data.regex);
+            } catch (e) {
+                errs.push(e.message);
             }
         }
 
