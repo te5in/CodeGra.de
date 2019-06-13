@@ -173,7 +173,7 @@ class AutoTestSuiteData {
             try {
                 ensurePythonRegexHasCaptureGroup(step.data.regex);
             } catch (e) {
-                errs.push(e.message);
+                errs.push(`The regular expression is invalid: ${e.message}`);
             }
         }
 

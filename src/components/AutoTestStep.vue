@@ -431,11 +431,14 @@
                 </td>
                 <td class="shrink">{{ index }}.{{ i + 1 }}</td>
                 <td>
-                    <b>{{ input.name }}</b>
-
                     <template v-if="canViewDetails && result">
+                        <b>{{ input.name }}</b>
+
                         Run <code>{{ value.data.program }} {{ input.args }}</code>
                         and match its output to an expected value.
+                    </template>
+                    <template v-else>
+                        {{ input.name }}
                     </template>
                 </td>
                 <td class="shrink text-center">

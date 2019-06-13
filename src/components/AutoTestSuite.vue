@@ -17,10 +17,10 @@
                                  :key="cat.id"
                                  :disabled="!!disabledCategories[cat.id]"
                                  @click="setRubricRow(cat)"
-                                 :active="internalValue.rubricRow.id === cat.id" >
-                    <div v-b-popover.top.hover="disabledCategories[cat.id] ? 'This rubric category is already in use.' : ''"
-                         class="category-wrapper">
-                        <h5>{{ cat.header }}</h5>
+                                 :active="internalValue.rubricRow.id === cat.id"
+                                 class="px-3 py-1">
+                    <div v-b-popover.top.hover="disabledCategories[cat.id] ? 'This rubric category is already in use.' : ''">
+                        <h5 class="mb-1">{{ cat.header }}</h5>
                         <span class="rubric-description">{{ cat.description }}</span>
                     </div>
                 </b-dropdown-item>
@@ -127,15 +127,15 @@
 
                         <template v-if="scope.error.messages.steps.length > 0">
                             Some steps are not valid:
+
                             <ul class="m-0 pl-3">
                                 <li v-for="[step, errs], i in scope.error.messages.steps"
                                     v-if="errs.length > 0">
                                     {{ $utils.withOrdinalSuffix(i + 1) }} step<span v-if="step.name">
-                                        with name "{{ step.name }}"</span>:
+                                    with name <b>{{ step.name }}</b></span>:
+
                                     <ul class="m-0 pl-3">
-                                        <li v-for="err in errs">
-                                            {{ err }}
-                                        </li>
+                                        <li v-for="err in errs">{{ err }}</li>
                                     </ul>
                                 </li>
                             </ul>
@@ -442,14 +442,6 @@ export default {
 <style lang="less" scoped>
 @import '~mixins.less';
 
-.title-display {
-    vertical-align: center;
-
-    .pencil {
-        cursor: pointer;
-    }
-}
-
 .slick-item {
     z-index: 99999;
 
@@ -480,20 +472,11 @@ export default {
 .dropdown-item {
     padding: 0;
 
-    .category-wrapper {
-        .rubric-description,
-
-        h5 {
-            padding: 0.25rem 1.5rem;
-            margin: 0;
-        }
-
-        .rubric-description {
-            white-space: initial;
-            max-height: 5rem;
-            display: block;
-            overflow-y: auto;
-        }
+    .rubric-description {
+        white-space: initial;
+        max-height: 5rem;
+        display: block;
+        overflow-y: auto;
     }
 
     &:not(:last-child) {
