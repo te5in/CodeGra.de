@@ -60,7 +60,7 @@ def _start_runner(runner_hex_id: str) -> None:
     try:
         runner.start_runner()
     except:
-        logger.error('Failed to start runner')
+        logger.error('Failed to start runner', exc_info=True)
         runner.state = models.RunnerState.cleaning
         db.session.commit()
         runner.cleanup_runner()

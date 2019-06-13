@@ -283,8 +283,6 @@ def start_polling(config: 'psef.FlaskConfig') -> None:
         _STOP_CONTAINERS.clear()
 
         with _get_base_container(config).started_container() as cont:
-            cont.run_command(['apt', 'update'])
-            cont.run_command(['apt', 'upgrade', '-y'])
             if config['AUTO_TEST_TEMPLATE_CONTAINER'] is None:
                 cont.run_command(
                     ['apt', 'install', '-y', 'wget', 'curl', 'unzip']
@@ -1097,10 +1095,6 @@ class AutoTestRunner:
 
     def _run_test(self, cont: StartedContainer) -> None:
         ensure_on_test_server()
-        with timed_code('install_base_system'):
-            cont.run_command(['apt', 'update'])
-            cont.run_command(['apt', 'upgrade', '-y'])
-
         with timed_code('run_setup_commands'):
             cont.run_command(
                 [
