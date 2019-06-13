@@ -32,13 +32,12 @@ class BrokerFlask(flask.Flask):
 
         _parser = make_parser(False)
 
-        self.heartbeat_interval = int(_parser['Testers'].get('INTERVAL', '15'))
-        self.heartbeat_max_missed = int(_parser['Testers'].get(
-            'MAX_MISSED', '5'))
+        self.heartbeat_interval = _parser['Testers'].getint('INTERVAL', 15)
+        self.heartbeat_max_missed = _parser['Testers'].getint('MAX_MISSED', 5)
         self.auto_test_max_duration = timedelta(
             minutes=int(_parser['Testers'].get('MAX_DURATION', str(24 * 60))))
 
-        self.config['DEBUG'] = bool(_parser['General'].get('DEBUG', 'False'))
+        self.config['DEBUG'] = _parser['General'].getboolean('DEBUG', False)
         self.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
         self.config['SQLALCHEMY_DATABASE_URI'] = _parser['General'].get(
             'SQLALCHEMY_DATABASE_URI', 'postgresql:///codegrade_broker_dev')
