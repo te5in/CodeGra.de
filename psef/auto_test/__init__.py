@@ -259,8 +259,7 @@ def start_polling(config: 'psef.FlaskConfig') -> None:
 
                 try:
                     AutoTestRunner(
-                        t.cast(URL,
-                               url_config.get('container_url') or url), data,
+                        URL(url_config.get('container_url') or url), data,
                         url_config['password'], config
                     ).run_test(cont)
                 except:
