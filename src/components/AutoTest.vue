@@ -173,7 +173,7 @@
                                     </b-input-group>
                                 </template>
 
-                                <div v-else-if="test.run_setup_script">
+                                <div v-else>
                                     <code>{{ test.run_setup_script }}</code>
 
                                     <template v-if="result">
@@ -186,7 +186,9 @@
                                                                    :feedback="{}"
                                                                    :start-line="0"
                                                                    :show-whitespace="true"
-                                                                   :warn-no-newline="false" />
+                                                                   :warn-no-newline="false"
+                                                                   :font-size="codeFontSize"
+                                                                   :empty-file-message="'No output.'" />
                                             </b-tab>
 
                                             <b-tab title="stderr">
@@ -197,7 +199,9 @@
                                                                    :feedback="{}"
                                                                    :start-line="0"
                                                                    :show-whitespace="true"
-                                                                   :warn-no-newline="false" />
+                                                                   :warn-no-newline="false"
+                                                                   :font-size="codeFontSize"
+                                                                   :empty-file-message="'No output.'" />
                                             </b-tab>
                                         </b-tabs>
                                     </template>
@@ -224,7 +228,7 @@
                                     </b-input-group>
                                 </template>
 
-                                <div v-else-if="test.setup_script">
+                                <div v-else>
                                     <code>{{ test.setup_script }}</code>
 
                                     <template v-if="result">
@@ -237,7 +241,9 @@
                                                                    :feedback="{}"
                                                                    :start-line="0"
                                                                    :show-whitespace="true"
-                                                                   :warn-no-newline="false" />
+                                                                   :warn-no-newline="false"
+                                                                   :font-size="codeFontSize"
+                                                                   :empty-file-message="'No output.'" />
                                             </b-tab>
 
                                             <b-tab title="stderr">
@@ -248,7 +254,9 @@
                                                                    :feedback="{}"
                                                                    :start-line="0"
                                                                    :show-whitespace="true"
-                                                                   :warn-no-newline="false" />
+                                                                   :warn-no-newline="false"
+                                                                   :font-size="codeFontSize"
+                                                                   :empty-file-message="'No output.'" />
                                             </b-tab>
                                         </b-tabs>
                                     </template>
@@ -310,20 +318,25 @@
              @hidden="currentFixture = null"
              class="fixture-modal">
         <template slot="modal-title">
-            {{ currentFixture.name }}
+            Contents of fixture
+            <code>$FIXTURES/{{ currentFixture.name }}</code>
         </template>
 
-        <inner-code-viewer class="rounded border"
+        <b-alert v-if="currentFixture.err" show variant="danger" class="mt-3 mx-3">
+            {{ currentFixture.err }}
+        </b-alert>
+        <inner-code-viewer v-else
                            :assignment="assignment"
                            :code-lines="prepareOutput(currentFixture.data)"
                            :file-id="-1"
                            :feedback="{}"
                            :start-line="0"
                            :show-whitespace="true"
-                           :warn-no-newline="false" />
+                           :warn-no-newline="false"
+                           :font-size="codeFontSize" />
 
         <b-button-toolbar slot="modal-footer">
-            <b-button variant="primary" @click="downloadFixture">
+            <b-button v-if="currentFixture.raw_data != null" variant="primary" @click="downloadFixture">
                 Download
             </b-button>
         </b-button-toolbar>
@@ -344,6 +357,7 @@ import 'vue-awesome/icons/circle-o-notch';
 import 'vue-awesome/icons/clock-o';
 import 'vue-awesome/icons/check';
 
+import decodeBuffer from '@/utils/decode';
 import { visualizeWhitespace } from '@/utils/visualize';
 
 import Collapse from './Collapse';
@@ -390,6 +404,7 @@ export default {
             currentResult: null,
             pollingInterval: 3000,
             pollingTimer: null,
+            codeFontSize: 14,
 
             configCollapsed: !singleResult,
             setupCollapsed: singleResult,
@@ -624,24 +639,49 @@ export default {
             });
         },
 
-        async openFixture(fixture) {
+        openFixture(fixture) {
             if (fixture.hidden && !this.permissions.can_view_hidden_fixtures) {
                 throw new Error('You do not have permission to view the content of this fixture.');
             }
 
-            const { data } = await this.$http.get(
-                `/api/v1/auto_tests/${this.autoTestId}/fixtures/${fixture.id}`,
-            );
+            const currentFixture = Object.assign({}, fixture);
 
-            this.currentFixture = Object.assign({}, fixture, { data });
-
-            await this.$nextTick();
-            this.$root.$emit('bv::show::modal', this.fixtureModalId);
+            this.$http
+                .get(
+                    `/api/v1/auto_tests/${this.autoTestId}/fixtures/${fixture.id}`,
+                    { responseType: 'arraybuffer' },
+                )
+                .then(
+                    ({ data }) => {
+                        currentFixture.raw_data = data;
+                        // May throw, so perform after storing raw_data, so the user can still
+                        // download a file, even if it cannot be decoded.
+                        currentFixture.data = decodeBuffer(data);
+                    },
+                    err => {
+                        currentFixture.raw_data = null;
+                        currentFixture.err = `Could not load fixture: ${
+                            this.$utils.getErrorMessage(err.message)
+                        }`;
+                    },
+                )
+                .catch(
+                    () => {
+                        currentFixture.err = 'Could not decode file.';
+                    },
+                )
+                .then(() => {
+                    this.currentFixture = currentFixture;
+                })
+                .then(this.$nextTick)
+                .then(() => {
+                    this.$root.$emit('bv::show::modal', this.fixtureModalId);
+                });
         },
 
         downloadFixture() {
             this.$utils.downloadFile(
-                this.currentFixture.data,
+                this.currentFixture.raw_data,
                 this.currentFixture.name,
                 'application/octet-stream',
             );
@@ -718,7 +758,7 @@ export default {
         },
 
         prepareOutput(output) {
-            const lines = output ? output.split('\n') : ['No output.'];
+            const lines = (output || '').split('\n');
             return lines.map(this.$utils.htmlEscape).map(visualizeWhitespace);
         },
     },
@@ -942,6 +982,7 @@ export default {
 
 <style lang="less">
 .auto-test {
+    .fixture-modal,
     .result-modal {
         .modal-dialog {
             max-width: calc(100vw - 8rem);

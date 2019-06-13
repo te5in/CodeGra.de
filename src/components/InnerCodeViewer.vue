@@ -3,8 +3,9 @@
 <ol :class="{ editable: editable, 'lint-whitespace': assignment.whitespace_linter, 'show-whitespace': showWhitespace }"
     :start="computedStartLine"
     :style="{
-            paddingLeft: `${3 + Math.log10(computedEndLine) * 2/3}em`,
-            fontSize: `${fontSize}px`,
+        paddingLeft: noLineNumbers ? 0 : `${3 + Math.log10(computedEndLine) * 2/3}em`,
+        listStyle: noLineNumbers ? 'none' : null,
+        fontSize: `${fontSize}px`,
     }"
     class="hljs inner-code-viewer"
     @click="editable && addFeedback($event)">
@@ -40,7 +41,7 @@
     </li>
     <li class="empty-file"
         v-if="codeLines.length === 1 && codeLines[0] === ''">
-        File is empty.
+        {{ emptyFileMessage }}
     </li>
     <li class="missing-newline"
         v-if="warnNoNewline && computedEndLine === codeLines.length && codeLines[codeLines.length - 1] != ''">
@@ -58,6 +59,7 @@ import LinterFeedbackArea from './LinterFeedbackArea';
 
 export default {
     name: 'inner-code-viewer',
+
     props: {
         assignment: {
             type: Object,
@@ -122,6 +124,16 @@ export default {
         lineFeedbackOffset: {
             type: Number,
             default: 0,
+        },
+
+        noLineNumbers: {
+            type: Boolean,
+            default: false,
+        },
+
+        emptyFileMessage: {
+            type: String,
+            default: 'File is empty.',
         },
     },
 

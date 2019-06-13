@@ -44,31 +44,29 @@
                    append-to=".edit-suite-modal">
             <SlickItem v-for="step, i in internalValue.steps"
                        :index="i"
-                       :key="`auto-test-slick-item-${internalValue.id}-${step.id}`"
-                       class="auto-test-suite slick-item"
+                       :key="step.id"
+                       class="slick-item d-flex align-items-center pb-3"
                        :class="slickItemMoving ? 'no-text-select' : ''">
-                <div class="auto-test-suite-step item-wrapper">
-                    <span v-handle class="drag-handle text-muted">
-                        <icon name="bars"/>
-                    </span>
-                    <auto-test-step v-model="internalValue.steps[i]"
-                                    class="w-100"
-                                    :index="i + 1"
-                                    :test-types="stepTypes"
-                                    :assignment="assignment"
-                                    @delete="internalValue.removeItem(i)"
-                                    editable/>
+                <div v-handle class="drag-handle d-flex align-self-stretch pr-3 text-muted">
+                    <icon class="align-self-center" name="bars"/>
                 </div>
+                <auto-test-step v-model="internalValue.steps[i]"
+                                class="w-100"
+                                :index="i + 1"
+                                :test-types="stepTypes"
+                                :assignment="assignment"
+                                @delete="internalValue.removeItem(i)"
+                                editable/>
             </SlickItem>
         </SlickList>
 
         <b-button-toolbar class="justify-content-center">
             <b-btn v-for="stepType in stepTypes"
-                    :key="stepType.value"
-                    @click="createTestStep(stepType.name)"
-                    class="add-step-btn ml-2"
-                    :style="{ 'background-color': stepType.color }"
-                    v-b-popover.top.hover="stepType.help">
+                   :key="stepType.name"
+                   @click="createTestStep(stepType.name)"
+                   class="add-step-btn ml-2"
+                   :style="{ 'background-color': stepType.color }"
+                   v-b-popover.top.hover="stepType.help">
                 <icon name="plus" /> {{ stepType.title }}
             </b-btn>
         </b-button-toolbar>
@@ -115,21 +113,20 @@
                                label="Save">
                     <div slot="error"
                          slot-scope="scope"
-                         class="custom-error-popover">
+                         class="text-left">
                         <template v-for="err in scope.error.messages.general">
                             {{ err }}
                         </template>
 
                         <template v-if="scope.error.messages.steps.length > 0">
                             Some steps are not valid:
-                            <ul>
+                            <ul class="m-0 pl-3">
                                 <li v-for="[step, errs], i in scope.error.messages.steps"
-                                    :key="step.id"
                                     v-if="errs.length > 0">
                                     {{ $utils.withOrdinalSuffix(i + 1) }} step<span v-if="step.name">
                                         with name "{{ step.name }}"</span>:
-                                    <ul>
-                                        <li v-for="err in errs" :key="err">
+                                    <ul class="m-0 pl-3">
+                                        <li v-for="err in errs">
                                             {{ err }}
                                         </li>
                                     </ul>
@@ -143,7 +140,7 @@
     </b-modal>
 
     <b-card no-body v-if="value.isValid()">
-        <div slot="header" class="title title-display">
+        <div slot="header" class="d-flex justify-content-between">
             <a v-if="result"
                href="#"
                @click.capture.prevent.stop="$root.$emit('open-rubric-category', value.rubricRow.id)">
@@ -164,8 +161,8 @@
             </div>
         </div>
 
-        <div class="suite-steps">
-            <table class="table steps-table">
+        <div>
+            <table class="table mb-0">
                 <thead>
                     <tr>
                         <th v-if="result"></th>
@@ -178,10 +175,10 @@
                         <th v-if="result">Pass</th>
                     </tr>
                 </thead>
-                <auto-test-step v-for="testStep, i in value.steps"
-                                :value="testStep"
+                <auto-test-step v-for="step, i in value.steps"
+                                :value="step"
                                 :test-types="stepTypes"
-                                :key="`auto-test-step-${i}`"
+                                :key="step.id"
                                 :index="i + 1"
                                 :result="result"
                                 :assignment="assignment" />
@@ -327,7 +324,13 @@ export default {
         }),
 
         async createTestStep(type) {
+            let id = getUniqueId();
+            while (this.value.steps.some(s => s.id === id)) {
+                id = getUniqueId();
+            }
+
             const res = {
+                id: getUniqueId(),
                 name: '',
                 type,
                 weight: 1,
@@ -341,7 +344,6 @@ export default {
                     res.data.inputs = [
                         {
                             name: '',
-                            id: getUniqueId(),
                             args: '',
                             stdin: '',
                             output: '',
@@ -427,8 +429,6 @@ export default {
 @import '~mixins.less';
 
 .title-display {
-    display: flex;
-    justify-content: space-between;
     vertical-align: center;
 
     .pencil {
@@ -436,19 +436,22 @@ export default {
     }
 }
 
-.drag-handle {
-    display: block;
-    margin-right: 1rem;
-    cursor: grab;
+.slick-item {
+    z-index: 99999;
 
-    &.disabled-handle {
-        cursor: not-allowed;
-        color: @text-color-dark;
+    &.no-text-select {
+        user-select: none;
+        cursor: grabbing !important;
     }
-}
 
-.auto-test-step {
-    // flex: 1 1 auto;
+    .drag-handle {
+        cursor: grab;
+
+        &.disabled-handle {
+            cursor: not-allowed;
+            color: @text-color-dark;
+        }
+    }
 }
 
 .add-step-btn {
@@ -457,15 +460,6 @@ export default {
 
     &:hover {
         filter: brightness(95%);
-    }
-}
-
-.custom-error-popover {
-    text-align: left;
-
-    ul {
-        padding-left: 1rem;
-        margin-bottom: 0;
     }
 }
 
@@ -499,10 +493,6 @@ export default {
     }
 }
 
-.steps-table {
-    margin-bottom: 0;
-}
-
 .collapse-handle {
     cursor: pointer;
 
@@ -520,36 +510,24 @@ export default {
 </style>
 
 <style lang="less">
-.auto-test-suite .edit-suite-modal .modal-dialog {
-    max-width: 891px;
-}
+.auto-test-suite {
+    .edit-suite-modal .modal-dialog {
+        max-width: 891px;
+    }
 
-.auto-test-suite .category-dropdown {
-    flex: 1 1 auto;
-
-    .dropdown-toggle {
+    .category-dropdown {
         flex: 1 1 auto;
-        border-top-left-radius: 0;
-        border-bottom-left-radius: 0;
-    }
 
-    .dropdown-menu.show {
-        overflow-y: auto;
-        padding: 0;
-    }
-}
+        .dropdown-toggle {
+            flex: 1 1 auto;
+            border-top-left-radius: 0;
+            border-bottom-left-radius: 0;
+        }
 
-.auto-test-suite.slick-item {
-    z-index: 99999;
-    &.no-text-select {
-        user-select: none;
-        cursor: grabbing !important;
-    }
-
-    .auto-test-suite-step.item-wrapper {
-        display: flex;
-        align-items: center;
-        padding-bottom: 1rem;
+        .dropdown-menu.show {
+            overflow-y: auto;
+            padding: 0;
+        }
     }
 }
 </style>

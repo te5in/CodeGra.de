@@ -46,6 +46,7 @@ module.exports = {
 
         // allow vuex
         'no-param-reassign': ["error", { 'props': false }],
+        'no-loop-func': 'off',
     },
     globals: {
         'UserConfig': true,

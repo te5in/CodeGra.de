@@ -287,7 +287,9 @@
                                                        :feedback="{}"
                                                        :start-line="0"
                                                        :show-whitespace="true"
-                                                       :warn-no-newline="false" />
+                                                       :warn-no-newline="false"
+                                                       :empty-file-message="'No output.'"
+                                                       :font-size="codeFontSize" />
                                 </div>
                             </b-tab>
 
@@ -300,7 +302,9 @@
                                                        :feedback="{}"
                                                        :start-line="0"
                                                        :show-whitespace="true"
-                                                       :warn-no-newline="false" />
+                                                       :warn-no-newline="false"
+                                                       :empty-file-message="'No output.'"
+                                                       :font-size="codeFontSize" />
                                 </div>
                             </b-tab>
                         </b-tabs>
@@ -364,7 +368,9 @@
                                                        :feedback="{}"
                                                        :start-line="0"
                                                        :show-whitespace="true"
-                                                       :warn-no-newline="false" />
+                                                       :warn-no-newline="false"
+                                                       :empty-file-message="'No output.'"
+                                                       :font-size="codeFontSize" />
                                 </div>
                             </b-tab>
 
@@ -377,7 +383,9 @@
                                                        :feedback="{}"
                                                        :start-line="0"
                                                        :show-whitespace="true"
-                                                       :warn-no-newline="false" />
+                                                       :warn-no-newline="false"
+                                                       :empty-file-message="'No output.'"
+                                                       :font-size="codeFontSize" />
                                 </div>
                             </b-tab>
                         </b-tabs>
@@ -397,7 +405,7 @@
             <td>
                 <b>{{ stepName }}</b>
 
-                <template v-if="canViewDetails">
+                <template v-if="canViewDetails && !result">
                     Run <code>{{ value.data.program }}</code>
                     and match its output to an expected value.
                 </template>
@@ -422,7 +430,14 @@
                         v-b-popover.hover.top="'You cannot view this step\'s details.'" />
                 </td>
                 <td class="shrink">{{ index }}.{{ i + 1 }}</td>
-                <td>{{ input.name }}</td>
+                <td>
+                    <b>{{ input.name }}</b>
+
+                    <template v-if="canViewDetails && result">
+                        Run <code>{{ value.data.program }} {{ input.args }}</code>
+                        and match its output to an expected value.
+                    </template>
+                </td>
                 <td class="shrink text-center">
                     <template v-if="result">
                         {{ ioSubStepProps(i, '-', 'achieved_points') }} /
@@ -453,8 +468,10 @@
                                                            :file-id="-1"
                                                            :feedback="{}"
                                                            :start-line="0"
+                                                           :warn-no-newline="false"
                                                            :show-whitespace="true"
-                                                           :warn-no-newline="false" />
+                                                           :empty-file-message="'No output.'"
+                                                           :font-size="codeFontSize" />
                                     </div>
 
                                     <div class="col-6">
@@ -465,34 +482,41 @@
                                                            :file-id="-1"
                                                            :feedback="{}"
                                                            :start-line="0"
+                                                           :warn-no-newline="false"
                                                            :show-whitespace="true"
-                                                           :warn-no-newline="false" />
+                                                           :empty-file-message="'No output.'"
+                                                           :font-size="codeFontSize" />
                                     </div>
                                 </b-tab>
 
                                 <b-tab title="Input" class="row mb-3">
                                     <div class="col-6">
-                                        <label>Input arguments:</label>
+                                        <label>Command line:</label>
                                         <inner-code-viewer class="rounded border"
                                                            :assignment="assignment"
-                                                           :code-lines="prepareOutput(input.args, 'No arguments.')"
+                                                           :code-lines="prepareOutput(`${value.data.program} ${input.args}`)"
                                                            :file-id="-1"
                                                            :feedback="{}"
                                                            :start-line="0"
+                                                           :warn-no-newline="false"
                                                            :show-whitespace="true"
-                                                           :warn-no-newline="false" />
+                                                           :no-line-numbers="true"
+                                                           :empty-file-message="'No arguments.'"
+                                                           :font-size="codeFontSize" />
                                     </div>
 
                                     <div class="col-6">
                                         <label>Input:</label>
                                         <inner-code-viewer class="rounded border"
                                                            :assignment="assignment"
-                                                           :code-lines="prepareOutput(input.stdin, 'No input.')"
+                                                           :code-lines="prepareOutput(input.stdin)"
                                                            :file-id="-1"
                                                            :feedback="{}"
                                                            :start-line="0"
+                                                           :warn-no-newline="false"
                                                            :show-whitespace="true"
-                                                           :warn-no-newline="false" />
+                                                           :empty-file-message="'No input.'"
+                                                           :font-size="codeFontSize" />
                                     </div>
                                 </b-tab>
 
@@ -505,7 +529,9 @@
                                                            :feedback="{}"
                                                            :start-line="0"
                                                            :show-whitespace="true"
-                                                           :warn-no-newline="false" />
+                                                           :warn-no-newline="true"
+                                                           :empty-file-message="'No output.'"
+                                                           :font-size="codeFontSize" />
                                     </div>
                                 </b-tab>
                             </b-tabs>
@@ -592,17 +618,12 @@ export default {
 
         return {
             id,
-            stepCollapsed: true,
             collapseState: {},
-            autoTestStepModalId: `auto-test-step-modal-${id}`,
+            codeFontSize: 14,
         };
     },
 
     watch: {
-        value() {
-            console.log(this.value);
-        },
-
         editable() {
             this.collapseState = {};
         },
@@ -846,8 +867,8 @@ export default {
             );
         },
 
-        prepareOutput(output, ifEmpty = 'No output.') {
-            const lines = (output || ifEmpty).split('\n');
+        prepareOutput(output) {
+            const lines = (output || '').split('\n');
             return lines.map(this.$utils.htmlEscape).map(visualizeWhitespace);
         },
     },
