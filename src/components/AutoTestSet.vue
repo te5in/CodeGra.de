@@ -297,16 +297,4 @@ export default {
 .auto-test-suite:not(:last-child) {
     margin-bottom: 1rem;
 }
-
-.auto-test {
-    &:not(.config-editable) .auto-test-suite:last-child {
-        margin-bottom: 0;
-    }
-
-    @media @media-large {
-        &.config-editable .auto-test-suite:nth-last-child(2) {
-            margin-bottom: 0;
-        }
-    }
-}
 </style>
