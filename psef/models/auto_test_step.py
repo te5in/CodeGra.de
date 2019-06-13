@@ -11,11 +11,11 @@ import structlog
 from sqlalchemy.types import JSON
 
 import psef
+from cg_sqlalchemy_helpers.mixins import IdMixin, TimestampMixin
 
 from . import Base, db, _MyQuery
 from . import auto_test as auto_test_models
 from .. import auth, exceptions
-from .mixins import IdMixin, TimestampMixin
 from ..helpers import (
     JSONType, between, register, ensure_json_dict, ensure_on_test_server,
     get_from_map_transaction

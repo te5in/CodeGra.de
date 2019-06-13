@@ -12,10 +12,12 @@ import datetime
 import threading
 import contextlib
 import subprocess
+import urllib.parse
 import multiprocessing
 from functools import wraps
 
 import flask
+import requests
 import structlog
 import mypy_extensions
 from flask import g, request
@@ -24,7 +26,10 @@ from werkzeug.datastructures import FileStorage
 from sqlalchemy.sql.expression import or_
 
 import psef
-import psef.json_encoders as json
+from cg_json import (
+    JSONResponse, ExtendedJSONResponse, jsonify, extended_jsonify
+)
+from cg_timers import timed_code
 
 from . import features, validate
 from .. import errors, models, current_tester
@@ -38,6 +43,7 @@ logger = structlog.get_logger()
 
 #: Type vars
 T = t.TypeVar('T')
+T_STOP_THREAD = t.TypeVar('T_STOP_THREAD', bound='StoppableThread')
 T_CAL = t.TypeVar('T_CAL', bound=t.Callable)
 TT = t.TypeVar('TT')
 TTT = t.TypeVar('TTT', bound='IsInstanceType')
@@ -212,39 +218,6 @@ def get_request_start_time() -> datetime.datetime:
 _JSONValue = t.Union[str, int, float, bool, None, t.Dict[str, t.Any],  # pylint: disable=invalid-name
                      t.List[t.Any]]
 JSONType = t.Union[t.Dict[str, _JSONValue], t.List[_JSONValue], _JSONValue]  # pylint: disable=invalid-name
-
-
-class ExtendedJSONResponse(t.Generic[T]):
-    """A datatype for a JSON response created by using the
-    ``__extended_to_json__`` if available.
-
-    This is a subtype of :py:class:`werkzeug.wrappers.Response` where the body
-    is a valid JSON object and ``content-type`` is ``application/json``.
-
-    .. warning::
-
-        This class is only used for type hinting and is never actually used! It
-        does not contain any valid data!
-    """
-
-    def __init__(self) -> None:  # pragma: no cover
-        raise NotImplementedError("Do not use this class as actual data")
-
-
-class JSONResponse(t.Generic[T]):
-    """A datatype for a JSON response.
-
-    This is a subtype of :py:class:`werkzeug.wrappers.Response` where the body
-    is a valid JSON object and ``content-type`` is ``application/json``.
-
-    .. warning::
-
-        This class is only used for type hinting and is never actually used! It
-        does not contain any valid data!
-    """
-
-    def __init__(self) -> None:  # pragma: no cover
-        raise NotImplementedError("Do not use this class as actual data")
 
 
 class EmptyResponse:
@@ -633,81 +606,6 @@ def ensure_json_dict(
     )
 
 
-def _maybe_log_response(obj: object, response: t.Any, extended: bool) -> None:
-    if not isinstance(obj, psef.errors.APIException):
-        to_log = str(b''.join(response.response))
-        max_length = 1000
-        if len(to_log) > max_length:
-            logger.bind(truncated=True, truncated_size=len(to_log))
-            to_log = '{1:.{0}} ... [TRUNCATED]'.format(max_length, to_log)
-
-        ext = 'extended ' if extended else ''
-        logger.info(
-            f'Created {ext}json return response',
-            reponse_type=str(type(obj)),
-            response=to_log,
-        )
-        logger.try_unbind('truncated', 'truncated_size')
-
-
-def extended_jsonify(
-    obj: T,
-    status_code: int = 200,
-    use_extended: t.Union[t.Callable[[object], bool],
-                          type,
-                          t.Tuple[type, ...],
-                          ] = object,
-) -> ExtendedJSONResponse[T]:
-    """Create a response with the given object ``obj`` as json payload.
-
-    This function differs from :py:func:`jsonify` by that it used the
-    ``__extended_to_json__`` magic function if it is available.
-
-    :param obj: The object that will be jsonified using
-        :py:class:`~.psef.json.CustomExtendedJSONEncoder`
-    :param statuscode: The status code of the response
-    :param use_extended: The ``__extended_to_json__`` method is only used if
-        this function returns something that equals to ``True``. This method is
-        called with object that is currently being encoded. You can also pass a
-        class or tuple as this parameter which is converted to
-        ``lambda o: isinstance(o, passed_value)``.
-    :returns: The response with the jsonified object as payload
-    """
-
-    try:
-        if isinstance(use_extended, (tuple, type)):
-            class_only = use_extended  # needed to please mypy
-            use_extended = lambda o: isinstance(o, class_only)
-        psef.app.json_encoder = json.get_extended_encoder_class(use_extended)
-        response = flask.make_response(flask.jsonify(obj))
-    finally:
-        psef.app.json_encoder = json.CustomJSONEncoder
-    response.status_code = status_code
-
-    _maybe_log_response(obj, response, True)
-
-    return response
-
-
-def jsonify(
-    obj: T,
-    status_code: int = 200,
-) -> JSONResponse[T]:
-    """Create a response with the given object ``obj`` as json payload.
-
-    :param obj: The object that will be jsonified using
-        :py:class:`~.psef.json.CustomJSONEncoder`
-    :param statuscode: The status code of the response
-    :returns: The response with the jsonified object as payload
-    """
-    response = flask.jsonify(obj)
-    response.status_code = status_code
-
-    _maybe_log_response(obj, response, False)
-
-    return response
-
-
 def make_empty_response() -> EmptyResponse:
     """Create an empty response.
 
@@ -843,45 +741,25 @@ def defer(function: t.Callable[[], object]) -> t.Generator[None, None, None]:
         function()
 
 
-@contextlib.contextmanager
-def timed_code(code_block_name: str, **other_keys: object
-               ) -> t.Generator[t.Callable[[], float], None, None]:
-    start_time = time.time()
-    logger.info(
-        'Starting timed code block',
-        timed_code_block=code_block_name,
-        **other_keys
-    )
-    end_time = None
+class StoppableThread(abc.ABC):
+    @abc.abstractmethod
+    def start(self: T_STOP_THREAD) -> T_STOP_THREAD:
+        raise NotImplementedError
 
-    try:
-        yield lambda: (end_time or time.time()) - start_time
-    except:
-        exc_info = True
-        raise
-    else:
-        exc_info = False
-    finally:
-        end_time = time.time()
-        logger.info(
-            'Finished timed code block',
-            timed_code_block=code_block_name,
-            exc_info=exc_info,
-            exception_occurred=exc_info,
-            elapsed_time=end_time - start_time,
-            **other_keys,
-        )
+    @abc.abstractmethod
+    def cancel(self) -> None:
+        raise NotImplementedError
+
+    def __exit__(
+        self, exc_type: object, exc_value: object, traceback: object
+    ) -> None:
+        self.cancel()
+
+    def __enter__(self: T_STOP_THREAD) -> T_STOP_THREAD:
+        return self.start()
 
 
-def timed_function(fun: T_CAL) -> T_CAL:
-    def _wrapper(*args: object, **kwargs: object) -> object:
-        with timed_code(fun.__qualname__):
-            return fun(*args, **kwargs)
-
-    return t.cast(T_CAL, _wrapper)
-
-
-class RepeatedTimer:
+class RepeatedTimer(StoppableThread):
     """Call a function repeatedly in a separate thread.
 
     .. warning::
@@ -894,15 +772,25 @@ class RepeatedTimer:
         self,
         interval: int,
         function: t.Callable[[], None],
+        *,
         cleanup: t.Callable[[], None] = lambda: None,
+        setup: t.Callable[[], None] = lambda: None,
         use_process: bool = False,
+        time_code: bool = True,
     ) -> None:
         super().__init__()
         self.__interval = interval
+        self.__function_name = function.__qualname__
 
         def fun() -> None:
             try:
-                with timed_code('repeated_function', function=function):
+                if not time_code:
+                    function()
+                    return
+
+                with timed_code(
+                    'repeated_function', function=self.__function_name
+                ):
                     function()
             except:
                 pass
@@ -910,20 +798,36 @@ class RepeatedTimer:
         get_event = multiprocessing.Event
 
         self.__function = fun
+
         self.__finish = get_event()
         self.__finished = get_event()
+        self.__started = get_event()
+
         self.__cleanup = cleanup
         self.__use_process = use_process
+        self.__setup = setup
+        self.__background: t.Union[None, threading.Thread, multiprocessing.
+                                   Process]
 
     def cancel(self) -> None:
         if not self.__finish.is_set():
+            assert self.__background
             self.__finish.set()
+            self.__background.join()
             self.__finished.wait()
 
     def start(self) -> 'RepeatedTimer':
+        logger.info('Starting repeating timer', function=self.__function_name)
         self.__finish.clear()
+        logger.info('Start repeating timer', function=self.__function_name)
+        self.__started.clear()
 
         def fun() -> None:
+            self.__started.set()
+            logger.info(
+                'Started repeating timer', function=self.__function_name
+            )
+            self.__setup()
             try:
                 while True:
                     self.__function()
@@ -936,28 +840,17 @@ class RepeatedTimer:
                 finally:
                     self.__finished.set()
 
+        back: t.Union[threading.Thread, multiprocessing.Process]
         if self.__use_process:
-            multiprocessing.Process(target=fun).start()
+            back = multiprocessing.Process(target=fun)
         else:
-            threading.Thread(target=fun).start()
+            back = threading.Thread(target=fun)
+
+        back.start()
+        self.__background = back
+        self.__started.wait()
+
         return self
-
-    def __exit__(
-        self, exc_type: object, exc_value: object, traceback: object
-    ) -> None:
-        self.cancel()
-
-    def __enter__(self) -> 'RepeatedTimer':
-        return self.start()
-
-
-@contextlib.contextmanager
-def bound_to_logger(**vals: object) -> t.Generator[None, None, None]:
-    logger.bind(**vals)
-    try:
-        yield
-    finally:
-        logger.try_unbind(*vals.keys())
 
 
 def call_external(
@@ -1145,3 +1038,22 @@ def is_sublist(needle: t.Sequence[T], hay: t.Sequence[T]) -> bool:
 class SerializableEnum(enum.Enum):
     def __to_json__(self) -> str:
         return self.name
+
+
+class BrokerSession(requests.Session):
+    def __init__(self) -> None:
+        super().__init__()
+        self.headers.update(
+            {
+                'CG-Broker-Pass': psef.app.config['AUTO_TEST_BROKER_PASSWORD'],
+                'CG-Broker-Instance': psef.app.config['EXTERNAL_URL'],
+            }
+        )
+
+    def request(
+        self, method: str, url: str, *args: t.Any, **kwargs: t.Any
+    ) -> requests.Response:
+        url = urllib.parse.urljoin(
+            psef.app.config['AUTO_TEST_BROKER_URL'], url
+        )
+        return super().request(method, url, *args, **kwargs)

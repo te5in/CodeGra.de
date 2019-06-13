@@ -11,11 +11,11 @@ import datetime
 from flask import current_app
 
 import psef
+from cg_sqlalchemy_helpers.mixins import TimestampMixin
 
 from . import Base, db, _MyQuery
 from . import auto_test as auto_test_models
 from .. import auth
-from .mixins import TimestampMixin
 from ..exceptions import APICodes, APIException
 from ..permissions import CoursePermission
 

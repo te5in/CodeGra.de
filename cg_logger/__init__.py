@@ -4,13 +4,13 @@ import typing as t
 import logging as system_logging
 import datetime
 import threading
+import contextlib
 import multiprocessing
 
+import flask
 import structlog
 import flask_jwt_extended as flask_jwt
 from flask import g, request
-
-import psef
 
 logger = structlog.get_logger()
 
@@ -18,7 +18,29 @@ LogCallback = t.Callable[[object, str, str], None]
 _logger_callbacks: t.List[LogCallback] = []
 
 
-def init_app(app: 'psef.PsefFlask') -> None:
+def _find_first_app_frame_and_name() -> t.Tuple[object, str]:
+    """
+    Copied from structlog, MIT License
+    """
+    ignores = ['structlog', 'cg_logger']
+    f = sys._getframe()
+    name = f.f_globals.get('__name__') or '?'
+    while any(tuple(name.startswith(i) for i in ignores)):
+        if f.f_back is None:
+            name = '?'
+            break
+        f = f.f_back
+        name = f.f_globals.get('__name__') or '?'
+    return f, name
+
+
+class PrintLogger(structlog.PrintLogger):  # type: ignore
+    def __init__(self) -> None:
+        super().__init__()
+        self.name = _find_first_app_frame_and_name()[1]
+
+
+def init_app(app: flask.Flask, set_user: bool = True) -> None:
     """Initialize the app.
 
     :param app: The flask app to initialize.
@@ -35,10 +57,14 @@ def init_app(app: 'psef.PsefFlask') -> None:
             request_id=str(g.request_id),
             path=request.path,
             view=getattr(request.url_rule, 'rule', None),
-            base_url=app.config['EXTERNAL_URL'],
+            base_url=app.config.get('EXTERNAL_URL'),
         )
-        flask_jwt.verify_jwt_in_request_optional()
-        log.bind(current_user=psef.current_user and psef.current_user.username)
+        if set_user:
+            flask_jwt.verify_jwt_in_request_optional()
+            log.bind(
+                current_user=flask_jwt.current_user and
+                flask_jwt.current_user.username
+            )
 
         func = log.info
         try:
@@ -107,10 +133,23 @@ def configure_logging(debug: bool, testing: bool) -> None:
 
         return event_dict
 
+    def add_log_level(
+        logger: str, method_name: str, event_dict: t.Dict
+    ) -> t.Dict:
+        """
+        Add the log level to the event dict.
+        """
+        if method_name == "warn":
+            # The stdlib has an alias
+            method_name = "warning"
+
+        event_dict['level'] = event_dict.pop('__level__', method_name)
+
+        return event_dict
+
     processors = [
-        structlog.stdlib.filter_by_level,
         structlog.stdlib.add_logger_name,
-        structlog.stdlib.add_log_level,
+        add_log_level,
         add_thread_name,
         structlog.stdlib.PositionalArgumentsFormatter(),
         structlog.processors.format_exc_info,
@@ -124,7 +163,7 @@ def configure_logging(debug: bool, testing: bool) -> None:
     structlog.configure(
         processors=processors,
         context_class=structlog.threadlocal.wrap_dict(dict),
-        logger_factory=structlog.stdlib.LoggerFactory(),
+        logger_factory=PrintLogger,
         wrapper_class=structlog.stdlib.BoundLogger,
         cache_logger_on_first_use=True,
     )
@@ -142,4 +181,13 @@ def configure_logging(debug: bool, testing: bool) -> None:
     system_logging.getLogger('psef').setLevel(system_logging.DEBUG)
     system_logging.getLogger('werkzeug').setLevel(system_logging.ERROR)
     # Let the celery logger shut up
-    system_logging.getLogger('celery').propagate = False
+    # system_logging.getLogger('celery').propagate = False
+
+
+@contextlib.contextmanager
+def bound_to_logger(**vals: object) -> t.Generator[None, None, None]:
+    logger.bind(**vals)
+    try:
+        yield
+    finally:
+        logger.try_unbind(*vals.keys())

@@ -42,7 +42,7 @@ case "$TO_RUN" in
         set +o xtrace
         ;;
     "lint")
-        pylint "$(pwd)/psef/" --rcfile=setup.cfg
+        make pylint
         res1="$?"
 
         make privacy_statement
@@ -50,14 +50,10 @@ case "$TO_RUN" in
         npm run lint
         res2="$?"
 
-        mypy --ignore-missing-imports \
-             --disallow-untyped-defs \
-             --check-untyped-defs \
-             --disallow-subclassing-any \
-             "$(pwd)/psef/"
+        make mypy
         res3="$?"
 
-        out="$(isort --check-only --diff --recursive "$PWD/psef" "$PWD/psef_test")"
+        out="$(make isort_check)"
         res4=$?
         if [[ "$res4" -ne 0 ]]; then
             echo "$out"

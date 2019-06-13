@@ -16,6 +16,7 @@ from sqlalchemy.types import JSON
 from sqlalchemy_utils import UUIDType
 
 import psef
+from cg_sqlalchemy_helpers.mixins import IdMixin, UUIDMixin, TimestampMixin
 
 from . import Base, DbColumn, db
 from . import file as file_models
@@ -27,7 +28,6 @@ from . import auto_test_step as auto_test_step_models
 from .. import auth
 from .. import auto_test as auto_test_module
 from .. import exceptions, current_user
-from .mixins import IdMixin, UUIDMixin, TimestampMixin
 from ..exceptions import APICodes, APIException
 from ..permissions import CoursePermission as CPerm
 
@@ -324,26 +324,11 @@ class AutoTestRunState(enum.Enum):
     changing_runner = enum.auto()
 
 
-class AutoTestAfterRunState(enum.Enum):
-    not_called = enum.auto()
-    calling = enum.auto()
-    called = enum.auto()
-
-
 class AutoTestRunner(Base, TimestampMixin, UUIDMixin):
     if t.TYPE_CHECKING:  # pragma: no cover
         query: t.ClassVar[_MyQuery['AutoTestRunner']]
 
     __tablename__ = 'AutoTestRunner'
-
-    _type: str = db.Column(
-        'type',
-        db.Enum(
-            *auto_test_module.auto_test_runners.keys(),
-            name='autotestrunnertype'
-        ),
-        nullable=False
-    )
 
     _ipaddr: str = db.Column('ipaddr', db.Unicode, nullable=False)
 
@@ -351,14 +336,11 @@ class AutoTestRunner(Base, TimestampMixin, UUIDMixin):
         'last_heartbeat', db.DateTime, default=datetime.datetime.utcnow
     )
 
-    #: Is this runner completely finished. So is the `after_run` method called.
-    after_state = db.Column(
-        'after_run',
-        db.Enum(AutoTestAfterRunState),
-        nullable=False,
-        default=AutoTestAfterRunState.not_called,
-        server_default='called',
-    )
+    _job_id: t.Optional[str] = db.Column('job_id', db.Unicode)
+
+    @property
+    def job_id(self) -> str:
+        return self._job_id or uuid.uuid4().hex
 
     run: t.Optional['AutoTestRun'] = db.relationship(
         "AutoTestRun",
@@ -368,39 +350,17 @@ class AutoTestRunner(Base, TimestampMixin, UUIDMixin):
         uselist=False
     )
 
-    def after_run(self) -> None:
-        self.runner_type.after_run(self)
-
     @property
     def ipaddr(self) -> str:
         return self._ipaddr
 
-    @property
-    def runner_type(self) -> t.Type['auto_test_module.AutoTestRunner']:
-        return auto_test_module.auto_test_runners[self._type]
-
-    @classmethod
-    def already_running(cls, ipaddr: str) -> bool:
-        return db.session.query(
-            cls.query.filter(
-                cls._ipaddr == ipaddr,
-                cls.after_state != AutoTestAfterRunState.called
-            ).exists()
-        ).scalar()
-
     @classmethod
     def create(
         cls,
-        typ: t.Type[auto_test_module.AutoTestRunner],
         ipaddr: str,
+        job_id: str,
     ) -> 'AutoTestRunner':
-        _type_name = auto_test_module.auto_test_runners.find(typ, None)
-        assert _type_name is not None
-
-        return cls(
-            _type=_type_name,
-            _ipaddr=ipaddr,
-        )
+        return cls(_ipaddr=ipaddr, _job_id=job_id)
 
 
 class AutoTestRun(Base, TimestampMixin, IdMixin):
@@ -474,6 +434,16 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
         'kill_date', db.DateTime, nullable=True, default=None
     )
 
+    _job_number = db.Column('job_number', db.Integer, default=0)
+    _job_id: uuid.UUID = db.Column('job_id', UUIDType, default=uuid.uuid4)
+
+    def increment_job_id(self) -> None:
+        cur_number = self._job_number or 0
+        self._job_number = cur_number + 1
+
+    def get_job_id(self) -> str:
+        return f'{self._job_id.hex}-{self._job_number}'
+
     @property
     def finished(self) -> bool:
         return self.state in {
@@ -496,12 +466,11 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
             for result in self.results:
                 result.update_rubric()
 
-        if self.finished and self.runner_id is not None:
-            psef.tasks.reset_auto_test_runner(self.runner_id.hex)
+        if self.finished:
+            psef.tasks.notify_broker_end_of_job(self.get_job_id())
 
     def start(
         self,
-        runner_type: t.Type['auto_test_module.AutoTestRunner'],
         runner_ipaddr: str,
     ) -> None:
         assert self.started_date is None
@@ -511,7 +480,7 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
         )
         now = datetime.datetime.utcnow()
         self.kill_date = now + max_duration
-        self.runner = AutoTestRunner.create(runner_type, runner_ipaddr)
+        self.runner = AutoTestRunner.create(runner_ipaddr, self.get_job_id())
         db.session.add(self.runner)
 
         @psef.helpers.callback_after_this_request
