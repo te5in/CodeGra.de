@@ -97,6 +97,10 @@ class Runner(Base, mixins.TimestampMixin, mixins.UUIDMixin):
         return secrets.compare_digest(self.ipaddr, requesting_ip)
 
     @property
+    def is_before_run(self) -> bool:
+        return self.state in {RunnerState.not_running, RunnerState.creating}
+
+    @property
     def should_clean(self) -> bool:
         return self.state not in {RunnerState.cleaned, RunnerState.cleaning}
 
@@ -131,6 +135,15 @@ class Runner(Base, mixins.TimestampMixin, mixins.UUIDMixin):
             sql_or(cls.state == RunnerState.running,
                    cls.state == RunnerState.creating,
                    cls.state == RunnerState.not_running))
+
+    def __structlog__(self) -> t.Dict[str, str]:
+        return {
+            'type': str(type(self)),
+            'id': self.id.hex,
+            'state': self.state.name,
+            'job_id': self.job_id,
+            'ipaddr': self.ipaddr,
+        }
 
     __mapper_args__ = {
         'polymorphic_on': _runner_type,

@@ -154,8 +154,11 @@ def register_runner_for_job(job_id: str) -> EmptyResponse:
                 'Runner with given ip not found', ipaddr=g.data['runner_ip'])
             raise NotFoundException
 
-    logger.info('Found runner', runner_id=runner.id)
-
+    logger.info(
+        'Found runner',
+        runner_id=runner.id,
+        time_since_runner_start=(
+            datetime.utcnow() - runner.created_at).total_seconds())
     runner.state = models.RunnerState.running
     job.state = models.JobState.started
     runner.job = job

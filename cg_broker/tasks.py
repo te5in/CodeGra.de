@@ -21,6 +21,25 @@ def init_app(app: BrokerFlask) -> None:
     celery.init_flask_app(app)
 
 
+@celery.task(acks_late=True, max_retries=10, reject_on_worker_lost=True)
+def _maybe_kill_unneeded_runner(runner_hex_id: str) -> None:
+    runner_id = uuid.UUID(hex=runner_hex_id)
+    runner = db.session.query(
+        models.Runner).filter_by(id=runner_id).with_for_update().one_or_none()
+    with bound_to_logger(runner=runner):
+        if runner is None:
+            logger.warning('Runner was deleted')
+            return
+        elif not runner.is_before_run:
+            logger.info(
+                'Runner has already finished running',
+                runner_state=runner.state)
+            return
+
+        logger.error('Runner is still not doing anything')
+        _kill_runner(runner, start_new_one=False)
+
+
 @celery.task
 def maybe_start_unassigned_runner() -> None:
     not_divided_jobs = db.session.query(models.Job).filter_by(
@@ -69,7 +88,8 @@ def maybe_start_runner_for_job(job_id: int) -> None:
     _start_runner.delay(runner.id.hex)
 
 
-def _kill_runner(runner: 'models.Runner') -> None:
+def _kill_runner(runner: 'models.Runner', *,
+                 start_new_one: bool = True) -> None:
     assert runner.should_clean
 
     runner.state = models.RunnerState.cleaning
@@ -78,13 +98,13 @@ def _kill_runner(runner: 'models.Runner') -> None:
     runner.state = models.RunnerState.cleaned
     db.session.commit()
 
-    maybe_start_unassigned_runner.delay()
+    if start_new_one:
+        maybe_start_unassigned_runner.delay()
 
 
 @celery.task
 def _start_runner(runner_hex_id: str) -> None:
     runner_id = uuid.UUID(hex=runner_hex_id)
-
     runner = db.session.query(
         models.Runner).filter_by(id=runner_id).with_for_update().one_or_none()
 
@@ -97,6 +117,11 @@ def _start_runner(runner_hex_id: str) -> None:
             runner=runner,
             state=runner.state)
         return
+
+    _maybe_kill_unneeded_runner.apply_async(
+        (runner.id.hex, ),
+        eta=datetime.datetime.utcnow() +
+        datetime.timedelta(minutes=app.config['RUNNER_MAX_TIME_ALIVE']))
 
     runner.state = models.RunnerState.creating
 

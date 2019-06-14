@@ -22,6 +22,7 @@ BrokerConfig = TypedDict(
         'AWS_INSTANCE_TYPE': str,
         'MAX_AMOUNT_OF_RUNNERS': int,
         'CELERY_CONFIG': t.Dict,
+        'RUNNER_MAX_TIME_ALIVE': int,
         '_TRANSIP_USERNAME': str,
         '_TRANSIP_PRIVATE_KEY_FILE': str
     })
@@ -74,6 +75,9 @@ class BrokerFlask(flask.Flask):
 
         self.config['MAX_AMOUNT_OF_RUNNERS'] = _parser['General'].getint(
             'MAX_AMOUNT_OF_RUNNERS', fallback=1)
+
+        self.config['RUNNER_MAX_TIME_ALIVE'] = _parser['General'].getint(
+            'RUNNER_MAX_TIME_ALIVE', fallback=60)
 
         self.config['_TRANSIP_USERNAME'] = _parser['General'].get(
             'TRANSIP_USERNAME', '')
