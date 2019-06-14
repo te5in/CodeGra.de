@@ -2,6 +2,7 @@ import uuid
 import typing as t
 import datetime
 
+import requests
 import werkzeug
 import structlog
 from flask import g, request, make_response, send_from_directory
@@ -74,26 +75,38 @@ def get_auto_test_status(
     to_get = request.args.get('get', object())
 
     if to_get == 'tests_to_run':
-        run = models.AutoTestRun.query.filter_by(
+        runs = models.AutoTestRun.query.filter_by(
             started_date=None,
-        ).with_for_update().first()
-        if run is None:
+        ).with_for_update().all()
+        if not runs:
             return make_empty_response()
 
-        logger.info(
-            'Trying to register job for runner',
-            run=run.__to_json__(),
-            job_id=run.get_job_id(),
-            runner_ip=request.remote_addr,
-        )
-
         with helpers.BrokerSession() as ses:
-            ses.post(
-                f'/api/v1/jobs/{run.get_job_id()}/runners/',
-                json={
-                    'runner_ip': request.remote_addr
-                }
-            ).raise_for_status()
+            for run in runs:
+                logger.info(
+                    'Trying to register job for runner',
+                    run=run.__to_json__(),
+                    job_id=run.get_job_id(),
+                    runner_ip=request.remote_addr,
+                )
+
+                try:
+                    ses.post(
+                        f'/api/v1/jobs/{run.get_job_id()}/runners/',
+                        json={
+                            'runner_ip': request.remote_addr
+                        }
+                    ).raise_for_status()
+                except requests.RequestException:
+                    logger.info(
+                        'Run cannot be done by given runner',
+                        exc_info=True,
+                        run=run,
+                    )
+                else:
+                    break
+            else:
+                return make_empty_response()
 
         run.start(request.remote_addr)
         db.session.commit()
