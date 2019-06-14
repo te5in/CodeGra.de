@@ -23,8 +23,9 @@ def init_app(app: BrokerFlask) -> None:
 
 @celery.task
 def maybe_start_unassigned_runner() -> None:
-    not_divided_jobs = db.session.query(
-        models.Job).filter_by(runner=None).with_for_update().all()
+    not_divided_jobs = db.session.query(models.Job).filter_by(
+        runner=None,
+        state=models.JobState.waiting_for_runner).with_for_update().all()
     not_assigned_runners = models.Runner.get_active_runners().filter_by(
         job_id=None).with_for_update().all()
 
