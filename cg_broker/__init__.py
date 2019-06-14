@@ -10,8 +10,26 @@ from mypy_extensions import TypedDict
 
 import cg_logger
 
+if t.TYPE_CHECKING:
+    from . import models
+
+BrokerConfig = TypedDict(
+    'BrokerConfig', {
+        'DEBUG': bool,
+        'SQLALCHEMY_TRACK_MODIFICATIONS': bool,
+        'SQLALCHEMY_DATABASE_URI': str,
+        'AUTO_TEST_TYPE': 'models.RunnerType',
+        'AWS_INSTANCE_TYPE': str,
+        'MAX_AMOUNT_OF_RUNNERS': int,
+        'CELERY_CONFIG': t.Dict,
+        '_TRANSIP_USERNAME': str,
+        '_TRANSIP_PRIVATE_KEY_FILE': str
+    })
+
 
 class BrokerFlask(flask.Flask):
+    config: BrokerConfig  # type: ignore
+
     def __init__(self, name: str) -> None:
         super().__init__(name)
 
@@ -32,23 +50,37 @@ class BrokerFlask(flask.Flask):
 
         _parser = make_parser(False)
 
-        self.heartbeat_interval = _parser['Testers'].getint('INTERVAL', 15)
-        self.heartbeat_max_missed = _parser['Testers'].getint('MAX_MISSED', 5)
+        self.heartbeat_interval = _parser['Testers'].getint(
+            'INTERVAL', fallback=15)
+        self.heartbeat_max_missed = _parser['Testers'].getint(
+            'MAX_MISSED', fallback=5)
         self.auto_test_max_duration = timedelta(
             minutes=int(_parser['Testers'].get('MAX_DURATION', str(24 * 60))))
 
-        self.config['DEBUG'] = _parser['General'].getboolean('DEBUG', False)
+        self.config['DEBUG'] = _parser['General'].getboolean(
+            'DEBUG', fallback=False)
         self.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
         self.config['SQLALCHEMY_DATABASE_URI'] = _parser['General'].get(
             'SQLALCHEMY_DATABASE_URI', 'postgresql:///codegrade_broker_dev')
-        from . import models
+
         if self.debug:
             self.config['AUTO_TEST_TYPE'] = models.RunnerType.dev_runner
         else:
-            self.config['AUTO_TEST_TYPE'] = models.RunnerType.aws
-        self.config['AWS_INSTANCE_TYPE'] = 't2.micro'
-        self.config['MAX_AMOUNT_OF_RUNNERS'] = 1
+            self.config['AUTO_TEST_TYPE'] = models.RunnerType[
+                _parser['General'].get('RUNNER_TYPE', 'aws')]
 
+        self.config['AWS_INSTANCE_TYPE'] = _parser['General'].get(
+            'AWS_INSTANCE_TYPE', 't3.medium')
+
+        self.config['MAX_AMOUNT_OF_RUNNERS'] = _parser['General'].getint(
+            'MAX_AMOUNT_OF_RUNNERS', fallback=1)
+
+        self.config['_TRANSIP_USERNAME'] = _parser['General'].get(
+            'TRANSIP_USERNAME', '')
+        self.config['_TRANSIP_PRIVATE_KEY_FILE'] = _parser['General'].get(
+            'TRANSIP_PRIVATE_KEY_FILE', '')
+
+        # Convert parser to case sensitve
         _parser = make_parser(True)
         self.config['CELERY_CONFIG'] = dict(_parser['Celery'])
 
