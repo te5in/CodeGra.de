@@ -128,7 +128,10 @@ def register_runner_for_job(job_id: str) -> EmptyResponse:
     elif job.state == models.JobState.finished:
         raise PermissionException(403)
 
-    logger.info('Searching for runner', runner_ipaddr=g.data['runner_ip'])
+    logger.info(
+        'Searching for runner',
+        runner_ipaddr=g.data['runner_ip'],
+        job_id=job.id)
 
     runner = db.session.query(models.Runner).filter_by(
         ipaddr=g.data['runner_ip'],
