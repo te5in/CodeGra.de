@@ -12,7 +12,7 @@ import boto3
 import psutil
 import structlog
 import transip.service
-from sqlalchemy.sql.expression import and_ as sql_and
+from sqlalchemy.sql.expression import or_ as sql_or
 from sqlalchemy.types import JSON
 from sqlalchemy_utils import PasswordType, UUIDType
 from suds import WebFault
@@ -105,7 +105,14 @@ class Runner(Base, mixins.TimestampMixin, mixins.UUIDMixin):
         # We do a all and len here as count() and with_for_update cannot be
         # used in combination.
         amount = len(cls.get_active_runners().with_for_update().all())
-        can_start = amount < app.config['MAX_AMOUNT_OF_RUNNERS']
+
+        max_amount = app.config['MAX_AMOUNT_OF_RUNNERS']
+        can_start = amount < max_amount
+        logger.info(
+            'Checking if we can start more runners',
+            running_runners=amount,
+            maximum_amount=max_amount,
+            can_start_more=can_start)
         if not can_start:
             logger.warning('Too many runners active', active_amount=amount)
         return can_start
@@ -121,8 +128,9 @@ class Runner(Base, mixins.TimestampMixin, mixins.UUIDMixin):
     @classmethod
     def get_active_runners(cls) -> types.MyQuery['Runner']:
         return db.session.query(cls).filter(
-            sql_and(cls.state == RunnerState.running,
-                    cls.state == RunnerState.not_running))
+            sql_or(cls.state == RunnerState.running,
+                   cls.state == RunnerState.creating,
+                   cls.state == RunnerState.not_running))
 
     __mapper_args__ = {
         'polymorphic_on': _runner_type,

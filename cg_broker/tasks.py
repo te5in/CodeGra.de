@@ -8,6 +8,7 @@ from celery import signals
 from sqlalchemy.sql.expression import and_ as sql_and
 
 from cg_celery import CGCelery
+from cg_logger import bound_to_logger
 
 from . import BrokerFlask, app, models
 from .models import db
@@ -26,15 +27,16 @@ def maybe_start_unassigned_runner() -> None:
         models.Job).filter_by(runner=None).with_for_update().all()
     not_assigned_runners = models.Runner.get_active_runners().filter_by(
         job_id=None).with_for_update().all()
-    if len(not_divided_jobs) < len(not_assigned_runners):
-        logger.error(
-            'More runners than jobs active',
-            jobs=not_divided_jobs,
-            runners=not_assigned_runners)
-        return
-    elif len(not_divided_jobs) == len(not_assigned_runners):
-        logger.info('No new runners needed')
-        return
+
+    with bound_to_logger(jobs=not_divided_jobs, runners=not_assigned_runners):
+        if len(not_divided_jobs) < len(not_assigned_runners):
+            logger.error('More runners than jobs active')
+            return
+        elif len(not_divided_jobs) == len(not_assigned_runners):
+            logger.info('No new runners needed')
+            return
+        else:
+            logger.info('More runners are needed')
 
     if not models.Runner.can_start_more_runners():
         return
@@ -111,6 +113,7 @@ def _start_runner(runner_hex_id: str) -> None:
 def cleanup_runner_of_job(job_id: int) -> None:
     runner = db.session.query(models.Runner).filter_by(
         job_id=job_id).with_for_update().one_or_none()
+
     if runner is None:
         logger.warning('Runner not found')
         return

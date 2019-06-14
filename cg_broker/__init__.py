@@ -42,7 +42,10 @@ class BrokerFlask(flask.Flask):
         self.config['SQLALCHEMY_DATABASE_URI'] = _parser['General'].get(
             'SQLALCHEMY_DATABASE_URI', 'postgresql:///codegrade_broker_dev')
         from . import models
-        self.config['AUTO_TEST_TYPE'] = models.RunnerType.aws
+        if self.debug:
+            self.config['AUTO_TEST_TYPE'] = models.RunnerType.dev_runner
+        else:
+            self.config['AUTO_TEST_TYPE'] = models.RunnerType.aws
         self.config['AWS_INSTANCE_TYPE'] = 't2.micro'
         self.config['MAX_AMOUNT_OF_RUNNERS'] = 1
 
