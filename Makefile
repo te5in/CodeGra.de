@@ -4,6 +4,8 @@ SHELL=/bin/bash
 TEST_FLAGS?=
 PYTHON?=env/bin/python3
 export PYTHONPATH=$(CURDIR)
+PY_MODULES=psef cg_celery cg_sqlalchemy_helpers cg_json cg_broker cg_logger
+PY_ALL_MODULES=$(PY_MODULES) psef_test
 
 .PHONY: test_setup
 test_setup:
@@ -38,6 +40,10 @@ db_upgrade:
 test_data:
 	DEBUG_ON=True $(PYTHON) $(CURDIR)/manage.py test_data
 
+.PHONY: broker_start_dev_celery
+broker_start_dev_celery:
+	DEBUG=on env/bin/celery worker --app=broker_runcelery:celery -E
+
 .PHONY: start_dev_celery
 start_dev_celery:
 	DEBUG=on env/bin/celery worker --app=runcelery:celery -E
@@ -67,22 +73,35 @@ build_front-end: privacy_statement
 seed_data:
 	DEBUG_ON=True $(PYTHON) $(CURDIR)/manage.py seed
 
+.PHONY: isort
+isort:
+	isort --recursive $(PY_ALL_MODULES)
+
+.PHONY: yapf
+yapf:
+	yapf -rip $(PY_ALL_MODULES)
+
 .PHONY: format
-format:
-	isort --recursive ./psef ./psef_test
-	yapf -rip ./psef ./psef_test
+format: isort yapf
 	npm run format
 
 .PHONY: shrinkwrap
 shrinkwrap:
 	npm shrinkwrap --dev
 
-lint:
-	pylint psef --rcfile=setup.cfg
+pylint:
+	pylint psef cg_celery cg_model_types --rcfile=setup.cfg
+
+isort_check:
+	isort --check-only --diff --recursive $(PY_ALL_MODULES)
+
+lint: mypy pylint isort_check
 	npm run lint
 
 mypy:
-	mypy --ignore-missing-imports --disallow-untyped-defs --check-untyped-defs --disallow-subclassing-any "$(PWD)/psef/"
+	mypy --ignore-missing-imports --disallow-untyped-defs \
+		--check-untyped-defs --disallow-subclassing-any \
+		$(PY_MODULES)
 
 .PHONY: create_permission
 create_permission:

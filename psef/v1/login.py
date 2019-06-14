@@ -101,8 +101,10 @@ def login() -> ExtendedJSONResponse[
 
     auth.set_current_user(user)
     json_user = user.__extended_to_json__()
+
     if request_arg_true('with_permissions'):
         json_user['permissions'] = GPerm.create_map(user.get_all_permissions())
+
     return extended_jsonify(
         {
             'user':

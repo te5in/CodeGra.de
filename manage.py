@@ -18,8 +18,8 @@ import psef.models as m
 
 
 def render_item(type_, col, autogen_context):
+    autogen_context.imports.add("import sqlalchemy_utils")
     if type_ == "type" and isinstance(col, PasswordType):
-        autogen_context.imports.add("import sqlalchemy_utils")
         return "sqlalchemy_utils.PasswordType"
     else:
         return False

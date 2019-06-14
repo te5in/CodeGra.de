@@ -27,19 +27,17 @@ from suds import WebFault
 from mypy_extensions import TypedDict
 
 import psef
+import cg_logger
+from cg_timers import timed_code, timed_function
 
-from .. import app, log, models
+from .. import app, models
 from ..helpers import (
-    JSONType, RepeatedTimer, defer, between, register, timed_code,
-    timed_function, bound_to_logger, ensure_on_test_server
+    JSONType, RepeatedTimer, defer, between, ensure_on_test_server
 )
 from ..registry import auto_test_handlers
 from ..exceptions import StopRunningStepsException
 
 logger = structlog.get_logger()
-
-auto_test_runners: register.Register[str, t.Type['AutoTestRunner']
-                                     ] = register.Register()
 
 OutputCallback = t.Callable[[bytes], None]
 URL = t.NewType('URL', str)
@@ -108,6 +106,7 @@ def _get_base_container(config: 'psef.FlaskConfig') -> 'AutoTestContainer':
     ensure_on_test_server()
     template_name = config['AUTO_TEST_TEMPLATE_CONTAINER']
     if template_name is None:
+        logger.info('No base template set, creating new container')
         res = AutoTestContainer(_get_new_container_name(), config)
         res.create()
     else:
@@ -179,36 +178,39 @@ class RunnerInstructions(TypedDict, total=True):
 
 
 def init_app(app: 'psef.PsefFlask') -> None:
+    process_config(app.config)
+
+
+def process_config(config: 'psef.FlaskConfig') -> None:
     res = {}
-    for ip, conf in app.config['__S_AUTO_TEST_CREDENTIALS'].items():
+    for ip, conf in config['__S_AUTO_TEST_HOSTS'].items():
         assert isinstance(conf['password'], str)
-        assert isinstance(conf['type'], str)
-        typ = auto_test_runners[conf['type']]
+        assert isinstance(conf.get('container_url'), (type(None), str))
         res[ip] = {
             'password': conf['password'],
-            'type': typ,
-            'disable_origin_check': conf.get('disable_origin_check', False),
+            'container_url': conf.get('container_url', None),
         }
-    app.config['AUTO_TEST_CREDENTIALS'] = res  # type: ignore
+    config['AUTO_TEST_HOSTS'] = res  # type: ignore
 
 
 def _push_logging(post_log: t.Callable[[JSONType], object]) -> RepeatedTimer:
     logs: t.List[t.Dict[str, object]] = []
     logs_lock = threading.RLock()
 
-    @log.logger_callback
+    @cg_logger.logger_callback
     def log_line(logger: object, method_name: str, event_dict: str) -> None:
+        # DO NOT LOCK HERE AS THIS WILL CREATE DEADLOCKS!!!
+        # Locking is also not needed as a list is a threadsafe object.
         json_event = json.loads(event_dict)
-        with logs_lock:
-            logs.append(json_event)
+        logs.append(json_event)
 
     def push_logs() -> None:
         logger.info('Pushing logs')
         with logs_lock:
             logs_copy = list(logs)
-            logs.clear()
-        if logs_copy:
-            post_log(logs_copy)
+            if logs_copy:
+                post_log(logs_copy)
+            del logs[:len(logs_copy)]
 
     return RepeatedTimer(
         15, push_logs, cleanup=log_line.disable, use_process=False
@@ -217,70 +219,18 @@ def _push_logging(post_log: t.Callable[[JSONType], object]) -> RepeatedTimer:
 
 # This wrapper function is needed for Python multiprocessing
 def _run_student(
-    cont: '_BaseAutoTestRunner', bc_name: str, cores: CpuCores, result_id: int
+    cont: 'AutoTestRunner', bc_name: str, cores: CpuCores, result_id: int
 ) -> None:
     cont.run_student(bc_name, cores, result_id)
 
 
 def start_polling(config: 'psef.FlaskConfig') -> None:
-    with _get_base_container(config).started_container() as cont:
-        cont.run_command(['apt', 'update'])
-        cont.run_command(['apt', 'upgrade', '-y'])
-        if config['AUTO_TEST_TEMPLATE_CONTAINER'] is None:
-            cont.run_command(['apt', 'install', '-y', 'wget', 'curl', 'unzip'])
-        _start_polling(config, cont)
-
-
-def _make_sure_not_running(
-    items: t.List[t.Tuple[str, t.Mapping[str, t.Any]]], sleep_time: int
-) -> None:
-    while True:
-        logger.info('Making sure server is not already running somewhere')
-        for url, url_config in items:
-            headers = {
-                'CG-Internal-Api-Password': url_config["password"],
-            }
-            try:
-                res = requests.get(
-                    f'{url}/api/v-internal/auto_tests/',
-                    params={
-                        'get': 'own_status',
-                    },
-                    headers=headers
-                )
-            except requests.exceptions.RequestException:
-                logger.error('Failed to get server', exc_info=True)
-                break
-
-            if res.status_code != 200:
-                logger.info(
-                    'One of the servers returned an error', response=res
-                )
-                break
-            elif res.json()['running']:
-                logger.info(
-                    'Already running on one of the servers, sleeping',
-                    url=url,
-                    sleep_time=sleep_time,
-                )
-                break
-        else:
-            logger.info('Not running anywhere')
-            return
-
-        time.sleep(sleep_time)
-
-
-def _start_polling(
-    config: 'psef.FlaskConfig', cont: 'StartedContainer'
-) -> None:
-    items = list(config['__S_AUTO_TEST_CREDENTIALS'].items())
+    items = list(config['AUTO_TEST_HOSTS'].items())
     sleep_time = config['AUTO_TEST_POLL_TIME']
+    broker_url = config['AUTO_TEST_BROKER_URL']
 
-    while True:
-        _make_sure_not_running(items, sleep_time)
+    def do_job(cont: 'StartedContainer') -> bool:
         random.shuffle(items)
-
         for url, url_config in items:
             headers = {
                 'CG-Internal-Api-Password': url_config["password"],
@@ -297,6 +247,7 @@ def _start_polling(
                     },
                     headers=headers
                 )
+                response.raise_for_status()
             except requests.exceptions.RequestException:
                 logger.error('Failed to get server', exc_info=True)
                 continue
@@ -304,22 +255,44 @@ def _start_polling(
             if response.status_code == 200:
                 data = response.json()
                 logger.info('Got test', response=response, json=data)
-                typ = auto_test_runners[url_config['type']]
 
-                typ(
-                    t.cast(URL,
-                           url_config.get('container_url') or url), data,
-                    url_config['password'], config
-                ).run_test(cont)
-                break
+                logger_service.cancel()
+
+                try:
+                    AutoTestRunner(
+                        URL(url_config.get('container_url') or url), data,
+                        url_config['password'], config
+                    ).run_test(cont)
+                except:
+                    logger.error('Error while running tests', exc_info=True)
+                return True
             else:
                 logger.info('No tests found', response=response)
-                continue
-        else:
-            logger.info('Tried all servers, sleeping', sleep_time=sleep_time)
-            time.sleep(sleep_time)
+        return False
 
-        logger.try_unbind('server')
+    while True:
+        logger_service: RepeatedTimer = _push_logging(
+            lambda logs: requests.post(
+                f'{broker_url}/api/v1/logs/',
+                json={
+                    'logs': logs
+                },
+            ).raise_for_status()
+        )
+        logger_service.start()
+
+        _STOP_CONTAINERS.clear()
+
+        with _get_base_container(config).started_container() as cont:
+            if config['AUTO_TEST_TEMPLATE_CONTAINER'] is None:
+                cont.run_command(
+                    ['apt', 'install', '-y', 'wget', 'curl', 'unzip']
+                )
+
+            while True:
+                if do_job(cont):
+                    break
+                time.sleep(sleep_time)
 
 
 class StartedContainer:
@@ -622,7 +595,7 @@ class StartedContainer:
     ) -> int:
         self._dirty = True
 
-        with bound_to_logger(
+        with cg_logger.bound_to_logger(
             cmd=cmd, timeout=timeout
         ), tempfile.TemporaryDirectory(
         ) as output_dir, tempfile.NamedTemporaryFile() as stdin_file, open(
@@ -786,7 +759,7 @@ class AutoTestContainer:
             self._stop_container(started)
 
     def _stop_container(self, cont: t.Optional[StartedContainer]) -> None:
-        with bound_to_logger(cont=self):
+        with cg_logger.bound_to_logger(cont=self):
             try:
                 _stop_container(self._cont)
                 if cont is not None:
@@ -807,7 +780,7 @@ class AutoTestContainer:
             return type(self)(new_name, self._config, cont)
 
 
-class AutoTestRunner(abc.ABC):
+class AutoTestRunner:
     def __init__(
         self, base_url: URL, instructions: RunnerInstructions,
         global_password: str, config: 'psef.FlaskConfig'
@@ -844,16 +817,6 @@ class AutoTestRunner(abc.ABC):
             f'CG-Internal-Api-Runner-Password: {self._local_password}',
         ]
 
-    @abc.abstractmethod
-    def run_test(self, base_container: StartedContainer) -> None:
-        ...
-
-    @classmethod
-    def after_run(cls, runner: 'models.AutoTestRunner') -> None:
-        pass
-
-
-class _BaseAutoTestRunner(AutoTestRunner):
     def copy_file(
         self, container: StartedContainer, src: str, dst: str
     ) -> None:
@@ -1061,17 +1024,15 @@ class _BaseAutoTestRunner(AutoTestRunner):
         result_id: int,
     ) -> None:
         with _push_logging(self._push_log
-                           ), bound_to_logger(result_id=result_id):
+                           ), cg_logger.bound_to_logger(result_id=result_id):
             self._run_student(base_container_name, cpu_cores, result_id)
 
     def started_heartbeat(self) -> 'RepeatedTimer':
         def push_heartbeat() -> None:
-            logger.info('Pushing heartbeat')
-            res = self.req.post(
+            self.req.post(
                 f'{self.base_url}/runs/{self.instructions["run_id"]}/'
                 'heartbeats/'
-            )
-            logger.info('Pushed heartbeat', res=res)
+            ).raise_for_status()
 
         interval = self.instructions['heartbeat_interval']
         logger.info('Starting heartbeat interval', interval=interval)
@@ -1125,7 +1086,7 @@ class _BaseAutoTestRunner(AutoTestRunner):
                 _, stdout, stderr, _ = cont.run_student_command(cmd, 900)
 
             self.req.patch(
-                f'{self.base_url}/runs/{self.instructions["run_id"]}',
+                url,
                 json={
                     'setup_time_spend': get_time_spend(),
                     'setup_stdout': stdout,
@@ -1135,14 +1096,6 @@ class _BaseAutoTestRunner(AutoTestRunner):
 
     def _run_test(self, cont: StartedContainer) -> None:
         ensure_on_test_server()
-
-        _STOP_CONTAINERS.clear()
-
-        # We use uuid1 as this is always unique for a single machine
-        with timed_code('install_base_system'):
-            cont.run_command(['apt', 'update'])
-            cont.run_command(['apt', 'upgrade', '-y'])
-
         with timed_code('run_setup_commands'):
             cont.run_command(
                 [
@@ -1224,68 +1177,3 @@ class _BaseAutoTestRunner(AutoTestRunner):
             else:
                 logger.info('Done with containers, cleaning up')
                 _STOP_CONTAINERS.set()
-
-
-@auto_test_runners.register('simple_runner')
-class _SimpleAutoTestRunner(_BaseAutoTestRunner):
-    def run_test(self, base_container: StartedContainer) -> None:
-        with base_container.as_snapshot() as cont:
-            try:
-                return super().run_test(cont)
-            finally:
-                _STOP_CONTAINERS.clear()
-
-
-@auto_test_runners.register('transip_runner')
-class _TransipAutoTestRunner(_BaseAutoTestRunner):
-    @staticmethod
-    def _retry_vps_action(
-        action_name: str, func: t.Callable[[], object], max_tries: int = 50
-    ) -> None:
-        with bound_to_logger(
-            action=action_name,
-        ), timed_code('_retry_vps_action'):
-            for idx in range(max_tries):
-                try:
-                    func()
-                except WebFault:
-                    logger.info('Could not perform action yet', exc_info=True)
-                    time.sleep(idx)
-                else:
-                    break
-            else:
-                logger.error("Couldn't perform action")
-                raise TimeoutError
-
-    @classmethod
-    def after_run(self, runner: 'models.AutoTestRunner') -> None:
-        username = psef.current_app.config['_TRANSIP_USERNAME']
-        key_file = psef.current_app.config['_TRANSIP_PRIVATE_KEY_FILE']
-        vs = transip.service.VpsService(username, private_key_file=key_file)
-        vps, = [
-            vps for vps in vs.get_vpses() if vps['ipAddress'] == runner.ipaddr
-        ]
-        with bound_to_logger(vps=vps):
-            vps_name = vps['name']
-            snapshots = vs.get_snapshots_by_vps(vps_name)
-            snapshot = min(snapshots, key=lambda s: s['dateTimeCreate'])
-            self._retry_vps_action('stopping vps', lambda: vs.stop(vps_name))
-            self._retry_vps_action(
-                'reverting snapshot',
-                lambda: vs.revert_snapshot(vps_name, snapshot['name']),
-            )
-
-    def run_test(self, base_container: StartedContainer) -> None:
-        dirty_flag = Path.home() / Path('.dirty')
-        if dirty_flag.exists():
-            return
-        dirty_flag.touch()
-        try:
-            super().run_test(base_container)
-        finally:
-            logger.info('Waiting for reset')
-            while True:
-                try:
-                    time.sleep(sys.maxsize)
-                except:
-                    pass

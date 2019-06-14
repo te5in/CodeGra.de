@@ -44,18 +44,19 @@ if t.TYPE_CHECKING and getattr(
 AutoTestConfig = TypedDict(
     'AutoTestConfig', {
         'password': str,
-        'type': t.Type['psef.auto_test.AutoTestRunner'],
-        'disable_origin_check': bool,
+        'container_url': t.Optional[str],
     }
 )
-AutoTestCredentials = t.Mapping[str, AutoTestConfig]
+AutoTestHosts = t.Mapping[str, AutoTestConfig]
 
 FlaskConfig = TypedDict(
     'FlaskConfig', {
         'FEATURES': t.Mapping['psef.features.Feature', bool],
         '__S_FEATURES': t.Mapping[str, bool],
         'IS_AUTO_TEST_RUNNER': bool,
-        'AUTO_TEST_CREDENTIALS': AutoTestCredentials,
+        'AUTO_TEST_HOSTS': AutoTestHosts,
+        'AUTO_TEST_PASSWORD': str,
+        'AUTO_TEST_DISABLE_ORIGIN_CHECK': bool,
         'AUTO_TEST_MAX_TIME_COMMAND': int,
         'AUTO_TEST_MAX_TIME_TOTAL_RUN': int,
         'AUTO_TEST_POLL_TIME': int,
@@ -65,7 +66,9 @@ FlaskConfig = TypedDict(
         'AUTO_TEST_HEARTBEAT_INTERVAL': int,
         'AUTO_TEST_HEARTBEAT_MAX_MISSED': int,
         'AUTO_TEST_TEMPLATE_CONTAINER': str,
-        '__S_AUTO_TEST_CREDENTIALS': t.Mapping[str, t.Any],
+        'AUTO_TEST_BROKER_URL': str,
+        'AUTO_TEST_BROKER_PASSWORD': str,
+        '__S_AUTO_TEST_HOSTS': t.Mapping[str, t.Any],
         'Celery': CeleryConfig,
         'LTI Consumer keys': t.Mapping[str, str],
         'DEBUG': bool,
@@ -498,18 +501,11 @@ if celery_parser.read(config_file) and 'Celery' in celery_parser:
 else:
     CONFIG['CELERY_CONFIG'] = {}
 
-val = json.loads(auto_test_ops.get('auto_test_credentials', '{}'))
+val = json.loads(auto_test_ops.get('auto_test_hosts', '{}'))
 assert isinstance(val, dict)
-CONFIG['__S_AUTO_TEST_CREDENTIALS'] = val
+CONFIG['__S_AUTO_TEST_HOSTS'] = val
 
 set_bool(CONFIG, auto_test_ops, 'IS_AUTO_TEST_RUNNER', False)
-if CONFIG['IS_AUTO_TEST_RUNNER']:
-    assert CONFIG['SQLALCHEMY_DATABASE_URI'] == 'postgresql:///codegrade_dev'
-    assert CONFIG['CELERY_CONFIG'] == {}
-    assert CONFIG['LTI_CONSUMER_KEY_SECRETS'] == {}
-    assert CONFIG['LTI_SECRET_KEY'] == ''
-    assert CONFIG['SECRET_KEY'] == ''
-    assert CONFIG['HEALTH_KEY'] == ''
 
 set_int(CONFIG, auto_test_ops, 'AUTO_TEST_MAX_TIME_COMMAND', 5 * 60)
 set_int(CONFIG, auto_test_ops, 'AUTO_TEST_MAX_TIME_TOTAL_RUN', 1440)
@@ -520,3 +516,16 @@ set_str(CONFIG, auto_test_ops, 'AUTO_TEST_BDEVTYPE', 'best')
 set_int(CONFIG, auto_test_ops, 'AUTO_TEST_HEARTBEAT_INTERVAL', 10)
 set_int(CONFIG, auto_test_ops, 'AUTO_TEST_HEARTBEAT_MAX_MISSED', 6)
 set_str(CONFIG, auto_test_ops, 'AUTO_TEST_TEMPLATE_CONTAINER', None)
+set_str(CONFIG, auto_test_ops, 'AUTO_TEST_BROKER_URL', '')
+set_str(CONFIG, auto_test_ops, 'AUTO_TEST_BROKER_PASSWORD', None)
+set_str(CONFIG, auto_test_ops, 'AUTO_TEST_PASSWORD', None)
+set_bool(CONFIG, auto_test_ops, 'AUTO_TEST_DISABLE_ORIGIN_CHECK', False)
+
+if CONFIG['IS_AUTO_TEST_RUNNER']:
+    assert CONFIG['SQLALCHEMY_DATABASE_URI'] == 'postgresql:///codegrade_dev'
+    assert CONFIG['CELERY_CONFIG'] == {}
+    assert CONFIG['LTI_CONSUMER_KEY_SECRETS'] == {}
+    assert CONFIG['LTI_SECRET_KEY'] == ''
+    assert CONFIG['SECRET_KEY'] == ''
+    assert CONFIG['HEALTH_KEY'] == ''
+    assert CONFIG['AUTO_TEST_BROKER_PASSWORD'] is None

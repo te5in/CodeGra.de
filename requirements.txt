@@ -47,3 +47,4 @@ git+http://github.com/CodeGra-de/python3-lxc.git
 transip==2.0.0
 alembic-autogenerate-enums==0.0.2
 regex==2019.6.2
+fastpbkdf2==0.2

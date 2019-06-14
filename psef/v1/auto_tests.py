@@ -7,7 +7,9 @@ import structlog
 from flask import request, make_response
 
 from . import api
-from .. import app, auth, files, tasks, models, parsers, auto_test, exceptions
+from .. import (
+    app, auth, files, tasks, models, helpers, parsers, auto_test, exceptions
+)
 from ..models import db
 from ..helpers import (
     JSONResponse, EmptyResponse, ExtendedJSONResponse, jsonify, get_or_404,
@@ -410,7 +412,12 @@ def start_auto_test_run(auto_test_id: int) -> t.Union[JSONResponse[
         test.assignment.get_from_latest_submissions(models.Work.id).all()
     )
     results = [models.AutoTestResult(work_id=sub_id) for sub_id, in sub_ids]
-    test.runs.append(models.AutoTestRun(results=results))
+    run = models.AutoTestRun(results=results)
+    test.runs.append(run)
+
+    helpers.callback_after_this_request(
+        lambda: tasks.notify_broker_of_new_job(run.get_job_id())
+    )
 
     db.session.commit()
 
@@ -438,11 +445,9 @@ def delete_auto_test_runs(auto_test_id: int, run_id: int) -> EmptyResponse:
         also_error=lambda obj: obj.auto_test_id != test.id,
     )
 
-    if run.runner_id is not None:
-        runner_id = run.runner_id
-        callback_after_this_request(
-            lambda: tasks.remove_auto_test_runner(runner_id.hex)
-        )
+    callback_after_this_request(
+        lambda: tasks.notify_broker_end_of_job(run.get_job_id())
+    )
 
     run.delete_and_clear_rubric()
     db.session.commit()

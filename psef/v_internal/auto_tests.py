@@ -1,12 +1,14 @@
+import uuid
 import typing as t
 import datetime
 
+import requests
 import werkzeug
 import structlog
 from flask import g, request, make_response, send_from_directory
 
 from . import api
-from .. import app, files, models, auto_test
+from .. import app, files, models, helpers, auto_test
 from ..models import db
 from ..helpers import (
     JSONResponse, EmptyResponse, jsonify, get_or_404, request_arg_true,
@@ -22,49 +24,37 @@ LocalRunner = t.NewType('LocalRunner', t.Tuple[str, bool])
 
 
 def get_local_runner(global_password: str, local_password: str) -> LocalRunner:
-    config_dict = app.config['AUTO_TEST_CREDENTIALS'].get(
-        request.remote_addr, None
-    )
-    if config_dict is None and global_password in {
-        v['password']
-        for v in app.config['AUTO_TEST_CREDENTIALS'].values()
-        if v.get('disable_origin_check', False)
-    }:
-        return LocalRunner((local_password, False))
-
-    stored_password = config_dict and config_dict['password']
-
-    if not global_password or global_password != stored_password:
+    if global_password != app.config['AUTO_TEST_PASSWORD']:
         raise PermissionException(
             'You do not have permission to use this route',
             'No valid password given', APICodes.NOT_LOGGED_IN, 401
         )
 
-    return LocalRunner((local_password, True))
+    return LocalRunner(
+        (local_password, not app.config['AUTO_TEST_DISABLE_ORIGIN_CHECK'])
+    )
 
 
 def verify_runner(
     runner: t.Optional[models.AutoTestRunner], local: LocalRunner
 ) -> None:
     password, check_ip = local
+    exc = PermissionException(
+        'You do not have permission to use this route',
+        'No valid password given', APICodes.NOT_LOGGED_IN, 401
+    )
 
-    if (
-        runner is None or not password or str(runner.id) != password or
-        runner.after_state != models.AutoTestAfterRunState.not_called or
-        (check_ip and runner.ipaddr != request.remote_addr)
-    ):
-        raise PermissionException(
-            'You do not have permission to use this route',
-            'No valid password given', APICodes.NOT_LOGGED_IN, 401
-        )
+    if runner is None:
+        raise exc
+    elif not password or not runner.id or password != str(runner.id):
+        raise exc
+    elif check_ip and runner.ipaddr != request.remote_addr:
+        raise exc
 
-    if (
-        runner.run is None or
-        runner.run.state == models.AutoTestRunState.timed_out
-    ):
+    if runner.run is None or runner.run.finished:
         raise PermissionException(
-            'You cannot update runs which timed out',
-            f'The run {{ runner.run.id }} has timed out',
+            'You cannot update runs which have finished',
+            f'The run {{ runner.run_id }} has finished',
             APICodes.INCORRECT_PERMISSION, 403
         )
 
@@ -84,31 +74,41 @@ def get_auto_test_status(
     verify_global_header_password()
     to_get = request.args.get('get', object())
 
-    if to_get == 'own_status':
-        return jsonify(
-            {
-                'running':
-                    models.AutoTestRunner.already_running(request.remote_addr)
-            }
-        )
-    elif to_get == 'tests_to_run':
-        config_dict = app.config['AUTO_TEST_CREDENTIALS'][request.remote_addr]
-
-        if models.AutoTestRunner.already_running(request.remote_addr):
-            logger.warning(
-                'IP which had already ran tried getting tests',
-                remote_addr=request.remote_addr,
-            )
-            return make_empty_response()
-
-        run = models.AutoTestRun.query.filter_by(
+    if to_get == 'tests_to_run':
+        runs = models.AutoTestRun.query.filter_by(
             started_date=None,
-        ).with_for_update().first()
-
-        if run is None:
+        ).with_for_update().all()
+        if not runs:
             return make_empty_response()
 
-        run.start(config_dict['type'], request.remote_addr)
+        with helpers.BrokerSession() as ses:
+            for run in runs:
+                logger.info(
+                    'Trying to register job for runner',
+                    run=run.__to_json__(),
+                    job_id=run.get_job_id(),
+                    runner_ip=request.remote_addr,
+                )
+
+                try:
+                    ses.post(
+                        f'/api/v1/jobs/{run.get_job_id()}/runners/',
+                        json={
+                            'runner_ip': request.remote_addr
+                        }
+                    ).raise_for_status()
+                except requests.RequestException:
+                    logger.info(
+                        'Run cannot be done by given runner',
+                        exc_info=True,
+                        run=run,
+                    )
+                else:
+                    break
+            else:
+                return make_empty_response()
+
+        run.start(request.remote_addr)
         db.session.commit()
 
         return jsonify(run.get_instructions())

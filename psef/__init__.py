@@ -13,30 +13,21 @@ import datetime
 
 import structlog
 import flask_jwt_extended as flask_jwt
-from flask import Response, g, jsonify, request
+from flask import Response, g, request
 from flask_limiter import Limiter, RateLimitExceeded
 from werkzeug.local import LocalProxy
+
+import cg_logger
+from cg_json import jsonify
 
 if t.TYPE_CHECKING and getattr(
     t, 'SPHINX', False
 ) is not True:  # pragma: no cover
     from config import FlaskConfig
+    from flask import Flask
     from json import JSONEncoder
 
     current_app: 'psef.Flask'
-
-    class Flask:
-        """A stub for flask.
-        """
-
-        def __init__(self, _: str) -> None:
-            self.before_request: t.Callable
-            self.after_request: t.Callable
-            self.errorhandler: t.Callable
-            self.teardown_request: t.Callable
-            self.app_context: t.Callable
-            self.config: FlaskConfig
-            self.json_encoder = JSONEncoder
 else:
     from flask import Flask, current_app  # type: ignore
 
@@ -46,6 +37,7 @@ class PsefFlask(Flask):
 
     This contains the extra property :meth:`.PsefFlask.do_sanity_checks`.
     """
+    config: 'FlaskConfig'  # type: ignore
 
     def __init__(self, name: str) -> None:
         super().__init__(name)
@@ -128,7 +120,7 @@ def create_app(  # pylint: disable=too-many-statements
     skip_celery: bool = False,
     skip_perm_check: bool = True,
     skip_secret_key_check: bool = False,
-) -> t.Any:
+) -> 'PsefFlask':
     """Create a new psef app.
 
     :param config: The config mapping that can be used to override config.
@@ -138,29 +130,17 @@ def create_app(  # pylint: disable=too-many-statements
     import config as global_config
 
     resulting_app = PsefFlask(__name__)
+    resulting_app.config.update(t.cast(t.Any, global_config.CONFIG))
+    resulting_app.config['SQLALCHEMY_TRACK_MODIFICATIONS'  # type: ignore
+                         ] = False
+
+    if not resulting_app.debug:
+        assert not resulting_app.config['AUTO_TEST_DISABLE_ORIGIN_CHECK']
 
     @resulting_app.before_request
     def __set_request_start_time() -> None:  # pylint: disable=unused-variable
         assert current_tester._get_current_object() is None
         g.request_start_time = datetime.datetime.utcnow()
-
-    @resulting_app.before_request
-    def __set_query_durations() -> None:
-        g.queries_amount = 0
-        g.queries_total_duration = 0
-        g.queries_max_duration = None
-        g.query_start = None
-
-    @resulting_app.teardown_request
-    def __teardown_request(exception: t.Type[Exception]) -> None:  # pylint: disable=unused-variable
-        if exception:  # pragma: no cover
-            models.db.session.expire_all()
-            models.db.session.rollback()
-
-    # Configurations
-    resulting_app.config.update(global_config.CONFIG)  # type: ignore
-    resulting_app.config['SQLALCHEMY_TRACK_MODIFICATIONS'  # type: ignore
-                         ] = False
 
     if config is not None:  # pragma: no cover
         resulting_app.config.update(config)  # type: ignore
@@ -175,12 +155,15 @@ def create_app(  # pylint: disable=too-many-statements
 
     @resulting_app.errorhandler(RateLimitExceeded)
     def __handle_error(_: RateLimitExceeded) -> Response:  # pylint: disable=unused-variable
-        res = jsonify(
-            errors.APIException(
-                'Rate limit exceeded, slow down!',
-                'Rate limit is exceeded',
-                errors.APICodes.RATE_LIMIT_EXCEEDED,
-                429,
+        res = t.cast(
+            Response,
+            jsonify(
+                errors.APIException(
+                    'Rate limit exceeded, slow down!',
+                    'Rate limit is exceeded',
+                    errors.APICodes.RATE_LIMIT_EXCEEDED,
+                    429,
+                )
             )
         )
         res.status_code = 429
@@ -188,8 +171,7 @@ def create_app(  # pylint: disable=too-many-statements
 
     limiter.init_app(resulting_app)
 
-    from . import log
-    log.init_app(resulting_app)
+    cg_logger.init_app(resulting_app)
 
     from . import permissions
     permissions.init_app(resulting_app, skip_perm_check)
@@ -217,9 +199,6 @@ def create_app(  # pylint: disable=too-many-statements
 
     from . import tasks
     tasks.init_app(resulting_app)
-
-    from . import json_encoders
-    json_encoders.init_app(resulting_app)
 
     from . import files
     files.init_app(resulting_app)
