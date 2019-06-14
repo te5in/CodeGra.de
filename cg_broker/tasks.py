@@ -15,27 +15,67 @@ from .models import db
 celery = CGCelery(__name__, signals)
 logger = structlog.get_logger()
 
+
 def init_app(app: BrokerFlask) -> None:
     celery.init_flask_app(app)
 
 
 @celery.task
-def maybe_start_runner_for_job(job_id: int) -> None:
-    # We do a all and len here as count() and with_for_update cannot be used in
-    # combination.
-    amount = len(models.Runner.get_active_runners().with_for_update().all())
-    if amount >= app.config['MAX_AMOUNT_OF_RUNNERS']:
-        logger.warning('Too many runners active', active_amount=amount)
+def maybe_start_unassigned_runner() -> None:
+    not_divided_jobs = db.session.query(
+        models.Job).filter_by(runner=None).with_for_update().all()
+    not_assigned_runners = models.Runner.get_active_runners().filter_by(
+        job_id=None).with_for_update().all()
+    if len(not_divided_jobs) < len(not_assigned_runners):
+        logger.error(
+            'More runners than jobs active',
+            jobs=not_divided_jobs,
+            runners=not_assigned_runners)
+        return
+    elif len(not_divided_jobs) == len(not_assigned_runners):
+        logger.info('No new runners needed')
         return
 
-    typ = models.Runner.__mapper__.polymorphic_map[
-        app.config['AUTO_TEST_TYPE']].class_
-    runner = typ.create()
+    if not models.Runner.can_start_more_runners():
+        return
+
+    runner = models.Runner.create_of_type(app.config['AUTO_TEST_TYPE'])
+    db.session.add(runner)
+    db.session.commit()
+    _start_runner.delay(runner.id.hex)
+
+
+@celery.task
+def maybe_start_runner_for_job(job_id: int) -> None:
+    job = db.session.query(
+        models.Job).filter_by(id=job_id).with_for_update().one_or_none()
+    if job is None:
+        logger.warning('Job to start runner for not found', job_id=job_id)
+        return
+    elif job.runner is not None:
+        logger.warning('Job to start runner already as a runner assigned')
+        return
+
+    if not models.Runner.can_start_more_runners():
+        return
+
+    runner = models.Runner.create_of_type(app.config['AUTO_TEST_TYPE'])
     runner.job_id = job_id
-    if runner is not None:
-        db.session.add(runner)
-        db.session.commit()
-        _start_runner.delay(runner.id.hex)
+    db.session.add(runner)
+    db.session.commit()
+    _start_runner.delay(runner.id.hex)
+
+
+def _kill_runner(runner: 'models.Runner') -> None:
+    assert runner.should_clean
+
+    runner.state = models.RunnerState.cleaning
+    db.session.commit()
+    runner.cleanup_runner()
+    runner.state = models.RunnerState.cleaned
+    db.session.commit()
+
+    maybe_start_unassigned_runner.delay()
 
 
 @celery.task
@@ -61,11 +101,7 @@ def _start_runner(runner_hex_id: str) -> None:
         runner.start_runner()
     except:
         logger.error('Failed to start runner', exc_info=True)
-        runner.state = models.RunnerState.cleaning
-        db.session.commit()
-        runner.cleanup_runner()
-        runner.state = models.RunnerState.cleaned
-        db.session.commit()
+        _kill_runner(runner)
         raise
     else:
         db.session.commit()
@@ -82,13 +118,7 @@ def cleanup_runner_of_job(job_id: int) -> None:
         logger.info('Runner already cleaned up')
         return
 
-    runner.state = models.RunnerState.cleaning
-    db.session.commit()
-
-    runner.cleanup_runner()
-
-    runner.state = models.RunnerState.cleaned
-    db.session.commit()
+    _kill_runner(runner)
 
 
 @celery.task

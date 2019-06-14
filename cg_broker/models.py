@@ -84,7 +84,8 @@ class Runner(Base, mixins.TimestampMixin, mixins.UUIDMixin):
         db.ForeignKey('job.id'),
         nullable=True,
         default=None)
-    job: t.Optional['Job'] = db.relationship('Job', foreign_keys=job_id)
+    job: t.Optional['Job'] = db.relationship(
+        'Job', foreign_keys=job_id, back_populates='runner')
 
     def cleanup_runner(self) -> None:
         raise NotImplementedError
@@ -100,8 +101,22 @@ class Runner(Base, mixins.TimestampMixin, mixins.UUIDMixin):
         return self.state not in {RunnerState.cleaned, RunnerState.cleaning}
 
     @classmethod
-    def create(cls: t.Type[_Y]) -> _Y:
+    def can_start_more_runners(cls) -> bool:
+        # We do a all and len here as count() and with_for_update cannot be
+        # used in combination.
+        amount = len(cls.get_active_runners().with_for_update().all())
+        can_start = amount < app.config['MAX_AMOUNT_OF_RUNNERS']
+        if not can_start:
+            logger.warning('Too many runners active', active_amount=amount)
+        return can_start
+
+    @classmethod
+    def _create(cls: t.Type[_Y]) -> _Y:
         return cls()
+
+    @classmethod
+    def create_of_type(cls, typ: RunnerType) -> 'Runner':
+        return cls.__mapper__.polymorphic_map[typ].class_._create()
 
     @classmethod
     def get_active_runners(cls) -> types.MyQuery['Runner']:
@@ -121,7 +136,7 @@ class DevRunner(Runner):
     }
 
     @classmethod
-    def create(cls: t.Type[_Y]) -> _Y:
+    def _create(cls: t.Type[_Y]) -> _Y:
         return cls(ipaddr='127.0.0.1')
 
     def start_runner(self) -> None:
@@ -246,6 +261,8 @@ class Job(Base, mixins.TimestampMixin, mixins.IdMixin):
 
     remote_id = db.Column(
         'remote_id', db.Unicode, nullable=False, index=True, unique=True)
+    runner: t.Optional['Runner'] = db.relationship(
+        'Runner', back_populates='job', uselist=False)
 
     @property
     def state(self) -> JobState:
