@@ -4,7 +4,6 @@ from configparser import ConfigParser
 from datetime import timedelta
 
 import flask
-from flask_admin import Admin
 from flask_admin.contrib.sqla import ModelView
 from mypy_extensions import TypedDict
 
@@ -23,6 +22,8 @@ BrokerConfig = TypedDict(
         'MAX_AMOUNT_OF_RUNNERS': int,
         'CELERY_CONFIG': t.Dict,
         'RUNNER_MAX_TIME_ALIVE': int,
+        'SECRET_KEY': str,
+        'ADMIN_PASSWORD': str,
         '_TRANSIP_USERNAME': str,
         '_TRANSIP_PRIVATE_KEY_FILE': str
     })
@@ -84,6 +85,9 @@ class BrokerFlask(flask.Flask):
         self.config['_TRANSIP_PRIVATE_KEY_FILE'] = _parser['General'].get(
             'TRANSIP_PRIVATE_KEY_FILE', '')
 
+        self.config['SECRET_KEY'] = _parser['General']['SECRET_KEY']
+        self.config['ADMIN_PASSWORD'] = _parser['General']['ADMIN_PASSWORD']
+
         # Convert parser to case sensitve
         _parser = make_parser(True)
         self.config['CELERY_CONFIG'] = dict(_parser['Celery'])
@@ -99,7 +103,7 @@ else:
 
 
 def create_app() -> flask.Flask:
-    from . import api, exceptions, models, tasks
+    from . import api, exceptions, models, tasks, admin_panel
 
     app = BrokerFlask(__name__)
     cg_logger.init_app(app, set_user=False)
@@ -107,10 +111,7 @@ def create_app() -> flask.Flask:
     api.init_app(app)
     tasks.init_app(app)
     exceptions.init_app(app)
-
-    admin = Admin(app, name='microblog', template_mode='bootstrap3')
-    admin.add_view(ModelView(models.Job, models.db.session))
-    admin.add_view(ModelView(models.Runner, models.db.session))
+    admin_panel.init_app(app)
 
     if app.debug:
         tasks.add_1.delay(1, 2)

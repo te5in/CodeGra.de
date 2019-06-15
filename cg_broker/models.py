@@ -136,7 +136,7 @@ class Runner(Base, mixins.TimestampMixin, mixins.UUIDMixin):
                    cls.state == RunnerState.creating,
                    cls.state == RunnerState.not_running))
 
-    def __structlog__(self) -> t.Dict[str, str]:
+    def __structlog__(self) -> t.Dict[str, t.Union[str, int]]:
         return {
             'type': str(type(self)),
             'id': self.id.hex,

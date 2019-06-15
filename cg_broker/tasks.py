@@ -51,13 +51,15 @@ def maybe_start_unassigned_runner() -> None:
     with bound_to_logger(jobs=not_divided_jobs, runners=not_assigned_runners):
         if len(not_divided_jobs) < len(not_assigned_runners):
             logger.error('More runners than jobs active')
-            return
         elif len(not_divided_jobs) == len(not_assigned_runners):
             logger.info('No new runners needed')
-            return
         else:
             logger.info('More runners are needed')
+            maybe_start_unassigned_runner.delay()
 
+
+@celery.task
+def start_unassigned_runner() -> None:
     if not models.Runner.can_start_more_runners():
         return
 
@@ -86,6 +88,22 @@ def maybe_start_runner_for_job(job_id: int) -> None:
     db.session.add(runner)
     db.session.commit()
     _start_runner.delay(runner.id.hex)
+
+
+@celery.task
+def kill_runner(runner_hex_id: str) -> None:
+    runner_id = uuid.UUID(hex=runner_hex_id)
+    runner = db.session.query(
+        models.Runner).filter_by(id=runner_id).with_for_update().one_or_none()
+
+    if runner is None:
+        logger.warning('Runner not found')
+        return
+    elif not runner.should_clean:
+        logger.info('Runner already cleaned up')
+        return
+
+    _kill_runner(runner)
 
 
 def _kill_runner(runner: 'models.Runner', *,

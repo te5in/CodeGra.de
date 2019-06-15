@@ -137,11 +137,6 @@ def create_app(  # pylint: disable=too-many-statements
     if not resulting_app.debug:
         assert not resulting_app.config['AUTO_TEST_DISABLE_ORIGIN_CHECK']
 
-    @resulting_app.before_request
-    def __set_request_start_time() -> None:  # pylint: disable=unused-variable
-        assert current_tester._get_current_object() is None
-        g.request_start_time = datetime.datetime.utcnow()
-
     if config is not None:  # pragma: no cover
         resulting_app.config.update(config)  # type: ignore
 
@@ -234,34 +229,5 @@ def create_app(  # pylint: disable=too-many-statements
                 'Celery is not responding! Please check your config',
             )
             raise
-
-    typ = t.TypeVar('typ')
-
-    @resulting_app.after_request
-    def __after_request(res: typ) -> typ:  # pylint: disable=unused-variable
-        queries_amount: int = getattr(g, 'queries_amount', 0)
-        queries_total_duration: int = getattr(g, 'queries_total_duration', 0)
-        queries_max_duration: int = getattr(g, 'queries_max_duration', 0) or 0
-        log_msg = (
-            logger.info if queries_max_duration < 0.5 and queries_amount < 20
-            else logger.warning
-        )
-
-        cache_hits: int = getattr(g, 'cache_hits', 0)
-        cache_misses: int = getattr(g, 'cache_misses', 0)
-
-        end_time = datetime.datetime.utcnow()
-        start_time = getattr(g, 'request_start_time', end_time)
-        log_msg(
-            'Request finished',
-            request_time=(end_time - start_time).total_seconds(),
-            status_code=getattr(res, 'status_code', None),
-            queries_amount=queries_amount,
-            queries_total_duration=queries_total_duration,
-            queries_max_duration=queries_max_duration,
-            cache_hits=cache_hits,
-            cache_misses=cache_misses,
-        )
-        return res
 
     return resulting_app
