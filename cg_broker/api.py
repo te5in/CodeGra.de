@@ -125,7 +125,8 @@ def register_runner_for_job(job_id: str) -> EmptyResponse:
     if job is None:
         logger.info('Job not found!', job_id=job_id)
         raise NotFoundException
-    elif job.state == models.JobState.finished:
+    elif job.state != models.JobState.waiting_for_runner:
+        # Make sure we don't assign a job two runners.
         raise PermissionException(403)
 
     logger.info(
@@ -142,11 +143,17 @@ def register_runner_for_job(job_id: str) -> EmptyResponse:
     # Job does not have a reserved runner, maybe a unreserved runner is
     # available.
     if runner is None:
+        # This job already has an assigned runner. It is fine to use
+        # another runner (which might present itself sooner to the
+        # CodeGrade instance, so using it will only simply improve
+        # latency). However, this is only OK if this job does not already
+        # have a confirmed runner, so the state should be lower than
+        # ``started``.
         runner = db.session.query(models.Runner).filter_by(
             ipaddr=g.data['runner_ip'],
             state=models.RunnerState.creating,
             job_id=None,
-        ).with_for_update().one_or_none()
+        ).with_for_update().first()
 
         # No unreserved runner available either
         if runner is None:

@@ -80,6 +80,16 @@ def maybe_start_runner_for_job(job_id: int) -> None:
         logger.warning('Job to start runner already as a runner assigned')
         return
 
+    unsigned_runner = db.session.query(models.Runner).filter_by(
+        state=models.RunnerState.creating,
+        job_id=None,
+    ).with_for_update().one_or_none()
+    if unsigned_runner is not None:
+        # Aha, we are lucky, we have an unsigned runner. Lets assign it :)
+        unsigned_runner.job_id = job_id
+        db.session.commit()
+        return
+
     if not models.Runner.can_start_more_runners():
         return
 
