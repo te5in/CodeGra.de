@@ -89,11 +89,8 @@ class Runner(Base, mixins.TimestampMixin, mixins.UUIDMixin):
         # values, i.e. you CAN have multiple ``NULL``s.
         unique=True)
 
-    # The join here is NOT for performance, it is for correctness. This means
-    # that when locking the row (using ``.with_for_update()``) it will also
-    # lock the job row.
     job: t.Optional['Job'] = db.relationship(
-        'Job', foreign_keys=job_id, back_populates='runner', lazy='joined')
+        'Job', foreign_keys=job_id, back_populates='runner')
 
     def cleanup_runner(self) -> None:
         raise NotImplementedError
@@ -291,7 +288,7 @@ class Job(Base, mixins.TimestampMixin, mixins.IdMixin):
     remote_id = db.Column(
         'remote_id', db.Unicode, nullable=False, index=True, unique=True)
     runner: t.Optional['Runner'] = db.relationship(
-        'Runner', back_populates='job', uselist=False, lazy='joined')
+        'Runner', back_populates='job', uselist=False)
 
     @property
     def state(self) -> JobState:

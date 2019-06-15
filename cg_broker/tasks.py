@@ -86,7 +86,7 @@ def maybe_start_runner_for_job(job_id: int) -> None:
     ).with_for_update().one_or_none()
     if unsigned_runner is not None:
         # Aha, we are lucky, we have an unsigned runner. Lets assign it :)
-        unsigned_runner.job_id = job_id
+        unsigned_runner.job = job
         db.session.commit()
         return
 
