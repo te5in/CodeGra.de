@@ -24,7 +24,14 @@ admin = Blueprint("admin", __name__)  # pylint: disable=invalid-name
 def init_app(app: BrokerFlask) -> None:
     app.register_blueprint(admin, url_prefix="/admin/")
     login_manager.init_app(app)
-    login_manager.login_view = '.login'
+
+
+@login_manager.unauthorized_handler
+def unauthorized_request() -> Response:
+    logger.warning(
+        'User tried to access restricted page without password',
+        requested_url=request.url)
+    return redirect(url_for('.login', next_url=request.url))
 
 
 @admin.add_app_template_global
