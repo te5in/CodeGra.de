@@ -285,6 +285,8 @@ class Job(Base, mixins.TimestampMixin, mixins.IdMixin):
         nullable=False,
         default=JobState.waiting_for_runner)
 
+    cg_url = db.Column('cg_url', db.Unicode, nullable=False)
+
     remote_id = db.Column(
         'remote_id', db.Unicode, nullable=False, index=True, unique=True)
     runner: t.Optional['Runner'] = db.relationship(
@@ -297,11 +299,9 @@ class Job(Base, mixins.TimestampMixin, mixins.IdMixin):
     @state.setter
     def state(self, new_state: JobState) -> None:
         if self.state is not None and new_state < self.state:
-            raise ValueError('Cannot decrease from {} to {} state!',
-                             self.state, new_state)
+            raise ValueError('Cannot decrease the state!', self.state,
+                             new_state)
         self._state = new_state
-
-    cg_url = db.Column('cg_url', db.Unicode, nullable=False)
 
     def __log__(self) -> t.Dict[str, object]:
         return {
