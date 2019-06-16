@@ -306,17 +306,23 @@ set_str(CONFIG, backend_ops, 'JAVA_PATH', 'java')
 
 set_str(CONFIG, backend_ops, 'JPLAG_JAR', 'jplag.jar')
 
-try:
+
+def _set_version() -> None:
     CONFIG['_VERSION'] = subprocess.check_output(
         ['git', 'describe', '--abbrev=0', '--tags']
     ).decode('utf-8').strip()
+
+
+try:
+    _set_version()
 except subprocess.CalledProcessError as e:
-    print('An error occurred trying to get the version')
-    print('stdout:')
-    print(e.stdout)
-    print('stderr:')
-    print(e.stderr)
-    CONFIG['_VERSION'] = 'no.git.available'
+    print(
+        'An error occurred trying to get the version, this is probably caused'
+        ' by not deep cloning the repository. We will try that now.'
+    )
+    subprocess.check_call(['git', 'fetch', '--unshallow'])
+    _set_version()
+del _set_version
 
 # Set email settings
 set_str(CONFIG, backend_ops, 'MAIL_SERVER', 'localhost')
