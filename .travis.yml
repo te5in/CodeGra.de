@@ -35,6 +35,7 @@ matrix:
 before_install:
   - sudo apt-get update
   - sudo apt-get install  -y lxc lxc-dev lxcfs libvirt0 libssl-dev git
+  - git fetch --unshallow
 
 install:
   - pip install -U wheel
@@ -62,7 +63,7 @@ before_script:
 
 script:
   - bash ./.travis/run
-  - "[[ $TO_RUN = 'backend-tests' ]] && travis-sphinx build --source=docs/ || true"
+  - "if [[ $TO_RUN = 'backend-tests' ]]; then travis-sphinx build --source=docs/; fi"
 
 after_success:
   - "[[ $TO_RUN = 'backend-tests' ]] && ( coveralls; codecov; travis-sphinx deploy -c docs.codegra.de; )"
