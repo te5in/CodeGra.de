@@ -4002,7 +4002,8 @@ def test_duplicating_rubric(
                         int,
                     'items':
                         list,
-                    'locked': False,
+                    'locked':
+                        False,
                 }
             ]
         )

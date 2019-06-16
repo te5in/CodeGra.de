@@ -15,6 +15,7 @@ from . import user as user_models
 from . import work as work_models
 from . import _MyQuery
 from . import assignment as assignment_models
+from ..helpers import NotEqualMixin
 from ..exceptions import APICodes, APIException
 from .link_tables import users_groups
 
@@ -27,7 +28,7 @@ else:
     from werkzeug.utils import cached_property
 
 
-class GroupSet(Base):
+class GroupSet(NotEqualMixin, Base):
     """This class represents a group set.
 
     A group set is a single wrapper over all groups. Every group is part of a
@@ -78,7 +79,7 @@ class GroupSet(Base):
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, GroupSet):
-            return False
+            return NotImplemented
         return self.id == other.id
 
     def get_valid_group_for_user(self, user: 'user_models.User'

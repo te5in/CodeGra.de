@@ -1056,3 +1056,23 @@ class BrokerSession(requests.Session):
             psef.app.config['AUTO_TEST_BROKER_URL'], url
         )
         return super().request(method, url, *args, **kwargs)
+
+
+class NotEqualMixin:
+    """Simple mixin to provide correct ``__ne__`` behavior.
+
+    >>> class Base:
+    ...     x = 5
+    ...     def __ne__(self, other): return self.x != other.x
+    >>> class AWrong(Base):
+    ...     def __eq__(self, other): return NotImplemented
+    >>> class ACorrect(NotEqualMixin, Base):
+    ...     def __eq__(self, other): return NotImplemented
+    >>> AWrong() != AWrong
+    False
+    >>> ACorrect() != ACorrect()
+    True
+    """
+
+    def __ne__(self, other: object) -> bool:
+        return not self == other

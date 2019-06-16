@@ -17,6 +17,7 @@ import psef
 
 from . import UUID_LENGTH, Base, DbColumn, db, course, _MyQuery
 from .role import Role, CourseRole
+from ..helpers import NotEqualMixin
 from .permission import Permission
 from ..exceptions import APICodes, PermissionException
 from .link_tables import user_course, course_permissions
@@ -33,7 +34,7 @@ else:
 logger = structlog.get_logger()
 
 
-class User(Base):
+class User(NotEqualMixin, Base):
     """This class describes a user of the system.
 
     :ivar ~.User.lti_user_id: The id of this user in a LTI consumer.
@@ -150,14 +151,11 @@ class User(Base):
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, User):
-            return False
+            return NotImplemented
         return self.id == other.id
 
     def __hash__(self) -> int:
         return hash(self.id)
-
-    def __ne__(self, other: object) -> bool:  # pragma: no cover
-        return not self.__eq__(other)
 
     @classmethod
     def create_virtual_user(cls: t.Type['User'], name: str) -> 'User':

@@ -23,7 +23,7 @@ class RubricLockReason(cg_json.SerializableEnum, enum.Enum):
     auto_test = enum.auto()
 
 
-class RubricItem(Base):
+class RubricItem(helpers.NotEqualMixin, Base):
     """This class holds the information about a single option/item in a
     :class:`.RubricRow`.
     """
@@ -75,14 +75,11 @@ class RubricItem(Base):
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, RubricItem):
-            return False
+            return NotImplemented
         return self.id == other.id
 
     def __hash__(self) -> int:
         return hash(self.id)
-
-    def __ne__(self, other: object) -> bool:  # pragma: no cover
-        return not self.__eq__(other)
 
 
 class RubricRow(Base):
