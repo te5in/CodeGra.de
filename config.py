@@ -1,4 +1,5 @@
 import os
+import sys
 import json
 import typing as t
 import datetime
@@ -317,8 +318,12 @@ try:
     _set_version()
 except subprocess.CalledProcessError as e:
     print(
-        'An error occurred trying to get the version, this is probably caused'
-        ' by not deep cloning the repository. We will try that now.'
+        (
+            'An error occurred trying to get the version, this is probably'
+            ' caused by not deep cloning the repository. We will try that'
+            ' now.'
+        ),
+        file=sys.stderr
     )
     subprocess.check_call(['git', 'fetch', '--unshallow'])
     _set_version()

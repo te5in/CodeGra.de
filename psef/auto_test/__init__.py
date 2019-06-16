@@ -22,8 +22,6 @@ from multiprocessing import Pool, Event, Queue, Manager, context
 import lxc  # typing: ignore
 import requests
 import structlog
-import transip.service
-from suds import WebFault
 from mypy_extensions import TypedDict
 
 import psef

@@ -98,6 +98,7 @@ def create_submission(test_client, assignment_id=None, err=None):
         'grade': None,
         'comment': None,
         'comment_author': None,
+        'grade_overridden': False,
     } if err is None else err_t
 
     return test_client.req(

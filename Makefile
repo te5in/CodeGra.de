@@ -14,11 +14,13 @@ test_setup:
 
 .PHONY: test_quick
 test_quick: test_setup
-	DEBUG=on env/bin/pytest -n auto --cov psef --cov-report term-missing $(TEST_FILE) -vvvvv -x $(TEST_FLAGS)
+	TEST_FLAGS+=" -x" $(MAKE) test
 
 .PHONY: test
 test: test_setup
-	DEBUG=on env/bin/pytest -n auto --cov psef --cov-report term-missing $(TEST_FILE) -vvvvv $(TEST_FLAGS)
+	DEBUG=on env/bin/pytest --postgresql=GENERATE --cov psef \
+	    --cov-report term-missing  --last-failed  $(TEST_FILE) -vvvvv \
+	    $(TEST_FLAGS)
 
 .PHONY: reset_db
 reset_db:

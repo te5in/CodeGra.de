@@ -608,12 +608,13 @@ def test_lti_grade_passback(
                     'grade': float,
                     'passed_back': True,
                     'user': dict,
+                    '__allow_extra__': True,
                 }
             ],
             headers={'Authorization': f'Bearer {token}'},
         )
 
-    # Updating while open shoudl passback straight away
+    # Updating while open should passback straight away
     set_grade(token, 6, work['id'])
     assert patch_request.called
     assert_grade_set_to(
@@ -865,6 +866,7 @@ def test_lti_grade_passback_blackboard(
                     'grade': float,
                     'passed_back': True,
                     'user': dict,
+                    '__allow_extra__': True,
                 }
             ],
             headers={'Authorization': f'Bearer {token}'},

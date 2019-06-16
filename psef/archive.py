@@ -336,7 +336,11 @@ class Archive(t.Generic[TT]):  # pylint: disable=unsubscriptable-object
         target_path = _safe_join(to_path)
 
         for member in self.get_members():
-            extract_path = _safe_join(target_path, member.name)
+            # Don't use `_safe_join` here as we detect unsafe joins here to
+            # raise an `UnsafeArchive` exception.
+            extract_path = path.normpath(
+                path.realpath(path.join(target_path, member.name))
+            )
 
             if not extract_path.startswith(target_path):
                 raise UnsafeArchive(

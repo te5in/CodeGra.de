@@ -967,6 +967,7 @@ def get_files_from_request(
 
     # Werkzeug >= 0.14.0 should check this, however the documentation is not
     # completely clear and it is better to blow up here than somewhere else.
+    # XXX: It seems that Werkzeug 0.15.0+ doesn't check this anymore...
     assert all(f.filename for f in res)
 
     return res

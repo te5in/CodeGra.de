@@ -821,6 +821,7 @@ def test_add_assignment(
                 'max_grade': None,
                 'group_set': None,
                 'division_parent_id': None,
+                'auto_test_id': None,
             }
         )
 

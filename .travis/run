@@ -10,18 +10,24 @@ set -o xtrace
 case "$TO_RUN" in
     "backend-tests")
         SQLALCHEMY_DATABASE_URI='postgresql:///travis_ci_test' ./manage.py db upgrade
-        pytest --cov psef --postgresql=travis_ci_test --cov-report term-missing -x "$(pwd)/psef_test/" -vvvv
+
+        pytest --cov psef \
+               --postgresql=travis_ci_test \
+               --cov-report term-missing \
+               "$(pwd)/psef_test/" \
+               -vvvv
         res="$?"
+
         if [[ "$res" -eq 0 ]]; then
             pytest --cov psef \
                    --cov-append \
                    --cov-report term-missing \
                    --postgresql=travis_ci_test \
                    --doctest-modules psef \
-                   -x \
                    -vvvv
             res="$?"
         fi
+
         set +o xtrace
         ;;
     "lint")

@@ -79,6 +79,7 @@ def rubric(
                     'description': original['rows'][0]['description'],
                     'id': int,
                     'items': list,
+                    'locked': False,
                 }
             ]
         )
@@ -160,6 +161,7 @@ def test_get_assignment(
                 'max_grade': None,
                 'group_set': None,
                 'division_parent_id': None,
+                'auto_test_id': None,
             }
         else:
             res = error_template
@@ -540,12 +542,9 @@ def test_get_and_add_rubric_row(
         code = 200 if marker is None else marker.kwargs['error']
         res = [
             {
-                'id':
-                    int,
-                'header':
-                    row['header'],
-                'description':
-                    row['description'],
+                'id': int,
+                'header': row['header'],
+                'description': row['description'],
                 'items':
                     [
                         {
@@ -555,6 +554,7 @@ def test_get_and_add_rubric_row(
                             'points': item['points'],
                         }
                     ],
+                'locked': False,
             }
         ] if marker is None else error_template
         res = res if marker is None else error_template
@@ -1101,6 +1101,7 @@ def test_upload_files(
                         'grade': None,
                         'comment': None,
                         'comment_author': None,
+                        'grade_overridden': False
                     }
                 )
 
@@ -1787,6 +1788,7 @@ def test_get_all_submissions(
                         'id': work.id,
                         'user': dict,
                         'created_at': work.created_at.isoformat(),
+                        'grade_overridden': False,
                     }
                 )
                 if extended:
@@ -4000,6 +4002,7 @@ def test_duplicating_rubric(
                         int,
                     'items':
                         list,
+                    'locked': False,
                 }
             ]
         )
@@ -4370,6 +4373,7 @@ def test_upload_files_with_duplicate_filenames(
                 'grade': None,
                 'comment': None,
                 'comment_author': None,
+                '__allow_extra__': True,
             }
         )
 

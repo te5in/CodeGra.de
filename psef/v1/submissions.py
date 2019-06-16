@@ -151,6 +151,8 @@ def get_zip(work: models.Work,
                                  user and the user can not view files in the
                                  attached course. (INCORRECT_PERMISSION)
     """
+    auth.ensure_can_view_files(work, exclude_owner == FileOwner.student)
+
     return {
         'name': work.create_zip(exclude_owner),
         'output_name': f'{work.assignment.name}-{work.user.name}-archive.zip'

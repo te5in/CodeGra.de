@@ -8,10 +8,10 @@ import uuid
 import shutil
 import datetime
 
+import alembic_autogenerate_enums
 from flask_script import Manager
 from flask_migrate import Migrate, MigrateCommand
 from sqlalchemy_utils import PasswordType
-import alembic_autogenerate_enums
 
 import psef
 import psef.models as m
@@ -64,7 +64,9 @@ def seed_force(db=None):
             else:
                 perm = psef.permissions.GlobalPermission.get_by_name(name)
 
-            old_perm = m.Permission.query.filter_by(value=perm).first()
+            old_perm = m.Permission.query.filter_by(
+                value=perm
+            ).first()
 
             if old_perm is not None:
                 old_perm.default_value = perm.value.default_value
@@ -97,11 +99,12 @@ def seed_force(db=None):
                 if (perm.default_value ^ (perm.value.name in perms_set)):
                     r_perms[perm.value] = perm
 
-            r = m.Role.query.filter_by(name=name).first()
+            r = m.Role.query.filter_by(name=name).with_for_update().first()
             if r is None:
                 db.session.add(m.Role(name=name, _permissions=r_perms))
             else:
                 r._permissions = r_perms
+
     db.session.commit()
 
 

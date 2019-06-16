@@ -5,8 +5,11 @@ import copy
 import json
 import uuid
 import random
+import string
+import secrets
 import datetime
 import contextlib
+import subprocess
 
 import pytest
 import flask_migrate
@@ -24,6 +27,21 @@ from psef.permissions import CoursePermission as CPerm
 TESTDB = 'test_project.db'
 TESTDB_PATH = "/tmp/psef/psef-{}-{}".format(TESTDB, random.random())
 TEST_DATABASE_URI = 'sqlite:///' + TESTDB_PATH
+
+_DATABASE = None
+
+
+def get_database_name(request):
+    global _DATABASE
+
+    if _DATABASE is None:
+        _DATABASE = request.config.getoption('--postgresql'), False
+        if _DATABASE[0] == 'GENERATE':
+            _DATABASE = ''.join(
+                x for x in secrets.token_hex(64) if x in string.ascii_lowercase
+            ), True
+
+    return _DATABASE
 
 
 def pytest_addoption(parser):
@@ -99,8 +117,8 @@ def app(request):
         'MIN_PASSWORD_SCORE': 3,
     }
     if request.config.getoption('--postgresql'):
-        print('Running with postgres!')
-        pdb = request.config.getoption('--postgresql')
+        pdb, _ = get_database_name(request)
+
         settings_override['SQLALCHEMY_DATABASE_URI'] = f'postgresql:///{pdb}'
         settings_override['_USING_SQLITE'] = False
     else:
@@ -210,7 +228,9 @@ def test_client(app):
                     assert vals[k] == value
 
             if is_list or not allowed_extra:
-                assert len(vals) == i
+                assert len(vals) == i, 'Difference in keys: {}'.format(
+                    set(vals) ^ set(tree)
+                )
 
         if result is not None:
             checker({'top': val}, {'top': result})
@@ -333,6 +353,17 @@ def db(app, request):
 
     if not request.config.getoption('--postgresql'):
         psef.models.db.create_all()
+    else:
+        db_name, generated = get_database_name(request)
+        if generated:
+            try:
+                subprocess.check_output(
+                    'psql -c "create database {}"'.format(db_name), shell=True
+                )
+            except subprocess.CalledProcessError as e:
+                print(e.stdout, file=sys.stderr)
+                print(e.stderr, file=sys.stderr)
+            psef.models.db.create_all()
 
     manage.app = app
     manage.seed_force(psef.models.db)
@@ -340,13 +371,23 @@ def db(app, request):
 
     psef.permissions.database_permissions_sanity_check(app)
 
-    yield psef.models.db
-
-    if request.config.getoption('--postgresql'):
-        psef.models.db.drop_all()
-        psef.models.db.create_all()
-    else:
-        os.unlink(TESTDB_PATH)
+    try:
+        yield psef.models.db
+    finally:
+        if request.config.getoption('--postgresql'):
+            db_name, generated = get_database_name(request)
+            if generated:
+                psef.models.db.drop_all()
+                psef.models.db.session.close_all()
+                psef.models.db.engine.dispose()
+                subprocess.check_call(
+                    'dropdb "{}"'.format(db_name),
+                    shell=True,
+                    stdout=sys.stdout,
+                    stderr=sys.stderr
+                )
+        else:
+            os.unlink(TESTDB_PATH)
 
 
 @pytest.fixture(autouse=True)
@@ -360,17 +401,19 @@ def session(app, db):
 
     psef.models.db.session = session
 
-    yield session
-
-    transaction.rollback()
-
     try:
-        session.remove()
-        connection.close()
-    except:
-        pass
+        yield session
+    finally:
+        transaction.rollback()
 
-    db.session.begin(subtransactions=True)
+        try:
+            session.remove()
+            connection.close()
+        except:
+            import traceback
+            traceback.print_exc(file=sys.stderr)
+
+        db.session.begin(subtransactions=True)
 
 
 @pytest.fixture

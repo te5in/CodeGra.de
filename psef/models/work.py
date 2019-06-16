@@ -790,7 +790,7 @@ class Work(Base):
             return False
 
     def create_zip(
-        self, exclude_owner: FileOwner, create_leading_directory: bool = False
+        self, exclude_owner: FileOwner, create_leading_directory: bool = True
     ) -> str:
         """Create zip in `MIRROR_UPLOADS` directory.
 

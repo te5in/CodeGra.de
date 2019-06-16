@@ -77,6 +77,7 @@ def test_get_grade_history(
                     'grade': grade + 1,
                     'passed_back': False,
                     'user': dict,
+                    'origin': 'human',
                 },
                 {
                     'changed_at': str,
@@ -84,6 +85,7 @@ def test_get_grade_history(
                     'grade': grade,
                     'passed_back': False,
                     'user': dict,
+                    'origin': 'human',
                 }
             ]
         )
@@ -107,6 +109,7 @@ def test_get_grade_history(
                     'grade': -1,
                     'passed_back': False,
                     'user': dict,
+                    'origin': 'human',
                 },
                 {
                     'changed_at': str,
@@ -114,6 +117,7 @@ def test_get_grade_history(
                     'grade': grade + 1,
                     'passed_back': False,
                     'user': dict,
+                    'origin': 'human',
                 },
                 {
                     'changed_at': str,
@@ -121,6 +125,7 @@ def test_get_grade_history(
                     'grade': grade,
                     'passed_back': False,
                     'user': dict,
+                    'origin': 'human',
                 }
             ]
         )
@@ -191,20 +196,15 @@ def test_patch_submission(
             f'/api/v1/submissions/{work_id}',
             200,
             result={
-                'id':
-                    work_id,
-                'assignee':
-                    None,
-                'user':
-                    dict,
-                'created_at':
-                    str,
-                'grade':
-                    None if error else grade,
-                'comment':
-                    None if error else feedback,
+                'id': work_id,
+                'assignee': None,
+                'user': dict,
+                'created_at': str,
+                'grade': None if error else grade,
+                'comment': None if error else feedback,
                 'comment_author':
                     (None if error or 'feedback' not in data else dict),
+                'grade_overridden': False,
             }
         )
         assert 'email' not in res['user']
@@ -252,6 +252,7 @@ def test_delete_grade_submission(
                 'grade': None,
                 'comment': 'ww',
                 'comment_author': dict,
+                'grade_overridden': False
             }
         )
         assert res['comment_author']['id'] == ta_user.id
@@ -976,15 +977,13 @@ def test_get_zip_file(
                 zfiles = zipfile.ZipFile(io.BytesIO(res.get_data()))
                 files = zfiles.infolist()
                 files = set(f.filename for f in files)
-                assert files == set(
-                    [
-                        'multiple_dir_archive.zip/',
-                        'multiple_dir_archive.zip/dir/single_file_work',
-                        'multiple_dir_archive.zip/dir/single_file_work_copy',
-                        'multiple_dir_archive.zip/dir2/single_file_work',
-                        'multiple_dir_archive.zip/dir2/single_file_work_copy',
-                    ]
-                )
+                assert files == {
+                    'multiple_dir_archive.zip/',
+                    'multiple_dir_archive.zip/dir/single_file_work',
+                    'multiple_dir_archive.zip/dir/single_file_work_copy',
+                    'multiple_dir_archive.zip/dir2/single_file_work',
+                    'multiple_dir_archive.zip/dir2/single_file_work_copy',
+                }
 
                 res = test_client.get(f'/api/v1/files/{file_name}')
                 assert res.status_code == 404
@@ -1014,7 +1013,7 @@ def test_get_teacher_zip_file(
                 },
             )
             if error:
-                return set()
+                return object()
 
             file_name = res['name']
             res = test_client.get(f'/api/v1/files/{file_name}')
