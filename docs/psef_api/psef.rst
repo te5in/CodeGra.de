@@ -74,14 +74,6 @@ Source code documentation of ``psef``
     :undoc-members:
     :show-inheritance:
 
-``psef.json_encoders``
---------------------------
-
-.. automodule:: psef.json_encoders
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
 ``psef.linters``
 ---------------------------
 

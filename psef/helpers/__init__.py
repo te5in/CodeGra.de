@@ -1040,6 +1040,9 @@ def is_sublist(needle: t.Sequence[T], hay: t.Sequence[T]) -> bool:
 
 
 class BrokerSession(requests.Session):
+    """A session to use when doing requests to the AutoTest broker.
+    """
+
     def __init__(self) -> None:
         super().__init__()
         self.headers.update(
@@ -1052,6 +1055,8 @@ class BrokerSession(requests.Session):
     def request(
         self, method: str, url: str, *args: t.Any, **kwargs: t.Any
     ) -> requests.Response:
+        """Do a request to the AutoTest broker.
+        """
         url = urllib.parse.urljoin(
             psef.app.config['AUTO_TEST_BROKER_URL'], url
         )

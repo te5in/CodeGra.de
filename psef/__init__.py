@@ -96,7 +96,7 @@ def enable_testing() -> None:
     _current_tester = True
 
 
-if t.TYPE_CHECKING:  # pragma: no cover
+if t.TYPE_CHECKING and not getattr(t, 'SPHINX', False):  # pragma: no cover
     import psef.models
     current_user: 'psef.models.User' = t.cast('psef.models.User', None)
 else:
