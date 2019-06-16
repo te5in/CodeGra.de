@@ -22,7 +22,6 @@ case "$TO_RUN" in
             pytest --cov psef \
                    --cov-append \
                    --cov-report term-missing \
-                   --postgresql=travis_ci_test \
                    --doctest-modules psef \
                    -vvvv
             res="$?"

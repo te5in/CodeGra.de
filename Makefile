@@ -22,6 +22,14 @@ test: test_setup
 	    --cov-report term-missing  --last-failed  $(TEST_FILE) -vvvvv \
 	    $(TEST_FLAGS)
 
+.PHONY: doctest
+doctest: test_setup
+	pytest --cov psef \
+	       --cov-append \
+	       --cov-report term-missing \
+	       --doctest-modules psef \
+	       -vvvvv
+
 .PHONY: reset_db
 reset_db:
 	DEBUG_ON=True ./.scripts/reset_database.sh

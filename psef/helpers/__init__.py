@@ -30,9 +30,10 @@ from cg_json import (
     JSONResponse, ExtendedJSONResponse, jsonify, extended_jsonify
 )
 from cg_timers import timed_code
+from cg_sqlalchemy_helpers.types import Base, MyQuery, DbColumn
 
 from . import features, validate
-from .. import errors, models, current_tester
+from .. import errors, current_tester
 
 if t.TYPE_CHECKING and not getattr(t, 'SPHINX', False):  # pragma: no cover
     import psef.archive
@@ -238,7 +239,7 @@ class EmptyResponse:
 
 def get_in_or_error(
     model: t.Type[Y],
-    in_column: models.DbColumn[T],
+    in_column: DbColumn[T],
     in_values: t.List[T],
     options: t.Optional[t.List[t.Any]] = None,
 ) -> t.List[Y]:
@@ -261,7 +262,9 @@ def get_in_or_error(
     if not in_values:
         return []
 
-    query = models.db.session.query(model).filter(in_column.in_(in_values))
+    query = psef.models.db.session.query(model).filter(
+        in_column.in_(in_values)
+    )
 
     if options is not None:
         query = query.options(*options)
@@ -310,7 +313,7 @@ def filter_all_or_404(model: t.Type[Y], *criteria: t.Any) -> t.Sequence[Y]:
     criteria.
 
     .. note::
-        ``Y`` is bound to :py:class:`models.Base`, so it should be a
+        ``Y`` is bound to :py:class:`.Base`, so it should be a
         SQLAlchemy model.
 
     :param model: The object to get.
@@ -332,7 +335,7 @@ def filter_single_or_404(
     exception.
 
     .. note::
-        ``Y`` is bound to :py:class:`models.Base`, so it should be a
+        ``Y`` is bound to :py:class:`.Base`, so it should be a
         SQLAlchemy model.
 
     :param model: The object to get.
@@ -354,7 +357,7 @@ def get_or_404(
     """Get the specified object by primary key or raise an exception.
 
     .. note::
-        ``Y`` is bound to :py:class:`models.Base`, so it should be a
+        ``Y`` is bound to :py:class:`.Base`, so it should be a
         SQLAlchemy model.
 
     :param model: The object to get.
@@ -369,7 +372,7 @@ def get_or_404(
     :raises APIException: If no object with the given id could be found.
         (OBJECT_ID_NOT_FOUND)
     """
-    query = models.db.session.query(model)
+    query = psef.models.db.session.query(model)
     if options is not None:
         query = query.options(*options)
     obj: t.Optional[Y] = query.get(object_id)
@@ -384,8 +387,8 @@ def get_or_404(
 
 
 def filter_users_by_name(
-    query: str, base: 'models._MyQuery[models.User]', *, limit: int = 25
-) -> 'models._MyQuery[models.User]':
+    query: str, base: 'MyQuery[psef.models.User]', *, limit: int = 25
+) -> 'MyQuery[psef.models.User]':
     """Find users from the given base query using the given query string.
 
     :param query: The string to filter usernames and names of users with.
@@ -405,11 +408,11 @@ def filter_users_by_name(
             '%{}%'.format(
                 escape_like(query).replace(' ', '%'),
             )
-        ) for col in [models.User.name, models.User.username]
+        ) for col in [psef.models.User.name, psef.models.User.username]
     ]
 
     return base.filter(or_(*likes)).order_by(
-        t.cast(models.DbColumn[str], models.User.name)
+        t.cast(DbColumn[str], psef.models.User.name)
     ).limit(limit)
 
 
@@ -1034,11 +1037,6 @@ def is_sublist(needle: t.Sequence[T], hay: t.Sequence[T]) -> bool:
             index += table.get(hay[index], len(needle))
             needle_index = len(needle) - 1
     return False
-
-
-class SerializableEnum(enum.Enum):
-    def __to_json__(self) -> str:
-        return self.name
 
 
 class BrokerSession(requests.Session):

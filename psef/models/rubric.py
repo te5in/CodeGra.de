@@ -10,6 +10,8 @@ import datetime
 
 from mypy_extensions import TypedDict
 
+import cg_json
+
 from . import Base, db, _MyQuery
 from . import assignment as assignment_models
 from .. import helpers
@@ -17,7 +19,7 @@ from ..exceptions import APICodes, APIException
 from .link_tables import work_rubric_item
 
 
-class RubricLockReason(helpers.SerializableEnum, enum.Enum):
+class RubricLockReason(cg_json.SerializableEnum, enum.Enum):
     auto_test = enum.auto()
 
 

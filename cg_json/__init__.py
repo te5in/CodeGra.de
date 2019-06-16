@@ -1,3 +1,4 @@
+import enum
 import typing as t
 from json import JSONEncoder
 
@@ -7,6 +8,11 @@ from flask import current_app
 
 T = t.TypeVar('T')
 logger = structlog.get_logger()
+
+
+class SerializableEnum(enum.Enum):
+    def __to_json__(self) -> str:
+        return self.name
 
 
 class ExtendedJSONResponse(t.Generic[T]):
