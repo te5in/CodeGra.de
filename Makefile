@@ -100,7 +100,7 @@ shrinkwrap:
 	npm shrinkwrap --dev
 
 pylint:
-	pylint psef cg_celery cg_model_types --rcfile=setup.cfg
+	pylint psef $(PY_MODULES) --rcfile=setup.cfg
 
 isort_check:
 	isort --check-only --diff --recursive $(PY_ALL_MODULES)
