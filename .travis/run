@@ -14,6 +14,8 @@ fi
 
 case "$TO_RUN" in
     "coverage")
+        TEST_FLAGS="--postgresql=travis_ci_test"
+        SQLALCHEMY_DATABASE_URI='postgresql:///travis_ci_test' ./manage.py db upgrade
         pytest --cov psef --cov-report term-missing "$(pwd)/psef_test/" -vvvv
         res="$?"
         if [[ "$res" -eq 0 ]]; then

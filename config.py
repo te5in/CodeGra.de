@@ -306,9 +306,17 @@ set_str(CONFIG, backend_ops, 'JAVA_PATH', 'java')
 
 set_str(CONFIG, backend_ops, 'JPLAG_JAR', 'jplag.jar')
 
-CONFIG['_VERSION'] = subprocess.check_output(
-    ['git', 'describe', '--abbrev=0', '--tags']
-).decode('utf-8').strip()
+try:
+    CONFIG['_VERSION'] = subprocess.check_output(
+        ['git', 'describe', '--abbrev=0', '--tags']
+    ).decode('utf-8').strip()
+except subprocess.CalledProcessError as e:
+    print('An error occurred trying to get the version')
+    print('stdout:')
+    print(e.stdout)
+    print('stderr:')
+    print(e.stderr)
+    raise
 
 # Set email settings
 set_str(CONFIG, backend_ops, 'MAIL_SERVER', 'localhost')

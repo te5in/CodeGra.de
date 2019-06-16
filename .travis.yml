@@ -27,8 +27,8 @@ matrix:
   include:
     - python: "3.7"
       env: TO_RUN="coverage"
-    - python: "3.7"
-      env: TO_RUN="postgres-test"
+    # - python: "3.7"
+    #   env: TO_RUN="postgres-test"
     - python: "3.7"
       env: TO_RUN="lint"
     - python: "3.7"
