@@ -36,7 +36,7 @@ matrix:
 
 before_install:
   - sudo apt-get update
-  - sudo apt-get install  -y lxc lxc-dev lxcfs libvirt0 libssl-ocaml-dev
+  - sudo apt-get install  -y lxc lxc-dev lxcfs libvirt0 libssl-ocaml-dev git
 
 install:
   - pip install -U wheel
