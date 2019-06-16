@@ -161,7 +161,7 @@ def escape_like(unescaped_like: str) -> str:
 
     >>> escape_like('hello')
     'hello'
-    >>> escape_like('This is % a _ string\%')
+    >>> escape_like('This is % a _ string\\%')
     'This is \\% a \\_ string\\\\\\%'
     >>> escape_like('%')
     '\\%'
