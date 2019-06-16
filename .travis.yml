@@ -26,9 +26,7 @@ env:
 matrix:
   include:
     - python: "3.7"
-      env: TO_RUN="coverage"
-    # - python: "3.7"
-    #   env: TO_RUN="postgres-test"
+      env: TO_RUN="backend-tests"
     - python: "3.7"
       env: TO_RUN="lint"
     - python: "3.7"
@@ -64,8 +62,8 @@ before_script:
 
 script:
   - bash ./.travis/run
-  - "[[ $TO_RUN = 'coverage' ]] && travis-sphinx build --source=docs/ || true"
+  - "[[ $TO_RUN = 'backend-tests' ]] && travis-sphinx build --source=docs/ || true"
 
 after_success:
-  - "[[ $TO_RUN = 'coverage' ]] && ( coveralls; codecov; travis-sphinx deploy -c docs.codegra.de; )"
+  - "[[ $TO_RUN = 'backend-tests' ]] && ( coveralls; codecov; travis-sphinx deploy -c docs.codegra.de; )"
   - "[[ $TO_RUN = 'js_unit' ]] && ./cc-test-reporter after-build -t lcov --exit-code $TRAVIS_TEST_RESULT"
