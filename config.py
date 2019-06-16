@@ -316,7 +316,7 @@ except subprocess.CalledProcessError as e:
     print(e.stdout)
     print('stderr:')
     print(e.stderr)
-    raise
+    CONFIG['_VERSION'] = 'no.git.available'
 
 # Set email settings
 set_str(CONFIG, backend_ops, 'MAIL_SERVER', 'localhost')
