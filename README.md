@@ -77,12 +77,6 @@
       alt="License AGPL-3.0-only" title="License AGPL-3.0-only">
   </a>
 </p>
-<p align="center">
-  <a href="https://waffle.io/CodeGra-de/CodeGra.de/metrics">
-    <img src="https://graphs.waffle.io/CodeGra-de/CodeGra.de/throughput.svg"
-      alt="Metrics on waffle.io" title="Metrics on waffle.io">
-  </a>
-</p>
 
 # CodeGrade
 CodeGrade is a blended learning application designed especially for programming
