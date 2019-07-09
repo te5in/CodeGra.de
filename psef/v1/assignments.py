@@ -461,6 +461,15 @@ def delete_rubric(assignment_id: int) -> EmptyResponse:
             APICodes.OBJECT_ID_NOT_FOUND, 404
         )
 
+    if assig.locked_rubric_rows:
+        raise APIException(
+            'You cannot delete a rubric with locked rows', (
+                'The rows with ids {} are locked, so the rubric cannot be'
+                ' deleted'
+            ).format(', '.join(map(str, assig.locked_rubric_rows))),
+            APICodes.INVALID_STATE, 409
+        )
+
     assig.rubric_rows = []
 
     db.session.commit()
@@ -569,6 +578,19 @@ def add_assignment_rubric(assignment_id: int
             helpers.ensure_keys_in_dict(content, [('rows', list)])
             rows = t.cast(t.List[JSONType], content['rows'])
             new_rubric_rows = [process_rubric_row(r) for r in rows]
+            new_row_ids = set(
+                row.id for row in new_rubric_rows if row.id is not None
+            )
+
+            if any(
+                lock_row_id not in new_row_ids
+                for lock_row_id in assig.locked_rubric_rows
+            ):
+                raise APIException(
+                    'You cannot delete a locked rubric row.',
+                    'Not all locked rubric rows were present in `rows`.',
+                    APICodes.INVALID_STATE, 400
+                )
 
             if any(not row.is_valid for row in new_rubric_rows):
                 wrong_rows = [r for r in new_rubric_rows if not r.is_valid]
@@ -891,6 +913,16 @@ def divide_assignments(assignment_id: int) -> EmptyResponse:
         graders[int(user_id)] = weight
 
     if graders:
+        if any(w < 0 for w in graders.values()):
+            negative_graders = ', '.join(
+                (str(g) for g, w in graders.items() if w < 0),
+            )
+            raise APIException(
+                'Weights must be positive.', (
+                    f'The graders {negative_graders} have been assigned a'
+                    ' negative weight'
+                ), APICodes.INVALID_PARAM, 400
+            )
         users = helpers.filter_all_or_404(
             models.User,
             models.User.id.in_(graders.keys())  # type: ignore
@@ -1129,9 +1161,27 @@ def get_all_works_for_assignment(
 
     obj = models.Work.query.filter_by(
         assignment_id=assignment_id,
-    ).options(joinedload(
-        models.Work.selected_items,
-    )).order_by(t.cast(t.Any, models.Work.created_at).desc())
+    ).options(
+        joinedload(
+            models.Work.selected_items,
+        ),
+        # We want to load all users directly. We do this by loading the user,
+        # which might be a group. For such groups we also load all users.
+        # The users in this group will never be a group, so the last
+        # `selectinload` here might be seen as strange. However, during the
+        # serialization of a group we access `User.group`, which checks if a
+        # user is really not a group. To prevent these last queries the last
+        # `selectinload` is needed here.
+        selectinload(
+            models.Work.user,
+        ).selectinload(
+            models.User.group,
+        ).selectinload(
+            models.Group.members,
+        ).selectinload(
+            models.User.group,
+        )
+    ).order_by(t.cast(t.Any, models.Work.created_at).desc())
 
     if not current_user.has_permission(
         CPerm.can_see_others_work, course_id=assignment.course_id
@@ -1555,7 +1605,7 @@ def start_plagiarism_check(
                 child,
                 psef.files.ExtractFileTreeFile,
             ) and archive.Archive.is_archive(child.name):
-                child_path = os.path.join(
+                child_path = psef.files.safe_join(
                     current_app.config['UPLOAD_DIR'], child.disk_name
                 )
                 with open(child_path, 'rb') as f:

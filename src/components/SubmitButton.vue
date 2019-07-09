@@ -6,7 +6,7 @@
           :disabled="isDisabled"
           :variant="currentVariant"
           :size="size"
-          @click="onClick">
+          @click.stop="onClick">
 
     <span class="label success">
         <slot name="success-label">
@@ -36,6 +36,7 @@
 
     <b-popover :placement="popoverPlacement"
                :show="!!error"
+               :container="container"
                :target="btnId"
                triggers=""
                @hide="onHideError">
@@ -68,6 +69,7 @@
 
     <b-popover v-if="confirm.length > 0"
                :placement="popoverPlacement"
+               :container="container"
                :show="confirmVisible"
                :target="btnId"
                triggers=""
@@ -101,7 +103,7 @@ import 'vue-awesome/icons/times';
 import 'vue-awesome/icons/check';
 import 'vue-awesome/icons/warning';
 
-import { parseWarningHeader, waitAtLeast } from '@/utils';
+import { getErrorMessage, parseWarningHeader, waitAtLeast } from '@/utils';
 
 import Loader from './Loader';
 
@@ -184,6 +186,10 @@ export default {
             type: Number,
             default: 1,
         },
+
+        container: {
+            default: undefined,
+        },
     },
 
     data() {
@@ -210,20 +216,7 @@ export default {
         },
 
         stringifiedError() {
-            const err = this.error;
-            let msg;
-
-            if (err == null) {
-                return '';
-            } else if (err.response && err.response.data) {
-                msg = err.response.data.message;
-            } else if (err instanceof Error) {
-                msg = err.message;
-            } else {
-                msg = err.toString();
-            }
-
-            return msg || 'Something unknown went wrong';
+            return getErrorMessage(this.error);
         },
 
         isDisabled() {
@@ -247,9 +240,12 @@ export default {
         doSubmit() {
             this.state = 'pending';
 
-            waitAtLeast(this.waitAtLeast, Promise.resolve().then(this.submit))
-                .then(this.filterSuccess, this.filterError)
-                .then(this.onSuccess, this.onError);
+            let promise = Promise.resolve().then(this.submit);
+            if (this.waitAtLeast > 0) {
+                promise = waitAtLeast(this.waitAtLeast, promise);
+            }
+
+            promise.then(this.filterSuccess, this.filterError).then(this.onSuccess, this.onError);
         },
 
         onSuccess(data, fromWarning = false) {
@@ -304,9 +300,6 @@ export default {
             this.$emit('error', err);
             this.state = 'error';
             this.error = err;
-
-            // eslint-disable-next-line
-            console.error(err);
         },
 
         hideError() {

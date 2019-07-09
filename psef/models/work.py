@@ -3,8 +3,12 @@
 SPDX-License-Identifier: AGPL-3.0-only
 """
 
+import os
+import enum
 import typing as t
+import zipfile
 import datetime
+import tempfile
 from collections import defaultdict
 
 import sqlalchemy.sql as sql
@@ -13,10 +17,10 @@ from sqlalchemy import orm
 import psef
 
 from . import Base, DbColumn, db
+from . import file as file_models
 from . import group as group_models
 from . import _MyQuery
 from .. import auth, helpers, features
-from .file import File, FileOwner
 from .linter import LinterState, LinterComment, LinterInstance
 from .rubric import RubricItem
 from .comment import Comment
@@ -28,6 +32,13 @@ if t.TYPE_CHECKING:  # pragma: no cover
     # pylint: disable=unused-import
     from . import user as user_models
     from . import assignment as assignment_models
+
+
+class GradeOrigin(enum.Enum):
+    """What is the origin of this grade history entry.
+    """
+    human = enum.auto()
+    auto_test = enum.auto()
 
 
 class GradeHistory(Base):
@@ -62,7 +73,13 @@ class GradeHistory(Base):
         'User_id',
         db.Integer,
         db.ForeignKey('User.id', ondelete='CASCADE'),
+    )
+
+    grade_origin = db.Column(
+        'grade_origin',
+        db.Enum(GradeOrigin),
         nullable=False,
+        server_default=GradeOrigin.human.name,
     )
 
     work = db.relationship(
@@ -73,9 +90,17 @@ class GradeHistory(Base):
         ),
         innerjoin=True,
     )  # type: 'Work'
+
     user = db.relationship(
         'User', foreign_keys=user_id
     )  # type: user_models.User
+
+    __table_args__ = (
+        db.CheckConstraint(
+            "grade_origin != 'human' OR \"User_id\" IS NOT NULL",
+            name='grade_history_grade_origin_check',
+        ),
+    )
 
     def __to_json__(self) -> t.Mapping[str, t.Any]:
         """Converts a rubric of a work to a object that is JSON serializable.
@@ -90,7 +115,7 @@ class GradeHistory(Base):
                                    # grade.
                 'grade': float, # The new grade, -1 if the grade was deleted.
                 'passed_back': bool, # Is this grade given back to LTI.
-                'user': user_models.User, # The user that added this grade.
+                'user': t.Optional[user_models.User], # The user that added this grade.
             }
 
         :returns: A object as described above.
@@ -101,6 +126,7 @@ class GradeHistory(Base):
             'grade': self.grade,
             'passed_back': self.passed_back,
             'user': self.user,
+            'origin': self.grade_origin.name,
         }
 
 
@@ -164,7 +190,7 @@ class Work(Base):
     grade_histories: t.List['GradeHistory']
 
     # This variable is generated from the backref from all files
-    files: 't.List["File"]'
+    files: 't.List["file_models.File"]'
 
     def divide_new_work(self) -> None:
         """Divide a freshly created work.
@@ -241,23 +267,49 @@ class Work(Base):
             )
         return self._grade
 
-    def set_grade(
+    @t.overload
+    def set_grade(  # pylint: disable=function-redefined,missing-docstring,unused-argument,no-self-use
         self,
         new_grade: t.Optional[float],
         user: 'user_models.User',
         never_passback: bool = False,
+    ) -> GradeHistory:
+        ...
+
+    @t.overload
+    def set_grade(  # pylint: disable=function-redefined,missing-docstring,unused-argument,no-self-use
+        self,
+        *,
+        never_passback: bool = False,
+        grade_origin: GradeOrigin,
+    ) -> GradeHistory:
+        ...
+
+    def set_grade(  # pylint: disable=function-redefined
+        self,
+        new_grade: t.Union[float, None, helpers.MissingType] = helpers.MISSING,
+        user: t.Optional['user_models.User'] = None,
+        never_passback: bool = False,
+        grade_origin: GradeOrigin = GradeOrigin.human,
     ) -> GradeHistory:
         """Set the grade to the new grade.
 
         .. note:: This also passes back the grade to LTI if this is necessary
             (see :py:func:`passback_grade`).
 
+        .. note:: If ``grade_origin`` is ``human`` the ``user`` is required.
+
         :param new_grade: The new grade to set
         :param user: The user setting the new grade.
+        :param grade_origin: The way this grade was given.
         :param never_passback: Never passback the new grade.
         :returns: Nothing
         """
-        self._grade = new_grade
+        assert grade_origin != GradeOrigin.human or user is not None
+
+        if new_grade is not helpers.MISSING:
+            assert isinstance(new_grade, (float, int, type(None)))
+            self._grade = new_grade
         passback = self.assignment.should_passback
         grade = self.grade
         history = GradeHistory(
@@ -265,7 +317,8 @@ class Work(Base):
             grade=-1 if grade is None else grade,
             passed_back=False,
             work=self,
-            user=user
+            user=user,
+            grade_origin=grade_origin,
         )
         self.grade_histories.append(history)
 
@@ -357,20 +410,23 @@ class Work(Base):
         .. code:: python
 
             {
-                'id': int # Submission id.
-                'user': user_models.User # User that submitted this work.
-                'created_at': str # Submission date in ISO-8601 datetime
-                                  # format.
-                'grade': t.Optional[float] # Grade for this submission, or
-                                           # None if the submission hasn't
-                                           # been graded yet or if the
-                                           # logged in user doesn't have
-                                           # permission to see the grade.
-                'assignee': t.Optional[user_models.User]
-                                           # User assigned to grade this
-                                           # submission, or None if the logged
-                                           # in user doesn't have permission to
-                                           # see the assignee.
+                'id': int, # Submission id
+                'user': user_models.User, # User that submitted this work.
+                'created_at': str, # Submission date in ISO-8601 datetime
+                                   # format.
+                'grade': t.Optional[float], # Grade for this submission, or
+                                            # None if the submission hasn't
+                                            # been graded yet or if the
+                                            # logged in user doesn't have
+                                            # permission to see the grade.
+                'assignee': t.Optional[user_models.User],
+                                            # User assigned to grade this
+                                            # submission, or None if the logged
+                                            # in user doesn't have permission
+                                            # to see the assignee.
+                'grade_overridden': bool, # Does this submission have a
+                                          # rubric grade which has been
+                                          # overridden.
             }
 
         :returns: A dict containing JSON serializable representations of the
@@ -394,8 +450,14 @@ class Work(Base):
             auth.ensure_can_see_grade(self)
         except PermissionException:
             item['grade'] = None
+            item['grade_overridden'] = False
         else:
             item['grade'] = self.grade
+            item['grade_overridden'] = (
+                self._grade is not None and
+                self.assignment.max_rubric_points is not None
+            )
+
         return item
 
     def __extended_to_json__(self) -> t.Mapping[str, t.Any]:
@@ -474,27 +536,26 @@ class Work(Base):
 
         .. todo:: Remove the points object.
         """
+        res = {
+            'rubrics': self.assignment.rubric_rows,
+            'selected': [],
+            'points': {
+                'max': None,
+                'selected': None,
+            },
+        }
         try:
             psef.auth.ensure_can_see_grade(self)
-
-            return {
-                'rubrics': self.assignment.rubric_rows,
-                'selected': self.selected_items,
-                'points':
-                    {
-                        'max': self.assignment.max_rubric_points,
-                        'selected': self.selected_rubric_points,
-                    },
-            }
         except PermissionException:
-            return {
-                'rubrics': self.assignment.rubric_rows,
-                'selected': [],
-                'points': {
-                    'max': None,
-                    'selected': None,
-                },
+            pass
+        else:
+            res['selected'] = self.selected_items
+            res['points'] = {
+                'max': self.assignment.max_rubric_points,
+                'selected': self.selected_rubric_points,
             }
+
+        return res
 
     def add_file_tree(
         self, tree: 'psef.files.ExtractFileTreeDirectory'
@@ -512,8 +573,8 @@ class Work(Base):
     def _add_file_tree(
         self,
         tree: 'psef.files.ExtractFileTreeDirectory',
-        top: t.Optional['File'],
-    ) -> 'File':
+        top: t.Optional['file_models.File'],
+    ) -> 'file_models.File':
         """Add the given tree to the session with top as parent.
 
         :param tree: The file tree as described by
@@ -521,7 +582,7 @@ class Work(Base):
         :param top: The parent file
         :returns: Nothing
         """
-        new_top = File(
+        new_top = file_models.File(
             work=self,
             is_directory=True,
             name=tree.name,
@@ -532,7 +593,7 @@ class Work(Base):
             if isinstance(child, psef.files.ExtractFileTreeDirectory):
                 self._add_file_tree(child, new_top)
             elif isinstance(child, psef.files.ExtractFileTreeFile):
-                File(
+                file_models.File(
                     work=self,
                     name=child.name,
                     filename=child.disk_name,
@@ -555,7 +616,8 @@ class Work(Base):
 
         def __get_user_feedback() -> t.Iterable[str]:
             comments = Comment.query.filter(
-                t.cast(DbColumn[File], Comment.file).has(work=self),
+                t.cast(DbColumn[file_models.File],
+                       Comment.file).has(work=self),
             ).order_by(
                 t.cast(DbColumn[int], Comment.file_id).asc(),
                 t.cast(DbColumn[int], Comment.line).asc(),
@@ -601,7 +663,7 @@ class Work(Base):
     def search_file_filters(
         self,
         pathname: str,
-        exclude: FileOwner,
+        exclude: 'file_models.FileOwner',
     ) -> t.List[t.Any]:
         """Get the filters needed to search for a file in the this directory
         with a given name.
@@ -619,29 +681,31 @@ class Work(Base):
             if parent is not None:
                 parent = parent.c.id
 
-            parent = db.session.query(t.cast(DbColumn[int], File.id)).filter(
-                File.name == pathpart,
-                File.parent_id == parent,
-                File.work_id == self.id,
-                File.is_directory,
+            parent = db.session.query(
+                t.cast(DbColumn[int], file_models.File.id)
+            ).filter(
+                file_models.File.name == pathpart,
+                file_models.File.parent_id == parent,
+                file_models.File.work_id == self.id,
+                file_models.File.is_directory,
             ).subquery(f'parent_{idx}')
 
         if parent is not None:
             parent = parent.c.id
 
         return [
-            File.work_id == self.id,
-            File.name == patharr[-1],
-            File.parent_id == parent,
-            File.fileowner != exclude,
-            File.is_directory == is_dir,
+            file_models.File.work_id == self.id,
+            file_models.File.name == patharr[-1],
+            file_models.File.parent_id == parent,
+            file_models.File.fileowner != exclude,
+            file_models.File.is_directory == is_dir,
         ]
 
     def search_file(
         self,
         pathname: str,
-        exclude: 'FileOwner',
-    ) -> 'File':
+        exclude: 'file_models.FileOwner',
+    ) -> 'file_models.File':
         """Search for a file in the this directory with the given name.
 
         :param pathname: The path of the file to search for, this may contain
@@ -652,12 +716,13 @@ class Work(Base):
         """
 
         return psef.helpers.filter_single_or_404(
-            File,
+            file_models.File,
             *self.search_file_filters(pathname, exclude),
         )
 
-    def get_file_children_mapping(self, exclude: 'FileOwner'
-                                  ) -> t.Mapping[int, t.Sequence['File']]:
+    def get_file_children_mapping(
+        self, exclude: 'file_models.FileOwner'
+    ) -> t.Mapping[int, t.Sequence['file_models.File']]:
         """Get a mapping that maps a file id to all its children.
 
         This implementation does a single query to the database and runs in
@@ -671,9 +736,10 @@ class Work(Base):
         :returns: A mapping from file id to list of all its children for this
             submission.
         """
-        cache: t.Mapping[int, t.List[File]] = defaultdict(list)
-        files = File.query.filter(
-            File.work == self, File.fileowner != exclude
+        cache: t.Mapping[int, t.List['file_models.File']] = defaultdict(list)
+        files = file_models.File.query.filter(
+            file_models.File.work == self,
+            file_models.File.fileowner != exclude
         ).all()
         # We sort in Python as this increases consistency between different
         # server platforms, Python also has better defaults.
@@ -729,3 +795,43 @@ class Work(Base):
             return True
         else:
             return False
+
+    def create_zip(
+        self,
+        exclude_owner: 'file_models.FileOwner',
+        create_leading_directory: bool = True
+    ) -> str:
+        """Create zip in `MIRROR_UPLOADS` directory.
+
+        :param exclude_owner: Which files to exclude.
+        :returns: The name of the zip file in the `MIRROR_UPLOADS` dir.
+        """
+        path, name = psef.files.random_file_path(True)
+
+        with open(
+            path,
+            'w+b',
+        ) as f, tempfile.TemporaryDirectory(
+            suffix='dir',
+        ) as tmpdir, zipfile.ZipFile(
+            f,
+            'w',
+            compression=zipfile.ZIP_DEFLATED,
+        ) as zipf:
+            # Restore the files to tmpdir
+            tree_root = psef.files.restore_directory_structure(
+                self, tmpdir, exclude_owner
+            )
+
+            if create_leading_directory:
+                zipf.write(tmpdir, tree_root['name'])
+                leading_len = len(tmpdir)
+            else:
+                leading_len = len(tmpdir) + len('/') + len(tree_root['name'])
+
+            for root, _dirs, files in os.walk(tmpdir):
+                for file in files:
+                    path = psef.files.safe_join(root, file)
+                    zipf.write(path, path[leading_len:])
+
+        return name

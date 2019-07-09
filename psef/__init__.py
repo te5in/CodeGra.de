@@ -4,41 +4,24 @@ this backend is named ``psef``.
 
 SPDX-License-Identifier: AGPL-3.0-only
 """
-import os
-import sys
-import json as system_json
-import uuid
-import types
 import typing as t
-import logging
-import datetime
 
-import flask
 import structlog
 import flask_jwt_extended as flask_jwt
-from flask import g, jsonify, request
+from flask import Response
 from flask_limiter import Limiter, RateLimitExceeded
+from werkzeug.local import LocalProxy
+
+import cg_logger
+from cg_json import jsonify
 
 if t.TYPE_CHECKING and getattr(
     t, 'SPHINX', False
 ) is not True:  # pragma: no cover
     from config import FlaskConfig
-    from json import JSONEncoder
+    from flask import Flask
 
     current_app: 'psef.Flask'
-
-    class Flask:
-        """A stub for flask.
-        """
-
-        def __init__(self, _: str) -> None:
-            self.before_request: t.Callable
-            self.after_request: t.Callable
-            self.errorhandler: t.Callable
-            self.teardown_request: t.Callable
-            self.app_context: t.Callable
-            self.config: FlaskConfig
-            self.json_encoder = JSONEncoder
 else:
     from flask import Flask, current_app  # type: ignore
 
@@ -48,6 +31,10 @@ class PsefFlask(Flask):
 
     This contains the extra property :meth:`.PsefFlask.do_sanity_checks`.
     """
+    config: 'FlaskConfig'  # type: ignore
+
+    def __init__(self, name: str) -> None:
+        super().__init__(name)
 
     @property
     def max_single_file_size(self) -> 'psef.archive.FileSize':
@@ -84,7 +71,19 @@ logger = structlog.get_logger()
 
 app: 'PsefFlask' = current_app  # pylint: disable=invalid-name
 
-if t.TYPE_CHECKING:  # pragma: no cover
+_current_tester = None  # pylint: disable=invalid-name
+current_tester = LocalProxy(lambda: _current_tester)  # pylint: disable=invalid-name
+
+
+def enable_testing() -> None:
+    """Set this instance to be an AutoTest runner.
+    """
+    # pylint: disable=global-statement,invalid-name
+    global _current_tester
+    _current_tester = True
+
+
+if t.TYPE_CHECKING and not getattr(t, 'SPHINX', False):  # pragma: no cover
     import psef.models
     current_user: 'psef.models.User' = t.cast('psef.models.User', None)
 else:
@@ -108,7 +107,7 @@ def create_app(  # pylint: disable=too-many-statements
     skip_celery: bool = False,
     skip_perm_check: bool = True,
     skip_secret_key_check: bool = False,
-) -> t.Any:
+) -> 'PsefFlask':
     """Create a new psef app.
 
     :param config: The config mapping that can be used to override config.
@@ -118,28 +117,12 @@ def create_app(  # pylint: disable=too-many-statements
     import config as global_config
 
     resulting_app = PsefFlask(__name__)
-
-    @resulting_app.before_request
-    def __set_request_start_time() -> None:  # pylint: disable=unused-variable
-        g.request_start_time = datetime.datetime.utcnow()
-
-    @resulting_app.before_request
-    def __set_query_durations() -> None:
-        g.queries_amount = 0
-        g.queries_total_duration = 0
-        g.queries_max_duration = None
-        g.query_start = None
-
-    @resulting_app.teardown_request
-    def __teardown_request(exception: t.Type[Exception]) -> None:  # pylint: disable=unused-variable
-        if exception:  # pragma: no cover
-            models.db.session.expire_all()
-            models.db.session.rollback()
-
-    # Configurations
-    resulting_app.config.update(global_config.CONFIG)  # type: ignore
+    resulting_app.config.update(t.cast(t.Any, global_config.CONFIG))
     resulting_app.config['SQLALCHEMY_TRACK_MODIFICATIONS'  # type: ignore
                          ] = False
+
+    if not resulting_app.debug:
+        assert not resulting_app.config['AUTO_TEST_DISABLE_ORIGIN_CHECK']
 
     if config is not None:  # pragma: no cover
         resulting_app.config.update(config)  # type: ignore
@@ -152,74 +135,25 @@ def create_app(  # pylint: disable=too-many-statements
     ):  # pragma: no cover
         raise ValueError('The option to generate keys has been removed')
 
-    @resulting_app.before_request
-    def __create_logger() -> None:  # pylint: disable=unused-variable
-        g.request_id = uuid.uuid4()
-        log = logger.new(
-            request_id=str(g.request_id),
-            path=flask.request.path,
-            view=getattr(flask.request.url_rule, 'rule', None),
-            base_url=resulting_app.config['EXTERNAL_URL'],
-        )
-        flask_jwt.verify_jwt_in_request_optional()
-        log.bind(current_user=current_user and current_user.username)
-        log.info(
-            "Request started",
-            host=request.host_url,
-            method=request.method,
-            args=dict(flask.request.args),
-        )
-
-    processors = [
-        structlog.stdlib.filter_by_level,
-        structlog.stdlib.add_logger_name,
-        structlog.stdlib.add_log_level,
-        structlog.stdlib.PositionalArgumentsFormatter(),
-        structlog.processors.format_exc_info,
-        structlog.processors.TimeStamper(fmt="iso"),
-        structlog.processors.StackInfoRenderer(),
-        structlog.processors.format_exc_info,
-        structlog.processors.UnicodeDecoder(),
-        structlog.processors.JSONRenderer(),
-    ]
-    structlog.configure(
-        processors=processors,
-        context_class=structlog.threadlocal.wrap_dict(dict),
-        logger_factory=structlog.stdlib.LoggerFactory(),
-        wrapper_class=structlog.stdlib.BoundLogger,
-        cache_logger_on_first_use=True,
-    )
-    if getattr(resulting_app, 'debug', False):
-        structlog.configure(
-            processors=processors[:-2] + [
-                structlog.dev.ConsoleRenderer(
-                    colors=not getattr(resulting_app, 'testing', False)
-                )
-            ]
-        )
-    logging.basicConfig(
-        format='%(message)s',
-        stream=sys.stdout,
-    )
-    logging.getLogger('psef').setLevel(logging.DEBUG)
-    logging.getLogger('werkzeug').setLevel(logging.ERROR)
-    # Let the celery logger shut up
-    logging.getLogger('celery').propagate = False
-
     @resulting_app.errorhandler(RateLimitExceeded)
-    def __handle_error(_: RateLimitExceeded) -> 'flask.Response':  # pylint: disable=unused-variable
-        res = jsonify(
-            errors.APIException(
-                'Rate limit exceeded, slow down!',
-                'Rate limit is exceeded',
-                errors.APICodes.RATE_LIMIT_EXCEEDED,
-                429,
+    def __handle_error(_: RateLimitExceeded) -> Response:  # pylint: disable=unused-variable
+        res = t.cast(
+            Response,
+            jsonify(
+                errors.APIException(
+                    'Rate limit exceeded, slow down!',
+                    'Rate limit is exceeded',
+                    errors.APICodes.RATE_LIMIT_EXCEEDED,
+                    429,
+                )
             )
         )
         res.status_code = 429
         return res
 
     limiter.init_app(resulting_app)
+
+    cg_logger.init_app(resulting_app)
 
     from . import permissions
     permissions.init_app(resulting_app, skip_perm_check)
@@ -248,14 +182,14 @@ def create_app(  # pylint: disable=too-many-statements
     from . import tasks
     tasks.init_app(resulting_app)
 
-    from . import json_encoders
-    json_encoders.init_app(resulting_app)
-
     from . import files
     files.init_app(resulting_app)
 
     from . import lti
     lti.init_app(resulting_app)
+
+    from . import auto_test
+    auto_test.init_app(resulting_app)
 
     from . import helpers
     helpers.init_app(resulting_app)
@@ -270,44 +204,17 @@ def create_app(  # pylint: disable=too-many-statements
     from . import v1 as api_v1
     api_v1.init_app(resulting_app)
 
+    from . import v_internal as api_v_internal
+    api_v_internal.init_app(resulting_app)
+
     # Make sure celery is working
     if not skip_celery:  # pragma: no cover
         try:
             tasks.add(2, 3)
         except Exception:  # pragma: no cover
-            print(  # pylint: disable=bad-builtin
+            logger.error(
                 'Celery is not responding! Please check your config',
-                file=sys.stderr
             )
             raise
-
-    typ = t.TypeVar('typ')
-
-    @resulting_app.after_request
-    def __after_request(res: typ) -> typ:  # pylint: disable=unused-variable
-        queries_amount: int = getattr(g, 'queries_amount', 0)
-        queries_total_duration: int = getattr(g, 'queries_total_duration', 0)
-        queries_max_duration: int = getattr(g, 'queries_max_duration', 0) or 0
-        log_msg = (
-            logger.info if queries_max_duration < 0.5 and queries_amount < 20
-            else logger.warning
-        )
-
-        cache_hits: int = getattr(g, 'cache_hits', 0)
-        cache_misses: int = getattr(g, 'cache_misses', 0)
-
-        end_time = datetime.datetime.utcnow()
-        start_time = getattr(g, 'request_start_time', end_time)
-        log_msg(
-            'Request finished',
-            request_time=(end_time - start_time).total_seconds(),
-            status_code=getattr(res, 'status_code', None),
-            queries_amount=queries_amount,
-            queries_total_duration=queries_total_duration,
-            queries_max_duration=queries_max_duration,
-            cache_hits=cache_hits,
-            cache_misses=cache_misses,
-        )
-        return res
 
     return resulting_app

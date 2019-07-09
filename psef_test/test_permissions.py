@@ -21,9 +21,8 @@ should_raise = create_marker(pytest.mark.should_raise)
         (CoursePermission.can_submit_own_work, (False, True, False)),
         (CoursePermission.can_see_others_work, (True, False, False)),
         (CoursePermission.can_see_assignments, (True, True, False)),
-        should_raise(
-            (GlobalPermission.can_add_users, (False, False, False)),
-        )  # This is not a real permission
+        should_raise((GlobalPermission.can_add_users, (False, False, False)),
+                     )  # This is not a real permission
     ]
 )
 def test_course_permissions(
@@ -93,10 +92,7 @@ def test_non_existing_permission(
             'get',
             f'/api/v1/permissions/',
             404,
-            query={
-                'permission': perm,
-                'type': 'course'
-            },
+            query={'permission': perm, 'type': 'course'},
             result=error_template
         )
 
@@ -111,10 +107,8 @@ def test_non_existing_course(ta_user, bs_course, perm):
 
 @pytest.mark.parametrize(
     'perm,vals',
-    [
-        (GlobalPermission.can_edit_own_info, (True, True)),
-        (GlobalPermission.can_add_users, (False, True))
-    ],
+    [(GlobalPermission.can_edit_own_info, (True, True)),
+     (GlobalPermission.can_add_users, (False, True))],
 )
 def test_role_permissions(
     ta_user, admin_user, perm, vals, logged_in, test_client
@@ -178,10 +172,9 @@ def test_all_permissions(
 
 
 @pytest.mark.parametrize(
-    'permissions', [
-        ['can_edit_assignment_info', 'can_see_assignments', 'can_grade_work'],
-        should_raise(['hello', 5, 'bye'])
-    ]
+    'permissions',
+    [['can_edit_assignment_info', 'can_see_assignments', 'can_grade_work'],
+     should_raise(['hello', 5, 'bye'])]
 )
 @pytest.mark.parametrize(
     'named_user', ['Thomas Schaper', 'Student1', 'admin'],
@@ -197,10 +190,7 @@ def test_get_all_permissions(
             'get',
             f'/api/v1/permissions/',
             404 if err else 200,
-            query={
-                'type': 'course',
-                'permission': permissions
-            }
+            query={'type': 'course', 'permission': permissions}
         )
         if err:
             return

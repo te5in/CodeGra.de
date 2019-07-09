@@ -64,12 +64,65 @@ class ArchiveMemberInfo(t.Generic[TT]):  # pylint: disable=unsubscriptable-objec
     orig_file: TT
 
 
+_BUFFER_SIZE = 16 * 1024
+
+
+def _limited_copy(
+    src: t.IO[bytes], dst: t.IO[bytes], max_size: FileSize
+) -> FileSize:
+    """Copy ``max_size`` bytes from ``src`` to ``dst``.
+
+    >>> import io
+    >>> dst = io.BytesIO()
+    >>> _limited_copy(io.BytesIO(b'1234567890'), dst, 15)
+    10
+    >>> dst.seek(0)
+    0
+    >>> dst.read()
+    b'1234567890'
+    >>> dst = io.BytesIO()
+    >>> _limited_copy(io.BytesIO(b'1234567890'), dst, 5)
+    Traceback (most recent call last):
+    ...
+    _LimitedCopyOverflow
+
+
+    :raises _LimitedCopyOverflow: If more data was in source than
+        ``max_size``. In this case some data may have been written to ``dst``,
+        but this is not guaranteed.
+    """
+    size_left = max_size
+    written = FileSize(0)
+
+    while True:
+        buf = src.read(_BUFFER_SIZE)
+        if not buf:
+            break
+        elif len(buf) > size_left:
+            raise _LimitedCopyOverflow
+
+        dst.write(buf)
+
+        written = FileSize(written + len(buf))
+        size_left = FileSize(size_left - len(buf))
+
+    return written
+
+
 def _safe_join(*args: str) -> str:
-    return path.normpath(path.realpath(path.join(*args)))
+    assert args
+    res = path.normpath(path.realpath(path.join(*args)))
+    assert res.startswith(args[0])
+    return res
 
 
 class ArchiveException(Exception):
     """Base exception class for all archive errors."""
+
+
+class _LimitedCopyOverflow(ArchiveException):
+    """Exception that gets raised when a limited copy has data left too write.
+    """
 
 
 class UnrecognizedArchiveFormat(ArchiveException):
@@ -194,12 +247,22 @@ class Archive(t.Generic[TT]):  # pylint: disable=unsubscriptable-object
         assert base_to_path
         total_size = FileSize(0)
 
-        def maybe_raise_too_large(extra: int = 0) -> None:
-            if total_size + extra > max_size:
+        def maybe_raise_too_large(
+            extra: int = 0, *, always: bool = False
+        ) -> None:
+            if always or total_size + extra > max_size:
                 logger.warning(
                     'Archive contents exceeded size limit', max_size=max_size
                 )
                 raise ArchiveTooLarge(max_size)
+
+        def maybe_single_too_large(size: FileSize) -> None:
+            if size > app.max_single_file_size:
+                logger.warning(
+                    'File exceeded size limit',
+                    max_size=max_size,
+                )
+                raise FileTooLarge(FileSize(app.max_single_file_size))
 
         for member in self.get_members():
             if member.is_dir:
@@ -209,13 +272,7 @@ class Archive(t.Generic[TT]):  # pylint: disable=unsubscriptable-object
                     os.makedirs(member_create_dir, mode=0o700)
             else:
                 maybe_raise_too_large(member.size)
-
-                if member.size > app.max_single_file_size:
-                    logger.warning(
-                        'File exceeded size limit',
-                        max_size=max_size,
-                    )
-                    raise FileTooLarge(FileSize(app.max_single_file_size))
+                maybe_single_too_large(member.size)
 
                 member_to_path = _safe_join(base_to_path, member.name)
                 member_to_dir = path.dirname(member_to_path)
@@ -223,14 +280,19 @@ class Archive(t.Generic[TT]):  # pylint: disable=unsubscriptable-object
                 if not path.exists(member_to_dir):
                     os.makedirs(member_to_dir, mode=0o700)
 
-                self.__archive.extract_member(member, base_to_path)
+                try:
+                    self.__archive.extract_member(
+                        member, base_to_path, FileSize(max_size - total_size)
+                    )
+                except _LimitedCopyOverflow:  # pragma: no cover
+                    maybe_raise_too_large(always=True)
 
                 if path.islink(member_to_path):
                     total_size = FileSize(total_size + member.size)
                 else:
-                    total_size = FileSize(
-                        total_size + path.getsize(member_to_path)
-                    )
+                    real_size = FileSize(path.getsize(member_to_path))
+                    maybe_single_too_large(real_size)
+                    total_size = FileSize(total_size + real_size)
                 maybe_raise_too_large()
 
         return total_size
@@ -333,7 +395,11 @@ class Archive(t.Generic[TT]):  # pylint: disable=unsubscriptable-object
         target_path = _safe_join(to_path)
 
         for member in self.get_members():
-            extract_path = _safe_join(target_path, member.name)
+            # Don't use `_safe_join` here as we detect unsafe joins here to
+            # raise an `UnsafeArchive` exception.
+            extract_path = path.normpath(
+                path.realpath(path.join(target_path, member.name))
+            )
 
             if not extract_path.startswith(target_path):
                 raise UnsafeArchive(
@@ -351,13 +417,16 @@ class _BaseArchive(abc.ABC, t.Generic[TT]):
 
     @abc.abstractmethod
     def extract_member(
-        self, member: ArchiveMemberInfo[TT], to_path: str
+        self, member: ArchiveMemberInfo[TT], to_path: str, size_left: FileSize
     ) -> None:
         """Extract the given filename to the given path.
 
         :param to_path: The base path to which the member should be
             extracted. This will be example ``'/tmp/tmpdir/``' for the file
             `'dir/file``', not ``'/tmp/tmpdir/dir/``'.
+        :param size_left: The maximum amount of size the extraction should
+            take. This is also checked by the calling function after
+            extraction.
         :returns: Nothing
         """
         raise NotImplementedError
@@ -425,7 +494,8 @@ class _TarArchive(_BaseArchive[tarfile.TarInfo]):  # pylint: disable=unsubscript
         self._archive = tarfile.open(name=self.filename)
 
     def extract_member(
-        self, member: ArchiveMemberInfo[tarfile.TarInfo], to_path: str
+        self, member: ArchiveMemberInfo[tarfile.TarInfo], to_path: str,
+        _: FileSize
     ) -> None:
         """Extract the given member.
 
@@ -436,6 +506,8 @@ class _TarArchive(_BaseArchive[tarfile.TarInfo]):  # pylint: disable=unsubscript
         if not member.orig_file.isdir():
             member.orig_file.mode = 0o600
 
+        # We don't need to use ``size_left`` as our tar impl. will never read
+        # more than tarinfo object specifies as its size.
         self._archive.extract(member.orig_file, to_path)
 
     def get_members(self) -> t.Iterable[ArchiveMemberInfo[tarfile.TarInfo]]:
@@ -556,14 +628,14 @@ def _get_members_of_archives(
             elif isinstance(member, zipfile.ZipInfo):
                 yield ArchiveMemberInfo(
                     name=cur_path,
-                    is_dir=cur_is_dir,
+                    is_dir=False,
                     orig_file=member,
                     size=FileSize(member.file_size),
                 )
             elif isinstance(member, py7zlib.ArchiveFile):
                 yield ArchiveMemberInfo(
                     name=cur_path,
-                    is_dir=cur_is_dir,
+                    is_dir=False,
                     orig_file=member,
                     size=FileSize(member.size),
                 )
@@ -583,14 +655,19 @@ class _ZipArchive(_BaseArchive[zipfile.ZipInfo]):  # pylint: disable=unsubscript
         self._archive = zipfile.ZipFile(self.filename)
 
     def extract_member(
-        self, member: ArchiveMemberInfo[zipfile.ZipInfo], to_path: str
+        self, member: ArchiveMemberInfo[zipfile.ZipInfo], to_path: str,
+        size_left: FileSize
     ) -> None:
         """Extract the given member.
 
         :param member: The member to extract.
         :param to_path: The location to which it should be extracted.
         """
-        self._archive.extract(member.orig_file, path=to_path)
+        dst_path = _safe_join(to_path, member.name)
+
+        with open(dst_path,
+                  'wb') as dst, self._archive.open(member.orig_file) as src:
+            _limited_copy(src, dst, size_left)
 
     def get_members(self) -> t.Iterable[ArchiveMemberInfo[zipfile.ZipInfo]]:
         """Get all members from this zip archive.
@@ -636,14 +713,16 @@ class _7ZipArchive(_BaseArchive[py7zlib.ArchiveFile]):  # pylint: disable=unsubs
         self._archive = py7zlib.Archive7z(self._fp)
 
     def extract_member(  # pylint: disable=no-self-use
-        self, member: ArchiveMemberInfo[py7zlib.ArchiveFile], to_path: str
+        self, member: ArchiveMemberInfo[py7zlib.ArchiveFile], to_path: str,
+        _: FileSize
     ) -> None:
         """Extract the given member.
 
         :param member: The member to extract.
         :param to_path: The location to which it should be extracted.
         """
-        with open(os.path.join(to_path, member.name), 'wb') as f:
+        with open(_safe_join(to_path, member.name), 'wb') as f:
+            # We cannot provide a maximum to read to this method...
             f.write(member.orig_file.read())
 
     def get_members(self

@@ -93,7 +93,7 @@ your requirements. These options are:
 Thirdly, rules can be given that consist of exceptions to the default rule and
 requiring certain files. These rules can apply to files anywhere in the
 submission or files that have to be in an given path relative to the top level
-directory.
+directory. These rules are individual and do not have any ordering between them.
 
 .. note::
 

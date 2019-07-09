@@ -206,7 +206,7 @@ describe('Submission.vue', () => {
             expect(comp.overviewMode).toBe(false);
 
             comp.canSeeFeedback = true;
-            comp.$set($route.query, 'overview', true);
+            comp.$set($route.query, 'overview', 0);
             expect(comp.overviewMode).toBe(true);
         });
     });

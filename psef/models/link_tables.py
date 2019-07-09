@@ -3,8 +3,9 @@
 SPDX-License-Identifier: AGPL-3.0-only
 """
 
+from cg_sqlalchemy_helpers.types import RawTable
+
 from . import db
-from .model_types import RawTable
 
 roles_permissions: RawTable = db.Table(  # pylint: disable=invalid-name
     'roles-permissions',

@@ -1,6 +1,11 @@
 import { config } from '@vue/test-utils';
 import '@/polyfills';
+import Vue from 'vue';
 import axios from 'axios';
+
+import * as utils from '@/utils';
+
+Vue.prototype.$utils = utils;
 
 config.mocks.$http = axios;
 global.UserConfig = {

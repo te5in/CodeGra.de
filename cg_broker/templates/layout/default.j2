@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title></title>
+        <meta name="author" content="">
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        {% if not config['DEBUG'] %}
+        <meta http-equiv="refresh" content="15">
+        {% endif %}
+        <link rel="stylesheet"
+              href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"
+              integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T"
+              crossorigin="anonymous">
+    </head>
+
+    <body style="min-height: 100vh; display: flex; flex-direction: column;">
+        <nav class="navbar navbar-dark sticky-top bg-dark flex-md-nowrap p-0">
+            <a class="navbar-brand col-sm-3 col-md-2 mr-0" href="#">CodeGrade Broker Admin panel</a>
+            <ul class="navbar-nav px-3">
+                <li class="nav-item text-nowrap">
+                    <form action="{{ url_for('.logout') }}" method="post"
+                          id="logout_form">
+                        <input name="_csrf_token" type="hidden"
+                               value="{{ csrf_token() }}">
+                        <input type="submit"
+                               value="Logout"
+                               class="btn btn-light"
+                               id="perform_logout_button">
+                    </form>
+                </li>
+            </ul>
+        </nav>
+        {% block main %}
+        <main role="main" class="col-md-12 ml-sm-auto pt-3 px-4">
+            {% for message in get_flashed_messages() %}
+            <div class="alert alert-warning" role="alert">
+                {{ message }}
+            </div>
+            {% endfor %}
+
+            {% block content %}{% endblock %}
+        </main>
+        {% endblock %}
+    </body>
+</html>

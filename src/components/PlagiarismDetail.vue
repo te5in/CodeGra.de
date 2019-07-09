@@ -50,13 +50,13 @@
             </tbody>
         </table>
         <b-button-toolbar justify style="margin-top: 1em;">
-            <submit-button label="Export"
-                           :submit="exportToLatex"
-                           @after-success="afterExportToLatex"/>
             <b-button variant="outline-primary"
                       @click="$root.$emit('bv::hide::modal', 'plagiarism-export');">
                 Cancel
             </b-button>
+            <submit-button label="Export"
+                           :submit="exportToLatex"
+                           @after-success="afterExportToLatex"/>
         </b-button-toolbar>
     </b-modal>
 
@@ -371,7 +371,7 @@ export default {
                         responseType: 'arraybuffer',
                     });
                     const content = decodeBuffer(data, true);
-                    file.content = content.split('\n').map(this.$htmlEscape);
+                    file.content = content.split('\n').map(this.$utils.htmlEscape);
                 }),
             );
 

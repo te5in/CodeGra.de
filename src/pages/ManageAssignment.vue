@@ -182,7 +182,7 @@
                                 documentation <a href="https://docs.codegra.de/user/management.html#dividing-submissions"
                                                  target="_blank"
                                                  class="inline-link"
-                                >here</a>.
+                                                 >here</a>.
                             </span>
                         </description-popover>
                     </span>
@@ -259,6 +259,13 @@
 
             </b-card>
         </div>
+
+        <div class="cat-wrapper" :class="{hidden: selectedCat !== 'AutoTest'}">
+                <auto-test :assignment="assignment"
+                           :hidden="selectedCat !== 'AutoTest'"
+                           editable/>
+            </b-card>
+        </div>
     </div>
 </div>
 </template>
@@ -289,6 +296,7 @@ import {
     AssignmentGroup,
     CategorySelector,
     DatetimePicker,
+    AutoTest,
 } from '@/components';
 
 export default {
@@ -402,6 +410,15 @@ export default {
             return this.permissions.manage_rubrics && UserConfig.features.rubrics;
         },
 
+        canUseAutoTest() {
+            return (
+                (this.permissions.can_run_autotest ||
+                    this.permissions.can_edit_autotest ||
+                    this.permissions.can_delete_autotest_run) &&
+                UserConfig.features.auto_test
+            );
+        },
+
         categories() {
             return [
                 {
@@ -431,6 +448,10 @@ export default {
                 {
                     name: 'Rubric',
                     enabled: this.canUseRubrics,
+                },
+                {
+                    name: 'AutoTest',
+                    enabled: this.canUseAutoTest,
                 },
             ];
         },
@@ -544,6 +565,7 @@ export default {
         AssignmentGroup,
         CategorySelector,
         DatetimePicker,
+        AutoTest,
     },
 };
 </script>

@@ -142,7 +142,6 @@ describe('mutations', () => {
         });
 
         it('should work for some unknown props', () => {
-
             ['submissions', 'rubric', 'graders'].forEach((key) => {
                 const obj1 = {};
 

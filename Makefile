@@ -4,6 +4,8 @@ SHELL=/bin/bash
 TEST_FLAGS?=
 PYTHON?=env/bin/python3
 export PYTHONPATH=$(CURDIR)
+PY_MODULES?=psef cg_celery cg_sqlalchemy_helpers cg_json cg_broker cg_logger
+PY_ALL_MODULES=$(PY_MODULES) psef_test
 
 .PHONY: test_setup
 test_setup:
@@ -11,12 +13,25 @@ test_setup:
 	mkdir -p /tmp/psef/mirror_uploads
 
 .PHONY: test_quick
-test_quick: test_setup
-	DEBUG=on env/bin/pytest -n auto --cov psef --cov-report term-missing $(TEST_FILE) -vvvvv -x $(TEST_FLAGS)
+test_quick:
+	$(MAKE) test TEST_FLAGS="$(TEST_FLAGS) -x"
 
 .PHONY: test
-test: test_setup
-	DEBUG=on env/bin/pytest -n auto --cov psef --cov-report term-missing $(TEST_FILE) -vvvvv $(TEST_FLAGS)
+test:
+	$(MAKE) test_no_cov TEST_FLAGS="$(TEST_FLAGS) --cov psef --cov-report term-missing"
+
+.PHONY: test_no_cov
+test_no_cov: test_setup
+	DEBUG=on env/bin/pytest --postgresql=GENERATE $(TEST_FILE) -vvvvvvv \
+	    $(TEST_FLAGS)
+
+.PHONY: doctest
+doctest: test_setup
+	pytest --cov psef \
+	       --cov-append \
+	       --cov-report term-missing \
+	       --doctest-modules psef \
+	       -vvvvv $(TEST_FLAGS)
 
 .PHONY: reset_db
 reset_db:
@@ -38,6 +53,14 @@ db_upgrade:
 test_data:
 	DEBUG_ON=True $(PYTHON) $(CURDIR)/manage.py test_data
 
+.PHONY: broker_start_dev_server
+broker_start_dev_server:
+	DEBUG=on $(PYTHON) ./run_broker.py
+
+.PHONY: broker_start_dev_celery
+broker_start_dev_celery:
+	DEBUG=on env/bin/celery worker --app=broker_runcelery:celery -E
+
 .PHONY: start_dev_celery
 start_dev_celery:
 	DEBUG=on env/bin/celery worker --app=runcelery:celery -E
@@ -45,6 +68,10 @@ start_dev_celery:
 .PHONY: start_dev_server
 start_dev_server:
 	DEBUG=on ./.scripts/start_dev.sh python
+
+.PHONY: start_dev_test_runner
+start_dev_test_runner:
+	DEBUG=on ./.scripts/start_dev_auto_test_runner.sh
 
 .PHONY: start_dev_npm
 start_dev_npm: privacy_statement
@@ -63,22 +90,40 @@ build_front-end: privacy_statement
 seed_data:
 	DEBUG_ON=True $(PYTHON) $(CURDIR)/manage.py seed
 
+.PHONY: isort
+isort:
+	isort --recursive $(PY_ALL_MODULES)
+
+.PHONY: yapf
+yapf:
+	yapf -rip $(PY_ALL_MODULES)
+
 .PHONY: format
-format:
-	isort --recursive ./psef ./psef_test
-	yapf -rip ./psef ./psef_test
+format: isort yapf
 	npm run format
 
 .PHONY: shrinkwrap
 shrinkwrap:
 	npm shrinkwrap --dev
 
-lint:
-	pylint psef --rcfile=setup.cfg
+.PHONY: pylint
+pylint:
+	pylint $(PY_MODULES) --rcfile=setup.cfg
+
+.PHONY: isort_check
+isort_check:
+	isort --check-only --diff --recursive $(PY_ALL_MODULES)
+
+.PHONY: yapf_check
+yapf_check:
+	yapf -vv -rd $(PY_ALL_MODULES)
+
+lint: mypy pylint isort_check
 	npm run lint
 
+.PHONY: mypy
 mypy:
-	mypy --ignore-missing-imports --disallow-untyped-defs --check-untyped-defs --disallow-subclassing-any "$(PWD)/psef/"
+	mypy $(PY_MODULES)
 
 .PHONY: create_permission
 create_permission:

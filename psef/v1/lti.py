@@ -58,6 +58,8 @@ def launch_lti() -> t.Any:
 def get_lti_config() -> werkzeug.wrappers.Response:
     """Get a LTI config xml for this CodeGrade instance
 
+    .. :quickref: LTI; Get the configuration for a LMS.
+
     :qparam str lms: The name of the LMS to get the config for. This is
         required.
 

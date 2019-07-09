@@ -1,3 +1,4 @@
+# -*- mode: conf -*-
 # SPDX-License-Identifier: AGPL-3.0-only
 # This file is part of CodeGrade
 
@@ -273,6 +274,9 @@
 # Should group assignments be enabled.
 # groups = false
 
+# Should auto test be enabled
+# auto_test = false
+
 # All LTI consumer keys mapped to secret keys. Please add your own, these ARE
 # case sensitive.
 [LTI Consumer keys]
@@ -287,3 +291,39 @@
 #
 # [0]: http://docs.celeryproject.org/en/latest/getting-started/brokers/index.html
 # broker_url = amqp://myuser:mypassword@localhost:5672/myvhost
+
+[AutoTest]
+# Set this to `true` if this config is for a auto test runner
+# is_auto_test_runner = false
+
+# The credentials that are allowed to run auto tests, or that should be used to
+# actually run the auto tests. So if `is_runner` is true this is a mapping
+# between ips that should be queried for auto tests, and the password that is
+# used. If `is_runner` is false this is a mapping between ips that are allowed
+# to run auto tests, and the used password and auto test type.
+# auto_test_credentials = { "8.8.8.8": { "password": "123", "type": "..." } }
+
+# The maximum amount of minutes that a auto test run may take.
+# auto_test_max_time_total_run = 1440
+
+# The maximum amount of seconds a command may take if nothing is set in the
+# config.
+# auto_test_max_time_command = 300
+
+# The maximum amount of bytes that command may emit.
+# auto_test_output_limit = 32768
+
+# The maximum amount of memory a lxc container may use.
+# auto_test_memory_limit = 512M
+
+# The time between polls in seconds to the test servers
+# auto_test_poll_time = 30
+
+# The bdevtype that should be used by lxc
+# auto_test_bdevtype = best
+
+# The interval in seconds a running AutoTest runner should send a heartbeat.
+# auto_test_heartbeat_interval = 10
+
+# The amount of heartbeats missed before a AutoTest runner should be killed.
+# auto_test_heartbeat_max_missed = 6

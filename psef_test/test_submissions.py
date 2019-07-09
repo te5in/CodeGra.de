@@ -70,22 +70,22 @@ def test_get_grade_history(
             'get',
             f'/api/v1/submissions/{work_id}/grade_history/',
             200,
-            result=[
-                {
-                    'changed_at': str,
-                    'is_rubric': False,
-                    'grade': grade + 1,
-                    'passed_back': False,
-                    'user': dict,
-                },
-                {
-                    'changed_at': str,
-                    'is_rubric': False,
-                    'grade': grade,
-                    'passed_back': False,
-                    'user': dict,
-                }
-            ]
+            result=[{
+                'changed_at': str,
+                'is_rubric': False,
+                'grade': grade + 1,
+                'passed_back': False,
+                'user': dict,
+                'origin': 'human',
+            },
+                    {
+                        'changed_at': str,
+                        'is_rubric': False,
+                        'grade': grade,
+                        'passed_back': False,
+                        'user': dict,
+                        'origin': 'human',
+                    }]
         )
 
         res = test_client.req(
@@ -100,29 +100,30 @@ def test_get_grade_history(
             'get',
             f'/api/v1/submissions/{work_id}/grade_history/',
             200,
-            result=[
-                {
-                    'changed_at': str,
-                    'is_rubric': False,
-                    'grade': -1,
-                    'passed_back': False,
-                    'user': dict,
-                },
-                {
-                    'changed_at': str,
-                    'is_rubric': False,
-                    'grade': grade + 1,
-                    'passed_back': False,
-                    'user': dict,
-                },
-                {
-                    'changed_at': str,
-                    'is_rubric': False,
-                    'grade': grade,
-                    'passed_back': False,
-                    'user': dict,
-                }
-            ]
+            result=[{
+                'changed_at': str,
+                'is_rubric': False,
+                'grade': -1,
+                'passed_back': False,
+                'user': dict,
+                'origin': 'human',
+            },
+                    {
+                        'changed_at': str,
+                        'is_rubric': False,
+                        'grade': grade + 1,
+                        'passed_back': False,
+                        'user': dict,
+                        'origin': 'human',
+                    },
+                    {
+                        'changed_at': str,
+                        'is_rubric': False,
+                        'grade': grade,
+                        'passed_back': False,
+                        'user': dict,
+                        'origin': 'human',
+                    }]
         )
 
 
@@ -191,20 +192,15 @@ def test_patch_submission(
             f'/api/v1/submissions/{work_id}',
             200,
             result={
-                'id':
-                    work_id,
-                'assignee':
-                    None,
-                'user':
-                    dict,
-                'created_at':
-                    str,
-                'grade':
-                    None if error else grade,
-                'comment':
-                    None if error else feedback,
+                'id': work_id,
+                'assignee': None,
+                'user': dict,
+                'created_at': str,
+                'grade': None if error else grade,
+                'comment': None if error else feedback,
                 'comment_author':
                     (None if error or 'feedback' not in data else dict),
+                'grade_overridden': False,
             }
         )
         assert 'email' not in res['user']
@@ -222,10 +218,7 @@ def test_delete_grade_submission(
             'patch',
             f'/api/v1/submissions/{work_id}',
             200,
-            data={
-                'grade': 5,
-                'feedback': ''
-            },
+            data={'grade': 5, 'feedback': ''},
             result=dict
         )
         assert res['grade'] == 5
@@ -233,10 +226,7 @@ def test_delete_grade_submission(
             'patch',
             f'/api/v1/submissions/{work_id}',
             200,
-            data={
-                'grade': None,
-                'feedback': 'ww'
-            },
+            data={'grade': None, 'feedback': 'ww'},
             result=dict
         )
         assert res['grade'] is None
@@ -245,13 +235,9 @@ def test_delete_grade_submission(
             f'/api/v1/submissions/{work_id}',
             200,
             result={
-                'id': work_id,
-                'assignee': None,
-                'user': dict,
-                'created_at': str,
-                'grade': None,
-                'comment': 'ww',
-                'comment_author': dict,
+                'id': work_id, 'assignee': None, 'user': dict, 'created_at':
+                    str, 'grade': None, 'comment': 'ww',
+                'comment_author': dict, 'grade_overridden': False
             }
         )
         assert res['comment_author']['id'] == ta_user.id
@@ -265,10 +251,7 @@ def test_patch_non_existing_submission(
             'patch',
             f'/api/v1/submissions/0',
             404,
-            data={
-                'grade': 4,
-                'feedback': 'wow!'
-            },
+            data={'grade': 4, 'feedback': 'wow!'},
             result=error_template
         )
 
@@ -322,12 +305,8 @@ def test_negative_points(
             f'/api/v1/submissions/{work_id}/rubrics/',
             200,
             result={
-                'rubrics': list,
-                'selected': [],
-                'points': {
-                    'max': max_points,
-                    'selected': 0
-                }
+                'rubrics': list, 'selected': [],
+                'points': {'max': max_points, 'selected': 0}
             }
         )['rubrics']
 
@@ -361,12 +340,8 @@ def test_negative_points(
                     f'/api/v1/submissions/{work_id}/rubrics/',
                     200,
                     result={
-                        'rubrics': rubric,
-                        'selected': list,
-                        'points': {
-                            'max': max_points,
-                            'selected': point
-                        }
+                        'rubrics': rubric, 'selected': list,
+                        'points': {'max': max_points, 'selected': point}
                     }
                 )
 
@@ -449,12 +424,8 @@ def test_selecting_rubric(
             f'/api/v1/submissions/{work_id}/rubrics/',
             200,
             result={
-                'rubrics': list,
-                'selected': [],
-                'points': {
-                    'max': max_points,
-                    'selected': 0
-                }
+                'rubrics': list, 'selected': [],
+                'points': {'max': max_points, 'selected': 0}
             }
         )['rubrics']
 
@@ -496,37 +467,27 @@ def test_selecting_rubric(
                     f'/api/v1/submissions/{work_id}/rubrics/',
                     200,
                     result={
-                        'rubrics': rubric,
-                        'selected': list,
-                        'points':
-                            {
-                                'max': max_points,
-                                'selected': 0 if error else point
-                            }
+                        'rubrics': rubric, 'selected': list, 'points': {
+                            'max': max_points,
+                            'selected': 0 if error else point
+                        }
                     }
                 )
 
         res = {'rubrics': rubric}
         if error:
-            res.update(
-                {
-                    'selected': [],
-                    'points': {
-                        'max': None,
-                        'selected': None,
-                    },
+            res.update({
+                'selected': [],
+                'points': {
+                    'max': None,
+                    'selected': None,
                 },
-            )
+            }, )
         else:
-            res.update(
-                {
-                    'selected': list,
-                    'points': {
-                        'max': max_points,
-                        'selected': result_point
-                    }
-                }
-            )
+            res.update({
+                'selected': list,
+                'points': {'max': max_points, 'selected': result_point}
+            })
 
         test_client.req(
             'get',
@@ -614,12 +575,8 @@ def test_selecting_rubric_same_row_twice(
             f'/api/v1/submissions/{work_id}/rubrics/',
             200,
             result={
-                'rubrics': list,
-                'selected': [],
-                'points': {
-                    'max': max_points,
-                    'selected': 0
-                }
+                'rubrics': list, 'selected': [],
+                'points': {'max': max_points, 'selected': 0}
             }
         )['rubrics']
 
@@ -707,12 +664,8 @@ def test_clearing_rubric(
             f'/api/v1/submissions/{work_id}/rubrics/',
             200,
             result={
-                'rubrics': rubric,
-                'selected': [],
-                'points': {
-                    'max': max_points,
-                    'selected': 0
-                }
+                'rubrics': rubric, 'selected': [],
+                'points': {'max': max_points, 'selected': 0}
             }
         )['rubrics']
 
@@ -728,9 +681,7 @@ def test_clearing_rubric(
             f'/api/v1/submissions/{work_id}/rubrics/',
             200,
             result={
-                'rubrics': rubric,
-                'selected': list,
-                'points': {
+                'rubrics': rubric, 'selected': list, 'points': {
                     'max': max_points,
                     'selected': 10,
                 }
@@ -746,9 +697,7 @@ def test_clearing_rubric(
             f'/api/v1/submissions/{work_id}/rubrics/',
             200,
             result={
-                'rubrics': rubric,
-                'selected': list,
-                'points': {
+                'rubrics': rubric, 'selected': list, 'points': {
                     'max': max_points,
                     'selected': 11,
                 }
@@ -881,12 +830,8 @@ def test_get_dir_contents(
             f'/api/v1/submissions/{work_id}/files/',
             error or 200,
             result=error_template if error else {
-                'entries': [{
-                    'id': int,
-                    'name': 'test.py'
-                }],
-                'id': int,
-                'name': 'test_flake8.tar.gz'
+                'entries': [{'id': int, 'name': 'test.py'}], 'id': int, 'name':
+                    'test_flake8.tar.gz'
             }
         )
         if not error:
@@ -958,14 +903,9 @@ def test_get_zip_file(
                 'get',
                 f'/api/v1/submissions/{work_id}',
                 error or 200,
-                result=error_template if error else {
-                    'name': str,
-                    'output_name': str
-                },
-                query={
-                    'type': 'zip',
-                    'owner': user_type
-                },
+                result=error_template
+                if error else {'name': str, 'output_name': str},
+                query={'type': 'zip', 'owner': user_type},
             )
 
             if not error:
@@ -976,15 +916,13 @@ def test_get_zip_file(
                 zfiles = zipfile.ZipFile(io.BytesIO(res.get_data()))
                 files = zfiles.infolist()
                 files = set(f.filename for f in files)
-                assert files == set(
-                    [
-                        'multiple_dir_archive.zip/',
-                        'multiple_dir_archive.zip/dir/single_file_work',
-                        'multiple_dir_archive.zip/dir/single_file_work_copy',
-                        'multiple_dir_archive.zip/dir2/single_file_work',
-                        'multiple_dir_archive.zip/dir2/single_file_work_copy',
-                    ]
-                )
+                assert files == {
+                    'multiple_dir_archive.zip/',
+                    'multiple_dir_archive.zip/dir/single_file_work',
+                    'multiple_dir_archive.zip/dir/single_file_work_copy',
+                    'multiple_dir_archive.zip/dir2/single_file_work',
+                    'multiple_dir_archive.zip/dir2/single_file_work_copy',
+                }
 
                 res = test_client.get(f'/api/v1/files/{file_name}')
                 assert res.status_code == 404
@@ -1004,17 +942,12 @@ def test_get_teacher_zip_file(
                 'get',
                 f'/api/v1/submissions/{work_id}',
                 error or 200,
-                result=error_template if error else {
-                    'name': str,
-                    'output_name': str
-                },
-                query={
-                    'type': 'zip',
-                    'owner': 'teacher'
-                },
+                result=error_template
+                if error else {'name': str, 'output_name': str},
+                query={'type': 'zip', 'owner': 'teacher'},
             )
             if error:
-                return set()
+                return object()
 
             file_name = res['name']
             res = test_client.get(f'/api/v1/files/{file_name}')
@@ -1049,9 +982,9 @@ def test_get_teacher_zip_file(
     }
     m.Assignment.query.filter_by(
         id=m.Work.query.get(work_id).assignment_id,
-    ).update(
-        {'deadline': datetime.datetime.utcnow() - datetime.timedelta(days=1)},
-    )
+    ).update({
+        'deadline': datetime.datetime.utcnow() - datetime.timedelta(days=1)
+    }, )
     get_files(student_user, 403)
 
     m.Assignment.query.filter_by(
@@ -1120,9 +1053,7 @@ def test_search_file(
             error or 200,
             query={'path': to_search},
             result=error_template if error else {
-                'is_directory': is_dir,
-                'modification_date': int,
-                'size': int,
+                'is_directory': is_dir, 'modification_date': int, 'size': int,
                 'id': int
             },
         )
@@ -1149,18 +1080,9 @@ def test_add_file(
             f'/api/v1/submissions/{work_id}/files/',
             200,
             result={
-                'entries':
-                    [
-                        {
-                            'id': int,
-                            'name': 'single_file_work'
-                        }, {
-                            'id': int,
-                            'name': 'single_file_work_copy'
-                        }
-                    ],
-                'id': int,
-                'name': 'single_dir_archive.zip'
+                'entries': [{'id': int, 'name': 'single_file_work'},
+                            {'id': int, 'name': 'single_file_work_copy'}],
+                'id': int, 'name': 'single_dir_archive.zip'
             }
         )
 
@@ -1262,20 +1184,18 @@ def test_add_file(
 
         session.query(
             m.Assignment
-        ).filter_by(id=m.Work.query.get(work_id).assignment_id).update(
-            {
-                'deadline':
-                    datetime.datetime.utcnow() - datetime.timedelta(days=1)
-            }
-        )
+        ).filter_by(id=m.Work.query.get(work_id).assignment_id).update({
+            'deadline': datetime.datetime.utcnow() -
+                        datetime.timedelta(days=1)
+        })
 
         test_client.req(
             'post',
             f'/api/v1/submissions/{work_id}/files/',
             400,
             query={
-                'path': '/single_dir_archive.zip/dir/dir2/file',
-                'owner': 'auto'
+                'path': '/single_dir_archive.zip/dir/dir2/file', 'owner':
+                    'auto'
             },
             real_data='TEAEST_FILE',
         )
@@ -1304,12 +1224,10 @@ def test_add_file(
     with logged_in(ta_user):
         session.query(
             m.Assignment
-        ).filter_by(id=m.Work.query.get(work_id).assignment_id).update(
-            {
-                'deadline':
-                    datetime.datetime.utcnow() + datetime.timedelta(days=1)
-            }
-        )
+        ).filter_by(id=m.Work.query.get(work_id).assignment_id).update({
+            'deadline': datetime.datetime.utcnow() +
+                        datetime.timedelta(days=1)
+        })
 
     with logged_in(student_user):
         test_client.req(
@@ -1331,71 +1249,43 @@ def test_add_file(
             f'/api/v1/submissions/{work_id}/files/',
             200,
             result={
-                'name':
-                    'single_dir_archive.zip',
-                'id':
-                    int,
-                'entries':
-                    [
-                        {
-                            'name':
-                                'dir',
-                            'id':
-                                int,
-                            'entries':
-                                [
+                'name': 'single_dir_archive.zip', 'id': int, 'entries': [{
+                    'name': 'dir',
+                    'id': int,
+                    'entries': [{
+                        'name': 'dir2',
+                        'id': int,
+                        'entries': [{
+                            'name': 'dir3',
+                            'id': int,
+                            'entries': [{
+                                'name': 'file',
+                                'id': int,
+                            }],
+                        }, {
+                            'name': 'file',
+                            'id': int,
+                        }, {
+                            'name': 'file2',
+                            'id': int,
+                        },
                                     {
-                                        'name':
-                                            'dir2',
-                                        'id':
-                                            int,
-                                        'entries':
-                                            [
-                                                {
-                                                    'name':
-                                                        'dir3',
-                                                    'id':
-                                                        int,
-                                                    'entries':
-                                                        [
-                                                            {
-                                                                'name': 'file',
-                                                                'id': int,
-                                                            }
-                                                        ],
-                                                }, {
-                                                    'name': 'file',
-                                                    'id': int,
-                                                },
-                                                {
-                                                    'name': 'file2',
-                                                    'id': int,
-                                                },
-                                                {
-                                                    'name':
-                                                        'wow',
-                                                    'id':
-                                                        int,
-                                                    'entries':
-                                                        [
-                                                            {
-                                                                'name': 'dit',
-                                                                'id': int,
-                                                                'entries': [],
-                                                            }
-                                                        ],
-                                                }
-                                            ],
-                                    }
-                                ],
-                        }, {
-                            'name': 'single_file_work',
-                            'id': int,
-                        }, {
-                            'name': 'single_file_work_copy',
-                            'id': int,
-                        }
-                    ]
+                                        'name': 'wow',
+                                        'id': int,
+                                        'entries': [{
+                                            'name': 'dit',
+                                            'id': int,
+                                            'entries': [],
+                                        }],
+                                    }],
+                    }],
+                }, {
+                    'name': 'single_file_work',
+                    'id': int,
+                }, {
+                    'name': 'single_file_work_copy',
+                    'id': int,
+                }]
             }
         )
 
@@ -1405,82 +1295,52 @@ def test_add_file(
             f'/api/v1/submissions/{work_id}/files/',
             200,
             result={
-                'name':
-                    'single_dir_archive.zip',
-                'id':
-                    int,
-                'entries':
-                    [
-                        {
-                            'name':
-                                'dir',
-                            'id':
-                                int,
-                            'entries':
-                                [
+                'name': 'single_dir_archive.zip', 'id': int, 'entries': [{
+                    'name': 'dir',
+                    'id': int,
+                    'entries': [{
+                        'name': 'dir2',
+                        'id': int,
+                        'entries': [{
+                            'name': 'dir3',
+                            'id': int,
+                            'entries': [{
+                                'name': 'file',
+                                'id': int,
+                            }],
+                        }, {
+                            'name': 'file',
+                            'id': int,
+                        }, {
+                            'name': 'file2',
+                            'id': int,
+                        },
                                     {
-                                        'name':
-                                            'dir2',
-                                        'id':
-                                            int,
-                                        'entries':
-                                            [
-                                                {
-                                                    'name':
-                                                        'dir3',
-                                                    'id':
-                                                        int,
-                                                    'entries':
-                                                        [
-                                                            {
-                                                                'name': 'file',
-                                                                'id': int,
-                                                            }
-                                                        ],
-                                                }, {
-                                                    'name': 'file',
-                                                    'id': int,
-                                                },
-                                                {
-                                                    'name': 'file2',
-                                                    'id': int,
-                                                },
-                                                {
-                                                    'name':
-                                                        'wow',
-                                                    'id':
-                                                        int,
-                                                    'entries':
-                                                        [
-                                                            {
-                                                                'name': 'dit',
-                                                                'id': int,
-                                                                'entries': [],
-                                                            }
-                                                        ],
-                                                }
-                                            ],
-                                    }
-                                ],
-                        }, {
-                            'name': 'single_file_work',
-                            'id': int,
-                        }, {
-                            'name': 'single_file_work_copy',
-                            'id': int,
-                        }
-                    ]
+                                        'name': 'wow',
+                                        'id': int,
+                                        'entries': [{
+                                            'name': 'dit',
+                                            'id': int,
+                                            'entries': [],
+                                        }],
+                                    }],
+                    }],
+                }, {
+                    'name': 'single_file_work',
+                    'id': int,
+                }, {
+                    'name': 'single_file_work_copy',
+                    'id': int,
+                }]
             }
         )
 
         session.query(
             m.Assignment
-        ).filter_by(id=m.Work.query.get(work_id).assignment_id).update(
-            {
-                'deadline':
-                    datetime.datetime.utcnow() + datetime.timedelta(days=1)
-            }
-        )
+        ).filter_by(id=m.Work.query.get(work_id).assignment_id).update({
+            'deadline': datetime.datetime.utcnow() +
+                        datetime.timedelta(days=1)
+        })
 
 
 @pytest.mark.parametrize('with_works', [True], indirect=True)
@@ -1736,10 +1596,7 @@ def test_delete_submission(
             'patch',
             f'/api/v1/submissions/{work_id}',
             200,
-            data={
-                'feedback': 'waaa',
-                'grade': 5.65
-            },
+            data={'feedback': 'waaa', 'grade': 5.65},
             result=dict,
         )
 
@@ -1839,12 +1696,8 @@ def test_selecting_multiple_rubric_items(
             f'/api/v1/submissions/{work_id}/rubrics/',
             200,
             result={
-                'rubrics': list,
-                'selected': [],
-                'points': {
-                    'max': max_points,
-                    'selected': 0
-                }
+                'rubrics': list, 'selected': [],
+                'points': {'max': max_points, 'selected': 0}
             }
         )['rubrics']
 
@@ -1875,13 +1728,10 @@ def test_selecting_multiple_rubric_items(
             f'/api/v1/submissions/{work_id}/rubrics/',
             200,
             result={
-                'rubrics': list,
-                'selected': list,
-                'points':
-                    {
-                        'max': max_points,
-                        'selected': 0 if error else points,
-                    }
+                'rubrics': list, 'selected': list, 'points': {
+                    'max': max_points,
+                    'selected': 0 if error else points,
+                }
             }
         )['selected']
         if error:
@@ -1918,11 +1768,10 @@ def test_uploading_unsafe_archive(
             f'/api/v1/assignments/{assignment.id}/submission',
             400,
             real_data={
-                'file':
-                    (
-                        f'{os.path.dirname(__file__)}/../test_data/'
-                        f'test_submissions/unsafe.{ext}', f'unsafe.{ext}'
-                    )
+                'file': (
+                    f'{os.path.dirname(__file__)}/../test_data/'
+                    f'test_submissions/unsafe.{ext}', f'unsafe.{ext}'
+                )
             },
             result=error_template,
         )
@@ -1944,11 +1793,10 @@ def test_uploading_unsafe_archive(
             '?ignored_files=error',
             400,
             real_data={
-                'file':
-                    (
-                        f'{os.path.dirname(__file__)}/../test_data/'
-                        f'test_submissions/unsafe.{ext}', f'unsafe.{ext}'
-                    )
+                'file': (
+                    f'{os.path.dirname(__file__)}/../test_data/'
+                    f'test_submissions/unsafe.{ext}', f'unsafe.{ext}'
+                )
             },
             result=error_template,
         )
@@ -1978,11 +1826,10 @@ def test_uploading_invalid_file(
             ('?ignored_files=error' if ignore else ''),
             400,
             real_data={
-                'file':
-                    (
-                        f'{os.path.dirname(__file__)}/../test_data/'
-                        f'test_submissions/single_file_work', f'arch.{ext}'
-                    )
+                'file': (
+                    f'{os.path.dirname(__file__)}/../test_data/'
+                    f'test_submissions/single_file_work', f'arch.{ext}'
+                )
             },
             result=error_template,
         )

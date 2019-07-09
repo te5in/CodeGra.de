@@ -14,6 +14,7 @@ from collections import defaultdict
 import pytest
 
 import psef
+import helpers
 import psef.models as m
 from helpers import (
     get_id, create_course, create_marker, create_assignment, create_submission,
@@ -36,30 +37,7 @@ def get_submission_archive(name):
 
 @pytest.fixture
 def original_rubric_data():
-    yield {
-        'rows':
-            [
-                {
-                    'header':
-                        'My header',
-                    'description':
-                        'My description',
-                    'items':
-                        [
-                            {
-                                'description': 'item description',
-                                'header': 'header',
-                                'points': 4,
-                            },
-                            {
-                                'description': 'item description',
-                                'header': 'header',
-                                'points': 5,
-                            }
-                        ]
-                }
-            ]
-    }
+    yield helpers.get_simple_rubric()
 
 
 @pytest.fixture
@@ -73,14 +51,13 @@ def rubric(
             f'/api/v1/assignments/{assignment.id}/rubrics/',
             200,
             data=original,
-            result=[
-                {
-                    'header': original['rows'][0]['header'],
-                    'description': original['rows'][0]['description'],
-                    'id': int,
-                    'items': list,
-                }
-            ]
+            result=[{
+                'header': original['rows'][0]['header'],
+                'description': original['rows'][0]['description'],
+                'id': int,
+                'items': list,
+                'locked': False,
+            }]
         )
 
 
@@ -108,12 +85,10 @@ def test_get_all_assignments(
         if not error:
             for assig in assigs:
                 ensure_keys_in_dict(
-                    assig, [
-                        ('id', int), ('state', str), ('description', str),
-                        ('created_at', str), ('name', str), ('deadline', str),
-                        ('is_lti', bool), ('whitespace_linter', bool),
-                        ('course', dict)
-                    ]
+                    assig, [('id', int), ('state', str), ('description', str),
+                            ('created_at', str), ('name', str),
+                            ('deadline', str), ('is_lti', bool),
+                            ('whitespace_linter', bool), ('course', dict)]
                 )
                 has_hidden = has_hidden or assig['state'] == 'hidden'
             assert has_hidden == hidden
@@ -160,6 +135,7 @@ def test_get_assignment(
                 'max_grade': None,
                 'group_set': None,
                 'division_parent_id': None,
+                'auto_test_id': None,
             }
         else:
             res = error_template
@@ -178,46 +154,28 @@ def test_get_non_existing_assignment(
 
 
 @pytest.mark.parametrize(
-    'update_data', [
-        {
-            'name': 'NEW AND UPDATED NAME',
-            'state': 'open',
-            'deadline': datetime.datetime.utcnow().isoformat(),
-        }
-    ]
+    'update_data', [{
+        'name': 'NEW AND UPDATED NAME',
+        'state': 'open',
+        'deadline': datetime.datetime.utcnow().isoformat(),
+    }]
 )
 @pytest.mark.parametrize('keep_name', [True, False])
 @pytest.mark.parametrize('keep_deadline', [True, False])
 @pytest.mark.parametrize('keep_state', [True, False])
 @pytest.mark.parametrize(
     'changes,err_code', [
-        ({
-            'state': 'open'
-        }, False),
-        ({
-            'state': 'done'
-        }, False),
-        ({
-            'state': 'hidden'
-        }, False),
-        ({
-            'state': 'wow'
-        }, 400),
+        ({'state': 'open'}, False),
+        ({'state': 'done'}, False),
+        ({'state': 'hidden'}, False),
+        ({'state': 'wow'}, 400),
         ({
             'state': 2,
         }, 400),
-        ({
-            'deadline': 'nodate'
-        }, 400),
-        ({
-            'deadline': []
-        }, 400),
-        ({
-            'name': ''
-        }, 400),
-        ({
-            'name': 1
-        }, 400),
+        ({'deadline': 'nodate'}, 400),
+        ({'deadline': []}, 400),
+        ({'name': ''}, 400),
+        ({'name': 1}, 400),
     ]
 )
 def test_update_assignment(
@@ -237,10 +195,8 @@ def test_update_assignment(
         data = copy.deepcopy(update_data)
         assig_id = assignment.id
 
-        for val, name in [
-            (keep_state, 'state'), (keep_name, 'name'),
-            (keep_deadline, 'deadline')
-        ]:
+        for val, name in [(keep_state, 'state'), (keep_name, 'name'),
+                          (keep_deadline, 'deadline')]:
             if not val:
                 data.pop(name)
                 if name in changes:
@@ -538,25 +494,18 @@ def test_get_and_add_rubric_row(
             row['items'] = [item]
         marker = request.node.get_closest_marker('http_err')
         code = 200 if marker is None else marker.kwargs['error']
-        res = [
-            {
-                'id':
-                    int,
-                'header':
-                    row['header'],
-                'description':
-                    row['description'],
-                'items':
-                    [
-                        {
-                            'id': int,
-                            'description': item['description'],
-                            'header': item['header'],
-                            'points': item['points'],
-                        }
-                    ],
-            }
-        ] if marker is None else error_template
+        res = [{
+            'id': int,
+            'header': row['header'],
+            'description': row['description'],
+            'items': [{
+                'id': int,
+                'description': item['description'],
+                'header': item['header'],
+                'points': item['points'],
+            }],
+            'locked': False,
+        }] if marker is None else error_template
         res = res if marker is None else error_template
 
         with logged_in(teacher_user):
@@ -639,18 +588,11 @@ def test_update_add_rubric_wrong_permissions(
 ):
     marker = request.node.get_closest_marker('http_err')
     rubric = {
-        'header':
-            f'My header',
-        'description':
-            f'My description',
-        'items':
-            [
-                {
-                    'header': 'The header',
-                    'description': f'item description',
-                    'points': 2,
-                },
-            ]
+        'header': f'My header', 'description': f'My description', 'items': [{
+            'header': 'The header',
+            'description': f'item description',
+            'points': 2,
+        }, ]
     }
     with logged_in(named_user):
         res = test_client.req(
@@ -841,16 +783,12 @@ def test_updating_wrong_rubric(
         server_rubric = copy.deepcopy(rubric)
 
         rubric[0]['items'][1]['points'] = 7
-        rubric.append(
-            {
-                'header': 'head',
-                'description': '22',
-                'items': [{
-                    'description': '-7points',
-                    'points': -7,
-                }]
-            }
-        )
+        rubric.append({
+            'header': 'head', 'description': '22', 'items': [{
+                'description': '-7points',
+                'points': -7,
+            }]
+        })
         test_client.req(
             'put',
             f'/api/v1/assignments/{assig_id}/rubrics/',
@@ -1087,20 +1025,16 @@ def test_upload_files(
                     f'/api/v1/assignments/{assignment.id}/submission',
                     201,
                     real_data={
-                        'file':
-                            (
-                                get_submission_archive(f'{name}{ext}'),
-                                f'{name}{ext}',
-                            )
+                        'file': (
+                            get_submission_archive(f'{name}{ext}'),
+                            f'{name}{ext}',
+                        )
                     },
                     result={
-                        'id': int,
-                        'user': named_user.__to_json__(),
-                        'created_at': str,
-                        'assignee': None,
-                        'grade': None,
-                        'comment': None,
-                        'comment_author': None,
+                        'id': int, 'user': named_user.__to_json__(),
+                        'created_at': str, 'assignee': None, 'grade': None,
+                        'comment': None, 'comment_author': None,
+                        'grade_overridden': False
                     }
                 )
 
@@ -1121,11 +1055,10 @@ def test_upload_files(
                     f'/api/v1/assignments/{assignment.id}/submission',
                     403,
                     real_data={
-                        'file':
-                            (
-                                get_submission_archive(f'{name}{ext}'),
-                                f'{name}{ext}'
-                            )
+                        'file': (
+                            get_submission_archive(f'{name}{ext}'),
+                            f'{name}{ext}'
+                        )
                     },
                     result=error_template
                 )
@@ -1252,9 +1185,7 @@ def test_incorrect_ingore_files_value(
 
 @pytest.mark.parametrize(
     'get_data_func', [
-        lambda: {
-            'file': (io.BytesIO(b'0' * 2 * 2 ** 20), 'filename')
-        },
+        lambda: {'file': (io.BytesIO(b'0' * 2 * 2 ** 20), 'filename')},
         lambda: {
             'file1': (io.BytesIO(b'0' * int(0.9 * 2 ** 20)), 'filename1'),
             'file2': (io.BytesIO(b'0' * int(0.9 * 2 ** 20)), 'filename2'),
@@ -1269,41 +1200,29 @@ def test_incorrect_ingore_files_value(
             'file4': (get_submission_archive('larger_file.zip'), 'f4.zip'),
             'file5': (get_submission_archive('larger_file.zip'), 'f5.zip'),
         },
+        lambda:
+        {'file': (get_submission_archive('too_large.tar.gz'), 'l.tar.gz')},
+        lambda: {'file': (get_submission_archive('too_large.zip'), 'l.zip')},
+        lambda: {'file': (get_submission_archive('too_large.7z'), 'l.7z')},
         lambda: {
-            'file': (get_submission_archive('too_large.tar.gz'), 'l.tar.gz')
+            'file': (
+                get_submission_archive('many_larger_files.tar.gz'), 'l.tar.gz'
+            )
+        },
+        lambda:
+        {'file': (get_submission_archive('many_larger_files.zip'), 'l.zip')},
+        lambda:
+        {'file': (get_submission_archive('many_larger_files.7z'), 'l.7z')},
+        lambda: {
+            'file': (
+                get_submission_archive('archive_with_large_file.tar.gz'),
+                'l.tar.gz'
+            )
         },
         lambda: {
-            'file': (get_submission_archive('too_large.zip'), 'l.zip')
-        },
-        lambda: {
-            'file': (get_submission_archive('too_large.7z'), 'l.7z')
-        },
-        lambda: {
-            'file':
-                (
-                    get_submission_archive('many_larger_files.tar.gz'),
-                    'l.tar.gz'
-                )
-        },
-        lambda: {
-            'file': (get_submission_archive('many_larger_files.zip'), 'l.zip')
-        },
-        lambda: {
-            'file': (get_submission_archive('many_larger_files.7z'), 'l.7z')
-        },
-        lambda: {
-            'file':
-                (
-                    get_submission_archive('archive_with_large_file.tar.gz'),
-                    'l.tar.gz'
-                )
-        },
-        lambda: {
-            'file':
-                (
-                    get_submission_archive('archive_with_large_file.zip'),
-                    'l.zip'
-                )
+            'file': (
+                get_submission_archive('archive_with_large_file.zip'), 'l.zip'
+            )
         },
         lambda: {
             'file':
@@ -1339,11 +1258,10 @@ def test_upload_archive_with_dev_file(
             f'/api/v1/assignments/{assignment.id}/submission',
             400,
             real_data={
-                'file':
-                    (
-                        get_submission_archive('non_normal_files.tar.gz'),
-                        'arch.tar.gz'
-                    )
+                'file': (
+                    get_submission_archive('non_normal_files.tar.gz'),
+                    'arch.tar.gz'
+                )
             },
             result=error_template
         )
@@ -1364,11 +1282,10 @@ def test_upload_archive_with_many_files(
             f'/api/v1/assignments/{assignment.id}/submission',
             400,
             real_data={
-                'file':
-                    (
-                        get_submission_archive(f'multiple_dir_archive.{ext}'),
-                        f'arch.{ext}'
-                    )
+                'file': (
+                    get_submission_archive(f'multiple_dir_archive.{ext}'),
+                    f'arch.{ext}'
+                )
             },
             result=error_template
         )
@@ -1537,6 +1454,46 @@ def test_divide_assignments(
             assert assig['assignee'] is None
 
 
+def test_divide_assignment_negative_weights(
+    teacher_user, logged_in, test_client, error_template, assignment
+):
+    users_roles = filter(
+        lambda user_role: user_role[1].has_permission(CPerm.can_grade_work),
+        assignment.course.get_all_users_in_course().all(),
+    )
+    users = [user_role[0] for user_role in users_roles]
+
+    with logged_in(teacher_user):
+        test_client.req(
+            'patch',
+            f'/api/v1/assignments/{assignment.id}/divide',
+            400,
+            result=error_template,
+            data={
+                'graders': {str(users[0].id): -1},
+            },
+        )
+
+        res = test_client.req(
+            'patch',
+            f'/api/v1/assignments/{assignment.id}/divide',
+            400,
+            result=error_template,
+            data={
+                'graders': {
+                    str(user.id): (i % 3) - 1
+                    for i, user in enumerate(users)
+                },
+            },
+        )
+        negative_ids = [user.id for i, user in enumerate(users) if i % 3 == 0]
+        positive_ids = [user.id for i, user in enumerate(users) if i % 3 != 0]
+        for id in negative_ids:
+            assert str(id) in res['description']
+        for id in positive_ids:
+            assert str(id) not in res['description']
+
+
 def test_divide_non_existing_assignment(
     teacher_user, logged_in, test_client, error_template
 ):
@@ -1639,9 +1596,7 @@ def test_reminder_email_divide(
             'patch',
             f'/api/v1/assignments/{assignment.id}/divide',
             204,
-            data={'graders': {
-                grader_done: 1
-            }}
+            data={'graders': {grader_done: 1}}
         )
         assert stubmailer.called == 1, (
             'Make sure user is mailed even if it had assigned submissions '
@@ -1780,15 +1735,14 @@ def test_get_all_submissions(
             for work in sorted(
                 works, key=lambda w: w.created_at, reverse=True
             ):
-                res.append(
-                    {
-                        'assignee': None if no_hide else work.assignee,
-                        'grade': None if no_grade else work.grade,
-                        'id': work.id,
-                        'user': dict,
-                        'created_at': work.created_at.isoformat(),
-                    }
-                )
+                res.append({
+                    'assignee': None if no_hide else work.assignee,
+                    'grade': None if no_grade else work.grade,
+                    'id': work.id,
+                    'user': dict,
+                    'created_at': work.created_at.isoformat(),
+                    'grade_overridden': False,
+                })
                 if extended:
                     res[-1]['comment'] = None if no_grade else work.comment
                     res[-1]['comment_author'] = (
@@ -1957,9 +1911,9 @@ def test_upload_blackboard_zip(
                 m.user_course,
             ).filter(m.user_course.c.course_id == crole.id).delete(False)
             session.commit()
-            session.query(m.User).filter_by(name='Student1').update(
-                {'username': result['Student1']['username']}
-            )
+            session.query(m.User).filter_by(name='Student1').update({
+                'username': result['Student1']['username']
+            })
             assert get_student_users() == set()
 
         res = test_client.req(
@@ -2038,11 +1992,10 @@ def test_assigning_after_uploading(
                 f'/api/v1/assignments/{assignment.id}/submission',
                 201,
                 real_data={
-                    'file':
-                        (
-                            get_submission_archive('multiple_dir_archive.zip'),
-                            f'single_file_work.zip'
-                        )
+                    'file': (
+                        get_submission_archive('multiple_dir_archive.zip'),
+                        f'single_file_work.zip'
+                    )
                 },
                 result=dict,
             )
@@ -2052,12 +2005,11 @@ def test_assigning_after_uploading(
             f'/api/v1/assignments/{assignment.id}/divide',
             204,
             data={
-                'graders':
-                    {
-                        i.id: 1
-                        for i in m.User.query.
-                        filter(m.User.name.in_(['Thomas Schaper', 'Robin']))
-                    }
+                'graders': {
+                    i.id: 1
+                    for i in m.User.query.
+                    filter(m.User.name.in_(['Thomas Schaper', 'Robin']))
+                }
             }
         )
         assigs = test_client.req(
@@ -2078,11 +2030,10 @@ def test_assigning_after_uploading(
             f'/api/v1/assignments/{assignment.id}/submission',
             201,
             real_data={
-                'file':
-                    (
-                        get_submission_archive('multiple_dir_archive.zip'),
-                        'single_file_work.zip'
-                    )
+                'file': (
+                    get_submission_archive('multiple_dir_archive.zip'),
+                    'single_file_work.zip'
+                )
             },
             result=dict,
         )
@@ -2104,11 +2055,10 @@ def test_assigning_after_uploading(
             f'/api/v1/assignments/{assignment.id}/submission',
             201,
             real_data={
-                'file':
-                    (
-                        get_submission_archive('multiple_dir_archive.zip'),
-                        'single_file_work.zip'
-                    )
+                'file': (
+                    get_submission_archive('multiple_dir_archive.zip'),
+                    'single_file_work.zip'
+                )
             },
             result=dict,
         )
@@ -2133,9 +2083,7 @@ def test_reset_grader_status_after_upload(
             'patch',
             f'/api/v1/assignments/{assignment.id}/divide',
             204,
-            data={'graders': {
-                grader_done: 1
-            }}
+            data={'graders': {grader_done: 1}}
         )
         test_client.req(
             'post',
@@ -2159,11 +2107,10 @@ def test_reset_grader_status_after_upload(
                 f'/api/v1/assignments/{assignment.id}/submission',
                 201,
                 real_data={
-                    'file':
-                        (
-                            get_submission_archive('multiple_dir_archive.zip'),
-                            'single_file_work.zip'
-                        )
+                    'file': (
+                        get_submission_archive('multiple_dir_archive.zip'),
+                        'single_file_work.zip'
+                    )
                 },
                 result=dict,
             )
@@ -2190,11 +2137,10 @@ def test_reset_grader_status_after_upload(
             f'/api/v1/assignments/{assignment.id}/submission',
             201,
             real_data={
-                'file':
-                    (
-                        get_submission_archive('multiple_dir_archive.zip'),
-                        f'single_file_work.zip'
-                    )
+                'file': (
+                    get_submission_archive('multiple_dir_archive.zip'),
+                    f'single_file_work.zip'
+                )
             },
             result=dict,
         )
@@ -2504,11 +2450,9 @@ def test_ignored_upload_files(
                 'ignored_files=error',
                 400,
                 real_data={
-                    'file':
-                        (
-                            get_submission_archive(f'{name}{ext}'),
-                            f'{name}{ext}'
-                        )
+                    'file': (
+                        get_submission_archive(f'{name}{ext}'), f'{name}{ext}'
+                    )
                 },
                 result={
                     'code': 'INVALID_FILE_IN_ARCHIVE',
@@ -2526,11 +2470,9 @@ def test_ignored_upload_files(
                 'ignored_files=keep',
                 201,
                 real_data={
-                    'file':
-                        (
-                            get_submission_archive(f'{name}{ext}'),
-                            f'{name}{ext}'
-                        )
+                    'file': (
+                        get_submission_archive(f'{name}{ext}'), f'{name}{ext}'
+                    )
                 },
             )
             test_client.req(
@@ -2538,9 +2480,7 @@ def test_ignored_upload_files(
                 f'/api/v1/submissions/{res["id"]}/files/',
                 200,
                 result={
-                    'entries': entries,
-                    'id': int,
-                    'name': f'{dirname}{ext}'
+                    'entries': entries, 'id': int, 'name': f'{dirname}{ext}'
                 }
             )
 
@@ -2550,11 +2490,9 @@ def test_ignored_upload_files(
                 'ignored_files=delete',
                 201,
                 real_data={
-                    'file':
-                        (
-                            get_submission_archive(f'{name}{ext}'),
-                            f'{name}{ext}'
-                        )
+                    'file': (
+                        get_submission_archive(f'{name}{ext}'), f'{name}{ext}'
+                    )
                 },
             )
             test_client.req(
@@ -2610,11 +2548,7 @@ def test_ignored_upload_files(
             'get',
             f'/api/v1/submissions/{res["id"]}/files/',
             200,
-            result={
-                'name': f'{name}{ext}',
-                'id': int,
-                'entries': list
-            },
+            result={'name': f'{name}{ext}', 'id': int, 'entries': list},
         )
 
     with logged_in(teacher_user):
@@ -2632,12 +2566,11 @@ def test_ignored_upload_files(
             'ignored_files=error',
             400,
             real_data={
-                'file':
-                    (
-                        get_submission_archive(f'{name}{ext}'), f'{name}'
-                        # Extension is not appended to the name, so the file
-                        # won't get extracted.
-                    )
+                'file': (
+                    get_submission_archive(f'{name}{ext}'), f'{name}'
+                    # Extension is not appended to the name, so the file
+                    # won't get extracted.
+                )
             },
             result={
                 'code': 'INVALID_FILE_IN_ARCHIVE',
@@ -2656,11 +2589,10 @@ def test_ignored_upload_files(
             'ignored_files=delete',
             400,
             real_data={
-                'file':
-                    (
-                        get_submission_archive(f'{name}{ext}'), f'{name}'
-                        # Test without extension
-                    )
+                'file': (
+                    get_submission_archive(f'{name}{ext}'), f'{name}'
+                    # Test without extension
+                )
             },
             result={
                 'code': 'NO_FILES_SUBMITTED',
@@ -2701,11 +2633,10 @@ def test_ignored_upload_files(
             ),
             201,
             real_data={
-                'file':
-                    (
-                        get_submission_archive(f'{name}{ext}'), f'{name}'
-                        # Test without extension
-                    )
+                'file': (
+                    get_submission_archive(f'{name}{ext}'), f'{name}'
+                    # Test without extension
+                )
             },
         )
         test_client.req(
@@ -2713,10 +2644,7 @@ def test_ignored_upload_files(
             f'/api/v1/submissions/{res["id"]}/files/',
             200,
             result={
-                'entries': [{
-                    'name': name,
-                    'id': int
-                }],
+                'entries': [{'name': name, 'id': int}],
                 'id': int,
                 'name': 'top',
             }
@@ -2739,11 +2667,7 @@ def test_ignored_upload_files(
             'get',
             f'/api/v1/submissions/{res["id"]}/files/',
             200,
-            result={
-                'entries': entries,
-                'id': int,
-                'name': f'{name}{ext}'
-            }
+            result={'entries': entries, 'id': int, 'name': f'{name}{ext}'}
         )
 
 
@@ -2770,11 +2694,10 @@ def test_ignoring_file(
             'ignored_files=error',
             400,
             real_data={
-                'file':
-                    (
-                        get_submission_archive(f'multiple_dir_archive.zip'),
-                        filename
-                    )
+                'file': (
+                    get_submission_archive(f'multiple_dir_archive.zip'),
+                    filename
+                )
             },
             result={
                 'code': 'INVALID_FILE_IN_ARCHIVE',
@@ -2810,11 +2733,10 @@ def test_ignoring_dirs_tar_archives(
             'ignored_files=error',
             400,
             real_data={
-                'file':
-                    (
-                        get_submission_archive(f'multiple_dir_archive.{ext}'),
-                        f'multiple_dir_archive.{ext}'
-                    )
+                'file': (
+                    get_submission_archive(f'multiple_dir_archive.{ext}'),
+                    f'multiple_dir_archive.{ext}'
+                )
             },
             result={
                 'code': 'INVALID_FILE_IN_ARCHIVE',
@@ -2834,22 +2756,17 @@ def test_ignoring_dirs_tar_archives(
             'ignored_files=delete',
             201,
             real_data={
-                'file':
-                    (
-                        get_submission_archive(f'multiple_dir_archive.{ext}'),
-                        f'multiple_dir_archive.{ext}'
-                    )
+                'file': (
+                    get_submission_archive(f'multiple_dir_archive.{ext}'),
+                    f'multiple_dir_archive.{ext}'
+                )
             },
         )
         res = test_client.req(
             'get',
             f'/api/v1/submissions/{res["id"]}/files/',
             200,
-            result={
-                'entries': list,
-                'id': int,
-                'name': str
-            }
+            result={'entries': list, 'id': int, 'name': str}
         )
         for entry in res['entries']:
             assert entry['name'] != 'dir'
@@ -2916,9 +2833,7 @@ def test_warning_grader_done(
             f'/api/v1/assignments/{assig_id}/divide',
             204,
             result=None,
-            data={'graders': {
-                grader_done: 1
-            }}
+            data={'graders': {grader_done: 1}}
         )
 
         _, rv = test_client.req(
@@ -3241,8 +3156,7 @@ def test_reminder_email(
 
     time = datetime.datetime.utcnow() + datetime.timedelta(days=1)
     data = {
-        'done_type': 'assigned_only',
-        'reminder_time': time.isoformat(),
+        'done_type': 'assigned_only', 'reminder_time': time.isoformat(),
         'done_email': '"thomas schaper" <thomas@example>, aa@example.com'
     }
     code = 204
@@ -3356,14 +3270,10 @@ def test_reminder_email(
         test_mail(assigned_graders)
         test_done_email()
 
-        assert task.args == [
-            ((assig_id, ), )
-        ], 'The correct task should be scheduled.'
-        assert task.kwargs == [
-            {
-                'eta': time
-            }
-        ], 'The time should be preserved directly.'
+        assert task.args == [((assig_id, ), )
+                             ], 'The correct task should be scheduled.'
+        assert task.kwargs == [{'eta': time}
+                               ], 'The time should be preserved directly.'
         task_id = task.rets[-1].id
 
         revoker.reset()
@@ -3386,9 +3296,8 @@ def test_reminder_email(
             'Nothing should be scheduled as the type '
             'was none'
         )
-        assert revoker.args == [
-            (task_id, )
-        ], 'Assert the correct task was revoked'
+        assert revoker.args == [(task_id, )
+                                ], 'Assert the correct task was revoked'
         test_mail([])
         test_done_email()
         revoker.reset()
@@ -3502,8 +3411,7 @@ def test_warning_grading_done_email(
             f'/api/v1/assignments/{assig_id}',
             200,
             data={
-                'done_type': 'all_graders',
-                'reminder_time': None,
+                'done_type': 'all_graders', 'reminder_time': None,
                 'done_email': 'thomas@example.com'
             },
             include_response=True
@@ -3526,8 +3434,7 @@ def test_notification_permission(
             f'/api/v1/assignments/{assig_id}',
             403,
             data={
-                'done_type': 'all_graders',
-                'reminder_time': None,
+                'done_type': 'all_graders', 'reminder_time': None,
                 'done_email': 'thomas@example.com'
             },
             result=error_template,
@@ -3579,12 +3486,11 @@ def test_division_parent(
                 # If this user handed in anything it should be assigned to the
                 # same user.
                 if user in subs2:
-                    assert (
-                        (subs2[user]['assignee'] !=
-                         s1['assignee']) == (user in exceptions)
-                    ), 'The grader of {} is not correct'.format(
-                        s1['user']['name']
-                    )
+                    assert ((subs2[user]['assignee'] !=
+                             s1['assignee']) == (user in exceptions)
+                            ), 'The grader of {} is not correct'.format(
+                                s1['user']['name']
+                            )
                     del subs2[user]
             # This shouldn't be possible but just to make sure
             assert not any(u in subs1 for u in subs2)
@@ -3868,18 +3774,14 @@ def test_division_connect_error_conditions(
             f'/api/v1/assignments/{get_id(assigs[0])}/divide',
             400,
             result=error_template,
-            data={'graders': {
-                get_id(admin_user): 1
-            }}
+            data={'graders': {get_id(admin_user): 1}}
         )
         test_client.req(
             'patch',
             f'/api/v1/assignments/{get_id(assigs[1])}/divide',
             400,
             result=error_template,
-            data={'graders': {
-                get_id(admin_user): 1
-            }}
+            data={'graders': {get_id(admin_user): 1}}
         )
 
         # The parent of a parent can be set to None
@@ -3970,10 +3872,10 @@ def test_duplicating_rubric(
             )
 
     with logged_in(user):
-        for assig, code in [
-            (base_assignment_no_rubric, 404), (base_assignment_hidden, 403),
-            (no_permission_assignment, 403), (new_assignment, 404)
-        ]:
+        for assig, code in [(base_assignment_no_rubric, 404),
+                            (base_assignment_hidden, 403),
+                            (no_permission_assignment, 403),
+                            (new_assignment, 404)]:
             test_client.req(
                 'get', f'/api/v1/assignments/{assig["id"]}/rubrics/', code
             )
@@ -3990,18 +3892,13 @@ def test_duplicating_rubric(
             f'/api/v1/assignments/{new_assignment["id"]}/rubric',
             200,
             data={'old_assignment_id': base_assignment["id"]},
-            result=[
-                {
-                    'header':
-                        original_rubric_data['rows'][0]['header'],
-                    'description':
-                        original_rubric_data['rows'][0]['description'],
-                    'id':
-                        int,
-                    'items':
-                        list,
-                }
-            ]
+            result=[{
+                'header': original_rubric_data['rows'][0]['header'],
+                'description': original_rubric_data['rows'][0]['description'],
+                'id': int,
+                'items': list,
+                'locked': False,
+            }]
         )
         test_client.req(
             'get',
@@ -4074,11 +3971,10 @@ def test_prevent_submitting_to_assignment_without_deadline(
             f'/api/v1/assignments/{assig["id"]}/submission',
             400,
             real_data={
-                'file':
-                    (
-                        f'{os.path.dirname(__file__)}/../test_data/'
-                        'test_submissions/multiple_dir_archive.zip', 'f.zip'
-                    )
+                'file': (
+                    f'{os.path.dirname(__file__)}/../test_data/'
+                    'test_submissions/multiple_dir_archive.zip', 'f.zip'
+                )
             },
             result=error_template,
         )
@@ -4141,22 +4037,15 @@ def parse_ignore_v2_test_files():
             'allow_all_files' if 'allow' in ignore[0] else 'deny_all_files'
         )
         assert ignore[1].startswith('options: ')
-        data['options'] = [
-            {
-                'key': k,
-                'value': v
-            } for k, v in {
-                'allow_override': False,
-                **json.loads(ignore[1][len('options: '):].strip()),
-            }.items()
-        ]
-        data['rules'] = [
-            {
-                'rule_type': typ.strip(':'),
-                'file_type': 'directory' if fname[-1] == '/' else 'file',
-                'name': fname,
-            } for typ, fname in (i.split(' ', 1) for i in ignore[2:])
-        ]
+        data['options'] = [{'key': k, 'value': v} for k, v in {
+            'allow_override': False,
+            **json.loads(ignore[1][len('options: '):].strip()),
+        }.items()]
+        data['rules'] = [{
+            'rule_type': typ.strip(':'),
+            'file_type': 'directory' if fname[-1] == '/' else 'file',
+            'name': fname,
+        } for typ, fname in (i.split(' ', 1) for i in ignore[2:])]
         input_dir = [l.lstrip('/') for l in input_dir.split('\n')]
         expected = expected.split('\n')
 
@@ -4219,9 +4108,7 @@ def test_ignore_v2(
                     'ignored_files=delete',
                     400,
                     real_data={'file': (archive_file.name, archive_file.name)},
-                    result={
-                        **error_template, '__allow_extra__': True
-                    },
+                    result={**error_template, '__allow_extra__': True},
                 )
                 assert set(r['name'] for r in err['missing_files']) == set(
                     test_case.out_format
@@ -4318,11 +4205,10 @@ def test_setting_cgignore(
             ),
             201,
             real_data={
-                'file':
-                    (
-                        get_submission_archive('multiple_file_archive.tar.gz'),
-                        'test.tar.gz'
-                    )
+                'file': (
+                    get_submission_archive('multiple_file_archive.tar.gz'),
+                    'test.tar.gz'
+                )
             },
         )
 
@@ -4336,31 +4222,26 @@ def test_upload_files_with_duplicate_filenames(
             f'/api/v1/assignments/{assignment.id}/submission',
             201,
             real_data={
-                'file1':
-                    (
-                        get_submission_archive('single_file_archive.zip'),
-                        f'duplicate_name.zip',
-                    ),
-                'file2':
-                    (
-                        get_submission_archive('multiple_file_archive.zip'),
-                        f'duplicate_name.zip',
-                    ),
-                'file3':
-                    (
-                        get_submission_archive('single_file_archive.zip'),
-                        'other_name',
-                    ),
-                'file4':
-                    (
-                        get_submission_archive('single_file_archive.zip'),
-                        f'duplicate_name.zip (2)',
-                    ),
-                'file5':
-                    (
-                        get_submission_archive('single_file_archive.zip'),
-                        f'duplicate_name.zip',
-                    ),
+                'file1': (
+                    get_submission_archive('single_file_archive.zip'),
+                    f'duplicate_name.zip',
+                ),
+                'file2': (
+                    get_submission_archive('multiple_file_archive.zip'),
+                    f'duplicate_name.zip',
+                ),
+                'file3': (
+                    get_submission_archive('single_file_archive.zip'),
+                    'other_name',
+                ),
+                'file4': (
+                    get_submission_archive('single_file_archive.zip'),
+                    f'duplicate_name.zip (2)',
+                ),
+                'file5': (
+                    get_submission_archive('single_file_archive.zip'),
+                    f'duplicate_name.zip',
+                ),
             },
             result={
                 'id': int,
@@ -4370,6 +4251,7 @@ def test_upload_files_with_duplicate_filenames(
                 'grade': None,
                 'comment': None,
                 'comment_author': None,
+                '__allow_extra__': True,
             }
         )
 
@@ -4378,53 +4260,36 @@ def test_upload_files_with_duplicate_filenames(
             f'/api/v1/submissions/{res["id"]}/files/',
             200,
             result={
-                'entries':
-                    [
-                        {
-                            'name': 'duplicate_name.zip',
-                            'entries':
-                                [{
-                                    'id': int,
-                                    'name': 'single_file_work'
-                                }],
-                            'id': int,
-                        },
-                        {
-                            'name': 'duplicate_name.zip (1)',
-                            'entries':
-                                [
-                                    {
-                                        'id': int,
-                                        'name': 'single_file_work'
-                                    },
-                                    {
-                                        'id': int,
-                                        'name': 'single_file_work_copy'
-                                    }
-                                ],
-                            'id': int,
-                        },
-                        {
-                            'name': 'duplicate_name.zip (2)',
-                            # This has no entries as its original name was
-                            # `duplicate_name.zip (2)` so it is not detected as
-                            # .zip file.
-                            'id': int,
-                        },
-                        {
-                            'name': 'duplicate_name.zip (3)',
-                            'entries':
-                                [{
-                                    'id': int,
-                                    'name': 'single_file_work'
-                                }],
-                            'id': int,
-                        },
-                        {
-                            'name': 'other_name',
-                            'id': int,
-                        }
-                    ],
+                'entries': [
+                    {
+                        'name': 'duplicate_name.zip',
+                        'entries': [{'id': int, 'name': 'single_file_work'}],
+                        'id': int,
+                    },
+                    {
+                        'name': 'duplicate_name.zip (1)',
+                        'entries':
+                            [{'id': int, 'name': 'single_file_work'},
+                             {'id': int, 'name': 'single_file_work_copy'}],
+                        'id': int,
+                    },
+                    {
+                        'name': 'duplicate_name.zip (2)',
+                        # This has no entries as its original name was
+                        # `duplicate_name.zip (2)` so it is not detected as
+                        # .zip file.
+                        'id': int,
+                    },
+                    {
+                        'name': 'duplicate_name.zip (3)',
+                        'entries': [{'id': int, 'name': 'single_file_work'}],
+                        'id': int,
+                    },
+                    {
+                        'name': 'other_name',
+                        'id': int,
+                    }
+                ],
                 'id': int,
                 'name': 'top',
             }

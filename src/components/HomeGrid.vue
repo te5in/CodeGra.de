@@ -58,8 +58,11 @@
                                     <td>
                                         <span>{{ assig.name }}</span><br>
 
-                                        <small>
+                                        <small v-if="assig.deadline">
                                             Due {{ moment(assig.deadline).from(now) }}
+                                        </small>
+                                        <small v-else class="text-muted font-italic">
+                                            No deadline
                                         </small>
                                     </td>
                                     <td>

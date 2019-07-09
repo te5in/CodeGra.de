@@ -51,6 +51,10 @@ extensions = [
     'sphinx_fontawesome',
 ]
 
+# Don't show internal routes in the documenation
+http_index_ignore_prefixes = ['/api/v-internal']
+
+
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
 

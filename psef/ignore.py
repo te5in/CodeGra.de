@@ -89,6 +89,9 @@ class FileDeletion:
             'name': self.deleted_file.name,
         }
 
+    def __structlog__(self) -> object:
+        return self.__to_json__()
+
 
 class SubmissionFilter(typing_extensions.Protocol):
     """Class representing the base submission filter.
@@ -211,7 +214,7 @@ class SubmissionFilter(typing_extensions.Protocol):
         logger.info(
             'Processed submission with submission filter',
             changes=total_changes,
-            resulting_tree=tree
+            resulting_tree=tree,
         )
         return tree, total_changes, self.get_missing_files(tree)
 

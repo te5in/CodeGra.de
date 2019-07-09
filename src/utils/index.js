@@ -27,6 +27,21 @@ export function formatGrade(grade) {
     return Number.isNaN(g) ? null : g.toFixed(2);
 }
 
+export function formatTimePart(num) {
+    return `${num < 10 ? '0' : ''}${num}`;
+}
+
+export function toMaxNDecimals(num, n) {
+    let str = num.toFixed(n);
+    while (str[str.length - 1] === '0') {
+        str = str.slice(0, -1);
+    }
+    if (str[str.length - 1] === '.') {
+        str = str.slice(0, -1);
+    }
+    return str;
+}
+
 export function cmpOneNull(first, second) {
     if (first == null && second == null) {
         return 0;
@@ -180,6 +195,12 @@ export function groupMembers(user) {
     return user.group.members.map(nameOfUser);
 }
 
+export function userMatches(user, filter) {
+    return [nameOfUser(user), ...groupMembers(user)].some(
+        name => name.toLocaleLowerCase().indexOf(filter) > -1,
+    );
+}
+
 export function highlightCode(sourceArr, language, maxLen = 5000) {
     if (sourceArr.length > maxLen) {
         return sourceArr.map(htmlEscape);
@@ -214,11 +235,100 @@ export function loadCodeAndFeedback(http, fileId) {
 
 export function getProps(object, defaultValue, ...props) {
     let res = object;
-    for (let i = 0; res !== undefined && i < props.length; ++i) {
+    for (let i = 0; res != null && i < props.length; ++i) {
         res = res[props[i]];
     }
-    if (res === undefined) {
+    if (res == null) {
         res = defaultValue;
     }
     return res;
+}
+
+export const getUniqueId = (() => {
+    let id = 0;
+    return () => id++;
+})();
+
+export function deepCopy(value, maxDepth = 10, depth = 1) {
+    if (depth > maxDepth) {
+        throw new Error('Max depth reached');
+    }
+
+    if (Array.isArray(value)) {
+        return value.map(v => deepCopy(v, maxDepth, depth + 1));
+    } else if (value && typeof value === 'object') {
+        return Object.entries(value).reduce((res, [k, v]) => {
+            res[k] = deepCopy(v, maxDepth, depth + 1);
+            return res;
+        }, {});
+    } else {
+        return value;
+    }
+}
+
+export function capitalize(str) {
+    if (str.length === 0) return str;
+    return str[0].toUpperCase() + str.substr(1);
+}
+
+export function titleCase(str) {
+    return str
+        .split(' ')
+        .map(capitalize)
+        .join(' ');
+}
+
+export function withOrdinalSuffix(i) {
+    const endsWith = i % 10;
+    const mod100 = i % 100;
+    const isTeen = mod100 >= 10 && mod100 < 20;
+    let suffix = 'th';
+
+    if (endsWith === 1 && !isTeen) {
+        suffix = 'st';
+    }
+    if (endsWith === 2 && !isTeen) {
+        suffix = 'nd';
+    }
+    if (endsWith === 3 && !isTeen) {
+        suffix = 'rd';
+    }
+
+    return `${i}${suffix}`;
+}
+
+export function getErrorMessage(err) {
+    let msg;
+
+    if (err == null) {
+        return '';
+    } else if (err.response && err.response.data) {
+        msg = err.response.data.message;
+    } else if (err instanceof Error) {
+        msg = err.message;
+    } else {
+        msg = err.toString();
+    }
+
+    return msg || 'Something unknown went wrong';
+}
+
+// https://stackoverflow.com/questions/13405129/javascript-create-and-save-file
+export function downloadFile(data, filename, contentType) {
+    const file = new Blob([data], { type: contentType });
+    if (window.navigator.msSaveOrOpenBlob) {
+        // IE10+
+        window.navigator.msSaveOrOpenBlob(file, filename);
+    } else {
+        const url = URL.createObjectURL(file);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }, 0);
+    }
 }

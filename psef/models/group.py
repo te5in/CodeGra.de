@@ -15,6 +15,7 @@ from . import user as user_models
 from . import work as work_models
 from . import _MyQuery
 from . import assignment as assignment_models
+from ..helpers import NotEqualMixin
 from ..exceptions import APICodes, APIException
 from .link_tables import users_groups
 
@@ -27,7 +28,7 @@ else:
     from werkzeug.utils import cached_property
 
 
-class GroupSet(Base):
+class GroupSet(NotEqualMixin, Base):
     """This class represents a group set.
 
     A group set is a single wrapper over all groups. Every group is part of a
@@ -78,7 +79,7 @@ class GroupSet(Base):
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, GroupSet):
-            return False
+            return NotImplemented
         return self.id == other.id
 
     def get_valid_group_for_user(self, user: 'user_models.User'
@@ -205,7 +206,8 @@ class Group(Base):
     A group is a collection of real (non virtual) users that itself is
     connected to a virtual user. A group is connected to a :class:`.GroupSet`.
 
-    :ivar name: The name of the group. This has to be unique in a group set.
+    :ivar ~.Group.name: The name of the group. This has to be unique in a group
+        set.
     :ivar virtual_user: The virtual user this group is connected to. This user
         is used to submissions as the group.
     :ivar group_set: The :class:`.GroupSet` this group is connected to.
@@ -234,7 +236,7 @@ class Group(Base):
     members: t.MutableSequence['user_models.User'] = db.relationship(
         'User',
         secondary=users_groups,
-        lazy='joined',
+        lazy='selectin',
         order_by='User.name',
     )
     virtual_user: 'user_models.User' = db.relationship(

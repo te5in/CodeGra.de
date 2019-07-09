@@ -85,6 +85,10 @@ main {
     }
 }
 
+.fa-icon {
+    flex: 0 0 auto;
+}
+
 .custom-control-input {
     .default-custom-control-input-colors;
 }
@@ -95,8 +99,13 @@ main {
 
 table.table {
     .default-table-colors;
+
     tr:first-child td {
         border-top: 0;
+    }
+
+    #app.dark & tbody + tbody {
+        border-color: @color-primary-darker;
     }
 }
 
@@ -123,6 +132,15 @@ input[type='datetime-local'] {
 
 .dropdown-menu {
     .default-dropdown-menu-colors;
+
+    .dropdown-item.active {
+        background-color: rgba(
+            red(@color-primary),
+            green(@color-primary),
+            blue(@color-primary),
+            0.1
+        );
+    }
 }
 
 input[type='number'] {
@@ -348,10 +366,6 @@ textarea:disabled {
     }
 }
 
-#app.dark .card-header {
-    background-color: @color-primary-darker;
-}
-
 #app.dark hr {
     border-top-color: @color-primary-darkest;
 }
@@ -451,4 +465,32 @@ textarea:disabled {
     li:last-child {
         border-bottom: none;
     }
+}
+
+.help-text {
+    background-color: @footer-color;
+    margin: 1rem 0;
+    padding: 0.375rem 0.75rem;
+    color: @text-color-muted;
+    border-radius: 0.25rem;
+    #app.dark & {
+        background-color: @color-primary-darker;
+    }
+}
+
+#app.dark {
+    .border,
+    .border-top,
+    .border-bottom,
+    .border-left,
+    .border-right {
+        border-color: @color-primary-darker !important;
+    }
+}
+
+.rounded-top,
+.rounded-bottom,
+.rounded-left,
+.rounded-right {
+    border-radius: 0;
 }

@@ -3,18 +3,30 @@
 SPDX-License-Identifier: AGPL-3.0-only
 """
 
+import enum
 import typing as t
 import numbers
 import datetime
 
 from mypy_extensions import TypedDict
 
+import cg_json
+
 from . import Base, db, _MyQuery
 from .. import helpers
 from ..exceptions import APICodes, APIException
+from .link_tables import work_rubric_item
+
+if t.TYPE_CHECKING:  # pragma: no cover
+    # pylint: disable=unused-import
+    from . import assignment as assignment_models
 
 
-class RubricItem(Base):
+class RubricLockReason(cg_json.SerializableEnum, enum.Enum):
+    auto_test = enum.auto()
+
+
+class RubricItem(helpers.NotEqualMixin, Base):
     """This class holds the information about a single option/item in a
     :class:`.RubricRow`.
     """
@@ -64,6 +76,23 @@ class RubricItem(Base):
             points=self.points,
         )
 
+    def __eq__(self, other: object) -> bool:
+        """Check if two rubric items are equal
+
+        >>> RubricItem(id=5) == RubricItem(id=5)
+        True
+        >>> RubricItem(id=6) == RubricItem(id=5)
+        False
+        >>> RubricItem(id=6) == object()
+        False
+        """
+        if isinstance(other, RubricItem):
+            return self.id == other.id
+        return NotImplemented
+
+    def __hash__(self) -> int:
+        return hash(self.id)
+
 
 class RubricRow(Base):
     """Describes a row of some rubric.
@@ -93,6 +122,13 @@ class RubricRow(Base):
         order_by='asc(RubricItem.points)',
     )  # type: t.MutableSequence[RubricItem]
 
+    assignment: 'assignment_models.Assignment' = db.relationship(
+        'Assignment',
+        foreign_keys=assignment_id,
+        back_populates='rubric_rows',
+        lazy='select',
+    )
+
     def copy(self) -> 'RubricRow':
         return RubricRow(
             created_at=datetime.datetime.utcnow(),
@@ -101,6 +137,17 @@ class RubricRow(Base):
             assignment_id=self.assignment_id,
             items=[item.copy() for item in self.items]
         )
+
+    def is_selected(self) -> bool:
+        """Is this rubric row selected at least once.
+        """
+        return db.session.query(
+            db.session.query(work_rubric_item).filter(
+                work_rubric_item.c.rubricitem_id.in_(
+                    [item.id for item in self.items]
+                )
+            ).exists()
+        ).scalar()
 
     @property
     def is_valid(self) -> bool:
@@ -121,6 +168,7 @@ class RubricRow(Base):
             'header': self.header,
             'description': self.description,
             'items': self.items,
+            'locked': self.assignment.locked_rubric_rows.get(self.id, False)
         }
 
     def _get_item(self, item_id: int) -> t.Optional['RubricItem']:

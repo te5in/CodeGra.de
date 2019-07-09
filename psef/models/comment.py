@@ -8,16 +8,16 @@ import typing as t
 import psef
 
 from . import Base, db, _MyQuery
-from .file import File
 from ..permissions import CoursePermission
 
 if t.TYPE_CHECKING:  # pragma: no cover
     # pylint: disable=unused-import
+    from . import file as file_models
     from . import user as user_models
 
 
 class Comment(Base):
-    """Describes a comment placed in a :class:`.File` by a
+    """Describes a comment placed in a :class:`.file_models.File` by a
     :class:`.user_models.User` with the ability to grade.
 
     A comment is always linked to a specific line in a file.
@@ -41,7 +41,9 @@ class Comment(Base):
     comment: str = db.Column('comment', db.Unicode)
     __table_args__ = (db.PrimaryKeyConstraint(file_id, line), )
 
-    file: File = db.relationship('File', foreign_keys=file_id, innerjoin=True)
+    file: 'file_models.File' = db.relationship(
+        'File', foreign_keys=file_id, innerjoin=True
+    )
     user: 'user_models.User' = db.relationship(
         'User', foreign_keys=user_id, innerjoin=True
     )

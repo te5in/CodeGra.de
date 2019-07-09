@@ -8,9 +8,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 import typing as t
 
 import structlog
-from flask import Response, g, jsonify, request
+from flask import Response, g, request
 
-from . import models
+from cg_json import jsonify
+
 from .exceptions import APICodes, APIWarnings, APIException
 
 HttpWarning = t.NewType('HttpWarning', str)  # pylint: disable=invalid-name
@@ -48,9 +49,10 @@ def init_app(app: t.Any) -> None:
         :returns: A response with the JSON serialized error as content.
         :rtype: flask.Response
         """
+        from . import models
         models.db.session.expire_all()
 
-        response = jsonify(error)
+        response = t.cast(t.Any, jsonify(error))
         response.status_code = error.status_code
         logger.warning(
             'APIException occurred',
@@ -65,6 +67,7 @@ def init_app(app: t.Any) -> None:
 
     @app.errorhandler(404)
     def handle_404(_: object) -> Response:  # pylint: disable=unused-variable; #pragma: no cover
+        from . import models
         models.db.session.expire_all()
 
         api_exp = APIException(
@@ -72,7 +75,7 @@ def init_app(app: t.Any) -> None:
             f'The route "{request.path}" does not exist',
             APICodes.ROUTE_NOT_FOUND, 404
         )
-        response = jsonify(api_exp)
+        response = t.cast(t.Any, jsonify(api_exp))
         logger.warning('A unknown route was requested')
         response.status_code = 404
         return response
@@ -84,6 +87,7 @@ def init_app(app: t.Any) -> None:
         This function should never really be called, as it means our code
         contains a bug.
         """
+        from . import models
         models.db.session.expire_all()
 
         api_exp = APIException(
@@ -92,7 +96,7 @@ def init_app(app: t.Any) -> None:
                 'please contact the system administrator'
             ), APICodes.UNKOWN_ERROR, 500
         )
-        response = jsonify(api_exp)
+        response = t.cast(t.Any, jsonify(api_exp))
         response.status_code = 500
         logger.error('Unknown exception occurred', exc_info=True)
         return response

@@ -91,39 +91,33 @@ This module defines all the objects in the database in their relation.
     :members:
     :show-inheritance:
 
+``psef.models.auto_test``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. automodule:: psef.models.auto_test
+    :members:
+    :show-inheritance:
+
+``psef.models.auto_test_step``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. automodule:: psef.models.auto_test_step
+    :members:
+    :show-inheritance:
+
 SPDX-License-Identifier: AGPL-3.0-only
 """
 
-import os
-import abc
-import enum
-import json
-import uuid
 import typing as t
-import numbers
-import datetime
 
-import structlog
-from flask import g
-from sqlalchemy import orm, event
-from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy_utils import PasswordType, force_auto_coercion
+import cg_sqlalchemy_helpers
+from cg_sqlalchemy_helpers import UUID_LENGTH
+from cg_sqlalchemy_helpers.types import (  # pylint: disable=unused-import
+    MyDb, DbColumn, _MyQuery
+)
 
 from .. import PsefFlask
 from ..cache import cache_within_request
-from .model_types import (  # pylint: disable=unused-import
-    T, MyDb, DbColumn, _MyQuery
-)
 
-logger = structlog.get_logger()
-
-db: MyDb = t.cast(  # pylint: disable=invalid-name
-    MyDb,
-    SQLAlchemy(session_options={
-        'autocommit': False,
-        'autoflush': False
-    })
-)
+db: MyDb = cg_sqlalchemy_helpers.make_db()  # pylint: disable=invalid-name
 
 
 def init_app(app: PsefFlask) -> None:
@@ -132,57 +126,18 @@ def init_app(app: PsefFlask) -> None:
     :param app: The flask app to initialize for.
     :returns: Nothing
     """
-    db.init_app(app)
-    force_auto_coercion()
+    cg_sqlalchemy_helpers.init_app(db, app)
 
-    with app.app_context():
-
-        @event.listens_for(db.engine, "before_cursor_execute")
-        def __before_cursor_execute(*_args: object) -> None:
-            if hasattr(g, 'query_start'):
-                g.query_start = datetime.datetime.utcnow()
-
-        @event.listens_for(db.engine, "after_cursor_execute")
-        def __after_cursor_execute(*_args: object) -> None:
-            if hasattr(g, 'queries_amount'):
-                g.queries_amount += 1
-            if hasattr(g, 'query_start'):
-                delta = (datetime.datetime.utcnow() -
-                         g.query_start).total_seconds()
-                if hasattr(g, 'queries_total_duration'):
-                    g.queries_total_duration += delta
-                if (
-                    hasattr(g, 'queries_max_duration') and (
-                        g.queries_max_duration is None or
-                        delta > g.queries_max_duration
-                    )
-                ):
-                    g.queries_max_duration = delta
-
-        if app.config['_USING_SQLITE']:  # pragma: no cover
-
-            @event.listens_for(db.engine, "connect")
-            def __do_connect(dbapi_connection: t.Any, _: t.Any) -> None:
-                # disable pysqlite's emitting of the BEGIN statement entirely.
-                # also stops it from emitting COMMIT before any DDL.
-                dbapi_connection.isolation_level = None
-                dbapi_connection.execute('pragma foreign_keys=ON')
-
-            @event.listens_for(db.engine, "begin")
-            def __do_begin(conn: t.Any) -> None:
-                # emit our own BEGIN
-                conn.execute("BEGIN")
-
-
-UUID_LENGTH = 36
 
 if t.TYPE_CHECKING and getattr(
     t, 'SPHINX', False
 ) is not True:  # pragma: no cover
-    from .model_types import Base, Comparator
+    from cg_sqlalchemy_helpers.types import Base, Comparator
+    cached_property = property  # pylint: disable=invalid-name
 else:
     from sqlalchemy.ext.hybrid import hybrid_property, Comparator  # type: ignore
     Base = db.Model  # type: ignore # pylint: disable=invalid-name
+    from werkzeug.utils import cached_property  # type: ignore
 
 # Sphinx has problems with resolving types when this decorator is used, we
 # simply remove it in the case of Sphinx.
@@ -199,8 +154,8 @@ if True:  # pylint: disable=using-constant-test
     from .permission import Permission
     from .user import User
     from .lti_provider import LTIProvider
-    from .file import File, FileOwner
-    from .work import Work, GradeHistory
+    from .file import File, FileOwner, AutoTestFixture, FileMixin
+    from .work import Work, GradeHistory, GradeOrigin
     from .linter import LinterState, LinterComment, LinterInstance
     from .plagiarism import (
         PlagiarismState, PlagiarismRun, PlagiarismCase, PlagiarismMatch
@@ -211,3 +166,10 @@ if True:  # pylint: disable=using-constant-test
     from .rubric import RubricItem, RubricRow
     from .group import GroupSet, Group
     from .link_tables import user_course
+    from .auto_test import (
+        AutoTest, AutoTestSet, AutoTestSuite, AutoTestResult, AutoTestRunState,
+        AutoTestRun, AutoTestRunner
+    )
+    from .auto_test_step import (
+        AutoTestStepResultState, AutoTestStepResult, AutoTestStepBase
+    )

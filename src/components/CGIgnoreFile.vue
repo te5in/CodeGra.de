@@ -530,18 +530,8 @@ td {
     opacity: 0;
 }
 
-.help-text {
-    background-color: @footer-color;
-    margin: 1rem 0;
-    padding: 0.375rem 0.75rem;
-    color: @text-color-muted;
-    border-radius: 0.25rem;
-    p:last-child {
-        margin-bottom: 0;
-    }
-    #app.dark & {
-        background-color: @color-primary-darker;
-    }
+.help-text p:last-child {
+    margin-bottom: 0;
 }
 
 .policy-form-only {

@@ -480,38 +480,23 @@ def test_lti_grade_passback(
         with app.app_context():
             last_xml = None
             data = {
-                'custom_canvas_course_name':
-                    'NEW_COURSE',
-                'custom_canvas_course_id':
-                    canvas_id,
-                'custom_canvas_assignment_id':
-                    f'{canvas_id}_ASSIG_1',
-                'custom_canvas_assignment_title':
-                    'MY_ASSIG_TITLE',
+                'custom_canvas_course_name': 'NEW_COURSE',
+                'custom_canvas_course_id': canvas_id,
+                'custom_canvas_assignment_id': f'{canvas_id}_ASSIG_1',
+                'custom_canvas_assignment_title': 'MY_ASSIG_TITLE',
                 'ext_roles':
                     'urn:lti:sysrole:ims/lis/Administrator,urn:lti:role:ims/lis/Instructor',
-                'custom_canvas_user_login_id':
-                    username,
-                'custom_canvas_assignment_due_at':
-                    due_at.isoformat(),
-                'custom_canvas_assignment_published':
-                    published,
-                'user_id':
-                    lti_id,
-                'lis_person_contact_email_primary':
-                    'a@a.nl',
-                'lis_person_name_full':
-                    username,
-                'context_id':
-                    'NO_CONTEXT!!',
-                'context_title':
-                    'WRONG_TITLE!!',
-                'oauth_consumer_key':
-                    'my_lti',
-                'lis_outcome_service_url':
-                    source_id,
-                'custom_canvas_points_possible':
-                    lti_max_points,
+                'custom_canvas_user_login_id': username,
+                'custom_canvas_assignment_due_at': due_at.isoformat(),
+                'custom_canvas_assignment_published': published,
+                'user_id': lti_id,
+                'lis_person_contact_email_primary': 'a@a.nl',
+                'lis_person_name_full': username,
+                'context_id': 'NO_CONTEXT!!',
+                'context_title': 'WRONG_TITLE!!',
+                'oauth_consumer_key': 'my_lti',
+                'lis_outcome_service_url': source_id,
+                'custom_canvas_points_possible': lti_max_points,
             }
             if source_id:
                 data['lis_result_sourcedid'] = source_id
@@ -549,7 +534,10 @@ def test_lti_grade_passback(
                 headers={'Authorization': f'Bearer {token}'},
             )
             res = test_client.req(
-                'get', f'/api/v1/assignments/{assig_id}/submissions/', 200
+                'get',
+                f'/api/v1/assignments/{assig_id}/submissions/',
+                200,
+                headers={'Authorization': f'Bearer {token}'},
             )
             assert len(res) == 1
             return res[0]
@@ -559,10 +547,7 @@ def test_lti_grade_passback(
             'patch',
             f'/api/v1/submissions/{work_id}',
             200,
-            data={
-                'grade': grade,
-                'feedback': 'feedback'
-            },
+            data={'grade': grade, 'feedback': 'feedback'},
             headers={'Authorization': f'Bearer {token}'},
         )
 
@@ -601,19 +586,18 @@ def test_lti_grade_passback(
             'get',
             f'/api/v1/submissions/{work["id"]}/grade_history/',
             200,
-            result=[
-                {
-                    'changed_at': str,
-                    'is_rubric': False,
-                    'grade': float,
-                    'passed_back': True,
-                    'user': dict,
-                }
-            ],
+            result=[{
+                'changed_at': str,
+                'is_rubric': False,
+                'grade': float,
+                'passed_back': True,
+                'user': dict,
+                '__allow_extra__': True,
+            }],
             headers={'Authorization': f'Bearer {token}'},
         )
 
-    # Updating while open shoudl passback straight away
+    # Updating while open should passback straight away
     set_grade(token, 6, work['id'])
     assert patch_request.called
     assert_grade_set_to(
@@ -739,28 +723,18 @@ def test_lti_grade_passback_blackboard(
         with app.app_context():
             last_xml = None
             data = {
-                'context_title':
-                    'NEW_COURSE',
-                'context_id':
-                    canvas_id,
-                'resource_link_id':
-                    f'{canvas_id}_ASSIG_1',
-                'resource_link_title':
-                    'MY_ASSIG_TITLE',
+                'context_title': 'NEW_COURSE',
+                'context_id': canvas_id,
+                'resource_link_id': f'{canvas_id}_ASSIG_1',
+                'resource_link_title': 'MY_ASSIG_TITLE',
                 'roles':
                     'urn:lti:sysrole:ims/lis/Administrator,urn:lti:role:ims/lis/Instructor',
-                'lis_person_sourcedid':
-                    username,
-                'user_id':
-                    lti_id,
-                'lis_person_contact_email_primary':
-                    'a@a.nl',
-                'lis_person_name_full':
-                    username,
-                'oauth_consumer_key':
-                    'blackboard_lti',
-                'lis_outcome_service_url':
-                    source_id,
+                'lis_person_sourcedid': username,
+                'user_id': lti_id,
+                'lis_person_contact_email_primary': 'a@a.nl',
+                'lis_person_name_full': username,
+                'oauth_consumer_key': 'blackboard_lti',
+                'lis_outcome_service_url': source_id,
             }
             if source_id:
                 data['lis_result_sourcedid'] = source_id
@@ -775,23 +749,24 @@ def test_lti_grade_passback_blackboard(
                 200,
                 data={'jwt_token': jwt},
             )
+            token = lti_res.get('access_token', None)
             test_client.req(
                 'patch',
                 f'/api/v1/assignments/{lti_res["assignment"]["id"]}',
                 200,
                 data={
-                    'deadline':
-                        (
-                            datetime.datetime.utcnow() +
-                            datetime.timedelta(days=1)
-                        ).isoformat(),
+                    'deadline': (
+                        datetime.datetime.utcnow() +
+                        datetime.timedelta(days=1)
+                    ).isoformat(),
                 },
+                headers={'Authorization': f'Bearer {token}'},
             )
             assert m.Assignment.query.get(
                 lti_res['assignment']['id']
             ).state == m._AssignmentStateEnum.open
             assert lti_res['assignment']['course']['name'] == 'NEW_COURSE'
-            return lti_res['assignment'], lti_res.get('access_token', None)
+            return lti_res['assignment'], token
 
     def get_upload_file(token, assig_id):
         full_filename = (
@@ -807,7 +782,10 @@ def test_lti_grade_passback_blackboard(
                 headers={'Authorization': f'Bearer {token}'},
             )
             res = test_client.req(
-                'get', f'/api/v1/assignments/{assig_id}/submissions/', 200
+                'get',
+                f'/api/v1/assignments/{assig_id}/submissions/',
+                200,
+                headers={'Authorization': f'Bearer {token}'},
             )
             assert len(res) == 1
             return res[0]
@@ -817,10 +795,7 @@ def test_lti_grade_passback_blackboard(
             'patch',
             f'/api/v1/submissions/{work_id}',
             200,
-            data={
-                'grade': grade,
-                'feedback': 'feedback'
-            },
+            data={'grade': grade, 'feedback': 'feedback'},
             headers={'Authorization': f'Bearer {token}'},
         )
 
@@ -858,15 +833,14 @@ def test_lti_grade_passback_blackboard(
             'get',
             f'/api/v1/submissions/{work["id"]}/grade_history/',
             200,
-            result=[
-                {
-                    'changed_at': str,
-                    'is_rubric': False,
-                    'grade': float,
-                    'passed_back': True,
-                    'user': dict,
-                }
-            ],
+            result=[{
+                'changed_at': str,
+                'is_rubric': False,
+                'grade': float,
+                'passed_back': True,
+                'user': dict,
+                '__allow_extra__': True,
+            }],
             headers={'Authorization': f'Bearer {token}'},
         )
 
@@ -937,34 +911,21 @@ def test_lti_assignment_create(
     ):
         with app.app_context():
             data = {
-                'custom_canvas_course_name':
-                    course_name,
-                'custom_canvas_course_id':
-                    'MY_COURSE_ID_100',
-                'custom_canvas_assignment_id':
-                    'MY_ASSIG_ID_100',
-                'custom_canvas_assignment_title':
-                    assig_name,
+                'custom_canvas_course_name': course_name,
+                'custom_canvas_course_id': 'MY_COURSE_ID_100',
+                'custom_canvas_assignment_id': 'MY_ASSIG_ID_100',
+                'custom_canvas_assignment_title': assig_name,
                 'ext_roles':
                     'urn:lti:sysrole:ims/lis/Administrator,urn:lti:role:ims/lis/Instructor',
-                'custom_canvas_user_login_id':
-                    username,
-                'custom_canvas_assignment_published':
-                    published,
-                'user_id':
-                    lti_id,
-                'lis_person_contact_email_primary':
-                    'a@a.nl',
-                'lis_person_name_full':
-                    username,
-                'context_id':
-                    'NO_CONTEXT!!',
-                'context_title':
-                    'WRONG_TITLE!!',
-                'oauth_consumer_key':
-                    'my_lti',
-                'lis_outcome_service_url':
-                    source_id,
+                'custom_canvas_user_login_id': username,
+                'custom_canvas_assignment_published': published,
+                'user_id': lti_id,
+                'lis_person_contact_email_primary': 'a@a.nl',
+                'lis_person_name_full': username,
+                'context_id': 'NO_CONTEXT!!',
+                'context_title': 'WRONG_TITLE!!',
+                'oauth_consumer_key': 'my_lti',
+                'lis_outcome_service_url': source_id,
             }
             if source_id:
                 data['lis_result_sourcedid'] = source_id
@@ -1011,66 +972,45 @@ def test_lti_assignment_create(
         assert assig['course']['name'] == course_name
 
 
-@pytest.mark.parametrize(
-    ('lms,extra_data'), [
-        (
-            'Canvas', {
-                'custom_canvas_course_name':
-                    'NEW_COURSE',
-                'custom_canvas_course_id':
-                    'MY_COURSE_ID_100',
-                'custom_canvas_assignment_id':
-                    'MY_ASSIG_ID_100',
-                'custom_canvas_assignment_title':
-                    'MY_ASSIG_TITLE',
-                'custom_canvas_user_login_id':
-                    'a the a-er',
-                'custom_canvas_assignment_published':
-                    'false',
-                'ext_roles':
-                    'urn:lti:sysrole:ims/lis/Administrator,urn:lti:role:ims/lis/Instructor',
-                'oauth_consumer_key':
-                    'my_lti',
-            }
-        ),
-        (
-            'Blackboard', {
-                'context_id':
-                    'MY_COURSE_ID_100',
-                'context_title':
-                    'NEW_COURSE',
-                'resource_link_id':
-                    'MY_ASSIG_ID_100',
-                'resource_link_title':
-                    'MY_ASSIG_TITLE',
-                'lis_person_sourcedid':
-                    'a the a-er',
-                'roles':
-                    'urn:lti:sysrole:ims/lis/Administrator,urn:lti:role:ims/lis/Instructor',
-                'oauth_consumer_key':
-                    'blackboard_lti',
-            }
-        ),
-        (
-            'Moodle', {
-                'context_id':
-                    'MY_COURSE_ID_100',
-                'context_title':
-                    'NEW_COURSE',
-                'resource_link_id':
-                    'MY_ASSIG_ID_100',
-                'resource_link_title':
-                    'MY_ASSIG_TITLE',
-                'ext_user_username':
-                    'a the a-er',
-                'roles':
-                    'NOT_VALID_ROLE,urn:lti:sysrole:ims/lis/Administrator,Instructor',
-                'oauth_consumer_key':
-                    'moodle_lti',
-            }
-        ),
-    ]
-)
+@pytest.mark.parametrize(('lms,extra_data'), [
+    (
+        'Canvas', {
+            'custom_canvas_course_name': 'NEW_COURSE',
+            'custom_canvas_course_id': 'MY_COURSE_ID_100',
+            'custom_canvas_assignment_id': 'MY_ASSIG_ID_100',
+            'custom_canvas_assignment_title': 'MY_ASSIG_TITLE',
+            'custom_canvas_user_login_id': 'a the a-er',
+            'custom_canvas_assignment_published': 'false',
+            'ext_roles':
+                'urn:lti:sysrole:ims/lis/Administrator,urn:lti:role:ims/lis/Instructor',
+            'oauth_consumer_key': 'my_lti',
+        }
+    ),
+    (
+        'Blackboard', {
+            'context_id': 'MY_COURSE_ID_100',
+            'context_title': 'NEW_COURSE',
+            'resource_link_id': 'MY_ASSIG_ID_100',
+            'resource_link_title': 'MY_ASSIG_TITLE',
+            'lis_person_sourcedid': 'a the a-er',
+            'roles':
+                'urn:lti:sysrole:ims/lis/Administrator,urn:lti:role:ims/lis/Instructor',
+            'oauth_consumer_key': 'blackboard_lti',
+        }
+    ),
+    (
+        'Moodle', {
+            'context_id': 'MY_COURSE_ID_100',
+            'context_title': 'NEW_COURSE',
+            'resource_link_id': 'MY_ASSIG_ID_100',
+            'resource_link_title': 'MY_ASSIG_TITLE',
+            'ext_user_username': 'a the a-er',
+            'roles':
+                'NOT_VALID_ROLE,urn:lti:sysrole:ims/lis/Administrator,Instructor',
+            'oauth_consumer_key': 'moodle_lti',
+        }
+    ),
+])
 def test_lti_assignment_update(
     test_client, app, logged_in, ta_user, error_template, lms, extra_data
 ):
@@ -1388,38 +1328,23 @@ def test_lti_grade_passback_with_groups(
     ):
         with app.app_context():
             data = {
-                'custom_canvas_course_name':
-                    'NEW_COURSE',
-                'custom_canvas_course_id':
-                    canvas_id,
-                'custom_canvas_assignment_id':
-                    f'{canvas_id}_ASSIG_1',
-                'custom_canvas_assignment_title':
-                    'MY_ASSIG_TITLE',
+                'custom_canvas_course_name': 'NEW_COURSE',
+                'custom_canvas_course_id': canvas_id,
+                'custom_canvas_assignment_id': f'{canvas_id}_ASSIG_1',
+                'custom_canvas_assignment_title': 'MY_ASSIG_TITLE',
                 'ext_roles':
                     'urn:lti:sysrole:ims/lis/Administrator,urn:lti:role:ims/lis/Instructor',
-                'custom_canvas_user_login_id':
-                    username,
-                'custom_canvas_assignment_due_at':
-                    due_at.isoformat(),
-                'custom_canvas_assignment_published':
-                    'true',
-                'user_id':
-                    lti_id,
-                'lis_person_contact_email_primary':
-                    'a@a.nl',
-                'lis_person_name_full':
-                    username,
-                'context_id':
-                    'NO_CONTEXT!!',
-                'context_title':
-                    'WRONG_TITLE!!',
-                'oauth_consumer_key':
-                    'my_lti',
-                'lis_outcome_service_url':
-                    source_id,
-                'custom_canvas_points_possible':
-                    lti_max_points,
+                'custom_canvas_user_login_id': username,
+                'custom_canvas_assignment_due_at': due_at.isoformat(),
+                'custom_canvas_assignment_published': 'true',
+                'user_id': lti_id,
+                'lis_person_contact_email_primary': 'a@a.nl',
+                'lis_person_name_full': username,
+                'context_id': 'NO_CONTEXT!!',
+                'context_title': 'WRONG_TITLE!!',
+                'oauth_consumer_key': 'my_lti',
+                'lis_outcome_service_url': source_id,
+                'custom_canvas_points_possible': lti_max_points,
             }
             if source_id:
                 data['lis_result_sourcedid'] = source_id
@@ -1444,10 +1369,7 @@ def test_lti_grade_passback_with_groups(
             'patch',
             f'/api/v1/submissions/{work_id}',
             200,
-            data={
-                'grade': grade,
-                'feedback': 'feedback'
-            },
+            data={'grade': grade, 'feedback': 'feedback'},
         )
 
     with logged_in(teacher_user):
@@ -1630,23 +1552,24 @@ def test_lti_grade_passback_moodle(
                 200,
                 data={'jwt_token': jwt},
             )
+            token = lti_res.get('access_token', None)
             test_client.req(
                 'patch',
                 f'/api/v1/assignments/{lti_res["assignment"]["id"]}',
                 200,
                 data={
-                    'deadline':
-                        (
-                            datetime.datetime.utcnow() +
-                            datetime.timedelta(days=1)
-                        ).isoformat(),
+                    'deadline': (
+                        datetime.datetime.utcnow() +
+                        datetime.timedelta(days=1)
+                    ).isoformat(),
                 },
+                headers={'Authorization': f'Bearer {token}'},
             )
             assert m.Assignment.query.get(
                 lti_res['assignment']['id']
             ).state == m._AssignmentStateEnum.open
             assert lti_res['assignment']['course']['name'] == 'NEW_COURSE'
-            return lti_res['assignment'], lti_res.get('access_token', None)
+            return lti_res['assignment'], token
 
     def get_upload_file(token, assig_id):
         full_filename = (
@@ -1662,7 +1585,10 @@ def test_lti_grade_passback_moodle(
                 headers={'Authorization': f'Bearer {token}'},
             )
             res = test_client.req(
-                'get', f'/api/v1/assignments/{assig_id}/submissions/', 200
+                'get',
+                f'/api/v1/assignments/{assig_id}/submissions/',
+                200,
+                headers={'Authorization': f'Bearer {token}'},
             )
             assert len(res) == 1
             return res[0]
@@ -1672,10 +1598,7 @@ def test_lti_grade_passback_moodle(
             'patch',
             f'/api/v1/submissions/{work_id}',
             200,
-            data={
-                'grade': grade,
-                'feedback': 'feedback'
-            },
+            data={'grade': grade, 'feedback': 'feedback'},
             headers={'Authorization': f'Bearer {token}'},
         )
 

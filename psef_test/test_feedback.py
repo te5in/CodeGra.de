@@ -28,9 +28,7 @@ only_own = create_marker(pytest.mark.only_own)
         data_error({}),
         data_error({'sr': 'err'}),
         data_error({'comment': 5}),
-        {
-            'comment': 'correct'
-        },
+        {'comment': 'correct'},
     ]
 )
 def test_add_feedback(
@@ -159,8 +157,7 @@ def test_get_feedback(
                     'line': 0,
                     'msg': 'for line 0',
                     'author': dict,
-                },
-                '1': {
+                }, '1': {
                     'line': 1,
                     'msg': 'for line - 1',
                     'author': dict,
@@ -193,8 +190,7 @@ def test_get_feedback(
                     'line': 0,
                     'msg': 'for line 0',
                     'author': dict,
-                },
-                '1': {
+                }, '1': {
                     'line': 1,
                     'msg': 'for line - 1',
                     'author': dict,
@@ -241,8 +237,7 @@ def test_delete_feedback(
             'line': 0,
             'msg': 'for line 0',
             'author': dict,
-        },
-        '1': {
+        }, '1': {
             'line': 1,
             'msg': 'line1',
             'author': dict,
@@ -340,10 +335,7 @@ def test_get_all_feedback(
             'post',
             f'/api/v1/assignments/{assignment.id}/linter',
             200,
-            data={
-                'name': 'Flake8',
-                'cfg': ''
-            }
+            data={'name': 'Flake8', 'cfg': ''}
         )
 
     expected = re.compile(
@@ -373,10 +365,8 @@ def test_get_all_feedback(
             'get',
             f'/api/v1/submissions/{work_id}',
             code,
-            result={
-                'name': str,
-                'output_name': str
-            } if code == 200 else error_template,
+            result={'name': str, 'output_name': str}
+            if code == 200 else error_template,
             query={'type': 'feedback'},
         )
 
@@ -400,10 +390,8 @@ def test_get_all_feedback(
             'get',
             f'/api/v1/submissions/{work["id"]}',
             perm_err.kwargs['error'] if perm_err else 200,
-            result=error_template if perm_err else {
-                'name': str,
-                'output_name': str
-            },
+            result=error_template
+            if perm_err else {'name': str, 'output_name': str},
             query={'type': 'feedback'}
         )
 
@@ -471,10 +459,7 @@ def test_get_assignment_all_feedback(
             'patch',
             f'/api/v1/submissions/{work["id"]}',
             200,
-            data={
-                'grade': 5,
-                'feedback': 'Niet zo goed'
-            },
+            data={'grade': 5, 'feedback': 'Niet zo goed'},
             result=dict
         )
         test_client.req(
@@ -495,10 +480,7 @@ def test_get_assignment_all_feedback(
             'post',
             f'/api/v1/assignments/{assignment.id}/linter',
             200,
-            data={
-                'name': 'Flake8',
-                'cfg': ''
-            }
+            data={'name': 'Flake8', 'cfg': ''}
         )
 
     def match_res(res):
@@ -530,11 +512,7 @@ def test_get_assignment_all_feedback(
 
         if only_own_subs:
             ex_res = {
-                str(work["id"]): {
-                    'user': [],
-                    'linter': [],
-                    'general': ''
-                }
+                str(work["id"]): {'user': [], 'linter': [], 'general': ''}
             }
         elif code == 200:
             ex_res = dict

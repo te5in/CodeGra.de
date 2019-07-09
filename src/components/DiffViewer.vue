@@ -193,7 +193,7 @@ export default {
             });
 
             lines.forEach(line => {
-                line.txt = this.$htmlEscape(line.txt);
+                line.txt = this.$utils.htmlEscape(line.txt);
             });
 
             if (lines.length < 5000) {
