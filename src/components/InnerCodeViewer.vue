@@ -1,11 +1,12 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
-<ol :class="{ editable, 'lint-whitespace': assignment.whitespace_linter, 'show-whitespace': showWhitespace }"
+<ol :class="{ editable: editable, 'lint-whitespace': assignment.whitespace_linter, 'show-whitespace': showWhitespace }"
     :start="computedStartLine"
     :style="{
-            paddingLeft: `${3 + Math.log10(computedEndLine) * 2/3}em`,
-            fontSize: `${fontSize}px`,
-            }"
+        paddingLeft: noLineNumbers ? 0 : `${3 + Math.log10(computedEndLine) * 2/3}em`,
+        listStyle: noLineNumbers ? 'none' : null,
+        fontSize: `${fontSize}px`,
+    }"
     class="hljs inner-code-viewer"
     @click="editable && addFeedback($event)">
 
@@ -14,8 +15,9 @@
         :key="i - 1"
         class="line"
         :class="{
-                'linter-feedback-outer': $userConfig.features.linters && linterFeedback[i - 1],
-                'feedback-outer': feedback[i - 1] != null }"
+            'linter-feedback-outer': $userConfig.features.linters && linterFeedback[i - 1],
+            'feedback-outer': $utils.getProps(feedback, null, i - 1, 'msg') != null
+        }"
         :data-line="i">
 
         <code v-html="codeLines[i - 1]"/>
@@ -40,7 +42,7 @@
     </li>
     <li class="empty-file"
         v-if="codeLines.length === 1 && codeLines[0] === ''">
-        File is empty.
+        {{ emptyFileMessage }}
     </li>
     <li class="missing-newline"
         v-if="warnNoNewline && computedEndLine === codeLines.length && codeLines[codeLines.length - 1] != ''">
@@ -58,6 +60,7 @@ import LinterFeedbackArea from './LinterFeedbackArea';
 
 export default {
     name: 'inner-code-viewer',
+
     props: {
         assignment: {
             type: Object,
@@ -122,6 +125,16 @@ export default {
         lineFeedbackOffset: {
             type: Number,
             default: 0,
+        },
+
+        noLineNumbers: {
+            type: Boolean,
+            default: false,
+        },
+
+        emptyFileMessage: {
+            type: String,
+            default: 'File is empty.',
         },
     },
 
@@ -206,6 +219,7 @@ li {
     position: relative;
     padding-left: 0.75em;
     padding-right: 0.75em;
+    cursor: text;
 
     background-color: lighten(@linum-bg, 1%);
     border-left: 1px solid darken(@linum-bg, 5%);
@@ -215,19 +229,17 @@ li {
         border-left: 1px solid darken(@color-primary-darkest, 5%);
     }
 
-    &:hover {
-        cursor: text;
-    }
-
-    .editable &:hover {
+    .code-viewer.editable &:hover,
+    #app.dark .code-viewer.editable &:hover {
         cursor: pointer;
+        background-color: rgba(0, 0, 0, 0.025);
     }
 }
 
 code {
-    border-bottom: 1px solid transparent;
     color: @color-secondary-text;
     white-space: pre-wrap;
+    font-size: 100%;
 
     word-wrap: break-word;
     word-break: break-word;
@@ -240,10 +252,6 @@ code {
 
     #app.dark & {
         color: #839496;
-    }
-
-    ol.editable li:hover & {
-        border-bottom-color: currentColor;
     }
 }
 

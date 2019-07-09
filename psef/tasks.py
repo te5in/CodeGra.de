@@ -16,212 +16,19 @@ import itertools
 from operator import itemgetter
 
 import structlog
-from flask import g
-from celery import Celery as _Celery
+from flask import Flask
 from celery import signals
-from mypy_extensions import NamedArg
+from mypy_extensions import NamedArg, DefaultNamedArg
 
 import psef as p
+import cg_celery
 
 logger = structlog.get_logger()
 
-
-@signals.before_task_publish.connect
-def __celery_before_task_publish(
-    sender: str, headers: object, **_: object
-) -> None:  # pragma: no cover
-    logger.info('Publishing task', sender=sender, headers=headers)
+celery = cg_celery.CGCelery('psef', signals)  # pylint: disable=invalid-name
 
 
-@signals.after_task_publish.connect
-def __celery_after_task_publish(
-    sender: str, headers: object, **_: object
-) -> None:  # pragma: no cover
-    logger.info('Published task', sender=sender, headers=headers)
-
-
-@signals.task_success.connect
-def __celery_success(**kwargs: object) -> None:
-    logger.info(
-        'Task finished',
-        result=kwargs['result'],
-    )
-
-
-@signals.task_failure.connect
-def __celery_failure(**_: object) -> None:  # pragma: no cover
-    logger.error(
-        'Task failed',
-        exc_info=True,
-    )
-
-
-@signals.task_revoked.connect
-def __celery_revoked(**kwargs: object) -> None:  # pragma: no cover
-    logger.info(
-        'Task revoked',
-        terminated=kwargs['terminated'],
-        signum=kwargs['signum'],
-        expired=kwargs['expired'],
-    )
-
-
-@signals.task_unknown.connect
-def __celery_unkown(**kwargs: object) -> None:  # pragma: no cover
-    logger.warning(
-        'Unknown task received',
-        task_name=kwargs['name'],
-        request_id=kwargs['id'],
-        raw_message=kwargs['message'],
-    )
-
-
-@signals.task_rejected.connect
-def __celery_rejected(**kwargs: object) -> None:  # pragma: no cover
-    logger.warning(
-        'Rejected task received',
-        raw_message=kwargs['message'],
-    )
-
-
-# pylint: disable=missing-docstring,no-self-use,pointless-statement
-if t.TYPE_CHECKING:  # pragma: no cover
-    T = t.TypeVar('T', bound=t.Callable)
-
-    class CeleryTask(t.Generic[T]):  # pylint: disable=unsubscriptable-object
-        @property
-        def delay(self) -> T:
-            # This hax is for sphinx as it can't parse the source otherwise
-            return lambda *args, **kwargs: None  # type: ignore
-
-        @property
-        def apply_async(self) -> t.Any:
-            ...
-
-    class Celery:
-        def __init__(self, _name: str) -> None:
-            self.conf: t.MutableMapping[t.Any, t.Any] = {}
-            self.control: t.Any
-
-        def init_app(self, _app: t.Any) -> None:
-            ...
-
-        @t.overload
-        def task(self, _callback: T) -> CeleryTask[T]:
-            ...
-
-        @t.overload
-        def task(  # pylint: disable=function-redefined,unused-argument
-            self,
-            **kwargs: t.Union[int, bool]
-        ) -> t.Callable[[T], CeleryTask[T]]:
-            ...
-
-        def task(self, *args: object, **kwargs: object) -> t.Any:  # pylint: disable=function-redefined,unused-argument
-            # `CeleryTask()` is returned here as this code is also executed
-            # when generating the documentation.
-            if len(args) == 1:
-                return CeleryTask()
-            else:
-                return self.task
-else:
-    Celery = _Celery
-# pylint: enable=missing-docstring,no-self-use,pointless-statement
-
-
-class MyCelery(Celery):
-    """A subclass of celery that makes sure tasks are always called with a
-    flask app context
-    """
-
-    def __init__(self, *args: t.Any, **kwargs: t.Any) -> None:
-        self._flask_app: t.Any = None
-        super(MyCelery, self).__init__(*args, **kwargs)
-
-        if t.TYPE_CHECKING:  # pragma: no cover
-
-            class TaskBase:
-                """Example task base for Mypy annotations
-                """
-                request: t.Any
-                name: str
-        else:
-            # self.Task is available in the `Celery` object.
-            TaskBase = self.Task  # pylint: disable=access-member-before-definition,invalid-name
-
-        outer_self = self
-
-        class _ContextTask(TaskBase):
-            abstract = True
-
-            def __call__(self, *args: t.Any, **kwargs: t.Any) -> t.Any:
-                # This is not written by us but taken from here:
-                # https://web.archive.org/web/20150617151604/http://slides.skien.cc/flask-hacks-and-best-practices/#15
-
-                # pylint: disable=protected-access
-                assert outer_self._flask_app  # pragma: no cover
-
-                log = logger.new(
-                    request_id=self.request.id,
-                    in_celery=True,
-                    task_name=self.name,
-                    # pylint: disable=protected-access
-                    base_url=outer_self._flask_app.config['EXTERNAL_URL'],
-                )
-
-                log.info('Starting task', args=args, kwargs=kwargs)
-
-                if outer_self._flask_app.config['TESTING']:
-                    g.request_id = self.request.id
-                    g.queries_amount = 0
-                    g.queries_total_duration = 0
-                    g.queries_max_duration = None
-                    g.query_start = None
-                    result = TaskBase.__call__(self, *args, **kwargs)
-                    logger.bind(
-                        queries_amount=g.queries_amount,
-                        queries_max_duration=g.queries_max_duration,
-                        queries_total_duration=g.queries_total_duration,
-                    )
-                    return result
-                with outer_self._flask_app.app_context():  # pragma: no cover
-                    g.request_id = self.request.id
-                    g.queries_amount = 0
-                    g.queries_total_duration = 0
-                    g.queries_max_duration = None
-                    g.query_start = None
-                    result = TaskBase.__call__(self, *args, **kwargs)
-                    logger.bind(
-                        queries_amount=g.queries_amount,
-                        queries_max_duration=g.queries_max_duration,
-                        queries_total_duration=g.queries_total_duration,
-                    )
-                    return result
-
-        self.Task = _ContextTask  # pylint: disable=invalid-name
-
-    def init_flask_app(self, app: t.Any) -> None:
-        self._flask_app = app
-
-
-celery = MyCelery('psef')  # pylint: disable=invalid-name
-
-
-def init_app(app: t.Any) -> None:
-    """Initialize tasks for the given flask app.
-
-    :param: The flask app to initialize for.
-    :returns: Nothing
-    """
-    celery.conf.update(app.config['CELERY_CONFIG'])
-    # This is a weird class that is like a dict but not really.
-    celery.conf.update(
-        {
-            'task_ignore_result': True,
-            'celery_hijack_root_logger': False,
-            'worker_log_format': '%(message)s',
-        }
-    )
+def init_app(app: Flask) -> None:
     celery.init_flask_app(app)
 
 
@@ -405,7 +212,7 @@ def _run_plagiarism_control_1(  # pylint: disable=too-many-branches,too-many-sta
                 f'-{sub.id}-{sub.user_id}'
             )
             submission_lookup[dir_name] = sub.id
-            parent = os.path.join(tempdir, dir_name)
+            parent = p.files.safe_join(tempdir, dir_name)
 
             if not main_assig:
                 old_subs.add(sub.id)
@@ -474,6 +281,118 @@ def _run_plagiarism_control_1(  # pylint: disable=too-many-branches,too-many-sta
 
 
 @celery.task
+def _notify_slow_auto_test_run_1(auto_test_run_id: int) -> None:
+    run = p.models.AutoTestRun.query.get(auto_test_run_id)
+    if run is None:
+        return
+    if run.finished:
+        return
+
+    logger.warning(
+        'A AutoTest run is slow!',
+        started_date=run.started_date,
+        kill_date=run.kill_date,
+        run_id=run.id,
+        run=run.__extended_to_json__(),
+    )
+
+
+@celery.task
+def _stop_auto_test_run_1(auto_test_run_id: int) -> None:
+    run = p.models.AutoTestRun.query.filter_by(
+        id=auto_test_run_id
+    ).with_for_update().one_or_none()
+
+    if run is None:
+        return
+    elif (
+        run.kill_date is not None and
+        run.kill_date > datetime.datetime.utcnow()
+    ):
+        stop_auto_test_run((auto_test_run_id, ), eta=run.kill_date)
+        return
+    elif run.state != p.models.AutoTestRunState.running:
+        return
+
+    logger.warning(
+        'Run timed out',
+        auto_test_run_id=auto_test_run_id,
+        run=run.__to_json__(),
+    )
+
+    # This automatically notifies the broker that the job has finished
+    run.state = p.models.AutoTestRunState.timed_out
+    p.models.db.session.commit()
+
+
+@celery.task
+def _notify_broker_of_new_job_1(job_id: str) -> None:
+    with p.helpers.BrokerSession() as ses:
+        ses.post(
+            '/api/v1/jobs/',
+            json={
+                'job_id': job_id,
+            },
+        ).raise_for_status()
+
+
+@celery.task
+def _notify_broker_end_of_job_1(job_id: str) -> None:
+    with p.helpers.BrokerSession() as ses:
+        ses.delete(f'/api/v1/jobs/{job_id}').raise_for_status()
+
+
+@celery.task
+def _check_heartbeat_stop_test_runner_1(auto_test_runner_id: str) -> None:
+    runner_id = uuid.UUID(hex=auto_test_runner_id)
+
+    runner = p.models.AutoTestRunner.query.get(runner_id)
+    if runner is None or runner.run is None:
+        logger.info('Runner already reset or not found', runner=runner)
+        return
+    elif runner.run.finished:
+        logger.info('Run already finished, heartbeats not required')
+        return
+
+    interval = p.app.config['AUTO_TEST_HEARTBEAT_INTERVAL']
+    max_missed = p.app.config['AUTO_TEST_HEARTBEAT_MAX_MISSED']
+    max_interval = datetime.timedelta(seconds=interval * max_missed)
+    needed_time = datetime.datetime.utcnow() - max_interval
+    expired = runner.last_heartbeat < needed_time
+
+    logger.info(
+        'Checking heartbeat',
+        last_heartbeat=runner.last_heartbeat.isoformat(),
+        deadline=needed_time.isoformat(),
+        max_internval=max_interval.total_seconds(),
+        expired=expired,
+    )
+
+    # In this case the heartbeat received was recently, so we schedule this
+    # task again.
+    if not expired:
+        check_heartbeat_auto_test_run(
+            (runner.id.hex, ), eta=runner.last_heartbeat + max_interval
+        )
+        return
+
+    run = runner.run
+    run.runner_id = None
+    p.models.db.session.commit()
+
+    notify_broker_end_of_job(run.get_job_id())
+    run.started_date = None
+    run.state = p.models.AutoTestRunState.changing_runner
+    for result in run.results:
+        if not result.passed:
+            result.clear()
+
+    run.increment_job_id()
+    p.models.db.session.commit()
+    notify_broker_of_new_job(run.get_job_id())
+
+
+@celery.task
 def _add_1(first: int, second: int) -> int:  # pragma: no cover
     """This function is used for testing if celery works. What it actually does
     is completely irrelevant.
@@ -487,7 +406,22 @@ add = _add_1.delay  # pylint: disable=invalid-name
 send_done_mail = _send_done_mail_1.delay  # pylint: disable=invalid-name
 send_grader_status_mail = _send_grader_status_mail_1.delay  # pylint: disable=invalid-name
 run_plagiarism_control = _run_plagiarism_control_1.delay  # pylint: disable=invalid-name
+notify_broker_of_new_job = _notify_broker_of_new_job_1.delay  # pylint: disable=invalid-name
+notify_broker_end_of_job = _notify_broker_end_of_job_1.delay  # pylint: disable=invalid-name
 
 send_reminder_mails: t.Callable[[
     t.Tuple[int], NamedArg(t.Optional[datetime.datetime], 'eta')
 ], t.Any] = _send_reminder_mails_1.apply_async  # pylint: disable=invalid-name
+
+stop_auto_test_run: t.Callable[[
+    t.Tuple[int], NamedArg(t.Optional[datetime.datetime], 'eta')
+], t.Any] = _stop_auto_test_run_1.apply_async  # pylint: disable=invalid-name
+
+notify_slow_auto_test_run: t.Callable[[
+    t.Tuple[int], NamedArg(t.Optional[datetime.datetime], 'eta')
+], t.Any] = _notify_slow_auto_test_run_1.apply_async  # pylint: disable=invalid-name
+
+check_heartbeat_auto_test_run: t.Callable[
+    [t.Tuple[str],
+     DefaultNamedArg(t.Optional[datetime.datetime], 'eta')], t.
+    Any] = _check_heartbeat_stop_test_runner_1.apply_async  # pylint: disable=invalid-name

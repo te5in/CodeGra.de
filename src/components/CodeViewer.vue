@@ -1,24 +1,24 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
-    <b-alert class="error" variant="danger" show v-if="error">
-        <div v-html="error"></div>
-    </b-alert>
-    <loader class="text-center" v-else-if="loading"></loader>
-    <div class="code-viewer form-control" v-else>
-        <div class="scroller">
-            <inner-code-viewer
-                :assignment="assignment"
-                :code-lines="codeLines"
-                :feedback="diffMode ? {} : feedback"
-                :linter-feedback="diffMode ? {} : linterFeedback"
-                :show-whitespace="showWhitespace"
-                @set-feedback="$set(feedback, $event.line, $event)"
-                :font-size="fontSize"
-                :editable="editable && !diffMode"
-                :can-use-snippets="canUseSnippets"
-                :file-id="file.id"/>
-        </div>
+<b-alert class="error" variant="danger" show v-if="error">
+    <div v-html="error"/>
+</b-alert>
+<loader class="text-center" v-else-if="loading"/>
+<div class="code-viewer form-control" :class="{ editable }" v-else>
+    <div class="scroller">
+        <inner-code-viewer
+            :assignment="assignment"
+            :code-lines="codeLines"
+            :feedback="diffMode ? {} : feedback"
+            :linter-feedback="diffMode ? {} : linterFeedback"
+            :show-whitespace="showWhitespace"
+            @set-feedback="$set(feedback, $event.line, $event)"
+            :font-size="fontSize"
+            :editable="editable && !diffMode"
+            :can-use-snippets="canUseSnippets"
+            :file-id="file.id"/>
     </div>
+</div>
 </template>
 
 <script>
@@ -185,7 +185,7 @@ export default {
                             this.highlightCode(this.selectedLanguage);
                         },
                         ({ response: { data: { message } } }) => {
-                            error.push(this.$htmlEscape(message));
+                            error.push(this.$utils.htmlEscape(message));
                         },
                     ),
 
@@ -200,7 +200,7 @@ export default {
                         this.feedback = feedback.data;
                     },
                     ({ response: { data: { message } } }) => {
-                        error.push(this.$htmlEscape(message));
+                        error.push(this.$utils.htmlEscape(message));
                     },
                 ),
             ]).then(() => {

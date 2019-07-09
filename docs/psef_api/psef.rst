@@ -74,14 +74,6 @@ Source code documentation of ``psef``
     :undoc-members:
     :show-inheritance:
 
-``psef.json_encoders``
---------------------------
-
-.. automodule:: psef.json_encoders
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
 ``psef.linters``
 ---------------------------
 
@@ -147,6 +139,18 @@ Source code documentation of ``psef``
 
 ``psef.plagiarism_providers``
 ------------------------------
+
+.. automodule:: psef.plagiarism_providers
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+``psef.auto_test``
+--------------------------------
+.. automodule:: psef.auto_test
+    :members:
+    :show-inheritance:
+
 
 Module contents
 ~~~~~~~~~~~~~~~

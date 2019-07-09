@@ -109,7 +109,7 @@
         </a>
 
         <template slot="grade" slot-scope="item">
-            {{formatGrade(item.value) || '-'}}
+            {{ formatGrade(item.value) || '-' }}
         </template>
 
         <template slot="formatted_created_at" slot-scope="item">
@@ -414,7 +414,9 @@ export default {
                     sortBy: this.$refs.table.sortBy,
                     sortAsc: !this.$refs.table.sortDesc,
                     overview:
-                        this.assignment.state === assignmentState.DONE && submission.grade != null,
+                        this.assignment.state === assignmentState.DONE && submission.grade != null
+                            ? 0
+                            : -1,
                 },
             });
         },

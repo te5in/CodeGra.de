@@ -4,7 +4,7 @@
     <div class="author" v-if="authorName">{{ authorName }}</div>
     <b-card class="feedback-area non-editable" :class="{'has-author': !!authorName}">
         <div @click="changeFeedback($event)" :style="{'min-height': '1em'}">
-            <div v-html="newlines($htmlEscape(serverFeedback))"></div>
+            <div v-html="newlines($utils.htmlEscape(serverFeedback))"></div>
         </div>
     </b-card>
 </div>

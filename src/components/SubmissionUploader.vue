@@ -169,25 +169,9 @@
         </b-button-toolbar>
     </b-modal>
 
-    <vue-dropzone ref="submissionUploader"
-                  id="submission-uploader"
-                  class="dropzone"
-                  :class="`dropzone-amount-files-${amountOfFiles}`"
-                  :options="dropzoneOptions"
-                  :use-custom-slot="true"
-                  :include-styling="false"
-                  @vdropzone-file-added="amountOfFiles++"
-                  @vdropzone-removed-file="amountOfFiles--"
-                  @vdropzone-drag-enter="dropzoneEntered"
-                  @vdropzone-drag-leave="dropzoneLeft"
-                  @vdropzone-drop="resetDragOverlay">
-        <div v-if="showDropzoneOverlay" class="dz-hover-overlay"
-             :class="{ hovered: dropzoneHovered }"/>
-
-        <a class="dz-custom-message">
-            Click here or drop file(s) to upload.
-        </a>
-    </vue-dropzone>
+    <multiple-files-uploader
+        :no-border="noBorder"
+        v-model="files" />
 
     <b-input-group>
         <user-selector v-if="forOthers"
@@ -204,7 +188,7 @@
         </b-input-group-prepend>
 
         <submit-button class="submit-file-button"
-                       :disabled="disabled || amountOfFiles === 0"
+                       :disabled="disabled || files.length === 0"
                        :confirm="confirmationMessage"
                        :submit="uploadFiles"
                        :filter-error="handleUploadError"
@@ -220,8 +204,6 @@ import moment from 'moment';
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/times';
 
-import VueDropzone from 'vue2-dropzone';
-
 import Loader from './Loader';
 import SubmitButton, { SubmitButtonCancelled } from './SubmitButton';
 import UserSelector from './UserSelector';
@@ -230,8 +212,7 @@ import GroupsManagement from './GroupsManagement';
 import FileRule from './FileRule';
 import CGIgnoreFile from './CGIgnoreFile';
 import FileTree from './FileTree';
-
-let uploaderIndex = 0;
+import MultipleFilesUploader from './MultipleFilesUploader';
 
 export default {
     name: 'submission-uploader',
@@ -348,16 +329,6 @@ export default {
             return res;
         },
 
-        dropzoneOptions() {
-            return {
-                url: this.uploadUrl,
-                multiple: true,
-                autoProcessQueue: false,
-                createImageThumbnails: false,
-                addRemoveLinks: true,
-            };
-        },
-
         readableDeadline() {
             return moment(this.assignment.deadline).from(this.$root.$now);
         },
@@ -379,12 +350,9 @@ export default {
             showWrongFileModal: false,
             showGroupModal: false,
             ignored: 'error',
-            showDropzoneOverlay: 0,
-            dropzoneHovered: 0,
-            amountOfFiles: 0,
-            uploaderId: `submission-uploader-${uploaderIndex++}`,
             currentGroup: null,
             ruleCache: {},
+            files: [],
         };
     },
 
@@ -394,17 +362,7 @@ export default {
         },
     },
 
-    mounted() {
-        document.body.addEventListener('dragenter', this.bodyDragEnter, true);
-        document.body.addEventListener('dragleave', this.bodyDragLeave, true);
-        document.body.addEventListener('mouseup', this.resetDragOverlay, true);
-    },
-
     destroyed() {
-        document.body.removeEventListener('dragenter', this.dropzoneEntered);
-        document.body.removeEventListener('dragleave', this.dropzoneLeft);
-        document.body.removeEventListener('mouseup', this.resetDragOverlay);
-
         // Make sure we don't leak the promise and event handler
         // set in the checkUpload method.
         this.$emit('warn-popover-hidden');
@@ -415,7 +373,7 @@ export default {
 
         getRequestData() {
             const data = new FormData();
-            this.$refs.submissionUploader.getAcceptedFiles().forEach((f, i) => {
+            this.files.forEach((f, i) => {
                 data.append(`file${i}`, f);
             });
             return data;
@@ -449,21 +407,16 @@ export default {
             return this.ruleCache[name];
         },
 
-        resetDragOverlay() {
-            this.dropzoneHovered = 0;
-            this.showDropzoneOverlay = 0;
-        },
-
         uploadFiles() {
             return this.$http.post(this.uploadUrl, this.getRequestData());
         },
 
         afterUploadFiles({ data: submission }) {
+            this.files = [];
             this.addSubmission({
                 assignmentId: this.assignment.id,
                 submission,
             });
-            this.$refs.submissionUploader.removeAllFiles();
             this.$emit('created', submission);
         },
 
@@ -546,26 +499,6 @@ export default {
                 this.uploadError(response);
             }
         },
-
-        bodyDragEnter() {
-            this.showDropzoneOverlay++;
-        },
-
-        bodyDragLeave() {
-            if (this.showDropzoneOverlay > 0) {
-                this.showDropzoneOverlay--;
-            }
-        },
-
-        dropzoneEntered() {
-            this.dropzoneHovered++;
-        },
-
-        dropzoneLeft() {
-            if (this.dropzoneHovered > 0) {
-                this.dropzoneHovered--;
-            }
-        },
     },
 
     components: {
@@ -577,8 +510,8 @@ export default {
         Loader,
         CGIgnoreFile,
         FileTree,
-        VueDropzone,
         Icon,
+        MultipleFilesUploader,
     },
 };
 </script>
@@ -679,170 +612,9 @@ export default {
 @import '~mixins.less';
 
 .submission-uploader {
-    &:not(.no-border) .dropzone {
-        border: 1px solid #dee2e6;
-        border-top-left-radius: 0.25rem;
-        border-top-right-radius: 0.25rem;
-
-        &.dropzone-amount-files-0 .dz-custom-message:hover {
-            border-top-left-radius: 0.25rem;
-            border-top-right-radius: 0.25rem;
-        }
-
-        .dz-message + .dz-preview,
-        .dz-hover-overlay {
-            border-top-left-radius: 0.25rem;
-            border-top-right-radius: 0.25rem;
-        }
-    }
-
     &.no-border .user-selector .multiselect__tags {
         border-bottom: none;
         border-left: none;
-    }
-
-    .dropzone {
-        position: relative;
-        margin-bottom: -1px;
-        padding-bottom: 4.5rem;
-
-        #app.dark & {
-            border-color: @color-primary-darker;
-        }
-
-        .dz-hover-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: rgba(0, 0, 0, 0.25);
-            pointer-events: none;
-
-            &.hovered {
-                background-color: rgba(0, 0, 0, 0.35);
-
-                #app.dark & {
-                    background-color: rgba(0, 0, 0, 0.4);
-                }
-            }
-
-            &::after {
-                content: 'Drop files here.';
-                position: absolute;
-                top: 0.75rem;
-                left: 0.75rem;
-                right: 0.75rem;
-                bottom: 0.75rem;
-                border: 2px dashed white;
-                border-radius: 0.5rem;
-                color: white;
-                font-size: 2rem;
-                text-align: center;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-
-                #app.dark & {
-                    color: @color-light-gray;
-                    border-color: @color-light-gray;
-                }
-            }
-        }
-
-        .dz-custom-message {
-            position: absolute;
-            bottom: 0;
-            width: 100%;
-            height: 4.5rem;
-            padding: 1.5rem;
-            text-align: center;
-            cursor: pointer;
-            color: @color-primary;
-            text-decoration: underline;
-
-            &:hover {
-                background-color: rgba(0, 0, 0, 0.075);
-                text-decoration: underline;
-            }
-        }
-
-        .dz-hover-overlay + .dz-custom-message {
-            display: none;
-        }
-
-        .dz-preview {
-            display: flex;
-            padding: 0.75rem;
-            border-bottom: 1px solid #dee2e6;
-
-            #app.dark & {
-                border-color: @color-primary-darker;
-            }
-
-            &:nth-child(2n) {
-                background-color: rgba(0, 0, 0, 0.05);
-            }
-        }
-
-        .dz-details {
-            display: flex;
-            font-size: 1rem;
-            flex: 1 1 auto;
-            flex-direction: row-reverse;
-            justify-content: flex-end;
-            min-width: 0;
-
-            .dz-filename {
-                flex: 1 1 auto;
-                word-break: all;
-                min-width: 0;
-                span {
-                    max-width: 100%;
-                    text-overflow: ellipsis;
-                    display: block;
-                    overflow-x: hidden;
-                }
-            }
-
-            .dz-size {
-                flex: 0 0 auto;
-                margin: 0 0.75rem;
-            }
-        }
-
-        .dz-remove {
-            flex: 0 0 auto;
-            top: auto;
-            bottom: auto;
-            font-size: 0;
-            margin: -0.25rem -0.5rem;
-            padding: 0.25rem 0.5rem;
-            text-decoration: none !important;
-
-            &::after {
-                content: '✖';
-                font-size: 1rem;
-                transition: all 250ms;
-                color: @color-primary;
-
-                #app.dark & {
-                    color: @text-color-dark;
-                }
-            }
-
-            &:hover::after {
-                color: @color-danger !important;
-            }
-        }
-
-        .dz-image,
-        .dz-progress,
-        .dz-error-mark,
-        .dz-success-mark,
-        .dz-error-message {
-            display: none;
-        }
     }
 
     .deadline-information {

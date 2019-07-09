@@ -169,6 +169,8 @@ def get_plagiarism_case(
 def get_plag_opts() -> JSONResponse[t.List[t.Dict[str, object]]]:
     """Get all plagiarism providers for this instance.
 
+    .. :quickref: Plagiarism; Get all plagiarism providers.
+
     :returns: An array of plagiarism providers.
     :>jsonarr str name: The name of the plagiarism provider.
     :>jsonarr bool base_code: Does this plagiarism provider support base code.

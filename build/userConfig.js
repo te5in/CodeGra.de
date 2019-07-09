@@ -4,6 +4,16 @@ const ini = require('ini');
 const execFileSync = require('child_process').execFileSync;
 const moment = require('moment');
 
+function filterKeys(obj, ...keys) {
+    return keys.reduce(
+        (acc, key) => {
+            acc[key] = obj[key];
+            return acc;
+        },
+        {},
+    );
+}
+
 let userConfig = {};
 
 try {
@@ -43,7 +53,8 @@ config.release = {
     }, []).join(' '),
 };
 
-config.features = Object.assign({}, {
+config.features = Object.assign({
+    auto_test: false,
     blackboard_zip_upload: true,
     rubrics: true,
     automatic_lti_role: true,
@@ -53,5 +64,9 @@ config.features = Object.assign({}, {
     register: false,
     groups: false,
 }, userConfig.Features);
+
+config.features.autoTest = Object.assign({
+    auto_test_max_command_time: 300,
+}, filterKeys(userConfig, 'auto_test_max_command_time'));
 
 module.exports = config;

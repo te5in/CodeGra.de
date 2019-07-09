@@ -18,6 +18,10 @@ class APIWarnings(IntEnum):
     INVALID_FILENAME = 4
     WEAK_PASSWORD = 5
     UNASSIGNED_ASSIGNMENTS = 6
+    INTERNAL_API = 7
+    RENAMED_FIXTURE = 8
+    IN_USE_RUBRIC_ROW = 9
+    AMBIGUOUS_COMBINATION = 10
 
 
 @unique
@@ -95,6 +99,9 @@ class APIException(Exception):
         ret['code'] = self.api_code.name
         return ret
 
+    def __str__(self) -> str:
+        return self.message
+
 
 class PermissionException(APIException):
     """The exception used when a permission check fails.
@@ -118,3 +125,17 @@ class ValidationException(APIException):
 class WeakPasswordException(ValidationException):
     """Thrown when a password is too weak.
     """
+
+
+class StopRunningStepsException(Exception):
+    pass
+
+
+class InvalidStateException(Exception):
+    """This exception should be raised when a configuration is in an invalid
+    state.
+    """
+
+    def __init__(self, reason: str) -> None:
+        super().__init__(self, reason)
+        self.reason = reason

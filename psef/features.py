@@ -17,6 +17,8 @@ logger = structlog.get_logger()
 
 T = t.TypeVar('T')
 
+T_CAL = t.TypeVar('T_CAL', bound=t.Callable)  # pylint: disable=invalid-name
+
 
 def init_app(app: 'psef.PsefFlask') -> None:
     app.config['FEATURES'] = {
@@ -37,6 +39,7 @@ class Feature(enum.Enum):
     INCREMENTAL_RUBRIC_SUBMISSION = enum.auto()
     REGISTER = enum.auto()
     GROUPS = enum.auto()
+    AUTO_TEST = enum.auto()
 
 
 def ensure_feature(feature: Feature) -> None:
@@ -65,7 +68,7 @@ def has_feature(feature: Feature) -> bool:
     return psef.app.config['FEATURES'][feature]
 
 
-def feature_required(feature: Feature) -> t.Callable:
+def feature_required(feature: Feature) -> t.Callable[[T_CAL], T_CAL]:
     """ A decorator used to make sure the function decorated is only called
     with a certain feature enabled.
 
@@ -77,12 +80,12 @@ def feature_required(feature: Feature) -> t.Callable:
     :raises APIException: If the feature is not enabled. (DISABLED_FEATURE)
     """
 
-    def __decorator(f: t.Callable) -> t.Callable:
+    def __decorator(f: T_CAL) -> T_CAL:
         @wraps(f)
         def __decorated_function(*args: t.Any, **kwargs: t.Any) -> t.Any:
             ensure_feature(feature)
             return f(*args, **kwargs)
 
-        return __decorated_function
+        return t.cast(T_CAL, __decorated_function)
 
     return __decorator

@@ -52,11 +52,8 @@ def test_simple_add_delete(
             'get',
             '/api/v1/snippets/',
             error or 200,
-            result=error_template
-            if error else [{
-                'id': int,
-                **snip
-            } for snip in snips],
+            result=error_template if error else [{'id': int, **snip}
+                                                 for snip in snips],
         )
         if not error:
             for snip in res:
@@ -107,11 +104,8 @@ def test_simple_update(
             'get',
             '/api/v1/snippets/',
             error or 200,
-            result=error_template
-            if error else [{
-                'id': int,
-                **snip
-            } for snip in snips],
+            result=error_template if error else [{'id': int, **snip}
+                                                 for snip in snips],
         )
         if not error:
             snips[0]['value'] = 'dag dag'
@@ -165,10 +159,7 @@ def test_full_update(named_user, logged_in, test_client):
             'get',
             '/api/v1/snippets/',
             200,
-            result=[{
-                'id': int,
-                **snip
-            } for snip in snips]
+            result=[{'id': int, **snip} for snip in snips]
         )
         snips[0]['value'] = 'dag dag'
         snips[0]['key'] = 'hello hello'
@@ -185,10 +176,7 @@ def test_full_update(named_user, logged_in, test_client):
             'get',
             '/api/v1/snippets/',
             200,
-            result=[{
-                'id': int,
-                **snip
-            } for snip in snips]
+            result=[{'id': int, **snip} for snip in snips]
         )
 
 

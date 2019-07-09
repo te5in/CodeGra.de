@@ -11,7 +11,7 @@ from sqlalchemy import orm
 
 from . import UUID_LENGTH, Base, db, _MyQuery
 
-if t.TYPE_CHECKING:  # pragma: no cover
+if t.TYPE_CHECKING and not getattr(t, 'SPHINX', False):  # pragma: no cover
     # pylint: disable=unused-import
     from . import assignment
     from .file import File

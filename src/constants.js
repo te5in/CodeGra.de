@@ -1,4 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+
+export const MANAGE_AUTOTEST_PERMISSIONS = Object.freeze([
+    'can_run_autotest',
+    'can_delete_autotest_run',
+    'can_edit_autotest',
+]);
+
 export const MANAGE_ASSIGNMENT_PERMISSIONS = Object.freeze([
     'can_edit_assignment_info',
     'can_assign_graders',
@@ -14,6 +21,7 @@ export const MANAGE_ASSIGNMENT_PERMISSIONS = Object.freeze([
     'can_view_plagiarism',
     'can_manage_plagiarism',
     'can_edit_group_assignment',
+    ...MANAGE_AUTOTEST_PERMISSIONS,
 ]);
 
 export const MANAGE_GENERAL_COURSE_PERMISSIONS = Object.freeze([

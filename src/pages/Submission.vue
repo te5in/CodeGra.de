@@ -202,7 +202,7 @@
                   :editable="editable"
                   :rubric-start-open="overviewMode"
                   v-if="!loadingInner && (editable || assignment.state === assignmentState.DONE)"
-                  @gradeUpdated="gradeUpdated"/>
+                  @gradeUpdated="gradeUpdated" />
 </div>
 </template>
 
@@ -218,7 +218,7 @@ import ResSplitPane from 'vue-resize-split-pane';
 
 import { mapGetters, mapActions } from 'vuex';
 
-import { cmpNoCase, parseBool, nameOfUser } from '@/utils';
+import { cmpNoCase, nameOfUser } from '@/utils';
 
 import {
     CodeViewer,
@@ -317,7 +317,9 @@ export default {
         },
 
         overviewMode() {
-            return this.canSeeFeedback && parseBool(this.$route.query.overview, false);
+            const canSeeFeedback = this.canSeeFeedback;
+            const queryOverview = parseInt(this.$route.query.overview, 10);
+            return canSeeFeedback && !Number.isNaN(queryOverview) && queryOverview >= 0;
         },
 
         currentFileData() {
@@ -474,8 +476,8 @@ export default {
         },
     },
 
-    mounted() {
-        Promise.all([
+    async mounted() {
+        await Promise.all([
             this.$hasPermission(
                 [
                     'can_grade_work',
@@ -518,11 +520,11 @@ export default {
                 } else {
                     this.canSeeRevision = editOthersWork;
                 }
-
-                this.loadingPage = false;
-                this.loadingInner = false;
             },
         );
+
+        this.loadingPage = false;
+        this.loadingInner = false;
     },
 
     methods: {
@@ -557,11 +559,20 @@ export default {
         },
 
         toggleOverviewMode(forceOn = false) {
-            this.$router.push({
-                query: Object.assign({}, this.$route.query, {
-                    overview: forceOn || !this.overviewMode,
-                }),
-            });
+            const query = Object.assign({}, this.$route.query);
+            const overview = parseInt(query.overview, 10);
+
+            if (Number.isNaN(overview)) {
+                query.overview = 0;
+            } else if (forceOn) {
+                query.overview = overview || 0;
+            } else if (overview < 0) {
+                query.overview = 0;
+            } else {
+                query.overview = -1;
+            }
+
+            this.$router.push({ query });
         },
 
         deleteSubmission() {
@@ -766,11 +777,11 @@ export default {
                 });
         },
 
-        async gradeUpdated(grade) {
+        async gradeUpdated({ grade, overridden }) {
             await this.updateSubmission({
                 assignmentId: this.assignmentId,
                 submissionId: this.submission.id,
-                submissionProps: { grade },
+                submissionProps: { grade, grade_overridden: overridden },
             });
             this.updateTitle();
         },
@@ -836,10 +847,6 @@ export default {
     flex-direction: column;
     max-height: 100%;
 
-    @media @media-large {
-        height: 100%;
-    }
-
     @media @media-no-large {
         flex: 0 1 auto;
     }
@@ -863,6 +870,7 @@ export default {
 .markdown-viewer {
     overflow-y: hidden;
     overflow-x: auto;
+
     @media @media-no-large {
         flex: 0 1 auto;
     }
@@ -874,16 +882,20 @@ export default {
 .diff-viewer {
     overflow: auto;
 
-    // Fixes performance issues on scrolling because the entire
-    // code viewer isn't repainted anymore.
-    will-change: transform;
-
     @media @media-no-large {
         flex: 0 1 auto;
         flex: 0 1 -webkit-max-content;
         flex: 0 1 -moz-max-content;
         flex: 0 1 max-content;
     }
+}
+
+.code-viewer,
+.ipython-viewer,
+.diff-viewer {
+    // Fixes performance issues on scrolling because the entire
+    // code viewer isn't repainted anymore.
+    will-change: transform;
 }
 
 .grade-viewer {

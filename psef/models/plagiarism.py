@@ -415,8 +415,7 @@ class PlagiarismMatch(Base):
         :returns: A object as described above.
         """
         return {
-            'id':
-                self.id,
+            'id': self.id,
             'files': [self.file1, self.file2],
             'lines':
                 [

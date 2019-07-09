@@ -7,42 +7,26 @@ echo "Running test with pwd: $(pwd)"
 
 set -o xtrace
 
-if [[ "$TO_RUN" = "postgres-test" ]]; then
-    TEST_FLAGS="--postgresql=travis_ci_test"
-    SQLALCHEMY_DATABASE_URI='postgresql:///travis_ci_test' ./manage.py db upgrade
-fi
-
 case "$TO_RUN" in
-    "coverage")
-        pytest --cov psef --cov-report term-missing "$(pwd)/psef_test/" -vvvv
-        res="$?"
-        if [[ "$res" -eq 0 ]]; then
-            pytest --cov psef \
-                   --cov-append \
-                   --cov-report term-missing \
-                   --doctest-modules psef \
-                   -vvvv
-            res="$?"
-        fi
-        set +o xtrace
-        ;;
-    "tests"|"postgres-test")
-        pytest -vvvv $TEST_FLAGS "$(pwd)/psef_test/"
-        res="$?"
-        if [[ "$res" -eq 0 ]]; then
-            cd docs || exit 1
-            make html
-            res="$?"
-            cd .. || exit 1
-        fi
-        if [[ "$res" -eq 0 ]]; then
-            pytest --doctest-modules psef -vvvv
-            res="$?"
-        fi
+    "backend-tests")
+        SQLALCHEMY_DATABASE_URI='postgresql:///travis_ci_test' ./manage.py db upgrade
+
+        pytest --cov psef \
+               --postgresql=travis_ci_test \
+               --cov-report term-missing \
+               "$(pwd)/psef_test" \
+               -vvvv
+        res1="$?"
+
+        make doctest
+        res2="$?"
+
+        res=$(( res1 + res2 ))
+
         set +o xtrace
         ;;
     "lint")
-        pylint "$(pwd)/psef/" --rcfile=setup.cfg
+        make pylint
         res1="$?"
 
         make privacy_statement
@@ -50,20 +34,16 @@ case "$TO_RUN" in
         npm run lint
         res2="$?"
 
-        mypy --ignore-missing-imports \
-             --disallow-untyped-defs \
-             --check-untyped-defs \
-             --disallow-subclassing-any \
-             "$(pwd)/psef/"
+        make mypy
         res3="$?"
 
-        out="$(isort --check-only --diff --recursive "$PWD/psef" "$PWD/psef_test")"
+        out="$(make isort_check)"
         res4=$?
         if [[ "$res4" -ne 0 ]]; then
             echo "$out"
         fi
 
-        yapf -vv -rd "$(pwd)/psef" "$(pwd)/psef_test"
+        make yapf_check
         res5=$?
 
         out="$(npm run check-format)"
@@ -72,7 +52,7 @@ case "$TO_RUN" in
             echo "$out"
         fi
 
-        res="$(bc <<< "$res1 + $res2 + $res3 + $res4 + $res5 + $res6")"
+        res=$(( res1 + res2 + res3 + res4 + res5 + res6 ))
         set +x xtrace
         ;;
     "js_unit")

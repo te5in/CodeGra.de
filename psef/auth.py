@@ -47,17 +47,12 @@ def _raise_login_exception(desc: str = 'No user was logged in.') -> NoReturn:
 @jwt.expired_token_loader
 @jwt.invalid_token_loader
 @jwt.needs_fresh_token_loader
-def _handle_jwt_errors(
-    reason: str = 'No user was logged in.',
-) -> 'psef.helpers.JSONResponse[PermissionException]':
-    return psef.helpers.jsonify(
-        PermissionException(
-            'You need to be logged in to do this.',
-            reason,
-            APICodes.NOT_LOGGED_IN,
-            401,
-        ),
-        status_code=401
+def _handle_jwt_errors(reason: str = 'No user was logged in.') -> t.NoReturn:
+    raise PermissionException(
+        'You need to be logged in to do this.',
+        reason,
+        APICodes.NOT_LOGGED_IN,
+        401,
     )
 
 
@@ -337,6 +332,48 @@ def ensure_can_see_assignment(assignment: 'psef.models.Assignment') -> None:
         ensure_permission(
             CPerm.can_see_hidden_assignments, assignment.course_id
         )
+
+
+@login_required
+def ensure_can_view_autotest_step_details(
+    step: 'psef.models.AutoTestStepBase'
+) -> None:
+    """Check if the current user can see the detail of the given step.
+
+    :param step: The step for which we have to check the permission.
+    :returns: Nothing.
+    """
+    course_id = step.suite.auto_test_set.auto_test.assignment.course_id
+
+    ensure_permission(CPerm.can_view_autotest_step_details, course_id)
+    if step.hidden:
+        ensure_permission(CPerm.can_view_hidden_autotest_steps, course_id)
+
+
+@login_required
+def ensure_can_view_autotest(auto_test: 'psef.models.AutoTest') -> None:
+    """Make sure the current user may see the given AutoTest.
+
+    :param auto_test: The AutoTest to check for.
+    :returns: Nothing.
+    """
+    course_id = auto_test.assignment.course_id
+    ensure_enrolled(course_id)
+    if not auto_test.assignment.is_done:
+        ensure_permission(CPerm.can_view_autotest_before_done, course_id)
+
+
+@login_required
+def ensure_can_view_fixture(fixture: 'psef.models.AutoTestFixture') -> None:
+    """Make sure the current user can see the contents of the given fixture.
+
+    :param fixture: The fixture to check for.
+    :returns: Nothing.
+    """
+    course_id = fixture.auto_test.assignment.course_id
+    ensure_permission(CPerm.can_view_autotest_fixture, course_id)
+    if fixture.hidden:
+        ensure_permission(CPerm.can_view_hidden_fixtures, course_id)
 
 
 @login_required

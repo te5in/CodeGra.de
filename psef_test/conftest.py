@@ -3,10 +3,19 @@ import os
 import sys
 import copy
 import json
+import time
 import uuid
 import random
+import signal
+import string
+import secrets
 import datetime
 import contextlib
+import subprocess
+import multiprocessing
+import multiprocessing.managers
+from urllib.error import URLError
+from urllib.request import urlopen
 
 import pytest
 import flask_migrate
@@ -16,14 +25,32 @@ from werkzeug.local import LocalProxy
 
 import psef
 import manage
+import helpers
 import psef.auth as a
 import psef.models as m
 from helpers import create_error_template, create_user_with_perms
+from lxc_stubs import lxc_stub
 from psef.permissions import CoursePermission as CPerm
 
 TESTDB = 'test_project.db'
 TESTDB_PATH = "/tmp/psef/psef-{}-{}".format(TESTDB, random.random())
 TEST_DATABASE_URI = 'sqlite:///' + TESTDB_PATH
+LIVE_SERVER_PORT = random.randint(5001, 6001)
+
+_DATABASE = None
+
+
+def get_database_name(request):
+    global _DATABASE
+
+    if _DATABASE is None:
+        _DATABASE = request.config.getoption('--postgresql'), False
+        if _DATABASE[0] == 'GENERATE':
+            _DATABASE = ''.join(
+                x for x in secrets.token_hex(64) if x in string.ascii_lowercase
+            ), True
+
+    return _DATABASE
 
 
 def pytest_addoption(parser):
@@ -38,69 +65,69 @@ def pytest_addoption(parser):
 @pytest.fixture(scope='session')
 def app(request):
     """Session-wide test `Flask` application."""
+    auto_test_password = uuid.uuid4().hex
     settings_override = {
         'TESTING': True,
         'DEBUG': True,
         'UPLOAD_DIR': f'/tmp/psef/uploads',
         'RATELIMIT_STRATEGY': 'moving-window',
         'RATELIMIT_HEADERS_ENABLED': True,
-        'CELERY_CONFIG':
-            {
-                'BROKER_URL': 'redis:///',
-                'BACKEND_URL': 'redis:///'
-            },
+        'CELERY_CONFIG': {
+            'BROKER_URL': 'redis:///', 'BACKEND_URL': 'redis:///'
+        },
         'MIRROR_UPLOAD_DIR': f'/tmp/psef/mirror_uploads',
         'MAX_FILE_SIZE': 2 ** 20,  # 1mb
         'MAX_NORMAL_UPLOAD_SIZE': 4 * 2 ** 20,  # 4 mb
         'MAX_LARGE_UPLOAD_SIZE': 100 * 2 ** 20,  # 100mb
-        'LTI_CONSUMER_KEY_SECRETS':
-            {
-                'my_lti': 'Canvas:12345678',
-                'no_secret': 'Canvas:',
-                'no_lms': ':12345678',
-                'no_colon': '12345678',
-                'unknown_lms': 'unknown:12345678',
-                'blackboard_lti': 'Blackboard:12345678',
-                'moodle_lti': 'Moodle:12345678',
-            },
+        'LTI_CONSUMER_KEY_SECRETS': {
+            'my_lti': 'Canvas:12345678',
+            'no_secret': 'Canvas:',
+            'no_lms': ':12345678',
+            'no_colon': '12345678',
+            'unknown_lms': 'unknown:12345678',
+            'blackboard_lti': 'Blackboard:12345678',
+            'moodle_lti': 'Moodle:12345678',
+        },
         'LTI_SECRET_KEY': 'hunter123',
         'SECRET_KEY': 'hunter321',
         'HEALTH_KEY': 'uuyahdsdsdiufhaiwueyrriu2h3',
-        'CHECKSTYLE_PROGRAM':
-            [
-                "java",
-                "-Dbasedir={files}",
-                "-jar",
-                os.path.join(
-                    os.path.dirname(__file__), '..', 'checkstyle.jar'
-                ),
-                "-f",
-                "xml",
-                "-c",
-                "{config}",
-                "{files}",
-            ],
-        'PMD_PROGRAM':
-            [
-                os.path.join(
-                    os.path.dirname(__file__), '..', './pmd/bin/run.sh'
-                ),
-                'pmd',
-                '-dir',
-                '{files}',
-                '-failOnViolation',
-                'false',
-                '-format',
-                'csv',
-                '-shortnames',
-                '-rulesets',
-                '{config}',
-            ],
+        'CHECKSTYLE_PROGRAM': [
+            "java",
+            "-Dbasedir={files}",
+            "-jar",
+            os.path.join(os.path.dirname(__file__), '..', 'checkstyle.jar'),
+            "-f",
+            "xml",
+            "-c",
+            "{config}",
+            "{files}",
+        ],
+        'PMD_PROGRAM': [
+            os.path.join(os.path.dirname(__file__), '..', './pmd/bin/run.sh'),
+            'pmd',
+            '-dir',
+            '{files}',
+            '-failOnViolation',
+            'false',
+            '-format',
+            'csv',
+            '-shortnames',
+            '-rulesets',
+            '{config}',
+        ],
         'MIN_PASSWORD_SCORE': 3,
+        'AUTO_TEST_PASSWORD': auto_test_password,
+        '__S_AUTO_TEST_HOSTS': {
+            f'http://127.0.0.1:{LIVE_SERVER_PORT}': {
+                'password': auto_test_password, 'type': 'simple_runner'
+            }
+        },
+        'AUTO_TEST_DISABLE_ORIGIN_CHECK': True,
+        'AUTO_TEST_MAX_TIME_COMMAND': 3,
     }
     if request.config.getoption('--postgresql'):
-        print('Running with postgres!')
-        pdb = request.config.getoption('--postgresql')
+        pdb, _ = get_database_name(request)
+
         settings_override['SQLALCHEMY_DATABASE_URI'] = f'postgresql:///{pdb}'
         settings_override['_USING_SQLITE'] = False
     else:
@@ -118,16 +145,17 @@ def app(request):
     app.config['__S_FEATURES']['GROUPS'] = True
     app.config['FEATURES'][psef.features.Feature.GROUPS] = True
 
+    app.config['__S_FEATURES']['AUTO_TEST'] = True
+    app.config['FEATURES'][psef.features.Feature.AUTO_TEST] = True
+
     app.config['__S_FEATURES']['INCREMENTAL_RUBRIC_SUBMISSION'] = True
     app.config['FEATURES'][psef.features.Feature.INCREMENTAL_RUBRIC_SUBMISSION
                            ] = True
 
-    psef.tasks.celery.conf.update(
-        {
-            'task_always_eager': False,
-            'task_eager_propagates': False,
-        }
-    )
+    psef.tasks.celery.conf.update({
+        'task_always_eager': False,
+        'task_eager_propagates': False,
+    })
 
     # Establish an application context before running the tests.
     with app.app_context():
@@ -150,7 +178,7 @@ def app(request):
 
 
 @pytest.fixture
-def test_client(app):
+def test_client(app, session, assert_similar):
     client = app.test_client()
 
     def req(
@@ -165,6 +193,7 @@ def test_client(app):
         allow_extra=False,
         **kwargs
     ):
+        setattr(ctx_stack.top, 'jwt_user', None)
         if real_data is None:
             data = json.dumps(data) if data is not None else None
             kwargs['content_type'] = 'application/json'
@@ -176,7 +205,6 @@ def test_client(app):
             data=data,
             **kwargs,
         )
-
         assert rv.status_code == status_code
 
         if status_code == 204:
@@ -187,33 +215,10 @@ def test_client(app):
             val = json.loads(rv.get_data(as_text=True))
             res = copy.deepcopy(val)
 
-        def checker(vals, tree):
-            is_list = isinstance(tree, list)
-            i = 0
-            allowed_extra = False
-            for k, value in enumerate(tree) if is_list else tree.items():
-                if k == '__allow_extra__' and value:
-                    allowed_extra = True
-                    continue
-                i += 1
-                assert is_list or k in vals
-
-                if isinstance(value, type):
-                    assert isinstance(vals[k], value)
-                elif isinstance(value, list) or isinstance(value, dict):
-                    if isinstance(vals, dict):
-                        assert k in vals
-                    else:
-                        assert 0 <= k < len(vals)
-                    checker(vals[k], value)
-                else:
-                    assert vals[k] == value
-
-            if is_list or not allowed_extra:
-                assert len(vals) == i
-
         if result is not None:
-            checker({'top': val}, {'top': result})
+            assert_similar(val, result)
+
+        session.expire_all()
 
         if include_response:
             return res, rv
@@ -238,9 +243,56 @@ _TOKENS = []
 
 
 @pytest.fixture(autouse=True)
+def clear_logged_in_user():
+    setattr(ctx_stack.top, 'jwt_user', None)
+    yield
+
+
+@pytest.fixture
+def assert_similar():
+    def checker(vals, tree, cur_path):
+        is_list = isinstance(tree, list)
+        i = 0
+        allowed_extra = False
+        for k, value in enumerate(tree) if is_list else tree.items():
+            if k == '__allow_extra__' and value:
+                allowed_extra = True
+                continue
+            i += 1
+            assert is_list or k in vals
+
+            if isinstance(value, type):
+                assert isinstance(vals[k], value), (
+                    "Wrong type for key '{}', expected '{}', got '{}'"
+                ).format('.'.join(cur_path + [str(k)]), value, vals[k])
+            elif isinstance(value, list) or isinstance(value, dict):
+                if isinstance(vals, dict):
+                    assert k in vals
+                else:
+                    assert 0 <= k < len(vals)
+                checker(vals[k], value, cur_path + [str(k)])
+            else:
+                assert vals[k] == value, (
+                    "Wrong value for key '{}', expected '{}', got '{}'"
+                ).format('.'.join(cur_path + [str(k)]), value, vals[k])
+
+        if is_list:
+            assert len(vals
+                       ) == i, 'Length of lists is not equal: {} vs {}'.format(
+                           len(vals), i
+                       )
+        elif not allowed_extra:
+            assert len(vals) == i, 'Difference in keys: {}'.format(
+                set(vals) ^ set(tree)
+            )
+
+    yield lambda val, result: checker({'top': val}, {'top': result}, [])
+
+
+@pytest.fixture(autouse=True)
 def logged_in():
     @contextlib.contextmanager
-    def _login(user):
+    def _login(user, yield_token=False):
         setattr(ctx_stack.top, 'jwt_user', None)
         if isinstance(user, str) and user == 'NOT_LOGGED_IN':
             _TOKENS.append(None)
@@ -251,7 +303,7 @@ def logged_in():
             )
             res = user
 
-        yield res
+        yield _TOKENS[-1] if yield_token else res
 
         _TOKENS.pop(-1)
         setattr(ctx_stack.top, 'jwt_user', None)
@@ -333,6 +385,17 @@ def db(app, request):
 
     if not request.config.getoption('--postgresql'):
         psef.models.db.create_all()
+    else:
+        db_name, generated = get_database_name(request)
+        if generated:
+            try:
+                subprocess.check_output(
+                    'psql -c "create database {}"'.format(db_name), shell=True
+                )
+            except subprocess.CalledProcessError as e:
+                print(e.stdout, file=sys.stderr)
+                print(e.stderr, file=sys.stderr)
+            psef.models.db.create_all()
 
     manage.app = app
     manage.seed_force(psef.models.db)
@@ -340,37 +403,67 @@ def db(app, request):
 
     psef.permissions.database_permissions_sanity_check(app)
 
-    yield psef.models.db
+    try:
+        yield psef.models.db
+    finally:
+        if request.config.getoption('--postgresql'):
+            db_name, generated = get_database_name(request)
+            if generated:
+                psef.models.db.session.close_all()
+                psef.models.db.engine.dispose()
+                subprocess.check_call(
+                    'dropdb "{}"'.format(db_name),
+                    shell=True,
+                    stdout=sys.stdout,
+                    stderr=sys.stderr
+                )
+        else:
+            os.unlink(TESTDB_PATH)
 
-    if request.config.getoption('--postgresql'):
-        psef.models.db.drop_all()
-        psef.models.db.create_all()
-    else:
-        os.unlink(TESTDB_PATH)
+
+@pytest.fixture(params=[True])
+def use_transaction(request):
+    yield request.param
 
 
 @pytest.fixture(autouse=True)
-def session(app, db):
+def session(app, db, use_transaction):
     """Creates a new database session for a test."""
     connection = db.engine.connect()
-    transaction = connection.begin()
+    if use_transaction:
+        transaction = connection.begin()
 
     options = dict(bind=connection, binds={}, autoflush=False)
     session = db.create_scoped_session(options=options)
 
+    old_ses = psef.models.db.session
     psef.models.db.session = session
 
-    yield session
-
-    transaction.rollback()
-
     try:
-        session.remove()
-        connection.close()
-    except:
-        pass
+        yield session
+    finally:
+        psef.models.db.session = old_ses
+        print(old_ses)
 
-    db.session.begin(subtransactions=True)
+        if use_transaction:
+            transaction.rollback()
+
+        try:
+            session.remove()
+            connection.close()
+        except:
+            import traceback
+            traceback.print_exc(file=sys.stderr)
+            raise
+
+        if not use_transaction:
+            db.drop_all()
+            sys.setrecursionlimit(5000)
+            psef.models.db.create_all()
+            manage.app = app
+            manage.seed_force(psef.models.db)
+            assert manage.test_data(psef.models.db) != 1
+            psef.permissions.database_permissions_sanity_check(app)
 
 
 @pytest.fixture
@@ -390,6 +483,30 @@ def course_name(request):
 @pytest.fixture
 def course(session, course_name):
     yield LocalProxy(session.query(m.Course).filter_by(name=course_name).first)
+
+
+DESCRIBE_HOOKS = []
+
+
+@pytest.fixture
+def describe():
+    @contextlib.contextmanager
+    def inner(name):
+        print()
+        sep = '+={}=+'.format('=' * len(name))
+        print(sep)
+        print('|', name, '|')
+        print(sep)
+        print()
+        try:
+            yield
+        finally:
+            for i, h in enumerate(DESCRIBE_HOOKS):
+                h()
+
+    yield inner
+
+    DESCRIBE_HOOKS.clear()
 
 
 @pytest.fixture(params=[False])
@@ -446,10 +563,23 @@ def stub_function_class():
             self.rets = []
             self.ret_func = ret_func
             self.with_args = with_args
+            self.call_dates = []
+            DESCRIBE_HOOKS.append(self.reset)
+
+        @property
+        def all_args(self):
+            def merge(args, kwargs):
+                res = {idx: val for idx, val in enumerate(args)}
+                res.update(kwargs)
+                return res
+
+            return [merge(a, k) for a, k in zip(self.args, self.kwargs)]
 
         def __call__(self, *args, **kwargs):
             self.args.append(args)
             self.kwargs.append(kwargs)
+            self.call_dates.append(datetime.datetime.utcnow())
+
             if self.with_args:
                 self.rets.append(self.ret_func(*args, **kwargs))
             else:
@@ -461,7 +591,10 @@ def stub_function_class():
             return len(self.args) > 0
 
         def reset(self):
-            self.__init__(self.ret_func, self.with_args)
+            self.args = []
+            self.kwargs = []
+            self.rets = []
+            self.call_dates = []
 
     yield StubFunction
 
@@ -483,17 +616,66 @@ def assignment_real_works(
                     f'/api/v1/assignments/{assignment.id}/submission',
                     201,
                     real_data={
-                        'file':
-                            (
-                                f'{os.path.dirname(__file__)}/../'
-                                f'test_data/test_linter/{filename}',
-                                os.path.basename(os.path.realpath(filename))
-                            )
+                        'file': (
+                            f'{os.path.dirname(__file__)}/../'
+                            f'test_data/test_linter/{filename}',
+                            os.path.basename(os.path.realpath(filename))
+                        )
                     }
                 )
             )
 
     yield assignment, res[0]
+
+
+@pytest.fixture
+def live_server(app):
+    p = None
+
+    def stop():
+        if p is None:
+            return
+
+        os.kill(p.pid, signal.SIGINT)
+        try:
+            p.join(4)
+        except:
+            p.terminate()
+            p.join()
+
+    def start():
+        nonlocal p
+
+        def _inner():
+            app.run(
+                host='localhost',
+                port=LIVE_SERVER_PORT,
+                use_reloader=False,
+                threaded=False
+            )
+
+        p = multiprocessing.Process(target=_inner)
+        p.start()
+        url = f'http://localhost:{LIVE_SERVER_PORT}'
+
+        for _ in range(15):
+            try:
+                urlopen(f'{url}/api/v1/about')
+            except URLError:
+                time.sleep(1)
+                pass
+            else:
+                break
+        else:
+            stop()
+            assert False, "Server on {} could not be reached".format(url)
+
+        return url
+
+    try:
+        yield start
+    finally:
+        stop()
 
 
 @pytest.fixture

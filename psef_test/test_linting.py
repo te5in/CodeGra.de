@@ -19,9 +19,9 @@ run_error = create_marker(pytest.mark.run_error)
 perm_error = create_marker(pytest.mark.perm_error)
 get_works = create_marker(pytest.mark.get_works)
 
-ALL_LINTERS = sorted(
-    ['Flake8', 'MixedWhitespace', 'Pylint', 'Checkstyle', 'PMD']
-)
+ALL_LINTERS = sorted([
+    'Flake8', 'MixedWhitespace', 'Pylint', 'Checkstyle', 'PMD'
+])
 
 CHECKSTYLE_INVALID_EL = open(
     os.path.join(
@@ -81,128 +81,102 @@ PMD_MAVEN = open(
     'filename,linter_cfgs_exp',
     [
         (
-            'test_flake8.tar.gz', [
-                (
-                    'Flake8', '', [
-                        (1, 'W191'),
-                        (1, 'E117'),
-                        (1, 'E211'),
-                        (1, 'E201'),
-                        (1, 'E202'),
-                    ]
-                )
-            ]
+            'test_flake8.tar.gz', [(
+                'Flake8', '', [
+                    (1, 'W191'),
+                    (1, 'E117'),
+                    (1, 'E211'),
+                    (1, 'E201'),
+                    (1, 'E202'),
+                ]
+            )]
         ),
         run_error(error=400)(('test_flake8.tar.gz', [(6, '666', '')])),
         run_error(error=400)(('test_flake8.tar.gz', [('Flake8', False, '')])),
         run_error(crash='Pylint')(
             ('test_flake8.tar.gz', [('Pylint', '[MASTER]\njobs=-1', '')])
         ),
-        run_error(crash='Flake8')(
-            (
-                'test_flake8.tar.gz', [
-                    (
-                        'Flake8',
-                        '[flake8]\ndisable_noqa=Trues # This should crash', ''
-                    )
-                ]
-            )
-        ),
+        run_error(crash='Flake8')((
+            'test_flake8.tar.gz', [(
+                'Flake8', '[flake8]\ndisable_noqa=Trues # This should crash',
+                ''
+            )]
+        )),
         run_error(error=400)(
             ('test_checkstyle.tar.gz', [('Checkstyle', 'not xml', '')])
         ),
-        run_error(error=400)(
-            (
-                'test_checkstyle.tar.gz', [
-                    ('Checkstyle', '<?xml version="1.0"?><module/>', '')
-                ]
-            )
-        ),
-        run_error(error=400)(
-            ('test_checkstyle.tar.gz', [('PMD', 'NOT XML!', '')])
-        ),
-        run_error(error=400)(
-            ('test_checkstyle.tar.gz', [('PMD', PMD_XPATH, '')])
-        ),
+        run_error(error=400)((
+            'test_checkstyle.tar.gz',
+            [('Checkstyle', '<?xml version="1.0"?><module/>', '')]
+        )),
+        run_error(error=400
+                  )(('test_checkstyle.tar.gz', [('PMD', 'NOT XML!', '')])),
+        run_error(error=400
+                  )(('test_checkstyle.tar.gz', [('PMD', PMD_XPATH, '')])),
         *[
-            run_error(error=400)(
-                ('test_checkstyle.tar.gz', [('Checkstyle', cfg, '')])
-            ) for cfg in [
+            run_error(error=400
+                      )(('test_checkstyle.tar.gz', [('Checkstyle', cfg, '')]))
+            for cfg in [
                 CHECKSTYLE_INVALID_EL, CHECKSTYLE_INVALID_MODULE,
                 CHECKSTYLE_INVALID_PROP_WITH_CHILDREN, CHECKSTYLE_INVALID_PROPS
             ]
         ],
         (
-            'test_pmd.tar.gz', [
-                (
-                    'PMD', PMD_MAVEN, [
-                        (14, 'Error Prone'),
-                        (16, 'Error Prone'),
-                        (18, 'Best Practices'),
-                        (18, 'Design'),
-                    ]
-                )
-            ]
+            'test_pmd.tar.gz', [(
+                'PMD', PMD_MAVEN, [
+                    (14, 'Error Prone'),
+                    (16, 'Error Prone'),
+                    (18, 'Best Practices'),
+                    (18, 'Design'),
+                ]
+            )]
         ),
         (
-            'test_checkstyle.tar.gz', [
-                (
-                    'Checkstyle', CHECKSTYLE_GOOGLE, [
-                        (13, 'warning'),
-                        (13, 'warning'),
-                        (14, 'warning'),
-                        (15, 'warning'),
-                        (16, 'warning'),
-                        (17, 'warning'),
-                        (18, 'warning'),
-                        (19, 'warning'),
-                        (20, 'warning'),
-                    ]
-                )
-            ]
-        ),
-        run_error(crash='Checkstyle')(
-            (
-                'test_invalid_java.tar.gz', [
-                    ('Checkstyle', CHECKSTYLE_GOOGLE, [])
+            'test_checkstyle.tar.gz', [(
+                'Checkstyle', CHECKSTYLE_GOOGLE, [
+                    (13, 'warning'),
+                    (13, 'warning'),
+                    (14, 'warning'),
+                    (15, 'warning'),
+                    (16, 'warning'),
+                    (17, 'warning'),
+                    (18, 'warning'),
+                    (19, 'warning'),
+                    (20, 'warning'),
                 ]
-            )
+            )]
         ),
+        run_error(crash='Checkstyle')
+        (('test_invalid_java.tar.gz', [('Checkstyle', CHECKSTYLE_GOOGLE, [])])
+         ),
         (
-            'test_pylint.tar.gz', [
-                (
-                    'Pylint', '', [
-                        (0, 'C0111'),
-                        (0, 'C0103'),
-                        (0, 'C0103'),
-                        (0, 'C0111'),
-                        (0, 'W0613'),
-                        (1, 'W0312'),
-                        (1, 'C0326'),
-                        (1, 'C0326'),
-                    ]
-                )
-            ]
-        ),
-        run_error(crash='Pylint')(
-            ('test_flake8.tar.gz', [('Pylint', '', [])])
-        ),
-        run_error(crash='Pylint')(
-            (
-                'test_flake8.tar.gz', [
-                    ('Pylint', '', []),
-                    (
-                        'Flake8', '', [
-                            (1, 'W191'),
-                            (1, 'E117'),
-                            (1, 'E211'),
-                            (1, 'E201'),
-                            (1, 'E202'),
-                        ]
-                    )
+            'test_pylint.tar.gz', [(
+                'Pylint', '', [
+                    (0, 'C0111'),
+                    (0, 'C0103'),
+                    (0, 'C0103'),
+                    (0, 'C0111'),
+                    (0, 'W0613'),
+                    (1, 'W0312'),
+                    (1, 'C0326'),
+                    (1, 'C0326'),
                 ]
-            )
+            )]
         ),
+        run_error(crash='Pylint')(('test_flake8.tar.gz', [('Pylint', '', [])])
+                                  ),
+        run_error(crash='Pylint')((
+            'test_flake8.tar.gz', [('Pylint', '', []),
+                                   (
+                                       'Flake8', '', [
+                                           (1, 'W191'),
+                                           (1, 'E117'),
+                                           (1, 'E211'),
+                                           (1, 'E201'),
+                                           (1, 'E202'),
+                                       ]
+                                   )]
+        )),
     ],
     indirect=['filename'],
 )
@@ -330,9 +304,7 @@ def test_linters(
                 'get',
                 f'/api/v1/code/{code_id}',
                 200,
-                query={
-                    'type': 'linter-feedback'
-                },
+                query={'type': 'linter-feedback'},
             ).items(),
             key=lambda el: el[0]
         )
@@ -465,10 +437,7 @@ def test_whitespace_linter(
             'post',
             f'/api/v1/assignments/{assignment.id}/linter',
             200,
-            data={
-                'name': 'MixedWhitespace',
-                'cfg': 'ANY'
-            },
+            data={'name': 'MixedWhitespace', 'cfg': 'ANY'},
             result={
                 'done': 4,
                 'working': 0,
@@ -502,10 +471,7 @@ def test_lint_later_submission(
             'post',
             f'/api/v1/assignments/{assig_id}/linter',
             200,
-            data={
-                'name': 'Flake8',
-                'cfg': ''
-            },
+            data={'name': 'Flake8', 'cfg': ''},
             result={
                 'done': 0,
                 'working': 0,
@@ -521,11 +487,10 @@ def test_lint_later_submission(
             f'/api/v1/assignments/{assig_id}/submission',
             201,
             real_data={
-                'file':
-                    (
-                        f'{os.path.dirname(__file__)}/../'
-                        f'test_data/test_linter/{filename}', filename
-                    )
+                'file': (
+                    f'{os.path.dirname(__file__)}/../'
+                    f'test_data/test_linter/{filename}', filename
+                )
             }
         )
 
@@ -541,9 +506,7 @@ def test_lint_later_submission(
                 'get',
                 f'/api/v1/code/{code_id}',
                 200,
-                query={
-                    'type': 'linter-feedback'
-                },
+                query={'type': 'linter-feedback'},
             ).items(),
             key=lambda el: el[0]
         )
@@ -575,10 +538,7 @@ def test_already_running_linter(
             'post',
             f'/api/v1/assignments/{assignment.id}/linter',
             200,
-            data={
-                'name': 'Flake8',
-                'cfg': 'ANY'
-            },
+            data={'name': 'Flake8', 'cfg': 'ANY'},
             result={
                 'done': 0,
                 'working': 4,
@@ -606,10 +566,7 @@ def test_already_running_linter(
             'post',
             f'/api/v1/assignments/{assignment.id}/linter',
             409,
-            data={
-                'name': 'Flake8',
-                'cfg': 'ANY'
-            },
+            data={'name': 'Flake8', 'cfg': 'ANY'},
             result=error_template,
         )
 
@@ -623,10 +580,7 @@ def test_non_existing_linter(
             'post',
             f'/api/v1/assignments/{assignment.id}/linter',
             404,
-            data={
-                'name': 'NON_EXISTING',
-                'cfg': 'ERROR'
-            },
+            data={'name': 'NON_EXISTING', 'cfg': 'ERROR'},
             result=error_template
         )
 
@@ -649,10 +603,7 @@ def test_lint_later_submission_disabled_linters(
             'post',
             f'/api/v1/assignments/{assig_id}/linter',
             200,
-            data={
-                'name': 'Flake8',
-                'cfg': ''
-            },
+            data={'name': 'Flake8', 'cfg': ''},
             result={
                 'done': 0,
                 'working': 0,
@@ -670,11 +621,10 @@ def test_lint_later_submission_disabled_linters(
             f'/api/v1/assignments/{assig_id}/submission',
             201,
             real_data={
-                'file':
-                    (
-                        f'{os.path.dirname(__file__)}/../'
-                        f'test_data/test_linter/{filename}', filename
-                    )
+                'file': (
+                    f'{os.path.dirname(__file__)}/../'
+                    f'test_data/test_linter/{filename}', filename
+                )
             }
         )
 
@@ -713,28 +663,19 @@ def test_detail_of_linter(
             'post',
             f'/api/v1/assignments/{assig_id}/linter',
             200,
-            data={
-                'name': 'Pylint',
-                'cfg': ''
-            },
+            data={'name': 'Pylint', 'cfg': ''},
         )
         test_client.req(
             'post',
             f'/api/v1/assignments/{assig_id}/linter',
             200,
-            data={
-                'name': 'PMD',
-                'cfg': ''
-            },
+            data={'name': 'PMD', 'cfg': ''},
         )
         test_client.req(
             'post',
             f'/api/v1/assignments/{assig_id}/linter',
             200,
-            data={
-                'name': 'Flake8',
-                'cfg': ''
-            },
+            data={'name': 'Flake8', 'cfg': ''},
         )
         linter_result = test_client.req(
             'get',

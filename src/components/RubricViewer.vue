@@ -2,15 +2,28 @@
 <template>
 <div class="rubric-viewer"
      :class="{ editable }">
-    <b-tabs no-fade>
+    <b-tabs no-fade v-model="current">
         <b-tab class="rubric"
                :head-html="getHeadHtml(rubric)"
                v-for="(rubric, i) in rubrics"
                :key="`rubric-${rubric.id}`">
-            <b-card class="rubric-category"
-                    :header="rubric.description"
-                    body-class="rubric-items">
-                <b-card-group>
+            <b-card
+                class="rubric-category"
+                header-class="rubric-category-header"
+                body-class="rubric-items">
+                <template slot="header" v-if="rubric.locked || rubric.description">
+                    <div class="rubric-category-description">
+                        {{ rubric.description }}
+                    </div>
+
+                    <icon name="lock"
+                          v-if="rubric.locked"
+                          v-b-popover.hover.top="lockPopover"/>
+                </template>
+
+                <b-card-group
+                    class="rubric-items-group"
+                    :class="{ disabled: rubric.locked }">
                     <b-card class="rubric-item"
                             v-for="item in rubric.items"
                             :key="`rubric-${rubric.id}-${item.id}`"
@@ -20,7 +33,7 @@
                         <div slot="header" class="header">
                             <b class="header-title">{{ item.points }} - {{ item.header }}</b>
                             <div v-if="itemStates[item.id] === '__LOADING__'"
-                                class="rubric-item-icon">
+                                 class="rubric-item-icon">
                                 <loader :scale="1"/>
                             </div>
                             <div v-else-if="selected[item.id]"
@@ -30,9 +43,9 @@
                             <div v-else-if="itemStates[item.id]"
                                 class="rubric-item-icon">
                                 <b-popover show
-                                        :target="`rubric-error-icon-${rubric.id}-${item.id}`"
-                                        :content="itemStates[item.id]"
-                                        placement="top">
+                                           :target="`rubric-error-icon-${rubric.id}-${item.id}`"
+                                           :content="itemStates[item.id]"
+                                           placement="top">
                                 </b-popover>
                                 <icon name="times"
                                     :scale="1"
@@ -46,6 +59,10 @@
                         </p>
                     </b-card>
                 </b-card-group>
+
+                <div v-show="autoTestProgress[rubric.id] != null" class="progress">
+                    <div ref="progressMeter" class="meter" style="width: 0;" />
+                </div>
             </b-card>
         </b-tab>
     </b-tabs>
@@ -53,13 +70,16 @@
 </template>
 
 <script>
+import { mapActions, mapGetters } from 'vuex';
+
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/angle-left';
 import 'vue-awesome/icons/angle-right';
 import 'vue-awesome/icons/times';
 import 'vue-awesome/icons/check';
+import 'vue-awesome/icons/lock';
 
-import { waitAtLeast } from '../utils';
+import { getProps, waitAtLeast } from '../utils';
 
 import Loader from './Loader';
 
@@ -83,6 +103,10 @@ export default {
             type: Boolean,
             default: false,
         },
+        visible: {
+            type: Boolean,
+            default: true,
+        },
     },
 
     data() {
@@ -102,9 +126,83 @@ export default {
         rubric(rubric) {
             this.rubricUpdated(rubric);
         },
+
+        submission: {
+            immediate: true,
+            handler() {
+                if (this.autoTestConfigId == null) {
+                    return;
+                }
+
+                Promise.all([
+                    this.storeLoadAutoTest({
+                        autoTestId: this.autoTestConfigId,
+                    }),
+                    this.storeLoadAutoTestResult({
+                        autoTestId: this.autoTestConfigId,
+                        submissionId: this.submissionId,
+                    }).catch(
+                        // Autotest hasn't been started yet.
+                        () => {},
+                    ),
+                ]);
+            },
+        },
+
+        currentRow: {
+            immediate: true,
+            handler() {
+                this.animateRubricProgress();
+            },
+        },
+
+        visible: {
+            immediate: true,
+            handler() {
+                this.animateRubricProgress();
+            },
+        },
+
+        autoTestProgress: {
+            immediate: true,
+            handler() {
+                const cur = this.current;
+                this.current = -1;
+                this.current = cur;
+            },
+        },
     },
 
     computed: {
+        ...mapGetters('autotest', {
+            allTests: 'tests',
+            allResults: 'results',
+        }),
+
+        submissionId() {
+            return this.submission.id;
+        },
+
+        autoTestConfigId() {
+            return this.assignment.auto_test_id;
+        },
+
+        autoTestConfig() {
+            return this.allTests[this.autoTestConfigId];
+        },
+
+        autoTestResult() {
+            return Object.values(this.allResults).find(r => r.submissionId === this.submissionId);
+        },
+
+        currentRow() {
+            return this.rubrics[this.current];
+        },
+
+        currentProgress() {
+            return this.currentRow && this.autoTestProgress[this.currentRow.id];
+        },
+
         hasSelectedItems() {
             return Object.keys(this.selected).length !== 0;
         },
@@ -132,25 +230,75 @@ export default {
             }
             return grade;
         },
+
+        autoTestProgress() {
+            const suiteResults = getProps(this, null, 'autoTestResult', 'suiteResults');
+
+            if (!suiteResults) {
+                return {};
+            }
+
+            const prog = {};
+
+            this.autoTestConfig.sets.forEach(set => {
+                set.suites.forEach(suite => {
+                    const result = suiteResults[suite.id];
+                    if (result != null) {
+                        const p = result.achieved / result.possible * 100;
+                        prog[suite.rubricRow.id] = p;
+                    }
+                });
+            });
+
+            return prog;
+        },
+
+        lockPopover() {
+            const lockReason = this.rubrics[this.current].locked;
+
+            switch (lockReason) {
+                case 'auto_test':
+                    return this.autoTestLockPopover();
+                default:
+                    return '';
+            }
+        },
     },
 
     mounted() {
         this.rubricUpdated(this.rubric, true);
+
+        this.$root.$on('open-rubric-category', id => {
+            this.rubrics.forEach((row, i) => {
+                if (row.id === id) {
+                    this.current = i;
+                }
+            });
+        });
+    },
+
+    destroyed() {
+        this.$root.$off('open-rubric-category');
     },
 
     methods: {
+        ...mapActions('autotest', {
+            storeLoadAutoTest: 'loadAutoTest',
+            storeLoadAutoTestResult: 'loadAutoTestResult',
+        }),
+
         getHeadHtml(rubric) {
             const selected = this.selectedRows[rubric.id];
-            const maxPoints = this.$htmlEscape(Math.max(...rubric.items.map(i => i.points)));
+            const maxPoints = this.$utils.htmlEscape(Math.max(...rubric.items.map(i => i.points)));
             const header =
-                this.$htmlEscape(`${rubric.header}`) ||
+                this.$utils.htmlEscape(`${rubric.header}`) ||
                 '<span class="unnamed">Unnamed category</span>';
 
             const getFraction = (upper, lower) => `<sup>${upper}</sup>&frasl;<sub>${lower}</sub>`;
             let res;
 
             if (selected) {
-                const selectedPoints = this.$htmlEscape(selected.points);
+                const selectedPoints = this.$utils.htmlEscape(selected.points);
                 res = `<span>${header}</span> - <span>${getFraction(
                     selectedPoints,
                     maxPoints,
@@ -235,7 +383,10 @@ export default {
         },
 
         toggleItem(row, item) {
-            if (!this.editable) return;
+            if (!this.editable || row.locked) {
+                throw Error('This rubric row is not editable.');
+            }
+
             this.$set(this.itemStates, item.id, '__LOADING__');
 
             let req;
@@ -297,6 +448,58 @@ export default {
                 },
             );
         },
+
+        autoTestLockPopover() {
+            const selectedInRow = this.selectedRows[this.currentRow.id];
+            let msg;
+
+            if (selectedInRow == null || this.currentProgress == null) {
+                msg =
+                    'This is an AutoTest category. It will be filled once the ' +
+                    'AutoTest for this assignment is done running. ';
+            } else {
+                msg =
+                    `You scored ${this.currentProgress.toFixed(0)}% in the corresponding ` +
+                    `AutoTest category, which scores you ${selectedInRow.points} points ` +
+                    'in this rubric category. ';
+            }
+
+            if (!this.autoTestConfig) {
+                return msg;
+            }
+
+            const gradeCalculation = this.autoTestConfig.grade_calculation;
+
+            switch (gradeCalculation) {
+                case 'full':
+                    msg += 'You need to reach the upper bound of a rubric item to achieve it.';
+                    break;
+                case 'partial':
+                    msg += 'You need to reach the lower bound of a rubric item to achieve it.';
+                    break;
+                default:
+                    throw new Error('Invalid grade calculation method.');
+            }
+
+            return msg;
+        },
+
+        async animateRubricProgress() {
+            if (!this.visible || this.current == null || this.currentProgress == null) {
+                return;
+            }
+
+            const cur = this.current;
+            await this.$nextTick();
+            const ref = this.$refs.progressMeter[cur];
+
+            // Without this the animations don't work.
+            // eslint-disable-next-line
+            getComputedStyle(ref).width;
+
+            await this.$nextTick();
+            ref.style.width = `${this.currentProgress}%`;
+        },
     },
 
     components: {
@@ -313,11 +516,18 @@ export default {
 
 .rubric-viewer .rubric-category {
     border-top-width: 0;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+}
 
-    &,
-    .card-header {
-        border-top-left-radius: 0;
-        border-top-right-radius: 0;
+.rubric-category-header {
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+    display: flex;
+    align-items: center;
+
+    .rubric-category-description {
+        flex: 1 1 auto;
     }
 }
 
@@ -327,6 +537,7 @@ export default {
 
 .rubric-item {
     border-width: 0;
+    border-radius: 0;
 
     &:not(:last-child) {
         border-right-width: 1px;
@@ -340,7 +551,7 @@ export default {
         }
     }
 
-    .editable & {
+    .rubric-viewer.editable .rubric-items-group:not(.disabled) & {
         cursor: pointer;
 
         &:hover {
@@ -393,6 +604,37 @@ export default {
             .rubric-item-icon {
                 margin-left: 2px;
             }
+        }
+    }
+}
+
+.rubric-items {
+    position: relative;
+}
+
+.progress {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    width: 100%;
+    box-sizing: content-box;
+    border-right: 1px solid transparent;
+    border-radius: 0;
+    background-color: transparent !important;
+    pointer-events: none;
+
+    .meter {
+        box-sizing: content-box;
+        background-color: fade(@color-secondary, 10%);
+        border-right: 1px solid fade(@color-secondary, 15%);
+        margin-right: -1px;
+        width: 0;
+        transition: width 1250ms ease-in-out;
+
+        #app.dark & {
+            background-color: fade(white, 10%);
+            border-right: 1px solid fade(white, 15%);
         }
     }
 }

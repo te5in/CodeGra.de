@@ -44,12 +44,8 @@ def test_get_code_metadata(
             f'/api/v1/submissions/{work_id}/files/',
             200,
             result={
-                'entries': [{
-                    'id': int,
-                    'name': 'test.py'
-                }],
-                'id': int,
-                'name': 'test_flake8.tar.gz'
+                'entries': [{'id': int, 'name': 'test.py'}], 'id': int, 'name':
+                    'test_flake8.tar.gz'
             }
         )
 
@@ -547,11 +543,7 @@ def test_invalid_delete_code(
             f'/api/v1/code/{f["id"]}',
             200,
             query={'operation': 'content'},
-            result={
-                'name': f['name'],
-                'id': int,
-                'is_directory': False
-            },
+            result={'name': f['name'], 'id': int, 'is_directory': False},
             real_data='WOWSERS123',
         )
 
@@ -682,9 +674,9 @@ def test_update_code(
         assert adjust_code(code_id, 200) == code_id
         assert adjust_code(code_id, 200) == code_id
 
-        m.Assignment.query.filter_by(id=assignment.id).update(
-            {'state': m._AssignmentStateEnum.done}
-        )
+        m.Assignment.query.filter_by(id=assignment.id).update({
+            'state': m._AssignmentStateEnum.done
+        })
 
         adjust_code(code_id, 403)
 
@@ -706,21 +698,17 @@ def test_update_code(
     with logged_in(student_user):
         adjust_code(code_id, 403)
 
-    m.Assignment.query.filter_by(id=assignment.id).update(
-        {'state': m._AssignmentStateEnum.open}
-    )
+    m.Assignment.query.filter_by(id=assignment.id).update({
+        'state': m._AssignmentStateEnum.open
+    })
     # Cannot adjust teacher rev as student
     with logged_in(student_user):
         adjust_code(new_id, 403)
 
-    m.Assignment.query.filter_by(id=assignment.id).update(
-        {
-            'state':
-                m._AssignmentStateEnum.open,
-            'deadline':
-                datetime.datetime.utcnow() - datetime.timedelta(days=1),
-        }
-    )
+    m.Assignment.query.filter_by(id=assignment.id).update({
+        'state': m._AssignmentStateEnum.open,
+        'deadline': datetime.datetime.utcnow() - datetime.timedelta(days=1),
+    })
     # Cannot change code after deadline as student
     with logged_in(student_user):
         adjust_code(code_id, 403, 'AAH_CON')
@@ -873,9 +861,9 @@ def test_rename_code(
             f'/multiple_dir_archive{extension}/dir3', 400
         )
 
-        m.Assignment.query.filter_by(id=assignment.id).update(
-            {'state': m._AssignmentStateEnum.done}
-        )
+        m.Assignment.query.filter_by(id=assignment.id).update({
+            'state': m._AssignmentStateEnum.done
+        })
         rename(
             files['entries'][0]['id'],
             f'/multiple_dir_archive{extension}/dir3', 403

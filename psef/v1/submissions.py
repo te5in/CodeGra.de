@@ -6,11 +6,8 @@ functions are defined to get related objects and information.
 SPDX-License-Identifier: AGPL-3.0-only
 """
 
-import os
 import typing as t
 import numbers
-import zipfile
-import tempfile
 from collections import Counter, defaultdict
 
 import structlog
@@ -153,32 +150,8 @@ def get_zip(work: models.Work,
     """
     auth.ensure_can_view_files(work, exclude_owner == FileOwner.student)
 
-    path, name = psef.files.random_file_path(True)
-
-    with open(
-        path,
-        'w+b',
-    ) as f, tempfile.TemporaryDirectory(
-        suffix='dir',
-    ) as tmpdir, zipfile.ZipFile(
-        f,
-        'w',
-        compression=zipfile.ZIP_DEFLATED,
-    ) as zipf:
-        # Restore the files to tmpdir
-        tree_root = psef.files.restore_directory_structure(
-            work, tmpdir, exclude_owner
-        )
-
-        zipf.write(tmpdir, tree_root['name'])
-
-        for root, _dirs, files in os.walk(tmpdir):
-            for file in files:
-                path = os.path.join(root, file)
-                zipf.write(path, path[len(tmpdir):])
-
     return {
-        'name': name,
+        'name': work.create_zip(exclude_owner),
         'output_name': f'{work.assignment.name}-{work.user.name}-archive.zip'
     }
 
@@ -205,10 +178,7 @@ def delete_submission(submission_id: int) -> EmptyResponse:
     for sub_file in db.session.query(models.File).filter_by(
         work_id=submission_id, is_directory=False
     ).all():
-        try:
-            sub_file.delete_from_disk()
-        except FileNotFoundError:  # pragma: no cover
-            pass
+        helpers.callback_after_this_request(sub_file.delete_from_disk)
 
     db.session.delete(submission)
     db.session.commit()
@@ -319,7 +289,7 @@ def get_rubric(submission_id: int) -> JSONResponse[t.Mapping[str, t.Any]]:
 
 @api.route('/submissions/<int:submission_id>/rubricitems/', methods=['PATCH'])
 @features.feature_required(features.Feature.RUBRICS)
-def select_rubric_items(submission_id: int, ) -> EmptyResponse:
+def select_rubric_items(submission_id: int) -> EmptyResponse:
     """Select the given rubric items for the given submission.
 
     .. :quickref: Submission; Select multiple rubric items.
@@ -371,6 +341,21 @@ def select_rubric_items(submission_id: int, ) -> EmptyResponse:
                 ','.join(map(str, duplicates))
             ), APICodes.INVALID_PARAM, 400
         )
+
+    if submission.assignment.auto_test is not None:
+        changed_items = set(items) - set(submission.selected_items)
+        rows = set(submission.assignment.locked_rubric_rows)
+        if any(item.rubricrow_id in rows for item in changed_items):
+            raise APIException(
+                (
+                    'This rubric row is connected to an AutoTest category, so'
+                    ' you cannot change it.'
+                ), 'An item is connected to one of these rows: "{}"'.format(
+                    ', '.join(
+                        map(str, submission.assignment.locked_rubric_rows)
+                    )
+                ), APICodes.INVALID_PARAM, 400
+            )
 
     submission.select_rubric_items(items, current_user, True)
     db.session.commit()

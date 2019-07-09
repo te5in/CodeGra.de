@@ -13,16 +13,13 @@ missing_error = create_marker(pytest.mark.missing_error)
 @pytest.mark.parametrize(
     'named_user,expected', [
         (
-            'Thomas Schaper', [
-                ('Project Software Engineering', 'Student'),
-                ('Besturingssystemen', 'TA'), ('Programmeertalen', 'TA')
-            ]
+            'Thomas Schaper', [('Project Software Engineering', 'Student'),
+                               ('Besturingssystemen', 'TA'),
+                               ('Programmeertalen', 'TA')]
         ),
         (
-            'Student1', [
-                ('Programmeertalen', 'Student'),
-                ('Inleiding Programmeren', 'Student')
-            ]
+            'Student1', [('Programmeertalen', 'Student'),
+                         ('Inleiding Programmeren', 'Student')]
         ),
         ('admin', []),
         perm_error(error=401)(('NOT_LOGGED_IN', 'ERROR!')),
@@ -238,14 +235,12 @@ def test_get_course_assignments(
 
 @pytest.mark.parametrize(
     'course_n,users',
-    [
-        (
-            'Programmeertalen', [
-                'Thomas Schaper', 'Devin Hillenius', 'Student1', 'Student2',
-                'Student3', 'Student4', 'b', 'Robin', 'Œlµo'
-            ]
-        )
-    ],
+    [(
+        'Programmeertalen', [
+            'Thomas Schaper', 'Devin Hillenius', 'Student1', 'Student2',
+            'Student3', 'Student4', 'b', 'Robin', 'Œlµo'
+        ]
+    )],
 )
 @pytest.mark.parametrize(
     'named_user', [
@@ -458,16 +453,13 @@ def test_get_courseroles(
         result = []
         for crole in course_roles:
             item = {
-                'name': crole.name,
-                'id': int,
-                'course':
-                    {
-                        'name': course_n,
-                        'id': int,
-                        'created_at': str,
-                        'is_lti': False,
-                        'virtual': False,
-                    }
+                'name': crole.name, 'id': int, 'course': {
+                    'name': course_n,
+                    'id': int,
+                    'created_at': str,
+                    'is_lti': False,
+                    'virtual': False,
+                }
             }
             if extended:
                 item['perms'] = dict
@@ -821,6 +813,7 @@ def test_add_assignment(
                 'max_grade': None,
                 'group_set': None,
                 'division_parent_id': None,
+                'auto_test_id': None,
             }
         )
 
@@ -906,30 +899,22 @@ def test_course_snippets(
     with logged_in(teacher_user):
         # Create snippets
         for i in range(2):
-            snips.append(
-                {
-                    'key': f'snippet_key{i}',
-                    'value': f'snippet_value{i}',
-                }
-            )
+            snips.append({
+                'key': f'snippet_key{i}',
+                'value': f'snippet_value{i}',
+            })
             test_client.req(
                 'put',
                 f'{url_base}/snippet',
                 201,
                 data=snips[-1],
-                result={
-                    'id': int,
-                    **snips[-1]
-                },
+                result={'id': int, **snips[-1]},
             )
         snips = test_client.req(
             'get',
             f'{url_base}/snippets/',
             200,
-            result=[{
-                'id': int,
-                **snip
-            } for snip in snips],
+            result=[{'id': int, **snip} for snip in snips],
         )
 
         # Change value by putting snippet with existing key
@@ -938,10 +923,7 @@ def test_course_snippets(
             'put',
             f'{url_base}/snippet',
             201,
-            data={
-                'key': snips[0]['key'],
-                'value': snips[0]['value']
-            },
+            data={'key': snips[0]['key'], 'value': snips[0]['value']},
             result=snips[0],
         )
         test_client.req(
@@ -957,10 +939,7 @@ def test_course_snippets(
             'patch',
             f'{url_base}/snippets/{snips[0]["id"]}',
             204,
-            data={
-                'key': snips[0]['key'],
-                'value': snips[0]['value']
-            },
+            data={'key': snips[0]['key'], 'value': snips[0]['value']},
         )
         test_client.req(
             'get',
@@ -974,10 +953,7 @@ def test_course_snippets(
             'patch',
             f'{url_base}/snippets/{snips[0]["id"]}',
             400,
-            data={
-                'key': snips[1]['key'],
-                'value': snips[0]['value']
-            },
+            data={'key': snips[1]['key'], 'value': snips[0]['value']},
             result=error_template,
         )
 
@@ -1031,10 +1007,7 @@ def test_course_snippets(
             'patch',
             f'{url_base}/snippets/{snips[0]["id"]}',
             403,
-            data={
-                'key': snips[0]['key'],
-                'value': 'new value'
-            },
+            data={'key': snips[0]['key'], 'value': 'new value'},
             result=error_template,
         )
         test_client.req(
@@ -1064,10 +1037,7 @@ def test_course_snippets(
             'patch',
             f'{url_base}/snippets/{snips[0]["id"]}',
             403,
-            data={
-                'key': snips[0]['key'],
-                'value': 'new value'
-            },
+            data={'key': snips[0]['key'], 'value': 'new value'},
             result=error_template,
         )
         test_client.req(

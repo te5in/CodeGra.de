@@ -110,7 +110,10 @@ def _limited_copy(
 
 
 def _safe_join(*args: str) -> str:
-    return path.normpath(path.realpath(path.join(*args)))
+    assert args
+    res = path.normpath(path.realpath(path.join(*args)))
+    assert res.startswith(args[0])
+    return res
 
 
 class ArchiveException(Exception):
@@ -392,7 +395,11 @@ class Archive(t.Generic[TT]):  # pylint: disable=unsubscriptable-object
         target_path = _safe_join(to_path)
 
         for member in self.get_members():
-            extract_path = _safe_join(target_path, member.name)
+            # Don't use `_safe_join` here as we detect unsafe joins here to
+            # raise an `UnsafeArchive` exception.
+            extract_path = path.normpath(
+                path.realpath(path.join(target_path, member.name))
+            )
 
             if not extract_path.startswith(target_path):
                 raise UnsafeArchive(
@@ -714,7 +721,7 @@ class _7ZipArchive(_BaseArchive[py7zlib.ArchiveFile]):  # pylint: disable=unsubs
         :param member: The member to extract.
         :param to_path: The location to which it should be extracted.
         """
-        with open(os.path.join(to_path, member.name), 'wb') as f:
+        with open(_safe_join(to_path, member.name), 'wb') as f:
             # We cannot provide a maximum to read to this method...
             f.write(member.orig_file.read())
 

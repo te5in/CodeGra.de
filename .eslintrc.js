@@ -49,5 +49,6 @@ module.exports = {
     },
     globals: {
         'UserConfig': true,
+        'AutoTestBaseSystems': true,
     },
 }

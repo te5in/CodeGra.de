@@ -1,4 +1,5 @@
 import os
+import sys
 import json
 import typing as t
 import datetime
@@ -9,21 +10,26 @@ from configparser import ConfigParser
 
 from mypy_extensions import TypedDict
 
+config_file = os.getenv('CODEGRADE_CONFIG_FILE', 'config.ini')
+
 CONFIG: t.Dict[str, t.Any] = dict()
 CONFIG['BASE_DIR'] = os.path.dirname(os.path.abspath(__file__))
 
 os.environ['BASE_DIR'] = str(CONFIG['BASE_DIR'])
 
 parser = ConfigParser(os.environ)
-parser.read('config.ini')
+parser.read(config_file)
 
 if 'Back-end' not in parser:
     parser['Back-end'] = {}
 if 'Features' not in parser:
     parser['Features'] = {}
+if 'AutoTest' not in parser:
+    parser['AutoTest'] = {}
 
 backend_ops = parser['Back-end']
 feature_ops = parser['Features']
+auto_test_ops = parser['AutoTest']
 
 
 class CeleryConfig(TypedDict, total=True):
@@ -34,11 +40,37 @@ if t.TYPE_CHECKING and getattr(
     t, 'SPHINX', False
 ) is not True:  # pragma: no cover
     import psef.features
+    import psef.auto_test
+
+AutoTestConfig = TypedDict(
+    'AutoTestConfig', {
+        'password': str,
+        'container_url': t.Optional[str],
+    }
+)
+AutoTestHosts = t.Mapping[str, AutoTestConfig]
 
 FlaskConfig = TypedDict(
     'FlaskConfig', {
         'FEATURES': t.Mapping['psef.features.Feature', bool],
         '__S_FEATURES': t.Mapping[str, bool],
+        'IS_AUTO_TEST_RUNNER': bool,
+        'AUTO_TEST_HOSTS': AutoTestHosts,
+        'AUTO_TEST_PASSWORD': str,
+        'AUTO_TEST_DISABLE_ORIGIN_CHECK': bool,
+        'AUTO_TEST_MAX_TIME_COMMAND': int,
+        'AUTO_TEST_MAX_TIME_TOTAL_RUN': int,
+        'AUTO_TEST_POLL_TIME': int,
+        'AUTO_TEST_OUTPUT_LIMIT': int,
+        'AUTO_TEST_MEMORY_LIMIT': str,
+        'AUTO_TEST_BDEVTYPE': str,
+        'AUTO_TEST_HEARTBEAT_INTERVAL': int,
+        'AUTO_TEST_HEARTBEAT_MAX_MISSED': int,
+        'AUTO_TEST_TEMPLATE_CONTAINER': str,
+        'AUTO_TEST_BROKER_URL': str,
+        'AUTO_TEST_BROKER_PASSWORD': str,
+        'TESTING': bool,
+        '__S_AUTO_TEST_HOSTS': t.Mapping[str, t.Any],
         'Celery': CeleryConfig,
         'LTI Consumer keys': t.Mapping[str, str],
         'DEBUG': bool,
@@ -77,6 +109,8 @@ FlaskConfig = TypedDict(
         'PYLINT_PROGRAM': t.List[str],
         'FLAKE8_PROGRAM': t.List[str],
         '_USING_SQLITE': str,
+        '_TRANSIP_PRIVATE_KEY_FILE': str,
+        '_TRANSIP_USERNAME': str,
     },
     total=True
 )
@@ -158,7 +192,23 @@ def set_list(
         out[item] = parsed_val
 
 
+def set_dict(
+    out: t.MutableMapping[str, t.Any],
+    parser: t.Any,
+    item: str,
+    default: object,
+) -> None:
+    val = parser.get(item)
+    if val is None:
+        out[item] = default
+    else:
+        parsed_val = json.loads(val)
+        assert isinstance(parsed_val, dict), f'Value "{item}" should be a list'
+        out[item] = parsed_val
+
+
 set_bool(CONFIG, backend_ops, 'DEBUG', False)
+CONFIG['TESTING'] = False
 
 # Define the database. If `CODEGRADE_DATABASE_URL` is found in the enviroment
 # variables it is used. The string should be in this format for postgresql:
@@ -259,9 +309,27 @@ set_str(CONFIG, backend_ops, 'JAVA_PATH', 'java')
 
 set_str(CONFIG, backend_ops, 'JPLAG_JAR', 'jplag.jar')
 
-CONFIG['_VERSION'] = subprocess.check_output(
-    ['git', 'describe', '--abbrev=0', '--tags']
-).decode('utf-8').strip()
+
+def _set_version() -> None:
+    CONFIG['_VERSION'] = subprocess.check_output(
+        ['git', 'describe', '--abbrev=0', '--tags']
+    ).decode('utf-8').strip()
+
+
+try:
+    _set_version()
+except subprocess.CalledProcessError as e:
+    print(
+        (
+            'An error occurred trying to get the version, this is probably'
+            ' caused by not deep cloning the repository. We will try that'
+            ' now.'
+        ),
+        file=sys.stderr
+    )
+    subprocess.check_call(['git', 'fetch', '--unshallow'])
+    _set_version()
+del _set_version
 
 # Set email settings
 set_str(CONFIG, backend_ops, 'MAIL_SERVER', 'localhost')
@@ -390,6 +458,9 @@ set_list(
     ]
 )
 
+set_str(CONFIG, backend_ops, '_TRANSIP_PRIVATE_KEY_FILE', '')
+set_str(CONFIG, backend_ops, '_TRANSIP_USERNAME', '')
+
 ############
 # FEATURES #
 ############
@@ -428,23 +499,54 @@ set_bool(CONFIG['__S_FEATURES'], feature_ops, 'REGISTER', False)
 
 set_bool(CONFIG['__S_FEATURES'], feature_ops, 'GROUPS', False)
 
+set_bool(CONFIG['__S_FEATURES'], feature_ops, 'AUTO_TEST', False)
+
 ############
 # LTI keys #
 ############
 # All LTI consumer keys mapped to secret keys. Please add your own.
-parser = ConfigParser()
-parser.optionxform = str  # type: ignore
-if parser.read('config.ini') and 'LTI Consumer keys' in parser:
-    CONFIG['LTI_CONSUMER_KEY_SECRETS'] = dict(parser['LTI Consumer keys'])
+lti_parser = ConfigParser()
+lti_parser.optionxform = str  # type: ignore
+if lti_parser.read(config_file) and 'LTI Consumer keys' in lti_parser:
+    CONFIG['LTI_CONSUMER_KEY_SECRETS'] = dict(lti_parser['LTI Consumer keys'])
 else:
     CONFIG['LTI_CONSUMER_KEY_SECRETS'] = {}
 
 ##########
 # CELERY #
 ##########
-parser = ConfigParser()
-parser.optionxform = str  # type: ignore
-if parser.read('config.ini') and 'Celery' in parser:
-    CONFIG['CELERY_CONFIG'] = dict(parser['Celery'])
+celery_parser = ConfigParser()
+celery_parser.optionxform = str  # type: ignore
+if celery_parser.read(config_file) and 'Celery' in celery_parser:
+    CONFIG['CELERY_CONFIG'] = dict(celery_parser['Celery'])
 else:
     CONFIG['CELERY_CONFIG'] = {}
+
+val = json.loads(auto_test_ops.get('auto_test_hosts', '{}'))
+assert isinstance(val, dict)
+CONFIG['__S_AUTO_TEST_HOSTS'] = val
+
+set_bool(CONFIG, auto_test_ops, 'IS_AUTO_TEST_RUNNER', False)
+
+set_int(CONFIG, auto_test_ops, 'AUTO_TEST_MAX_TIME_COMMAND', 5 * 60)
+set_int(CONFIG, auto_test_ops, 'AUTO_TEST_MAX_TIME_TOTAL_RUN', 1440)
+set_int(CONFIG, auto_test_ops, 'AUTO_TEST_POLL_TIME', 30)
+set_int(CONFIG, auto_test_ops, 'AUTO_TEST_OUTPUT_LIMIT', 32768)
+set_str(CONFIG, auto_test_ops, 'AUTO_TEST_MEMORY_LIMIT', '512M')
+set_str(CONFIG, auto_test_ops, 'AUTO_TEST_BDEVTYPE', 'best')
+set_int(CONFIG, auto_test_ops, 'AUTO_TEST_HEARTBEAT_INTERVAL', 10)
+set_int(CONFIG, auto_test_ops, 'AUTO_TEST_HEARTBEAT_MAX_MISSED', 6)
+set_str(CONFIG, auto_test_ops, 'AUTO_TEST_TEMPLATE_CONTAINER', None)
+set_str(CONFIG, auto_test_ops, 'AUTO_TEST_BROKER_URL', '')
+set_str(CONFIG, auto_test_ops, 'AUTO_TEST_BROKER_PASSWORD', None)
+set_str(CONFIG, auto_test_ops, 'AUTO_TEST_PASSWORD', None)
+set_bool(CONFIG, auto_test_ops, 'AUTO_TEST_DISABLE_ORIGIN_CHECK', False)
+
+if CONFIG['IS_AUTO_TEST_RUNNER']:
+    assert CONFIG['SQLALCHEMY_DATABASE_URI'] == 'postgresql:///codegrade_dev'
+    assert CONFIG['CELERY_CONFIG'] == {}
+    assert CONFIG['LTI_CONSUMER_KEY_SECRETS'] == {}
+    assert CONFIG['LTI_SECRET_KEY'] == ''
+    assert CONFIG['SECRET_KEY'] == ''
+    assert CONFIG['HEALTH_KEY'] == ''
+    assert CONFIG['AUTO_TEST_BROKER_PASSWORD'] is None

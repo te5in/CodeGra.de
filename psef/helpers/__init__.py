@@ -5,13 +5,19 @@ SPDX-License-Identifier: AGPL-3.0-only
 """
 import re
 import abc
+import enum
+import time
 import typing as t
 import datetime
+import threading
 import contextlib
 import subprocess
+import urllib.parse
+import multiprocessing
 from functools import wraps
 
 import flask
+import requests
 import structlog
 import mypy_extensions
 from flask import g, request
@@ -20,10 +26,14 @@ from werkzeug.datastructures import FileStorage
 from sqlalchemy.sql.expression import or_
 
 import psef
-import psef.json_encoders as json
+from cg_json import (
+    JSONResponse, ExtendedJSONResponse, jsonify, extended_jsonify
+)
+from cg_timers import timed_code
+from cg_sqlalchemy_helpers.types import Base, MyQuery, DbColumn
 
 from . import features, validate
-from .. import errors, models
+from .. import errors, current_tester
 
 if t.TYPE_CHECKING and not getattr(t, 'SPHINX', False):  # pragma: no cover
     import psef.archive
@@ -34,7 +44,11 @@ logger = structlog.get_logger()
 
 #: Type vars
 T = t.TypeVar('T')
+T_STOP_THREAD = t.TypeVar('T_STOP_THREAD', bound='StoppableThread')  # pylint: disable=invalid-name
+T_CAL = t.TypeVar('T_CAL', bound=t.Callable)  # pylint: disable=invalid-name
 TT = t.TypeVar('TT')
+TTT = t.TypeVar('TTT', bound='IsInstanceType')
+ZZ = t.TypeVar('ZZ')
 Z = t.TypeVar('Z', bound='Comparable')
 Y = t.TypeVar('Y', bound='Base')
 T_Type = t.TypeVar('T_Type', bound=t.Type)  # pylint: disable=invalid-name
@@ -44,6 +58,13 @@ T_TypedDict = t.TypeVar(  # pylint: disable=invalid-name
 )
 
 IsInstanceType = t.Union[t.Type, t.Tuple[t.Type, ...]]  # pylint: disable=invalid-name
+
+
+class MissingType(enum.Enum):
+    token = 0
+
+
+MISSING: MissingType = MissingType.token
 
 
 def init_app(app: 'psef.Flask') -> None:
@@ -140,7 +161,7 @@ def escape_like(unescaped_like: str) -> str:
 
     >>> escape_like('hello')
     'hello'
-    >>> escape_like('This is % a _ string\%')
+    >>> escape_like('This is % a _ string\\%')
     'This is \\% a \\_ string\\\\\\%'
     >>> escape_like('%')
     '\\%'
@@ -200,39 +221,6 @@ _JSONValue = t.Union[str, int, float, bool, None, t.Dict[str, t.Any],  # pylint:
 JSONType = t.Union[t.Dict[str, _JSONValue], t.List[_JSONValue], _JSONValue]  # pylint: disable=invalid-name
 
 
-class ExtendedJSONResponse(t.Generic[T]):
-    """A datatype for a JSON response created by using the
-    ``__extended_to_json__`` if available.
-
-    This is a subtype of :py:class:`werkzeug.wrappers.Response` where the body
-    is a valid JSON object and ``content-type`` is ``application/json``.
-
-    .. warning::
-
-        This class is only used for type hinting and is never actually used! It
-        does not contain any valid data!
-    """
-
-    def __init__(self) -> None:  # pragma: no cover
-        raise NotImplementedError("Do not use this class as actual data")
-
-
-class JSONResponse(t.Generic[T]):
-    """A datatype for a JSON response.
-
-    This is a subtype of :py:class:`werkzeug.wrappers.Response` where the body
-    is a valid JSON object and ``content-type`` is ``application/json``.
-
-    .. warning::
-
-        This class is only used for type hinting and is never actually used! It
-        does not contain any valid data!
-    """
-
-    def __init__(self) -> None:  # pragma: no cover
-        raise NotImplementedError("Do not use this class as actual data")
-
-
 class EmptyResponse:
     """An empty response.
 
@@ -251,7 +239,7 @@ class EmptyResponse:
 
 def get_in_or_error(
     model: t.Type[Y],
-    in_column: models.DbColumn[T],
+    in_column: DbColumn[T],
     in_values: t.List[T],
     options: t.Optional[t.List[t.Any]] = None,
 ) -> t.List[Y]:
@@ -274,7 +262,9 @@ def get_in_or_error(
     if not in_values:
         return []
 
-    query = models.db.session.query(model).filter(in_column.in_(in_values))
+    query = psef.models.db.session.query(model).filter(
+        in_column.in_(in_values)
+    )
 
     if options is not None:
         query = query.options(*options)
@@ -290,8 +280,13 @@ def get_in_or_error(
     return res
 
 
-def _filter_or_404(model: t.Type[Y], get_all: bool,
-                   criteria: t.Tuple) -> t.Union[Y, t.Sequence[Y]]:
+def _filter_or_404(
+    model: t.Type[Y],
+    get_all: bool,
+    criteria: t.Tuple,
+    also_error: t.Optional[t.Callable[[Y], bool]],
+    with_for_update: bool,
+) -> t.Union[Y, t.Sequence[Y]]:
     """Get the specified object by filtering or raise an exception.
 
     :param get_all: Get all objects if ``True`` else get a single one.
@@ -302,10 +297,13 @@ def _filter_or_404(model: t.Type[Y], get_all: bool,
     :raises APIException: If no object with the given id could be found.
         (OBJECT_ID_NOT_FOUND)
     """
-    crit_str = ' AND '.join(str(crit) for crit in criteria)
     query = model.query.filter(*criteria)  # type: ignore
+    if with_for_update:
+        query = query.with_for_update()
     obj = query.all() if get_all else query.one_or_none()
-    if not obj:
+
+    if not obj or (also_error is not None and also_error(obj)):
+        crit_str = ' AND '.join(str(crit) for crit in criteria)
         raise psef.errors.APIException(
             f'The requested {model.__name__.lower()} was not found',
             f'There is no "{model.__name__}" when filtering with {crit_str}',
@@ -314,12 +312,14 @@ def _filter_or_404(model: t.Type[Y], get_all: bool,
     return obj
 
 
-def filter_all_or_404(model: t.Type[Y], *criteria: t.Any) -> t.Sequence[Y]:
+def filter_all_or_404(
+    model: t.Type[Y], *criteria: t.Any, with_for_update: bool = False
+) -> t.Sequence[Y]:
     """Get all objects of the specified model filtered by the specified
     criteria.
 
     .. note::
-        ``Y`` is bound to :py:class:`models.Base`, so it should be a
+        ``Y`` is bound to :py:class:`.Base`, so it should be a
         SQLAlchemy model.
 
     :param model: The object to get.
@@ -329,15 +329,23 @@ def filter_all_or_404(model: t.Type[Y], *criteria: t.Any) -> t.Sequence[Y]:
     :raises APIException: If no object with the given id could be found.
         (OBJECT_ID_NOT_FOUND)
     """
-    return t.cast(t.Sequence[Y], _filter_or_404(model, True, criteria))
+    return t.cast(
+        t.Sequence[Y],
+        _filter_or_404(model, True, criteria, None, with_for_update)
+    )
 
 
-def filter_single_or_404(model: t.Type[Y], *criteria: t.Any) -> Y:
+def filter_single_or_404(
+    model: t.Type[Y],
+    *criteria: t.Any,
+    also_error: t.Optional[t.Callable[[Y], bool]] = None,
+    with_for_update: bool = False
+) -> Y:
     """Get a single object of the specified model by filtering or raise an
     exception.
 
     .. note::
-        ``Y`` is bound to :py:class:`models.Base`, so it should be a
+        ``Y`` is bound to :py:class:`.Base`, so it should be a
         SQLAlchemy model.
 
     :param model: The object to get.
@@ -347,7 +355,9 @@ def filter_single_or_404(model: t.Type[Y], *criteria: t.Any) -> Y:
     :raises APIException: If no object with the given id could be found.
         (OBJECT_ID_NOT_FOUND)
     """
-    return t.cast(Y, _filter_or_404(model, False, criteria))
+    return t.cast(
+        Y, _filter_or_404(model, False, criteria, also_error, with_for_update)
+    )
 
 
 def get_or_404(
@@ -359,7 +369,7 @@ def get_or_404(
     """Get the specified object by primary key or raise an exception.
 
     .. note::
-        ``Y`` is bound to :py:class:`models.Base`, so it should be a
+        ``Y`` is bound to :py:class:`.Base`, so it should be a
         SQLAlchemy model.
 
     :param model: The object to get.
@@ -374,7 +384,7 @@ def get_or_404(
     :raises APIException: If no object with the given id could be found.
         (OBJECT_ID_NOT_FOUND)
     """
-    query = models.db.session.query(model)
+    query = psef.models.db.session.query(model)
     if options is not None:
         query = query.options(*options)
     obj: t.Optional[Y] = query.get(object_id)
@@ -389,8 +399,8 @@ def get_or_404(
 
 
 def filter_users_by_name(
-    query: str, base: 'models._MyQuery[models.User]', *, limit: int = 25
-) -> 'models._MyQuery[models.User]':
+    query: str, base: 'MyQuery[psef.models.User]', *, limit: int = 25
+) -> 'MyQuery[psef.models.User]':
     """Find users from the given base query using the given query string.
 
     :param query: The string to filter usernames and names of users with.
@@ -410,11 +420,11 @@ def filter_users_by_name(
             '%{}%'.format(
                 escape_like(query).replace(' ', '%'),
             )
-        ) for col in [models.User.name, models.User.username]
+        ) for col in [psef.models.User.name, psef.models.User.username]
     ]
 
     return base.filter(or_(*likes)).order_by(
-        t.cast(models.DbColumn[str], models.User.name)
+        t.cast(DbColumn[str], psef.models.User.name)
     ).limit(limit)
 
 
@@ -446,6 +456,15 @@ def coerce_json_value_to_typeddict(
     return t.cast(T_TypedDict, mapping)
 
 
+def ensure_on_test_server() -> None:
+    """Make sure we are on a test server.
+    """
+    assert not flask.has_app_context()
+    assert not flask.has_request_context()
+    # pylint: disable=protected-access
+    assert current_tester._get_current_object() is not None
+
+
 def _get_type_name(typ: t.Union[t.Type, t.Tuple[t.Type, ...]]) -> str:
     if isinstance(typ, tuple):
         return ', '.join(ty.__name__ for ty in typ)
@@ -475,6 +494,63 @@ def get_key_from_dict(
             ), psef.errors.APICodes.MISSING_REQUIRED_PARAM, 400
         )
     return val
+
+
+@contextlib.contextmanager
+def get_from_map_transaction(
+    mapping: t.Mapping[T, TT],
+    *,
+    ensure_empty: bool = False,
+) -> t.Generator[t.Tuple[t.Callable[[T, t.Type[TTT]], TTT], t.
+                         Callable[[T, t.Type[TTT], ZZ], t.
+                                  Union[TTT, ZZ]]], None, None]:
+    """Get from the given map in a transaction like style.
+
+    If all gets and optional gets succeed at the end of the ``with`` block no
+    exception will be raised. However, as soon as one fails we continue with
+    the block, but at the end an exception with all failed gets will be raised.
+
+    :param mapping: The mapping to get values from.
+    :param ensure_empty: Also raise an exception if the map contained more keys
+        than requested.
+    :returns: A tuple of two functions. The first function takes a key and type
+        as arguments indicating that the value under the given key should be of
+        the given type. The second function also takes a default value as
+        argument, if the key was not found in the mapping this value will be
+        returned.
+    """
+    all_keys_requested = []
+    keys = []
+
+    def get(key: T, typ: t.Type[TTT]) -> TTT:
+        all_keys_requested.append(key)
+        keys.append((key, typ))
+        return t.cast(TTT, mapping.get(key, MISSING))
+
+    def optional_get(key: T, typ: t.Type[TTT],
+                     default: ZZ) -> t.Union[TTT, ZZ]:
+        if key not in mapping:
+            all_keys_requested.append(key)
+            return default
+        return get(key, typ)
+
+    try:
+        yield get, optional_get
+    finally:
+        ensure_keys_in_dict(mapping, keys)
+        if ensure_empty and len(all_keys_requested) < len(mapping):
+            key_lookup = set(all_keys_requested)
+            raise psef.errors.APIException(
+                'Extra keys in the object found', (
+                    'The object could only contain "{}", but is also contained'
+                    ' "{}".'
+                ).format(
+                    ', '.join(map(str, all_keys_requested)),
+                    ', '.join(
+                        str(m) for m in mapping.keys() if m not in key_lookup
+                    ),
+                ), psef.errors.APICodes.INVALID_PARAM, 400
+            )
 
 
 def ensure_keys_in_dict(
@@ -519,7 +595,7 @@ def ensure_keys_in_dict(
         )
 
 
-def maybe_apply_sql_slice(sql: 'models._MyQuery[T]') -> 'models._MyQuery[T]':
+def maybe_apply_sql_slice(sql: 'MyQuery[T]') -> 'MyQuery[T]':
     """Slice the given query if ``limit`` is given in the request args.
 
     :param sql: The query to slice.
@@ -537,6 +613,7 @@ def maybe_apply_sql_slice(sql: 'models._MyQuery[T]') -> 'models._MyQuery[T]':
 
 def get_json_dict_from_request(
     replace_log: t.Optional[t.Callable[[str, object], object]] = None,
+    log_object: bool = True,
 ) -> t.Dict[str, JSONType]:
     """Get the JSON dict from this request.
 
@@ -546,12 +623,13 @@ def get_json_dict_from_request(
     :raises psef.errors.APIException: If the found JSON is not a dictionary.
         (INVALID_PARAM)
     """
-    return ensure_json_dict(request.get_json(), replace_log)
+    return ensure_json_dict(request.get_json(), replace_log, log_object)
 
 
 def ensure_json_dict(
     json_value: JSONType,
-    replace_log: t.Optional[t.Callable[[str, object], object]] = None
+    replace_log: t.Optional[t.Callable[[str, object], object]] = None,
+    log_object: bool = True,
 ) -> t.Dict[str, JSONType]:
     """Make sure that the given json is a JSON dictionary
 
@@ -563,10 +641,11 @@ def ensure_json_dict(
         (INVALID_PARAM)
     """
     if isinstance(json_value, t.Dict):
-        to_log = json_value
-        if replace_log is not None:
-            to_log = {k: replace_log(k, v) for k, v in json_value.items()}
-        logger.info('JSON request processed', request_data=to_log)
+        if log_object:
+            to_log = json_value
+            if replace_log is not None:
+                to_log = {k: replace_log(k, v) for k, v in json_value.items()}
+            logger.info('JSON request processed', request_data=to_log)
 
         return json_value
     raise psef.errors.APIException(
@@ -575,81 +654,6 @@ def ensure_json_dict(
         psef.errors.APICodes.INVALID_PARAM,
         400,
     )
-
-
-def _maybe_log_response(obj: object, response: t.Any, extended: bool) -> None:
-    if not isinstance(obj, psef.errors.APIException):
-        to_log = str(b''.join(response.response))
-        max_length = 1000
-        if len(to_log) > max_length:
-            logger.bind(truncated=True, truncated_size=len(to_log))
-            to_log = '{1:.{0}} ... [TRUNCATED]'.format(max_length, to_log)
-
-        ext = 'extended ' if extended else ''
-        logger.info(
-            f'Created {ext}json return response',
-            reponse_type=str(type(obj)),
-            response=to_log,
-        )
-        logger.try_unbind('truncated', 'truncated_size')
-
-
-def extended_jsonify(
-    obj: T,
-    status_code: int = 200,
-    use_extended: t.Union[t.Callable[[object], bool],
-                          type,
-                          t.Tuple[type, ...],
-                          ] = object,
-) -> ExtendedJSONResponse[T]:
-    """Create a response with the given object ``obj`` as json payload.
-
-    This function differs from :py:func:`jsonify` by that it used the
-    ``__extended_to_json__`` magic function if it is available.
-
-    :param obj: The object that will be jsonified using
-        :py:class:`~.psef.json.CustomExtendedJSONEncoder`
-    :param statuscode: The status code of the response
-    :param use_extended: The ``__extended_to_json__`` method is only used if
-        this function returns something that equals to ``True``. This method is
-        called with object that is currently being encoded. You can also pass a
-        class or tuple as this parameter which is converted to
-        ``lambda o: isinstance(o, passed_value)``.
-    :returns: The response with the jsonified object as payload
-    """
-
-    try:
-        if isinstance(use_extended, (tuple, type)):
-            class_only = use_extended  # needed to please mypy
-            use_extended = lambda o: isinstance(o, class_only)
-        psef.app.json_encoder = json.get_extended_encoder_class(use_extended)
-        response = flask.make_response(flask.jsonify(obj))
-    finally:
-        psef.app.json_encoder = json.CustomJSONEncoder
-    response.status_code = status_code
-
-    _maybe_log_response(obj, response, True)
-
-    return response
-
-
-def jsonify(
-    obj: T,
-    status_code: int = 200,
-) -> JSONResponse[T]:
-    """Create a response with the given object ``obj`` as json payload.
-
-    :param obj: The object that will be jsonified using
-        :py:class:`~.psef.json.CustomJSONEncoder`
-    :param statuscode: The status code of the response
-    :returns: The response with the jsonified object as payload
-    """
-    response = flask.jsonify(obj)
-    response.status_code = status_code
-
-    _maybe_log_response(obj, response, False)
-
-    return response
 
 
 def make_empty_response() -> EmptyResponse:
@@ -726,10 +730,11 @@ def callback_after_this_request(
     """
 
     @flask.after_this_request
-    def after(res: T) -> T:
+    def after(res: flask.Response) -> flask.Response:
         """The entire callback that is executed at the end of the request.
         """
-        fun()
+        if res.status_code < 400:
+            fun()
         return res
 
     return after
@@ -783,7 +788,129 @@ def defer(function: t.Callable[[], object]) -> t.Generator[None, None, None]:
     try:
         yield
     finally:
+        logger.info('Calling defer', defer_function=function)
         function()
+
+
+class StoppableThread(abc.ABC):
+    """This abstract class represents a thread that can be stopped using a
+    method.
+    """
+
+    @abc.abstractmethod
+    def start(self: T_STOP_THREAD) -> T_STOP_THREAD:
+        """Start this thread.
+
+        This function should block until the thread has started.
+        """
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def cancel(self) -> None:
+        """Cancel this thread.
+
+        This function should block until the thread has stopped.
+        """
+        raise NotImplementedError
+
+    def __exit__(
+        self, exc_type: object, exc_value: object, traceback: object
+    ) -> None:
+        self.cancel()
+
+    def __enter__(self: T_STOP_THREAD) -> T_STOP_THREAD:
+        return self.start()
+
+
+class RepeatedTimer(StoppableThread):
+    """Call a function repeatedly in a separate thread.
+
+    .. warning::
+
+        This class doesn't work when threads don't work, which is the case when
+        using it in a flask context.
+    """
+
+    def __init__(
+        self,
+        interval: int,
+        function: t.Callable[[], None],
+        *,
+        cleanup: t.Callable[[], None] = lambda: None,
+        setup: t.Callable[[], None] = lambda: None,
+        use_process: bool = False,
+    ) -> None:
+        super().__init__()
+        self.__interval = interval
+        self.__function_name = function.__qualname__
+
+        def fun() -> None:
+            try:
+                with timed_code(
+                    'repeated_function', function=self.__function_name
+                ):
+                    function()
+            except:  # pylint: disable=bare-except
+                pass
+
+        get_event = multiprocessing.Event
+
+        self.__function = fun
+
+        self.__finish = get_event()
+        self.__finished = get_event()
+        self.__started = get_event()
+
+        self.__cleanup = cleanup
+        self.__use_process = use_process
+        self.__setup = setup
+        self.__background: t.Union[None, threading.Thread, multiprocessing.
+                                   Process]
+
+    def cancel(self) -> None:
+        if not self.__finish.is_set():
+            assert self.__background
+            self.__finish.set()
+            self.__background.join()
+            self.__finished.wait()
+
+    def start(self) -> 'RepeatedTimer':
+        logger.info('Starting repeating timer', function=self.__function_name)
+        self.__finish.clear()
+        logger.info('Start repeating timer', function=self.__function_name)
+        self.__started.clear()
+
+        def fun() -> None:
+            self.__started.set()
+            logger.info(
+                'Started repeating timer', function=self.__function_name
+            )
+            self.__setup()
+            try:
+                while True:
+                    self.__function()
+                    if self.__finish.wait(self.__interval):
+                        break
+            finally:
+                try:
+                    self.__function()
+                finally:
+                    try:
+                        self.__cleanup()
+                    finally:
+                        self.__finished.set()
+
+        back: t.Union[threading.Thread, multiprocessing.Process]
+        if self.__use_process:
+            back = multiprocessing.Process(target=fun)
+        else:
+            back = threading.Thread(target=fun)
+
+        back.start()
+        self.__background = back
+        self.__started.wait()
+
+        return self
 
 
 def call_external(
@@ -900,6 +1027,7 @@ def get_files_from_request(
 
     # Werkzeug >= 0.14.0 should check this, however the documentation is not
     # completely clear and it is better to blow up here than somewhere else.
+    # XXX: It seems that Werkzeug 0.15.0+ doesn't check this anymore...
     assert all(f.filename for f in res)
 
     return res
@@ -966,3 +1094,94 @@ def is_sublist(needle: t.Sequence[T], hay: t.Sequence[T]) -> bool:
             index += table.get(hay[index], len(needle))
             needle_index = len(needle) - 1
     return False
+
+
+class BrokerSession(requests.Session):
+    """A session to use when doing requests to the AutoTest broker.
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.headers.update(
+            {
+                'CG-Broker-Pass': psef.app.config['AUTO_TEST_BROKER_PASSWORD'],
+                'CG-Broker-Instance': psef.app.config['EXTERNAL_URL'],
+            }
+        )
+
+    def request(  # pylint: disable=arguments-differ
+        self, method: str, url: str, *args: t.Any, **kwargs: t.Any
+    ) -> requests.Response:
+        """Do a request to the AutoTest broker.
+        """
+        url = urllib.parse.urljoin(
+            psef.app.config['AUTO_TEST_BROKER_URL'], url
+        )
+        return super().request(method, url, *args, **kwargs)
+
+
+class NotEqualMixin:
+    """Simple mixin to provide correct ``__ne__`` behavior.
+
+    >>> class Base:
+    ...     x = 5
+    ...     def __ne__(self, other): return self.x != other.x
+    >>> class AWrong(Base):
+    ...     def __eq__(self, other): return NotImplemented
+    >>> class ACorrect(NotEqualMixin, Base):
+    ...     def __eq__(self, other): return NotImplemented
+    >>> AWrong() != AWrong
+    False
+    >>> ACorrect() != ACorrect()
+    True
+    """
+
+    def __ne__(self, other: object) -> bool:
+        return not self == other
+
+
+def retry_loop(
+    amount: int,
+    *,
+    sleep_time: float = 1,
+    make_exception: t.Callable[[], Exception] = None,
+) -> t.Iterator[int]:
+    """Retry
+
+    >>> import doctest
+    >>> doctest.ELLIPSIS_MARKER = '-etc-'
+    >>> for _ in retry_loop(5): break
+    >>> for i in retry_loop(2):
+    ...  if i == 0: break
+    -etc-Retry loop failed-etc-
+    >>> for i in retry_loop(1):
+    ...  if i: break
+    Traceback (most recent call last):
+    ...
+    AssertionError
+    >>> for i in retry_loop(1,  make_exception=lambda: ValueError()):
+    ...  pass
+    Traceback (most recent call last):
+    ...
+    ValueError
+    """
+    assert amount > 0, "amount should be higher than 0"
+
+    i = amount
+
+    while i > 1:
+        i -= 1
+        yield i
+        logger.warning(
+            "Retry loop failed",
+            amount_of_tries_left=i,
+            total_amount_of_tries=amount,
+        )
+        time.sleep(sleep_time)
+
+    yield 0
+    logger.warning("Retry loop failed", amount_of_tries_left=0)
+
+    if make_exception is not None:
+        raise make_exception()
+    assert False

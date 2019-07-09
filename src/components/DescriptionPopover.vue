@@ -11,6 +11,7 @@
                :title="title">
         <div class="description-popover-content">
             <slot name="description">{{ description }}</slot>
+            <slot v-if="!!$slots.default"/>
         </div>
     </b-popover>
     <component :is="hugText ? 'sup' : 'span'"

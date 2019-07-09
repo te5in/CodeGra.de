@@ -19,16 +19,16 @@ from sqlalchemy.sql.expression import and_, func
 from sqlalchemy.orm.collections import attribute_mapped_collection
 
 import psef
+from cg_sqlalchemy_helpers.types import MyQuery
 
 from . import UUID_LENGTH, Base, DbColumn, db
 from . import user as user_models
 from . import work as work_models
 from . import group as group_models
 from . import linter as linter_models
-from . import _MyQuery
+from . import rubric as rubric_models
 from .. import auth, ignore, helpers
 from .role import CourseRole
-from .rubric import RubricRow, RubricItem
 from .permission import Permission
 from ..exceptions import PermissionException, InvalidAssignmentState
 from .link_tables import user_course, work_rubric_item, course_permissions
@@ -37,11 +37,16 @@ from ..permissions import CoursePermission as CPerm
 if t.TYPE_CHECKING:  # pragma: no cover
     # pylint: disable=unused-import
     from . import course as course_models
+    from . import auto_test as auto_test_models
     cached_property = property  # pylint: disable=invalid-name
 else:
+    # pylint: disable=unused-import
     from werkzeug.utils import cached_property
+    from . import auto_test as auto_test_models
 
 T = t.TypeVar('T')
+Y = t.TypeVar('Y')
+Z = t.TypeVar('Z')
 
 
 @enum.unique
@@ -61,7 +66,7 @@ class AssignmentAssignedGrader(Base):
     weight is the weight this user was given when assigning.
     """
     if t.TYPE_CHECKING:  # pragma: no cover
-        query: t.ClassVar[_MyQuery['AssignmentAssignedGrader']]
+        query: t.ClassVar[MyQuery['AssignmentAssignedGrader']]
     __tablename__ = 'AssignmentAssignedGrader'
     weight: float = db.Column('weight', db.Float, nullable=False)
     user_id: int = db.Column(
@@ -87,7 +92,7 @@ class AssignmentGraderDone(Base):
         is linked.
     """
     if t.TYPE_CHECKING:  # pragma: no cover
-        query: t.ClassVar[_MyQuery['AssignmentGraderDone']]
+        query: t.ClassVar[MyQuery['AssignmentGraderDone']]
         query = Base.query
     __tablename__ = 'AssignmentGraderDone'
     user_id: int = db.Column(
@@ -129,7 +134,7 @@ class AssignmentLinter(Base):
     :ivar config: The config that was passed to the linter.
     """
     if t.TYPE_CHECKING:  # pragma: no cover
-        query = Base.query  # type: t.ClassVar[_MyQuery['AssignmentLinter']]
+        query = Base.query  # type: t.ClassVar[MyQuery['AssignmentLinter']]
     __tablename__ = 'AssignmentLinter'  # type: str
     # This has to be a String object as the id has to be a non guessable uuid.
     id: str = db.Column(
@@ -270,7 +275,7 @@ class AssignmentResult(Base):
         belongs to.
     """
     if t.TYPE_CHECKING:  # pragma: no cover
-        query = Base.query  # type: t.ClassVar[_MyQuery['AssignmentResult']]
+        query = Base.query  # type: t.ClassVar[MyQuery['AssignmentResult']]
     __tablename__ = 'AssignmentResult'
     sourcedid: str = db.Column('sourcedid', db.Unicode)
     user_id: int = db.Column(
@@ -284,7 +289,7 @@ class AssignmentResult(Base):
     __table_args__ = (db.PrimaryKeyConstraint(assignment_id, user_id), )
 
 
-class Assignment(Base):  # pylint: disable=too-many-public-methods
+class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-public-methods
     """This class describes a :class:`.course_models.Course` specific assignment.
 
     :ivar ~.Assignment.name: The name of the assignment.
@@ -308,7 +313,7 @@ class Assignment(Base):  # pylint: disable=too-many-public-methods
         assignment.
     """
     if t.TYPE_CHECKING:  # pragma: no cover
-        query = Base.query  # type:  t.ClassVar[_MyQuery['Assignment']]
+        query = Base.query  # type:  t.ClassVar[MyQuery['Assignment']]
     __tablename__ = "Assignment"
     id: int = db.Column('id', db.Integer, primary_key=True)
     name: str = db.Column('name', db.Unicode)
@@ -425,10 +430,10 @@ class Assignment(Base):  # pylint: disable=too-many-public-methods
     )
     rubric_rows = db.relationship(
         'RubricRow',
-        backref=db.backref('assignment'),
+        back_populates='assignment',
         cascade='delete-orphan, delete, save-update',
         order_by="RubricRow.created_at"
-    )  # type: t.MutableSequence['RubricRow']
+    )  # type: t.MutableSequence['rubric_models.RubricRow']
 
     group_set_id: int = db.Column(
         'group_set_id',
@@ -448,6 +453,33 @@ class Assignment(Base):  # pylint: disable=too-many-public-methods
 
     # This variable is available through a backref
     submissions: t.Iterable['work_models.Work']
+
+    auto_test_id: int = db.Column(
+        'auto_test_id',
+        db.Integer,
+        db.ForeignKey('AutoTest.id'),
+        nullable=True,
+    )
+
+    auto_test: t.Optional['auto_test_models.AutoTest'] = db.relationship(
+        'AutoTest',
+        back_populates="assignment",
+        cascade='all',
+    )
+
+    def __eq__(self, other: object) -> bool:
+        """Check if two Assignments are equal.
+
+        >>> Assignment() == object()
+        False
+        >>> Assignment(id=5) == Assignment(id=6)
+        False
+        >>> Assignment(id=5) == Assignment(id=5)
+        True
+        """
+        if isinstance(other, Assignment):
+            return self.id == other.id
+        return NotImplemented
 
     @validates('group_set')
     def validate_group_set(
@@ -667,12 +699,31 @@ class Assignment(Base):  # pylint: disable=too-many-public-methods
             return self._dynamic_max_points
 
     @cached_property
+    def locked_rubric_rows(
+        self
+    ) -> t.Mapping[int, 'rubric_models.RubricLockReason']:
+        """Get the locked rubric rows of this assignment.
+
+        :returns: A mapping from rubric row id to the reason why they are
+            locked. Ids not in this mapping are not locked.
+        """
+        if self.auto_test is None:
+            return {}
+        return {
+            s.rubric_row_id: rubric_models.RubricLockReason.auto_test
+            for s in self.auto_test.all_suites
+        }
+
+    @cached_property
     def _dynamic_max_points(self) -> t.Optional[float]:
         sub = db.session.query(
-            func.max(RubricItem.points).label('max_val')
-        ).join(RubricRow, RubricRow.id == RubricItem.rubricrow_id).filter(
-            RubricRow.assignment_id == self.id
-        ).group_by(RubricRow.id).subquery('sub')
+            func.max(rubric_models.RubricItem.points).label('max_val')
+        ).join(
+            rubric_models.RubricRow,
+            rubric_models.RubricRow.id == rubric_models.RubricItem.rubricrow_id
+        ).filter(rubric_models.RubricRow.assignment_id == self.id).group_by(
+            rubric_models.RubricRow.id
+        ).subquery('sub')
         return db.session.query(func.sum(sub.c.max_val)).scalar()
 
     @property
@@ -702,7 +753,7 @@ class Assignment(Base):  # pylint: disable=too-many-public-methods
     def should_passback(self) -> bool:
         """Should we passback the current grade.
         """
-        return self.is_done
+        return self.is_done and self.course.lti_provider is not None
 
     @property
     def state_name(self) -> str:
@@ -834,6 +885,7 @@ class Assignment(Base):  # pylint: disable=too-many-public-methods
             'max_grade': self._max_grade,
             'group_set': self.group_set,
             'division_parent_id': None,
+            'auto_test_id': self.auto_test_id,
         }
 
         if self.course.lti_provider is not None:
@@ -880,7 +932,25 @@ class Assignment(Base):  # pylint: disable=too-many-public-methods
         else:
             raise InvalidAssignmentState(f'{state} is not a valid state')
 
-    def get_from_latest_submissions(self, *to_query: T) -> '_MyQuery[T]':
+    @t.overload
+    def get_from_latest_submissions(  # pylint: disable=function-redefined,missing-docstring,unused-argument,no-self-use
+        self,
+        __to_query: T
+    ) -> MyQuery[t.Tuple[T]]:
+        ...
+
+    @t.overload
+    def get_from_latest_submissions(  # pylint: disable=function-redefined,missing-docstring,unused-argument,no-self-use
+        self,
+        __first: T,
+        __second: Y,
+    ) -> MyQuery[t.Tuple[T, Y]]:
+        ...
+
+    def get_from_latest_submissions(  # pylint: disable=function-redefined
+        self,
+        *to_query: t.Any  # type: ignore
+    ) -> MyQuery[t.Any]:
         """Get the given fields from all last submitted submissions.
 
         :param to_query: The field to get from the last submitted submissions.
@@ -900,7 +970,7 @@ class Assignment(Base):  # pylint: disable=too-many-public-methods
             )
         ).filter(work_models.Work.assignment_id == self.id)
 
-    def get_all_latest_submissions(self) -> '_MyQuery[work_models.Work]':
+    def get_all_latest_submissions(self) -> MyQuery['work_models.Work']:
         """Get a list of all the latest submissions (:class:`.work_models.Work`) by each
         :class:`.user_models.User` who has submitted at least one work for this
         assignment.
@@ -909,8 +979,11 @@ class Assignment(Base):  # pylint: disable=too-many-public-methods
         """
         # get_from_latest_submissions uses SQLAlchemy magic that MyPy cannot
         # encode.
-        return self.get_from_latest_submissions(
-            t.cast(work_models.Work, work_models.Work)
+        return t.cast(
+            MyQuery[work_models.Work],
+            self.get_from_latest_submissions(
+                t.cast(work_models.Work, work_models.Work)
+            )
         )
 
     def get_divided_amount_missing(
@@ -947,10 +1020,11 @@ class Assignment(Base):  # pylint: disable=too-many-public-methods
         ).scalar()
 
         divided_amount: t.MutableMapping[int, float] = defaultdict(float)
-        for u_id, amount in self.get_from_latest_submissions(  # type: ignore
+        for u_id, amount in self.get_from_latest_submissions(
             work_models.Work.assigned_to, func.count()
         ).group_by(work_models.Work.assigned_to):
-            divided_amount[u_id] = amount
+            if u_id is not None:
+                divided_amount[u_id] = amount
 
         missing = {}
         for user_id, assigned in self.assigned_graders.items():
@@ -1096,12 +1170,16 @@ class Assignment(Base):  # pylint: disable=too-many-public-methods
 
         shuffled_children = list(self.division_children)
         shuffle(shuffled_children)
-        latest = Counter(
-            child.get_from_latest_submissions(work_models.Work.assigned_to).
-            filter(work_models.Work.user_id == student_id).limit(1).scalar()
-            for child in shuffled_children
-        )
-        del latest[None]
+
+        def get_other_assignees() -> t.Iterable[int]:
+            for child in shuffled_children:
+                assignee_id = child.get_from_latest_submissions(
+                    work_models.Work.assigned_to
+                ).filter(work_models.Work.user_id == student_id).first()
+                if assignee_id is not None and assignee_id[0] is not None:
+                    yield assignee_id[0]
+
+        latest = Counter(get_other_assignees())
         if latest:
             return latest.most_common(1)[0][0]
         return None
@@ -1129,11 +1207,11 @@ class Assignment(Base):  # pylint: disable=too-many-public-methods
             methods fail.
         :returns: The id of the assignee or ``None`` if no assignee was found.
         """
-        user = self.get_from_latest_submissions(
+        user_id = self.get_from_latest_submissions(
             work_models.Work.assigned_to
-        ).filter(work_models.Work.user_id == sub.user_id).limit(1).scalar()
-        if user is not None:
-            return user
+        ).filter(work_models.Work.user_id == sub.user_id).first()
+        if user_id is not None:
+            return user_id[0]
 
         if self.division_parent is not None:
             user = self.division_parent.get_assignee_for_submission(
@@ -1195,7 +1273,7 @@ class Assignment(Base):  # pylint: disable=too-many-public-methods
             sub.assigned_to = None
             todo[sub.id] = sub
 
-        for user_id, assigned_to in parent.get_from_latest_submissions(  # type: ignore
+        for user_id, assigned_to in parent.get_from_latest_submissions(
             work_models.Work.user_id,
             work_models.Work.assigned_to,
         ):
@@ -1218,7 +1296,7 @@ class Assignment(Base):  # pylint: disable=too-many-public-methods
 
     def get_all_graders(
         self, sort: bool = True
-    ) -> '_MyQuery[t.Tuple[str, int, bool]]':
+    ) -> 'MyQuery[t.Tuple[str, int, bool]]':
         """Get all graders for this assignment.
 
         The graders are retrieved from the database using a single query. The

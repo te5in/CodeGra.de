@@ -31,9 +31,7 @@ def test_parse_option():
 def test_parse_file_rule():
     def mc(filename, file_type='file', rule_type='allow'):
         return {
-            'rule_type': rule_type,
-            'file_type': file_type,
-            'name': filename
+            'rule_type': rule_type, 'file_type': file_type, 'name': filename
         }
 
     with pytest.raises(ParseError) as e:
@@ -77,13 +75,11 @@ def test_parse_file_rule():
 
 def test_parse_policy():
     with pytest.raises(ParseError) as e:
-        SubmissionValidator.parse(
-            {
-                'policy': 'not_known',
-                'rules': [],
-                'options': [],
-            }
-        )
+        SubmissionValidator.parse({
+            'policy': 'not_known',
+            'rules': [],
+            'options': [],
+        })
     assert e.value.msg.startswith('The policy "not_known" is not known')
 
 
@@ -95,81 +91,53 @@ def test_parse_without_all_keys():
 
 def test_parse_wrong_type_rules():
     with pytest.raises(ParseError) as e:
-        SubmissionValidator.parse(
-            {
-                'policy': 'allow_all_files',
-                'rules': 'Wrong type',
-                'options': []
-            }
-        )
+        SubmissionValidator.parse({
+            'policy': 'allow_all_files', 'rules': 'Wrong type', 'options': []
+        })
     assert e.value.msg.startswith(
         'The rules and options should be given as a list'
     )
 
     with pytest.raises(ParseError) as e:
-        SubmissionValidator.parse(
-            {
-                'policy': 'allow_all_files',
-                'rules': ['Wrong type'],
-                'options': []
-            }
-        )
+        SubmissionValidator.parse({
+            'policy': 'allow_all_files', 'rules': ['Wrong type'], 'options': []
+        })
     assert e.value.msg.startswith('A rule should be given as a map.')
 
     with pytest.raises(ParseError) as e:
-        SubmissionValidator.parse(
-            {
-                'policy': 'allow_all_files',
-                'options': ['Wrong type'],
-                'rules': []
-            }
-        )
+        SubmissionValidator.parse({
+            'policy': 'allow_all_files', 'options': ['Wrong type'], 'rules': []
+        })
     assert e.value.msg.startswith('An option should be given as a map.')
 
 
 def test_wrong_rule_with_policy():
     with pytest.raises(ParseError) as e:
-        SubmissionValidator.parse(
-            {
-                'policy': 'allow_all_files',
-                'rules':
-                    [
-                        {
-                            'rule_type': 'allow',
-                            'file_type': 'file',
-                            'name': 'hello.py'
-                        }
-                    ],
-                'options': [],
-            }
-        )
+        SubmissionValidator.parse({
+            'policy': 'allow_all_files',
+            'rules': [{
+                'rule_type': 'allow', 'file_type': 'file', 'name': 'hello.py'
+            }],
+            'options': [],
+        })
     assert e.value.msg.startswith('The policy is set to "allow_all_files", so')
 
     with pytest.raises(ParseError) as e:
-        SubmissionValidator.parse(
-            {
-                'policy': 'deny_all_files',
-                'rules':
-                    [
-                        {
-                            'rule_type': 'deny',
-                            'file_type': 'file',
-                            'name': 'hello.py'
-                        }
-                    ],
-                'options': [],
-            }
-        )
+        SubmissionValidator.parse({
+            'policy': 'deny_all_files',
+            'rules': [{
+                'rule_type': 'deny', 'file_type': 'file', 'name': 'hello.py'
+            }],
+            'options': [],
+        })
     assert e.value.msg.startswith('The policy is set to "deny_all_files", so')
 
 
 def test_policy_deny_no_rules():
     with pytest.raises(ParseError) as e:
-        SubmissionValidator.parse(
-            {
-                'policy': 'deny_all_files',
-                'options': [],
-                'rules': [],
-            }
-        )
+        SubmissionValidator.parse({
+            'policy': 'deny_all_files',
+            'options': [],
+            'rules': [],
+        })
     assert e.value.msg.startswith('When the policy is set to "deny_all_files"')

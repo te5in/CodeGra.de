@@ -169,44 +169,42 @@ def test_jplag(
 
         with open(f_p, 'w') as f:
             writer = csv.writer(f, delimiter=';')
-            written_rows = [
-                [
-                    dir1,
-                    dir2,
-                    100,
-                    25,
-                    get_random_path(dir1, data_dir),
-                    0,
-                    10,
-                    get_random_path(dir2, data_dir),
-                    12,
-                    14,
-                    get_random_path(dir1, data_dir),
-                    2,
-                    10,
-                    get_random_path(dir2, data_dir),
-                    14,
-                    19,
-                ],
-                [
-                    dir2,
-                    dir3,
-                    75,
-                    20,
-                    get_random_path(dir2, data_dir),
-                    5,
-                    10,
-                    get_random_path(dir3, data_dir),
-                    0,
-                    4,
-                    get_random_path(dir2, data_dir),
-                    5,
-                    8,
-                    get_random_path(dir3, data_dir),
-                    24,
-                    29,
-                ]
-            ]
+            written_rows = [[
+                dir1,
+                dir2,
+                100,
+                25,
+                get_random_path(dir1, data_dir),
+                0,
+                10,
+                get_random_path(dir2, data_dir),
+                12,
+                14,
+                get_random_path(dir1, data_dir),
+                2,
+                10,
+                get_random_path(dir2, data_dir),
+                14,
+                19,
+            ],
+                            [
+                                dir2,
+                                dir3,
+                                75,
+                                20,
+                                get_random_path(dir2, data_dir),
+                                5,
+                                10,
+                                get_random_path(dir3, data_dir),
+                                0,
+                                4,
+                                get_random_path(dir2, data_dir),
+                                5,
+                                8,
+                                get_random_path(dir3, data_dir),
+                                24,
+                                29,
+                            ]]
             for row in written_rows:
                 writer.writerow(row)
 
@@ -453,26 +451,22 @@ def test_jplag_old_assignments(
         with open(f_p, 'w') as f:
             writer = csv.writer(f, delimiter=';')
             for dir1, dir2 in itertools.product(dirs, dirs):
-                writer.writerow(
-                    [
-                        dir1,
-                        dir2,
-                        75,
-                        20,
-                        get_random_path(
-                            dir1,
-                            data_dir if dir1 in data_dirs else archive_dir
-                        ),
-                        5,
-                        10,
-                        get_random_path(
-                            dir2,
-                            data_dir if dir2 in data_dirs else archive_dir
-                        ),
-                        0,
-                        4,
-                    ]
-                )
+                writer.writerow([
+                    dir1,
+                    dir2,
+                    75,
+                    20,
+                    get_random_path(
+                        dir1, data_dir if dir1 in data_dirs else archive_dir
+                    ),
+                    5,
+                    10,
+                    get_random_path(
+                        dir2, data_dir if dir2 in data_dirs else archive_dir
+                    ),
+                    0,
+                    4,
+                ])
 
     monkeypatch.setattr(subprocess, 'Popen', make_popen_stub(callback))
     print('next')
@@ -686,8 +680,8 @@ def test_jplag_old_assignments(
 
 @pytest.mark.parametrize('bb_tar_gz', ['correct.tar.gz'])
 @pytest.mark.parametrize(
-    'old_subs_tar_gz,amount_old_subs',
-    [('correct.tar.gz', 2), ('difficult.tar.gz', 4)]
+    'old_subs_tar_gz,amount_old_subs', [('correct.tar.gz', 2),
+                                        ('difficult.tar.gz', 4)]
 )
 def test_jplag_old_submissions(
     bb_tar_gz, logged_in, assignment, test_client, teacher_user,
@@ -716,26 +710,22 @@ def test_jplag_old_submissions(
         with open(f_p, 'w') as f:
             writer = csv.writer(f, delimiter=';')
             for dir1, dir2 in itertools.product(dirs, dirs):
-                writer.writerow(
-                    [
-                        dir1,
-                        dir2,
-                        75,
-                        20,
-                        get_random_path(
-                            dir1,
-                            data_dir if dir1 in data_dirs else archive_dir
-                        ),
-                        5,
-                        10,
-                        get_random_path(
-                            dir2,
-                            data_dir if dir2 in data_dirs else archive_dir
-                        ),
-                        0,
-                        4,
-                    ]
-                )
+                writer.writerow([
+                    dir1,
+                    dir2,
+                    75,
+                    20,
+                    get_random_path(
+                        dir1, data_dir if dir1 in data_dirs else archive_dir
+                    ),
+                    5,
+                    10,
+                    get_random_path(
+                        dir2, data_dir if dir2 in data_dirs else archive_dir
+                    ),
+                    0,
+                    4,
+                ])
 
     monkeypatch.setattr(subprocess, 'Popen', make_popen_stub(callback))
 
@@ -1040,40 +1030,34 @@ def test_get_plagiarism_providers(test_client):
         200,
         result=[
             {
-                'name':
-                    'JPlag',
-                'base_code':
-                    True,
-                'progress':
-                    True,
-                'options':
-                    [
-                        {
-                            'name': 'lang',
-                            'title': 'Language',
-                            'description': str,
-                            'type': 'singleselect',
-                            'mandatory': bool,
-                            'possible_options': list,
-                            'placeholder': None,
-                        },
-                        {
-                            'name': 'suffixes',
-                            'title': 'Suffixes to include',
-                            'description': str,
-                            'type': 'strvalue',
-                            'mandatory': bool,
-                            'placeholder': '.xxx, .yyy',
-                        },
-                        {
-                            'name': 'simil',
-                            'title': 'Minimal similarity',
-                            'description': str,
-                            'type': 'numbervalue',
-                            'mandatory': bool,
-                            'placeholder': 'default: 50',
-                        }
-                    ],
+                'name': 'JPlag',
+                'base_code': True,
+                'progress': True,
+                'options': [{
+                    'name': 'lang',
+                    'title': 'Language',
+                    'description': str,
+                    'type': 'singleselect',
+                    'mandatory': bool,
+                    'possible_options': list,
+                    'placeholder': None,
+                },
+                            {
+                                'name': 'suffixes',
+                                'title': 'Suffixes to include',
+                                'description': str,
+                                'type': 'strvalue',
+                                'mandatory': bool,
+                                'placeholder': '.xxx, .yyy',
+                            },
+                            {
+                                'name': 'simil',
+                                'title': 'Minimal similarity',
+                                'description': str,
+                                'type': 'numbervalue',
+                                'mandatory': bool,
+                                'placeholder': 'default: 50',
+                            }],
             },
         ],
     )

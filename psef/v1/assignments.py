@@ -461,6 +461,15 @@ def delete_rubric(assignment_id: int) -> EmptyResponse:
             APICodes.OBJECT_ID_NOT_FOUND, 404
         )
 
+    if assig.locked_rubric_rows:
+        raise APIException(
+            'You cannot delete a rubric with locked rows', (
+                'The rows with ids {} are locked, so the rubric cannot be'
+                ' deleted'
+            ).format(', '.join(map(str, assig.locked_rubric_rows))),
+            APICodes.INVALID_STATE, 409
+        )
+
     assig.rubric_rows = []
 
     db.session.commit()
@@ -569,6 +578,19 @@ def add_assignment_rubric(assignment_id: int
             helpers.ensure_keys_in_dict(content, [('rows', list)])
             rows = t.cast(t.List[JSONType], content['rows'])
             new_rubric_rows = [process_rubric_row(r) for r in rows]
+            new_row_ids = set(
+                row.id for row in new_rubric_rows if row.id is not None
+            )
+
+            if any(
+                lock_row_id not in new_row_ids
+                for lock_row_id in assig.locked_rubric_rows
+            ):
+                raise APIException(
+                    'You cannot delete a locked rubric row.',
+                    'Not all locked rubric rows were present in `rows`.',
+                    APICodes.INVALID_STATE, 400
+                )
 
             if any(not row.is_valid for row in new_rubric_rows):
                 wrong_rows = [r for r in new_rubric_rows if not r.is_valid]
@@ -1583,7 +1605,7 @@ def start_plagiarism_check(
                 child,
                 psef.files.ExtractFileTreeFile,
             ) and archive.Archive.is_archive(child.name):
-                child_path = os.path.join(
+                child_path = psef.files.safe_join(
                     current_app.config['UPLOAD_DIR'], child.disk_name
                 )
                 with open(child_path, 'rb') as f:

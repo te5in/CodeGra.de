@@ -264,5 +264,53 @@
     "course_permission": true,
     "short_description": "Manage course snippets",
     "long_description": "Users with this permission can create, edit, and delete snippets for this course."
+  },
+  "can_view_hidden_fixtures": {
+    "default_value": false,
+    "course_permission": true,
+    "short_description": "View hidden AutoTest fixtures",
+    "long_description": "Users with this permission can view hidden autotest fixtures."
+  },
+  "can_run_autotest": {
+    "default_value": false,
+    "course_permission": true,
+    "short_description": "Run an AutoTest configuration",
+    "long_description": "Users with this permission can start AutoTest runs"
+  },
+  "can_delete_autotest_run": {
+    "default_value": false,
+    "course_permission": true,
+    "short_description": "Delete an AutoTest run",
+    "long_description": "Users with this permission can delete AutoTest runs"
+  },
+  "can_edit_autotest": {
+    "default_value": false,
+    "course_permission": true,
+    "short_description": "Edit the configuration of an AutoTest",
+    "long_description": "Users with this permission can create, delete, edit the fixtures of, setup scripts of, and test sets of an AutoTest"
+  },
+  "can_view_hidden_autotest_steps": {
+    "default_value": false,
+    "course_permission": true,
+    "short_description": "View the details of hidden AutoTest steps",
+    "long_description": "Users with this permission can view hidden AutoTest steps if they have the permission to view the summary of this step"
+  },
+  "can_view_autotest_before_done": {
+    "default_value": false,
+    "course_permission": true,
+    "short_description": "View AutoTest details before done",
+    "long_description": "Users with this permission can view AutoTest, such as sets, before the state of the assignment is \"Open\""
+  },
+  "can_view_autotest_step_details": {
+    "default_value": true,
+    "course_permission": true,
+    "short_description": "View the details of AutoTest steps",
+    "long_description": "Users with this permission are allowed to see the details of non hidden AutoTest steps"
+  },
+  "can_view_autotest_fixture": {
+    "default_value": true,
+    "course_permission": true,
+    "short_description": "View non hidden AutoTest fixtures",
+    "long_description": "Users with this permission are allowed to see non hidden AutoTest fixtures"
   }
 }

@@ -1,0 +1,45 @@
+{% extends "layout/default.j2" %}
+
+{% block main %}
+<div class="container-fluid" style="flex: 1 1 auto;">
+    <div class="row" style="min-height: 100%;">
+        <nav class="col-md-2 d-none d-md-block bg-light sidebar"
+             style="font-weight: 500;">
+            <div class="sidebar-sticky">
+                <ul class="nav flex-column">
+                    <li class="nav-item">
+                        <a class="nav-link"
+                           href="{{ url_for('.show_all_runners') }}"
+                           style="color: #333">
+                            {% if url_for(request.endpoint) == url_for('.show_all_runners') %}
+                            <u>Runners</u>
+                            {% else %}
+                            Runners
+                            {% endif %}
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('.show_all_jobs') }}"
+                           style="color: #333">
+                            {% if url_for(request.endpoint) == url_for('.show_all_jobs') %}
+                            <u>Jobs</u>
+                            {% else %}
+                            Jobs
+                            {% endif %}
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+        <main role="main" class="col-md-9 ml-sm-auto col-lg-10 pt-3 px-4">
+            {% for message in get_flashed_messages() %}
+            <div class="alert alert-warning" role="alert">
+                {{ message }}
+            </div>
+            {% endfor %}
+
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+</div>
+{% endblock %}

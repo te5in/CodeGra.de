@@ -14,10 +14,12 @@ import typing as t
 import tarfile
 import zipfile
 import tempfile
+from collections import defaultdict
 
 import structlog
 import mypy_extensions
 from werkzeug.utils import secure_filename
+from typing_extensions import Protocol
 from werkzeug.datastructures import FileStorage
 
 import psef.models as models
@@ -88,6 +90,76 @@ def init_app(_: t.Any) -> None:
 
 def get_file_size(f: str) -> archive.FileSize:
     return archive.FileSize(max(1, os.path.getsize(f)))
+
+
+def safe_join(parent: str, *children: str) -> str:
+    """Safely join the children to the parent.
+
+    This function makes sure the resulting directory is the parent or a
+    subdirectory of the parent.
+    """
+    res = os.path.normpath(os.path.realpath(os.path.join(parent, *children)))
+    assert res.startswith(parent)
+    return res
+
+
+class FileLike(Protocol):
+    """This protocol represents some FileLike object with a name.
+    """
+
+    @property
+    def name(self) -> str:
+        """The name of the file.
+        """
+        raise NotImplementedError
+
+    @name.setter
+    def name(self, new_val: str) -> None:
+        raise NotImplementedError
+
+
+def fix_duplicate_filenames(files: t.Sequence[FileLike]
+                            ) -> t.List[t.Dict[str, str]]:
+    """Fix duplicate files in a list of files.
+
+    :param files: The files to check for.
+    :returns: A list of renames, each rename is a dictionary with two keys:
+        ``old_name``, indicating the old name of the file and ``new_name`` the
+        new name of the file. The name property of the renamed file is also
+        mutated in-place.
+    """
+    file_occurrence_lookup: t.Dict[str, t.Dict[str, int]] = defaultdict(
+        lambda: {
+            'amount': 0,
+            'fixed': 0
+        },
+    )
+
+    for f in files:
+        file_occurrence_lookup[f.name]['amount'] += 1
+
+    res = []
+
+    if any(v['amount'] > 1 for v in file_occurrence_lookup.values()):
+        for f in files:
+            if file_occurrence_lookup[f.name]['fixed'] > 0:
+                num = file_occurrence_lookup[f.name]['fixed']
+                while f'{f.name} ({num})' in file_occurrence_lookup:
+                    num += 1
+                file_occurrence_lookup[f.name]['fixed'] = num
+                old_name = f.name
+                f.name = f'{f.name} ({num})'
+                res.append({
+                    'old_name': old_name,
+                    'new_name': f.name,
+                })
+                # This isn't really needed (as num always is incremented
+                # after this block). However, this is simply an extra
+                # safety check.
+                file_occurrence_lookup[f.name]['amount'] += 1
+            file_occurrence_lookup[f.name]['fixed'] += 1
+
+    return res
 
 
 def escape_logical_filename(name: str) -> str:
@@ -241,7 +313,7 @@ def get_stat_information(file: models.File) -> t.Mapping[str, t.Any]:
     }
 
 
-def get_file_contents(code: models.File) -> bytes:
+def get_file_contents(code: models.FileMixin) -> bytes:
     """Get the contents of the given :class:`.models.File`.
 
     :param code: The file object to read.
@@ -391,7 +463,7 @@ def _restore_directory_structure(
     :param cache: The cache to use to get file children.
     :returns: A tree as described in :py:func:`.restore_directory_structure`
     """
-    out = os.path.join(parent, code.name)
+    out = safe_join(parent, code.name)
     if code.is_directory:
         os.mkdir(out)
         subtree: t.List[FileTree] = [
@@ -466,7 +538,7 @@ def rename_directory_structure(rootdir: str) -> ExtractFileTreeDirectory:
         for key, value in dirs.items():
             if value is None:
                 new_name, filename = random_file_path()
-                shutil.move(os.path.join(name, key), new_name)
+                shutil.move(safe_join(name, key), new_name)
                 res.append(
                     ExtractFileTreeFile(
                         name=key,
@@ -479,7 +551,7 @@ def rename_directory_structure(rootdir: str) -> ExtractFileTreeDirectory:
                 new_dir = ExtractFileTreeDirectory(
                     name=key, values=[], parent=None
                 )
-                for child in __to_lists(os.path.join(name, key), value):
+                for child in __to_lists(safe_join(name, key), value):
                     new_dir.add_child(child)
                 res.append(new_dir)
         return res
@@ -603,7 +675,7 @@ def random_file_path(use_mirror_dir: bool = False) -> t.Tuple[str, str]:
 
     while True:
         name = str(uuid.uuid4())
-        candidate = os.path.join(root, name)
+        candidate = safe_join(root, name)
         if os.path.exists(candidate):  # pragma: no cover
             continue
         else:
@@ -750,7 +822,7 @@ def process_blackboard_zip(
             if isinstance(blackboard_file, blackboard.FileInfo):
                 name = blackboard_file.original_name
                 stream = open(
-                    os.path.join(tmpdir, blackboard_file.name), mode='rb'
+                    safe_join(tmpdir, blackboard_file.name), mode='rb'
                 )
             else:
                 name = blackboard_file[0]
@@ -773,7 +845,7 @@ def process_blackboard_zip(
         submissions = []
         for info_file in info_files:
             info = blackboard.parse_info_file(
-                os.path.join(tmpdir, info_file.string)
+                safe_join(tmpdir, info_file.string)
             )
 
             try:

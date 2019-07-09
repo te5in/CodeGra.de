@@ -11,10 +11,10 @@ def test_about_features(test_client, app, monkeypatch):
         '/api/v1/about',
         200,
         result={
-            'version': app.config['_VERSION'],
-            'features':
-                {k.name: bool(v)
-                 for k, v in app.config['FEATURES'].items()}
+            'version': app.config['_VERSION'], 'features': {
+                k.name: bool(v)
+                for k, v in app.config['FEATURES'].items()
+            }
         }
     )
 

@@ -846,10 +846,7 @@ def test_submit_with_group(
             'get',
             f'/api/v1/code/{code_id}?type=feedback',
             200,
-            result={'3': {
-                'line': 3,
-                'msg': 'Lekker gewerkt pik!'
-            }}
+            result={'3': {'line': 3, 'msg': 'Lekker gewerkt pik!'}}
         )
     with logged_in(teacher_user):
         # Reset state back

@@ -13,6 +13,7 @@ from . import UUID_LENGTH, Base, DbColumn, db, _MyQuery
 from .role import CourseRole
 from .user import User
 from .work import Work
+from ..helpers import NotEqualMixin
 from .assignment import Assignment
 from .link_tables import user_course
 from ..permissions import CoursePermission
@@ -62,7 +63,7 @@ class CourseSnippet(Base):
         }
 
 
-class Course(Base):
+class Course(NotEqualMixin, Base):
     """This class describes a course.
 
     A course can hold a collection of :class:`.Assignment` objects.
@@ -135,7 +136,23 @@ class Course(Base):
     __hash__ = object.__hash__
 
     def __eq__(self, other: object) -> bool:
-        return isinstance(other, Course) and self.id == other.id
+        """Check if two courses are equal.
+
+        >>> CourseRole.get_default_course_roles = lambda: {}
+        >>> c1 = Course()
+        >>> c1.id = 5
+        >>> c2 = Course()
+        >>> c2.id = 5
+        >>> c1 == c2
+        True
+        >>> c1 == c1
+        True
+        >>> c1 == object()
+        False
+        """
+        if isinstance(other, Course):
+            return self.id == other.id
+        return NotImplemented
 
     def __to_json__(self) -> t.Mapping[str, t.Any]:
         """Creates a JSON serializable representation of this object.

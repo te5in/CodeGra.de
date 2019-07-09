@@ -2,6 +2,7 @@
 import copy
 
 import pytest
+from werkzeug.local import LocalProxy
 
 import psef
 import psef.models as m
@@ -74,17 +75,15 @@ def test_login(
             error or 200,
             data=data,
             result=error_template if error else {
-                'user':
-                    {
-                        'email': 'a@a.nl',
-                        'id': int,
-                        'name': 'NEW_USER',
-                        'username': 'a-the-a-er',
-                        'hidden': False,
-                        'permissions': dict,
-                        'group': None,
-                    },
-                'access_token': str
+                'user': {
+                    'email': 'a@a.nl',
+                    'id': int,
+                    'name': 'NEW_USER',
+                    'username': 'a-the-a-er',
+                    'hidden': False,
+                    'permissions': dict,
+                    'group': None,
+                }, 'access_token': str
             }
         )
         access_token = '' if error else res['access_token']
@@ -154,10 +153,7 @@ def test_extended_get_login(test_client, named_user, logged_in, request):
             'get',
             '/api/v1/login',
             200,
-            query={
-                'type': 'extended',
-                'with_permissions': ''
-            },
+            query={'type': 'extended', 'with_permissions': ''},
             result={
                 'name': str,
                 'id': int,
@@ -184,9 +180,9 @@ def test_get_roles(
     inprog_course, roles
 ):
     result = {}
-    for course, role in zip(
-        [pse_course, bs_course, prog_course, inprog_course], roles
-    ):
+    for course, role in zip([
+        pse_course, bs_course, prog_course, inprog_course
+    ], roles):
         if role is not None:
             result[str(course.id)] = role
 
@@ -224,27 +220,23 @@ def test_login_duplicate_email(
     session.commit()
 
     for user_id in [u.id for u in new_users]:
-        user = m.User.query.get(user_id)
+        user = LocalProxy(lambda: m.User.query.get(user_id))
 
         with app.app_context():
             res = test_client.req(
                 'post',
                 f'/api/v1/login',
                 200,
-                data={
-                    'username': user.username,
-                    'password': 'a'
-                },
+                data={'username': user.username, 'password': 'a'},
                 result={
-                    'user':
-                        {
-                            'email': 'a@a.nl',
-                            'id': int,
-                            'name': 'NEW_USER',
-                            'username': user.username,
-                            'hidden': False,
-                            'group': None,
-                        },
+                    'user': {
+                        'email': 'a@a.nl',
+                        'id': int,
+                        'name': 'NEW_USER',
+                        'username': user.username,
+                        'hidden': False,
+                        'group': None,
+                    },
                     'access_token': str,
                 }
             )
@@ -412,9 +404,7 @@ def test_update_user_info_permissions(
             '/api/v1/login',
             204,
             data={
-                'name': 'NEW_USER',
-                'email': 'a@a.nl',
-                'old_password': 'a',
+                'name': 'NEW_USER', 'email': 'a@a.nl', 'old_password': 'a',
                 'new_password': 'b@#@#AA!!!SSDSD2342340?'
             },
         )
@@ -513,57 +503,35 @@ def test_reset_password(
         'patch',
         f'/api/v1/login?type=reset_password',
         400,
-        data={
-            'user_id': user_id,
-            'new_password': '',
-            'token': token
-        },
-        result={
-            **error_template, 'feedback': object
-        },
+        data={'user_id': user_id, 'new_password': '', 'token': token},
+        result={**error_template, 'feedback': object},
     )
     test_client.req(
         'patch',
         f'/api/v1/login?type=reset_password',
         403,
-        data={
-            'user_id': user_id,
-            'new_password': 's',
-            'token': token + 's'
-        },
+        data={'user_id': user_id, 'new_password': 's', 'token': token + 's'},
         result=error_template,
     )
     test_client.req(
         'patch',
         f'/api/v1/login?type=reset_password',
         403,
-        data={
-            'user_id': user_id + 1,
-            'new_password': 's',
-            'token': token
-        },
+        data={'user_id': user_id + 1, 'new_password': 's', 'token': token},
         result=error_template,
     )
     atoken = test_client.req(
         'patch',
         f'/api/v1/login?type=reset_password',
         200,
-        data={
-            'user_id': user_id,
-            'new_password': '2o2',
-            'token': token
-        },
+        data={'user_id': user_id, 'new_password': '2o2', 'token': token},
         result={'access_token': str},
     )['access_token']
     test_client.req(
         'patch',
         f'/api/v1/login?type=reset_password',
         403,
-        data={
-            'user_id': user_id,
-            'new_password': 'wow',
-            'token': token
-        },
+        data={'user_id': user_id, 'new_password': 'wow', 'token': token},
         result=error_template,
     )
 
@@ -579,11 +547,7 @@ def test_reset_password(
         'patch',
         f'/api/v1/login?type=reset_password',
         403,
-        data={
-            'user_id': user_id,
-            'new_password': '2o2',
-            'token': token
-        },
+        data={'user_id': user_id, 'new_password': '2o2', 'token': token},
         result=error_template,
     )
 

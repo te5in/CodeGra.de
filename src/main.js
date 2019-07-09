@@ -17,7 +17,7 @@ import moment from 'moment';
 import '@/polyfills';
 import App from '@/App';
 import router, { setRestoreRoute } from '@/router';
-import { htmlEscape } from '@/utils';
+import * as utils from '@/utils';
 import store from './store';
 import * as mutationTypes from './store/mutation-types';
 
@@ -158,6 +158,12 @@ Vue.util.defineReactive(
     true,
 );
 
+try {
+    Vue.prototype.$devMode = process.env.NODE_ENV === 'development';
+} catch (e) {
+    Vue.prototype.$devMode = false;
+}
+Vue.prototype.$utils = utils;
 Vue.prototype.$userConfig = UserConfig;
 
 // eslint-disable-next-line
@@ -170,8 +176,6 @@ localforage.defineDriver(memoryStorageDriver).then(() => {
         name: 'showWhitespaceStore',
         driver: DRIVERS,
     });
-
-    Vue.prototype.$htmlEscape = htmlEscape;
 
     Vue.prototype.$hasPermission = (permission, courseId, asMap) => {
         function makeResponse(map) {
@@ -193,6 +197,12 @@ localforage.defineDriver(memoryStorageDriver).then(() => {
         }
     };
 
+    function getUTCEpoch() {
+        const d = new Date();
+        const offset = 60 * 1000 * d.getTimezoneOffset();
+        return d.getTime() + offset;
+    }
+
     /* eslint-disable no-new */
     const app = new Vue({
         el: '#app',
@@ -208,6 +218,7 @@ localforage.defineDriver(memoryStorageDriver).then(() => {
                 mediumWidth: 768,
                 largeWidth: 992,
                 now: moment(),
+                epoch: getUTCEpoch(),
             };
         },
 
@@ -216,9 +227,13 @@ localforage.defineDriver(memoryStorageDriver).then(() => {
                 this.screenWidth = window.innerWidth;
             });
 
-            setTimeout(() => {
+            setInterval(() => {
                 this.now = moment();
             }, 60000);
+
+            setInterval(() => {
+                this.epoch = getUTCEpoch();
+            }, 1000);
         },
 
         computed: {
@@ -263,6 +278,10 @@ localforage.defineDriver(memoryStorageDriver).then(() => {
 
             $now() {
                 return this.now;
+            },
+
+            $epoch() {
+                return this.epoch;
             },
         },
     });

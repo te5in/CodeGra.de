@@ -1,6 +1,16 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: AGPL-3.0-only
 
+if [[ $1 = 'broker' ]]; then
+    echo "NOTE THIS IS VERY HACKY AND PROBABLY WON'T WORK WITH YOUR POSTGRESQL INSTALL"
+    echo "Dropping and creating broker database"
+
+    dropdb "codegrade_broker_dev"
+    psql -c "create database codegrade_broker_dev"
+    ./manage_broker.py db upgrade
+    exit $?
+fi
+
 fix_perms() {
     psql -d "codegrade_dev" -c 'GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA  public TO "www-data"'
     psql -d "codegrade_dev" -c 'GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO "www-data"'

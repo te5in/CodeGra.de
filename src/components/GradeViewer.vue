@@ -4,14 +4,13 @@
     <b-collapse id="rubric-collapse"
                 v-model="rubricOpen"
                 v-if="showRubric">
-        <rubric-viewer
-            v-model="rubricPoints"
-            style="margin-bottom: 15px;"
-            :editable="editable"
-            :assignment="assignment"
-            :submission="submission"
-            :rubric="rubric"
-            ref="rubricViewer"/>
+        <rubric-viewer v-model="rubricPoints"
+                       :editable="editable"
+                       :assignment="assignment"
+                       :submission="submission"
+                       :rubric="rubric"
+                       :visible="rubricOpen"
+                       ref="rubricViewer"/>
     </b-collapse>
 
     <b-form-fieldset class="grade-fieldset">
@@ -214,7 +213,7 @@ export default {
             this.rubricSelected = selected;
             this.rubricTotal = max;
             if (UserConfig.features.incremental_rubric_submission) {
-                this.gradeUpdated();
+                this.gradeUpdated(false);
             }
         },
     },
@@ -223,11 +222,20 @@ export default {
         if (this.showRubric) {
             this.rubric.points.grade = this.grade;
         }
+
+        this.$root.$on('open-rubric-category', this.openRubricCategory);
+    },
+
+    destroyed() {
+        this.$root.$off('open-rubric-category', this.openRubricCategory);
     },
 
     methods: {
-        gradeUpdated() {
-            this.$emit('gradeUpdated', this.grade);
+        gradeUpdated(overridden) {
+            this.$emit('gradeUpdated', {
+                grade: this.grade,
+                overridden,
+            });
         },
 
         deleteGrade() {
@@ -247,7 +255,7 @@ export default {
         afterDeleteGrade(response) {
             if (response.data.grade !== undefined) {
                 this.grade = formatGrade(response.data.grade) || null;
-                this.gradeUpdated();
+                this.gradeUpdated(false);
             }
         },
 
@@ -270,11 +278,13 @@ export default {
             let req = Promise.resolve();
 
             if (this.showRubric) {
-                req = this.$refs.rubricViewer.submitAllItems();
+                req = this.$refs.rubricViewer.submitAllItems().then(() => false);
             }
 
             if (!this.showRubric || this.rubricOverridden) {
-                req = req.then(() => this.submitNormalGrade(grade));
+                req = req
+                    .then(() => this.submitNormalGrade(grade))
+                    .then(() => this.rubricOverridden);
             }
 
             return req;
@@ -303,6 +313,10 @@ export default {
                 !UserConfig.features.incremental_rubric_submission &&
                 this.$refs.rubricViewer.outOfSync.size > 0
             );
+        },
+
+        openRubricCategory() {
+            this.rubricOpen = true;
         },
     },
 
@@ -355,6 +369,10 @@ input {
 
 .help-cursor {
     cursor: help;
+}
+
+.rubric-viewer {
+    margin-bottom: 1rem;
 }
 </style>
 

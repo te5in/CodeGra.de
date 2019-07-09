@@ -11,14 +11,17 @@ import datetime
 from flask import current_app
 
 import psef
+from cg_sqlalchemy_helpers.mixins import TimestampMixin
 
 from . import Base, db, _MyQuery
 from .. import auth
 from ..exceptions import APICodes, APIException
 from ..permissions import CoursePermission
 
-if t.TYPE_CHECKING:  # pragma: no cover
-    from . import work as work_models  # pylint: disable=unused-import
+if t.TYPE_CHECKING and getattr(t, 'SPHINX', False):  # pragma: no cover
+    # pylint: disable=unused-import
+    from . import auto_test as auto_test_models
+    from . import work as work_models
 
 
 @enum.unique
@@ -41,7 +44,74 @@ class FileOwner(enum.IntEnum):
     both: int = 3
 
 
-class File(Base):
+class FileMixin:
+    """A mixin for representing a file in the database.
+    """
+
+    # The given name of the file.
+    name: str = db.Column('name', db.Unicode, nullable=False)
+
+    # This is the filename for the actual file on the disk. This is probably a
+    # randomly generated uuid.
+    filename: t.Optional[str]
+    filename = db.Column('filename', db.Unicode, nullable=True)
+
+    @property
+    def id(self) -> int:
+        """Get the id in the database of this file.
+        """
+        raise NotImplementedError
+
+    @property
+    def is_directory(self) -> bool:
+        """Is this file a directory.
+        """
+        raise NotImplementedError
+
+    def delete_from_disk(self) -> None:
+        """Delete the file from disk if it is not a directory.
+
+        >>> import os
+        >>> f = FileMixin()
+        >>> f.filename = 'NON_EXISTING'
+        >>> f.get_diskname = lambda: f.filename
+        >>> f.delete_from_disk() is None
+        True
+        >>> open('new_file_name', 'w').close()
+        >>> f.filename = 'new_file_name'
+        >>> os.path.isfile(f.filename)
+        True
+        >>> f.delete_from_disk()
+        >>> os.path.isfile(f.filename)
+        False
+
+        :returns: Nothing.
+        """
+        try:
+            os.remove(self.get_diskname())
+        except (AssertionError, FileNotFoundError):
+            pass
+
+    def get_diskname(self) -> str:
+        """Get the absolute path on the disk for this file.
+
+        :returns: The absolute path.
+        """
+        assert self.filename
+        assert not self.is_directory
+
+        return psef.files.safe_join(
+            current_app.config['UPLOAD_DIR'], self.filename
+        )
+
+    def __to_json__(self) -> t.Mapping[str, t.Union[str, int]]:
+        return {
+            'id': self.id,
+            'name': self.name,
+        }
+
+
+class File(FileMixin, Base):
     """
     This object describes a file or directory that stored is stored on the
     server.
@@ -55,6 +125,7 @@ class File(Base):
     if t.TYPE_CHECKING:  # pragma: no cover
         query: t.ClassVar[_MyQuery['File']]
     __tablename__ = "File"
+
     id: int = db.Column('id', db.Integer, primary_key=True)
     work_id: int = db.Column(
         'Work_id',
@@ -62,13 +133,7 @@ class File(Base):
         db.ForeignKey('Work.id', ondelete='CASCADE'),
         nullable=False,
     )
-    # The given name of the file.
-    name: str = db.Column('name', db.Unicode, nullable=False)
 
-    # This is the filename for the actual file on the disk. This is probably a
-    # randomly generated uuid.
-    filename: t.Optional[str]
-    filename = db.Column('filename', db.Unicode, nullable=True)
     modification_date = db.Column(
         'modification_date', db.DateTime, default=datetime.datetime.utcnow
     )
@@ -132,27 +197,6 @@ class File(Base):
                 return teacher
         else:
             return teacher
-
-    def get_diskname(self) -> str:
-        """Get the absolute path on the disk for this file.
-
-        :returns: The absolute path.
-        """
-        assert not self.is_directory
-        assert self.filename is not None
-        res = os.path.realpath(
-            os.path.join(current_app.config['UPLOAD_DIR'], self.filename)
-        )
-        assert res.startswith(current_app.config['UPLOAD_DIR'])
-        return res
-
-    def delete_from_disk(self) -> None:
-        """Delete the file from disk if it is not a directory.
-
-        :returns: Nothing.
-        """
-        if not self.is_directory:
-            os.remove(self.get_diskname())
 
     def list_contents(
         self,
@@ -258,7 +302,53 @@ class File(Base):
         :returns: A object as described above.
         """
         return {
-            'name': self.name,
+            **super().__to_json__(),
             'is_directory': self.is_directory,
-            'id': self.id,
+        }
+
+
+class AutoTestFixture(Base, FileMixin, TimestampMixin):
+    """This class represents a single fixture for an AutoTest configuration.
+    """
+    if t.TYPE_CHECKING:  # pragma: no cover
+        query: t.ClassVar[_MyQuery['AutoTestFixture']]
+    __tablename__ = 'AutoTestFixture'
+
+    id: int = db.Column('id', db.Integer, primary_key=True)
+    auto_test_id: int = db.Column(
+        'auto_test_id',
+        db.Integer,
+        db.ForeignKey('AutoTest.id', ondelete='CASCADE'),
+        nullable=False,
+    )
+
+    def delete_fixture(self) -> None:
+        """Delete the this fixture.
+
+        This function deletes the fixture from the database and after the
+        request the saved file is also deleted.
+        """
+        db.session.delete(self)
+        psef.helpers.callback_after_this_request(self.delete_from_disk)
+
+    @property
+    def is_directory(self) -> bool:
+        return False
+
+    hidden: bool = db.Column(
+        'hidden', db.Boolean, nullable=False, default=True
+    )
+
+    auto_test: 'auto_test_models.AutoTest' = db.relationship(
+        'AutoTest',
+        foreign_keys=auto_test_id,
+        back_populates='fixtures',
+        lazy='joined',
+        innerjoin=True,
+    )
+
+    def __to_json__(self) -> t.Mapping[str, t.Union[str, bool, int]]:
+        return {
+            **super().__to_json__(),
+            'hidden': self.hidden,
         }

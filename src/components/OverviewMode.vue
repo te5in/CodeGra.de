@@ -1,16 +1,18 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <b-alert class="error" variant="danger" show v-if="error">
-    <div v-html="error"></div>
+    <div v-html="error"/>
 </b-alert>
+
 <loader class="text-center" v-else-if="loading"/>
+
 <div class="overview-mode" v-else>
     <b-tabs no-fade
             nav-wrapper-class="tab-wrapper"
             v-model="tabIndex">
         <b-tab title="Line feedback"
                class="code">
-            <b-card v-if="fileIds.length === 0" class="file-card">
+            <b-card v-if="fileIds.length === 0" class="file-card text-muted font-italic">
                 This submission has no line comments.
             </b-card>
             <div class="scroller" v-else>
@@ -49,6 +51,7 @@
                 </b-card>
             </div>
         </b-tab>
+
         <b-tab title="General feedback">
             <b-card class="file-card">
                 <span v-if="!!submission.comment_author" slot="header">
@@ -56,14 +59,15 @@
                 </span>
                 <pre class="general-feedback"
                      v-if="submission.comment">{{ submission.comment }}</pre>
-                <span v-else>
+                <span class="text-muted font-italic" v-else>
                     No general feedback given :(
                 </span>
             </b-card>
         </b-tab>
+
         <b-tab title="Changed files" class="code" v-if="canSeeRevision">
             <b-card v-if="changedFiles.length === 0" class="file-card">
-                <span>
+                <span class="text-muted font-italic">
                     No files were changed
                 </span>
             </b-card>
@@ -83,8 +87,9 @@
                              :context="context"/>
             </b-card>
         </b-tab>
+
         <b-tab title="Added or deleted files" v-if="canSeeRevision">
-            <b-card v-if="newFiles.length + deletedFiles.length === 0" class="file-card">
+            <b-card v-if="newFiles.length + deletedFiles.length === 0" class="file-card text-muted font-italic">
                 No files were added or deleted.
             </b-card>
             <div v-else>
@@ -120,6 +125,11 @@
                 </b-card>
             </div>
         </b-tab>
+
+        <b-tab title="AutoTest" v-if="assignment.auto_test_id">
+            <auto-test :assignment="assignment"
+                       :submission-id="submission.id"/>
+        </b-tab>
     </b-tabs>
 </div>
 </template>
@@ -129,7 +139,7 @@ import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/plus';
 import 'vue-awesome/icons/cog';
 
-import { last, getExtension, range, highlightCode } from '@/utils';
+import { last, getExtension, highlightCode } from '@/utils';
 import decodeBuffer from '@/utils/decode';
 
 import InnerCodeViewer from './InnerCodeViewer';
@@ -137,6 +147,7 @@ import Loader from './Loader';
 import Toggle from './Toggle';
 import DiffViewer from './DiffViewer';
 import User from './User';
+import AutoTest from './AutoTest';
 
 export default {
     name: 'overview-mode',
@@ -181,21 +192,10 @@ export default {
     },
 
     watch: {
-        urlTabIndex() {
-            this.tabIndex = this.urlTabIndex;
-        },
-
-        tabIndex(newVal, oldVal) {
-            if (newVal === oldVal || oldVal == null) {
-                return;
-            }
-
-            const newQuery = Object.assign({}, this.$route.query, {
-                overviewTab: newVal,
+        tabIndex() {
+            this.$router.replace({
+                query: Object.assign({}, this.$route.query, { overview: this.tabIndex }),
             });
-            if (newVal === 0) {
-                delete newQuery.overviewTab;
-            }
         },
     },
 
@@ -207,19 +207,16 @@ export default {
             feedback: {},
             fileIds: [],
             error: '',
-            range,
-            tabIndex: null,
+            tabIndex: parseInt(this.$route.query.overview, 10),
         };
     },
 
     async mounted() {
-        this.tabIndex = this.urlTabIndex;
         await this.$nextTick();
 
         this.error = '';
-        this.feedback = await this.$http
-            .get(`/api/v1/submissions/${this.submission.id}/feedbacks/`)
-            .then(({ data }) => {
+        await this.$http.get(`/api/v1/submissions/${this.submission.id}/feedbacks/`).then(
+            ({ data }) => {
                 Object.entries(data.user).forEach(([fileId, fileFeedback]) => {
                     Object.keys(fileFeedback).forEach(line => {
                         fileFeedback[line] = {
@@ -229,8 +226,12 @@ export default {
                         };
                     });
                 });
-                return data;
-            });
+                this.feedback = data;
+            },
+            err => {
+                this.error = err.message;
+            },
+        );
 
         this.fileIds = Object.keys(this.feedback.user);
         const codeLines = await Promise.all(this.fileIds.map(this.loadCodeWithSettings));
@@ -244,7 +245,7 @@ export default {
     methods: {
         getFileLink(fileId, revision) {
             const newQuery = Object.assign({}, this.$route.query, {
-                overview: false,
+                overview: 0,
                 revision,
             });
             delete newQuery.overviewTab;
@@ -400,9 +401,6 @@ export default {
     },
 
     computed: {
-        urlTabIndex() {
-            return Number(this.$route.query.overviewTab) || 0;
-        },
         allModifiedFiles() {
             return this.getChangedFiles(this.tree);
         },
@@ -427,6 +425,7 @@ export default {
         DiffViewer,
         User,
         InnerCodeViewer,
+        AutoTest,
     },
 };
 </script>
@@ -526,7 +525,7 @@ export default {
 @import '~mixins.less';
 
 .overview-mode {
-    .tabs {
+    > .tabs {
         overflow-y: hidden;
         display: flex;
         flex-direction: column;
@@ -535,21 +534,26 @@ export default {
         flex-shrink: 1;
         position: relative;
     }
-    .nav-tabs {
-        border-color: @color-border-gray-lighter;
-        .default-background;
-    }
-    .tab-wrapper {
+
+    > .tabs > .tab-wrapper {
         flex: 1 0 auto;
         border-color: @color-border-gray-lighter;
         border-color: transparent;
-        .nav-link {
+
+        > .tabs > .nav-tabs {
+            border-color: @color-border-gray-lighter;
+            .default-background;
+        }
+
+        > .nav-link {
             &:hover {
                 color: inherit !important;
             }
+
             &:not(.active):not(:hover) {
                 border-color: transparent !important;
             }
+
             &.active {
                 border-color: @color-border-gray-lighter;
                 background-color: rgb(247, 247, 247);
@@ -557,7 +561,8 @@ export default {
             }
         }
     }
-    .tab-content {
+
+    > .tabs > .tab-content {
         border: 1px solid @color-border-gray-lighter;
         #app.dark & {
             border-color: @color-primary-darker;
@@ -570,8 +575,8 @@ export default {
         border-top-left-radius: 0;
 
         margin-bottom: 2px;
+
         .tab-pane {
-            will-change: transform;
             height: 100%;
         }
     }

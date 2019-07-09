@@ -4,7 +4,9 @@
 <div v-else class="rubric-editor" :class="{ editable }">
     <b-tabs no-fade
             v-model="currentCategory">
-        <b-nav-item slot="tabs" @click.prevent="appendRow" href="#"
+        <b-nav-item slot="tabs"
+                    @click.prevent="appendRow"
+                    href="#"
                     v-if="editable">
             +
         </b-nav-item>
@@ -16,28 +18,33 @@
 
             <b-card no-block>
                 <div class="card-header rubric-header">
-                    <b-input-group style="margin-bottom: 1em;"
-                                   v-if="editable">
+                    <b-input-group v-if="editable" class="mb-3">
                         <b-input-group-prepend is-text>
                             Category name
                         </b-input-group-prepend>
+
                         <input class="form-control"
                                placeholder="Category name"
                                @keydown.ctrl.enter="clickSubmit"
                                v-model="rubric.header"/>
+
                         <b-input-group-append>
-                            <b-btn size="sm" variant="danger" class="float-right" @click="(e)=>deleteRow(i, e)">
-                                Remove category
-                            </b-btn>
+                            <submit-button variant="danger"
+                                           label="Remove category"
+                                           :wait-at-least="0"
+                                           :submit="() => deleteRow(i)"
+                                           @after-success="afterDeleteRow"
+                                           confirm="Do you really want to delete this category?" />
                         </b-input-group-append>
                     </b-input-group>
+
                     <textarea class="form-control"
                               placeholder="Category description"
                               :tabindex="currentCategory === i ? null: -1"
                               v-model="rubric.description"
                               @keydown.ctrl.enter.prevent="clickSubmit"
                               v-if="editable"/>
-                    <p v-else>{{ rubric.description }}</p>
+                    <p class="mb-0" v-else>{{ rubric.description }}</p>
                 </div>
                 <b-card-group class="rubric-items-container">
                     <b-card class="rubric-item"
@@ -217,7 +224,9 @@
             </submit-button>
         </b-button-group>
 
-        <submit-button ref="submitButton" :submit="submit"/>
+        <submit-button ref="submitButton"
+                       :submit="submit"
+                       @after-success="afterSubmit"/>
     </b-card>
 </div>
 </template>
@@ -330,15 +339,7 @@ export default {
         },
 
         curMaxPoints() {
-            return this.rubrics.reduce((cur, row) => {
-                const extra = Math.max(
-                    ...row.items.map(val => Number(val.points)).filter(item => !Number.isNaN(item)),
-                );
-                if (extra === -Infinity) {
-                    return cur;
-                }
-                return cur + extra;
-            }, 0);
+            return this.calcMaxPoints(this.rubrics);
         },
     },
 
@@ -365,6 +366,12 @@ export default {
         afterLoadOldRubric(response) {
             this.importAssignment = null;
             this.setRubricData(response.data);
+            this.setRubric({
+                assignmentId: this.assignmentId,
+                rubric: response.data,
+                maxPoints: this.calcMaxPoints(response.data),
+            });
+            this.forceLoadSubmissions(this.assignmentId);
         },
 
         loadAssignments() {
@@ -635,18 +642,36 @@ ${arrayToSentence(wrongCategories)}.`);
             });
         },
 
-        deleteRow(i, e) {
+        deleteRow(index) {
+            const row = this.rubrics[index];
+
             if (!this.editable) {
                 throw Error('This rubric editor is not editable.');
+            } else if (row.locked) {
+                throw Error(`This rubric category is locked by: ${row.locked}.`);
             }
 
-            this.rubrics.splice(i, 1);
-            e.preventDefault();
-            e.stopPropagation();
+            return index;
+        },
+
+        afterDeleteRow(index) {
+            this.rubrics.splice(index, 1);
         },
 
         rubricCategoryTitle(category) {
             return category.header || '<span class="unnamed">Unnamed category</span>';
+        },
+
+        calcMaxPoints(rubrics) {
+            return rubrics.reduce((cur, row) => {
+                const extra = Math.max(
+                    ...row.items.map(val => Number(val.points)).filter(item => !Number.isNaN(item)),
+                );
+                if (extra === -Infinity) {
+                    return cur;
+                }
+                return cur + extra;
+            }, 0);
         },
     },
 
@@ -692,16 +717,16 @@ ${arrayToSentence(wrongCategories)}.`);
     }
 
     .rubric-header {
-        padding: 0 !important;
-        margin-bottom: 1em;
         .default-background;
+        padding: 0 !important;
+        border-bottom: 0;
+
         p {
             font-size: 1.1rem;
             line-height: 1.25;
             .default-text-colors;
-            min-height: 2em;
         }
-        border-bottom: 0;
+
         input:focus {
             background: #f7f7f9;
         }
@@ -710,12 +735,13 @@ ${arrayToSentence(wrongCategories)}.`);
     .card,
     card-header {
         border-radius: 0;
+        border-top: 0 !important;
+        border-left: 0 !important;
+
         &:not(.tab) {
             border-bottom: 0 !important;
             border-right: 0 !important;
         }
-        border-top: 0 !important;
-        border-left: 0 !important;
     }
 
     .rubric-editor {
