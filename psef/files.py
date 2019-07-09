@@ -507,6 +507,8 @@ def extract_to_temp(
     """
     tmpfd, tmparchive = tempfile.mkstemp()
     size: archive.FileSize
+    tmpdir = None
+    remove_tmpdir = True
 
     try:
         os.remove(tmparchive)
@@ -536,13 +538,15 @@ def extract_to_temp(
         logger.warning('Unsafe archive submitted', exc_info=True)
         raise APIException(
             f'The given {archive_name} contains invalid or too many files',
-            str(e),
-            APICodes.INVALID_FILE_IN_ARCHIVE,
-            400,
+            str(e), APICodes.UNSAFE_ARCHIVE, 400
         )
+    else:
+        remove_tmpdir = False
     finally:
         os.close(tmpfd)
         os.remove(tmparchive)
+        if remove_tmpdir and tmpdir is not None:
+            shutil.rmtree(tmpdir)
 
     return tmpdir, size
 

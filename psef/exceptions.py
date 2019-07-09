@@ -54,6 +54,7 @@ class APICodes(IntEnum):
     UNSUPPORTED = 27
     ASSIGNMENT_DEADLINE_UNSET = 28
     PARSING_FAILED = 29
+    UNSAFE_ARCHIVE = 30
 
 
 class InvalidAssignmentState(TypeError):
