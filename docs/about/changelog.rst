@@ -1,6 +1,35 @@
 Changelog
 ==========
 
+Version 1.7.0 (JungleJoy)
+-------------------------
+
+**Released**: July 09th, 2019
+
+You can now automatically grade code of students using our brand new feature
+called *AutoTest*. This enables teachers to easily create test configurations
+and students to automatically get insightful feedback.
+
+**Features**
+
+- AutoTest is CodeGrade's new Automatic Grading Environment `(#938)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/938>`__: with AutoTest you can
+  automatically grade code of students and provide them with insightful
+  feedback.
+
+**Fixes**
+
+- Improve documentation `(#915) <https://github.com/CodeGra-de/CodeGra.de/pull/915>`__
+  `(#937) <https://github.com/CodeGra-de/CodeGra.de/pull/937>`__: We always
+  pushing for the best documentation!
+- Increase the speed of multiple routes and pages `(#905)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/905>`__.
+- Show error when negative grader weights are submitted `(#913)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/913>`__.
+- Further improve the way we handle too large archives `(#949)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/949>`__.
+
+
 Version 1.6.6 (Izanami.2)
 -------------------------
 

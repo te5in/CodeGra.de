@@ -34,4 +34,3 @@ to students from within the Code Viewer.
     tests
     running-autotest
     student-experience
-    technical-details
