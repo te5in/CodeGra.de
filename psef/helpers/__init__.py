@@ -297,7 +297,7 @@ def _filter_or_404(
     :raises APIException: If no object with the given id could be found.
         (OBJECT_ID_NOT_FOUND)
     """
-    query = model.query.filter(*criteria)  # type: ignore
+    query = model.query.filter(*criteria)
     if with_for_update:
         query = query.with_for_update()
     obj = query.all() if get_all else query.one_or_none()

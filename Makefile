@@ -98,9 +98,12 @@ isort:
 yapf:
 	yapf -rip $(PY_ALL_MODULES)
 
-.PHONY: format
-format: isort yapf
+.PHONY: prettier
+prettier:
 	npm run format
+
+.PHONY: format
+format: isort yapf prettier
 
 .PHONY: shrinkwrap
 shrinkwrap:

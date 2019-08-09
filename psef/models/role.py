@@ -221,7 +221,7 @@ class CourseRole(AbstractRole[CoursePermission], Base):
         super().__init__(name=name, _permissions=_permissions)
 
         # Mypy doesn't get the sqlalchemy magic
-        self.course = course  # type: ignore
+        self.course = course
 
     def __to_json__(self) -> t.MutableMapping[str, t.Any]:
         """Creates a JSON serializable representation of this object.

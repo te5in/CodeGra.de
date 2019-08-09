@@ -330,8 +330,7 @@
                                                        :start-line="0"
                                                        :show-whitespace="true"
                                                        :warn-no-newline="false"
-                                                       :empty-file-message="'No output.'"
-                                                       :font-size="codeFontSize" />
+                                                       :empty-file-message="'No output.'" />
                                 </div>
                             </b-tab>
 
@@ -345,8 +344,7 @@
                                                        :start-line="0"
                                                        :show-whitespace="true"
                                                        :warn-no-newline="false"
-                                                       :empty-file-message="'No output.'"
-                                                       :font-size="codeFontSize" />
+                                                       :empty-file-message="'No output.'" />
                                 </div>
                             </b-tab>
                         </b-tabs>
@@ -419,8 +417,7 @@
                                                        :start-line="0"
                                                        :show-whitespace="true"
                                                        :warn-no-newline="false"
-                                                       :empty-file-message="'No output.'"
-                                                       :font-size="codeFontSize" />
+                                                       :empty-file-message="'No output.'" />
                                 </div>
                             </b-tab>
 
@@ -434,8 +431,7 @@
                                                        :start-line="0"
                                                        :show-whitespace="true"
                                                        :warn-no-newline="false"
-                                                       :empty-file-message="'No output.'"
-                                                       :font-size="codeFontSize" />
+                                                       :empty-file-message="'No output.'" />
                                 </div>
                             </b-tab>
                         </b-tabs>
@@ -547,8 +543,7 @@
                                                            :start-line="0"
                                                            :warn-no-newline="false"
                                                            :show-whitespace="true"
-                                                           :empty-file-message="'No output.'"
-                                                           :font-size="codeFontSize" />
+                                                           :empty-file-message="'No output.'" />
                                     </div>
 
                                     <div class="col-6">
@@ -564,8 +559,7 @@
                                                            :start-line="0"
                                                            :warn-no-newline="false"
                                                            :show-whitespace="true"
-                                                           :empty-file-message="'No output.'"
-                                                           :font-size="codeFontSize" />
+                                                           :empty-file-message="'No output.'" />
                                     </div>
                                 </b-tab>
 
@@ -588,8 +582,7 @@
                                                            :warn-no-newline="false"
                                                            :show-whitespace="true"
                                                            :no-line-numbers="true"
-                                                           :empty-file-message="'No arguments.'"
-                                                           :font-size="codeFontSize" />
+                                                           :empty-file-message="'No arguments.'" />
                                     </div>
 
                                     <div class="col-6">
@@ -610,8 +603,7 @@
                                                            :start-line="0"
                                                            :warn-no-newline="false"
                                                            :show-whitespace="true"
-                                                           :empty-file-message="'No input.'"
-                                                           :font-size="codeFontSize" />
+                                                           :empty-file-message="'No input.'" />
                                     </div>
                                 </b-tab>
 
@@ -625,8 +617,7 @@
                                                            :start-line="0"
                                                            :show-whitespace="true"
                                                            :warn-no-newline="true"
-                                                           :empty-file-message="'No output.'"
-                                                           :font-size="codeFontSize" />
+                                                           :empty-file-message="'No output.'" />
                                     </div>
                                 </b-tab>
                             </b-tabs>
@@ -651,8 +642,7 @@
                                                    :warn-no-newline="false"
                                                    :show-whitespace="true"
                                                    :no-line-numbers="true"
-                                                   :empty-file-message="'No arguments.'"
-                                                   :font-size="codeFontSize" />
+                                                   :empty-file-message="'No arguments.'" />
                             </div>
 
                             <div class="col-12 mb-3">
@@ -673,8 +663,7 @@
                                                    :start-line="0"
                                                    :warn-no-newline="false"
                                                    :show-whitespace="true"
-                                                   :empty-file-message="'No input.'"
-                                                   :font-size="codeFontSize" />
+                                                   :empty-file-message="'No input.'" />
                             </div>
 
                             <div class="col-12 mb-3">
@@ -695,8 +684,7 @@
                                                    :start-line="0"
                                                    :warn-no-newline="false"
                                                    :show-whitespace="true"
-                                                   :empty-file-message="'No output.'"
-                                                   :font-size="codeFontSize" />
+                                                   :empty-file-message="'No output.'" />
                             </div>
                         </template>
 

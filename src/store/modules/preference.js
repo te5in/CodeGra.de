@@ -8,26 +8,23 @@ const getters = {
 };
 
 const actions = {
-    setFontSize({ commit }, fontSize) {
-        commit(types.UPDATE_FONT_SIZE, fontSize);
+    setFontSize({ commit }, val) {
+        commit(types.UPDATE_PREF, { key: 'fontSize', val });
     },
-    setContextAmount({ commit }, contextAmount) {
-        commit(types.UPDATE_CONTEXT_AMOUNT, contextAmount);
+    setContextAmount({ commit }, val) {
+        commit(types.UPDATE_PREF, { key: 'contextAmount', val });
     },
-    setDarkMode({ commit }, darkMode) {
-        commit(types.UPDATE_DARK_MODE, darkMode);
+    setDarkMode({ commit }, val) {
+        commit(types.UPDATE_PREF, { key: 'darkMode', val });
     },
 };
 
 const mutations = {
-    [types.UPDATE_DARK_MODE](state, darkMode) {
-        state.darkMode = darkMode;
-    },
-    [types.UPDATE_FONT_SIZE](state, fontSize) {
-        state.fontSize = fontSize;
-    },
-    [types.UPDATE_CONTEXT_AMOUNT](state, contextAmount) {
-        state.contextAmount = contextAmount;
+    [types.UPDATE_PREF](state, { key, val }) {
+        if (!Object.hasOwnProperty.call(state, key)) {
+            throw new ReferenceError(`Invalid preference key: ${key}`);
+        }
+        state[key] = val;
     },
 };
 

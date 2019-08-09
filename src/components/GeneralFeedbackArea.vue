@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div class="general-feedback-area">
-    <textarea :placeholder="editable ? 'Feedback' : 'No feedback given :('"
+    <textarea :placeholder="placeholder"
               class="form-control"
               :rows="10"
               ref="field"
@@ -10,7 +10,7 @@
               @keydown.native.tab.capture="expandSnippet"
               v-if="editable"/>
     <pre class="feedback-field"
-         v-else>{{ feedback || 'No feedback given :(' }}</pre>
+         v-else>{{ feedback || placeholder }}</pre>
     <submit-button ref="submitButton"
                    :submit="submitFeedback"
                    @success="afterSubmitFeedback"
@@ -34,11 +34,11 @@ export default {
         },
         assignment: {
             type: Object,
-            default: null,
+            required: true,
         },
         submission: {
             type: Object,
-            default: null,
+            required: true,
         },
     },
 
@@ -47,6 +47,10 @@ export default {
             nameCurrentUser: 'name',
             userId: 'id',
         }),
+
+        placeholder() {
+            return this.feedback || 'No feedback given :(';
+        },
     },
 
     data() {
@@ -112,7 +116,6 @@ export default {
 @import '~mixins.less';
 
 .feedback-field {
-    max-height: 80vh;
     margin-bottom: 0;
     padding: 0.375rem 0.75rem;
     white-space: pre-wrap;

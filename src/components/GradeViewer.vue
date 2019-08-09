@@ -2,18 +2,17 @@
 <template>
 <div class="grade-viewer">
     <b-collapse id="rubric-collapse"
-                v-model="rubricOpen"
-                v-if="showRubric">
-        <rubric-viewer v-model="rubricPoints"
-                       :editable="editable"
-                       :assignment="assignment"
+                v-model="rubricOpen">
+        <rubric-viewer :assignment="assignment"
                        :submission="submission"
-                       :rubric="rubric"
+                       :editable="editable"
                        :visible="rubricOpen"
-                       ref="rubricViewer"/>
+                       @change="rubricGradeChanged"
+                       ref="rubricViewer"
+                       class="mb-3"/>
     </b-collapse>
 
-    <b-form-fieldset class="grade-fieldset">
+    <b-form-fieldset class="mb-0">
         <b-input-group>
             <b-input-group-prepend>
                 <submit-button ref="submitButton"
@@ -31,18 +30,16 @@
                    :readonly="!editable"
                    placeholder="Grade"
                    @keydown.enter="$refs.submitButton.onClick"
+                   @input="rubricOverridden = showRubric"
                    v-model="grade"/>
 
-            <b-input-group-append class="text-right rubric-score"
-                                  :class="{warning: rubricOverridden, 'help-cursor': rubricOverridden}"
-                                  style="text-align: center !important; display: inline;"
+            <b-input-group-append class="text-right rubric-score d-inline text-center"
+                                  :class="{ warning: rubricOverridden, 'help-cursor': rubricOverridden }"
                                   v-if="showRubric"
                                   is-text>
-                <span v-if="rubricOverridden"
-                      v-b-popover.top.hover="'Rubric grade was overridden.'">
+                <span v-b-popover.top.hover="rubricOverridden ? 'Rubric grade was overridden.' : ''">
                     {{ rubricScore }}
                 </span>
-                <span v-else>{{ rubricScore }}</span>
             </b-input-group-append>
 
             <b-input-group-append class="delete-button-group"
@@ -72,7 +69,7 @@
             </b-input-group-append>
 
             <b-input-group-append class="text-right rubric-score warning help-cursor"
-                                  v-if="isRubricChanged()"
+                                  v-if="isRubricChanged"
                                   is-text
                                   v-b-popover.hover.top="'Press the submit button to submit the changes.'">
                 The rubric is not saved yet!
@@ -83,13 +80,14 @@
 </template>
 
 <script>
+import { mapActions, mapGetters } from 'vuex';
+
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/th';
 import 'vue-awesome/icons/info';
 import 'vue-awesome/icons/refresh';
 import 'vue-awesome/icons/reply';
 import 'vue-awesome/icons/times';
-import { mapActions, mapGetters } from 'vuex';
 import { formatGrade, isDecimalNumber } from '@/utils';
 import RubricViewer from './RubricViewer';
 import SubmitButton from './SubmitButton';
@@ -108,30 +106,76 @@ export default {
         },
         assignment: {
             type: Object,
-            default: {},
+            required: true,
         },
         submission: {
             type: Object,
-            default: null,
-        },
-        rubric: {
-            type: Object,
-            default: {},
+            required: true,
         },
     },
 
     data() {
         return {
             grade: this.submission.grade,
-            rubricPoints: {},
-            rubricHasSelectedItems: false,
             rubricOpen: this.rubricStartOpen,
+            rubricOverridden: null,
         };
     },
 
     computed: {
+        ...mapGetters('rubrics', {
+            allRubrics: 'rubrics',
+            allRubricResults: 'results',
+        }),
+
+        rubric() {
+            return this.allRubrics[this.assignment.id];
+        },
+
+        rubricResult() {
+            return this.allRubricResults[this.submission.id];
+        },
+
+        rubricPoints() {
+            return this.rubricResult && this.rubricResult.points;
+        },
+
+        rubricGrade() {
+            if (this.rubric == null || this.rubricResult == null) {
+                return null;
+            }
+
+            let grade;
+            if (this.rubricResult.selected.length === 0) {
+                grade = null;
+            } else {
+                grade = Math.max(0, this.rubricPoints / this.rubric.maxPoints * 10);
+                grade = Math.min(grade, this.maxAllowedGrade || 10);
+            }
+
+            return formatGrade(grade);
+        },
+
+        isRubricChanged() {
+            const incremental = UserConfig.features.incremental_rubric_submission;
+            const show = this.showRubric;
+            const outOfSync = this.$utils.getProps(
+                this.$refs,
+                0,
+                'rubricViewer',
+                'outOfSync',
+                'size',
+            );
+
+            return !incremental && show && outOfSync;
+        },
+
+        rubricHasSelectedItems() {
+            return (this.rubricResult && this.rubricResult.points) != null;
+        },
+
         maxAllowedGrade() {
-            return this.assignment.max_grade == null ? 10 : this.assignment.max_grade;
+            return (this.assignment && this.assignment.max_grade) || 10;
         },
 
         deleteButtonText() {
@@ -161,25 +205,17 @@ export default {
         showDeleteButton() {
             if (!this.editable) {
                 return false;
+            } else if (this.rubricOverridden) {
+                return true;
+            } else if (this.showRubric) {
+                return this.rubricHasSelectedItems;
+            } else {
+                return this.grade != null;
             }
-            if (this.showRubric) {
-                return this.rubricHasSelectedItems || this.rubricOverridden;
-            }
-            return this.grade != null;
         },
 
         showRubric() {
-            return !!(this.rubric && this.rubric.rubrics.length);
-        },
-
-        rubricOverridden() {
-            if (!this.showRubric || this.grade == null) {
-                return false;
-            }
-            if (!this.rubricHasSelectedItems) {
-                return true;
-            }
-            return this.grade !== formatGrade(this.$refs.rubricViewer.grade);
+            return !!(this.rubric && this.rubric.rows.length);
         },
 
         rubricScore() {
@@ -190,61 +226,83 @@ export default {
                     .replace(/[.,]([0-9]*?)0*$/, '.$1')
                     .replace(/\.$/, '');
             };
-            const scored = toFixed(this.rubricPoints.selected);
-            const max = toFixed(this.rubricPoints.max);
+            const points = this.rubricPoints;
+            const scored = points ? toFixed(points) : 0;
+            const max = toFixed(this.rubric.maxPoints);
             return `${scored} / ${max}`;
         },
     },
 
     watch: {
-        submission() {
-            this.grade = formatGrade(this.submission.grade) || 0;
+        assignment: {
+            immediate: true,
+            handler() {
+                this.storeLoadRubric({
+                    assignmentId: this.assignment.id,
+                });
+            },
         },
 
-        rubric() {
-            if (this.showRubric) {
-                this.rubric.points.grade = this.grade;
-            }
-        },
-
-        rubricPoints({ selected, max, grade }) {
-            this.grade = formatGrade(grade) || null;
-            this.rubricHasSelectedItems = this.$refs.rubricViewer.hasSelectedItems;
-            this.rubricSelected = selected;
-            this.rubricTotal = max;
-            if (UserConfig.features.incremental_rubric_submission) {
-                this.gradeUpdated(false);
-            }
+        submission: {
+            immediate: true,
+            handler() {
+                const grade = this.submission.grade;
+                if (grade) {
+                    this.grade = formatGrade(grade);
+                    this.rubricOverridden = this.submission.grade_overridden ? true : null;
+                } else {
+                    this.grade = null;
+                }
+                this.storeLoadRubricResult({
+                    submissionId: this.submission.id,
+                });
+            },
         },
     },
 
     async mounted() {
-        if (this.showRubric) {
-            this.rubric.points.grade = this.grade;
-        }
-
-        this.$root.$on('open-rubric-category', this.openRubricCategory);
+        this.$root.$on('open-rubric-category', () => {
+            this.rubricOpen = true;
+        });
     },
 
     destroyed() {
-        this.$root.$off('open-rubric-category', this.openRubricCategory);
+        this.$root.$off('open-rubric-category');
     },
 
     methods: {
+        ...mapActions('courses', {
+            storeUpdateSubmission: 'updateSubmission',
+        }),
+
+        ...mapActions('rubrics', {
+            storeLoadRubric: 'loadRubric',
+            storeLoadRubricResult: 'loadResult',
+        }),
+
         gradeUpdated(overridden) {
-            this.$emit('gradeUpdated', {
-                grade: this.grade,
-                overridden,
+            this.rubricOverridden = overridden;
+            this.storeUpdateSubmission({
+                assignmentId: this.assignment.id,
+                submissionId: this.submission.id,
+                submissionProps: {
+                    grade: this.grade,
+                    grade_overridden: overridden,
+                },
             });
+        },
+
+        rubricGradeChanged() {
+            this.grade = this.rubricGrade;
+            this.rubricOverridden = false;
         },
 
         deleteGrade() {
             if (this.showRubric && !this.rubricOverridden) {
-                return this.$refs.rubricViewer.clearSelected();
-            } else if (this.isRubricChanged()) {
-                // The object passed must be structured like this...
-                this.grade = formatGrade(this.rubricPoints.grade);
-                return Promise.resolve({ data: {} });
+                return this.$refs.rubricViewer.clearSelected().then(this.rubricGradeChanged);
+            } else if (this.isRubricChanged) {
+                this.grade = this.rubricGrade;
+                return null;
             } else {
                 return this.$http.patch(`/api/v1/submissions/${this.submission.id}`, {
                     grade: null,
@@ -253,19 +311,24 @@ export default {
         },
 
         afterDeleteGrade(response) {
-            if (response.data.grade !== undefined) {
-                this.grade = formatGrade(response.data.grade) || null;
-                this.gradeUpdated(false);
+            const grade = response && response.data && response.data.grade;
+
+            if (grade !== undefined) {
+                this.grade = formatGrade(grade) || null;
             }
+
+            this.gradeUpdated(false);
         },
 
         putGrade() {
-            if (!isDecimalNumber(this.grade)) {
+            const grade = parseFloat(this.grade);
+
+            if (grade != null && !isDecimalNumber(grade)) {
                 throw new Error('Grade must be a number');
             }
 
-            const grade = parseFloat(this.grade);
-            const normalGrade = this.rubricOverridden || !this.showRubric;
+            const overridden = this.rubricOverridden;
+            const normalGrade = overridden || !this.showRubric;
 
             if (
                 !(grade >= 0 && grade <= this.maxAllowedGrade) &&
@@ -281,10 +344,8 @@ export default {
                 req = this.$refs.rubricViewer.submitAllItems().then(() => false);
             }
 
-            if (!this.showRubric || this.rubricOverridden) {
-                req = req
-                    .then(() => this.submitNormalGrade(grade))
-                    .then(() => this.rubricOverridden);
+            if (!this.showRubric || overridden) {
+                req = req.then(() => this.submitNormalGrade(grade)).then(() => overridden);
             }
 
             return req;
@@ -296,27 +357,6 @@ export default {
                 .then(() => {
                     this.grade = formatGrade(grade);
                 });
-        },
-
-        ...mapActions({
-            refreshSnippets: 'user/refreshSnippets',
-        }),
-
-        ...mapGetters({
-            snippets: 'user/snippets',
-        }),
-
-        isRubricChanged() {
-            return (
-                this.showRubric &&
-                this.$refs.rubricViewer &&
-                !UserConfig.features.incremental_rubric_submission &&
-                this.$refs.rubricViewer.outOfSync.size > 0
-            );
-        },
-
-        openRubricCategory() {
-            this.rubricOpen = true;
         },
     },
 
@@ -331,53 +371,15 @@ export default {
 <style lang="less" scoped>
 @import '~mixins.less';
 
-input {
-    &:read-only {
-        &:focus {
-            box-shadow: none !important;
-        }
-        color: black;
-        background-color: white;
-        cursor: text;
-        pointer-events: all;
-        user-select: initial;
-    }
-}
-
-.out-of-sync-alert {
-    max-height: 3.2em;
-    overflow-x: hidden;
-
-    transition-property: all;
-    transition-duration: 0.5s;
-    margin-bottom: 1rem;
-    transition-timing-function: cubic-bezier(0, 1, 0.5, 1);
-
-    &.closed {
-        max-height: 0;
-        border-color: transparent;
-        background: none;
-        padding-top: 0;
-        padding-bottom: 0;
-        margin-bottom: 0;
-    }
-}
-
-.grade-fieldset {
-    margin-bottom: 0;
+input:read-only {
+    color: black;
+    background-color: white;
+    cursor: text;
+    pointer-events: all;
+    user-select: initial;
 }
 
 .help-cursor {
     cursor: help;
-}
-
-.rubric-viewer {
-    margin-bottom: 1rem;
-}
-</style>
-
-<style lang="less">
-.grade-viewer .grade-submit .loader {
-    height: 1.25rem;
 }
 </style>

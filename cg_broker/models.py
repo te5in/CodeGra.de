@@ -32,7 +32,7 @@ def init_app(flask_app: BrokerFlask) -> None:
 if t.TYPE_CHECKING:  # pragma: no cover
     from cg_sqlalchemy_helpers.types import Base
 else:
-    Base: cgs.types.Base = db.Model  # type: ignore # pylint: disable=invalid-name
+    Base: cgs.types.Base = db.Model  # pylint: disable=invalid-name
 
 _T = t.TypeVar('_T', bound='Base')
 

@@ -43,7 +43,7 @@ def get_all_roles() -> JSONResponse[t.Sequence[t.Mapping[str, t.Any]]]:
         ``can_manage_site_users`` permission. (INCORRECT_PERMISSION)
     """
     roles: t.Sequence[models.Role]
-    roles = models.Role.query.order_by(models.Role.name).all()  # type: ignore
+    roles = models.Role.query.order_by(models.Role.name).all()
 
     res = []
     for role in roles:

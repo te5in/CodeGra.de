@@ -70,7 +70,7 @@
 
             <b-card-body v-if="test == null"
                          class="text-muted font-italic">
-                This assignment does not yet have an AutoTest configuration.
+                This assignment does not have an AutoTest configuration.
             </b-card-body>
             <b-card-body v-else class="p-3">
                 <b-card no-body class="setup-env-wrapper mb-3">
@@ -252,7 +252,6 @@
                                                                    :start-line="0"
                                                                    :show-whitespace="true"
                                                                    :warn-no-newline="false"
-                                                                   :font-size="codeFontSize"
                                                                    :empty-file-message="'No output.'" />
                                             </b-tab>
 
@@ -265,7 +264,6 @@
                                                                    :start-line="0"
                                                                    :show-whitespace="true"
                                                                    :warn-no-newline="false"
-                                                                   :font-size="codeFontSize"
                                                                    :empty-file-message="'No output.'" />
                                             </b-tab>
                                         </b-tabs>
@@ -318,7 +316,6 @@
                                                                    :start-line="0"
                                                                    :show-whitespace="true"
                                                                    :warn-no-newline="false"
-                                                                   :font-size="codeFontSize"
                                                                    :empty-file-message="'No output.'" />
                                             </b-tab>
 
@@ -331,7 +328,6 @@
                                                                    :start-line="0"
                                                                    :show-whitespace="true"
                                                                    :warn-no-newline="false"
-                                                                   :font-size="codeFontSize"
                                                                    :empty-file-message="'No output.'" />
                                             </b-tab>
                                         </b-tabs>
@@ -412,8 +408,7 @@
                                :feedback="{}"
                                :start-line="0"
                                :show-whitespace="true"
-                               :warn-no-newline="false"
-                               :font-size="codeFontSize" />
+                               :warn-no-newline="false" />
         </template>
 
         <b-button-toolbar slot="modal-footer">
@@ -430,8 +425,7 @@
     <rubric-viewer v-if="singleResult && showRubric"
                    class="mx-3 mb-3"
                    :assignment="assignment"
-                   :submission="resultSubmission"
-                   :rubric="rubricResult" />
+                   :submission="resultSubmission" />
 </div>
 </template>
 
@@ -506,7 +500,6 @@ export default {
             currentResult: null,
             pollingInterval: 5000,
             pollingTimer: null,
-            codeFontSize: 14,
 
             showCreateButton: !autoTestId,
             configCollapsed: autoTestId && !singleResult,
@@ -567,7 +560,10 @@ export default {
     },
 
     methods: {
-        ...mapActions('courses', ['forceLoadSubmissions']),
+        ...mapActions('courses', {
+            storeForceLoadSubmissions: 'forceLoadSubmissions',
+            storeLoadSubmissions: 'loadSubmissions',
+        }),
 
         ...mapActions('autotest', {
             storeCreateAutoTest: 'createAutoTest',
@@ -595,13 +591,13 @@ export default {
         },
 
         afterRunAutoTest() {
-            this.forceLoadSubmissions(this.assignmentId);
+            this.storeForceLoadSubmissions(this.assignmentId);
             this.configCollapsed = true;
             this.pollingTimer = setTimeout(this.loadAutoTestRun, this.pollingInterval);
         },
 
         loadAutoTest() {
-            const promises = [this.forceLoadSubmissions(this.assignmentId)];
+            const promises = [this.storeLoadSubmissions(this.assignmentId)];
 
             if (!this.canViewAutoTest) {
                 this.message = {
@@ -645,7 +641,7 @@ export default {
             }).then(
                 () => {
                     if (this.autoTestRun.finished) {
-                        this.forceLoadSubmissions(this.assignment.id);
+                        this.storeForceLoadSubmissions(this.assignment.id);
                     } else {
                         this.pollingTimer = setTimeout(this.loadAutoTestRun, this.pollingInterval);
                     }
@@ -902,11 +898,6 @@ export default {
             storeResults: 'results',
         }),
 
-        ...mapGetters('rubrics', {
-            storeRubrics: 'rubrics',
-            storeRubricResults: 'results',
-        }),
-
         permissions() {
             return this.$utils.getProps(this, {}, 'assignment', 'course', 'permissions');
         },
@@ -951,19 +942,6 @@ export default {
                 return null;
             }
             return this.test.runs[0].results.find(r => r.submissionId === this.submissionId);
-        },
-
-        rubricResult() {
-            const rubric = this.storeRubrics[this.assignmentId];
-            const result = this.storeRubricResults[this.submissionId];
-
-            if (rubric == null || result == null) {
-                return null;
-            }
-
-            return Object.assign({}, result, {
-                rubrics: this.$utils.deepCopy(rubric),
-            });
         },
 
         testSuites() {

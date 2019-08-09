@@ -14,30 +14,30 @@
                 slot="extra"
                 class="cat-selector"
                 v-model="selectedCat"
-                default="Members"
+                default="members"
                 :categories="categories"/>
         </template>
     </local-header>
 
     <loader v-if="!course" page-loader/>
     <div class="content" v-else>
-        <users-manager :class="{ hidden: selectedCat !== 'Members'}"
+        <users-manager :class="{ hidden: selectedCat !== 'members'}"
                        class="cat-wrapper"
                        v-if="membersEnabled"
                        :course="course"
                        :filter="filter"/>
-        <permissions-manager :class="{ hidden: selectedCat !== 'Permissions' }"
+        <permissions-manager :class="{ hidden: selectedCat !== 'permissions' }"
                              v-if="permissionsEnabled"
                              class="cat-wrapper"
                              :course-id="course.id"
                              :filter="filter"/>
-        <span :class="{ hidden: selectedCat !== 'Groups' }"
+        <span :class="{ hidden: selectedCat !== 'groups' }"
               v-if="groupsEnabled"
               class="cat-wrapper">
             <group-set-manager :course="course"/>
         </span>
 
-        <span :class="{ hidden: selectedCat !== 'Snippets' }"
+        <span :class="{ hidden: selectedCat !== 'snippets' }"
               class="cat-wrapper">
             <snippet-manager
                 v-if="snippetsEnabled"
@@ -109,18 +109,22 @@ export default {
         categories() {
             return [
                 {
+                    id: 'members',
                     name: 'Members',
                     enabled: this.membersEnabled,
                 },
                 {
+                    id: 'permissions',
                     name: 'Permissions',
                     enabled: this.permissionsEnabled,
                 },
                 {
+                    id: 'groups',
                     name: 'Groups',
                     enabled: this.groupsEnabled,
                 },
                 {
+                    id: 'snippets',
                     name: 'Snippets',
                     enabled: this.snippetsEnabled,
                 },

@@ -219,20 +219,6 @@ export function highlightCode(sourceArr, language, maxLen = 5000) {
     });
 }
 
-export function loadCodeAndFeedback(http, fileId) {
-    return Promise.all([
-        http.get(`/api/v1/code/${fileId}`),
-        http.get(`/api/v1/code/${fileId}?type=feedback`).catch(() => ({
-            data: {},
-        })),
-    ]).then(
-        ([{ data: code }, { data: feedback }]) => ({ code, feedback }),
-        ({ response: { data: { message } } }) => {
-            throw message;
-        },
-    );
-}
-
 export function getProps(object, defaultValue, ...props) {
     let res = object;
     for (let i = 0; res != null && i < props.length; ++i) {
@@ -331,4 +317,20 @@ export function downloadFile(data, filename, contentType) {
             URL.revokeObjectURL(url);
         }, 0);
     }
+}
+
+export function deepExtend(target, ...sources) {
+    sources.forEach(source => {
+        Object.entries(source).forEach(([key, val]) => {
+            if (typeof val === 'object' && !Array.isArray(val)) {
+                if (!target[key]) {
+                    target[key] = {};
+                }
+                deepExtend(target[key], val);
+            } else {
+                target[key] = val;
+            }
+        });
+    });
+    return target;
 }

@@ -23,7 +23,7 @@ if t.TYPE_CHECKING and getattr(
 
     current_app: 'psef.Flask'
 else:
-    from flask import Flask, current_app  # type: ignore
+    from flask import Flask, current_app
 
 
 class PsefFlask(Flask):

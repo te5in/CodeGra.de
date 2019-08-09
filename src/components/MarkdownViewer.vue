@@ -1,35 +1,28 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
-<div class="markdown-viewer">
-    <loader v-if="loading"/>
-    <b-alert class="error" variant="danger" show v-else-if="error">
-        {{ error }}
-    </b-alert>
-    <floating-feedback-button
-        v-else
-        class="feedback-button-wrapper"
-        :style="{ fontSize: `${fontSize}px`}"
-        :fileId="fileId"
-        :line="0"
-        :feedback="feedback"
-        @set-feedback="feedback = $event"
-        :editable="editable"
-        :can-use-snippets="canUseSnippets"
-        :assignment="assignment"
-        slot-description="file"
-        snippet-field-above
-        always-show-button>
-        <div class="scroller form-control"
-             :style="{ fontSize: `${fontSize}px`}">
-            <inner-markdown-viewer :markdown="data"
-                                   :show-code-whitespace="showWhitespace"/>
-        </div>
-    </floating-feedback-button>
-</div>
+<floating-feedback-button
+    class="markdown-viewer"
+    :style="{ fontSize: `${fontSize}px`}"
+    :fileId="fileId"
+    :line="line"
+    :feedback="feedback"
+    :editable="editable"
+    :can-use-snippets="canUseSnippets"
+    :assignment="assignment"
+    :submission="submission"
+    slot-description="file"
+    snippet-field-above
+    always-show-button
+    add-space>
+    <inner-markdown-viewer v-if="data"
+                           class="py-2 px-3"
+                           :markdown="data"
+                           :show-code-whitespace="showWhitespace"/>
+</floating-feedback-button>
 </template>
 
 <script>
-import { loadCodeAndFeedback } from '@/utils';
+import { mapGetters } from 'vuex';
 
 import InnerMarkdownViewer from './InnerMarkdownViewer';
 import FloatingFeedbackButton from './FloatingFeedbackButton';
@@ -41,11 +34,11 @@ export default {
     props: {
         assignment: {
             type: Object,
-            default: null,
+            required: true,
         },
         submission: {
             type: Object,
-            default: null,
+            required: true,
         },
         file: {
             type: Object,
@@ -54,10 +47,6 @@ export default {
         editable: {
             type: Boolean,
             default: false,
-        },
-        fontSize: {
-            type: Number,
-            default: 12,
         },
         showWhitespace: {
             type: Boolean,
@@ -71,47 +60,54 @@ export default {
 
     data() {
         return {
-            loading: true,
             data: null,
-            feedback: {},
-            error: null,
         };
     },
 
     computed: {
+        ...mapGetters('pref', ['fontSize']),
+
         fileId() {
             return this.file.id || this.file.ids[0] || this.file.ids[1];
+        },
+
+        line() {
+            return 0;
+        },
+
+        feedback() {
+            return this.$utils.getProps(
+                this.submission,
+                {},
+                'feedback',
+                'user',
+                this.fileId,
+                this.line,
+            );
         },
     },
 
     methods: {
         loadCode() {
-            this.loading = true;
-            this.data = {};
-            this.error = null;
-            loadCodeAndFeedback(this.$http, this.fileId)
-                .then(
-                    ({ code, feedback }) => {
-                        this.data = code;
-                        this.feedback = feedback['0'];
-                    },
-                    err => {
-                        this.error = err;
-                    },
-                )
-                .then(() => {
-                    this.loading = false;
-                });
+            this.data = '';
+            this.$http.get(`/api/v1/code/${this.fileId}`).then(
+                ({ data }) => {
+                    this.data = data;
+                    this.$emit('load');
+                },
+                err => {
+                    this.$emit('error', this.$utils.getErrorMessage(err));
+                },
+            );
         },
     },
 
-    mounted() {
-        this.loadCode();
-    },
-
     watch: {
-        fileId() {
-            this.loadCode();
+        fileId: {
+            immediate: true,
+            handler() {
+                this.loadCode();
+            },
         },
     },
 
@@ -122,43 +118,3 @@ export default {
     },
 };
 </script>
-
-<style lang="less" scoped>
-@import '~mixins.less';
-.markdown-viewer {
-    padding-right: 2px;
-    padding-bottom: 1px;
-    position: relative;
-}
-
-.scroller {
-    padding: 1rem;
-    width: 100%;
-    height: 100%;
-
-    overflow: auto;
-
-    // Fixes performance issues on scrolling because the entire
-    // code viewer isn't repainted anymore.
-    will-change: transform;
-
-    @media @media-no-large {
-        flex: 0 1 auto;
-        flex: 0 1 -webkit-max-content;
-        flex: 0 1 -moz-max-content;
-        flex: 0 1 max-content;
-    }
-}
-
-.feedback-button-wrapper {
-    max-height: 100%;
-    display: flex;
-    flex-direction: column;
-}
-</style>
-
-<style lang="less">
-.markdown-viewer .floating-feedback-button .feedback-button {
-    margin: 1rem;
-}
-</style>

@@ -1,13 +1,13 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div class="categories">
-    <div class="category"
-         :class="{selected: cat.name === value}"
+    <div class="category align-self-stretch"
+         :class="{selected: cat.id === value}"
          v-for="cat in categories"
          v-if="cat.enabled"
-         @click="processInput(cat.name, false)"
-         :key="cat.name">
-        <span>{{ cat.name }}</span>
+         @click="processInput(cat.id, false)"
+         :key="cat.id">
+        <span v-html="categoryName(cat)"/>
         <div class="indicator"/>
     </div>
 </div>
@@ -22,12 +22,10 @@ export default {
             type: String,
             required: true,
         },
-
         categories: {
             type: Array,
             required: true,
         },
-
         default: {
             type: String,
             required: true,
@@ -52,10 +50,10 @@ export default {
             let val = decodeURI(newVal.hash && newVal.hash.slice(1)) || this.default;
             if (val !== this.value) {
                 // Selected value is not available
-                if (!this.enabledCats.find(x => x.name === val)) {
+                if (!this.enabledCats.find(x => x.id === val)) {
                     // Keep the same value
                     if (
-                        this.enabledCats.find(x => x.name === this.value) ||
+                        this.enabledCats.find(x => x.id === this.value) ||
                         this.enabledCats.length === 0
                     ) {
                         val = this.value;
@@ -77,21 +75,29 @@ export default {
             if (this.enabledCats.length === 0) {
                 return this.default;
             }
-            const hasDefault = this.enabledCats.filter(cat => cat.name === this.default).length > 0;
+            const hasDefault = this.enabledCats.filter(cat => cat.id === this.default).length > 0;
             if (hasDefault) {
                 return this.default;
             }
-            return this.enabledCats[0].name;
+            return this.enabledCats[0].id;
         },
 
-        processInput(catName, forceEmit) {
-            if (forceEmit || catName !== this.value) {
+        processInput(catId, forceEmit) {
+            if (forceEmit || catId !== this.value) {
                 this.$router.replace(
                     Object.assign({}, this.$route, {
-                        hash: `#${catName || this.default}`,
+                        hash: `#${catId || this.default}`,
                     }),
                 );
-                this.$emit('input', catName);
+                this.$emit('input', catId);
+            }
+        },
+
+        categoryName(cat) {
+            if (typeof cat.name === 'function') {
+                return cat.name();
+            } else {
+                return cat.name;
             }
         },
     },
@@ -113,6 +119,7 @@ export default {
     line-height: 1rem;
     padding: 0 1rem;
     cursor: pointer;
+    position: relative;
 
     .categories:last-child & {
         margin-bottom: -1rem;
@@ -123,7 +130,10 @@ export default {
     }
 
     .indicator {
+        position: absolute;
+        bottom: 0;
         border-bottom: 2px solid transparent;
+        left: 12.5%;
         width: 75%;
         margin: 0 auto;
     }

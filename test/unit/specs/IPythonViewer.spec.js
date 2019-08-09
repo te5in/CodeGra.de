@@ -19,7 +19,7 @@ function jsonCopy(src) {
     return JSON.parse(JSON.stringify(src));
 }
 
-describe('Submission.vue', () => {
+describe('IPythonViewer.vue', () => {
     let wrapper;
     let comp;
 
@@ -54,7 +54,15 @@ describe('Submission.vue', () => {
 
         curId = 1;
         assignment = { id: curId++ };
-        submission = { id: curId++ };
+        submission = {
+            id: curId++,
+            feedback: {
+                general: '',
+                authos: {},
+                user: {},
+                linter: {},
+            },
+        };
         file = { id: curId++ };
 
         mockGet = jest.fn(async (path, opts) => new Promise((resolve, reject) => {
@@ -85,6 +93,21 @@ describe('Submission.vue', () => {
                 showWhitespace: true,
                 canUseSnippets: true,
             },
+            store: new Vuex.Store({
+                modules: {
+                    pref: {
+                        namespaced: true,
+                        state: {
+                            contextAmount: 2,
+                            fontSize: 12,
+                        },
+                        getters: {
+                            contextAmount: state => state.contextAmount,
+                            fontSize: state => state.fontSize,
+                        },
+                    },
+                },
+            }),
         });
         comp = wrapper.vm;
     });
@@ -194,6 +217,14 @@ describe('Submission.vue', () => {
     });
 
     describe('loadCode', () => {
+        let emitMock;
+
+        beforeEach(() => {
+            const oldEmit = comp.$emit;
+            emitMock = jest.fn(err => oldEmit.call(comp, err));
+            comp.$emit = emitMock;
+        });
+
         it('should work when the api fails', async () => {
             const errMsg = `WAAA A ERROR!!!${Math.random()}`;
             mockGet.mockImplementation(() => new Promise((_, reject) => reject({
@@ -204,18 +235,17 @@ describe('Submission.vue', () => {
 
             await setData([]);
 
-            expect(comp.error).toBe(errMsg);
+            expect(emitMock).toBeCalledWith('error', errMsg);
         });
 
         it('should work when the api returns invalid JSON', async () => {
-            const errMsg = `WAAA A ERROR!!!${Math.random()}`;
             mockGet.mockImplementation(() => new Promise((resolve) => resolve({
                 data: 'THIS IS NOT JSON!',
             })));
 
             await setData([]);
 
-            expect(comp.error).toBe(comp.invalidJsonMessage);
+            expect(emitMock).toBeCalledWith('error', comp.invalidJsonMessage);
         });
     });
 

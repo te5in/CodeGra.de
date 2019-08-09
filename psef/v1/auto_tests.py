@@ -318,7 +318,7 @@ def update_auto_test_set(auto_test_id: int, auto_test_set_id: int
     with get_from_map_transaction(get_json_dict_from_request()) as [_, opt]:
         stop_points = t.cast(
             t.Optional[float], opt('stop_points', numbers.Real, None)
-        )  # type: ignore
+        )
 
     if stop_points is not None:
         if stop_points < 0:
@@ -417,7 +417,7 @@ def update_or_create_auto_test_suite(auto_test_id: int, auto_test_set_id: int
         suite_id = opt('id', int, None)
         time_limit = t.cast(
             t.Optional[float],
-            opt('command_time_limit', numbers.Real, None)  # type: ignore
+            opt('command_time_limit', numbers.Real, None),
         )
 
     if suite_id is None:

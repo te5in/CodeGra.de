@@ -20,7 +20,7 @@
             <hr class="separator bottom-separator"/>
 
             <div class="cat-container">
-                <b-input-group v-if="selectedCat === 'Search'"
+                <b-input-group v-if="selectedCat === 'search'"
                                class="search-wrapper">
                     <input v-model="filter"
                            class="form-control"
@@ -44,7 +44,7 @@
                     </b-input-group-append>
                 </b-input-group>
 
-                <div v-if="selectedCat === 'Rubric'">
+                <div v-if="selectedCat === 'rubric'">
                     <rubric-editor v-if="assignment.rubric != null"
                                    :editable="false"
                                    :defaultRubric="rubric"
@@ -54,7 +54,7 @@
                     </div>
                 </div>
 
-                <div v-if="selectedCat === 'Hand-in instructions'">
+                <div v-if="selectedCat === 'hand-in-instructions'">
                     <c-g-ignore-file v-if="assignment.cgignore"
                                      :assignmentId="assignment.id"
                                      :editable="false"
@@ -64,7 +64,7 @@
                     </div>
                 </div>
 
-                <submissions-exporter v-if="selectedCat === 'Export'"
+                <submissions-exporter v-if="selectedCat === 'export'"
                                       :get-submissions="filter => filter ? filteredSubmissions : submissions"
                                       :assignment-id="assignment.id"
                                       :filename="exportFilename"/>
@@ -156,7 +156,6 @@ import 'vue-awesome/icons/clock-o';
 import { waitAtLeast, formatGrade, parseBool, nameOfUser } from '@/utils';
 import { filterSubmissions, sortSubmissions } from '@/utils/FilterSubmissionsManager';
 
-import * as assignmentState from '@/store/assignment-states';
 import SubmissionsExporter from './SubmissionsExporter';
 import Loader from './Loader';
 import SubmitButton from './SubmitButton';
@@ -254,18 +253,22 @@ export default {
         categories() {
             return [
                 {
+                    id: 'search',
                     name: 'Search',
                     enabled: true,
                 },
                 {
+                    id: 'rubric',
                     name: 'Rubric',
                     enabled: true,
                 },
                 {
+                    id: 'hand-in-instructions',
                     name: 'Hand-in instructions',
                     enabled: true,
                 },
                 {
+                    id: 'export',
                     name: 'Export',
                     enabled: this.canDownload,
                 },
@@ -274,11 +277,11 @@ export default {
 
         defaultCat() {
             if (!this.canSeeOthersWork && this.assignment.rubric != null) {
-                return 'Rubric';
+                return 'rubric';
             } else if (!this.canSeeOthersWork && this.assignment.cgignore) {
-                return 'Hand-in requirements';
+                return 'hand-in-requirements';
             } else {
-                return 'Search';
+                return 'search';
             }
         },
 
@@ -413,10 +416,6 @@ export default {
                     // Fuck you bootstrapVue (sortDesc should've been sortAsc)
                     sortBy: this.$refs.table.sortBy,
                     sortAsc: !this.$refs.table.sortDesc,
-                    overview:
-                        this.assignment.state === assignmentState.DONE && submission.grade != null
-                            ? 0
-                            : -1,
                 },
             });
         },

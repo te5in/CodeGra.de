@@ -127,12 +127,17 @@ export default {
             if (sub == null) {
                 return;
             }
-            this.$router.push({
-                params: Object.assign({}, this.$route.params, {
-                    submissionId: sub.id,
+
+            this.$router.push(
+                this.$utils.deepExtend({}, this.$route, {
+                    name: 'submission',
+                    params: {
+                        submissionId: sub.id,
+                        fileId: undefined,
+                    },
+                    hash: undefined,
                 }),
-                query: this.$route.query,
-            });
+            );
         },
 
         generatePopoverTitle(sub) {

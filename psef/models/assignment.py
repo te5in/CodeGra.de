@@ -949,7 +949,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
 
     def get_from_latest_submissions(  # pylint: disable=function-redefined
         self,
-        *to_query: t.Any  # type: ignore
+        *to_query: t.Any
     ) -> MyQuery[t.Any]:
         """Get the given fields from all last submitted submissions.
 
@@ -962,7 +962,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
             func.max(work_models.Work.created_at).label('max_date')
         ).filter_by(assignment_id=self.id).group_by(work_models.Work.user_id
                                                     ).subquery('sub')
-        return db.session.query(*to_query).select_from(work_models.Work).join(  # type: ignore
+        return db.session.query(*to_query).select_from(work_models.Work).join(
             sub,
             and_(
                 sub.c.user_id == work_models.Work.user_id,
@@ -1336,7 +1336,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
             course_permissions.c.permission_id == Permission.id,
         ).filter(
             CourseRole.course_id == self.course_id,
-            Permission[CPerm].value == CPerm.can_grade_work,  # type: ignore
+            Permission[CPerm].value == CPerm.can_grade_work,
         ).subquery('graders')
 
         res = db.session.query(

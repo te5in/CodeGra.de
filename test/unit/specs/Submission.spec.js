@@ -1,5 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import Submission from '@/pages/Submission';
+import * as assignmentState from '@/store/assignment-states';
+import { FileTree, Feedback } from '@/models/submission';
+
 import { shallowMount, createLocalVue } from '@vue/test-utils';
 import VueRouter from 'vue-router';
 import Vuex from 'vuex';
@@ -23,6 +26,8 @@ describe('Submission.vue', () => {
     let courses;
     let submissions;
     let mockLoadSubs;
+    let mockLoadTree;
+    let mockLoadFeedback;
     let wrapper;
     let comp;
     let tree1;
@@ -33,6 +38,12 @@ describe('Submission.vue', () => {
     let $router;
     let mockGet;
     let rubric = {};
+    let feedback = {
+        general: {},
+        authors: {},
+        user: {},
+        linter: {},
+    };
 
     beforeEach(() => {
         tree1 = {
@@ -50,7 +61,6 @@ describe('Submission.vue', () => {
                 },
             ],
         };
-
 
         tree2 = jsonCopy(tree1);
         tree2.entries.splice(0, 1);
@@ -75,7 +85,12 @@ describe('Submission.vue', () => {
         });
 
         const user = {id: 1000};
-        submissions = [{id: 1, user}, {id: 2, user}, {id: 3, user}, {id: 4, user}];
+        submissions = [
+            { id: 1, user, grade: null, feedback: null, fileTree: null },
+            { id: 2, user, grade: null, feedback: null, fileTree: null },
+            { id: 3, user, grade: null, feedback: null, fileTree: null },
+            { id: 4, user, grade: null, feedback: null, fileTree: null },
+        ];
         courses = {
             1: {
                 assignments: [{
@@ -87,7 +102,40 @@ describe('Submission.vue', () => {
         };
         courses[1].assignments.forEach(assig => { assig.course = courses[1]; });
 
+        mockGet = jest.fn(async (path, opts) => new Promise((resolve) => {
+            let res;
+            if (/^.api.v1.submissions.[0-9]+.files./.test(path)) {
+                if (opts && opts.params.owner === 'teacher') {
+                    res = jsonCopy(tree2);
+                } else {
+                    res = jsonCopy(tree1);
+                }
+            } else if (/^.api.v1.submissions.[0-9]+.rubrics./.test(path)) {
+                res = rubric;
+            } else if (/^.api.v1.submissions.[0-9]+.feedbacks./.test(path)) {
+                res = feedback;
+            }
+            resolve({ data: res });
+        }));
+
         mockLoadSubs = jest.fn(() => Promise.resolve(true));
+        mockLoadTree = jest.fn((context, { submissionId }) => {
+            return Promise.all([
+                mockGet(`/api/v1/submissions/${submissionId}/files/`),
+                mockGet(`/api/v1/submissions/${submissionId}/files/`, {
+                    params: { owner: 'teacher' },
+                }),
+            ]).then(([student, teacher]) => {
+                const sub = submissions.find(x => x.id === submissionId);
+                sub.fileTree = new FileTree(student.data, teacher.data);
+            });
+        });
+        mockLoadFeedback = jest.fn((context, { submissionId }) =>
+            mockGet(`/api/v1/submissions/${submissionId}/feedbacks/`).then(({ data }) => {
+                const sub = submissions.find(x => x.id === submissionId);
+                sub.feedback = new Feedback(data);
+            }),
+        );
 
         store = new Vuex.Store({
             modules: {
@@ -101,6 +149,8 @@ describe('Submission.vue', () => {
                     },
                     actions: {
                         loadSubmissions: mockLoadSubs,
+                        loadSubmissionFileTree: mockLoadTree,
+                        loadSubmissionFeedback: mockLoadFeedback,
                     },
                     namespaced: true,
                 },
@@ -115,31 +165,19 @@ describe('Submission.vue', () => {
 
         $route = {
             query: {
+                revision: undefined,
             },
             params: {
                 courseId: '1',
                 assignmentId: '2',
                 submissionId: '3',
+                fileId: undefined,
             },
         };
         $router = {
             push: jest.fn(),
             replace: jest.fn(),
         };
-
-        mockGet = jest.fn(async (path, opts) => new Promise((resolve) => {
-            let res;
-            if (/^.api.v1.submissions.[0-9]+.files./.test(path)) {
-                if (opts && opts.params.owner === 'teacher') {
-                    res = jsonCopy(tree2);
-                } else {
-                    res = jsonCopy(tree1);
-                }
-            } else if (/^.api.v1.submissions.[0-9]+.rubrics./.test(path)) {
-                res = rubric;
-            }
-            resolve({ data: res });
-        }));
 
         wrapper = shallowMount(Submission, {
             store,
@@ -175,9 +213,9 @@ describe('Submission.vue', () => {
             $route.params.courseId = 'hello';
             $route.params.submissionId = 'hello';
 
-            expect(isNaN(comp.courseId)).toBe(true);
-            expect(isNaN(comp.submissionId)).toBe(true);
-            expect(isNaN(comp.assignmentId)).toBe(true);
+            expect(comp.courseId).toBeNaN();
+            expect(comp.assignmentId).toBeNaN();
+            expect(comp.submissionId).toBeNaN();
         });
 
         it('objects should be retrieved from the store or default', () => {
@@ -192,192 +230,93 @@ describe('Submission.vue', () => {
             $route.params.courseId = 'hello';
             $route.params.submissionId = 'hello';
 
-            expect(comp.assignment).toBe(null);
-            expect(comp.submissions).toEqual([]);
-            expect(comp.submission).toBe(null);
+            expect(comp.assignment).toBeNull();
+            expect(comp.submissions).toHaveLength(0);
+            expect(comp.submission).toBeNull();
         });
 
-        it('booleans should be booleans', () => {
-            expect(comp.diffMode).toBe(false);
-            expect(comp.warnComment).toBe(false);
-            expect(comp.overviewMode).toBe(false);
+        describe('prefFileId', () => {
+            it('should equal fileId if the selected category is "Code"', () => {
+                comp.selectedCat = 'code';
+                expect(comp.prefFileId).toBeNull();
 
-            comp.canSeeFeedback = false;
-            expect(comp.overviewMode).toBe(false);
+                $route.params.fileId = 4;
+                expect(comp.prefFileId).toBe(comp.fileId);
+            });
 
-            comp.canSeeFeedback = true;
-            comp.$set($route.query, 'overview', 0);
-            expect(comp.overviewMode).toBe(true);
+            it('should be a number if the selected category is "Feedback Overview"', () => {
+                comp.selectedCat = 'feedback-overview';
+                expect(comp.prefFileId).toMatch(/^\d+-feedback-overview$/);
+            });
+
+            it('should be a number if the selected category is "AutoTest"', () => {
+                comp.selectedCat = 'auto-test';
+                expect(comp.prefFileId).toMatch(/^\d+-auto-test$/);
+            });
+
+            it('should be a number if the selected category is "Teacher Diff"', () => {
+                comp.selectedCat = 'teacher-diff';
+                expect(comp.prefFileId).toMatch(/^\d+-teacher-diff$/);
+            });
+        });
+
+        describe('revision', () => {
+            it('should default to "student"', () => {
+                delete $route.query.revision;
+                expect(comp.revision).toBe('student');
+            });
+
+            it.each(['student', 'teacher', 'diff'])('should take the value from the route', (rev) => {
+                $route.query.revision = rev;
+                expect(comp.revision).toBe(rev);
+            });
+        });
+
+        describe('defaultCat', () => {
+            it('should be "Feedback Overview" when a submission is graded and the user can view the feedback', () => {
+                comp.canSeeFeedback = true;
+
+                for (let i = 0; i <= 10; i++) {
+                    comp.submission.grade = i;
+                    expect(comp.defaultCat).toBe('feedback-overview');
+                }
+            });
+
+            it('should be "Code" when a submission is not graded or the user cannot view the feedback', () => {
+                comp.canSeeFeedback = false;
+                comp.submission.grade = null;
+
+                expect(comp.defaultCat).toBe('code');
+
+                for (let i = 0; i <= 10; i++) {
+                    comp.submission.grade = i;
+                    expect(comp.defaultCat).toBe('code');
+                }
+
+                comp.canSeeFeedback = true;
+                comp.submission.grade = null;
+
+                expect(comp.defaultCat).toBe('code');
+            });
         });
     });
 
     describe('Watchers', () => {
-        it('submission should be watched', async () => {
-            await comp.$nextTick();
-            for (let i = 0; i < 10 && comp.loadingInner; i++) {
-                await comp.$nextTick();
-            }
-            expect(comp.loadingInner).toBe(false);
+        it('should reload submissions when assignmentId changes', () => {
+            expect(mockLoadSubs).toBeCalledTimes(1);
+            $route.params.assignmentId = '100';
+            expect(mockLoadSubs).toBeCalledTimes(2);
+        });
 
-            comp.matchFiles = jest.fn(() => ({}));
-            mockGet.mockClear();
+        it('should reload submission data when submissionId changes', async () => {
+            expect(mockLoadTree).toBeCalledTimes(1);
+            expect(mockLoadFeedback).toBeCalledTimes(1);
 
-            comp.$set($route.params, 'submissionId', 2);
-
-            await comp.$nextTick();
-            expect(comp.loadingInner).toBe(true);
-            expect(comp.loadingPage).toBe(false);
+            $route.params.submissionId = '4';
             await comp.$nextTick();
 
-            expect(mockGet).toBeCalledTimes(3);
-            expect(mockGet).toBeCalledWith('/api/v1/submissions/2/files/');
-            expect(mockGet).toBeCalledWith('/api/v1/submissions/2/files/', {params: {owner: 'teacher'}});
-            expect(comp.studentTree.isStudent).toBe(true);
-            expect(comp.studentTree).toMatchObject(tree1);
-
-            expect(comp.teacherTree.isTeacher).toBe(true);
-            expect(comp.teacherTree).toMatchObject(tree2);
-
-            await comp.$nextTick();
-            expect(comp.matchFiles).toBeCalledTimes(1);
-
-            expect(mockGet).toBeCalledWith('/api/v1/submissions/2/rubrics/');
-            expect(comp.rubric).toBe(rubric);
-
-            expect(comp.loadingPage).toBe(false);
-            // Wait max 10 ticks
-            for (let i = 0; i < 10; i++) {
-                if (!comp.loadingInner) {
-                    break;
-                }
-                await comp.$nextTick();
-            }
-            expect(comp.loadingInner).toBe(false);
-        });
-    });
-
-    describe('matchFiles', () => {
-        it('should be a function', () => {
-            expect(typeof comp.matchFiles).toBe('function');
-        });
-
-        it('should work with two identical trees', () => {
-            expect(comp.matchFiles(tree1, tree1)).toEqual({
-                name: 'root1',
-                entries: [
-                    {
-                        name: 'file1',
-                        ids: [2, 2],
-                    },
-                    {
-                        name: 'sub1',
-                        entries: [{ name: 'file2', ids: [4, 4] }],
-                    },
-                ],
-            });
-
-            // No revision should be added
-            expect(tree1.entries[0].revision).toBe(undefined);
-        });
-
-        it('should work with a modified tree', () => {
-            expect(comp.matchFiles(tree1, tree2)).toEqual({
-                name: 'root1',
-                entries: [
-                    {
-                        name: 'file1',
-                        ids: [2, null],
-                    },
-                    {
-                        name: 'sub1',
-                        entries: [
-                            { name: 'file2', ids: [4, 5] },
-                            { name: 'file3', ids: [null, 6] },
-                        ],
-                    },
-                ],
-            });
-            expect(tree1.entries[0]).toEqual({
-                name: 'file1',
-                id: 2,
-                revision: null,
-            });
-            expect(tree1.entries[1]).toEqual({
-                entries: [{ name: 'file2', id: 4, revision: expect.any(Object) }],
-                name: 'sub1',
-                id: 3,
-            });
-        });
-
-        it('should work with a inserted directory', () => {
-            expect(comp.matchFiles(tree1, tree3)).toEqual({
-                name: 'root1',
-                entries: [
-                    {
-                        name: 'file1',
-                        ids: [2, 2],
-                    },
-                    {
-                        name: 'sub1',
-                        entries: [{ name: 'file2', ids: [4, 4] }],
-                    },
-                    {
-                        name: 'sub2',
-                        entries: [{ name: 'file4', ids: [null, 7] }],
-                    },
-                ],
-            });
-        });
-
-        it('should work when replacing a directory with a file', () => {
-            expect(comp.matchFiles(tree1, tree4)).toEqual({
-                name: 'root1',
-                entries: [
-                    {
-                        name: 'file1',
-                        ids: [2, 2],
-                    },
-                    {
-                        name: 'sub1',
-                        entries: [{ name: 'file2', ids: [4, null] }],
-                    },
-                    {
-                        name: 'sub1',
-                        ids: [null, 8],
-                    },
-                ],
-            });
-            expect(tree1.entries[1]).toEqual({
-                entries: expect.any(Array),
-                name: 'sub1',
-                revision: expect.any(Object),
-                id: 3,
-            });
-        });
-
-        it('should work when replacing a file with a directory', () => {
-            expect(comp.matchFiles(tree4, tree1)).toEqual({
-                name: 'root1',
-                entries: [
-                    {
-                        name: 'file1',
-                        ids: [2, 2],
-                    },
-                    {
-                        name: 'sub1',
-                        entries: [{ name: 'file2', ids: [null, 4] }],
-                    },
-                    {
-                        name: 'sub1',
-                        ids: [8, null],
-                    },
-                ],
-            });
-            expect(tree4.entries[1]).toEqual({
-                name: 'sub1',
-                revision: expect.any(Object),
-                id: 8,
-            });
+            expect(mockLoadTree).toBeCalledTimes(2);
+            expect(mockLoadFeedback).toBeCalledTimes(2);
         });
     });
 });
