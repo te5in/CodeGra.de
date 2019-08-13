@@ -30,7 +30,15 @@ IO test can have multiple sets of input and output.
 
         - **Case insensitive**: comparing of student output and expected output is case insensitive.
         - **Ignore trailing whitespace**: trailing whitespace is ignored when comparing the student output with the expected output.
+        - **Ignore all whitespace**: all whitespace is ignored when comparing the student output with the expected output (including newlines).
         - **Substring**: comparing of student output and expected output is done with substring matching. As long as the expected output is present as a substring in the student output, the test succeeds.
         - **Regex**: the expected output is a *Python3 Regex* which should match with the actual output.
+
+        .. note::
+            The options *Ignore all whitespace* and *regex* cannot be activated
+            together.
+
+        .. note::
+            The option *substring* is required when using the *regex* option.
 
 5. After setting up your IO tests and other tests in your category, press the **Save** button to save.

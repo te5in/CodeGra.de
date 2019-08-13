@@ -288,8 +288,25 @@ class _IoTest(AutoTestStepBase):
     }
     data: t.Dict[str, object]
 
+    _ALL_OPTIONS = {
+        'case', 'trailing_whitespace', 'substring', 'regex', 'all_whitespace'
+    }
+
+    _REQUIRES_MAP = {
+        'all_whitespace': 'trailing_whitespace',
+        'regex': 'substring',
+    }
+
+    _NOT_ALLOWED_MAP = {
+        'all_whitespace': 'regex',
+    }
+
     @staticmethod
-    def _validate_single_input(inp: JSONType) -> t.List[str]:
+    def _remove_whitespace(string: str) -> str:
+        return "".join(string.split())
+
+    @classmethod
+    def _validate_single_input(cls, inp: JSONType) -> t.List[str]:
         errs = []
         with get_from_map_transaction(ensure_json_dict(inp)) as [get, _]:
             name = get('name', str)
@@ -305,15 +322,22 @@ class _IoTest(AutoTestStepBase):
         if weight < 0:
             errs.append('The weight should not be lower than 0')
 
-        extra_items = set(options) - {
-            'case', 'trailing_whitespace', 'substring', 'regex'
-        }
+        extra_items = set(options) - cls._ALL_OPTIONS
         if extra_items:
-            errs.append('Unknown items found: "{", ".join(extra_items)}"')
+            errs.append(f'Unknown items found: "{", ".join(extra_items)}"')
         if len(options) != len(set(options)):
             errs.append('Duplicate options are not allowed')
-        if 'regex' in options and 'substring' not in options:
-            errs.append('The "regex" option implies "substring"')
+
+        for item, required in cls._REQUIRES_MAP.items():
+            if item in options and required not in options:
+                errs.append(f'The "{item}" option implies "{required}"')
+
+        for item, not_allowed in cls._NOT_ALLOWED_MAP.items():
+            if item in options and not_allowed in options:
+                errs.append(
+                    f'The "{item}" option cannot be combined with the '
+                    f'"{not_allowed}" option'
+                )
 
         return errs
 
@@ -372,9 +396,9 @@ class _IoTest(AutoTestStepBase):
             s['weight'] if sr['state'] == passed else 0 for s, sr in iterator
         )
 
-    @staticmethod
+    @classmethod
     def match_output(
-        stdout: str, expected_output: str, step_options: t.Iterable[str]
+        cls, stdout: str, expected_output: str, step_options: t.Iterable[str]
     ) -> t.Tuple[bool, t.Optional[int]]:
         """Do the output matching of an IoTest.
 
@@ -388,7 +412,10 @@ class _IoTest(AutoTestStepBase):
         to_test = stdout.rstrip('\n')
         step_options = set(step_options)
 
-        if 'trailing_whitespace' in step_options:
+        if 'all_whitespace' in step_options:
+            to_test = cls._remove_whitespace(to_test)
+            expected_output = cls._remove_whitespace(expected_output)
+        elif 'trailing_whitespace' in step_options:
             to_test = '\n'.join(line.rstrip() for line in to_test.splitlines())
             expected_output = '\n'.join(
                 line.rstrip() for line in expected_output.splitlines()

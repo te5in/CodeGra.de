@@ -886,10 +886,22 @@ export default {
                     'Interpret the expected output as a Python regular expression, and check if the actual output matches it. Setting this also implies "Substring".',
             };
 
-            substringOpt.requiredBy = regexOpt;
+            const allWhitespaceOpt = {
+                text: 'Ignore all whitespace',
+                value: 'all_whitespace',
+                description:
+                    'Ignore all differences in whitespace, even newlines. I.e. " a b cd " and "abc d" are considered equal.',
+            };
+
+            substringOpt.requiredBy = [regexOpt];
             regexOpt.requires = substringOpt;
 
-            return [caseOpt, trailingWsOpt, substringOpt, regexOpt];
+            allWhitespaceOpt.disallows = regexOpt;
+            allWhitespaceOpt.requires = trailingWsOpt;
+            regexOpt.disallows = allWhitespaceOpt;
+            trailingWsOpt.requiredBy = [allWhitespaceOpt];
+
+            return [caseOpt, trailingWsOpt, allWhitespaceOpt, substringOpt, regexOpt];
         },
 
         inputs() {
@@ -902,8 +914,13 @@ export default {
 
                 return opts.reduce((acc, val) => {
                     const opt = this.ioOptions.find(o => o.value === val);
-                    if (opt.requiredBy && opts.indexOf(opt.requiredBy.value) !== -1) {
-                        acc[opt.value] = true;
+                    this.$utils.getProps(opt, [], 'requiredBy').forEach(required => {
+                        if (opts.indexOf(required.value) !== -1) {
+                            acc[opt.value] = true;
+                        }
+                    });
+                    if (opt.disallows && opts.indexOf(opt.value) !== -1) {
+                        acc[opt.disallows.value] = true;
                     }
                     return acc;
                 }, {});
@@ -1095,6 +1112,12 @@ export default {
                 const opt = this.ioOptions.find(o => o.value === val);
                 if (opt.requires && newValue.indexOf(opt.requires.value) === -1) {
                     newValue.push(opt.requires.value);
+                }
+                if (opt.disallows) {
+                    const toRemove = newValue.indexOf(opt.disallows.value);
+                    if (toRemove !== -1) {
+                        newValue.splice(toRemove, 1);
+                    }
                 }
             });
 

@@ -31,8 +31,17 @@ Multiple options allow you to more flexibly compare the output of the program:
 
   - **Case insensitive**: ignore case in comparing the expected output and actual output.
   - **Ignore trailing whitespace**: trim all trailing whitespacing from the start and end.
+  - **Ignore all whitespace**: all whitespace is ignored when comparing the student output with the expected output (including newlines).
   - **Substring**: the expected output should be a substring of the actual output.
   - **Regex**: the expected output is a *Python3 Regex* which should match with the actual output.
+
+.. note::
+    The options *Ignore all whitespace* and *regex* cannot be activated
+    together.
+
+.. note::
+    The option *substring* is required when using the *regex* option.
+
 
 Use the :fa:`plus` button in the bottom left corner to create a new input/output
 combination.

@@ -231,6 +231,18 @@ def test_validate_data_io_step(describe):
             for _, c in exc.rest['invalid_cases']
         )
 
+        inp['options'] = ['regex', 'substring', 'all_whitespace']
+        with raises_api('Some input cases were not valid') as exc:
+            i.validate_data(data)
+        assert any(
+            '"all_whitespace" option implies "trailing_whitespace"' in c
+            for _, c in exc.rest['invalid_cases']
+        )
+        assert any(
+            '"all_whitespace" option cannot be combined with the "regex"' in c
+            for _, c in exc.rest['invalid_cases']
+        )
+
         inp['options'] = ['substring', 'regex']
         i.validate_data(data)
 
@@ -277,6 +289,13 @@ def test_validate_data_io_step(describe):
             lambda: 'A' * 1000000 + 'BB', r'^(A+)*B$', ['substring', 'regex'],
             (False, -2)
         ),
+        # All whitespace option should work
+        (
+            ' a b cd \nf', 'abc df', ['trailing_whitespace', 'all_whitespace'],
+            True
+        ),
+        ('a\r\nb', 'ab', ['trailing_whitespace', 'all_whitespace'], True),
+        ('ac', 'ab', ['trailing_whitespace', 'all_whitespace'], False),
     ]
 )
 def test_match_output_io_step(expected, output, options, success):
