@@ -172,7 +172,12 @@ def create_runner() -> Response:
     if not models.Runner.can_start_more_runners():
         flash('We cannot create more runners, as the maximum is reached')
     else:
-        flash('Started runner')
-        tasks.start_unassigned_runner.delay()
+        try:
+            amount = int(request.form.get('amount') or '1')
+        except (KeyError, ValueError):
+            flash('Amount is not a number')
+        else:
+            flash(f'Starting {amount} runners')
+            tasks.start_unassigned_runner.delay(amount)
 
     return redirect(url_for('.show_all_runners'))

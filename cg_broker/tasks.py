@@ -65,18 +65,19 @@ def maybe_start_unassigned_runner() -> None:
 
 
 @celery.task
-def start_unassigned_runner() -> None:
+def start_unassigned_runner(amount: int = 1) -> None:
     """Unconditionally start an unassigned runner.
 
     A unassigned runner is a runner which is not linked to one job.
     """
-    if not models.Runner.can_start_more_runners():
-        return
+    for _ in range(amount):
+        if not models.Runner.can_start_more_runners():
+            return
 
-    runner = models.Runner.create_of_type(app.config['AUTO_TEST_TYPE'])
-    db.session.add(runner)
-    db.session.commit()
-    _start_runner.delay(runner.id.hex)
+        runner = models.Runner.create_of_type(app.config['AUTO_TEST_TYPE'])
+        db.session.add(runner)
+        db.session.commit()
+        _start_runner.delay(runner.id.hex)
 
 
 @celery.task
