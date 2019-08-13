@@ -15,10 +15,14 @@ found via the 'Assignments' menu and selecting the assignment to review.
 
 Code Viewer for Teachers
 -------------------------
-The basic components of the Code Viewer are the Code Viewer itself and the file browser, which
-displays all the files handed in by the student.
+The Code Viewer consists of up to four tabs: **Code**, **Feedback overview**,
+optionally **AutoTest** and optionally **Teacher Revision**.
 
-.. note:: Supported archives handed in are automatically extracted by CodeGrade.
+The **Code** tab shows an overview of all handed in code and other files. It is
+possible to browse through all handed in files and folders.
+
+.. note::
+    Supported archives are automatically extracted by CodeGrade after handing in.
 
 The Code Viewer displays the selected code with correct highlighting, optional whitespace characters and line numbering. It
 furthermore supports PDF and image files. Optional feedback
@@ -30,6 +34,13 @@ with the `filesystem <https://fs-docs.codegra.de>`__). If available, the tabs ab
 hierarchical file view can be used to toggle between the student revision,
 teacher revision and the *diff* mode.
 
+The **Feedback overview** tab provides a clear overview of all given feedback on
+the submission, this includes inline comments and general feedback.
+
+The **AutoTest** tab shows an overview of the AutoTest results and optionally
+Continuous Feedback output.
+
+The **Teacher Revision** shows the teacher revision, if available.
 
 Additional features in the Code Viewer aid the grading and reviewing process. These features are described below.
 
@@ -62,13 +73,6 @@ New course snippets can be added by the teacher of a course on the
 :ref:`course management page <course-management>`.
 
 .. note:: It is in most cases recommended to use a short keyword for the snippet.
-
-Overview mode
-~~~~~~~~~~~~~
-The overview mode can be enabled with :fa:`binoculars` or is automatically presented after the assignment is set to the 'done' state.
-As its name suggests, this mode provides an overview of the submission, given line feedback and changes made in the teacher revision.
-The line feedback and changes made in the teacher revision are sorted per file and are presented with a block of
-code around the feedback or change.
 
 Rubrics
 ~~~~~~~~~
@@ -118,16 +122,15 @@ Code Viewer for Students
 Handed in programming assignments can be displayed using CodeGrade's Code Viewer. The Code Viewer in essence
 provides an overview of your handed in files and the feedback gotten.
 
-If the assignment is finished and graded, the overview page is initially displayed. This page provides an overview of
-all line feedback given, and all files changed or added by your teacher to make your program work. All feedback or changes
-are presented with a block of code around it to add context. To toggle the overview mode and go back to the file browser, use the
-:fa:`binoculars` button.
+Up to four tabs are available in the Code Viewer for students: **Code**,
+**Feedback overview**, optionally **AutoTest** and optionally **Teacher
+Revision**.
 
 The final grade is displayed on the bottom of the screen, if available.
 If a rubric is available for the assignment it can be found under the :fa:`th` button, next to this final grade.
-Further general feedback can be displayed using the :fa:`pencil-square-o` button. An overview of all feedback,
-including line feedback, linter comments and general grade and feedback can be download as
-plain text file under the :fa:`download` button.
+
+.. note::
+    The redesigned submission page deprecates the old **Overview mode**.
 
 .. _codeviewer-settings:
 

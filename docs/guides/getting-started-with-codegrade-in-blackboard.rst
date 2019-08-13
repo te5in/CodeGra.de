@@ -131,10 +131,11 @@ navigating to the assignment.
     If an assignment is in the **“Done”** (:fa:`check`)
     state, all new grades or edits are passed back to Blackboard immediately.
 
-By default students will see their feedback in the **“Overview”** (:fa:`binoculars`) mode,
-so they immediately see all feedback given to them. If a **rubric** is used,
-this can also be seen in the overview mode. A student can switch to
-normal mode to browse through their code normally.
+After uploading, a student will find an overview of their **Code** (where they
+can browse through their handed in files), an overview of their **Feedback**
+and optionally an overview of the **AutoTest** results which can be filled in
+preliminarily with Continuous Feedback.
+
 
 .. note::
     We recommend graders to make use of the standalone CodeGrade website, but the
