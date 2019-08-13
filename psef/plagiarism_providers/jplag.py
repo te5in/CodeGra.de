@@ -25,6 +25,7 @@ _SUPPORTED_LANGS = {
     "Chars": "char",
     "Text": "text",
     "Scheme": "scheme",
+    "Scala": "scala",
 }
 """Supported languages for JPlag and their human readable equivalent."""
 
