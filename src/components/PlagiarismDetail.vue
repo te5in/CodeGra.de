@@ -25,11 +25,11 @@
         <table class="range-table table table-striped table-hover">
             <thead>
                 <tr>
-                    <th>Export</th>
+                    <th class="col-student-range">Export</th>
                     <th class="col-student-name"><user :user="detail.users[0]"/></th>
                     <th class="col-student-range">Lines</th>
                     <th class="col-student-range">Color</th>
-                    <th class="col-student-name"><user :user="detail.users[0]"/></th>
+                    <th class="col-student-name"><user :user="detail.users[1]"/></th>
                     <th class="col-student-range">Lines</th>
                 </tr>
             </thead>
@@ -49,6 +49,22 @@
                 </tr>
             </tbody>
         </table>
+
+        <div class="export-options-wrapper">
+            <collapse v-model="advancedOptionsCollapsed">
+                <div slot="handle">
+                    <icon class="toggle flex-grow-1" name="chevron-down" :scale="0.75" />
+                    <b>Options</b>
+                </div>
+                <div class="export-options-list">
+                    <b-form-checkbox v-model="exportOptions.newPageAfterMatch"
+                                     style="margin-right: 0">
+                        Each listing on a separate page
+                    </b-form-checkbox>
+                </div>
+            </collapse>
+        </div>
+
         <b-button-toolbar justify style="margin-top: 1em;">
             <b-button variant="outline-primary"
                       @click="$root.$emit('bv::hide::modal', 'plagiarism-export');">
@@ -130,10 +146,17 @@
 <script>
 import { mapActions, mapGetters } from 'vuex';
 import decodeBuffer from '@/utils/decode';
+import lescape from 'escape-latex';
+import Icon from 'vue-awesome/components/Icon';
+import 'vue-awesome/icons/chevron-down';
 
 import { nameOfUser } from '@/utils';
 
 import { Loader, LocalHeader, SubmitButton, User } from '@/components';
+
+import Collapse from './Collapse';
+
+const latexEscape = txt => lescape(txt, { preserveFormatting: true });
 
 export default {
     name: 'plagiarism-detail',
@@ -149,6 +172,8 @@ export default {
             sortedFilesObject: {},
             loadingData: true,
             error: '',
+            exportOptions: { newPageAfterMatch: true },
+            advancedOptionsCollapsed: false,
         };
     },
 
@@ -269,7 +294,6 @@ export default {
 
 \\section{Plagiarism matches}`;
             const endListingRegex = new RegExp('\\\\end{lstlisting}', 'g');
-            const underscore = new RegExp('_', 'g');
 
             const contents = Object.keys(
                 matches.reduce((accum, match) => {
@@ -291,7 +315,10 @@ export default {
                 return accum;
             }, {});
 
-            const middle = await Promise.all(
+            const latexNameOfUser = user => latexEscape(nameOfUser(user));
+            const maybeNewPage = this.exportOptions.newPageAfterMatch ? '\\clearpage{}\n' : '';
+
+            const middle = (await Promise.all(
                 matches.map(async (match, i) => {
                     const left = (await contents[match.files[0].id]).slice(
                         match.lines[0][0],
@@ -301,32 +328,32 @@ export default {
                         match.lines[1][0],
                         match.lines[1][1] + 1,
                     );
-                    const captionLeft = this.getFromFileTree(this.tree1, match.files[0]).replace(
-                        underscore,
-                        '\\_',
+                    const captionLeft = latexEscape(
+                        this.getFromFileTree(this.tree1, match.files[0]),
                     );
-                    const captionRight = this.getFromFileTree(this.tree2, match.files[1]).replace(
-                        underscore,
-                        '\\_',
+                    const captionRight = latexEscape(
+                        this.getFromFileTree(this.tree2, match.files[1]),
                     );
                     const [user1, user2] = this.detail.users;
+
                     // prettier-ignore-start
                     return `\\subsection*{Match ${i + 1}}
 \\begin{lstlisting}[firstnumber=${match.lines[0][0] + 1},
-    caption={File \\texttt{${captionLeft}} of ${nameOfUser(user1)}}]
+    caption={File \\texttt{${captionLeft}} of ${latexNameOfUser(user1)}}]
     ${left.join('\n')}
 \\end{lstlisting}
+${maybeNewPage}
 \\begin{lstlisting}[firstnumber=${match.lines[1][0] + 1},
-    caption={File \\texttt{${captionRight}} of ${nameOfUser(user2)}}]
+    caption={File \\texttt{${captionRight}} of ${latexNameOfUser(user2)}}]
     ${right.join('\n')}
 \\end{lstlisting}`;
                     // prettier-ignore-end
                 }),
-            );
+            )).join('\n\\clearpage{}\n\n');
 
             const footer = '\\end{document}\n';
 
-            return `${header}\n${middle.join('\n\n')}\n${footer}`;
+            return `${header}\n${middle}\n${footer}`;
         },
 
         updateSortedFiles() {
@@ -543,6 +570,8 @@ export default {
         LocalHeader,
         SubmitButton,
         User,
+        Collapse,
+        Icon,
     },
 };
 </script>
@@ -571,24 +600,23 @@ export default {
 
 .range-table {
     margin-bottom: 0;
-
-    .col-student-name,
-    .col-student-name {
-        width: 50%;
-    }
-
-    .col-student-range,
-    .col-student-range {
-        width: 1px;
-        white-space: nowrap;
-        text-align: center;
-    }
+    width: 100%;
 
     th,
     td {
         border-top: none;
         padding-top: 0rem;
         padding-bottom: 0rem;
+    }
+
+    .col-student-name {
+        width: 50%;
+    }
+
+    .col-student-range {
+        width: 1px;
+        white-space: nowrap;
+        text-align: center;
     }
 
     #plagiarism-export & {
@@ -716,6 +744,14 @@ code {
 
 .plagiarism-detail .input-group-prepend {
     margin-top: 0;
+}
+
+.export-options-wrapper {
+    margin: 1rem 0.75rem;
+
+    .export-options-list {
+        margin-top: 5px;
+    }
 }
 </style>
 

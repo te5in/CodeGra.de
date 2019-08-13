@@ -194,3 +194,22 @@ export default {
     }
 }
 </style>
+
+<style lang="less">
+@import '~mixins.less';
+.x-collapse {
+    .toggle .fa-icon,
+    .toggle.fa-icon {
+        margin-right: 0.5rem;
+        transition: transform @transition-duration;
+    }
+
+    &.x-collapsing > .handle,
+    &.x-collapsed > .handle {
+        .toggle .fa-icon,
+        .toggle.fa-icon {
+            transform: rotate(-90deg);
+        }
+    }
+}
+</style>
