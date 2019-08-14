@@ -159,6 +159,7 @@ export default {
                 if (!this.file && this.$route.params.fileId) {
                     this.onError('File not found!');
                 } else {
+                    this.error = '';
                     this.loading = true;
                 }
             },
