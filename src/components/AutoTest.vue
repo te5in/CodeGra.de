@@ -262,14 +262,14 @@
                                 </template>
 
                                 <div v-else>
-                                    <code>{{ test.run_setup_script }}</code>
+                                    <code class="d-block mb-2">{{ test.run_setup_script }}</code>
 
                                     <template v-if="result && canViewAutoTest">
                                         <b-tabs no-fade>
                                             <b-tab title="stdout">
                                                 <inner-code-viewer class="rounded border"
                                                                    :assignment="assignment"
-                                                                   :code-lines="prepareOutput(finalRun.setupStdout)"
+                                                                   :code-lines="prepareOutput(currentRun.setupStdout)"
                                                                    :file-id="-1"
                                                                    :feedback="{}"
                                                                    :start-line="0"
@@ -281,7 +281,7 @@
                                             <b-tab title="stderr">
                                                 <inner-code-viewer class="rounded border"
                                                                    :assignment="assignment"
-                                                                   :code-lines="prepareOutput(finalRun.setupStderr)"
+                                                                   :code-lines="prepareOutput(currentRun.setupStderr)"
                                                                    :file-id="-1"
                                                                    :feedback="{}"
                                                                    :start-line="0"
@@ -326,7 +326,7 @@
                                 </template>
 
                                 <div v-else>
-                                    <code>{{ test.setup_script }}</code>
+                                    <code class="d-block mb-2">{{ test.setup_script }}</code>
 
                                     <template v-if="result && canViewAutoTest">
                                         <b-tabs no-fade>
@@ -1093,6 +1093,10 @@ export default {
             }
 
             return this.assignment.submissions.find(s => s.id === submissionId);
+        },
+
+        currentRun() {
+            return this.finalRun || this.continuousRun;
         },
 
         finalRun() {
