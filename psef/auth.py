@@ -144,7 +144,7 @@ def set_current_user(user: 'psef.models.User') -> None:
     # making sure we always assign an actual User object.
     if isinstance(user, LocalProxy):
         # pylint: disable=protected-access
-        user = psef.current_user._get_current_object()  # type: ignore
+        user = psef.current_user._get_current_object()
     # This sets the current user for flask jwt. See
     # https://github.com/vimalloc/flask-jwt-extended/issues/206 to make this
     # easier.
@@ -359,8 +359,32 @@ def ensure_can_view_autotest(auto_test: 'psef.models.AutoTest') -> None:
     """
     course_id = auto_test.assignment.course_id
     ensure_enrolled(course_id)
-    if not auto_test.assignment.is_done:
+
+    if auto_test.continuous_feedback_run is not None:
+        return
+    elif not auto_test.assignment.is_done:
         ensure_permission(CPerm.can_view_autotest_before_done, course_id)
+
+
+@login_required
+def ensure_can_view_autotest_result(
+    result: 'psef.models.AutoTestResult'
+) -> None:
+    """Check if the current user can see the given result.
+
+    :param result: The result to check.
+    """
+    run = result.run
+    work = result.work
+    course_id = run.auto_test.assignment.course_id
+    ensure_enrolled(course_id)
+
+    if run.is_continuous_feedback_run:
+        if work.has_as_author(psef.current_user):
+            return
+        ensure_permission(CPerm.can_see_others_work, work.assignment.course_id)
+    else:
+        ensure_can_see_grade(work)
 
 
 @login_required

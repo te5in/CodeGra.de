@@ -1,20 +1,17 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
-<div class="ipython-viewer">
-    <loader v-if="loading"/>
-    <b-alert class="error" variant="danger" show v-else-if="error">
-        {{ error }}
-    </b-alert>
+<div v-else class="ipython-viewer p-3">
     <div v-for="(cell, i) in outputCells"
-         :key="`output-cell-${i}`"
-         v-else
-         :style="{ fontSize: `${fontSize}px` }"
-         class="output-cell">
+        :key="`output-cell-${i}`"
+        :style="{ fontSize: `${fontSize}px` }"
+        class="output-cell">
         <hr v-if="i > 0"/>
+
         <span class="input-data-prompt"
               v-if="cell.cell_type === 'code'">
             In [{{ cell.execution_count || 1 }}]:
         </span>
+
         <div class="inner-output-cell">
             <span v-if="cell.cell_type === 'markdown'"
                   class="markdown-wrapper">
@@ -23,7 +20,7 @@
                     :line="cell.feedback_offset"
                     :feedback="feedback[cell.feedback_offset]"
                     :assignment="assignment"
-                    @set-feedback="$set(feedback, $event.line, $event)"
+                    :submission="submission"
                     :editable="editable"
                     :can-use-snippets="canUseSnippets">
                     <inner-markdown-viewer
@@ -33,14 +30,13 @@
             </span>
             <div v-else-if="cell.cell_type === 'code'">
                 <inner-code-viewer
-                    class="code"
+                    class="code form-control"
                     :assignment="assignment"
+                    :submission="submission"
                     :code-lines="cell.source"
                     :feedback="feedback"
-                    @set-feedback="$set(feedback, $event.line, $event)"
                     :linter-feedback="{}"
                     :show-whitespace="showWhitespace"
-                    :font-size="fontSize"
                     :can-use-snippets="canUseSnippets"
                     :line-feedback-offset="cell.feedback_offset"
                     :file-id="Number(file.id)"
@@ -55,10 +51,10 @@
                     <floating-feedback-button
                         :class="{'feedback-editable-output': editable}"
                         :assignment="assignment"
+                        :submission="submission"
                         :fileId="fileId"
                         :line="out.feedback_offset"
                         :feedback="feedback[out.feedback_offset]"
-                        @set-feedback="$set(feedback, $event.line, $event)"
                         :editable="editable"
                         :can-use-snippets="canUseSnippets">
                         <div class="inner-result-cell">
@@ -92,7 +88,9 @@
 </template>
 
 <script>
-import { highlightCode, loadCodeAndFeedback } from '@/utils';
+import { mapGetters } from 'vuex';
+
+import { highlightCode } from '@/utils';
 
 import InnerMarkdownViewer from './InnerMarkdownViewer';
 import InnerCodeViewer from './InnerCodeViewer';
@@ -126,10 +124,6 @@ export default {
             type: Boolean,
             required: false,
         },
-        fontSize: {
-            type: Number,
-            default: 12,
-        },
         showWhitespace: {
             type: Boolean,
             required: true,
@@ -147,15 +141,18 @@ export default {
     data() {
         return {
             data: {},
-            loading: true,
-            feedback: {},
-            error: null,
         };
     },
 
     computed: {
+        ...mapGetters('pref', ['fontSize']),
+
         fileId() {
             return this.file.id || this.file.ids[0] || this.file.ids[1];
+        },
+
+        feedback() {
+            return this.submission.feedback.user[this.fileId] || {};
         },
 
         sourceLanguage() {
@@ -205,35 +202,29 @@ export default {
         },
 
         loadCode() {
-            this.loading = true;
             this.data = {};
-            loadCodeAndFeedback(this.$http, this.fileId)
-                .then(
-                    ({ code, feedback }) => {
-                        try {
-                            this.data = JSON.parse(code);
-                        } catch (_) {
-                            this.error = this.invalidJsonMessage;
-                        }
-                        this.feedback = feedback;
-                    },
-                    err => {
-                        this.error = err;
-                    },
-                )
-                .then(() => {
-                    this.loading = false;
-                });
+            this.$http.get(`/api/v1/code/${this.fileId}`).then(
+                ({ data }) => {
+                    try {
+                        this.data = JSON.parse(data);
+                        this.$emit('load');
+                    } catch (_) {
+                        this.$emit('error', this.invalidJsonMessage);
+                    }
+                },
+                err => {
+                    this.$emit('error', this.$utils.getErrorMessage(err));
+                },
+            );
         },
     },
 
-    mounted() {
-        this.loadCode();
-    },
-
     watch: {
-        fileId() {
-            this.loadCode();
+        fileId: {
+            immediate: true,
+            handler() {
+                this.loadCode();
+            },
         },
     },
 
@@ -249,41 +240,31 @@ export default {
 <style lang="less" scoped>
 @import '~mixins.less';
 
+.ipython-viewer {
+    position: relative;
+}
+
 .output-cell {
     &:not(:last-child) {
         margin-bottom: 20px;
     }
+
     .code {
-        border: 1px solid rgba(0, 0, 0, 0.1);
         padding-right: 0;
         overflow-x: hidden;
     }
-    .code,
-    .inner-result-cell {
-        padding-right: 0.25rem;
-        border-radius: 0.25rem;
 
-        #app.dark & {
-            border-color: @color-primary-darker;
-        }
-
-        li:first-child {
-            border-top-right-radius: 0.25rem;
-        }
-        li:last-child {
-            border-bottom-right-radius: 0.25rem;
-        }
-    }
     .inner-result-cell pre {
         padding: 0.6em 2rem;
         border: 1px solid rgba(0, 0, 0, 0.1);
         border-radius: 0.25rem;
+
         #app.dark & {
             background: @color-primary-darkest;
             color: @color-secondary-text-lighter;
         }
-        margin-right: -0.25rem;
     }
+
     .input-data-prompt,
     .output-data-prompt {
         font-family: monospace;
@@ -293,21 +274,11 @@ export default {
         overflow-x: visible;
         display: block;
     }
+
     .output-data-prompt {
         margin-top: 10px;
         margin-bottom: 5px;
     }
-}
-
-.ipython-viewer {
-    position: relative;
-    padding: 0;
-    border: 1px solid @color-border-gray-lighter;
-    #app.dark & {
-        border-color: @color-primary-darker;
-    }
-    border-radius: 0.25rem;
-    padding: 15px;
 }
 
 pre {

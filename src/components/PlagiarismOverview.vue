@@ -10,7 +10,7 @@
 </div>
 <loader v-else-if="loadingData || assignment == null || run == null"/>
 <div class="plagiarism-overview" v-else>
-    <local-header :back-route="{ name: 'manage_assignment', hash: '#Plagiarism' }"
+    <local-header :back-route="{ name: 'manage_assignment', hash: '#plagiarism' }"
                   back-popover="Go back to manage assignment page">
         <template slot="title">
             Plagiarism overview for assignment &quot;{{assignment.name}}&quot; of &quot;{{assignment.course.name}}&quot;

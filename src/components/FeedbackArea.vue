@@ -82,6 +82,7 @@
                 <submit-button :submit="deleteFeedback"
                                :filter-error="deleteFilter"
                                :duration="300"
+                               confirm="Are you sure you want to delete this comment?"
                                @after-success="afterDeleteFeedback"
                                @error="deleteFeedbackError"
                                variant="danger"
@@ -92,7 +93,7 @@
             </div>
             <b-input-group-append class="submit-feedback">
                 <submit-button :submit="submitFeedback"
-                               @success="afterSubmitFeedback"
+                               @after-success="afterSubmitFeedback"
                                @error="feedbackDisabled = false"
                                ref="submitButton"
                                v-b-popover.top.hover="'Save feedback'">
@@ -125,49 +126,44 @@ export default {
             type: Number,
             required: true,
         },
-
         feedback: {
             type: String,
             required: true,
         },
-
         author: {
             type: [Object],
             required: false,
             default: undefined,
         },
-
         fileId: {
             type: Number,
             required: true,
         },
-
         editable: {
             type: Boolean,
             default: false,
         },
-
         editing: {
             type: Boolean,
             default: false,
         },
-
         canUseSnippets: {
             type: Boolean,
             default: false,
         },
-
         totalAmountLines: {
             type: Number,
             required: true,
         },
-
         forceSnippetsAbove: {
             type: Boolean,
             default: false,
         },
-
         assignment: {
+            type: Object,
+            required: true,
+        },
+        submission: {
             type: Object,
             required: true,
         },
@@ -264,6 +260,16 @@ export default {
             this.internalFeedback =
                 this.internalFeedback.slice(0, start) + value + this.internalFeedback.slice(end);
         },
+
+        feedback: {
+            immediate: true,
+            handler() {
+                if (!this.editing) {
+                    this.internalFeedback = this.feedback;
+                    this.serverFeedback = this.feedback;
+                }
+            },
+        },
     },
 
     computed: {
@@ -300,10 +306,15 @@ export default {
     },
 
     methods: {
-        ...mapActions({
-            maybeRefreshSnippets: 'user/maybeRefreshSnippets',
-            addSnippetToStore: 'user/addSnippet',
-            updateSnippetInStore: 'user/updateSnippet',
+        ...mapActions('user', {
+            maybeRefreshSnippets: 'maybeRefreshSnippets',
+            addSnippetToStore: 'addSnippet',
+            updateSnippetInStore: 'updateSnippet',
+        }),
+
+        ...mapActions('courses', {
+            storeSubmitFeedbackLine: 'submitSubmissionFeedbackLine',
+            storeDeleteFeedbackLine: 'deleteSubmissionFeedbackLine',
         }),
 
         lastWhiteSpace(str, start) {
@@ -442,27 +453,26 @@ export default {
             this.feedbackDisabled = true;
 
             const feedback = this.internalFeedback;
-            return this.$http
-                .put(`/api/v1/code/${this.fileId}/comments/${this.line}`, {
-                    comment: feedback,
-                })
-                .then(() => feedback);
+            return this.storeSubmitFeedbackLine({
+                assignmentId: this.assignment.id,
+                submissionId: this.submission.id,
+                fileId: this.fileId,
+                line: this.line,
+                data: feedback,
+                author: this.author,
+            }).then(() => feedback);
         },
 
         afterSubmitFeedback(feedback) {
-            if (feedback === '' || feedback == null) {
-                this.afterDeleteFeedback();
+            if (typeof feedback === 'function') {
+                this.afterDeleteFeedback(feedback);
                 return;
             }
 
             this.serverFeedback = feedback;
             this.feedbackDisabled = false;
             this.snippetKey = '';
-            this.$emit('feedbackChange', {
-                line: this.line,
-                msg: feedback,
-                author: { name: this.nameCurrentUser },
-            });
+            this.$emit('feedbackChange', this.line);
         },
 
         submitFeedabckError() {
@@ -477,13 +487,13 @@ export default {
             this.feedbackDisabled = true;
             this.snippetKey = '';
 
-            if (this.serverFeedback !== '') {
-                return this.$http
-                    .delete(`/api/v1/code/${this.fileId}/comments/${this.line}`)
-                    .then(() => null);
-            } else {
-                return Promise.resolve();
-            }
+            return this.storeDeleteFeedbackLine({
+                assignmentId: this.assignment.id,
+                submissionId: this.submission.id,
+                fileId: this.fileId,
+                line: this.line,
+                onServer: this.serverFeedback !== '',
+            });
         },
 
         deleteFilter(err) {
@@ -494,8 +504,10 @@ export default {
             }
         },
 
-        afterDeleteFeedback() {
+        afterDeleteFeedback(cont) {
             this.feedbackDisabled = false;
+
+            if (cont) cont();
 
             this.$emit('feedbackChange', {
                 line: this.line,
@@ -713,6 +725,7 @@ export default {
 .feedback-area-wrapper {
     .default-text-colors;
     background-color: white;
+    margin-top: @line-spacing;
 
     #app.dark & {
         background-color: @color-primary-darker;
@@ -731,6 +744,7 @@ export default {
         margin-top: 0;
         background-color: @footer-color;
         flex: 1 1 auto;
+
         &.has-author {
             border-top: 0;
             border-right: 0;
@@ -738,6 +752,7 @@ export default {
             border-top-left-radius: 0;
             border-bottom-left-radius: 0;
         }
+
         &:not(.has-author) {
             border: 0;
         }
@@ -745,7 +760,9 @@ export default {
         #app.dark & {
             background-color: @color-primary;
             border-color: @color-primary-darkest;
+            color: @text-color-dark;
         }
+
         white-space: pre-wrap;
         word-break: break-word;
     }

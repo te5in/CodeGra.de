@@ -77,13 +77,15 @@
 
             <template v-else-if="value.type === 'check_points'">
                 <label :for="pointsThresholdId">
-                    Stop test category if amount of points is below
+                    Stop test category if percentage of points achieved is below
                 </label>
 
                 <input class="form-control text-left"
                        :id="pointsThresholdId"
                        type="number"
                        :value="value.data.min_points"
+                       min="0"
+                       max="100"
                        @input="updateValue('min_points', $event.target.value)"/>
             </template>
 
@@ -253,8 +255,8 @@
 
                 <template v-if="canViewDetails">
                     Stop when you achieve less than
-                    <code>{{ value.data.min_points }}</code>
-                    points.
+                    <code>{{ value.data.min_points }}%</code>
+                    of the points possible.
                 </template>
             </td>
             <td class="shrink text-center" v-if="result">
@@ -330,8 +332,7 @@
                                                        :start-line="0"
                                                        :show-whitespace="true"
                                                        :warn-no-newline="false"
-                                                       :empty-file-message="'No output.'"
-                                                       :font-size="codeFontSize" />
+                                                       :empty-file-message="'No output.'" />
                                 </div>
                             </b-tab>
 
@@ -345,8 +346,7 @@
                                                        :start-line="0"
                                                        :show-whitespace="true"
                                                        :warn-no-newline="false"
-                                                       :empty-file-message="'No output.'"
-                                                       :font-size="codeFontSize" />
+                                                       :empty-file-message="'No output.'" />
                                 </div>
                             </b-tab>
                         </b-tabs>
@@ -419,8 +419,7 @@
                                                        :start-line="0"
                                                        :show-whitespace="true"
                                                        :warn-no-newline="false"
-                                                       :empty-file-message="'No output.'"
-                                                       :font-size="codeFontSize" />
+                                                       :empty-file-message="'No output.'" />
                                 </div>
                             </b-tab>
 
@@ -434,8 +433,7 @@
                                                        :start-line="0"
                                                        :show-whitespace="true"
                                                        :warn-no-newline="false"
-                                                       :empty-file-message="'No output.'"
-                                                       :font-size="codeFontSize" />
+                                                       :empty-file-message="'No output.'" />
                                 </div>
                             </b-tab>
                         </b-tabs>
@@ -464,8 +462,8 @@
     <template v-else-if="value.type === 'io_test'">
         <tr>
             <td class="expand shrink">
-                <icon v-if="!canViewDetails" name="eye-slash" :scale="0.85"
-                      v-b-popover.hover.top="'You cannot view this step\'s details.'" />
+                <icon v-if="value.hidden" name="eye-slash" :scale="0.85"
+                      v-b-popover.hover.top="hiddenPopover" />
             </td>
             <td class="shrink">{{ index }}</td>
             <td>
@@ -482,7 +480,9 @@
                     </template>
                     {{ $utils.toMaxNDecimals(value.weight, 2) }}
                 </td>
-            <td class="shrink text-center" v-if="result"></td>
+            <td class="shrink text-center" v-if="result">
+                <auto-test-state v-if="stepResult.state === 'hidden'" :result="stepResult" />
+            </td>
         </tr>
 
         <template v-for="input, i in inputs">
@@ -492,8 +492,6 @@
                 v-b-toggle="`${resultsCollapseId}-${i}`">
                 <td class="expand shrink">
                     <icon v-if="canViewDetails" name="chevron-down" :scale="0.75" />
-                    <icon v-else-if="value.hidden" name="eye-slash" :scale="0.85"
-                          v-b-popover.hover.top="hiddenPopover" />
                 </td>
                 <td class="shrink">{{ index }}.{{ i + 1 }}</td>
                 <td>
@@ -547,8 +545,7 @@
                                                            :start-line="0"
                                                            :warn-no-newline="false"
                                                            :show-whitespace="true"
-                                                           :empty-file-message="'No output.'"
-                                                           :font-size="codeFontSize" />
+                                                           :empty-file-message="'No output.'" />
                                     </div>
 
                                     <div class="col-6">
@@ -564,8 +561,7 @@
                                                            :start-line="0"
                                                            :warn-no-newline="false"
                                                            :show-whitespace="true"
-                                                           :empty-file-message="'No output.'"
-                                                           :font-size="codeFontSize" />
+                                                           :empty-file-message="'No output.'" />
                                     </div>
                                 </b-tab>
 
@@ -588,8 +584,7 @@
                                                            :warn-no-newline="false"
                                                            :show-whitespace="true"
                                                            :no-line-numbers="true"
-                                                           :empty-file-message="'No arguments.'"
-                                                           :font-size="codeFontSize" />
+                                                           :empty-file-message="'No arguments.'" />
                                     </div>
 
                                     <div class="col-6">
@@ -610,8 +605,7 @@
                                                            :start-line="0"
                                                            :warn-no-newline="false"
                                                            :show-whitespace="true"
-                                                           :empty-file-message="'No input.'"
-                                                           :font-size="codeFontSize" />
+                                                           :empty-file-message="'No input.'" />
                                     </div>
                                 </b-tab>
 
@@ -625,8 +619,7 @@
                                                            :start-line="0"
                                                            :show-whitespace="true"
                                                            :warn-no-newline="true"
-                                                           :empty-file-message="'No output.'"
-                                                           :font-size="codeFontSize" />
+                                                           :empty-file-message="'No output.'" />
                                     </div>
                                 </b-tab>
                             </b-tabs>
@@ -651,8 +644,7 @@
                                                    :warn-no-newline="false"
                                                    :show-whitespace="true"
                                                    :no-line-numbers="true"
-                                                   :empty-file-message="'No arguments.'"
-                                                   :font-size="codeFontSize" />
+                                                   :empty-file-message="'No arguments.'" />
                             </div>
 
                             <div class="col-12 mb-3">
@@ -673,8 +665,7 @@
                                                    :start-line="0"
                                                    :warn-no-newline="false"
                                                    :show-whitespace="true"
-                                                   :empty-file-message="'No input.'"
-                                                   :font-size="codeFontSize" />
+                                                   :empty-file-message="'No input.'" />
                             </div>
 
                             <div class="col-12 mb-3">
@@ -695,8 +686,7 @@
                                                    :start-line="0"
                                                    :warn-no-newline="false"
                                                    :show-whitespace="true"
-                                                   :empty-file-message="'No output.'"
-                                                   :font-size="codeFontSize" />
+                                                   :empty-file-message="'No output.'" />
                             </div>
                         </template>
 
@@ -754,32 +744,26 @@ export default {
             type: Object,
             required: true,
         },
-
         value: {
             type: Object,
             required: true,
         },
-
         index: {
             type: Number,
             required: true,
         },
-
         editable: {
             type: Boolean,
             default: false,
         },
-
         disableDelete: {
             type: Boolean,
             default: false,
         },
-
         testTypes: {
             type: Array,
             required: true,
         },
-
         result: {
             type: Object,
             default: null,
@@ -898,10 +882,22 @@ export default {
                     'Interpret the expected output as a Python regular expression, and check if the actual output matches it. Setting this also implies "Substring".',
             };
 
-            substringOpt.requiredBy = regexOpt;
+            const allWhitespaceOpt = {
+                text: 'Ignore all whitespace',
+                value: 'all_whitespace',
+                description:
+                    'Ignore all differences in whitespace, even newlines. I.e. " a b cd " and "abc d" are considered equal.',
+            };
+
+            substringOpt.requiredBy = [regexOpt];
             regexOpt.requires = substringOpt;
 
-            return [caseOpt, trailingWsOpt, substringOpt, regexOpt];
+            allWhitespaceOpt.disallows = regexOpt;
+            allWhitespaceOpt.requires = trailingWsOpt;
+            regexOpt.disallows = allWhitespaceOpt;
+            trailingWsOpt.requiredBy = [allWhitespaceOpt];
+
+            return [caseOpt, trailingWsOpt, allWhitespaceOpt, substringOpt, regexOpt];
         },
 
         inputs() {
@@ -914,8 +910,13 @@ export default {
 
                 return opts.reduce((acc, val) => {
                     const opt = this.ioOptions.find(o => o.value === val);
-                    if (opt.requiredBy && opts.indexOf(opt.requiredBy.value) !== -1) {
-                        acc[opt.value] = true;
+                    this.$utils.getProps(opt, [], 'requiredBy').forEach(required => {
+                        if (opts.indexOf(required.value) !== -1) {
+                            acc[opt.value] = true;
+                        }
+                    });
+                    if (opt.disallows && opts.indexOf(opt.value) !== -1) {
+                        acc[opt.disallows.value] = true;
                     }
                     return acc;
                 }, {});
@@ -926,7 +927,7 @@ export default {
             if (this.valueCopy.hidden) {
                 return 'Make the details of this step visible to students.';
             } else {
-                return 'Hide the details of this step from students.';
+                return 'Disable this step for Continuous Feedback runs and hide the details from students.';
             }
         },
 
@@ -970,6 +971,7 @@ export default {
         canViewOutput() {
             if (
                 !this.result ||
+                this.stepResult.state === 'hidden' ||
                 !this.canViewDetails ||
                 (this.assignment.state !== 'done' &&
                     !this.permissions.can_view_autotest_before_done)
@@ -1107,6 +1109,12 @@ export default {
                 const opt = this.ioOptions.find(o => o.value === val);
                 if (opt.requires && newValue.indexOf(opt.requires.value) === -1) {
                     newValue.push(opt.requires.value);
+                }
+                if (opt.disallows) {
+                    const toRemove = newValue.indexOf(opt.disallows.value);
+                    if (toRemove !== -1) {
+                        newValue.splice(toRemove, 1);
+                    }
                 }
             });
 

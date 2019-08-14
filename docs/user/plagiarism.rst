@@ -82,4 +82,7 @@ code segments and can be supplemented with additional comments can be exported.
 Select the plagiarism correspondences to be included in the report and press the
 *Export* button to generate the `.tex` file.
 
+Optionally, select the *Each listing on a separate page* option under **Options**
+to have each listing (i.e. printed code segment) on a new page.
+
 .. note:: Make sure pop-ups from CodeGrade are allowed in your browser if downloading fails.

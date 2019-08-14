@@ -10,16 +10,15 @@ import datetime
 import itertools
 
 import structlog
-from sqlalchemy import orm
+from sqlalchemy import orm, sql
 from sqlalchemy_utils import UUIDType
 
 import psef
 import cg_json
 from cg_sqlalchemy_helpers.mixins import IdMixin, UUIDMixin, TimestampMixin
 
-from . import Base, db
+from . import Base, MyQuery, DbColumn, db
 from . import work as work_models
-from . import _MyQuery
 from . import auto_test_step as auto_test_step_models
 from .. import auth
 from .. import auto_test as auto_test_module
@@ -35,7 +34,6 @@ if t.TYPE_CHECKING:  # pragma: no cover
     from . import rubric as rubric_models
     from . import file as file_models
     from . import assignment as assignment_models
-    from . import user as user_models
 
 logger = structlog.get_logger()
 
@@ -47,7 +45,7 @@ class AutoTestSuite(Base, TimestampMixin, IdMixin):
     """This class represents a Suite (also known as category) in a AutoTest.
     """
     if t.TYPE_CHECKING:  # pragma: no cover
-        query: t.ClassVar[_MyQuery['AutoTestSuite']]
+        query: t.ClassVar[MyQuery['AutoTestSuite']]
     __tablename__ = 'AutoTestSuite'
     id: int = db.Column('id', db.Integer, primary_key=True)
 
@@ -97,10 +95,16 @@ class AutoTestSuite(Base, TimestampMixin, IdMixin):
         'command_time_limit', db.Float, nullable=True, default=None
     )
 
-    def get_instructions(self) -> auto_test_module.SuiteInstructions:
+    def get_instructions(
+        self, run: 'AutoTestRun'
+    ) -> auto_test_module.SuiteInstructions:
+        """Get the instructions to run this suite.
+        """
+        show_hidden = not run.is_continuous_feedback_run
+        steps = [s for s in self.steps if show_hidden or not s.hidden]
         return {
             'id': self.id,
-            'steps': [s.get_instructions() for s in self.steps],
+            'steps': [s.get_instructions() for s in steps],
             'network_disabled': self.network_disabled,
         }
 
@@ -168,7 +172,7 @@ class AutoTestSet(Base, TimestampMixin, IdMixin):
     """This class represents a set (also known as level) of an AutoTest.
     """
     if t.TYPE_CHECKING:  # pragma: no cover
-        query: t.ClassVar[_MyQuery['AutoTestSet']]
+        query: t.ClassVar[MyQuery['AutoTestSet']]
     __tablename__ = 'AutoTestSet'
 
     id: int = db.Column('id', db.Integer, primary_key=True)
@@ -197,10 +201,14 @@ class AutoTestSet(Base, TimestampMixin, IdMixin):
         order_by='AutoTestSuite.created_at'
     )  # type: t.MutableSequence[AutoTestSuite]
 
-    def get_instructions(self) -> auto_test_module.SetInstructions:
+    def get_instructions(
+        self, run: 'AutoTestRun'
+    ) -> auto_test_module.SetInstructions:
+        """Get the instructions to run this set.
+        """
         return {
             'id': self.id,
-            'suites': [s.get_instructions() for s in self.suites],
+            'suites': [s.get_instructions(run) for s in self.suites],
             'stop_points': self.stop_points,
         }
 
@@ -219,7 +227,7 @@ class AutoTestResult(Base, TimestampMixin, IdMixin):
     __tablename__ = 'AutoTestResult'
 
     if t.TYPE_CHECKING:  # pragma: no cover
-        query: t.ClassVar[_MyQuery['AutoTestResult']]
+        query: t.ClassVar[MyQuery['AutoTestResult']]
 
     auto_test_run_id: int = db.Column(
         'auto_test_run_id',
@@ -424,6 +432,7 @@ class AutoTestResult(Base, TimestampMixin, IdMixin):
         }
 
 
+@enum.unique
 class AutoTestRunState(cg_json.SerializableEnum, enum.Enum):
     """This enum represents the state a single run is in.
 
@@ -433,13 +442,13 @@ class AutoTestRunState(cg_json.SerializableEnum, enum.Enum):
         :class:`.AutoTestRun` too as they define some helper functions for this
         enum.
     """
-    waiting_for_runner = enum.auto()
-    starting = enum.auto()
-    running = enum.auto()
-    done = enum.auto()
-    timed_out = enum.auto()
-    crashed = enum.auto()
-    changing_runner = enum.auto()
+    waiting_for_runner = 1
+    starting = 2
+    running = 3
+    done = 4
+    timed_out = 5
+    crashed = 6
+    changing_runner = 7
 
 
 class AutoTestRunner(Base, TimestampMixin, UUIDMixin):
@@ -449,7 +458,7 @@ class AutoTestRunner(Base, TimestampMixin, UUIDMixin):
     this case it is replaced by a new runner.
     """
     if t.TYPE_CHECKING:  # pragma: no cover
-        query: t.ClassVar[_MyQuery['AutoTestRunner']]
+        query: t.ClassVar[MyQuery['AutoTestRunner']]
 
     __tablename__ = 'AutoTestRunner'
 
@@ -507,7 +516,7 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
     __tablename__ = 'AutoTestRun'
 
     if t.TYPE_CHECKING:  # pragma: no cover
-        query: t.ClassVar[_MyQuery['AutoTestRun']]
+        query: t.ClassVar[MyQuery['AutoTestRun']]
 
     auto_test_id: int = db.Column(
         'auto_test_id',
@@ -549,7 +558,7 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
     auto_test: 'AutoTest' = db.relationship(
         'AutoTest',
         foreign_keys=auto_test_id,
-        back_populates='runs',
+        back_populates='_runs',
         lazy='joined',
         innerjoin=True,
     )
@@ -577,6 +586,14 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
     _job_number = db.Column('job_number', db.Integer, default=0)
     _job_id: uuid.UUID = db.Column('job_id', UUIDType, default=uuid.uuid4)
 
+    is_continuous_feedback_run: bool = db.Column(
+        'is_continuous_feedback_run',
+        db.Boolean,
+        default=False,
+        nullable=False,
+        server_default=sql.expression.false(),
+    )
+
     def increment_job_id(self) -> None:
         """Increment the job id of this runner.
 
@@ -590,6 +607,12 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
 
     def get_job_id(self) -> str:
         return f'{self._job_id.hex}-{self._job_number}'
+
+    @property
+    def active(self) -> bool:
+        """Check if this run is active.
+        """
+        return self.state in {AutoTestRunState.running}
 
     @property
     def finished(self) -> bool:
@@ -612,14 +635,79 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
     def state(self, new_state: AutoTestRunState) -> None:
         assert isinstance(new_state, AutoTestRunState)
 
-        self._state = new_state
+        if new_state == AutoTestRunState.changing_runner:
+            self._state = AutoTestRunState.changing_runner
+            self.stop_runner()
+        elif self.is_continuous_feedback_run:
+            if new_state.value > AutoTestRunState.running.value:  # pragma: no cover
+                # This should never happen, as it should be handled in the
+                # internal api.
+                start_new = False
+                if self.runner:
+                    start_new = self.stop_runner()
+                start_new = start_new or db.session.query(
+                    self.get_results_to_run().exists()
+                ).scalar()
 
-        if new_state == AutoTestRunState.done:
-            for result in self.results:
-                result.update_rubric()
+                if start_new:
+                    psef.tasks.notify_broker_of_new_job(self.get_job_id())
+            else:
+                self._state = new_state
+        else:
+            self._state = new_state
 
-        if self.finished:
-            psef.tasks.notify_broker_end_of_job(self.get_job_id())
+            if new_state == AutoTestRunState.done:
+                for result in self.results:
+                    result.update_rubric()
+
+            if self.finished:
+                psef.tasks.notify_broker_end_of_job(self.get_job_id())
+
+    def stop_runner(self) -> bool:
+        """Stop the runner of this run.
+
+        This also prepares the run to be migrated to a new runner.
+        """
+        job_id_to_stop = self.runner.job_id
+        self.runner_id = None
+        # This needs to be reset to ``None`` so that this job is once again
+        # marked as "available" for new runners.
+        self.started_date = None
+        self.increment_job_id()
+        result = self._clear_non_passed_results()
+
+        psef.tasks.notify_broker_end_of_job(job_id_to_stop)
+
+        db.session.flush()
+        return result
+
+    def _clear_non_passed_results(self) -> bool:
+        any_cleared = False
+
+        for result in self.results:
+            if not result.passed:
+                result.clear()
+                any_cleared = True
+
+        return any_cleared
+
+    def get_results_to_run(self) -> MyQuery[AutoTestResult]:
+        """Get a query to get the :py:class:`.AutoTestResult` items that still
+            need to be run.
+        """
+        # We make sure we only give results we actually want run, so only those
+        # of the newest submissions.
+        latest_ids = [
+            work_id for work_id, in self.auto_test.assignment.
+            get_from_latest_submissions(work_models.Work.id)
+        ]
+
+        return db.session.query(AutoTestResult).filter_by(
+            _state=auto_test_step_models.AutoTestStepResultState.not_started,
+            auto_test_run_id=self.id,
+        ).filter(
+            t.cast(DbColumn[int], AutoTestResult.work_id).in_(latest_ids)
+        ).order_by(AutoTestResult.created_at)
 
     def start(
         self,
@@ -651,25 +739,31 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
 
         @psef.helpers.callback_after_this_request
         def __start_tasks() -> None:
-            psef.tasks.notify_slow_auto_test_run(
-                (self.id, ), eta=now + (max_duration / 2)
-            )
-            psef.tasks.stop_auto_test_run((self.id, ), eta=self.kill_date)
-            logger.info('Checking heartbeat', runner_id=self.runner.id)
+            if not self.is_continuous_feedback_run:
+                psef.tasks.notify_slow_auto_test_run(
+                    (self.id, ), eta=now + (max_duration / 2)
+                )
+                psef.tasks.stop_auto_test_run((self.id, ), eta=self.kill_date)
             psef.tasks.check_heartbeat_auto_test_run((self.runner.id.hex, ))
 
     def get_instructions(self) -> auto_test_module.RunnerInstructions:
+        """Get the instructions to run this AutoTestRun.
+        """
+        results = [r for r in self.results if not r.passed]
+
         return {
             'runner_id': str(self.runner.id),
             'run_id': self.id,
             'auto_test_id': self.auto_test_id,
-            'result_ids': [r.id for r in self.results if not r.passed],
-            'sets': [s.get_instructions() for s in self.auto_test.sets],
+            'result_ids': [r.id for r in results],
+            'student_ids': [r.work.user_id for r in results],
+            'sets': [s.get_instructions(self) for s in self.auto_test.sets],
             'fixtures': [(f.name, f.id) for f in self.auto_test.fixtures],
             'setup_script': self.auto_test.setup_script,
             'heartbeat_interval':
                 psef.app.config['AUTO_TEST_HEARTBEAT_INTERVAL'],
             'run_setup_script': self.auto_test.run_setup_script,
+            'is_continuous_run': self.is_continuous_feedback_run,
         }
 
     def __to_json__(self) -> t.Mapping[str, object]:
@@ -677,13 +771,14 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
             'id': self.id,
             'created_at': self.created_at.isoformat(),
             'state': self.state.name,
+            'is_continuous': self.is_continuous_feedback_run,
         }
 
     def __extended_to_json__(self) -> t.Mapping[str, object]:
         results = []
         for result in self.results:
             try:
-                auth.ensure_can_see_grade(result.work)
+                auth.ensure_can_view_autotest_result(result)
             except PermissionException:
                 continue
             else:
@@ -761,7 +856,7 @@ class AutoTest(Base, TimestampMixin, IdMixin):
     :ivar maximum_size: The maximum amount of members a group can ever have.
     """
     if t.TYPE_CHECKING:  # pragma: no cover
-        query: t.ClassVar[_MyQuery['AutoTest']]
+        query: t.ClassVar[MyQuery['AutoTest']]
     __tablename__ = 'AutoTest'
 
     id: int = db.Column('id', db.Integer, primary_key=True)
@@ -779,12 +874,36 @@ class AutoTest(Base, TimestampMixin, IdMixin):
         order_by='AutoTestSet.created_at'
     )  # type: t.MutableSequence[AutoTestSet]
 
-    runs = db.relationship(
+    _runs = db.relationship(
         "AutoTestRun",
         back_populates="auto_test",
         cascade='all,delete,delete-orphan',
         order_by='AutoTestRun.created_at'
     )  # type: t.MutableSequence[AutoTestRun]
+
+    @property
+    def test_run(self) -> t.Optional[AutoTestRun]:
+        """The final run of this AutoTest.
+
+        :returns: The final run of this AutoTest or ``None`` if there is none.
+        """
+        return next(
+            (r for r in self._runs if not r.is_continuous_feedback_run), None
+        )
+
+    @property
+    def continuous_feedback_run(self) -> t.Optional[AutoTestRun]:
+        """The continuous feedback run of this AutoTest.
+
+        :returns: The continuous feedback run of this AutoTest or ``None`` if
+            there is none.
+        """
+        return next(
+            (r for r in self._runs if r.is_continuous_feedback_run), None
+        )
+
+    def get_all_runs(self) -> t.Sequence[AutoTestRun]:
+        return self._runs
 
     fixtures = db.relationship(
         'AutoTestFixture',
@@ -817,7 +936,7 @@ class AutoTest(Base, TimestampMixin, IdMixin):
 
         :raises APIException: If the AutoTest has one or more runs.
         """
-        if self.runs:
+        if self.test_run is not None:
             raise APIException(
                 'You cannot update an AutoTest which has runs',
                 f'The given AutoTest "{self.id}" has a run',
@@ -848,8 +967,6 @@ class AutoTest(Base, TimestampMixin, IdMixin):
         self._grade_calculation = key
 
     def _ensure_can_start_run(self) -> None:
-        self.ensure_no_runs()
-
         if self.grade_calculator is None:
             raise InvalidStateException(
                 'This AutoTest has no grade_calculation set, but this options'
@@ -878,7 +995,7 @@ class AutoTest(Base, TimestampMixin, IdMixin):
                 ' suites, so it cannot be started'
             )
 
-    def start_run(self) -> None:
+    def start_test_run(self) -> AutoTestRun:
         """Start this AutoTest run.
 
         This function checks if the AutoTest is in a state where a run can be
@@ -887,9 +1004,15 @@ class AutoTest(Base, TimestampMixin, IdMixin):
         database are not committed!
         """
         self._ensure_can_start_run()
+        if self.test_run is not None:
+            raise APIException(
+                'You cannot start an AutoTest which has runs',
+                f'The given AutoTest "{self.id}" has a run',
+                APICodes.INVALID_STATE, 409
+            )
 
         run = AutoTestRun()
-        self.runs.append(run)
+        self._runs.append(run)
         db.session.flush()
 
         results = [
@@ -901,6 +1024,22 @@ class AutoTest(Base, TimestampMixin, IdMixin):
         psef.helpers.callback_after_this_request(
             lambda: psef.tasks.notify_broker_of_new_job(run.get_job_id())
         )
+        return run
+
+    def start_continuous_feedback_run(self) -> AutoTestRun:
+        """Start a continuous feedback run for this AutoTest.
+        """
+        self._ensure_can_start_run()
+        if self.continuous_feedback_run:
+            raise APIException(
+                'You cannot start an AutoTest which has runs',
+                f'The given AutoTest "{self.id}" has a run',
+                APICodes.INVALID_STATE, 409
+            )
+
+        run = AutoTestRun(is_continuous_feedback_run=True)
+        self._runs.append(run)
+        return run
 
     @property
     def all_suites(self) -> t.Iterator[AutoTestSuite]:
@@ -908,13 +1047,45 @@ class AutoTest(Base, TimestampMixin, IdMixin):
         """
         return itertools.chain.from_iterable(s.suites for s in self.sets)
 
+    def add_to_continuous_feedback(self, work: 'work_models.Work') -> bool:
+        """Add the given work to the continuous feedback run.
+
+        This function only does something if there is an continuous feedback
+        run.
+
+        :param work: The work to add to the continuous feedback run.
+        :returns: ``True`` if the work was added to the continuous feedback
+            run.
+
+        .. warning::
+
+            This function changes the session if it returns ``True``, so a
+            commit is necessary in that case.
+        """
+        run = self.continuous_feedback_run
+        # Do not start if there is a normal test run, as that run will test
+        # everything.
+        if run is None or self.test_run is not None:
+            return False
+
+        if run.runner is None:
+            psef.tasks.notify_broker_of_new_job(run.get_job_id())
+
+        result = AutoTestResult(work=work, auto_test_run_id=run.id)
+        db.session.add(result)
+        return True
+
     def __to_json__(self) -> t.Mapping[str, object]:
+        """Covert this AutoTest to json.
+        """
         runs: t.Sequence[AutoTestRun] = []
 
         if self.assignment.is_done or current_user.has_permission(
             CPerm.can_see_grade_before_open, self.assignment.course_id
         ):
-            runs = self.runs
+            runs = self._runs
+        elif self.continuous_feedback_run is not None:
+            runs = [self.continuous_feedback_run]
 
         return {
             'id': self.id,

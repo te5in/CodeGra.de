@@ -51,21 +51,18 @@
                 <template v-if="stopPoints > 0">
                     <b-alert show
                              v-if="setResult.finished"
-                             :variant="setResult.achieved >= stopPoints ? 'success' : 'danger'">
-                        You scored <code>{{ setResult.achieved }}</code>
-                        point{{ setResult.achieved == 1 ? '' : 's' }} of
-                        <code>{{ stopPoints }}</code> required for AutoTest
-                        to continue past this point.
+                             :variant="setPassed ? 'success' : 'danger'">
+                        You scored <code class="percentage">{{ $utils.toMaxNDecimals(100 * setResult.percentage, 2) }}%</code> of the
+                        <code class="percentage">{{ stopPoints }}%</code> required to continue.
 
-                        <template v-if="setResult.achieved < stopPoints">
+                        <template v-if="!setPassed">
                             No further tests will be run.
                         </template>
                     </b-alert>
 
                     <div v-else class="border rounded mb-3 p-3">
-                        You need to score <code>{{ stopPoints }}</code>
-                        point{{ stopPoints == 1 ? '' : 's' }} for
-                        AutoTest to continue past this point.
+                        You need to score <code>{{ stopPoints }}%</code> of the points possible
+                        up to this point for AutoTest to continue past here.
                     </div>
                 </template>
             </template>
@@ -74,16 +71,15 @@
                            class="set-continue"
                            :class="editable ? 'py-1' : 'py-2'">
                 <span>
-                    Only execute further levels if total points achieved by AutoTest is higher than
+                    Only execute further levels if total percentage of points achieved by AutoTest
+                    is higher than or equal to
 
-                    <code v-if="!editable">
-                        {{ stopPoints }}
-                    </code>
+                    <code v-if="!editable">{{ stopPoints }}%</code>
 
                     <description-popover hug-text>
                         <template slot="description">
-                            AutoTest will stop if the amount of points is less than the filled in
-                            amount of points.
+                            AutoTest will stop if the percentage of points achieved is less than
+                            the filled in amount.
                         </template>
                     </description-popover>
                 </span>
@@ -94,6 +90,8 @@
                            type="number"
                            v-model="stopPoints"
                            placeholder="0"
+                           min="0"
+                           max="100"
                            @keyup.ctrl.enter="$refs.submitContinuePointsBtn.onClick()" />
 
                     <b-input-group-append>
@@ -146,8 +144,17 @@ export default {
 
     data() {
         return {
-            stopPoints: this.value.stop_points,
+            stopPoints: 0,
         };
+    },
+
+    watch: {
+        value: {
+            immediate: true,
+            handler() {
+                this.stopPoints = 100 * this.value.stop_points;
+            },
+        },
     },
 
     computed: {
@@ -187,6 +194,10 @@ export default {
         isLastSet() {
             return !this.test.sets.some((s, j) => j > this.setIndex && !s.deleted);
         },
+
+        setPassed() {
+            return 100 * this.setResult.percentage >= this.stopPoints;
+        },
     },
 
     methods: {
@@ -208,28 +219,16 @@ export default {
         submitContinuePoints() {
             const stopPoints = Number(this.stopPoints);
 
-            const prevSetHasGreater = this.test.sets.some(
-                (s, j) => j < this.setIndex && s.stop_points > stopPoints && stopPoints !== 0,
-            );
-            if (prevSetHasGreater) {
-                throw new RangeError(
-                    'The value must be greater than or equal to all previous levels.',
-                );
-            }
-
-            const nextHasSmaller = this.test.sets.some(
-                (s, j) => j > this.setIndex && s.stop_points < stopPoints && s.stop_points !== 0,
-            );
-            if (nextHasSmaller) {
-                throw new RangeError(
-                    'The value must be less than or equal to all following levels.',
-                );
+            if (stopPoints > 100) {
+                throw new Error('The value cannot be higher than 100.');
+            } else if (stopPoints < 0) {
+                throw new Error('The value cannot be less than 0.');
             }
 
             return this.storeUpdateAutoTestSet({
                 autoTestId: this.autoTestId,
                 autoTestSet: this.value,
-                setProps: { stop_points: stopPoints },
+                setProps: { stop_points: stopPoints / 100 },
             });
         },
 
@@ -298,5 +297,9 @@ export default {
     .auto-test:not(.editable) .auto-test-set:last-child &:last-child {
         margin-bottom: 0 !important;
     }
+}
+
+#app.dark .alert.alert-danger code.percentage {
+    color: @text-color-dark;
 }
 </style>

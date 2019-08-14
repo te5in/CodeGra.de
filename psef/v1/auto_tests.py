@@ -318,12 +318,18 @@ def update_auto_test_set(auto_test_id: int, auto_test_set_id: int
     with get_from_map_transaction(get_json_dict_from_request()) as [_, opt]:
         stop_points = t.cast(
             t.Optional[float], opt('stop_points', numbers.Real, None)
-        )  # type: ignore
+        )
 
     if stop_points is not None:
         if stop_points < 0:
             raise APIException(
                 'You cannot set stop points to lower than 0',
+                f"The given value for stop points ({stop_points}) isn't valid",
+                APICodes.INVALID_PARAM, 400
+            )
+        elif stop_points > 1:
+            raise APIException(
+                'You cannot set stop points to higher than 1',
                 f"The given value for stop points ({stop_points}) isn't valid",
                 APICodes.INVALID_PARAM, 400
             )
@@ -417,7 +423,7 @@ def update_or_create_auto_test_suite(auto_test_id: int, auto_test_set_id: int
         suite_id = opt('id', int, None)
         time_limit = t.cast(
             t.Optional[float],
-            opt('command_time_limit', numbers.Real, None)  # type: ignore
+            opt('command_time_limit', numbers.Real, None),
         )
 
     if suite_id is None:
@@ -558,6 +564,14 @@ def start_auto_test_run(auto_test_id: int) -> t.Union[JSONResponse[
         to see AutoTest runs.
     :raises APIException: If there is already a run for the given AutoTest.
     """
+    if request.get_json(silent=True) is None:
+        cf_run = False
+    else:
+        with get_from_map_transaction(get_json_dict_from_request()) as [
+            get, _
+        ]:
+            cf_run = get('continuous_feedback_run', bool)
+
     test = filter_single_or_404(
         models.AutoTest,
         models.AutoTest.id == auto_test_id,
@@ -566,10 +580,11 @@ def start_auto_test_run(auto_test_id: int) -> t.Union[JSONResponse[
 
     auth.ensure_permission(CPerm.can_run_autotest, test.assignment.course_id)
 
-    test.ensure_no_runs()
-
     try:
-        test.start_run()
+        if cf_run:
+            run = test.start_continuous_feedback_run()
+        else:
+            run = test.start_test_run()
     except exceptions.InvalidStateException as e:
         raise APIException(
             e.reason,
@@ -584,7 +599,7 @@ def start_auto_test_run(auto_test_id: int) -> t.Union[JSONResponse[
     except exceptions.PermissionException:
         return jsonify({})
     else:
-        return extended_jsonify(test.runs[0], use_extended=models.AutoTestRun)
+        return extended_jsonify(run, use_extended=models.AutoTestRun)
 
 
 @api.route(
@@ -652,6 +667,6 @@ def get_auto_test_result(auto_test_id: int, run_id: int, result_id: int
         also_error=also_error,
     )
 
-    auth.ensure_can_see_grade(result.work)
+    auth.ensure_can_view_autotest_result(result)
 
     return extended_jsonify(result, use_extended=models.AutoTestResult)

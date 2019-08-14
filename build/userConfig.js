@@ -65,8 +65,12 @@ config.features = Object.assign({
     groups: false,
 }, userConfig.Features);
 
-config.features.autoTest = Object.assign({
+config.autoTest = {
     auto_test_max_command_time: 300,
-}, filterKeys(userConfig, 'auto_test_max_command_time'));
+};
+
+if (Object.hasOwnProperty.call(userConfig, 'auto_test_max_command_time')) {
+    config.autoTest.auto_test_max_command_time = userConfig.auto_test_max_command_time;
+}
 
 module.exports = config;

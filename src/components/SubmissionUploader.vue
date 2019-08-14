@@ -47,11 +47,11 @@
                 </b-tab>
                 <b-tab title="Denied files" class="ignore-tab"
                        :disabled="wrongFileError.removed_files.every(x => x.deletion_type === 'leading_directory')">
-                    <b-card class="ignore-card denied-files" no-body>
-                        <file-tree :tree="deheadedFileTree"
-                                   :collapsed="false"
-                                   :collapse-function="expandFileTree"
-                                   no-links>
+                    <b-card class="ignore-card p-2" no-body>
+                        <file-tree-inner :tree="deheadedFileTree"
+                                         :collapsed="false"
+                                         :collapse-function="expandFileTree"
+                                         no-links>
                             <template slot="file-slot"
                                       slot-scope="f">
                                 <span class="deleted-file"
@@ -72,7 +72,7 @@
                                       >{{ f.filename }}</span>
                                 <span :class="f.depth > 1 ? 'not-denied-file' : ''" v-else>{{ f.filename }}</span>
                             </template>
-                        </file-tree>
+                        </file-tree-inner>
                     </b-card>
                 </b-tab>
                 <b-tab title="Hand-in instructions" class="ignore-tab">
@@ -86,7 +86,7 @@
         </div>
         <b-button-toolbar justify>
             <div v-b-popover.top.hover="canDeleteFiles ? '' : 'You are missing required files.'">
-                <submit-button label="Delete files"
+                <submit-button label="Delete disallowed files and hand in"
                             variant="danger"
                             :submit="() => overrideSubmit('delete')"
                             :disabled="!canDeleteFiles"
@@ -95,12 +95,12 @@
             </div>
 
             <div v-b-popover.top.hover="canOverrideIgnore ? '' : (canDeleteFiles ? 'You are not allowed to override the hand-in requirements.' : 'You are missing required files.')">
-                <submit-button label="Override"
-                            variant="warning"
-                            :submit="() => overrideSubmit('keep')"
-                            :disabled="!canOverrideIgnore"
-                            @after-success="afterOverrideSubmit"
-                            @error="$emit('error', $event)"/>
+                <submit-button label="Hand in anyway"
+                               variant="warning"
+                               :submit="() => overrideSubmit('keep')"
+                               :disabled="!canOverrideIgnore"
+                               @after-success="afterOverrideSubmit"
+                               @error="$emit('error', $event)"/>
             </div>
 
             <b-button variant="outline-primary"
@@ -211,7 +211,7 @@ import GroupManagement from './GroupManagement';
 import GroupsManagement from './GroupsManagement';
 import FileRule from './FileRule';
 import CGIgnoreFile from './CGIgnoreFile';
-import FileTree from './FileTree';
+import FileTreeInner from './FileTreeInner';
 import MultipleFilesUploader from './MultipleFilesUploader';
 
 export default {
@@ -509,7 +509,7 @@ export default {
         FileRule,
         Loader,
         CGIgnoreFile,
-        FileTree,
+        FileTreeInner,
         Icon,
         MultipleFilesUploader,
     },
@@ -594,11 +594,6 @@ export default {
 
 .not-denied-file {
     opacity: 0.6;
-}
-
-.denied-files .file-tree {
-    padding: 0.75rem;
-    padding-top: 0;
 }
 
 .submit-file-button {

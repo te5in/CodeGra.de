@@ -4,11 +4,11 @@
            class="auto-test-state"
            variant="secondary" >
     <span v-b-popover.hover.top="readable">
-        <div v-if="state == 'running'" class="running">
+        <span v-if="state == 'running'" class="running">
             <template v-if="!noTimer">
                 {{ minutes }}:{{ seconds }}
             </template>
-        </div>
+        </span>
         <icon v-else-if="icon"
               :class="iconClass"
               :name="icon" />
@@ -39,12 +39,10 @@ export default {
             type: Object,
             default: null,
         },
-
         btn: {
             type: Boolean,
             default: false,
         },
-
         noTimer: {
             type: Boolean,
             default: false,
@@ -63,6 +61,7 @@ export default {
                     return 'check';
                 case 'failed':
                     return 'times';
+                case 'hidden':
                 case 'skipped':
                     return 'ban';
                 case 'starting':
@@ -87,6 +86,7 @@ export default {
                 case 'timed_out':
                 case 'crashed':
                     return 'text-danger';
+                case 'hidden':
                 case 'skipped':
                     return 'text-muted';
                 default:
@@ -96,6 +96,8 @@ export default {
 
         readable() {
             switch (this.state) {
+                case 'hidden':
+                    return 'This step is hidden and will not be executed in Continuous Feedback.';
                 case 'not_started':
                     return 'Waiting to be started';
                 default:

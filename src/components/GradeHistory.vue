@@ -12,15 +12,12 @@
             {{ data.item.grade >= 0 ? Math.round(data.item.grade * 100) / 100 : 'Deleted' }}
         </span>
         <span slot="rubric" slot-scope="data">
-            <icon name="check" v-if="data.item.is_rubric"></icon>
-            <icon name="times" v-else></icon>
+            <icon :name="data.item.is_rubric ? 'check' : 'times'" />
         </span>
         <span v-if="isLTI" slot="lti" slot-scope="data">
-            <icon name="check" v-if="data.item.passed_back"></icon>
-            <icon name="times" v-else></icon>
+            <icon :name="data.item.passed_back ? 'check' : 'times'" />
         </span>
     </b-table>
-</b-collapse>
 </div>
 </template>
 
@@ -114,49 +111,21 @@ export default {
 };
 </script>
 
-<style lang="less">
-.grade-history-submit .grade-history-submit span,
-.grade-history .btn-group {
-    display: block;
-    width: 100%;
-    button {
-        width: 100%;
-    }
-}
-
-.btn-group {
-}
-</style>
-
 <style lang="less" scoped>
-#grade-history-collapse {
-    transition-property: all;
-    transition-duration: 0.5s;
-    transition-timing-function: cubic-bezier(0, 1, 0.5, 1);
-    max-height: 0;
-    overflow-x: hidden;
-}
-
-#grade-history-collapse.show {
-    max-height: 16em;
-    margin-bottom: 15px;
-    &.collapse-leave-active {
-        margin-bottom: 0;
-    }
-}
-
-.table {
-    th,
-    td {
-        padding: 0.25rem !important;
-    }
-    cursor: text !important;
-}
 .grade-history {
     width: 30em;
     margin: -0.5rem -0.75rem;
     max-height: 40em;
     overflow-y: auto;
-    padding: 0.5rem 0.75rem;
+}
+
+.table {
+    margin-bottom: 0;
+    cursor: text !important;
+
+    th,
+    td {
+        padding: 0.25rem !important;
+    }
 }
 </style>

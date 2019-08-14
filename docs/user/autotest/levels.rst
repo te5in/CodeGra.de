@@ -21,7 +21,7 @@ Advanced use cases
 
 There is the possibility, however, to create multiple levels. This can be
 done, for example, if you only want to run certain categories if other categories
-(in another level) get a certain amount of points. After adding a
-new level you can set these amount of points in the footer of the set above.
+(in another level) get a certain percentage of points. After adding a
+new level you can set this percentage in the footer of the set above.
 
 Levels are executed in order, and not concurrently.

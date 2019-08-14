@@ -383,12 +383,9 @@ export default {
 
         pointPercentage() {
             const result = this.$utils.getProps(this.result, null, 'suiteResults', this.value.id);
-            const achieved = this.$utils.getProps(result, null, 'achieved');
-            const possible = this.$utils.getProps(result, null, 'possible');
+            const perc = this.$utils.getProps(result, null, 'percentage');
 
-            return achieved != null && possible != null
-                ? (100 * achieved / possible).toFixed(0)
-                : 0;
+            return perc == null ? '-' : (100 * perc).toFixed(0);
         },
 
         expandedSteps() {

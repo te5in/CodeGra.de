@@ -1,30 +1,24 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
-<div class="image-viewer">
-    <loader v-if="loading"/>
-    <floating-feedback-button
-        v-else-if="imgURL"
-        :style="{ fontSize: `${fontSize}px` }"
-        class="img"
-        :fileId="id"
-        :line="0"
-        :feedback="feedback"
-        @set-feedback="feedback = $event"
-        :assignment="assignment"
-        :editable="editable"
-        :can-use-snippets="canUseSnippets"
-        slot-description="image"
-        snippet-field-above
-        always-show-button>
-        <img :src="imgURL"
-             class="img form-control"
-             :title="name"/>
-    </floating-feedback-button>
-    <b-alert variant="danger"
-             :show="error !== ''">
-        {{ error }}
-    </b-alert>
-</div>
+<floating-feedback-button
+    v-if="imgURL"
+    class="image-viewer"
+    :fileId="id"
+    :line="line"
+    :feedback="feedback"
+    :assignment="assignment"
+    :submission="submission"
+    :editable="editable"
+    :can-use-snippets="canUseSnippets"
+    slot-description="image"
+    snippet-field-above
+    always-show-button
+    add-space>
+    <img :src="imgURL"
+         class="img"
+         :title="name"
+         @load="imgLoaded"/>
+</floating-feedback-button>
 </template>
 
 <script>
@@ -35,24 +29,24 @@ export default {
     name: 'image-viewer',
 
     props: {
+        assignment: {
+            type: Object,
+            required: true,
+        },
+        submission: {
+            type: Object,
+            required: true,
+        },
         file: {
             type: Object,
-            required: null,
+            default: null,
         },
         editable: {
             type: Boolean,
-            required: false,
+            default: false,
         },
         canUseSnippets: {
             type: Boolean,
-            required: true,
-        },
-        fontSize: {
-            type: Number,
-            default: 12,
-        },
-        assignment: {
-            type: Object,
             required: true,
         },
     },
@@ -60,15 +54,15 @@ export default {
     data() {
         return {
             imgURL: '',
-            loading: true,
-            error: '',
-            feedback: {},
         };
     },
 
     watch: {
-        id() {
-            this.embedImg();
+        id: {
+            immediate: true,
+            handler() {
+                this.embedImg();
+            },
         },
 
         name() {
@@ -84,39 +78,42 @@ export default {
         name() {
             return this.file ? this.file.name : '';
         },
-    },
 
-    mounted() {
-        this.embedImg();
+        line() {
+            return 0;
+        },
+
+        feedback() {
+            return this.$utils.getProps(
+                this.submission,
+                {},
+                'feedback',
+                'user',
+                this.id,
+                this.line,
+            );
+        },
     },
 
     methods: {
         embedImg() {
-            this.loading = true;
-            this.error = '';
             this.imgURL = '';
-            Promise.all([
-                this.$http.get(`/api/v1/code/${this.id}?type=feedback`).then(
-                    ({ data: feedback }) => {
-                        this.feedback = feedback['0'];
-                    },
-                    () => ({}),
-                ),
-                this.$http.get(`/api/v1/code/${this.id}?type=file-url`).then(
-                    ({ data }) => {
-                        this.imgURL = `/api/v1/files/${
-                            data.name
-                        }?not_as_attachment&mime=${this.getMimeType()}`;
-                    },
-                    ({ response }) => {
-                        this.error = `An error occurred while loading the image: ${
-                            response.data.message
-                        }.`;
-                    },
-                ),
-            ]).then(() => {
-                this.loading = false;
-            });
+
+            this.$http.get(`/api/v1/code/${this.id}?type=file-url`).then(
+                ({ data }) => {
+                    this.imgURL = `/api/v1/files/${
+                        data.name
+                    }?not_as_attachment&mime=${this.getMimeType()}`;
+                },
+                err => {
+                    this.$emit(
+                        'error',
+                        `An error occured while loading the image: ${this.$utils.getErrorMessage(
+                            err,
+                        )}.`,
+                    );
+                },
+            );
         },
 
         getMimeType() {
@@ -130,6 +127,10 @@ export default {
             };
             return types[ext];
         },
+
+        imgLoaded() {
+            this.$emit('load');
+        },
     },
 
     components: {
@@ -141,30 +142,23 @@ export default {
 
 <style lang="less" scoped>
 .image-viewer {
+    min-height: 10rem;
     padding: 0;
-    overflow: hidden;
 
     .img {
+        display: block;
         max-width: 100%;
         max-height: 100%;
-        padding: 0;
-    }
-
-    img.img {
-        text-align: center;
-        min-height: 0;
+        flex: 1 1 auto;
         object-fit: contain;
     }
 }
 </style>
 
 <style lang="less">
-.image-viewer .floating-feedback-button {
+.image-viewer.floating-feedback-button .content {
     display: flex;
     flex-direction: column;
-
-    .feedback-button {
-        margin: 1rem;
-    }
+    align-items: center;
 }
 </style>

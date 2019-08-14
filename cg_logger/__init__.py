@@ -61,6 +61,9 @@ class PrintLogger(structlog.PrintLogger):  # type: ignore
                 )
                 self._in_err = False
 
+    log = debug = info = warn = warning = msg
+    fatal = failure = err = error = critical = exception = msg
+
 
 def init_app(app: flask.Flask, set_user: bool = True) -> None:
     """Initialize the app.

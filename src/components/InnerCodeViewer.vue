@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
-<ol :class="{ editable: editable, 'lint-whitespace': assignment.whitespace_linter, 'show-whitespace': showWhitespace }"
+<ol :class="{ editable: editable, 'lint-whitespace': lintWhitespace, 'show-whitespace': showWhitespace }"
     :start="computedStartLine"
     :style="{
         paddingLeft: noLineNumbers ? 0 : `${3 + Math.log10(computedEndLine) * 2/3}em`,
@@ -8,23 +8,24 @@
         fontSize: `${fontSize}px`,
     }"
     class="hljs inner-code-viewer"
-    @click="editable && addFeedback($event)">
+    @click="addFeedback($event)">
 
     <li v-for="i in computedEndLine"
         v-if="i - 1 >= computedStartLine - 1 && (i < codeLines.length || codeLines[i - 1] !== '')"
         :key="i - 1"
         class="line"
         :class="{
-            'linter-feedback-outer': $userConfig.features.linters && linterFeedback[i - 1],
-            'feedback-outer': $utils.getProps(feedback, null, i - 1, 'msg') != null
+            'linter-feedback-outer': $userConfig.features.linters && linterFeedback[i - 1 + lineFeedbackOffset],
+            'feedback-outer': $utils.getProps(feedback, null, i - 1 + lineFeedbackOffset, 'msg') != null
         }"
         :data-line="i">
 
-        <code v-html="codeLines[i - 1]"/>
+        <!-- Always add a space because otherwise the code element may render
+            with 0 height. -->
+        <code v-html="codeLines[i - 1] + '&nbsp;'" />
 
         <linter-feedback-area :feedback="linterFeedback[i - 1]"
-                              v-if="$userConfig.features.linters &&
-                                    linterFeedback[i - 1] != null"/>
+                              v-if="$userConfig.features.linters && linterFeedback[i - 1] != null"/>
 
         <feedback-area
             :editing="editing[i - 1]"
@@ -36,9 +37,10 @@
             :file-id="fileId"
             :can-use-snippets="canUseSnippets"
             :assignment="assignment"
+            :submission="submission"
             @editFeedback="editFeedback"
             @feedbackChange="feedbackChange"
-            v-if="feedback[i - 1 + lineFeedbackOffset] && feedback[i - 1 + lineFeedbackOffset].msg !== null"/>
+            v-if="showFeedback && $utils.getProps(feedback, null, i - 1 + lineFeedbackOffset, 'msg') !== null"/>
     </li>
     <li class="empty-file"
         v-if="codeLines.length === 1 && codeLines[0] === ''">
@@ -52,6 +54,8 @@
 </template>
 
 <script>
+import { mapActions, mapGetters } from 'vuex';
+
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/level-up';
 
@@ -64,74 +68,60 @@ export default {
     props: {
         assignment: {
             type: Object,
-            required: true,
+            default: null,
         },
-
+        submission: {
+            type: Object,
+            default: null,
+        },
         codeLines: {
             type: Array,
             required: true,
         },
-
         feedback: {
             type: Object,
             required: true,
         },
-
         linterFeedback: {
             type: Object,
             default: () => ({}),
         },
-
         editable: {
             type: Boolean,
             default: false,
         },
-
-        fontSize: {
-            type: Number,
-            default: 12,
-        },
-
         showWhitespace: {
             type: Boolean,
             default: true,
         },
-
         fileId: {
             type: Number,
             required: true,
         },
-
         canUseSnippets: {
             type: Boolean,
             default: false,
         },
-
         startLine: {
             type: Number,
             default: 0,
         },
-
         endLine: {
             type: Number,
             default: null,
         },
-
         warnNoNewline: {
             type: Boolean,
             default: true,
         },
-
         lineFeedbackOffset: {
             type: Number,
             default: 0,
         },
-
         noLineNumbers: {
             type: Boolean,
             default: false,
         },
-
         emptyFileMessage: {
             type: String,
             default: 'File is empty.',
@@ -145,6 +135,12 @@ export default {
     },
 
     computed: {
+        ...mapGetters('user', {
+            currentUserName: 'name',
+        }),
+
+        ...mapGetters('pref', ['fontSize']),
+
         computedStartLine() {
             return Math.max(this.startLine + 1, 1);
         },
@@ -155,6 +151,14 @@ export default {
             }
             return Math.min(this.endLine, this.codeLines.length);
         },
+
+        lintWhitespace() {
+            return this.assignment && this.assignment.whitespace_linter;
+        },
+
+        showFeedback() {
+            return this.assignment != null && this.submission != null;
+        },
     },
 
     components: {
@@ -164,16 +168,27 @@ export default {
     },
 
     methods: {
-        addFeedback(event) {
+        ...mapActions('courses', {
+            storeAddFeedbackLine: 'addSubmissionFeedbackLine',
+        }),
+
+        async addFeedback(event) {
+            if (!this.editable) {
+                return;
+            }
+
             const el = event.target.closest('li.line');
             if (!el) return;
 
             const line = Number(el.getAttribute('data-line')) - 1;
 
             if (!this.feedback[line] || !this.feedback[line].msg) {
-                this.$emit('set-feedback', {
+                await this.storeAddFeedbackLine({
+                    assignmentId: this.assignment.id,
+                    submissionId: this.submission.id,
+                    fileId: this.fileId,
                     line: line + this.lineFeedbackOffset,
-                    msg: '',
+                    author: { name: this.currentUserName },
                 });
             }
             this.$set(this.editing, line, true);
@@ -186,13 +201,12 @@ export default {
             });
         },
 
-        feedbackChange(event) {
-            this.$emit('set-feedback', event);
-            this.$set(this.editing, event.line - this.lineFeedbackOffset, undefined);
+        feedbackChange(line) {
+            this.$set(this.editing, line - this.lineFeedbackOffset, undefined);
         },
 
-        editFeedback(event) {
-            this.$set(this.editing, event - this.lineFeedbackOffset, true);
+        editFeedback(line) {
+            this.$set(this.editing, line - this.lineFeedbackOffset, true);
         },
     },
 };
@@ -210,8 +224,8 @@ ol {
     font-size: small;
 
     #app.dark & {
-        background: @color-primary-darkest;
-        color: @color-secondary-text-lighter;
+        background: @color-primary-darkest !important;
+        color: @color-secondary-text-lighter !important;
     }
 }
 
@@ -229,10 +243,23 @@ li {
         border-left: 1px solid darken(@color-primary-darkest, 5%);
     }
 
-    .code-viewer.editable &:hover,
-    #app.dark .code-viewer.editable &:hover {
-        cursor: pointer;
-        background-color: rgba(0, 0, 0, 0.025);
+    .inner-code-viewer.editable &,
+    #app.dark .inner-code-viewer.editable & {
+        &:not(.missing-newline):not(.empty-file):hover {
+            cursor: pointer;
+            background-color: rgba(0, 0, 0, 0.025);
+        }
+    }
+
+    &.missing-newline,
+    &.empty-file {
+        list-style-type: none;
+        cursor: default;
+        user-select: none;
+
+        svg {
+            margin-bottom: -0.125em;
+        }
     }
 }
 
@@ -250,31 +277,13 @@ code {
     -ms-hyphens: auto;
     hyphens: auto;
 
+    /* We add a &nbsp; to the end of each line of code, because the <code>
+     * must contain something for it to render with some height, which is
+     * necessary when the FeedbackArea is shown on an empty line. */
+    margin-right: -0.66em;
+
     #app.dark & {
         color: #839496;
-    }
-}
-
-.add-feedback {
-    position: absolute;
-    top: 0;
-    right: 0.5em;
-    display: none;
-    color: black;
-
-    li:hover & {
-        display: block;
-    }
-}
-
-.missing-newline,
-.empty-file {
-    list-style-type: none;
-    cursor: default !important;
-    user-select: none;
-
-    svg {
-        margin-bottom: -0.125em;
     }
 }
 </style>

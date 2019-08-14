@@ -1,37 +1,61 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
-    <div class="pdf-viewer">
-        <loader v-if="loading"/>
-        <object :data="pdfURL"
-                type="application/pdf"
-                width="100%"
-                height="100%"
-                v-else-if="pdfURL !== ''">
-            <b-alert variant="danger" :show="true">
-                Your browser doesn't support the PDF viewer. Please download
-                the PDF <a class="alert-link" :href="pdfURL">here</a>.
-            </b-alert>
-        </object>
-        <b-alert variant="danger"
-                 :show="error !== ''">
-            {{ error }}
+<floating-feedback-button
+    v-if="pdfURL"
+    class="pdf-viewer"
+    :fileId="id"
+    :line="line"
+    :feedback="feedback"
+    :assignment="assignment"
+    :submission="submission"
+    :editable="editable"
+    :can-use-snippets="canUseSnippets"
+    slot-description="pdf"
+    snippet-field-above
+    always-show-button
+    add-space>
+    <object :data="pdfURL"
+            type="application/pdf"
+            width="100%"
+            height="100%"
+            v-if="pdfURL !== ''">
+        <b-alert class="mb-0" variant="danger" show>
+            Your browser doesn't support the PDF viewer. Please download
+            the PDF <a class="alert-link" :href="pdfURL">here</a>.
         </b-alert>
-    </div>
+    </object>
+</floating-feedback-button>
 </template>
 
 <script>
 import Loader from './Loader';
+import FloatingFeedbackButton from './FloatingFeedbackButton';
 
 export default {
     name: 'pdf-viewer',
 
     props: {
+        assignment: {
+            type: Object,
+            required: true,
+        },
+        submission: {
+            type: Object,
+            required: true,
+        },
         file: {
             type: Object,
-            default: null,
+            required: true,
         },
-
-        isDiff: {
+        revision: {
+            type: String,
+            required: true,
+        },
+        editable: {
+            type: Boolean,
+            required: false,
+        },
+        canUseSnippets: {
             type: Boolean,
             required: true,
         },
@@ -40,14 +64,15 @@ export default {
     data() {
         return {
             pdfURL: '',
-            loading: true,
-            error: '',
         };
     },
 
     watch: {
-        id() {
-            this.embedPdf();
+        id: {
+            immediate: true,
+            handler() {
+                this.embedPdf();
+            },
         },
     },
 
@@ -55,37 +80,46 @@ export default {
         id() {
             return this.file ? this.file.id : -1;
         },
-    },
 
-    mounted() {
-        this.embedPdf();
+        line() {
+            return 0;
+        },
+
+        feedback() {
+            return this.$utils.getProps(
+                this.submission,
+                {},
+                'feedback',
+                'user',
+                this.id,
+                this.line,
+            );
+        },
     },
 
     methods: {
         embedPdf() {
-            this.loading = true;
-            this.error = '';
             this.pdfURL = '';
 
-            if (this.isDiff) {
-                this.error = 'The pdf viewer is not available in diff mode';
-                this.loading = false;
+            if (this.revision === 'diff') {
+                this.$emit('error', 'The pdf viewer is not available in diff mode');
                 return;
             }
 
             this.$http.get(`/api/v1/code/${this.id}?type=file-url`).then(
                 ({ data }) => {
-                    this.loading = false;
-                    this.$emit('load');
                     this.pdfURL = `/api/v1/files/${
                         data.name
                     }?not_as_attachment&mime=application/pdf`;
+                    this.$emit('load');
                 },
-                ({ response }) => {
-                    this.error = `An error occurred while loading the PDF: ${
-                        response.data.message
-                    }.`;
-                    this.loading = false;
+                err => {
+                    this.$emit(
+                        'error',
+                        `An error occured while loading the PDF: ${this.$utils.getErrorMessage(
+                            err,
+                        )}.`,
+                    );
                 },
             );
         },
@@ -93,6 +127,7 @@ export default {
 
     components: {
         Loader,
+        FloatingFeedbackButton,
     },
 };
 </script>
@@ -100,11 +135,28 @@ export default {
 <style lang="less" scoped>
 .pdf-viewer {
     position: relative;
+    padding: 0 !important;
+    height: 100%;
+    min-height: 100%;
 }
 
 object {
-    position: absolute;
+    display: block;
+    flex: 1 1 100%;
     width: 100%;
     height: 100%;
+    margin: 0;
+    padding: 0;
+}
+</style>
+
+<style lang="less">
+.pdf-viewer.floating-feedback-button {
+    flex: 1 1 100%;
+
+    > .content {
+        display: flex;
+        flex-direction: column;
+    }
 }
 </style>

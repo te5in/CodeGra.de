@@ -29,4 +29,6 @@ grading and reviewing code. The most important tool are:
 
 - Customizability, making it easy to taylor CodeGrade to your course and way of teaching.
 
-- *(Available Summer 2019) State of the art automatic grading “CodeGrade AutoTest”, easily create and run autograding scripts within CodeGrade that seamlessly work together with inline feedback and rubrics.*
+- State of the art automatic grading “CodeGrade AutoTest”, easily create and run
+  autograding scripts within CodeGrade that seamlessly work together with inline
+  feedback and rubrics.

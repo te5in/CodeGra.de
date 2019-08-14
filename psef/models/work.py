@@ -226,22 +226,17 @@ class Work(Base):
 
         for linter in self.assignment.linters:
             instance = LinterInstance(work=self, tester=linter)
-
-            linter_cls = psef.linters.get_linter_by_name(linter.name)
-            if not linter_cls.RUN_LINTER:
-                instance.state = LinterState.done
-
             db.session.add(instance)
-            db.session.commit()
 
-            if not linter_cls.RUN_LINTER:
-                return
-
-            psef.tasks.lint_instances(
-                linter.name,
-                linter.config,
-                [instance.id],
-            )
+            if psef.linters.get_linter_by_name(linter.name).RUN_LINTER:
+                db.session.flush()
+                psef.tasks.lint_instances(
+                    linter.name,
+                    linter.config,
+                    [instance.id],
+                )
+            else:
+                instance.state = LinterState.done
 
     @property
     def grade(self) -> t.Optional[float]:

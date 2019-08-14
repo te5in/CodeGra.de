@@ -55,6 +55,9 @@ describe('FeedbackArea.vue', () => {
                         snippets: [],
                     },
                 },
+                submission: {
+                    id: 100,
+                },
             }, propsData),
         });
         wrapper.vm.$refs.field = {

@@ -8,11 +8,10 @@ easily create simple input/output tests or run custom programs or unit tests.
 
 AutoTest provides a lightweight Virtual Machine for each submission within an
 assignment running Ubuntu (Linux), this Virtual Machine is fully configurable
-and you can install anything you want on this VM. Via the UI you can select
-from many preconfigured base systems to easily install this on each VM. Each
-assignment runs on a dedicated Virtual Private Server (VPS) providing a hard
-division between assignments and maximum security and privacy. AutoTest is
-secure by default and by design.
+and you can install anything you want on this VM. With most popular languages
+and tools already pre-installed on every VM. Each assignment runs on a dedicated
+Virtual Private Server (VPS) providing a hard division between assignments and
+maximum security and privacy. AutoTest is secure by default and by design.
 
 AutoTest Tests are grouped into Categories, each AutoTest Category is then connected
 to a Rubric Category. By connecting AutoTest to the rubric, students still get
@@ -32,6 +31,6 @@ to students from within the Code Viewer.
     levels
     categories
     tests
+    continuous-feedback
     running-autotest
     student-experience
-    technical-details

@@ -1,34 +1,35 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
-<div class="rubric-viewer"
+<div v-if="rubric"
+     class="rubric-viewer"
      :class="{ editable }">
     <b-tabs no-fade v-model="current">
-        <b-tab class="rubric"
-               :head-html="getHeadHtml(rubric)"
-               v-for="(rubric, i) in rubrics"
-               :key="`rubric-${rubric.id}`">
+        <b-tab v-for="(row, i) in rubric.rows"
+               class="rubric"
+               :head-html="getHeadHtml(row)"
+               :key="`rubric-${row.id}`">
             <b-card
                 class="rubric-category"
                 header-class="rubric-category-header"
                 body-class="rubric-items">
-                <template slot="header" v-if="rubric.locked || rubric.description">
+                <template slot="header" v-if="row.locked || row.description">
                     <div class="rubric-category-description">
-                        {{ rubric.description }}
+                        {{ row.description }}
                     </div>
 
                     <icon name="lock"
-                          v-if="rubric.locked"
+                          v-if="row.locked"
                           v-b-popover.hover.top="lockPopover"/>
                 </template>
 
                 <b-card-group
                     class="rubric-items-group"
-                    :class="{ disabled: rubric.locked }">
+                    :class="{ disabled: row.locked }">
                     <b-card class="rubric-item"
-                            v-for="item in rubric.items"
-                            :key="`rubric-${rubric.id}-${item.id}`"
-                            @click="toggleItem(rubric, item)"
-                            :class="{ selected: selected[item.id] }"
+                            v-for="item in row.items"
+                            :key="`rubric-${row.id}-${item.id}`"
+                            @click="toggleItem(row, item)"
+                            :class="{ selected: selectedById[item.id] }"
                             body-class="rubric-item-body">
                         <div slot="header" class="header">
                             <b class="header-title">{{ item.points }} - {{ item.header }}</b>
@@ -36,20 +37,20 @@
                                  class="rubric-item-icon">
                                 <loader :scale="1"/>
                             </div>
-                            <div v-else-if="selected[item.id]"
+                            <div v-else-if="selectedById[item.id]"
                                 class="rubric-item-icon">
                                 <icon name="check"/>
                             </div>
                             <div v-else-if="itemStates[item.id]"
                                 class="rubric-item-icon">
                                 <b-popover show
-                                           :target="`rubric-error-icon-${rubric.id}-${item.id}`"
+                                           :target="`rubric-error-icon-${row.id}-${item.id}`"
                                            :content="itemStates[item.id]"
                                            placement="top">
                                 </b-popover>
                                 <icon name="times"
                                     :scale="1"
-                                    :id="`rubric-error-icon-${rubric.id}-${item.id}`"
+                                    :id="`rubric-error-icon-${row.id}-${item.id}`"
                                     class="text-danger"/>
                             </div>
                         </div>
@@ -60,7 +61,7 @@
                     </b-card>
                 </b-card-group>
 
-                <div v-show="autoTestProgress[rubric.id] != null" class="progress">
+                <div v-show="autoTestProgress[row.id] != null" class="progress">
                     <div ref="progressMeter" class="meter" style="width: 0;" />
                 </div>
             </b-card>
@@ -79,25 +80,19 @@ import 'vue-awesome/icons/times';
 import 'vue-awesome/icons/check';
 import 'vue-awesome/icons/lock';
 
-import { getProps, waitAtLeast } from '../utils';
-
 import Loader from './Loader';
 
 export default {
     name: 'rubric-viewer',
 
     props: {
-        submission: {
-            type: Object,
-            default: null,
-        },
         assignment: {
             type: Object,
-            default: null,
+            required: true,
         },
-        rubric: {
+        submission: {
             type: Object,
-            default: null,
+            required: true,
         },
         editable: {
             type: Boolean,
@@ -111,41 +106,52 @@ export default {
 
     data() {
         return {
-            rubrics: [],
-            selected: {},
-            selectedPoints: 0,
-            selectedRows: {},
-            current: 0,
-            maxPoints: 0,
-            itemStates: {},
             origSelected: [],
+            current: 0,
+            itemStates: {},
         };
     },
 
     watch: {
-        rubric(rubric) {
-            this.rubricUpdated(rubric);
+        assignment: {
+            immediate: true,
+            handler() {
+                this.storeLoadRubric({
+                    assignmentId: this.assignment.id,
+                });
+
+                if (this.autoTestConfigId) {
+                    this.storeLoadAutoTest({
+                        autoTestId: this.autoTestConfigId,
+                    });
+                }
+            },
         },
 
         submission: {
             immediate: true,
             handler() {
-                if (this.autoTestConfigId == null) {
-                    return;
-                }
+                this.storeLoadRubricResult({
+                    submissionId: this.submission.id,
+                });
 
-                Promise.all([
-                    this.storeLoadAutoTest({
-                        autoTestId: this.autoTestConfigId,
-                    }),
+                if (this.autoTestConfigId) {
                     this.storeLoadAutoTestResult({
                         autoTestId: this.autoTestConfigId,
-                        submissionId: this.submissionId,
+                        submissionId: this.submission.id,
+                        acceptContinuous: true,
                     }).catch(
                         // Autotest hasn't been started yet.
                         () => {},
-                    ),
-                ]);
+                    );
+                }
+            },
+        },
+
+        rubricResult: {
+            immediate: true,
+            handler() {
+                this.origSelected = this.$utils.deepCopy(this.selected);
             },
         },
 
@@ -174,13 +180,65 @@ export default {
     },
 
     computed: {
-        ...mapGetters('autotest', {
-            allTests: 'tests',
-            allResults: 'results',
+        ...mapGetters('rubrics', {
+            allRubrics: 'rubrics',
+            allRubricResults: 'results',
         }),
 
-        submissionId() {
-            return this.submission.id;
+        ...mapGetters('autotest', {
+            allAutoTests: 'tests',
+            allAutoTestResults: 'results',
+        }),
+
+        rubric() {
+            return this.allRubrics[this.assignment.id];
+        },
+
+        rubricResult() {
+            return this.allRubricResults[this.submission.id];
+        },
+
+        selected() {
+            return this.$utils.getProps(this.rubricResult, [], 'selected');
+        },
+
+        selectedById() {
+            return this.selected.reduce((acc, item) => {
+                acc[item.id] = item;
+                return acc;
+            }, {});
+        },
+
+        selectedPoints() {
+            return this.rubricResult.points;
+        },
+
+        selectedRows() {
+            return (
+                this.rubric &&
+                this.rubric.rows.reduce((acc, row) => {
+                    acc[row.id] = row.items.reduce(
+                        (cur, item) => cur || this.selectedById[item.id],
+                        false,
+                    );
+                    return acc;
+                }, {})
+            );
+        },
+
+        lockedItemIds() {
+            if (this.rubric == null) {
+                return new Set();
+            }
+
+            return new Set(
+                this.rubric.rows.reduce((acc, row) => {
+                    if (row.locked) {
+                        acc.push(...row.items.map(item => item.id));
+                    }
+                    return acc;
+                }, []),
+            );
         },
 
         autoTestConfigId() {
@@ -188,15 +246,17 @@ export default {
         },
 
         autoTestConfig() {
-            return this.allTests[this.autoTestConfigId];
+            return this.allAutoTests[this.autoTestConfigId];
         },
 
         autoTestResult() {
-            return Object.values(this.allResults).find(r => r.submissionId === this.submissionId);
+            return Object.values(this.allAutoTestResults).find(
+                r => r.submissionId === this.submission.id,
+            );
         },
 
         currentRow() {
-            return this.rubrics[this.current];
+            return this.rubric && this.rubric.rows[this.current];
         },
 
         currentProgress() {
@@ -204,35 +264,23 @@ export default {
         },
 
         hasSelectedItems() {
-            return Object.keys(this.selected).length !== 0;
+            return this.selected.length !== 0;
         },
 
         outOfSync() {
-            const origSet = new Set(this.origSelected);
-            Object.keys(this.selected).forEach(item => {
-                if (origSet.has(item)) {
-                    origSet.delete(item);
+            const origSet = new Set(this.origSelected.map(s => s.id));
+            this.selected.forEach(({ id }) => {
+                if (origSet.has(id)) {
+                    origSet.delete(id);
                 } else {
-                    origSet.add(item);
+                    origSet.add(id);
                 }
             });
             return origSet;
         },
 
-        grade() {
-            let grade = Math.max(0, this.selectedPoints / this.maxPoints * 10);
-            if (Object.keys(this.selected).length === 0) {
-                grade = null;
-            }
-            const maxGrade = (this.assignment && this.assignment.max_grade) || 10;
-            if (grade > maxGrade) {
-                grade = maxGrade;
-            }
-            return grade;
-        },
-
         autoTestProgress() {
-            const suiteResults = getProps(this, null, 'autoTestResult', 'suiteResults');
+            const suiteResults = this.$utils.getProps(this, null, 'autoTestResult', 'suiteResults');
 
             if (!suiteResults) {
                 return {};
@@ -254,199 +302,18 @@ export default {
         },
 
         lockPopover() {
-            const lockReason = this.rubrics[this.current].locked;
+            if (this.rubric == null) {
+                return '';
+            }
+
+            const lockReason = this.rubric.rows[this.current].locked;
 
             switch (lockReason) {
                 case 'auto_test':
-                    return this.autoTestLockPopover();
+                    return this.autoTestLockPopover;
                 default:
                     return '';
             }
-        },
-    },
-
-    mounted() {
-        this.rubricUpdated(this.rubric, true);
-
-        this.$root.$on('open-rubric-category', id => {
-            this.rubrics.forEach((row, i) => {
-                if (row.id === id) {
-                    this.current = i;
-                }
-            });
-        });
-    },
-
-    destroyed() {
-        this.$root.$off('open-rubric-category');
-    },
-
-    methods: {
-        ...mapActions('autotest', {
-            storeLoadAutoTest: 'loadAutoTest',
-            storeLoadAutoTestResult: 'loadAutoTestResult',
-        }),
-
-        getHeadHtml(rubric) {
-            const selected = this.selectedRows[rubric.id];
-            const maxPoints = this.$utils.htmlEscape(Math.max(...rubric.items.map(i => i.points)));
-            const header =
-                this.$utils.htmlEscape(`${rubric.header}`) ||
-                '<span class="unnamed">Unnamed category</span>';
-
-            const getFraction = (upper, lower) => `<sup>${upper}</sup>&frasl;<sub>${lower}</sub>`;
-            let res;
-
-            if (selected) {
-                const selectedPoints = this.$utils.htmlEscape(selected.points);
-                res = `<span>${header}</span> - <span>${getFraction(
-                    selectedPoints,
-                    maxPoints,
-                )}</span>`;
-            } else if (this.editable) {
-                res = header;
-            } else {
-                res = `<span>${header}</span> - <span>${getFraction('Nothing', maxPoints)}<span>`;
-            }
-
-            return `<div class="tab-header">${res}</div>`;
-        },
-
-        clearSelected() {
-            return this.$http
-                .patch(`/api/v1/submissions/${this.submission.id}/rubricitems/`, {
-                    items: [],
-                })
-                .then(() => {
-                    this.selected = {};
-                    this.selectedPoints = 0;
-                    this.selectedRows = {};
-                    this.origSelected = [];
-                    this.$emit('input', {
-                        selected: 0,
-                        max: this.maxPoints,
-                        grade: null,
-                    });
-                    return { data: { grade: null } };
-                });
-        },
-
-        submitAllItems() {
-            if (Object.keys(this.outOfSync).length === 0) {
-                return Promise.resolve();
-            }
-            const items = Object.keys(this.selected);
-
-            return this.$http
-                .patch(`/api/v1/submissions/${this.submission.id}/rubricitems/`, {
-                    items,
-                })
-                .then(() => {
-                    this.origSelected = items;
-                });
-        },
-
-        rubricUpdated({ rubrics, selected, points }, initial = false) {
-            this.rubrics = this.sortRubricItems(rubrics);
-            this.origSelected = [];
-
-            if (selected) {
-                this.selected = selected.reduce((res, item) => {
-                    res[item.id] = item;
-                    return res;
-                }, {});
-                this.origSelected = Object.keys(this.selected);
-                this.selectedPoints = selected.reduce((res, item) => res + item.points, 0);
-                this.selectedRows = rubrics.reduce((res, row) => {
-                    res[row.id] = row.items.reduce(
-                        (cur, item) => cur || this.selected[item.id],
-                        false,
-                    );
-                    return res;
-                }, {});
-            }
-
-            if (points) {
-                this.maxPoints = points.max;
-                if (!initial) {
-                    points.grade = this.grade;
-                }
-                this.$emit('input', points);
-            }
-        },
-
-        sortRubricItems(rubrics) {
-            return rubrics.map(rubric => {
-                rubric.items.sort((x, y) => x.points - y.points);
-                return rubric;
-            });
-        },
-
-        toggleItem(row, item) {
-            if (!this.editable || row.locked) {
-                throw Error('This rubric row is not editable.');
-            }
-
-            this.$set(this.itemStates, item.id, '__LOADING__');
-
-            let req;
-            const selectItem = !this.selected[item.id];
-            const doRequest = UserConfig.features.incremental_rubric_submission;
-
-            if (!doRequest) {
-                req = Promise.resolve();
-            } else if (selectItem) {
-                req = this.$http.patch(
-                    `/api/v1/submissions/${this.submission.id}/rubricitems/${item.id}`,
-                );
-            } else {
-                req = this.$http.delete(
-                    `/api/v1/submissions/${this.submission.id}/rubricitems/${item.id}`,
-                );
-            }
-
-            if (doRequest) {
-                req = waitAtLeast(500, req);
-            }
-
-            req.then(
-                () => {
-                    row.items.forEach(({ id, points }) => {
-                        if (this.selected[id]) {
-                            this.selectedPoints -= points;
-                        }
-                        delete this.selected[id];
-                    });
-                    if (selectItem) {
-                        this.selectedPoints += item.points;
-                        this.$set(this.selected, item.id, item);
-                    } else {
-                        this.$set(this.selected, item.id, undefined);
-                        delete this.selected[item.id];
-                    }
-                    this.$set(this.selectedRows, row.id, selectItem ? item : false);
-
-                    this.$emit('input', {
-                        selected: this.selectedPoints,
-                        max: this.maxPoints,
-                        grade: this.grade,
-                    });
-
-                    this.$nextTick(() => {
-                        this.$set(this.itemStates, item.id, false);
-                        delete this.itemStates[item.id];
-                    });
-                },
-                err => {
-                    this.$set(this.itemStates, item.id, err.response.data.message);
-                    setTimeout(() => {
-                        this.$nextTick(() => {
-                            this.$set(this.itemStates, item.id, false);
-                            delete this.itemStates[item.id];
-                        });
-                    }, 3000);
-                },
-            );
         },
 
         autoTestLockPopover() {
@@ -482,6 +349,115 @@ export default {
             }
 
             return msg;
+        },
+    },
+
+    mounted() {
+        this.$root.$on('open-rubric-category', id => {
+            this.current = this.rubric.rows.findIndex(row => row.id === id);
+        });
+    },
+
+    destroyed() {
+        this.$root.$off('open-rubric-category');
+    },
+
+    methods: {
+        ...mapActions('rubrics', {
+            storeLoadRubric: 'loadRubric',
+            storeLoadRubricResult: 'loadResult',
+            storeUpdateRubricItems: 'updateRubricItems',
+            storeToggleRubricItem: 'toggleRubricItem',
+        }),
+
+        ...mapActions('autotest', {
+            storeLoadAutoTest: 'loadAutoTest',
+            storeLoadAutoTestResult: 'loadAutoTestResult',
+        }),
+
+        getHeadHtml(row) {
+            const selected = this.selectedRows[row.id];
+            const maxPoints = this.$utils.htmlEscape(row.maxPoints);
+            const header =
+                this.$utils.htmlEscape(`${row.header}`) ||
+                '<span class="unnamed">Unnamed category</span>';
+
+            const getFraction = (upper, lower) => `<sup>${upper}</sup>&frasl;<sub>${lower}</sub>`;
+            let res;
+
+            if (selected) {
+                const selectedPoints = this.$utils.htmlEscape(selected.points);
+                res = `<span>${header}</span> - <span>${getFraction(
+                    selectedPoints,
+                    maxPoints,
+                )}</span>`;
+            } else if (this.editable) {
+                res = header;
+            } else {
+                res = `<span>${header}</span> - <span>${getFraction('Nothing', maxPoints)}<span>`;
+            }
+
+            return `<div class="tab-header">${res}</div>`;
+        },
+
+        clearSelected() {
+            const selected = [];
+
+            // Do not clear items of "locked" rows.
+            this.selected.forEach(item => {
+                if (this.lockedItemIds.has(item.id)) {
+                    selected.push(item);
+                }
+            });
+
+            return this.storeUpdateRubricItems({
+                submissionId: this.submission.id,
+                selected,
+            }).then(() => {
+                this.origSelected = selected;
+            });
+        },
+
+        submitAllItems() {
+            if (this.outOfSync.size === 0) {
+                return Promise.resolve();
+            }
+
+            return this.storeUpdateRubricItems({
+                submissionId: this.submission.id,
+                selected: this.selected,
+            }).then(() => {
+                this.origSelected = this.$utils.deepCopy(this.selected);
+            });
+        },
+
+        toggleItem(row, item) {
+            if (!this.editable || row.locked) {
+                return;
+            }
+
+            let req = this.storeToggleRubricItem({
+                submissionId: this.submission.id,
+                row,
+                item,
+            });
+
+            if (UserConfig.features.incremental_rubric_submission) {
+                req = this.$utils.waitAtLeast(500, req);
+            }
+
+            req.then(
+                () => {
+                    delete this.itemStates[item.id];
+                    this.$emit('change');
+                },
+                err => {
+                    this.itemStates[item.id] = this.$utils.getErrorMessage(err);
+                    setTimeout(() => {
+                        delete this.itemStates[item.id];
+                    }, 5000);
+                },
+            );
         },
 
         async animateRubricProgress() {

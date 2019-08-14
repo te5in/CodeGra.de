@@ -3,12 +3,14 @@ import DiffViewer from '@/components/DiffViewer';
 import * as visualize from '@/utils/visualize';
 import { shallowMount, createLocalVue } from '@vue/test-utils';
 import VueRouter from 'vue-router';
+import Vuex from 'vuex';
 jest.mock('axios');
 
 visualize.visualizeWhitespace = jest.fn(a => a);
 
 const localVue = createLocalVue();
 localVue.use(VueRouter);
+localVue.use(Vuex);
 const router = new VueRouter();
 
 const text1 = `hello this is original code.
@@ -45,7 +47,23 @@ describe('diffCode in DiffViewer.vue', () => {
         propsData: {
             file: { ids: [] },
         },
+        store: new Vuex.Store({
+            modules: {
+                pref: {
+                    namespaced: true,
+                    state: {
+                        contextAmount: 2,
+                        fontSize: 12,
+                    },
+                    getters: {
+                        contextAmount: state => state.contextAmount,
+                        fontSize: state => state.fontSize,
+                    },
+                },
+            },
+        }),
     });
+
     const comp = wrapper.vm;
     expect(comp).not.toBe(null);
     expect(comp.lines).toEqual([]);
@@ -133,7 +151,7 @@ describe('diffCode in DiffViewer.vue', () => {
     });
 });
 
-describe('getChangedParts in DiffViewer.vue', () => {
+describe('changedParts in DiffViewer.vue', () => {
     let wrapper = shallowMount(DiffViewer, {
         localVue,
         router,
@@ -143,24 +161,34 @@ describe('getChangedParts in DiffViewer.vue', () => {
         },
         propsData: {
             file: { ids: [] },
-            context: 2,
         },
+        store: new Vuex.Store({
+            modules: {
+                pref: {
+                    namespaced: true,
+                    state: {
+                        contextAmount: 2,
+                        fontSize: 12,
+                    },
+                    getters: {
+                        contextAmount: state => state.contextAmount,
+                        fontSize: state => state.fontSize,
+                    },
+                },
+            },
+        }),
     });
     let comp = wrapper.vm;
     expect(comp).not.toBe(null);
     expect(comp.lines).toEqual([]);
 
-    it('should be a function', () => {
-        expect(typeof comp.getChangedParts).toBe('function');
-    });
-
     it('should work for empty files', () => {
         comp.lines = [];
-        expect(comp.getChangedParts()).toEqual([]);
+        expect(comp.changedParts).toEqual([]);
     });
 
     it('should work for multiple diffs', () => {
-        expect(comp.context).toBe(2);
+        expect(comp.contextAmount).toBe(2);
         comp.lines = [
             { txt: ' 0', cls: '' },
             { txt: ' 1', cls: '' },
@@ -194,7 +222,7 @@ describe('getChangedParts in DiffViewer.vue', () => {
             { txt: '25', cls: 'added' },
             { txt: '26', cls: 'deleted' },
         ];
-        expect(comp.getChangedParts()).toEqual([
+        expect(comp.changedParts).toEqual([
             [0, 7], [9, 15], [17, 27],
         ]);
     });

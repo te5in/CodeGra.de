@@ -5,6 +5,7 @@ which are registered as active runners.
 
 SPDX-License-Identifier: AGPL-3.0-only
 """
+import random
 import typing as t
 
 import requests
@@ -16,8 +17,9 @@ from . import api
 from .. import app, files, models, helpers, auto_test
 from ..models import db
 from ..helpers import (
-    JSONResponse, EmptyResponse, jsonify, get_or_404, make_empty_response,
-    filter_single_or_404, get_from_map_transaction, get_json_dict_from_request
+    JSONResponse, EmptyResponse, jsonify, get_or_404, request_arg_true,
+    make_empty_response, filter_single_or_404, get_from_map_transaction,
+    get_json_dict_from_request
 )
 from ..parsers import parse_enum
 from ..features import Feature, feature_required
@@ -90,10 +92,18 @@ def get_auto_test_status(
     if to_get == 'tests_to_run':
         runs = models.AutoTestRun.query.filter_by(
             started_date=None,
-        ).with_for_update()
+        ).with_for_update().all()
+        random.shuffle(runs)
 
         with helpers.BrokerSession() as ses:
             for run in runs:
+                # Do not assign continuous feedback runs which do not have any
+                # thing to run.
+                if run.is_continuous_feedback_run and not db.session.query(
+                    run.get_results_to_run().exists()
+                ).scalar():
+                    continue
+
                 logger.info(
                     'Trying to register job for runner',
                     run=run.__to_json__(),
@@ -146,6 +156,7 @@ def update_run(auto_test_id: int, run_id: int) -> EmptyResponse:
         models.AutoTestRun,
         models.AutoTestRun.id == run_id,
         models.AutoTest.id == auto_test_id,
+        with_for_update=True,
     )
     _verify_runner(run.runner, password)
 
@@ -278,9 +289,18 @@ def get_fixture(
         also_error=lambda obj: obj.auto_test_id != auto_test_id,
     )
 
-    runs = fixture.auto_test.runs
-    runner = runs[0].runner if runs else None
-    _verify_runner(runner, password)
+    runs: t.Sequence[t.Optional[models.AutoTestRun]] = [None]
+    runs = fixture.auto_test.get_all_runs() or runs
+    for run in runs:
+        runner = run.runner if run else None
+        try:
+            _verify_runner(runner, password)
+        except Exception as e:  # pylint: disable=broad-except; #pragma: no cover
+            exc = e
+        else:
+            break
+    else:  # pragma: no cover
+        raise exc
 
     contents = files.get_file_contents(fixture)
     res: werkzeug.wrappers.Response = make_response(contents)
@@ -395,3 +415,41 @@ def update_step_result(auto_test_id: int, result_id: int
     db.session.commit()
 
     return jsonify(step_result)
+
+
+@api.route(
+    '/auto_tests/<int:auto_test_id>/runs/<int:run_id>/results/',
+    methods=['GET'],
+)
+def get_extra_results_to_process(
+    auto_test_id: int, run_id: int
+) -> JSONResponse[t.List[t.Mapping[str, int]]]:
+    """Get extra results to run the tests for.
+
+    :qparam last_call: If there are no extra results mark the requesting runner
+        as done.
+    """
+    password = _verify_global_header_password()
+
+    run = filter_single_or_404(
+        models.AutoTestRun,
+        models.AutoTestRun.id == run_id,
+        also_error=lambda run: run.auto_test_id != auto_test_id,
+        with_for_update=True,
+    )
+    _verify_runner(run.runner, password)
+
+    results = run.get_results_to_run().with_for_update().all()
+
+    if request_arg_true('last_call') and not results:
+        run.stop_runner()
+        db.session.commit()
+
+    return jsonify(
+        [
+            {
+                'result_id': res.id,
+                'student_id': res.work.user_id,
+            } for res in results
+        ]
+    )

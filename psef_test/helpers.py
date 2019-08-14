@@ -270,7 +270,7 @@ def get_auto_test_custom_output_step():
 def get_auto_test_check_points_step():
     return {
         'type': 'check_points',
-        'data': {'min_points': 1},
+        'data': {'min_points': 0.5},
         'name': 'Check points',
         'weight': 0,
         'hidden': False,

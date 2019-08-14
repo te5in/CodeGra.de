@@ -3,10 +3,17 @@ import Vue from 'vue';
 // TODO: Remove the axios dependency and move the api requests to the store
 import axios from 'axios';
 
-import { deepCopy, getErrorMessage, getUniqueId, getProps, withOrdinalSuffix } from '@/utils';
+import {
+    deepCopy,
+    getErrorMessage,
+    getUniqueId,
+    getProps,
+    withOrdinalSuffix,
+    safeDivide,
+} from '@/utils';
 
 export class AutoTestSuiteData {
-    constructor(autoTestId, autoTestSetId, serverData = {}) {
+    constructor(autoTestId, autoTestSetId, serverData = {}, actuallyFromServer) {
         this.autoTestSetId = autoTestSetId;
         this.autoTestId = autoTestId;
         this.trackingId = getUniqueId();
@@ -15,18 +22,24 @@ export class AutoTestSuiteData {
         this.steps = [];
         this.rubricRow = {};
 
-        this.setFromServerData(serverData);
+        this.setFromServerData(serverData, actuallyFromServer);
     }
 
-    setFromServerData(d) {
+    setFromServerData(d, actuallyFromServer) {
         const trackingIds = this.getStepTrackingIds();
 
-        const steps = (d.steps || []).map(step =>
-            Object.assign(step, {
+        const steps = (d.steps || []).map(step => {
+            const ret = Object.assign(step, {
                 trackingId: getProps(trackingIds, getUniqueId(), step.id),
                 collapsed: true,
-            }),
-        );
+            });
+
+            if (actuallyFromServer && step.type === 'check_points') {
+                ret.data.min_points *= 100;
+            }
+
+            return ret;
+        });
 
         Vue.set(this, 'id', d.id);
         Vue.set(this, 'steps', steps);
@@ -34,11 +47,7 @@ export class AutoTestSuiteData {
         Vue.set(
             this,
             'commandTimeLimit',
-            getProps(
-                d,
-                UserConfig.features.autoTest.auto_test_max_command_time,
-                'command_time_limit',
-            ),
+            getProps(d, UserConfig.autoTest.auto_test_max_command_time, 'command_time_limit'),
         );
         Vue.set(this, 'networkDisabled', getProps(d, true, 'network_disabled'));
     }
@@ -68,6 +77,23 @@ export class AutoTestSuiteData {
         return `/api/v1/auto_tests/${this.autoTestId}/sets/${this.autoTestSetId}/suites/`;
     }
 
+    // eslint-disable-next-line
+    prepareStepForSaving(step) {
+        const ret = {
+            ...step,
+            weight: Number(step.weight),
+        };
+
+        if (step.type === 'check_points') {
+            ret.data = {
+                ...step.data,
+                min_points: step.data.min_points / 100,
+            };
+        }
+
+        return ret;
+    }
+
     save() {
         const errors = this.getErrors();
 
@@ -80,17 +106,14 @@ export class AutoTestSuiteData {
         return axios
             .patch(this.url, {
                 id: this.id == null ? undefined : this.id,
-                steps: this.steps.map(step => ({
-                    ...step,
-                    weight: Number(step.weight),
-                })),
+                steps: this.steps.map(this.prepareStepForSaving),
                 rubric_row_id: this.rubricRow.id,
                 command_time_limit: Number(this.commandTimeLimit),
                 network_disabled: getProps(this, true, 'networkDisabled'),
             })
             .then(
                 res => {
-                    this.setFromServerData(res.data);
+                    this.setFromServerData(res.data, true);
                     return res;
                 },
                 err => {
@@ -121,6 +144,7 @@ export class AutoTestSuiteData {
         this.steps.push(step);
     }
 
+    // eslint-disable-next-line
     checkValid(step) {
         const isEmpty = val => !val.match(/[a-zA-Z0-9]/);
         const errs = [];
@@ -153,18 +177,10 @@ export class AutoTestSuiteData {
                 });
             }
         } else if (step.type === 'check_points') {
-            let weightBefore = 0;
-            for (let i = 0; i < this.steps.length > 0; ++i) {
-                if (this.steps[i] === step) {
-                    break;
-                }
-                weightBefore += Number(this.steps[i].weight);
-            }
-            if (step.data.min_points <= 0 || step.data.min_points > weightBefore) {
-                errs.push(
-                    `The minimal amount of points should be achievable (at most
-                    ${weightBefore}) and greater than 0.`,
-                );
+            if (step.data.min_points < 0) {
+                errs.push('The minimal percentage must be greater than 0.');
+            } else if (step.data.max_points > 100) {
+                errs.push('The mimimal percentage must be less than or equal to 100.');
             }
         } else if (step.type === 'custom_output') {
             if (!step.data.regex.match(/([^\\]|^)(\\\\)*\\f/)) {
@@ -201,10 +217,11 @@ export class AutoTestSuiteData {
 }
 
 export class AutoTestResult {
-    constructor(result, autoTest) {
+    constructor(result, autoTest, run) {
         this.id = result.id;
         this.submissionId = result.work_id;
         this.finished = false;
+        this.isContinuous = run.isContinuous;
 
         this.update(result, autoTest);
     }
@@ -215,6 +232,10 @@ export class AutoTestResult {
         this.pointsAchieved = result.points_achieved;
 
         this.updateStepResults(result.step_results, autoTest);
+
+        if (this.isFinishedState(result.state)) {
+            this.finished = true;
+        }
     }
 
     updateExtended(result, autoTest) {
@@ -270,15 +291,22 @@ export class AutoTestResult {
                 };
 
                 suiteResult.stepResults = suite.steps.map(step => {
-                    suiteResult.possible += step.weight;
-
                     let stepResult = stepResults[step.id];
 
-                    if (stepResult == null) {
+                    if (this.isContinuous && step.hidden) {
                         stepResult = {
-                            state: 'not_started',
+                            state: 'hidden',
                             log: null,
                         };
+                    } else {
+                        suiteResult.possible += step.weight;
+
+                        if (stepResult == null) {
+                            stepResult = {
+                                state: 'not_started',
+                                log: null,
+                            };
+                        }
                     }
 
                     stepResult.finished = this.isFinishedState(stepResult.state);
@@ -293,6 +321,7 @@ export class AutoTestResult {
                     return stepResult;
                 });
 
+                suiteResult.percentage = safeDivide(suiteResult.achieved, suiteResult.possible, 0);
                 suiteResult.finished = suiteResult.stepResults.every(s => s.finished);
                 suiteResults[suite.id] = suiteResult;
 
@@ -307,6 +336,7 @@ export class AutoTestResult {
 
                 setResult.achieved += suiteResult.achieved;
                 setResult.possible += suiteResult.possible;
+                setResult.percentage = safeDivide(setResult.achieved, setResult.possible, null);
 
                 suiteResults[suite.id] = suiteResult;
                 return suiteResult;
@@ -319,7 +349,8 @@ export class AutoTestResult {
                 setResult.suiteResults.every(s => s && s.finished) &&
                 Object.values(setResults).every(prevSet => prevSet.finished);
 
-            if (setResult.finished && totalAchieved < set.stop_points) {
+            const achievedPerc = safeDivide(totalAchieved, totalPossible, 1);
+            if (setResult.finished && achievedPerc < set.stop_points) {
                 setFailed = true;
             }
 
@@ -329,12 +360,13 @@ export class AutoTestResult {
         Vue.set(this, 'stepResults', stepResults);
         Vue.set(this, 'suiteResults', suiteResults);
         Vue.set(this, 'setResults', setResults);
-        Vue.set(this, 'finished', Object.values(setResults).every(s => s.finished));
     }
 
     // eslint-disable-next-line
     isFinishedState(state) {
-        return ['passed', 'failed', 'timed_out'].indexOf(state) !== -1;
+        // Steps can only be in state hidden if this is a Continuous Feedback
+        // run.
+        return ['passed', 'failed', 'timed_out', 'hidden'].indexOf(state) !== -1;
     }
 }
 
@@ -342,6 +374,7 @@ export class AutoTestRun {
     constructor(run, autoTest) {
         this.id = run.id;
         this.startedAt = run.started_at;
+        this.isContinuous = run.is_continuous;
         this.update(run, autoTest);
     }
 
@@ -357,12 +390,21 @@ export class AutoTestRun {
     }
 
     updateResults(results, autoTest) {
-        if (this.results) {
-            this.results.forEach((r, i) => {
-                r.update(results[i], autoTest);
-            });
-        } else {
-            this.results = results.map(r => new AutoTestResult(r, autoTest));
+        if (!this.results) {
+            this.results = [];
         }
+
+        const resMap = this.results.reduce((acc, r) => {
+            acc[r.id] = r;
+            return acc;
+        }, {});
+
+        results.forEach(r => {
+            if (resMap[r.id]) {
+                resMap[r.id].update(r, autoTest);
+            } else {
+                this.results.push(new AutoTestResult(r, autoTest, this));
+            }
+        });
     }
 }

@@ -111,7 +111,7 @@ import typing as t
 import cg_sqlalchemy_helpers
 from cg_sqlalchemy_helpers import UUID_LENGTH
 from cg_sqlalchemy_helpers.types import (  # pylint: disable=unused-import
-    MyDb, DbColumn, _MyQuery
+    MyDb, MyQuery, DbColumn, _MyQuery
 )
 
 from .. import PsefFlask
@@ -143,7 +143,7 @@ else:
 # simply remove it in the case of Sphinx.
 if getattr(t, 'SPHINX', False) is True:  # pragma: no cover
     # pylint: disable=invalid-name
-    cache_within_request = lambda x: x  # type: ignore
+    cache_within_request = lambda x: x
 
 if True:  # pylint: disable=using-constant-test
     from .course import Course, CourseSnippet

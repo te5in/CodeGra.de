@@ -15,6 +15,13 @@ After an AutoTest has been run, students will find the results of this test
 on the submission page of their assignment. This page is easily found via the
 LMS.
 
+Continuous Feedback
+---------------------
+If Continuous Feedback is turned on, students will get near instant automated
+feedback for every submission in CodeGrade. Instead of navigating to the
+uploaded code after handing in, students will now directly go to the AutoTest
+results page with preliminary results.
+
 Visibility of attributes
 --------------------------
 We believe students should be able to see as much information about the AutoTest

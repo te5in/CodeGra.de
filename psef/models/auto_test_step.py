@@ -223,7 +223,7 @@ class AutoTestStepBase(Base, TimestampMixin, IdMixin):
         container: 'auto_test_module.StartedContainer',
         update_test_result: 'auto_test_module.UpdateResultFunction',
         test_instructions: 'auto_test_module.StepInstructions',
-        total_points: float,
+        achieved_percentage: float,
     ) -> float:
         """Execute this step.
 
@@ -237,8 +237,8 @@ class AutoTestStepBase(Base, TimestampMixin, IdMixin):
         :parm update_test_result: A function that can be used to update the
             result of the step.
         :param test_instructions: The test instructions for this step.
-        :param total_points: The total amount of points achieved in the current
-            test suite (category).
+        :param achieved_percentage: The percentage of points achieved at this
+            point.
         :returns: The amount of points achieved in this step.
         """
         # Make sure we are not on a webserver
@@ -246,7 +246,8 @@ class AutoTestStepBase(Base, TimestampMixin, IdMixin):
 
         update_test_result(AutoTestStepResultState.running, {})
         return cls._execute(
-            container, update_test_result, test_instructions, total_points
+            container, update_test_result, test_instructions,
+            achieved_percentage
         )
 
     @classmethod
@@ -255,7 +256,7 @@ class AutoTestStepBase(Base, TimestampMixin, IdMixin):
         container: 'auto_test_module.StartedContainer',
         update_test_result: 'auto_test_module.UpdateResultFunction',
         test_instructions: 'auto_test_module.StepInstructions',
-        total_points: float,
+        achieved_percentage: float,
     ) -> float:
         raise NotImplementedError
 
@@ -288,8 +289,25 @@ class _IoTest(AutoTestStepBase):
     }
     data: t.Dict[str, object]
 
+    _ALL_OPTIONS = {
+        'case', 'trailing_whitespace', 'substring', 'regex', 'all_whitespace'
+    }
+
+    _REQUIRES_MAP = {
+        'all_whitespace': 'trailing_whitespace',
+        'regex': 'substring',
+    }
+
+    _NOT_ALLOWED_MAP = {
+        'all_whitespace': 'regex',
+    }
+
     @staticmethod
-    def _validate_single_input(inp: JSONType) -> t.List[str]:
+    def _remove_whitespace(string: str) -> str:
+        return "".join(string.split())
+
+    @classmethod
+    def _validate_single_input(cls, inp: JSONType) -> t.List[str]:
         errs = []
         with get_from_map_transaction(ensure_json_dict(inp)) as [get, _]:
             name = get('name', str)
@@ -305,15 +323,22 @@ class _IoTest(AutoTestStepBase):
         if weight < 0:
             errs.append('The weight should not be lower than 0')
 
-        extra_items = set(options) - {
-            'case', 'trailing_whitespace', 'substring', 'regex'
-        }
+        extra_items = set(options) - cls._ALL_OPTIONS
         if extra_items:
-            errs.append('Unknown items found: "{", ".join(extra_items)}"')
+            errs.append(f'Unknown items found: "{", ".join(extra_items)}"')
         if len(options) != len(set(options)):
             errs.append('Duplicate options are not allowed')
-        if 'regex' in options and 'substring' not in options:
-            errs.append('The "regex" option implies "substring"')
+
+        for item, required in cls._REQUIRES_MAP.items():
+            if item in options and required not in options:
+                errs.append(f'The "{item}" option implies "{required}"')
+
+        for item, not_allowed in cls._NOT_ALLOWED_MAP.items():
+            if item in options and not_allowed in options:
+                errs.append(
+                    f'The "{item}" option cannot be combined with the '
+                    f'"{not_allowed}" option'
+                )
 
         return errs
 
@@ -372,9 +397,9 @@ class _IoTest(AutoTestStepBase):
             s['weight'] if sr['state'] == passed else 0 for s, sr in iterator
         )
 
-    @staticmethod
+    @classmethod
     def match_output(
-        stdout: str, expected_output: str, step_options: t.Iterable[str]
+        cls, stdout: str, expected_output: str, step_options: t.Iterable[str]
     ) -> t.Tuple[bool, t.Optional[int]]:
         """Do the output matching of an IoTest.
 
@@ -388,7 +413,10 @@ class _IoTest(AutoTestStepBase):
         to_test = stdout.rstrip('\n')
         step_options = set(step_options)
 
-        if 'trailing_whitespace' in step_options:
+        if 'all_whitespace' in step_options:
+            to_test = cls._remove_whitespace(to_test)
+            expected_output = cls._remove_whitespace(expected_output)
+        elif 'trailing_whitespace' in step_options:
             to_test = '\n'.join(line.rstrip() for line in to_test.splitlines())
             expected_output = '\n'.join(
                 line.rstrip() for line in expected_output.splitlines()
@@ -435,7 +463,7 @@ class _IoTest(AutoTestStepBase):
         container: 'auto_test_module.StartedContainer',
         update_test_result: 'auto_test_module.UpdateResultFunction',
         test_instructions: 'auto_test_module.StepInstructions',
-        total_points: float,
+        achieved_percentage: float,
     ) -> float:
         def now() -> str:
             return datetime.datetime.utcnow().isoformat()
@@ -554,7 +582,7 @@ class _RunProgram(AutoTestStepBase):
         container: 'auto_test_module.StartedContainer',
         update_test_result: 'auto_test_module.UpdateResultFunction',
         test_instructions: 'auto_test_module.StepInstructions',
-        total_points: float,
+        achieved_percentage: float,
     ) -> float:
         data = test_instructions['data']
         assert isinstance(data, dict)
@@ -674,7 +702,7 @@ class _CustomOutput(AutoTestStepBase):
         container: 'auto_test_module.StartedContainer',
         update_test_result: 'auto_test_module.UpdateResultFunction',
         test_instructions: 'auto_test_module.StepInstructions',
-        total_points: float,
+        achieved_percentage: float,
     ) -> float:
         state = AutoTestStepResultState.failed
         points = 0.0
@@ -761,24 +789,36 @@ class _CheckPoints(AutoTestStepBase):
         with get_from_map_transaction(
             ensure_json_dict(data, log_object=False), ensure_empty=True
         ) as [get, _]:
-            get('min_points', numbers.Real)  # type: ignore
+            min_points = t.cast(
+                float,
+                get('min_points', numbers.Real)  # type: ignore
+            )
+
+        if min_points < 0 or min_points > 1:
+            raise APIException(
+                'The "min_points" has to be between 0 and 1',
+                f'The "min_points" was {min_points} which is not >=0 and <=1',
+                APICodes.INVALID_PARAM, 400
+            )
 
     @staticmethod
     def _execute(
         _: 'auto_test_module.StartedContainer',
         update_test_result: 'auto_test_module.UpdateResultFunction',
         test_instructions: 'auto_test_module.StepInstructions',
-        total_points: float,
+        achieved_percentage: float,
     ) -> float:
         data = test_instructions['data']
         assert isinstance(data, dict)
+        min_points = t.cast(float, data['min_points'])
 
-        if total_points >= t.cast(float, data['min_points']):
+        if helpers.FloatHelpers.geq(achieved_percentage, min_points):
             update_test_result(AutoTestStepResultState.passed, {})
             return 0
         else:
             logger.warning(
-                "Didn't score enough points", total_points=total_points
+                "Didn't score enough points",
+                achieved_percentage=achieved_percentage
             )
             update_test_result(AutoTestStepResultState.failed, {})
             raise StopRunningStepsException('Not enough points')

@@ -4,6 +4,7 @@ import axios from 'axios';
 import moment from 'moment';
 
 import * as utils from '@/utils';
+import { FileTree, Feedback } from '@/models/submission';
 import * as types from '../mutation-types';
 import { MANAGE_ASSIGNMENT_PERMISSIONS, MANAGE_GENERAL_COURSE_PERMISSIONS } from '../../constants';
 
@@ -19,6 +20,11 @@ const getters = {
             return assignments;
         }, {});
     },
+};
+
+const loaders = {
+    feedback: {},
+    fileTrees: {},
 };
 
 function getAssignment(state, assignmentId) {
@@ -125,6 +131,180 @@ const actions = {
         }
 
         return context.state.submissionsLoaders[assignmentId];
+    },
+
+    async loadSubmissionFileTree({ commit, dispatch, state }, { assignmentId, submissionId }) {
+        await dispatch('loadSubmissions', assignmentId);
+
+        const submission = getAssignment(state, assignmentId).submissions.find(
+            sub => sub.id === submissionId,
+        );
+
+        if (submission == null) {
+            throw new Error('Failed to load submission');
+        }
+
+        if (submission.fileTree != null) {
+            return null;
+        }
+
+        if (loaders.fileTrees[submissionId] == null) {
+            loaders.fileTrees[submissionId] = Promise.all([
+                axios.get(`/api/v1/submissions/${submissionId}/files/`),
+                axios
+                    .get(`/api/v1/submissions/${submissionId}/files/`, {
+                        params: { owner: 'teacher' },
+                    })
+                    .catch(err => {
+                        switch (utils.getProps(err, null, 'response', 'status')) {
+                            case 403:
+                                return { data: null };
+                            default:
+                                throw err;
+                        }
+                    }),
+            ]).then(
+                ([student, teacher]) => {
+                    delete loaders.fileTrees[submissionId];
+                    commit(types.UPDATE_SUBMISSION, {
+                        assignmentId,
+                        submissionId,
+                        submissionProps: {
+                            fileTree: new FileTree(student.data, teacher.data),
+                        },
+                    });
+                },
+                err => {
+                    delete loaders.fileTrees[submissionId];
+                    throw err;
+                },
+            );
+        }
+
+        return loaders.fileTrees[submissionId];
+    },
+
+    async loadSubmissionFeedback({ commit, dispatch, state }, { assignmentId, submissionId }) {
+        await dispatch('loadSubmissions', assignmentId);
+
+        const submission = getAssignment(state, assignmentId).submissions.find(
+            sub => sub.id === submissionId,
+        );
+
+        if (submission == null) {
+            throw new Error('Failed to load submission');
+        }
+
+        if (submission.feedback != null) {
+            return null;
+        }
+
+        if (loaders.feedback[submissionId] == null) {
+            loaders.feedback[submissionId] = axios
+                .get(`/api/v1/submissions/${submissionId}/feedbacks/`)
+                .then(
+                    ({ data }) => {
+                        delete loaders.feedback[submissionId];
+                        commit(types.UPDATE_SUBMISSION, {
+                            assignmentId,
+                            submissionId,
+                            submissionProps: {
+                                feedback: new Feedback(data),
+                            },
+                        });
+                    },
+                    err => {
+                        delete loaders.feedback[submissionId];
+
+                        switch (utils.getProps(err, null, 'response', 'status')) {
+                            case 403:
+                                return;
+                            default:
+                                throw err;
+                        }
+                    },
+                );
+        }
+
+        return loaders.feedback[submissionId];
+    },
+
+    addSubmissionFeedbackLine(
+        { commit, state },
+        {
+            assignmentId, submissionId, fileId, line, author,
+        },
+    ) {
+        const submission = getAssignment(state, assignmentId).submissions.find(
+            sub => sub.id === submissionId,
+        );
+
+        if (submission == null || submission.feedback == null) {
+            throw new Error('Failed to load submission');
+        }
+
+        commit(types.UPDATE_SUBMISSION_FEEDBACK, {
+            submission,
+            fileId,
+            line,
+            data: '',
+            author,
+        });
+    },
+
+    submitSubmissionFeedbackLine(
+        { commit, state },
+        {
+            assignmentId, submissionId, fileId, line, data, author,
+        },
+    ) {
+        const submission = getAssignment(state, assignmentId).submissions.find(
+            sub => sub.id === submissionId,
+        );
+
+        if (submission == null || submission.feedback == null) {
+            throw new Error('Failed to load submission');
+        }
+
+        return axios.put(`/api/v1/code/${fileId}/comments/${line}`, { comment: data }).then(() =>
+            commit(types.UPDATE_SUBMISSION_FEEDBACK, {
+                submission,
+                fileId,
+                line,
+                data,
+                author,
+            }),
+        );
+    },
+
+    deleteSubmissionFeedbackLine(
+        { commit, state },
+        {
+            assignmentId, submissionId, fileId, line, onServer,
+        },
+    ) {
+        const submission = getAssignment(state, assignmentId).submissions.find(
+            sub => sub.id === submissionId,
+        );
+
+        if (submission == null || submission.feedback == null) {
+            throw new Error('Failed to load submission');
+        }
+
+        function cont() {
+            commit(types.UPDATE_SUBMISSION_FEEDBACK, {
+                submission,
+                fileId,
+                line,
+                data: null,
+            });
+        }
+
+        if (onServer) {
+            return axios.delete(`/api/v1/code/${fileId}/comments/${line}`).then(() => cont);
+        } else {
+            return Promise.resolve(cont);
+        }
     },
 
     updateSubmission({ commit }, { assignmentId, submissionId, submissionProps }) {
@@ -308,25 +488,46 @@ const mutations = {
 
     [types.UPDATE_SUBMISSION](state, { assignmentId, submissionId, submissionProps }) {
         const assignment = getAssignment(state, assignmentId);
-        const l = assignment.submissions ? assignment.submissions.length : 0;
 
-        for (let i = 0; i < l; i++) {
-            if (assignment.submissions[i].id === submissionId) {
-                Object.entries(submissionProps).forEach(([key, val]) => {
-                    if (key === 'id') {
-                        throw TypeError(`Cannot set submission property: ${key}`);
-                    }
-                    Vue.set(
-                        assignment.submissions[i],
-                        key,
-                        key === 'grade' ? utils.formatGrade(val) : val,
-                    );
-                });
-                return;
-            }
+        const submission = assignment.submissions.find(s => s.id === submissionId);
+        if (submission == null) {
+            throw ReferenceError('Submission not found');
         }
 
-        throw ReferenceError('Submission not found');
+        Object.entries(submissionProps).forEach(([key, val]) => {
+            if (key === 'id') {
+                throw TypeError(`Cannot set submission property: ${key}`);
+            }
+
+            Vue.set(submission, key, key === 'grade' ? utils.formatGrade(val) : val);
+        });
+    },
+
+    [types.UPDATE_SUBMISSION_FEEDBACK](state, {
+        submission, fileId, line, data, author,
+    }) {
+        const feedback = submission.feedback;
+        const fileFeedback = feedback.user[fileId] || {};
+
+        if (data == null) {
+            Vue.delete(fileFeedback, line);
+            if (Object.keys(fileFeedback).length === 0) {
+                Vue.delete(feedback.user, fileId);
+            }
+        } else {
+            const lineFeedback = fileFeedback[line] || { line, author };
+            Vue.set(
+                fileFeedback,
+                line,
+                Object.assign({}, lineFeedback, {
+                    msg: data,
+                }),
+            );
+            Vue.set(feedback.user, fileId, Object.assign({}, fileFeedback));
+        }
+
+        Vue.set(feedback, 'user', Object.assign({}, feedback.user));
+        Vue.set(submission, 'feedback', feedback);
     },
 };
 

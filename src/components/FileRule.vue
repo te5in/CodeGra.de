@@ -232,7 +232,7 @@ export default {
         ruleTypeHelp() {
             let typ;
             if (this.value.rule_type === 'require') {
-                return `Atleast one ${
+                return `At least one ${
                     this.value.file_type
                 } matching this rule is required to be present`;
             } else if (this.value.rule_type === 'allow') {

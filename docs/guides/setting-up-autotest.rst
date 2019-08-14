@@ -1,3 +1,6 @@
+.. _setting-up-autotest:
+
+
 Setting up AutoTest
 ================================================
 

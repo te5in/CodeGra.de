@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-only
-TEST_FILE?=psef_test/
+TEST_FILE?=cg_worker_pool/tests/ psef_test/
 SHELL=/bin/bash
 TEST_FLAGS?=
 PYTHON?=env/bin/python3
 export PYTHONPATH=$(CURDIR)
-PY_MODULES?=psef cg_celery cg_sqlalchemy_helpers cg_json cg_broker cg_logger
+PY_MODULES?=psef cg_celery cg_sqlalchemy_helpers cg_json cg_broker cg_logger cg_worker_pool
 PY_ALL_MODULES=$(PY_MODULES) psef_test
 
 .PHONY: test_setup
@@ -18,16 +18,21 @@ test_quick:
 
 .PHONY: test
 test:
-	$(MAKE) test_no_cov TEST_FLAGS="$(TEST_FLAGS) --cov psef --cov-report term-missing"
+	$(MAKE) test_no_cov TEST_FLAGS="$(TEST_FLAGS) --cov psef --cov cg_worker_pool --cov-report term-missing"
 
 .PHONY: test_no_cov
 test_no_cov: test_setup
 	DEBUG=on env/bin/pytest --postgresql=GENERATE $(TEST_FILE) -vvvvvvv \
 	    $(TEST_FLAGS)
 
+.PHONY: count
+count:
+	cloc $(PY_MODULES) src
+
 .PHONY: doctest
 doctest: test_setup
 	pytest --cov psef \
+	       --cov cg_worker_pool \
 	       --cov-append \
 	       --cov-report term-missing \
 	       --doctest-modules psef \
@@ -98,9 +103,12 @@ isort:
 yapf:
 	yapf -rip $(PY_ALL_MODULES)
 
-.PHONY: format
-format: isort yapf
+.PHONY: prettier
+prettier:
 	npm run format
+
+.PHONY: format
+format: isort yapf prettier
 
 .PHONY: shrinkwrap
 shrinkwrap:

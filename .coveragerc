@@ -1,3 +1,4 @@
+# -*- mode: conf -*-
 [report]
 exclude_lines =
     # Have to re-enable the standard pragma
@@ -7,3 +8,5 @@ exclude_lines =
     raise NotImplementedError
     \.\.\.
     assert False
+
+omit = cg_worker_pool/tests/*

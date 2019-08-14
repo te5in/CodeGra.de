@@ -89,7 +89,7 @@ export default {
                 params: {
                     course_id: this.assignment.course.id,
                 },
-                hash: '#Groups',
+                hash: '#groups',
             };
         },
 

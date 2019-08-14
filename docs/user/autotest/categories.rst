@@ -29,7 +29,7 @@ tests you can add to this.
 - **IO Tests** for simple input/output tests.
 - **Run Program Tests** to run a program and check if the program exited successfully.
 - **Capture Points Tests** to run a custom test program (such as a unit test) which captures a number between 0 and 1 and converts this to an amount of points.
-- **Check Points**, which check if the tests before this special test is high enough to continue with the tests after the Check Points test. This makes it possible to have certain tests only execute if tests before it were successful.
+- **Check Points**, which check if the percentage of points gotten before this special test is high enough to continue with the tests after the Check Points test. This makes it possible to have certain tests only execute if tests before it were successful.
 
 Running
 --------------------

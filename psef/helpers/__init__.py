@@ -5,6 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 """
 import re
 import abc
+import sys
 import enum
 import time
 import typing as t
@@ -50,6 +51,7 @@ TT = t.TypeVar('TT')
 TTT = t.TypeVar('TTT', bound='IsInstanceType')
 ZZ = t.TypeVar('ZZ')
 Z = t.TypeVar('Z', bound='Comparable')
+DIV = t.TypeVar('DIV', bound='Dividable')
 Y = t.TypeVar('Y', bound='Base')
 T_Type = t.TypeVar('T_Type', bound=t.Type)  # pylint: disable=invalid-name
 T_TypedDict = t.TypeVar(  # pylint: disable=invalid-name
@@ -106,6 +108,15 @@ def add_deprecate_warning(warning: str) -> None:
             psef.exceptions.APIWarnings.DEPRECATED,
         )
     )
+
+
+class Dividable(Protocol):  # pragma: no cover
+    """A protocol that for dividable variables.
+    """
+
+    @abc.abstractmethod
+    def __truediv__(self: T, other: T) -> T:
+        ...  # pylint: disable=W0104
 
 
 class Comparable(Protocol):  # pragma: no cover
@@ -170,6 +181,123 @@ def escape_like(unescaped_like: str) -> str:
     :returns: The same string but escaped
     """
     return re.sub(r'(%|_|\\)', r'\\\1', unescaped_like)
+
+
+class FloatHelpers:
+    """Utilities for dealing with float comparisons.
+    """
+
+    @staticmethod
+    def ge(a: float, b: float) -> bool:
+        """Check if ``a`` is greater than ``b``.
+
+        >>> ge = FloatHelpers.ge
+        >>> ge(1.0, 2.0)
+        False
+        >>> ge(1.0, 1.0)
+        False
+        >>> ge(1.1, 1.0)
+        True
+        >>> ge(1.0, 1.0 + (sys.float_info.epsilon / 2))
+        False
+
+        :param a: The number to check if it is greater than ``b``.
+        :param b: The number to check against.
+        """
+        return a > b
+
+    @staticmethod
+    def le(a: float, b: float) -> bool:
+        """Check if ``a`` is less than ``b``.
+
+        >>> le = FloatHelpers.le
+        >>> le(1.0, 2.0)
+        True
+        >>> le(1.0, 1.0)
+        False
+        >>> le(1.1, 1.0)
+        False
+        >>> le(1.0, 1.0 + (sys.float_info.epsilon / 2))
+        False
+
+        :param a: The number to check if it is less than ``b``.
+        :param b: The number to check against.
+        """
+        return a < b
+
+    @classmethod
+    def leq(cls, a: float, b: float) -> bool:
+        """Check if ``a`` is less than or equal to ``b``.
+
+        >>> leq = FloatHelpers.leq
+        >>> leq(1.0, 2.0)
+        True
+        >>> leq(1.0, 1.0)
+        True
+        >>> leq(1.1, 1.0)
+        False
+        >>> leq(1.0, 1.0 + (sys.float_info.epsilon / 2))
+        True
+
+        :param a: The number to check if it is less than ``b``.
+        :param b: The number to check against.
+        """
+        return cls.le(a, b) or cls.eq(a, b)
+
+    @classmethod
+    def geq(cls, a: float, b: float) -> bool:
+        """Check if ``a`` is greater than or equal to ``b``.
+
+        >>> geq = FloatHelpers.geq
+        >>> geq(1.0, 2.0)
+        False
+        >>> geq(1.0, 1.0)
+        True
+        >>> geq(1.1, 1.0)
+        True
+        >>> geq(1.0, 1.0 - sys.float_info.epsilon)
+        True
+
+        :param a: The number to check if it is greater than ``b``.
+        :param b: The number to check against.
+        """
+        return cls.ge(a, b) or cls.eq(a, b)
+
+    @staticmethod
+    def eq(a: float, b: float) -> bool:
+        """Check if ``a`` and ``b`` are equal.
+
+        >>> eq = FloatHelpers.eq
+        >>> eq(1.0, 2.0)
+        False
+        >>> eq(1.0, 1.0)
+        True
+        >>> eq(1.0, 1.0 + sys.float_info.epsilon)
+        True
+        """
+        return abs(a - b) <= sys.float_info.epsilon
+
+
+def safe_div(a: DIV, b: DIV, default: T) -> t.Union[DIV, T]:
+    """Divide ``a`` by ``b``, when this raises a :class:`ZeroDivisionError`
+        ``default`` is returned.
+
+    >>> safe_div(1, 2, object())
+    0.5
+    >>> sentinal = object()
+    >>> safe_div(1, 0, sentinal) is sentinal
+    True
+
+    :param a: The dividend of the division.
+    :param b: The divisor of the division.
+    :param default: The default value if the division raises
+        :class:`ZeroDivisionError`
+    :returns: The division or default.
+    """
+    try:
+        return a / b
+    except ZeroDivisionError:
+        return default
 
 
 def between(min_bound: Z, item: Z, max_bound: Z) -> Z:
@@ -297,7 +425,7 @@ def _filter_or_404(
     :raises APIException: If no object with the given id could be found.
         (OBJECT_ID_NOT_FOUND)
     """
-    query = model.query.filter(*criteria)  # type: ignore
+    query = model.query.filter(*criteria)
     if with_for_update:
         query = query.with_for_update()
     obj = query.all() if get_all else query.one_or_none()

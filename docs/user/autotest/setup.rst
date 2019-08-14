@@ -16,6 +16,10 @@ submissions. The Setup Phase consists of the default installed software,
 fixtures (which are available in the ``/home/codegrade/fixtures/`` folder, or using the
 ``$FIXTURES`` environment variable) and setup script.
 
+.. warning::
+    Setup scripts and other scrips (fixtures) that are executed have to use
+    **Unix Line Endings (LF)** and **not** Windows Line Endings (CRLF)!
+
 There are multiple options for setting up your environment, which makes AutoTest
 easy to use for simple cases yet very flexible for all advanced cases.
 
@@ -81,6 +85,10 @@ If you need to setup or compile software for each student specifically and not
 globally, use the *Per student setup script* for this. Install any packages
 using the *Global setup script* as this will greatly increase the speed of
 AutoTest Runs
+
+.. warning::
+    Setup scripts and other scrips (fixtures) that are executed have to use
+    **Unix Line Endings (LF)** and **not** Windows Line Endings (CRLF)!
 
 .. note::
     **Network access** and **Superuser rights** are available during the Setup

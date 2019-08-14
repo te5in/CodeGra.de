@@ -24,9 +24,9 @@
                           :editable="canEditState"
                           size="sm"/>
         <template slot="extra">
-            <category-selector slot="extra"
-                               class="cat-selector"
-                               default="General"
+            <hr class="mt-2 mb-1" />
+
+            <category-selector default="general"
                                v-model="selectedCat"
                                :categories="categories"/>
         </template>
@@ -41,7 +41,7 @@
             Succesfully created assignment!
         </b-alert>
 
-        <div :class="{hidden: selectedCat !== 'General'}"
+        <div :class="{hidden: selectedCat !== 'general'}"
              class="row cat-wrapper">
             <div v-if="canEditInfo"
                  class="col-lg-12">
@@ -165,7 +165,7 @@
         </div>
 
         <div class="row cat-wrapper"
-             :class="{hidden: selectedCat !== 'Graders'}">
+             :class="{hidden: selectedCat !== 'graders'}">
             <div class="col-xl-6">
                 <b-card v-if="canAssignGraders" no-body>
                     <span slot="header">
@@ -226,7 +226,7 @@
             </div>
         </div>
 
-        <div class="cat-wrapper" :class="{hidden: selectedCat !== 'Linters'}">
+        <div class="cat-wrapper" :class="{hidden: selectedCat !== 'linters'}">
             <b-card v-if="canUseLinters"
                     header="Linters"
                     :course-id="assignment.course.id">
@@ -235,7 +235,7 @@
 
         </div>
 
-        <div class="cat-wrapper" :class="{hidden: selectedCat !== 'Plagiarism'}">
+        <div class="cat-wrapper" :class="{hidden: selectedCat !== 'plagiarism'}">
             <b-card v-if="canUsePlagiarism" no-body>
                 <span slot="header">
                     Plagiarism checking
@@ -244,27 +244,26 @@
                                      the results."/>
                 </span>
                 <plagiarism-runner :assignment="assignment"
-                                   :hidden="selectedCat !== 'Plagiarism'"
+                                   :hidden="selectedCat !== 'plagiarism'"
                                    :can-manage="permissions.can_manage_plagiarism"
                                    :can-view="permissions.can_view_plagiarism"/>
             </b-card>
         </div>
 
-        <div class="cat-wrapper" :class="{hidden: selectedCat !== 'Rubric'}">
+        <div class="cat-wrapper" :class="{hidden: selectedCat !== 'rubric'}">
             <b-card header="Rubric" v-if="canUseRubrics">
                 <rubric-editor :assignment="assignment"
-                               :hidden="selectedCat !== 'Rubric'"
+                               :hidden="selectedCat !== 'rubric'"
                                ref="rubricEditor"
                                editable/>
 
             </b-card>
         </div>
 
-        <div class="cat-wrapper" :class="{hidden: selectedCat !== 'AutoTest'}">
-                <auto-test :assignment="assignment"
-                           :hidden="selectedCat !== 'AutoTest'"
-                           editable/>
-            </b-card>
+        <div class="cat-wrapper" :class="{hidden: selectedCat !== 'auto-test'}">
+            <auto-test :assignment="assignment"
+                       :hidden="selectedCat !== 'auto-test'"
+                       editable/>
         </div>
     </div>
 </div>
@@ -422,6 +421,7 @@ export default {
         categories() {
             return [
                 {
+                    id: 'general',
                     name: 'General',
                     enabled:
                         this.canEditInfo ||
@@ -431,6 +431,7 @@ export default {
                         this.canSubmitBbZip,
                 },
                 {
+                    id: 'graders',
                     name: 'Graders',
                     enabled:
                         this.canAssignGraders ||
@@ -438,18 +439,22 @@ export default {
                         this.canUpdateNotifications,
                 },
                 {
+                    id: 'linters',
                     name: 'Linters',
                     enabled: this.canUseLinters,
                 },
                 {
+                    id: 'plagiarism',
                     name: 'Plagiarism',
                     enabled: this.canUsePlagiarism,
                 },
                 {
+                    id: 'rubric',
                     name: 'Rubric',
                     enabled: this.canUseRubrics,
                 },
                 {
+                    id: 'auto-test',
                     name: 'AutoTest',
                     enabled: this.canUseAutoTest,
                 },
@@ -462,7 +467,7 @@ export default {
                 params: {
                     course_id: this.assignment.course.id,
                 },
-                hash: '#Groups',
+                hash: '#groups',
             };
         },
     },
@@ -634,12 +639,6 @@ export default {
         max-height: 0;
         overflow-y: hidden;
     }
-}
-
-.cat-selector {
-    border-top: 1px solid gray;
-    padding-top: 0.5rem;
-    margin-top: 0.5rem;
 }
 
 .manage-assignment .header {

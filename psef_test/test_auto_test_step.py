@@ -91,10 +91,15 @@ def test_validate_custom_output(describe, monkeypatch, stub_function_class):
 def test_validate_data_check_points(describe):
     c = CheckPoints()
     with describe('When everything is ok it should not raise'):
-        c.validate_data({'min_points': 5})
+        c.validate_data({'min_points': 0.5})
 
-    with describe('floats for min_points should work too'):
-        c.validate_data({'min_points': 5.5})
+    with describe('Higher than 1 should not work'):
+        with raises_api('has to be between 0 and 1'):
+            c.validate_data({'min_points': 1.1})
+
+    with describe('Lower than 1 should not work'):
+        with raises_api('has to be between 0 and 1'):
+            c.validate_data({'min_points': -0.1})
 
     with describe('min_points should be a number'):
         with raises_api(''):
@@ -102,7 +107,7 @@ def test_validate_data_check_points(describe):
 
     with describe('extra data is not allowed'):
         with raises_api('Extra keys in the object'):
-            c.validate_data({'min_points': 5.5, 'extra_key': 'hello!'})
+            c.validate_data({'min_points': 0.5, 'extra_key': 'hello!'})
 
 
 def test_execute_run_program_step(
@@ -231,6 +236,18 @@ def test_validate_data_io_step(describe):
             for _, c in exc.rest['invalid_cases']
         )
 
+        inp['options'] = ['regex', 'substring', 'all_whitespace']
+        with raises_api('Some input cases were not valid') as exc:
+            i.validate_data(data)
+        assert any(
+            '"all_whitespace" option implies "trailing_whitespace"' in c
+            for _, c in exc.rest['invalid_cases']
+        )
+        assert any(
+            '"all_whitespace" option cannot be combined with the "regex"' in c
+            for _, c in exc.rest['invalid_cases']
+        )
+
         inp['options'] = ['substring', 'regex']
         i.validate_data(data)
 
@@ -277,6 +294,13 @@ def test_validate_data_io_step(describe):
             lambda: 'A' * 1000000 + 'BB', r'^(A+)*B$', ['substring', 'regex'],
             (False, -2)
         ),
+        # All whitespace option should work
+        (
+            ' a b cd \nf', 'abc df', ['trailing_whitespace', 'all_whitespace'],
+            True
+        ),
+        ('a\r\nb', 'ab', ['trailing_whitespace', 'all_whitespace'], True),
+        ('ac', 'ab', ['trailing_whitespace', 'all_whitespace'], False),
     ]
 )
 def test_match_output_io_step(expected, output, options, success):
@@ -471,7 +495,7 @@ def test_execute_check_points(
 ):
     with describe('setup'):
         c = CheckPoints(suite=stub_suite)
-        c.update_data_from_json({'min_points': 5})
+        c.update_data_from_json({'min_points': 0.5})
         monkeypatch.setattr(
             helpers, 'ensure_on_test_server', stub_function_class()
         )
@@ -483,19 +507,19 @@ def test_execute_check_points(
         return c.execute_step(cont, stub_update_result, inst, p)
 
     with describe('achieved more than min_points should return 0'):
-        r = step(6)
+        r = step(0.6)
         assert r == 0
         last_update = stub_update_result.all_args[-1]
         assert last_update[0].name == 'passed'
 
     with describe('achieved exactly min_points should also return 0'):
-        r = step(5)
+        r = step(0.5)
         assert r == 0
         last_update = stub_update_result.all_args[-1]
         assert last_update[0].name == 'passed'
 
     with describe('achieved less than min_points should raise exception'):
         with pytest.raises(psef.exceptions.StopRunningStepsException):
-            r = step(4)
+            r = step(0.4)
         last_update = stub_update_result.all_args[-1]
         assert last_update[0].name == 'failed'

@@ -2,12 +2,12 @@
 import io
 import os
 import json
+import time
 import uuid
 import shutil
 import getpass
 import tempfile
-import multiprocessing
-import multiprocessing.pool
+import threading
 from datetime import datetime, timedelta
 from textwrap import dedent
 
@@ -19,7 +19,48 @@ import pytest_cov
 import psef
 import helpers
 import psef.models as m
+import cg_worker_pool
 import requests_stubs
+
+
+@pytest.fixture
+def monkeypatch_for_run(monkeypatch, lxc_stub, stub_function_class):
+    old_run_command = psef.auto_test.StartedContainer._run_command
+
+    def new_run_command(self, cmd_user):
+        cmd, user = cmd_user
+        if cmd[0] in {'adduser', 'usermod', 'deluser', 'sudo', 'apt'}:
+            return 0
+        elif cmd == ['grep', '-c', getpass.getuser(), '/etc/sudoers']:
+            return 1
+        elif '/etc/sudoers' in cmd:
+            return 0
+        return old_run_command(self, cmd_user)
+
+    monkeypatch.setattr(
+        psef.helpers, 'ensure_on_test_server', stub_function_class()
+    )
+
+    monkeypatch.setattr(
+        psef.auto_test.StartedContainer, '_run_command', new_run_command
+    )
+    monkeypatch.setattr(lxc, 'Container', lxc_stub)
+    monkeypatch.setattr(
+        psef.auto_test, '_get_amount_cpus', stub_function_class(lambda: 1)
+    )
+    monkeypatch.setattr(
+        cg_worker_pool, '_make_process',
+        stub_function_class(
+            lambda *args, **kwargs: threading.Thread(*args, **kwargs),
+            with_args=True
+        )
+    )
+    monkeypatch.setattr(
+        psef.tasks, 'check_heartbeat_auto_test_run', stub_function_class()
+    )
+    monkeypatch.setattr(
+        psef.tasks, 'stop_auto_test_run', stub_function_class()
+    )
 
 
 @pytest.fixture
@@ -474,7 +515,7 @@ def test_update_auto_test(
         update_test(error=200)
         t = m.AutoTest.query.get(test['id'])
         with app.test_request_context('/'):
-            t.start_run()
+            t.start_test_run()
         update_test(error=409)
 
 
@@ -482,7 +523,7 @@ def test_update_auto_test(
 def test_run_auto_test(
     monkeypatch_celery, monkeypatch_broker, basic, test_client, logged_in,
     describe, live_server, lxc_stub, monkeypatch, app, session,
-    stub_function_class, assert_similar
+    stub_function_class, assert_similar, monkeypatch_for_run
 ):
     tmpdir = None
 
@@ -490,9 +531,6 @@ def test_run_auto_test(
         course, assig_id, teacher, student1 = basic
         student2 = helpers.create_user_with_role(session, 'Student', [course])
 
-        monkeypatch.setattr(
-            psef.helpers, 'ensure_on_test_server', stub_function_class()
-        )
         with logged_in(teacher):
             test = helpers.create_auto_test(
                 test_client,
@@ -500,7 +538,7 @@ def test_run_auto_test(
                 amount_sets=2,
                 amount_suites=2,
                 amount_fixtures=1,
-                stop_points=[2, None],
+                stop_points=[0.5, None],
                 grade_calculation='partial',
             )
             test_client.req(
@@ -510,6 +548,25 @@ def test_run_auto_test(
                 data={'state': 'open'}
             )
         url = f'/api/v1/auto_tests/{test["id"]}'
+        live_server_url = live_server()
+
+        _run_student = psef.auto_test._run_student
+
+        monkeypatch.setattr(
+            psef.auto_test, '_get_home_dir',
+            stub_function_class(lambda: tmpdir)
+        )
+
+        def next_student(*args, **kwargs):
+            nonlocal tmpdir
+
+            with tempfile.TemporaryDirectory() as tdir:
+                tmpdir = tdir
+                for inner in ['/student', '/fixtures']:
+                    shutil.copytree(upper_tmpdir + inner, tdir + inner)
+                return _run_student(*args, **kwargs)
+
+        monkeypatch.setattr(psef.auto_test, '_run_student', next_student)
 
         with logged_in(student1):
             work1 = helpers.create_submission(test_client, assig_id)
@@ -534,64 +591,23 @@ def test_run_auto_test(
                 submission_data=(io.BytesIO(dedent(prog).encode()), 'test.py')
             )
 
-        old_run_command = psef.auto_test.StartedContainer._run_command
-
-        def new_run_command(self, cmd_user):
-            cmd, user = cmd_user
-            if cmd[0] in {'adduser', 'usermod', 'deluser', 'sudo', 'apt'}:
-                return 0
-            elif cmd == ['grep', '-c', getpass.getuser(), '/etc/sudoers']:
-                return 1
-            elif '/etc/sudoers' in cmd:
-                return 0
-            return old_run_command(self, cmd_user)
-
-        monkeypatch.setattr(
-            psef.auto_test.StartedContainer, '_run_command', new_run_command
-        )
-        monkeypatch.setattr(lxc, 'Container', lxc_stub)
-        monkeypatch.setattr(
-            psef.auto_test, '_get_home_dir',
-            stub_function_class(lambda: tmpdir)
-        )
-        monkeypatch.setattr(
-            psef.auto_test, '_get_amount_cpus', stub_function_class(lambda: 1)
-        )
-        monkeypatch.setattr(
-            multiprocessing, 'Pool',
-            stub_function_class(lambda: multiprocessing.pool.ThreadPool(1))
-        )
-        monkeypatch.setattr(
-            psef.tasks, 'check_heartbeat_auto_test_run', stub_function_class()
-        )
-        monkeypatch.setattr(
-            psef.tasks, 'stop_auto_test_run', stub_function_class()
-        )
-        live_server_url = live_server()
-
-        _run_student = psef.auto_test._run_student
-
-        def next_student(*args, **kwargs):
-            nonlocal tmpdir
-
-            with tempfile.TemporaryDirectory() as tdir:
-                tmpdir = tdir
-                for inner in ['/student', '/fixtures']:
-                    shutil.copytree(upper_tmpdir + inner, tdir + inner)
-                return _run_student(*args, **kwargs)
-
-        monkeypatch.setattr(psef.auto_test, '_run_student', next_student)
-
     with describe('start_auto_test'
                   ), tempfile.TemporaryDirectory() as upper_tmpdir:
         tmpdir = upper_tmpdir
 
         t = m.AutoTest.query.get(test['id'])
         psef.auto_test.CODEGRADE_USER = getpass.getuser()
-        with app.test_request_context('/'):
-            t.start_run()
-        session.commit()
-        run = t.runs[-1]
+        with logged_in(teacher):
+            test_client.req(
+                'post',
+                f'{url}/runs/',
+                200,
+                data={
+                    'continuous_feedback_run': False,
+                }
+            )
+            session.commit()
+        run = t.test_run
 
         psef.auto_test.start_polling(app.config, repeat=False)
 
@@ -609,6 +625,7 @@ def test_run_auto_test(
                     'results': list,
                     'setup_stderr': str,
                     'setup_stdout': str,
+                    'is_continuous': False,
                 }
             )
 
@@ -773,8 +790,9 @@ def test_update_auto_test_set(basic, test_client, logged_in, describe):
 
     with describe('update stop points'), logged_in(teacher):
         update_set(stop_points=-1, error=400)
-        update_set(stop_points=23)
-        assert test['sets'][0]['stop_points'] == 23
+        update_set(stop_points=23, error=400)
+        update_set(stop_points=0.5)
+        assert test['sets'][0]['stop_points'] == 0.5
 
     with describe('Set internet can be enabled and disabled'
                   ), logged_in(teacher):
@@ -1025,12 +1043,9 @@ def test_hidden_steps(describe, test_client, logged_in, session, basic):
             )
 
 
-def test_get_runs_internal_api(test_client, describe, app, session):
-    with describe('setup'):
-        run = m.AutoTestRun(started_date=None, auto_test=m.AutoTest())
-        session.add(run)
-        session.commit()
-
+def test_get_runs_internal_api(
+    test_client, describe, app, session, basic, logged_in
+):
     with describe('Get runs without password'):
         test_client.req('get', '/api/v-internal/auto_tests/', 400)
 
@@ -1044,6 +1059,20 @@ def test_get_runs_internal_api(test_client, describe, app, session):
             }
         )
 
+    with describe('setup'):
+        run = m.AutoTestRun(started_date=None, auto_test=m.AutoTest())
+        session.add(run)
+        course, assig_id, teacher, student = basic
+
+        with logged_in(teacher):
+            test = helpers.create_auto_test(test_client, assig_id)
+        run = m.AutoTestRun(
+            started_date=None,
+            auto_test_id=test['id'],
+            is_continuous_feedback_run=True
+        )
+        session.commit()
+
     with describe('With runs but with failing broker'):
         test_client.req(
             'get',
@@ -1053,3 +1082,164 @@ def test_get_runs_internal_api(test_client, describe, app, session):
                 'CG-Internal-Api-Password': app.config['AUTO_TEST_PASSWORD']
             }
         )
+
+
+@pytest.mark.parametrize('use_transaction', [False], indirect=True)
+def test_continuous_feedback_auto_test(
+    monkeypatch_celery, monkeypatch_broker, basic, test_client, logged_in,
+    describe, live_server, lxc_stub, monkeypatch, app, session,
+    stub_function_class, assert_similar, monkeypatch_for_run
+):
+    tmpdir = None
+
+    with describe('setup'):
+        course, assig_id, teacher, student = basic
+
+        with logged_in(teacher):
+            test = helpers.create_auto_test(
+                test_client,
+                assig_id,
+                amount_sets=2,
+                amount_suites=2,
+                amount_fixtures=1,
+                stop_points=[0.5, None],
+                grade_calculation='partial',
+            )
+            test_client.req(
+                'patch',
+                f'/api/v1/assignments/{assig_id}',
+                200,
+                data={'state': 'open'}
+            )
+
+        url = f'/api/v1/auto_tests/{test["id"]}'
+        live_server()
+
+        with logged_in(student):
+            prog = """
+            ls
+            """
+            helpers.create_submission(
+                test_client,
+                assig_id,
+                submission_data=(io.BytesIO(dedent(prog).encode()), 'test.py')
+            )
+
+        _run_student = psef.auto_test._run_student
+
+        monkeypatch.setattr(
+            psef.auto_test, '_get_home_dir',
+            stub_function_class(lambda: tmpdir)
+        )
+
+        def next_student(*args, **kwargs):
+            nonlocal tmpdir
+
+            with tempfile.TemporaryDirectory() as tdir:
+                tmpdir = tdir
+                for inner in ['/student', '/fixtures']:
+                    shutil.copytree(upper_tmpdir + inner, tdir + inner)
+                return _run_student(*args, **kwargs)
+
+        monkeypatch.setattr(psef.auto_test, '_run_student', next_student)
+
+    with describe('start_auto_test'
+                  ), tempfile.TemporaryDirectory() as upper_tmpdir:
+        tmpdir = upper_tmpdir
+
+        t = m.AutoTest.query.get(test['id'])
+        psef.auto_test.CODEGRADE_USER = getpass.getuser()
+        session.commit()
+
+        with logged_in(teacher):
+            test_client.req(
+                'post',
+                f'{url}/runs/',
+                200,
+                data={
+                    'continuous_feedback_run': True,
+                }
+            )
+            session.commit()
+
+        run = t.continuous_feedback_run
+        assert run is not None
+
+        # Old submission should not be started directly
+        assert session.query(m.AutoTestResult).all() == []
+
+        with logged_in(student):
+            prog = """
+            import sys
+            if len(sys.argv) > 1:
+                print("hello {}!".format(sys.argv[1]))
+            else:
+                print("hello stranger!")
+            """
+            work = helpers.create_submission(
+                test_client,
+                assig_id,
+                submission_data=(io.BytesIO(dedent(prog).encode()), 'test.py')
+            )
+
+        assert len(session.query(m.AutoTestResult).all()) == 1
+
+        psef.auto_test.start_polling(app.config, repeat=False)
+        res = session.query(m.AutoTestResult).one()
+
+        with logged_in(student):
+            # A student can see results before the assignment is done
+            test_client.req(
+                'get',
+                f'{url}/runs/{run.id}/results/{res.id}',
+                200,
+                result={
+                    'state': 'passed',
+                    '__allow_extra__': True,
+                }
+            )
+
+        with logged_in(teacher):
+            # Make sure rubric is not filled in
+            test_client.req(
+                'get',
+                f'/api/v1/submissions/{work["id"]}',
+                200,
+                result={
+                    '__allow_extra__': True,
+                    'grade': None,
+                    'grade_overridden': False,
+                }
+            )
+
+        with pytest.raises(psef.errors.APIException):
+            t.start_continuous_feedback_run()
+
+
+def test_getting_fixture_no_permssion(
+    describe, basic, logged_in, test_client, session, app
+):
+    with describe('setup'):
+        course, assig_id, teacher, student = basic
+        with logged_in(teacher):
+            test = helpers.create_auto_test(
+                test_client,
+                assig_id,
+                amount_sets=2,
+                amount_suites=2,
+                amount_fixtures=1,
+                stop_points=[0.5, None],
+                grade_calculation='partial',
+            )
+
+            session.commit()
+
+    fixture = m.AutoTestFixture.query.first()
+    test_client.req(
+        'get',
+        '/api/v-internal/auto_tests/{}/fixtures/{}'.format(
+            fixture.auto_test_id, fixture.id
+        ),
+        401,
+        headers={'CG-Internal-Api-Password': app.config['AUTO_TEST_PASSWORD']}
+    )
