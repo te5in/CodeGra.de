@@ -635,13 +635,21 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
     def state(self, new_state: AutoTestRunState) -> None:
         assert isinstance(new_state, AutoTestRunState)
 
-        if self.is_continuous_feedback_run:
+        if new_state == AutoTestRunState.changing_runner:
+            self._state = AutoTestRunState.changing_runner
+            self.stop_runner()
+        elif self.is_continuous_feedback_run:
             if new_state.value > AutoTestRunState.running.value:  # pragma: no cover
                 # This should never happen, as it should be handled in the
                 # internal api.
-                self.stop_continuous_feedback_runner()
-                if db.session.query(self.get_results_to_run().exists()
-                                    ).scalar():
+                start_new = False
+                if self.runner:
+                    start_new = self.stop_runner()
+                start_new = start_new or db.session.query(
+                    self.get_results_to_run().exists()
+                ).scalar()
+
+                if start_new:
                     psef.tasks.notify_broker_of_new_job(self.get_job_id())
             else:
                 self._state = new_state
@@ -655,19 +663,33 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
             if self.finished:
                 psef.tasks.notify_broker_end_of_job(self.get_job_id())
 
-    def stop_continuous_feedback_runner(self) -> None:
-        """Stop this the continuous feedback runner of this run.
+    def stop_runner(self) -> bool:
+        """Stop the runner of this run.
 
-        This function does nothing if this run is a not continuous feedback
-        run.
+        This also prepares the run to be migrated to a new runner.
         """
-        if self.is_continuous_feedback_run:
-            psef.tasks.notify_broker_end_of_job(self.runner.job_id)
-            self.runner_id = None
-            # This needs to be reset to ``None`` so that this job is once again
-            # marked as "available" for new runners.
-            self.started_date = None
-            self.increment_job_id()
+        job_id_to_stop = self.runner.job_id
+        self.runner_id = None
+        # This needs to be reset to ``None`` so that this job is once again
+        # marked as "available" for new runners.
+        self.started_date = None
+        self.increment_job_id()
+        result = self._clear_non_passed_results()
+
+        psef.tasks.notify_broker_end_of_job(job_id_to_stop)
+
+        db.session.flush()
+        return result
+
+    def _clear_non_passed_results(self) -> bool:
+        any_cleared = False
+
+        for result in self.results:
+            if not result.passed:
+                result.clear()
+                any_cleared = True
+
+        return any_cleared
 
     def get_results_to_run(self) -> MyQuery[AutoTestResult]:
         """Get a query to get the :py:class:`.AutoTestResult` items that still

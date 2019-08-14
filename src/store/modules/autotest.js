@@ -342,7 +342,9 @@ const actions = {
 const mutations = {
     [types.SET_AUTO_TEST](state, autoTest) {
         autoTest.sets.forEach(set => {
-            set.suites = set.suites.map(suite => new AutoTestSuiteData(autoTest.id, set.id, suite));
+            set.suites = set.suites.map(
+                suite => new AutoTestSuiteData(autoTest.id, set.id, suite, true),
+            );
         });
 
         Object.defineProperty(autoTest, 'pointsPossible', {

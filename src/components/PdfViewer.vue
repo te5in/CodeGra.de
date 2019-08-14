@@ -137,13 +137,26 @@ export default {
     position: relative;
     padding: 0 !important;
     height: 100%;
+    min-height: 100%;
 }
 
 object {
     display: block;
+    flex: 1 1 100%;
     width: 100%;
     height: 100%;
     margin: 0;
     padding: 0;
+}
+</style>
+
+<style lang="less">
+.pdf-viewer.floating-feedback-button {
+    flex: 1 1 100%;
+
+    > .content {
+        display: flex;
+        flex-direction: column;
+    }
 }
 </style>

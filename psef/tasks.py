@@ -377,17 +377,7 @@ def _check_heartbeat_stop_test_runner_1(auto_test_runner_id: str) -> None:
         return
 
     run = runner.run
-    run.runner_id = None
-    notify_broker_end_of_job(runner.job_id)
-    p.models.db.session.commit()
-
-    run.started_date = None
     run.state = p.models.AutoTestRunState.changing_runner
-    for result in run.results:
-        if not result.passed:
-            result.clear()
-
-    run.increment_job_id()
     p.models.db.session.commit()
     notify_broker_of_new_job(run.get_job_id())
 

@@ -442,7 +442,7 @@ def get_extra_results_to_process(
     results = run.get_results_to_run().with_for_update().all()
 
     if request_arg_true('last_call') and not results:
-        run.stop_continuous_feedback_runner()
+        run.stop_runner()
         db.session.commit()
 
     return jsonify(

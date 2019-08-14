@@ -20,7 +20,9 @@
         }"
         :data-line="i">
 
-        <code v-html="codeLines[i - 1]"/>
+        <!-- Always add a space because otherwise the code element may render
+            with 0 height. -->
+        <code v-html="codeLines[i - 1] + '&nbsp;'" />
 
         <linter-feedback-area :feedback="linterFeedback[i - 1]"
                               v-if="$userConfig.features.linters && linterFeedback[i - 1] != null"/>
@@ -274,6 +276,11 @@ code {
     -moz-hyphens: auto;
     -ms-hyphens: auto;
     hyphens: auto;
+
+    /* We add a &nbsp; to the end of each line of code, because the <code>
+     * must contain something for it to render with some height, which is
+     * necessary when the FeedbackArea is shown on an empty line. */
+    margin-right: -0.66em;
 
     #app.dark & {
         color: #839496;

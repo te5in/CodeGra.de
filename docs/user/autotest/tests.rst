@@ -107,7 +107,8 @@ Checkpoint
 ---------------
 A Checkpoint can be used to add conditions to your Test Categories. A Checkpoint
 can be put in between tests, to only execute the following tests
-if enough points have been scored in the tests preceding to the Checkpoint.
+if a certain percentage of points have been scored in the tests preceding to
+the Checkpoint.
 
 Use-cases
 ~~~~~~~~~~

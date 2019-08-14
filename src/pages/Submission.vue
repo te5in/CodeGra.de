@@ -204,7 +204,7 @@
                   :submission="submission"
                   :editable="editable"
                   :rubric-start-open="rubricStartOpen"
-                  v-if="!loadingInner && (editable || assignmentDone)"
+                  v-if="!loadingInner"
                   class="mb-3"/>
 </div>
 </template>
@@ -254,6 +254,7 @@ export default {
         return {
             assignmentState,
 
+            loadingPermissions: 'initial loading',
             canDeleteSubmission: false,
             canSeeFeedback: false,
             canSeeRevision: false,
@@ -368,12 +369,14 @@ export default {
             const currentFile = this.currentFile;
             const autoTestId = this.autoTestId;
             const autoTest = this.autoTest;
+            const loadingPermissions = this.loadingPermissions !== null;
 
             return (
                 (canSeeFeedback && !feedback) ||
                 !fileTree ||
                 !currentFile ||
-                (autoTestId && !autoTest)
+                (autoTestId && !autoTest) ||
+                loadingPermissions
             );
         },
 
@@ -521,7 +524,7 @@ export default {
         courseId: {
             immediate: true,
             handler() {
-                this.loadPermissions();
+                this.loadPermissions(this.courseId);
             },
         },
 
@@ -588,7 +591,9 @@ export default {
             storeLoadAutoTest: 'loadAutoTest',
         }),
 
-        loadPermissions() {
+        loadPermissions(courseId) {
+            this.loadingPermissions = courseId;
+
             Promise.all([
                 this.$hasPermission(
                     [
@@ -614,21 +619,25 @@ export default {
                     ],
                     canUseSnippets,
                 ]) => {
-                    this.editable = canGrade;
-                    this.canSeeFeedback = canSeeGradeBeforeDone || this.assignmentDone;
-                    this.canDeleteSubmission = canDeleteSubmission;
-                    this.canSeeGradeHistory = canSeeGradeHistory;
+                    if (courseId === this.courseId) {
+                        this.editable = canGrade;
+                        this.canSeeFeedback = canSeeGradeBeforeDone || this.assignmentDone;
+                        this.canDeleteSubmission = canDeleteSubmission;
+                        this.canSeeGradeHistory = canSeeGradeHistory;
 
-                    this.canUseSnippets = canUseSnippets;
+                        this.canUseSnippets = canUseSnippets;
 
-                    if (
-                        this.submission &&
-                        this.userId === this.submission.user.id &&
-                        this.assignmentDone
-                    ) {
-                        this.canSeeRevision = ownTeacher;
-                    } else {
-                        this.canSeeRevision = editOthersWork;
+                        if (
+                            this.submission &&
+                            this.userId === this.submission.user.id &&
+                            this.assignmentDone
+                        ) {
+                            this.canSeeRevision = ownTeacher;
+                        } else {
+                            this.canSeeRevision = editOthersWork;
+                        }
+
+                        this.loadingPermissions = null;
                     }
                 },
             );

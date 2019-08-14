@@ -406,7 +406,7 @@ export default {
             // Do not clear items of "locked" rows.
             this.selected.forEach(item => {
                 if (this.lockedItemIds.has(item.id)) {
-                    selected.push(this.rubric.items[item.id]);
+                    selected.push(item);
                 }
             });
 

@@ -291,6 +291,8 @@ export function getErrorMessage(err) {
     } else if (err.response && err.response.data) {
         msg = err.response.data.message;
     } else if (err instanceof Error) {
+        // eslint-disable-next-line
+        console.error(err);
         msg = err.message;
     } else {
         msg = err.toString();
@@ -333,4 +335,9 @@ export function deepExtend(target, ...sources) {
         });
     });
     return target;
+}
+
+// Divide a by b, or return dfl if b == 0.
+export function safeDivide(a, b, dfl) {
+    return b === 0 ? dfl : a / b;
 }

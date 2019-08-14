@@ -192,6 +192,7 @@ export default {
 
     &.pdf-viewer {
         height: 100%;
+        flex: 1 1 100%;
     }
 }
 

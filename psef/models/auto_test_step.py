@@ -223,7 +223,7 @@ class AutoTestStepBase(Base, TimestampMixin, IdMixin):
         container: 'auto_test_module.StartedContainer',
         update_test_result: 'auto_test_module.UpdateResultFunction',
         test_instructions: 'auto_test_module.StepInstructions',
-        total_points: float,
+        achieved_percentage: float,
     ) -> float:
         """Execute this step.
 
@@ -237,8 +237,8 @@ class AutoTestStepBase(Base, TimestampMixin, IdMixin):
         :parm update_test_result: A function that can be used to update the
             result of the step.
         :param test_instructions: The test instructions for this step.
-        :param total_points: The total amount of points achieved in the current
-            test suite (category).
+        :param achieved_percentage: The percentage of points achieved at this
+            point.
         :returns: The amount of points achieved in this step.
         """
         # Make sure we are not on a webserver
@@ -246,7 +246,8 @@ class AutoTestStepBase(Base, TimestampMixin, IdMixin):
 
         update_test_result(AutoTestStepResultState.running, {})
         return cls._execute(
-            container, update_test_result, test_instructions, total_points
+            container, update_test_result, test_instructions,
+            achieved_percentage
         )
 
     @classmethod
@@ -255,7 +256,7 @@ class AutoTestStepBase(Base, TimestampMixin, IdMixin):
         container: 'auto_test_module.StartedContainer',
         update_test_result: 'auto_test_module.UpdateResultFunction',
         test_instructions: 'auto_test_module.StepInstructions',
-        total_points: float,
+        achieved_percentage: float,
     ) -> float:
         raise NotImplementedError
 
@@ -462,7 +463,7 @@ class _IoTest(AutoTestStepBase):
         container: 'auto_test_module.StartedContainer',
         update_test_result: 'auto_test_module.UpdateResultFunction',
         test_instructions: 'auto_test_module.StepInstructions',
-        total_points: float,
+        achieved_percentage: float,
     ) -> float:
         def now() -> str:
             return datetime.datetime.utcnow().isoformat()
@@ -581,7 +582,7 @@ class _RunProgram(AutoTestStepBase):
         container: 'auto_test_module.StartedContainer',
         update_test_result: 'auto_test_module.UpdateResultFunction',
         test_instructions: 'auto_test_module.StepInstructions',
-        total_points: float,
+        achieved_percentage: float,
     ) -> float:
         data = test_instructions['data']
         assert isinstance(data, dict)
@@ -701,7 +702,7 @@ class _CustomOutput(AutoTestStepBase):
         container: 'auto_test_module.StartedContainer',
         update_test_result: 'auto_test_module.UpdateResultFunction',
         test_instructions: 'auto_test_module.StepInstructions',
-        total_points: float,
+        achieved_percentage: float,
     ) -> float:
         state = AutoTestStepResultState.failed
         points = 0.0
@@ -788,24 +789,36 @@ class _CheckPoints(AutoTestStepBase):
         with get_from_map_transaction(
             ensure_json_dict(data, log_object=False), ensure_empty=True
         ) as [get, _]:
-            get('min_points', numbers.Real)  # type: ignore
+            min_points = t.cast(
+                float,
+                get('min_points', numbers.Real)  # type: ignore
+            )
+
+        if min_points < 0 or min_points > 1:
+            raise APIException(
+                'The "min_points" has to be between 0 and 1',
+                f'The "min_points" was {min_points} which is not >=0 and <=1',
+                APICodes.INVALID_PARAM, 400
+            )
 
     @staticmethod
     def _execute(
         _: 'auto_test_module.StartedContainer',
         update_test_result: 'auto_test_module.UpdateResultFunction',
         test_instructions: 'auto_test_module.StepInstructions',
-        total_points: float,
+        achieved_percentage: float,
     ) -> float:
         data = test_instructions['data']
         assert isinstance(data, dict)
+        min_points = t.cast(float, data['min_points'])
 
-        if total_points >= t.cast(float, data['min_points']):
+        if helpers.FloatHelpers.geq(achieved_percentage, min_points):
             update_test_result(AutoTestStepResultState.passed, {})
             return 0
         else:
             logger.warning(
-                "Didn't score enough points", total_points=total_points
+                "Didn't score enough points",
+                achieved_percentage=achieved_percentage
             )
             update_test_result(AutoTestStepResultState.failed, {})
             raise StopRunningStepsException('Not enough points')

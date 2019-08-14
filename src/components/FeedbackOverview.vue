@@ -338,6 +338,8 @@ export default {
 </script>
 
 <style lang="less" scoped>
+@import '~mixins.less';
+
 .feedback-overview {
     max-height: 100%;
     overflow: hidden;
@@ -352,6 +354,10 @@ export default {
 
 .inner-code-viewer {
     overflow: hidden;
+}
+
+#app.dark pre {
+    color: @text-color-dark;
 }
 </style>
 

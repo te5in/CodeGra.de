@@ -7,8 +7,8 @@ With a checkpoint you can add a condition to your Test Category.
 
 2. Drag and drop it in the correct location.
 
-3. Specify the minimum amount of points that needs to be achieved to continue
-   the AutoTest Category.
+3. Specify the minimum percentage of points that needs to be achieved to
+   continue the AutoTest Category.
 
 .. note::
   Use a Checkpoint to distinguish between simple and advanced tests, where you

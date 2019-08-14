@@ -1392,15 +1392,16 @@ class AutoTestRunner:
     def _run_test_suite(
         self, student_container: StartedContainer, result_id: int,
         test_suite: SuiteInstructions
-    ) -> float:
+    ) -> t.Tuple[float, float]:
         total_points = 0.0
+        possible_points = 0.0
 
         with student_container.as_snapshot(
             test_suite['network_disabled']
         ) as snap:
             url = f'{self.base_url}/results/{result_id}/step_results/'
 
-            for test_step in test_suite['steps']:
+            for idx, test_step in enumerate(test_suite['steps']):
                 logger.info('Running step', step=test_step)
                 step_result_id: t.Optional[int] = None
 
@@ -1435,10 +1436,17 @@ class AutoTestRunner:
                                 ):
                     try:
                         total_points += typ.execute_step(
-                            snap, update_test_result, test_step, total_points
+                            snap, update_test_result, test_step,
+                            helpers.safe_div(total_points, possible_points, 1)
                         )
                     except StopRunningStepsException:
                         logger.info('Stopping steps', exc_info=True)
+                        # We still need the correct amount of possible points,
+                        # so we update it here.
+                        possible_points += sum(
+                            ts['weight']
+                            for ts in test_suite['steps'][idx + 1:]
+                        )
                         break
                     except CommandTimeoutException as e:
                         logger.warning('Command timed out', exc_info=True)
@@ -1452,8 +1460,10 @@ class AutoTestRunner:
                         )
                     else:
                         logger.info('Finished step', total_points=total_points)
+                    finally:
+                        possible_points += test_step['weight']
 
-        return total_points
+        return total_points, possible_points
 
     @timed_function
     def _run_student(
@@ -1502,12 +1512,15 @@ class AutoTestRunner:
                 ) != 0, 'Sudo was not dropped!'
 
                 total_points = 0.0
+                possible_points = 0.0
 
                 for test_set in self.instructions['sets']:
                     for test_suite in test_set['suites']:
-                        total_points += self._run_test_suite(
+                        achieved_points, suite_points = self._run_test_suite(
                             cont, result_id, test_suite
                         )
+                        total_points += achieved_points
+                        possible_points += suite_points
                         logger.info(
                             'Finished suite',
                             total_points=total_points,
@@ -1519,7 +1532,11 @@ class AutoTestRunner:
                         stop_points=test_set['stop_points'],
                         test_set=test_set,
                     )
-                    if total_points < test_set['stop_points']:
+
+                    if helpers.FloatHelpers.le(
+                        helpers.safe_div(total_points, possible_points, 1),
+                        test_set['stop_points']
+                    ):
                         break
         except:
             logger.error('Something went wrong', exc_info=True)

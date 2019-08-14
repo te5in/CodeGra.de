@@ -744,6 +744,7 @@ export default {
         margin-top: 0;
         background-color: @footer-color;
         flex: 1 1 auto;
+
         &.has-author {
             border-top: 0;
             border-right: 0;
@@ -751,6 +752,7 @@ export default {
             border-top-left-radius: 0;
             border-bottom-left-radius: 0;
         }
+
         &:not(.has-author) {
             border: 0;
         }
@@ -758,7 +760,9 @@ export default {
         #app.dark & {
             background-color: @color-primary;
             border-color: @color-primary-darkest;
+            color: @text-color-dark;
         }
+
         white-space: pre-wrap;
         word-break: break-word;
     }

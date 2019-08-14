@@ -327,6 +327,12 @@ def update_auto_test_set(auto_test_id: int, auto_test_set_id: int
                 f"The given value for stop points ({stop_points}) isn't valid",
                 APICodes.INVALID_PARAM, 400
             )
+        elif stop_points > 1:
+            raise APIException(
+                'You cannot set stop points to higher than 1',
+                f"The given value for stop points ({stop_points}) isn't valid",
+                APICodes.INVALID_PARAM, 400
+            )
         auto_test_set.stop_points = stop_points
 
     db.session.commit()

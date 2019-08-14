@@ -77,13 +77,15 @@
 
             <template v-else-if="value.type === 'check_points'">
                 <label :for="pointsThresholdId">
-                    Stop test category if amount of points is below
+                    Stop test category if percentage of points achieved is below
                 </label>
 
                 <input class="form-control text-left"
                        :id="pointsThresholdId"
                        type="number"
                        :value="value.data.min_points"
+                       min="0"
+                       max="100"
                        @input="updateValue('min_points', $event.target.value)"/>
             </template>
 
@@ -253,8 +255,8 @@
 
                 <template v-if="canViewDetails">
                     Stop when you achieve less than
-                    <code>{{ value.data.min_points }}</code>
-                    points.
+                    <code>{{ value.data.min_points }}%</code>
+                    of the points possible.
                 </template>
             </td>
             <td class="shrink text-center" v-if="result">
@@ -969,6 +971,7 @@ export default {
         canViewOutput() {
             if (
                 !this.result ||
+                this.stepResult.state === 'hidden' ||
                 !this.canViewDetails ||
                 (this.assignment.state !== 'done' &&
                     !this.permissions.can_view_autotest_before_done)

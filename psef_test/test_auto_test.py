@@ -2,6 +2,7 @@
 import io
 import os
 import json
+import time
 import uuid
 import shutil
 import getpass
@@ -537,7 +538,7 @@ def test_run_auto_test(
                 amount_sets=2,
                 amount_suites=2,
                 amount_fixtures=1,
-                stop_points=[2, None],
+                stop_points=[0.5, None],
                 grade_calculation='partial',
             )
             test_client.req(
@@ -598,6 +599,9 @@ def test_run_auto_test(
         psef.auto_test.CODEGRADE_USER = getpass.getuser()
         with app.test_request_context('/'):
             t.start_test_run()
+        session.commit()
+        session.commit()
+        time.sleep(5)
         session.commit()
         run = t.test_run
 
@@ -782,8 +786,9 @@ def test_update_auto_test_set(basic, test_client, logged_in, describe):
 
     with describe('update stop points'), logged_in(teacher):
         update_set(stop_points=-1, error=400)
-        update_set(stop_points=23)
-        assert test['sets'][0]['stop_points'] == 23
+        update_set(stop_points=23, error=400)
+        update_set(stop_points=0.5)
+        assert test['sets'][0]['stop_points'] == 0.5
 
     with describe('Set internet can be enabled and disabled'
                   ), logged_in(teacher):
@@ -1093,7 +1098,7 @@ def test_continuous_feedback_auto_test(
                 amount_sets=2,
                 amount_suites=2,
                 amount_fixtures=1,
-                stop_points=[2, None],
+                stop_points=[0.5, None],
                 grade_calculation='partial',
             )
             test_client.req(
@@ -1219,7 +1224,7 @@ def test_getting_fixture_no_permssion(
                 amount_sets=2,
                 amount_suites=2,
                 amount_fixtures=1,
-                stop_points=[2, None],
+                stop_points=[0.5, None],
                 grade_calculation='partial',
             )
 
