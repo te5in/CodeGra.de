@@ -597,12 +597,16 @@ def test_run_auto_test(
 
         t = m.AutoTest.query.get(test['id'])
         psef.auto_test.CODEGRADE_USER = getpass.getuser()
-        with app.test_request_context('/'):
-            t.start_test_run()
-        session.commit()
-        session.commit()
-        time.sleep(5)
-        session.commit()
+        with logged_in(teacher):
+            test_client.req(
+                'post',
+                f'{url}/runs/',
+                200,
+                data={
+                    'continuous_feedback_run': False,
+                }
+            )
+            session.commit()
         run = t.test_run
 
         psef.auto_test.start_polling(app.config, repeat=False)
