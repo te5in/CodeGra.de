@@ -34,11 +34,7 @@ export class AutoTestSuiteData {
         Vue.set(
             this,
             'commandTimeLimit',
-            getProps(
-                d,
-                UserConfig.features.autoTest.auto_test_max_command_time,
-                'command_time_limit',
-            ),
+            getProps(d, UserConfig.autoTest.auto_test_max_command_time, 'command_time_limit'),
         );
         Vue.set(this, 'networkDisabled', getProps(d, true, 'network_disabled'));
     }
@@ -201,10 +197,11 @@ export class AutoTestSuiteData {
 }
 
 export class AutoTestResult {
-    constructor(result, autoTest) {
+    constructor(result, autoTest, run) {
         this.id = result.id;
         this.submissionId = result.work_id;
         this.finished = false;
+        this.isContinuous = run.isContinuous;
 
         this.update(result, autoTest);
     }
@@ -215,6 +212,10 @@ export class AutoTestResult {
         this.pointsAchieved = result.points_achieved;
 
         this.updateStepResults(result.step_results, autoTest);
+
+        if (this.isFinishedState(result.state)) {
+            this.finished = true;
+        }
     }
 
     updateExtended(result, autoTest) {
@@ -271,6 +272,14 @@ export class AutoTestResult {
 
                 suiteResult.stepResults = suite.steps.map(step => {
                     suiteResult.possible += step.weight;
+
+                    if (this.isContinuous && step.hidden) {
+                        stepResults[step.id] = {
+                            state: 'hidden',
+                            log: null,
+                        };
+                        return stepResults[step.id];
+                    }
 
                     let stepResult = stepResults[step.id];
 
@@ -329,7 +338,7 @@ export class AutoTestResult {
         Vue.set(this, 'stepResults', stepResults);
         Vue.set(this, 'suiteResults', suiteResults);
         Vue.set(this, 'setResults', setResults);
-        Vue.set(this, 'finished', Object.values(setResults).every(s => s.finished));
+        // Vue.set(this, 'finished', Object.values(setResults).every(s => s.finished));
     }
 
     // eslint-disable-next-line
@@ -342,6 +351,7 @@ export class AutoTestRun {
     constructor(run, autoTest) {
         this.id = run.id;
         this.startedAt = run.started_at;
+        this.isContinuous = run.is_continuous;
         this.update(run, autoTest);
     }
 
@@ -357,12 +367,21 @@ export class AutoTestRun {
     }
 
     updateResults(results, autoTest) {
-        if (this.results) {
-            this.results.forEach((r, i) => {
-                r.update(results[i], autoTest);
-            });
-        } else {
-            this.results = results.map(r => new AutoTestResult(r, autoTest));
+        if (!this.results) {
+            this.results = [];
         }
+
+        const resMap = this.results.reduce((acc, r) => {
+            acc[r.id] = r;
+            return acc;
+        }, {});
+
+        results.forEach(r => {
+            if (resMap[r.id]) {
+                resMap[r.id].update(r, autoTest);
+            } else {
+                this.results.push(new AutoTestResult(r, autoTest, this));
+            }
+        });
     }
 }

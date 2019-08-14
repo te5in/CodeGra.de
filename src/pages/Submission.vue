@@ -125,12 +125,14 @@
         </b-button-group>
 
         <template slot="extra">
-            <hr class="mt-2 mb-1" />
+            <template v-if="!loadingInner">
+                <hr class="mt-2 mb-1" />
 
-            <category-selector slot="extra"
-                               :default="defaultCat"
-                               v-model="selectedCat"
-                               :categories="categories"/>
+                <category-selector slot="extra"
+                                   :default="defaultCat"
+                                   v-model="selectedCat"
+                                   :categories="categories"/>
+            </template>
         </template>
     </local-header>
 
@@ -191,6 +193,7 @@
              :class="{ hidden: selectedCat !== 'auto-test' }">
             <div class="cat-scroller border rounded">
                 <auto-test v-if="!hiddenCats.has('auto-test')"
+                           accept-continuous
                            :assignment="assignment"
                            :submission-id="submissionId" />
             </div>
@@ -200,8 +203,8 @@
     <grade-viewer :assignment="assignment"
                   :submission="submission"
                   :editable="editable"
-                  :rubric-start-open="canSeeFeedback"
-                  v-if="!loadingInner && (editable || assignment.state === assignmentState.DONE)"
+                  :rubric-start-open="rubricStartOpen"
+                  v-if="!loadingInner && (editable || assignmentDone)"
                   class="mb-3"/>
 </div>
 </template>
@@ -271,6 +274,9 @@ export default {
         ...mapGetters('pref', ['contextAmount', 'fontSize']),
         ...mapGetters('user', { userId: 'id' }),
         ...mapGetters('courses', ['assignments']),
+        ...mapGetters('autotest', {
+            allAutoTests: 'tests',
+        }),
 
         courseId() {
             return Number(this.$route.params.courseId);
@@ -328,6 +334,29 @@ export default {
             return this.submission && this.submission.feedback;
         },
 
+        autoTestId() {
+            return this.assignment && this.assignment.auto_test_id;
+        },
+
+        autoTest() {
+            return this.allAutoTests[this.autoTestId];
+        },
+
+        autoTestRun() {
+            const runs = this.autoTest && this.autoTest.runs;
+
+            if (runs == null) {
+                return null;
+            }
+
+            let run = runs.find(r => !r.isContinuous);
+            if (run == null) {
+                run = runs.find(r => r.isContinuous);
+            }
+
+            return run;
+        },
+
         loadingPage() {
             return !(this.assignment && this.assignment.submissions);
         },
@@ -337,8 +366,19 @@ export default {
             const feedback = this.feedback;
             const fileTree = this.fileTree;
             const currentFile = this.currentFile;
+            const autoTestId = this.autoTestId;
+            const autoTest = this.autoTest;
 
-            return (canSeeFeedback && !feedback) || !fileTree || !currentFile;
+            return (
+                (canSeeFeedback && !feedback) ||
+                !fileTree ||
+                !currentFile ||
+                (autoTestId && !autoTest)
+            );
+        },
+
+        showTeacherDiff() {
+            return this.fileTree && this.fileTree.hasRevision(this.fileTree.student);
         },
 
         categories() {
@@ -357,11 +397,11 @@ export default {
                         }
 
                         const nitems = Object.values(this.feedback.user).reduce(
-                            (acc, file) => acc + Object.keys(file).length,
+                            (acc, file) => acc + Object.values(file).filter(x => x.msg).length,
                             this.feedback.general ? 1 : 0,
                         );
                         if (nitems) {
-                            title += ` <div class="ml-1 badge badge-primary" style="font-size: 1em;">${nitems}</div>`;
+                            title += ` <div class="ml-1 badge badge-primary">${nitems}</div>`;
                         }
 
                         return title;
@@ -370,22 +410,68 @@ export default {
                 },
                 {
                     id: 'auto-test',
-                    name: 'AutoTest',
-                    enabled: this.assignment && this.assignment.auto_test_id != null,
+                    name: () => {
+                        let title = 'AutoTest';
+                        const run = this.autoTestRun;
+
+                        if (run && run.isContinuous) {
+                            title +=
+                                ' <div class="ml-1 badge badge-warning" title="Continuous Feedback">CF</div>';
+                        }
+
+                        return title;
+                    },
+                    enabled: this.autoTestId != null,
                 },
                 {
                     id: 'teacher-diff',
                     name: 'Teacher diff',
-                    enabled: this.fileTree && this.fileTree.hasRevision(this.fileTree.student),
+                    enabled: this.showTeacherDiff,
                 },
             ];
         },
 
-        defaultCat() {
-            const canSeeFeedback = this.canSeeFeedback;
-            const hasGrade = this.submission.grade != null;
+        hasFeedback() {
+            const fb = this.feedback;
 
-            return canSeeFeedback && hasGrade ? 'feedback-overview' : 'code';
+            return fb && (fb.general || Object.keys(fb.user).length);
+        },
+
+        assignmentDone() {
+            if (this.assignment == null) {
+                return false;
+            } else {
+                return this.assignment.state === assignmentState.DONE;
+            }
+        },
+
+        defaultCat() {
+            const editable = this.editable;
+            const done = this.assignmentDone;
+            const hasFb = this.hasFeedback;
+            const testRun = this.autoTestRun;
+
+            if (done) {
+                if (hasFb) {
+                    return 'feedback-overview';
+                } else if (testRun) {
+                    return 'auto-test';
+                } else {
+                    return 'feedback-overview';
+                }
+            } else if (!editable && testRun && testRun.isContinuous) {
+                return 'auto-test';
+            } else {
+                return 'code';
+            }
+        },
+
+        rubricStartOpen() {
+            const done = this.assignmentDone;
+            const editable = this.editable;
+            const canSeeFeedback = this.canSeeFeedback;
+
+            return (editable || done) && canSeeFeedback;
         },
 
         submissionsRoute() {
@@ -446,6 +532,13 @@ export default {
             },
         },
 
+        assignment: {
+            immediate: true,
+            handler() {
+                this.loadAutoTest();
+            },
+        },
+
         submissionId: {
             immediate: true,
             handler() {
@@ -491,6 +584,10 @@ export default {
             storeLoadFeedback: 'loadSubmissionFeedback',
         }),
 
+        ...mapActions('autotest', {
+            storeLoadAutoTest: 'loadAutoTest',
+        }),
+
         loadPermissions() {
             Promise.all([
                 this.$hasPermission(
@@ -509,7 +606,7 @@ export default {
                 ([
                     [
                         canGrade,
-                        canSeeGrade,
+                        canSeeGradeBeforeDone,
                         canDeleteSubmission,
                         ownTeacher,
                         editOthersWork,
@@ -518,8 +615,7 @@ export default {
                     canUseSnippets,
                 ]) => {
                     this.editable = canGrade;
-                    this.canSeeFeedback =
-                        canSeeGrade || this.assignment.state === assignmentState.DONE;
+                    this.canSeeFeedback = canSeeGradeBeforeDone || this.assignmentDone;
                     this.canDeleteSubmission = canDeleteSubmission;
                     this.canSeeGradeHistory = canSeeGradeHistory;
 
@@ -528,7 +624,7 @@ export default {
                     if (
                         this.submission &&
                         this.userId === this.submission.user.id &&
-                        this.assignment.state === assignmentState.DONE
+                        this.assignmentDone
                     ) {
                         this.canSeeRevision = ownTeacher;
                     } else {
@@ -544,7 +640,7 @@ export default {
             this.showWhitespace = true;
 
             this.hiddenCats = new Set(
-                this.categories.map(c => c.id).filter(c => c.enabled && c !== this.selectedCat),
+                this.categories.filter(c => c.id !== this.selectedCat).map(c => c.id),
             );
 
             return Promise.all([
@@ -557,6 +653,16 @@ export default {
                     submissionId: this.submissionId,
                 }),
             ]).then(this.openFirstFile);
+        },
+
+        loadAutoTest() {
+            if (this.autoTestId != null) {
+                return this.storeLoadAutoTest({
+                    autoTestId: this.autoTestId,
+                });
+            } else {
+                return Promise.resolve();
+            }
         },
 
         openFirstFile() {
@@ -803,6 +909,10 @@ export default {
         &:after {
             transform: translate(-2px, +1px);
         }
+    }
+
+    .badge {
+        font-size: 1em !important;
     }
 }
 </style>

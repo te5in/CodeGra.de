@@ -327,3 +327,9 @@
 
 # The amount of heartbeats missed before a AutoTest runner should be killed.
 # auto_test_heartbeat_max_missed = 6
+
+# The amount of seconds between each query for extra work
+# auto_test_cf_sleep_time = 5
+
+# The amount we should query for extra work before stopping
+# auto_test_cf_extra_amount = 20

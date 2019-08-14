@@ -131,10 +131,16 @@
     color: @color-primary;
     border-color: @color-primary;
 
-    &:hover,
+    &:hover:not(:disabled):not(.disabled),
     &:active:not(:disabled):not(.disabled) {
         background-color: saturate(lighten(@color-primary, 7.5%), 10%);
         border-color: saturate(lighten(@color-primary, 7.5%), 10%);
+    }
+
+    &:disabled,
+    &.disabled {
+        border-color: @color-primary;
+        color: @color-primary;
     }
 
     #app.dark & {

@@ -139,6 +139,7 @@ export default {
                     this.storeLoadAutoTestResult({
                         autoTestId: this.autoTestConfigId,
                         submissionId: this.submission.id,
+                        acceptContinuous: true,
                     }).catch(
                         // Autotest hasn't been started yet.
                         () => {},

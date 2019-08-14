@@ -30,6 +30,7 @@ from mypy_extensions import TypedDict
 
 import psef
 import cg_logger
+import cg_worker_pool
 from cg_timers import timed_code, timed_function
 
 from .. import models, helpers
@@ -415,11 +416,13 @@ class RunnerInstructions(TypedDict, total=True):
     run_id: int
     auto_test_id: int
     result_ids: t.List[int]
+    student_ids: t.List[int]
     sets: t.List[SetInstructions]
     fixtures: t.List[t.Tuple[str, int]]
     setup_script: str
     heartbeat_interval: int
     run_setup_script: str
+    is_continuous_run: bool
 
 
 def init_app(app: 'psef.PsefFlask') -> None:
@@ -547,6 +550,7 @@ def start_polling(config: 'psef.FlaskConfig', repeat: bool = True) -> None:
 
         with _get_base_container(config).started_container() as cont:
             if config['AUTO_TEST_TEMPLATE_CONTAINER'] is None:
+                cont.run_command(['apt', 'update'])
                 cont.run_command(
                     ['apt', 'install', '-y', 'wget', 'curl', 'unzip'],
                     retry_amount=4,
@@ -1202,9 +1206,8 @@ class AutoTestContainer:
         """
         _maybe_quit_running()
 
-        new_name = new_name or _get_new_container_name()
-
         with self._lock, timed_code('clone_container'):
+            new_name = new_name or _get_new_container_name()
             cont = self._cont.clone(new_name)
             assert isinstance(cont, lxc.Container)
             return type(self)(new_name, self._config, cont)
@@ -1220,6 +1223,12 @@ class AutoTestRunner:
     ) -> None:
         self._global_password = global_password
         self.instructions = instructions
+        result_ids = instructions['result_ids']
+        self.work = [
+            cg_worker_pool.Work(result_id=result_id, student_id=student_id)
+            for result_id, student_id in
+            zip(result_ids, instructions.get('student_ids', result_ids))
+        ]
         self.auto_test_id = instructions['auto_test_id']
         self.config = config
         self.setup_script = self.instructions['setup_script']
@@ -1229,6 +1238,32 @@ class AutoTestRunner:
 
         self.fixtures = self.instructions['fixtures']
         self._reqs: t.Dict[t.Tuple[int, int], requests.Session] = {}
+
+    def _make_worker_pool(
+        self, base_container_name: str, cpu_cores: CpuCores
+    ) -> cg_worker_pool.WorkerPool:
+        mult = 1 if self.instructions.get('is_continuous_run', False) else 0
+        return cg_worker_pool.WorkerPool(
+            # Over provision a bit so clones can be made quicker.
+            processes=_get_amount_cpus() + 4,
+            function=lambda work:
+            _run_student(self, base_container_name, cpu_cores, work.result_id),
+            sleep_time=mult * self.config['AUTO_TEST_CF_SLEEP_TIME'],
+            extra_amount=mult * self.config['AUTO_TEST_CF_EXTRA_AMOUNT'],
+            initial_work=self.work,
+        )
+
+    def _work_producer(self, last_call: bool) -> t.List[cg_worker_pool.Work]:
+        if not self.instructions.get('is_continuous_run', False):
+            return []
+
+        url = (
+            f'{self.base_url}/runs/{self.instructions["run_id"]}/'
+            f'results/?last_call={last_call}'
+        )
+        res = self.req.get(url)
+        res.raise_for_status()
+        return [cg_worker_pool.Work(**item) for item in res.json()]
 
     @staticmethod
     def _make_req_key() -> t.Tuple[int, int]:
@@ -1637,30 +1672,16 @@ class AutoTestRunner:
 
         with cont.stopped_container() as base_container, timed_code(
             'run_all_students'
-        ), Manager() as manager, multiprocessing.Pool(
-            # Over provision a bit so clones can be made quicker.
-            _get_amount_cpus() + 4
-        ) as pool:
+        ), Manager() as manager:
             # Known issue from typeshed:
             # https://github.com/python/typeshed/issues/3018
             make_queue: t.Callable[[int], Queue
                                    ] = manager.Queue  # type: ignore
             cpu_cores = CpuCores(make_queue=make_queue)
+            pool = self._make_worker_pool(base_container.name, cpu_cores)
 
             try:
-                res = pool.starmap_async(
-                    _run_student, [
-                        (self, base_container.name, cpu_cores, res_id)
-                        for res_id in self.instructions['result_ids']
-                    ]
-                )
-                while True:
-                    try:
-                        res.get(5)
-                    except context.TimeoutError:
-                        continue
-                    else:
-                        break
+                pool.start(self._work_producer)
             except:
                 _STOP_CONTAINERS.set()
                 logger.error('AutoTest crashed', exc_info=True)

@@ -111,7 +111,7 @@ import typing as t
 import cg_sqlalchemy_helpers
 from cg_sqlalchemy_helpers import UUID_LENGTH
 from cg_sqlalchemy_helpers.types import (  # pylint: disable=unused-import
-    MyDb, DbColumn, _MyQuery
+    MyDb, MyQuery, DbColumn, _MyQuery
 )
 
 from .. import PsefFlask

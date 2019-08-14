@@ -311,7 +311,7 @@ def _stop_auto_test_run_1(auto_test_run_id: int) -> None:
     ):
         stop_auto_test_run((auto_test_run_id, ), eta=run.kill_date)
         return
-    elif run.state != p.models.AutoTestRunState.running:
+    elif not run.active:
         return
 
     logger.warning(
@@ -378,9 +378,9 @@ def _check_heartbeat_stop_test_runner_1(auto_test_runner_id: str) -> None:
 
     run = runner.run
     run.runner_id = None
+    notify_broker_end_of_job(runner.job_id)
     p.models.db.session.commit()
 
-    notify_broker_end_of_job(run.get_job_id())
     run.started_date = None
     run.state = p.models.AutoTestRunState.changing_runner
     for result in run.results:

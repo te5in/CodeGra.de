@@ -25,6 +25,7 @@ describe('Submission.vue', () => {
     let store;
     let courses;
     let submissions;
+    let autoTests;
     let mockLoadSubs;
     let mockLoadTree;
     let mockLoadFeedback;
@@ -102,6 +103,15 @@ describe('Submission.vue', () => {
         };
         courses[1].assignments.forEach(assig => { assig.course = courses[1]; });
 
+        autoTests = {
+            1: {
+                id: 1,
+                runs: [
+                    { isContinuous: true },
+                ],
+            },
+        };
+
         mockGet = jest.fn(async (path, opts) => new Promise((resolve) => {
             let res;
             if (/^.api.v1.submissions.[0-9]+.files./.test(path)) {
@@ -139,6 +149,24 @@ describe('Submission.vue', () => {
 
         store = new Vuex.Store({
             modules: {
+                autotest: {
+                    state: {
+                        tests: autoTests,
+                        results: {
+                            1: {},
+                        },
+                    },
+                    getters: {
+                        tests: state => state.tests,
+                        results: state => state.results,
+                    },
+                    actions: {
+                        loadAutoTest: jest.fn((context, { autoTestId }) => {
+                            return Promise.resolve(autoTests[autoTestId]);
+                        }),
+                    },
+                    namespaced: true,
+                },
                 courses: {
                     state: {
                         courses,
@@ -273,13 +301,45 @@ describe('Submission.vue', () => {
         });
 
         describe('defaultCat', () => {
-            it('should be "Feedback Overview" when a submission is graded and the user can view the feedback', () => {
-                comp.canSeeFeedback = true;
+            it('should be "Code" when the assignment is not done and there is no Continuous Feedback', () => {
+                comp.$set(comp.assignment, 'state', assignmentState.SUBMITTINT);
+                comp.$set(comp.assignment, 'auto_test_id', null);
 
-                for (let i = 0; i <= 10; i++) {
-                    comp.submission.grade = i;
-                    expect(comp.defaultCat).toBe('feedback-overview');
-                }
+                expect(comp.defaultCat).toBe('code');
+            });
+
+            it('should be "Feedback Overview" when the assignment is done and the submission has feedback', () => {
+                comp.$set(comp.assignment, 'state', assignmentState.DONE);
+                comp.$set(comp.feedback, 'general', 'abc');
+
+                expect(comp.defaultCat).toBe('feedback-overview');
+
+                comp.$set(comp.feedback, 'general', '');
+                comp.$set(comp.feedback.user, '1', 'abc');
+
+                expect(comp.defaultCat).toBe('feedback-overview');
+            });
+
+            it('should be "Feedback Overview" when the assignment is done and there is no feedback and no AutoTest', () => {
+                comp.$set(comp.assignment, 'auto_test_id', null);
+                comp.$set(comp.assignment, 'state', assignmentState.DONE);
+                comp.$set(comp.submission, 'feedback', {
+                    general: '',
+                    user: {},
+                });
+
+                expect(comp.defaultCat).toBe('feedback-overview');
+            });
+
+            it('should be "AutoTest" when the assignment is done and has an AutoTest but the submission does not have feedback', async () => {
+                comp.$set(comp.assignment, 'auto_test_id', 1);
+                comp.$set(comp.assignment, 'state', assignmentState.DONE);
+                comp.$set(comp.submission, 'feedback', {
+                    general: '',
+                    user: {},
+                });
+
+                expect(comp.defaultCat).toBe('auto-test');
             });
 
             it('should be "Code" when a submission is not graded or the user cannot view the feedback', () => {

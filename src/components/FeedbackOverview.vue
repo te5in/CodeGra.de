@@ -5,6 +5,10 @@
 
 <loader page-loader v-else-if="loading" />
 
+<div v-else-if="!canSeeFeedback" class="p-3 border rounded font-italic text-muted">
+    Feedback not yet available.
+</div>
+
 <div v-else class="feedback-overview border rounded">
     <div class="scroller">
         <b-card header="General feedback">

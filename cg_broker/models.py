@@ -365,6 +365,7 @@ class Job(Base, mixins.TimestampMixin, mixins.IdMixin):
 
     cg_url = db.Column('cg_url', db.Unicode, nullable=False)
 
+    # It is important that this is really unique!
     remote_id = db.Column(
         'remote_id', db.Unicode, nullable=False, index=True, unique=True
     )

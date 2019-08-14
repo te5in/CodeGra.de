@@ -460,8 +460,8 @@
     <template v-else-if="value.type === 'io_test'">
         <tr>
             <td class="expand shrink">
-                <icon v-if="!canViewDetails" name="eye-slash" :scale="0.85"
-                      v-b-popover.hover.top="'You cannot view this step\'s details.'" />
+                <icon v-if="value.hidden" name="eye-slash" :scale="0.85"
+                      v-b-popover.hover.top="hiddenPopover" />
             </td>
             <td class="shrink">{{ index }}</td>
             <td>
@@ -478,7 +478,9 @@
                     </template>
                     {{ $utils.toMaxNDecimals(value.weight, 2) }}
                 </td>
-            <td class="shrink text-center" v-if="result"></td>
+            <td class="shrink text-center" v-if="result">
+                <auto-test-state v-if="stepResult.state === 'hidden'" :result="stepResult" />
+            </td>
         </tr>
 
         <template v-for="input, i in inputs">
@@ -488,8 +490,6 @@
                 v-b-toggle="`${resultsCollapseId}-${i}`">
                 <td class="expand shrink">
                     <icon v-if="canViewDetails" name="chevron-down" :scale="0.75" />
-                    <icon v-else-if="value.hidden" name="eye-slash" :scale="0.85"
-                          v-b-popover.hover.top="hiddenPopover" />
                 </td>
                 <td class="shrink">{{ index }}.{{ i + 1 }}</td>
                 <td>
@@ -742,32 +742,26 @@ export default {
             type: Object,
             required: true,
         },
-
         value: {
             type: Object,
             required: true,
         },
-
         index: {
             type: Number,
             required: true,
         },
-
         editable: {
             type: Boolean,
             default: false,
         },
-
         disableDelete: {
             type: Boolean,
             default: false,
         },
-
         testTypes: {
             type: Array,
             required: true,
         },
-
         result: {
             type: Object,
             default: null,
@@ -931,7 +925,7 @@ export default {
             if (this.valueCopy.hidden) {
                 return 'Make the details of this step visible to students.';
             } else {
-                return 'Hide the details of this step from students.';
+                return 'Disable this step for Continuous Feedback runs and hide the details from students.';
             }
         },
 

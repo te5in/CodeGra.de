@@ -773,9 +773,14 @@ def upload_work(assignment_id: int) -> ExtendedJSONResponse[models.Work]:
         helpers.callback_after_this_request(
             lambda: tasks.passback_grades([work.id], initial=True)
         )
-    db.session.commit()
+    db.session.flush()
 
     work.run_linter()
+
+    if work.assignment.auto_test is not None:
+        work.assignment.auto_test.add_to_continuous_feedback(work)
+
+    db.session.commit()
 
     return extended_jsonify(work, status_code=201, use_extended=models.Work)
 

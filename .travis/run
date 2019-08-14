@@ -12,9 +12,10 @@ case "$TO_RUN" in
         SQLALCHEMY_DATABASE_URI='postgresql:///travis_ci_test' ./manage.py db upgrade
 
         pytest --cov psef \
+               --cov cg_worker_pool \
                --postgresql=travis_ci_test \
                --cov-report term-missing \
-               "$(pwd)/psef_test" \
+               "$(pwd)/cg_worker_pool/tests/" "$(pwd)/psef_test" \
                -vvvv
         res1="$?"
 

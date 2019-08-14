@@ -54,12 +54,15 @@ def get_database_name(request):
 
 
 def pytest_addoption(parser):
-    parser.addoption(
-        "--postgresql",
-        action="store",
-        default=False,
-        help="Run the test using postresql"
-    )
+    try:
+        parser.addoption(
+            "--postgresql",
+            action="store",
+            default=False,
+            help="Run the test using postresql"
+        )
+    except ValueError:
+        pass
 
 
 @pytest.fixture(scope='session')
@@ -117,6 +120,7 @@ def app(request):
         ],
         'MIN_PASSWORD_SCORE': 3,
         'AUTO_TEST_PASSWORD': auto_test_password,
+        'AUTO_TEST_CF_EXTRA_AMOUNT': 2,
         '__S_AUTO_TEST_HOSTS': {
             f'http://127.0.0.1:{LIVE_SERVER_PORT}': {
                 'password': auto_test_password, 'type': 'simple_runner'

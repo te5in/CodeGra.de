@@ -17,6 +17,14 @@ const loaders = {
     runs: {},
 };
 
+function getRun(autoTest, acceptContinuous) {
+    let run = autoTest.runs.find(r => !r.isContinuous);
+    if (run == null && acceptContinuous) {
+        run = autoTest.runs.find(r => r.isContinuous);
+    }
+    return run;
+}
+
 const actions = {
     createAutoTest({ commit, dispatch }, assignmentId) {
         return axios
@@ -91,31 +99,33 @@ const actions = {
         return loaders.tests[autoTestId];
     },
 
-    async createAutoTestRun({ commit, dispatch, state }, { autoTestId }) {
+    async createAutoTestRun({ commit, dispatch, state }, { autoTestId, continuousFeedback }) {
         await dispatch('loadAutoTest', { autoTestId });
         const autoTest = state.tests[autoTestId];
 
-        if (autoTest.runs.length > 0) {
+        if (autoTest.runs.find(r => !r.isContinuous)) {
             throw new Error('AutoTest has already been run.');
         }
 
         return axios
-            .post(`/api/v1/auto_tests/${autoTestId}/runs/`)
+            .post(`/api/v1/auto_tests/${autoTestId}/runs/`, {
+                continuous_feedback_run: continuousFeedback,
+            })
             .then(({ data }) => commit(types.UPDATE_AUTO_TEST_RUNS, { autoTest, run: data }));
     },
 
-    async loadAutoTestRun({ commit, dispatch, state }, { autoTestId }) {
+    async loadAutoTestRun({ commit, dispatch, state }, { autoTestId, acceptContinuous, force }) {
         await dispatch('loadAutoTest', { autoTestId });
         const autoTest = state.tests[autoTestId];
-        const oldRun = autoTest.runs[0];
-        const runId = oldRun.id;
+        const oldRun = getRun(autoTest, acceptContinuous);
 
-        if (!oldRun) {
+        if (oldRun == null) {
             throw new Error('AutoTest has not been run yet.');
-        } else if (oldRun.finished) {
+        } else if (oldRun.finished && !force) {
             return Promise.resolve();
         }
 
+        const runId = oldRun.id;
         if (loaders.runs[runId] == null) {
             loaders.runs[runId] = axios.get(`/api/v1/auto_tests/${autoTestId}/runs/${runId}`).then(
                 ({ data }) => {
@@ -204,33 +214,43 @@ const actions = {
         });
     },
 
-    async loadAutoTestResult({ commit, dispatch, state }, { autoTestId, submissionId }) {
+    async loadAutoTestResult(
+        { commit, dispatch, state },
+        { autoTestId, submissionId, acceptContinuous },
+    ) {
         await dispatch('loadAutoTest', { autoTestId });
         const autoTest = state.tests[autoTestId];
+        const run = getRun(autoTest, acceptContinuous);
 
-        if (autoTest.runs.length === 0) {
+        if (run == null) {
             throw new Error('AutoTest has not been run yet.');
         }
 
-        let result = autoTest.runs[0].results.find(r => r.submissionId === submissionId);
-        const resultId = result && result.id;
-
-        if (resultId == null) {
-            throw new Error('AutoTest result not found!');
+        let result = run.results.find(r => r.submissionId === submissionId);
+        if (result == null) {
+            if (run.isContinuous) {
+                await dispatch('loadAutoTestRun', {
+                    autoTestId,
+                    acceptContinuous,
+                    force: true,
+                });
+                result = run.results.find(r => r.submissionId === submissionId);
+            }
+            if (result == null) {
+                throw new Error('AutoTest result not found!');
+            }
         }
 
+        const resultId = result.id;
         result = state.results[resultId];
+
         if (result && result.finished) {
             return Promise.resolve();
         }
 
         if (loaders.results[resultId] == null) {
             loaders.results[resultId] = axios
-                .get(
-                    `/api/v1/auto_tests/${autoTestId}/runs/${
-                        autoTest.runs[0].id
-                    }/results/${resultId}`,
-                )
+                .get(`/api/v1/auto_tests/${autoTestId}/runs/${run.id}/results/${resultId}`)
                 .then(
                     ({ data }) => {
                         delete loaders.results[resultId];
@@ -254,11 +274,16 @@ const actions = {
             return Promise.resolve();
         }
 
+        const run = autoTest.runs.find(r => r.id === runId);
+        if (run === null) {
+            throw new Error(`AutoTest run not found: ${runId}`);
+        }
+
         const c = () => {
             commit(types.UPDATE_AUTO_TEST, {
                 autoTestId,
                 autoTestProps: {
-                    runs: autoTest.runs.filter(run => run.id !== runId),
+                    runs: autoTest.runs.filter(r => r.id !== runId),
                 },
             });
             return dispatch('courses/forceLoadSubmissions', autoTest.assignment_id, { root: true });
@@ -267,13 +292,11 @@ const actions = {
         return axios
             .delete(`/api/v1/auto_tests/${autoTestId}/runs/${runId}`)
             .then(() =>
-                Promise.all(
-                    autoTest.runs[0].results.map(r =>
-                        dispatch(
-                            'rubrics/clearResult',
-                            { submissionId: r.submissionId },
-                            { root: true },
-                        ),
+                run.results.forEach(r =>
+                    dispatch(
+                        'rubrics/clearResult',
+                        { submissionId: r.submissionId },
+                        { root: true },
                     ),
                 ),
             )
@@ -361,18 +384,17 @@ const mutations = {
     },
 
     [types.UPDATE_AUTO_TEST_RUNS](state, { autoTest, run }) {
-        let runIndex = autoTest.runs.findIndex(r => r.id === run.id);
+        const runIndex = autoTest.runs.findIndex(r => r.id === run.id);
         let storeRun;
 
         if (runIndex === -1) {
             storeRun = new AutoTestRun(run, autoTest);
-            runIndex = 0;
+            autoTest.runs.push(storeRun);
         } else {
             storeRun = autoTest.runs[runIndex];
             storeRun.update(run, autoTest);
+            Vue.set(autoTest.runs, runIndex, storeRun);
         }
-
-        Vue.set(autoTest.runs, runIndex, storeRun);
     },
 
     [types.UPDATE_AUTO_TEST_SET](state, { autoTestSet, setProps }) {
@@ -384,10 +406,17 @@ const mutations = {
     },
 
     [types.UPDATE_AUTO_TEST_RESULT](state, { result, autoTest }) {
-        const run = autoTest.runs[0];
-        const resultIndex = run.results.findIndex(r => r.id === result.id);
-        const storeResult = run.results[resultIndex];
+        let resultIndex;
+        const run = autoTest.runs.find(r => {
+            resultIndex = r.results.findIndex(res => res.id === result.id);
+            return resultIndex !== -1;
+        });
 
+        if (run == null || resultIndex === -1) {
+            return;
+        }
+
+        const storeResult = run.results[resultIndex];
         storeResult.updateExtended(result, autoTest);
 
         Vue.set(run.results, resultIndex, storeResult);

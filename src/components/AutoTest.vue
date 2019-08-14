@@ -14,16 +14,13 @@
 
 <div v-else class="auto-test" :class="{ editable: configEditable }">
     <transition-group v-if="!singleResult" name="auto-test-runs">
-        <!-- Use `$utils.getProps` here instead of `!!autoTestRun` in the v-if above
-             because transiton-group does not work for the first item if it suddenly
-             renders because its v-if condition becomes true. -->
-        <auto-test-run v-for="run in $utils.getProps(test, [], 'runs')"
-                       :key="run.id"
+        <auto-test-run v-if="finalRun"
+                       :key="finalRun.id"
                        class="mb-3"
                        :class="{ border: editable }"
                        :assignment="assignment"
                        :auto-test="test"
-                       :run="run"
+                       :run="finalRun"
                        :editable="editable"
                        @open-result="openResult"
                        @results-deleted="afterDeleteResults" />
@@ -49,17 +46,28 @@
                 </b-button-toolbar>
 
                 <b-button-toolbar v-else>
+                    <div v-b-popover.hover.top="continuousBtnPopover">
+                        <submit-button :label="(continuousRun ? 'Stop' : 'Start') + ' CF'"
+                                       class="mr-1"
+                                       :confirm="continuousBtnConfirm"
+                                       :variant="continuousBtnVariant"
+                                       :disabled="!canRunContinuous"
+                                       :submit="toggleContinuousFeedback"
+                                       @success="afterToggleContinuousFeedback" />
+                    </div>
+
                     <div v-b-popover.hover.top="runAutoTestPopover">
                         <submit-button label="Run"
+                                       class="mr-1"
                                        :disabled="!!runAutoTestPopover"
                                        :submit="runAutoTest"
+                                       :confirm="startRunBtnConfirm"
                                        @after-success="afterRunAutoTest" />
                     </div>
 
                     <div v-b-popover.hover.top="deleteAutoTestPopover">
                         <submit-button label="Delete"
                                        variant="danger"
-                                       class="ml-1"
                                        confirm="Are you sure you want to delete this AutoTest configuration?"
                                        :disabled="!canDeleteAutoTest"
                                        :submit="deleteAutoTest"
@@ -73,13 +81,28 @@
                 This assignment does not have an AutoTest configuration.
             </b-card-body>
             <b-card-body v-else class="p-3">
+                <b-alert v-if="singleResult && continuousRun && !finalRun"
+                         variant="warning"
+                         dismissible
+                         show>
+                    This result is from a Continuous Feedback run. It's
+                    preliminary, as steps might be added or deleted by the
+                    teacher for your final result. Therefore, the rubric will
+                    not be filled in yet.
+                </b-alert>
                 <b-card no-body class="setup-env-wrapper mb-3">
                     <collapse v-model="setupCollapsed" :disabled="!singleResult">
-                        <b-card-header slot="handle">
+                        <b-card-header slot="handle"
+                                       class="d-flex justify-content-between align-items-center"
+                                       :class="{ 'py-1': singleResult }">
                             <span class="toggle">
                                 <icon v-if="singleResult" name="chevron-down" :scale="0.75" />
                                 Setup
                             </span>
+
+                            <auto-test-state v-if="singleResult"
+                                             :result="result"
+                                             btn />
                         </b-card-header>
 
                         <b-card-body>
@@ -246,7 +269,7 @@
                                             <b-tab title="stdout">
                                                 <inner-code-viewer class="rounded border"
                                                                    :assignment="assignment"
-                                                                   :code-lines="prepareOutput(autoTestRun.setupStdout)"
+                                                                   :code-lines="prepareOutput(finalRun.setupStdout)"
                                                                    :file-id="-1"
                                                                    :feedback="{}"
                                                                    :start-line="0"
@@ -258,7 +281,7 @@
                                             <b-tab title="stderr">
                                                 <inner-code-viewer class="rounded border"
                                                                    :assignment="assignment"
-                                                                   :code-lines="prepareOutput(autoTestRun.setupStderr)"
+                                                                   :code-lines="prepareOutput(finalRun.setupStderr)"
                                                                    :file-id="-1"
                                                                    :feedback="{}"
                                                                    :start-line="0"
@@ -464,23 +487,23 @@ export default {
             type: Object,
             required: true,
         },
-
         editable: {
             type: Boolean,
             default: false,
         },
-
         submissionId: {
             type: Number,
             default: null,
         },
-
         showRubric: {
             type: Boolean,
             default: false,
         },
-
         noPollRun: {
+            type: Boolean,
+            default: false,
+        },
+        acceptContinuous: {
             type: Boolean,
             default: false,
         },
@@ -584,9 +607,10 @@ export default {
             storeLoadRubricResult: 'loadResult',
         }),
 
-        runAutoTest() {
+        runAutoTest(continuousFeedback = false) {
             return this.storeCreateAutoTestRun({
                 autoTestId: this.autoTestId,
+                continuousFeedback,
             });
         },
 
@@ -596,51 +620,67 @@ export default {
             this.pollingTimer = setTimeout(this.loadAutoTestRun, this.pollingInterval);
         },
 
-        loadAutoTest() {
-            const promises = [this.storeLoadSubmissions(this.assignmentId)];
-
-            if (!this.canViewAutoTest) {
-                this.message = {
-                    text: 'You do not have permission to view the autotest before the deadline.',
-                    isError: false,
-                };
+        toggleContinuousFeedback() {
+            if (!this.continuousRun) {
+                return this.runAutoTest(true);
             } else {
-                promises.push(
-                    this.storeLoadAutoTest({
-                        autoTestId: this.autoTestId,
-                    }).then(
-                        () => {
-                            this.message = null;
-                            this.configCollapsed = !!this.autoTestRun && !this.singleResult;
-                            return this.singleResult
-                                ? this.loadSingleResult()
-                                : this.loadAutoTestRun();
-                        },
-                        err => {
-                            this.message = {
-                                text: `Could not load AutoTest: ${this.$utils.getErrorMessage(
-                                    err,
-                                )}`,
-                                isError: true,
-                            };
-                        },
-                    ),
-                );
+                return this.storeDeleteAutoTestResults({
+                    autoTestId: this.test.id,
+                    runId: this.continuousRun.id,
+                });
             }
+        },
 
-            return Promise.all(promises);
+        afterToggleContinuousFeedback(cont) {
+            if (cont) cont();
+        },
+
+        loadAutoTest() {
+            return Promise.all([
+                this.storeLoadSubmissions(this.assignmentId),
+
+                this.storeLoadAutoTest({
+                    autoTestId: this.autoTestId,
+                }).then(
+                    () => {
+                        this.message = null;
+                        this.configCollapsed = !!this.finalRun && !this.singleResult;
+                        return this.singleResult ? this.loadSingleResult() : this.loadAutoTestRun();
+                    },
+                    err => {
+                        switch (this.$utils.getProps(err, null, 'response', 'status')) {
+                            case 403:
+                                this.message = {
+                                    message:
+                                        'You do not have permission to view the autotest before the deadline',
+                                    isError: false,
+                                };
+                                break;
+                            default:
+                                this.message = {
+                                    text: `Could not load AutoTest: ${this.$utils.getErrorMessage(
+                                        err,
+                                    )}`,
+                                    isError: true,
+                                };
+                                break;
+                        }
+                    },
+                ),
+            ]);
         },
 
         loadAutoTestRun() {
-            if (!this.autoTestRun || this.autoTestRun.finished) {
+            if (!this.finalRun || this.finalRun.finished) {
                 return null;
             }
 
             return this.storeLoadAutoTestRun({
                 autoTestId: this.autoTestId,
+                acceptContinuous: this.acceptContinuous,
             }).then(
                 () => {
-                    if (this.autoTestRun.finished) {
+                    if (this.finalRun.finished) {
                         this.storeForceLoadSubmissions(this.assignment.id);
                     } else {
                         this.pollingTimer = setTimeout(this.loadAutoTestRun, this.pollingInterval);
@@ -649,10 +689,10 @@ export default {
                 err => {
                     switch (this.$utils.getProps(err, 500, 'response', 'status')) {
                         case 404:
-                            if (this.autoTestRun) {
+                            if (this.finalRun) {
                                 this.storeDeleteAutoTestResults({
                                     autoTestId: this.autoTestId,
-                                    runId: this.autoTestRun.id,
+                                    runId: this.finalRun.id,
                                     force: true,
                                 }).then(c => c());
                             }
@@ -680,6 +720,7 @@ export default {
                 this.storeLoadAutoTestResult({
                     autoTestId: this.autoTestId,
                     submissionId: this.submissionId,
+                    acceptContinuous: this.acceptContinuous,
                 }),
             ];
 
@@ -689,6 +730,7 @@ export default {
                 promises.push(
                     this.storeLoadAutoTestRun({
                         autoTestId: this.autoTestId,
+                        acceptContinuous: this.acceptContinuous,
                     }),
                 );
             }
@@ -697,9 +739,9 @@ export default {
                 () => {
                     this.message = null;
 
-                    if (this.autoTestRun.finished) {
+                    if (this.finalRun && this.finalRun.finished) {
                         return this.loadRubric(true);
-                    } else {
+                    } else if (this.result && !this.result.finished) {
                         this.pollingTimer = setTimeout(this.loadSingleResult, this.pollingInterval);
                     }
 
@@ -910,11 +952,6 @@ export default {
             return this.assignment.auto_test_id;
         },
 
-        autoTestRun() {
-            const runs = this.test && this.test.runs;
-            return runs && runs[0];
-        },
-
         allNonDeletedSuites() {
             return this.test.sets.reduce((res, set) => {
                 if (!set.deleted) {
@@ -925,7 +962,12 @@ export default {
         },
 
         configEditable() {
-            return this.permissions.can_edit_autotest && this.editable && !this.autoTestRun;
+            const canEdit = this.permissions.can_edit_autotest;
+            const editable = this.editable;
+            const test = this.test;
+            const runs = test && test.runs;
+
+            return canEdit && editable && !(runs && runs.length);
         },
 
         singleResult() {
@@ -938,10 +980,14 @@ export default {
         },
 
         result() {
-            if (!this.autoTestRun || this.submissionId == null) {
+            let run = this.finalRun;
+            if (this.acceptContinuous && run == null) {
+                run = this.continuousRun;
+            }
+            if (run == null || this.submissionId == null) {
                 return null;
             }
-            return this.test.runs[0].results.find(r => r.submissionId === this.submissionId);
+            return run.results.find(r => r.submissionId === this.submissionId);
         },
 
         testSuites() {
@@ -949,6 +995,13 @@ export default {
 
             return this.test.sets.reduce((acc, set) => {
                 acc.push(...set.suites);
+                return acc;
+            }, []);
+        },
+
+        testSteps() {
+            return this.testSuites.reduce((acc, suite) => {
+                acc.push(...suite.steps);
                 return acc;
             }, []);
         },
@@ -978,8 +1031,8 @@ export default {
 
             if (!this.permissions.can_run_autotest) {
                 msg += 'you do not have permission to start an AutoTest.';
-            } else if (this.autoTestRun) {
-                msg += 'there are already results.';
+            } else if (this.finalRun) {
+                msg += 'the final results are already available.';
             } else if (this.test && this.test.grade_calculation == null) {
                 msg += 'no rubric calculation mode has been selected.';
             } else if (this.testSuites.length === 0) {
@@ -1017,11 +1070,11 @@ export default {
         },
 
         canRunAutoTest() {
-            return this.permissions.can_run_autotest && !this.autoTestRun;
+            return this.permissions.can_run_autotest && !this.finalRun;
         },
 
         canDeleteAutoTest() {
-            return this.permissions.can_edit_autotest && !this.autoTestRun;
+            return this.permissions.can_edit_autotest && this.test && this.test.runs.length === 0;
         },
 
         canViewFixtures() {
@@ -1029,7 +1082,7 @@ export default {
         },
 
         isConfigCollapsible() {
-            return this.autoTestId && this.autoTestRun;
+            return this.autoTestId && this.finalRun;
         },
 
         resultSubmission() {
@@ -1040,6 +1093,70 @@ export default {
             }
 
             return this.assignment.submissions.find(s => s.id === submissionId);
+        },
+
+        finalRun() {
+            return this.test && this.test.runs.find(run => !run.isContinuous);
+        },
+
+        continuousRun() {
+            return this.test && this.test.runs.find(run => run.isContinuous);
+        },
+
+        continuousBtnConfirm() {
+            if (this.continuousRun) {
+                return 'Are you sure you want to disable Continuous Feedback? This will remove all current results.';
+            } else {
+                return 'Do you want to start Continuous Feedback?';
+            }
+        },
+
+        startRunBtnConfirm() {
+            if (this.continuousRun) {
+                return 'This will temporarily disable Continuous Feedback, it will be resumed when you delete the AutoTest run.';
+            } else {
+                return '';
+            }
+        },
+
+        continuousBtnVariant() {
+            return this.continuousRun ? 'primary' : 'outline-primary';
+        },
+
+        continuousBtnPopover() {
+            if (this.finalRun) {
+                return 'Continuous Feedback cannot be toggled because there is an AutoTest run.';
+            } else if (this.test && this.test.grade_calculation == null) {
+                return 'Continuous Feedback cannot be enabled because no rubric calculation mode has been selected.';
+            } else if (this.testSuites.length === 0) {
+                return 'Continuous Feedback cannot be enabled because there are no test categories.';
+            } else if (!this.hasUnhiddenSteps) {
+                return 'Continuous Feedback cannot be enabled because the test contains only hidden steps';
+            } else if (this.continuousRun) {
+                return 'Stop Continuous Feedback.';
+            } else {
+                return 'Start Continuous Feedback.';
+            }
+        },
+
+        canRunContinuous() {
+            const finalRun = this.finalRun;
+            const gradeCalc = this.test && this.test.grade_calculation;
+            const unhidden = this.hasUnhiddenSteps;
+
+            return finalRun == null && gradeCalc != null && unhidden;
+        },
+
+        hasUnhiddenSteps() {
+            const steps = this.testSteps;
+
+            for (let i = 0, l = steps.length; i < l; i++) {
+                if (!steps[i].hidden) {
+                    return true;
+                }
+            }
+
+            return false;
         },
     },
 
