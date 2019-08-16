@@ -9,9 +9,9 @@
                        :submit="() => updateState(states.OPEN)"
                        @success="afterUpdateState"
                        :duration="0"
-                       confirm="Students will not be able to see their grade.
+                       :confirm="`Students will not be able to see their grade.
                        whether they can see the assignment at all is determined
-                       by the assignment's state in ${lmsName}.">
+                       by the assignment's state in ${lmsName}.`">
             <icon :name="icons[states.HIDDEN]"/>
             <icon :name="icons[states.OPEN]"/>
         </submit-button>

@@ -65,6 +65,7 @@
                                     :index="i + 1"
                                     :test-types="stepTypes"
                                     :assignment="assignment"
+                                    :is-continuous="isContinuous"
                                     @delete="internalValue.removeItem(i)"
                                     editable/>
                 </SlickItem>
@@ -248,6 +249,7 @@
                             :key="step.trackingId"
                             :index="i + 1"
                             :result="result"
+                            :is-continuous="isContinuous"
                             :assignment="assignment" />
         </table>
     </b-card>
@@ -280,30 +282,29 @@ export default {
             type: Object,
             required: true,
         },
-
         assignment: {
             type: Object,
             required: true,
         },
-
         otherSuites: {
             type: Array,
             required: true,
         },
-
         editable: {
             type: Boolean,
             default: false,
         },
-
         editing: {
             type: Boolean,
             default: false,
         },
-
         result: {
             type: Object,
             default: null,
+        },
+        isContinuous: {
+            type: Boolean,
+            default: false,
         },
     },
 
