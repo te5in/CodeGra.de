@@ -1239,13 +1239,22 @@ class AutoTestRunner:
         self.fixtures = self.instructions['fixtures']
         self._reqs: t.Dict[t.Tuple[int, int], requests.Session] = {}
 
+    @staticmethod
+    def _get_amount_of_needed_workers() -> int:
+        """Get the amount of needed workers.
+
+        >>> AutoTestRunner._get_amount_of_needed_workers() >= 4
+        True
+        """
+        return _get_amount_cpus() + 4
+
     def _make_worker_pool(
         self, base_container_name: str, cpu_cores: CpuCores
     ) -> cg_worker_pool.WorkerPool:
         mult = 1 if self.instructions.get('is_continuous_run', False) else 0
         return cg_worker_pool.WorkerPool(
             # Over provision a bit so clones can be made quicker.
-            processes=_get_amount_cpus() + 4,
+            processes=self._get_amount_of_needed_workers(),
             function=lambda work:
             _run_student(self, base_container_name, cpu_cores, work.result_id),
             sleep_time=mult * self.config['AUTO_TEST_CF_SLEEP_TIME'],

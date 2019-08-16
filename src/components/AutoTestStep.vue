@@ -728,6 +728,7 @@ import 'vue-awesome/icons/chevron-down';
 import 'vue-awesome/icons/clock-o';
 import 'vue-awesome/icons/ban';
 
+import * as assignmentStates from '@/store/assignment-states';
 import { visualizeWhitespace } from '@/utils/visualize';
 
 import Collapse from './Collapse';
@@ -767,6 +768,10 @@ export default {
         result: {
             type: Object,
             default: null,
+        },
+        isContinuous: {
+            type: Boolean,
+            default: false,
         },
     },
 
@@ -969,13 +974,14 @@ export default {
         },
 
         canViewOutput() {
-            if (
-                !this.result ||
-                this.stepResult.state === 'hidden' ||
-                !this.canViewDetails ||
-                (this.assignment.state !== 'done' &&
-                    !this.permissions.can_view_autotest_before_done)
-            ) {
+            const result = this.result && this.stepResult.state !== 'hidden';
+            const canViewDetails = this.canViewDetails;
+            const canViewFeedback =
+                this.isContinuous ||
+                this.assignment.state === assignmentStates.DONE ||
+                this.permissions.can_view_autotest_before_done;
+
+            if (!result || !canViewDetails || !canViewFeedback) {
                 return false;
             }
 
@@ -1083,16 +1089,8 @@ export default {
         },
 
         canViewSubStepOutput(i) {
-            if (
-                !this.result ||
-                !this.canViewDetails ||
-                (this.assignment.state !== 'done' &&
-                    !this.permissions.can_view_autotest_before_done)
-            ) {
-                return false;
-            }
-
             return (
+                this.canViewOutput &&
                 ['passed', 'failed', 'timed_out'].indexOf(
                     this.ioSubStepProps(i, false, 'state'),
                 ) !== -1

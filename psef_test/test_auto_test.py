@@ -56,6 +56,10 @@ def monkeypatch_for_run(monkeypatch, lxc_stub, stub_function_class):
         )
     )
     monkeypatch.setattr(
+        psef.auto_test.AutoTestRunner, '_get_amount_of_needed_workers',
+        stub_function_class(lambda: 1)
+    )
+    monkeypatch.setattr(
         psef.tasks, 'check_heartbeat_auto_test_run', stub_function_class()
     )
     monkeypatch.setattr(
@@ -548,7 +552,6 @@ def test_run_auto_test(
                 data={'state': 'open'}
             )
         url = f'/api/v1/auto_tests/{test["id"]}'
-        live_server_url = live_server()
 
         _run_student = psef.auto_test._run_student
 
@@ -609,6 +612,7 @@ def test_run_auto_test(
             session.commit()
         run = t.test_run
 
+        live_server_url = live_server()
         psef.auto_test.start_polling(app.config, repeat=False)
 
         with logged_in(teacher, yield_token=True) as token:

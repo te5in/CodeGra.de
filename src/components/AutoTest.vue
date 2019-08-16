@@ -374,7 +374,8 @@
                                    :assignment="assignment"
                                    :editable="configEditable"
                                    :result="result"
-                                   :other-suites="allNonDeletedSuites" />
+                                   :other-suites="allNonDeletedSuites"
+                                   :is-continuous="currentRun && currentRun.isContinuous" />
                     <p class="text-muted font-italic mb-3"
                        key="no-sets"
                        v-if="test.sets.filter(s => !s.deleted).length === 0">
@@ -611,11 +612,10 @@ export default {
             return this.storeCreateAutoTestRun({
                 autoTestId: this.autoTestId,
                 continuousFeedback,
-            });
+            }).then(() => this.storeForceLoadSubmissions(this.assignmentId));
         },
 
         afterRunAutoTest() {
-            this.storeForceLoadSubmissions(this.assignmentId);
             this.configCollapsed = true;
             this.pollingTimer = setTimeout(this.loadAutoTestRun, this.pollingInterval);
         },
@@ -651,8 +651,7 @@ export default {
                         switch (this.$utils.getProps(err, null, 'response', 'status')) {
                             case 403:
                                 this.message = {
-                                    message:
-                                        'You do not have permission to view the autotest before the deadline',
+                                    text: 'The AutoTest results are not yet available.',
                                     isError: false,
                                 };
                                 break;

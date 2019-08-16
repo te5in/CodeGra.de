@@ -152,7 +152,7 @@ export default {
         },
 
         feedback() {
-            return this.submission.feedback.user[this.fileId] || {};
+            return this.$utils.getProps(this.submission, {}, 'feedback', 'user', this.fileId);
         },
 
         sourceLanguage() {

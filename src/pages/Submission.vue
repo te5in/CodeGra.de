@@ -363,21 +363,29 @@ export default {
         },
 
         loadingInner() {
-            const canSeeFeedback = this.canSeeFeedback;
-            const feedback = this.feedback;
-            const fileTree = this.fileTree;
-            const currentFile = this.currentFile;
-            const autoTestId = this.autoTestId;
-            const autoTest = this.autoTest;
-            const loadingPermissions = this.loadingPermissions !== null;
+            const {
+                canSeeFeedback,
+                feedback,
+                fileTree,
+                currentFile,
+                canViewAutoTest,
+                autoTest,
+                loadingPermissions,
+            } = this;
 
             return (
                 (canSeeFeedback && !feedback) ||
                 !fileTree ||
                 !currentFile ||
-                (autoTestId && !autoTest) ||
-                loadingPermissions
+                (canViewAutoTest && !autoTest) ||
+                loadingPermissions !== null
             );
+        },
+
+        canViewAutoTest() {
+            const { autoTestId, assignmentDone, canViewAutoTestBeforeDone } = this;
+
+            return autoTestId && (assignmentDone || canViewAutoTestBeforeDone);
         },
 
         showTeacherDiff() {
@@ -603,6 +611,7 @@ export default {
                         'can_view_own_teacher_files',
                         'can_edit_others_work',
                         'can_see_grade_history',
+                        'can_view_autotest_before_done',
                     ],
                     this.courseId,
                 ),
@@ -616,6 +625,7 @@ export default {
                         ownTeacher,
                         editOthersWork,
                         canSeeGradeHistory,
+                        canViewAutoTestBeforeDone,
                     ],
                     canUseSnippets,
                 ]) => {
@@ -624,8 +634,8 @@ export default {
                         this.canSeeFeedback = canSeeGradeBeforeDone || this.assignmentDone;
                         this.canDeleteSubmission = canDeleteSubmission;
                         this.canSeeGradeHistory = canSeeGradeHistory;
-
                         this.canUseSnippets = canUseSnippets;
+                        this.canViewAutoTestBeforeDone = canViewAutoTestBeforeDone;
 
                         if (
                             this.submission &&
