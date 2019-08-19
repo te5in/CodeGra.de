@@ -111,7 +111,11 @@ const actions = {
             .post(`/api/v1/auto_tests/${autoTestId}/runs/`, {
                 continuous_feedback_run: continuousFeedback,
             })
-            .then(({ data }) => commit(types.UPDATE_AUTO_TEST_RUNS, { autoTest, run: data }));
+            .then(({ data }) =>
+                dispatch('courses/forceLoadSubmissions', autoTest.assignment_id, {
+                    root: true,
+                }).then(() => commit(types.UPDATE_AUTO_TEST_RUNS, { autoTest, run: data })),
+            );
     },
 
     async loadAutoTestRun({ commit, dispatch, state }, { autoTestId, acceptContinuous, force }) {

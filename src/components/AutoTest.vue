@@ -612,7 +612,7 @@ export default {
             return this.storeCreateAutoTestRun({
                 autoTestId: this.autoTestId,
                 continuousFeedback,
-            }).then(() => this.storeForceLoadSubmissions(this.assignmentId));
+            });
         },
 
         afterRunAutoTest() {
