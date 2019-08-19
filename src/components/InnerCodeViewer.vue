@@ -8,7 +8,8 @@
         fontSize: `${fontSize}px`,
     }"
     class="hljs inner-code-viewer"
-    @click="addFeedback($event)">
+    @mousedown="dragStart"
+    @mouseup="dragStop">
 
     <li v-for="i in computedEndLine"
         v-if="i - 1 >= computedStartLine - 1 && (i < codeLines.length || codeLines[i - 1] !== '')"
@@ -129,6 +130,7 @@ export default {
     data() {
         return {
             editing: {},
+            dragEvent: null,
         };
     },
 
@@ -165,10 +167,18 @@ export default {
         Icon,
     },
 
+    destroyed() {
+        this.removeDragHandler();
+    },
+
     methods: {
         ...mapActions('courses', {
             storeAddFeedbackLine: 'addSubmissionFeedbackLine',
         }),
+
+        removeDragHandler() {
+            this.$el.removeEventListener('mousemove', this.dragMove);
+        },
 
         async addFeedback(event) {
             if (!this.editable) {
@@ -205,6 +215,33 @@ export default {
 
         editFeedback(line) {
             this.$set(this.editing, line - this.lineFeedbackOffset, true);
+        },
+
+        dragStart() {
+            this.$el.addEventListener('mousemove', this.dragMove);
+        },
+
+        dragMove(event) {
+            if (this.dragEvent == null) {
+                this.dragEvent = event;
+            }
+        },
+
+        dragStop(event) {
+            let dx = 0;
+            let dy = 0;
+
+            if (this.dragEvent != null) {
+                dx = Math.abs(event.clientX - this.dragEvent.clientX);
+                dy = Math.abs(event.clientY - this.dragEvent.clientY);
+            }
+
+            if (!this.dragEvent || dx + dy < 1) {
+                this.addFeedback(event);
+            }
+
+            this.removeDragHandler();
+            this.dragEvent = null;
         },
     },
 };
@@ -280,7 +317,6 @@ code {
     }
 }
 </style>
-
 
 <style lang="less">
 @import '~mixins.less';
