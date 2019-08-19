@@ -13,7 +13,7 @@
     <div class="scroller">
         <b-card header="General feedback">
             <pre v-if="generalFeedback"
-                 class="mb-0">{{ generalFeedback }}</pre>
+                 class="general-feedback mb-0">{{ generalFeedback }}</pre>
             <span v-else class="text-muted font-italic">
                 No general feedback given.
             </span>
@@ -356,8 +356,12 @@ export default {
     overflow: hidden;
 }
 
-#app.dark pre {
-    color: @text-color-dark;
+.general-feedback {
+    white-space: pre-wrap;
+
+    #app.dark & {
+        color: @text-color-dark;
+    }
 }
 </style>
 
