@@ -25,7 +25,7 @@ more intuitive.
 
 **Minor updates**
 
--  Add ``all_whitespace`` option to IO test
+-  Add *all_whitespace* option to IO test
    `(#969) <https://github.com/CodeGra-de/CodeGra.de/pull/969>`__: add new
    option to IO tests to ignore all whitespace when comparing.
 -  Update stop points to percentages
@@ -34,10 +34,10 @@ more intuitive.
    or check points now work with percentages instead of points. (**not backwards
    compatible!!**)
 
-.. warning::
-    Update `#978 <https://github.com/CodeGra-de/CodeGra.de/pull/978>`__ is
-    **not** backwards compatible. Previous stop / check points break if not
-    updated to percentages.
+   .. warning::
+      Update `#978 <https://github.com/CodeGra-de/CodeGra.de/pull/978>`__ is
+      **not** backwards compatible. Previous stop / check points break if not
+      updated to percentages.
 
 **Fixes**
 
@@ -45,7 +45,7 @@ more intuitive.
    `(#968) <https://github.com/CodeGra-de/CodeGra.de/pull/968>`__:
    fix non-escaped underscores and add option to output each listing on new page.
 -  Change text on 'delete files' button when handing in
-    `(#959) <https://github.com/CodeGra-de/CodeGra.de/pull/959>`__:
+   `(#959) <https://github.com/CodeGra-de/CodeGra.de/pull/959>`__.
 
 
 Version 1.7.0 (JungleJoy)
