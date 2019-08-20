@@ -1,6 +1,6 @@
 <template>
 <div class="file-tree-inner">
-    <div class="directory"
+    <div class="directory-label"
          :class="{ faded: fadeDirectory }"
          @click.stop="toggle()">
         <span class="label"
@@ -30,7 +30,7 @@
         v-if="!isCollapsed || depth < 2">
         <li v-for="f in tree.entries"
             class="file"
-            :class="{ faded: fadeFile(f), active: fileIsSelected(f) }">
+            :class="{ directory: f.entries, faded: fadeFile(f), active: fileIsSelected(f) }">
             <file-tree-inner v-if="f.entries"
                              :file-tree="fileTree"
                              :tree="f"
@@ -293,7 +293,7 @@ export default {
         max-width: 100%;
     }
 
-    .directory .label:hover {
+    .directory-label .label:hover {
         cursor: pointer;
     }
 
@@ -301,12 +301,16 @@ export default {
         list-style: none;
         margin: 0;
         padding: 0;
-        padding-left: 1.2rem;
         overflow: hidden;
     }
 
+    ol,
+    .file:not(.directory) {
+        padding-left: 1.2rem;
+    }
+
     .file,
-    .directory {
+    .directory-label {
         &.faded > .label {
             opacity: 0.6;
         }
