@@ -198,6 +198,21 @@ class File(FileMixin, Base):
         else:
             return teacher
 
+    def get_path(self) -> str:
+        return '/'.join(self.get_path_list())
+
+    def get_path_list(self) -> t.List[str]:
+        """Get the complete path of this file as a list.
+
+        :returns: The path of the file as a list, without the topmost ancestor
+            directory.
+        """
+        if self.parent is None:
+            return []
+        upper = self.parent.get_path_list()
+        upper.append(self.name)
+        return upper
+
     def list_contents(
         self,
         exclude: FileOwner,

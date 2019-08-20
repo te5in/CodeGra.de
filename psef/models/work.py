@@ -618,7 +618,7 @@ class Work(Base):
                 t.cast(DbColumn[int], Comment.line).asc(),
             )
             for com in comments:
-                yield f'{com.file.name}:{com.line}:0: {com.comment}'
+                yield f'{com.file.get_path()}:{com.line}:0: {com.comment}'
 
         def __get_linter_feedback() -> t.Iterable[str]:
             linter_comments = LinterComment.query.filter(
@@ -629,7 +629,7 @@ class Work(Base):
             )
             for line_comm in linter_comments:
                 yield (
-                    f'{line_comm.file.name}:{line_comm.line}:0: '
+                    f'{line_comm.file.get_path()}:{line_comm.line}:0: '
                     f'({line_comm.linter.tester.name}'
                     f' {line_comm.linter_code}) {line_comm.comment}'
                 )
