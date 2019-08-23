@@ -82,7 +82,7 @@
                 <submit-button :submit="deleteFeedback"
                                :filter-error="deleteFilter"
                                :duration="300"
-                               confirm="Are you sure you want to delete this comment?"
+                               :confirm="internalFeedback ? 'Are you sure you want to delete this comment?' : ''"
                                @after-success="afterDeleteFeedback"
                                @error="deleteFeedbackError"
                                variant="danger"
