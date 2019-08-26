@@ -1108,7 +1108,7 @@ def get_files_from_request(
     lot too large if you provide check_size. This is done for the entire
     request, not only the processed files.
 
-    :param only_small_files: Only allow small files to be uploaded.
+    :param max_size: Maximum file size.
     :param keys: The keys the files should match in the request.
     :param only_start: If set to false the key of the request should only match
         the start of one of the keys in ``keys``.
@@ -1131,12 +1131,16 @@ def get_files_from_request(
 
     if only_start:
         for key, file in flask.request.files.items():
-            if any(key.startswith(cur_key) for cur_key in keys):
+            if any(
+                key.startswith(cur_key) for cur_key in keys
+            ) and file.filename:
                 res.append(file)
     else:
         for key in keys:
             if key in flask.request.files:
-                res.append(flask.request.files[key])
+                file = flask.request.files[key]
+                if file.filename:
+                    res.append(file)
 
         # Make sure we never return more files than requested.
         assert len(keys) >= len(res)

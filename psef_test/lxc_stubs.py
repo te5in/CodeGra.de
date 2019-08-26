@@ -88,7 +88,7 @@ def lxc_stub(stub_function_class):
             pid = os.fork()
 
             if pid == 0:
-                if pytest_cov.embed.active_cov is None:
+                if pytest_cov.embed._active_cov is None:
                     pytest_cov.embed.init()
                 os.dup2(stdin.fileno(), 0)
                 os.dup2(stdout.fileno(), 1)

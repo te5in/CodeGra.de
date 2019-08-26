@@ -1015,7 +1015,7 @@ def test_upload_files(
                 },
                 result=error_template
             )
-            assert res['message'].startswith('No file in HTTP')
+            assert res['message'].startswith('Request did not contain')
 
             if assignment.is_open or named_user.has_permission(
                 CPerm.can_upload_after_deadline, assignment.course_id

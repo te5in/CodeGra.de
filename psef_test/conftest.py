@@ -19,6 +19,7 @@ from urllib.request import urlopen
 
 import pytest
 import flask_migrate
+import sqlalchemy.orm as orm
 import flask_jwt_extended as flask_jwt
 from flask import _app_ctx_stack as ctx_stack
 from werkzeug.local import LocalProxy
@@ -413,7 +414,7 @@ def db(app, request):
         if request.config.getoption('--postgresql'):
             db_name, generated = get_database_name(request)
             if generated:
-                psef.models.db.session.close_all()
+                orm.session.close_all_sessions()
                 psef.models.db.engine.dispose()
                 subprocess.check_call(
                     'dropdb "{}"'.format(db_name),
