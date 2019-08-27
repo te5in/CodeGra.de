@@ -27,15 +27,6 @@
                            placeholder="Type to Search"
                            @keyup.enter="submit"
                            @keyup="submitDelayed"/>
-
-                    <b-input-group-append is-text
-                                          v-b-popover.bottom.hover="'Show only the latest submission of each student.'">
-                        <b-form-checkbox v-model="latestOnly"
-                                         @change="submit">
-                            Latest only
-                        </b-form-checkbox>
-                    </b-input-group-append>
-
                     <b-input-group-append is-text
                                           v-b-popover.bottom.hover="'Show only subbmissions assigned to me.'">
                         <b-form-checkbox v-model="mineOnly" @change="submit">
@@ -138,9 +129,7 @@
 
     <div v-if="canSeeOthersWork"
          class="submission-count">
-        Showing {{ filteredSubmissions.length }} of a total of {{ submissions.length }}
-        submissions by {{ numFilteredStudents }} out of {{ numStudents }}
-        students.
+        Showing {{ numFilteredStudents }} out of {{ numStudents }} students.
     </div>
 </div>
 </template>
@@ -205,11 +194,9 @@ export default {
     data() {
         return {
             parseBool,
-            latestOnly: parseBool(this.$route.query.latest, true),
             mineOnly: parseBool(this.$route.query.mine, null),
             currentPage: 1,
             filter: this.$route.query.q || '',
-            latest: this.getLatest(this.submissions),
             assignees: [],
             assigneeUpdating: [],
             selectedCat: '',
@@ -294,31 +281,22 @@ export default {
         filteredSubmissions() {
             // WARNING: We need to access all, do not change!
             if (
-                [
-                    this.submissions,
-                    this.latestOnly,
-                    this.mineOnly,
-                    this.userId,
-                    this.filter,
-                ].indexOf(undefined) !== -1
+                [this.submissions, this.mineOnly, this.userId, this.filter].indexOf(undefined) !==
+                -1
             ) {
                 return [];
             }
 
-            return filterSubmissions(
-                this.submissions,
-                this.latestOnly,
-                this.mineOnly,
-                this.userId,
-                this.filter,
-            ).map(sub => {
-                if (sub.created_at > this.assignment.deadline) {
-                    return Object.assign({}, sub, {
-                        _rowVariant: 'danger',
-                    });
-                }
-                return sub;
-            });
+            return filterSubmissions(this.submissions, this.mineOnly, this.userId, this.filter).map(
+                sub => {
+                    if (sub.created_at > this.assignment.deadline) {
+                        return Object.assign({}, sub, {
+                            _rowVariant: 'danger',
+                        });
+                    }
+                    return sub;
+                },
+            );
         },
 
         manageAssignmentRoute() {
@@ -341,10 +319,6 @@ export default {
     },
 
     watch: {
-        submissions(submissions) {
-            this.latest = this.getLatest(submissions);
-        },
-
         graders(graders) {
             if (graders == null) return;
 
@@ -367,7 +341,7 @@ export default {
     },
 
     methods: {
-        ...mapActions('courses', ['forceLoadSubmissions']),
+        ...mapActions('submissions', ['forceLoadSubmissions']),
 
         submitForceLoadSubmissions() {
             return this.forceLoadSubmissions(this.assignment.id);
@@ -381,16 +355,6 @@ export default {
             }));
             assignees.unshift({ value: null, text: '-', data: null });
             this.assignees = assignees;
-        },
-
-        getLatest(submissions) {
-            const latest = {};
-            submissions.forEach(item => {
-                if (!latest[item.user.id]) {
-                    latest[item.user.id] = item.id;
-                }
-            });
-            return latest;
         },
 
         sortChanged(context) {
@@ -411,7 +375,6 @@ export default {
                 params: { submissionId: submission.id },
                 query: {
                     mine: this.mineOnly == null ? undefined : this.mineOnly,
-                    latest: this.latestOnly == null ? undefined : this.latestOnly,
                     search: this.filter || undefined,
                     // Fuck you bootstrapVue (sortDesc should've been sortAsc)
                     sortBy: this.$refs.table.sortBy,
@@ -436,7 +399,6 @@ export default {
 
             this.$router.replace({
                 query: Object.assign({}, this.$route.query, {
-                    latest: this.latestOnly,
                     mine: this.mineOnly,
                     q: this.filter || undefined,
                 }),

@@ -142,7 +142,7 @@ export default {
     },
 
     methods: {
-        ...mapActions('courses', {
+        ...mapActions('submissions', {
             storeLoadFileTree: 'loadSubmissionFileTree',
         }),
 

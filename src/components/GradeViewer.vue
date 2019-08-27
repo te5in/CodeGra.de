@@ -1,11 +1,13 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
-<div class="grade-viewer">
+<div class="grade-viewer"
+     v-b-popover.top.hover="globalPopover"
+     :class="notLatest ? 'cursor-not-allowed' : undefined">
     <b-collapse id="rubric-collapse"
                 v-model="rubricOpen">
         <rubric-viewer :assignment="assignment"
                        :submission="submission"
-                       :editable="editable"
+                       :editable="realEditable"
                        :visible="rubricOpen"
                        @change="rubricGradeChanged"
                        ref="rubricViewer"
@@ -16,7 +18,7 @@
         <b-input-group>
             <b-input-group-prepend>
                 <submit-button ref="submitButton"
-                               v-if="editable"
+                               v-if="realEditable"
                                :submit="putGrade"
                                @success="gradeUpdated"/>
                 <span class="input-group-text" v-else>Grade</span>
@@ -24,10 +26,11 @@
 
             <input type="number"
                    class="form-control"
+                   :disabled="notLatest"
                    step="any"
                    min="0"
                    :max="maxAllowedGrade"
-                   :readonly="!editable"
+                   :readonly="!realEditable"
                    placeholder="Grade"
                    @keydown.enter="$refs.submitButton.onClick"
                    @input="rubricOverridden = showRubric"
@@ -43,7 +46,7 @@
             </b-input-group-append>
 
             <b-input-group-append class="delete-button-group"
-                                  v-if="editable">
+                                  v-if="realEditable">
                 <b-popover :triggers="showDeleteButton ? 'hover' : ''"
                            placement="top"
                            target="delete-grade-button">
@@ -112,12 +115,17 @@ export default {
             type: Object,
             required: true,
         },
+
+        notLatest: {
+            type: Boolean,
+            default: false,
+        },
     },
 
     data() {
         return {
             grade: this.submission.grade,
-            rubricOpen: this.rubricStartOpen,
+            rubricOpen: this.rubricStartOpen && !this.notLatest,
             rubricOverridden: null,
         };
     },
@@ -127,6 +135,20 @@ export default {
             allRubrics: 'rubrics',
             allRubricResults: 'results',
         }),
+
+        globalPopover() {
+            if (this.notLatest) {
+                return `This is not the latest submission by ${this.$utils.nameOfUser(
+                    this.submission.user,
+                )} so you cannot edit the grade. This grade will not be passed back to your LMS`;
+            } else {
+                return '';
+            }
+        },
+
+        realEditable() {
+            return this.editable && !this.notLatest;
+        },
 
         rubric() {
             return this.allRubrics[this.assignment.id];
@@ -203,7 +225,7 @@ export default {
         },
 
         showDeleteButton() {
-            if (!this.editable) {
+            if (!this.realEditable) {
                 return false;
             } else if (this.rubricOverridden) {
                 return true;
@@ -271,7 +293,7 @@ export default {
     },
 
     methods: {
-        ...mapActions('courses', {
+        ...mapActions('submissions', {
             storeUpdateSubmission: 'updateSubmission',
         }),
 
@@ -371,10 +393,16 @@ export default {
 <style lang="less" scoped>
 @import '~mixins.less';
 
+.cursor-not-allowed {
+    cursor: not-allowed !important;
+}
+
 input:read-only {
     color: black;
     background-color: white;
-    cursor: text;
+    .grade-viewer:not(.cursor-not-allowed) & {
+        cursor: text;
+    }
     pointer-events: all;
     user-select: initial;
 }

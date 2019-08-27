@@ -66,7 +66,7 @@ export default {
     },
 
     methods: {
-        ...mapActions('courses', ['updateSubmission']),
+        ...mapActions('submissions', ['updateSubmission']),
 
         submitFeedback() {
             const data = { feedback: this.feedback || '' };

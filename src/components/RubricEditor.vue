@@ -421,7 +421,8 @@ export default {
     },
 
     methods: {
-        ...mapActions('courses', ['forceLoadSubmissions', 'forceLoadRubric', 'setRubric']),
+        ...mapActions('courses', ['forceLoadRubric', 'setRubric']),
+        ...mapActions('submissions', ['forceLoadSubmissions']),
 
         ...mapActions('autotest', {
             storeLoadAutoTest: 'loadAutoTest',

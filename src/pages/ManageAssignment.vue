@@ -485,7 +485,8 @@ export default {
     },
 
     methods: {
-        ...mapActions('courses', ['updateAssignment', 'loadCourses', 'forceLoadSubmissions']),
+        ...mapActions('courses', ['updateAssignment', 'loadCourses']),
+        ...mapActions('submissions', ['forceLoadSubmissions']),
 
         async loadData() {
             this.loading = true;

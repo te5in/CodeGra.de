@@ -41,6 +41,7 @@
                     <feedback-area v-if="disabledFileType(id).singleLine"
                                    :line="0"
                                    :feedback="feedback.user[id][0].msg"
+                                   :total-amount-lines="0"
                                    :author="feedback.user[id][0].author"
                                    :assignment="assignment"
                                    :submission="submission" />
@@ -159,7 +160,7 @@ export default {
     },
 
     methods: {
-        ...mapActions('courses', {
+        ...mapActions('submissions', {
             storeLoadSubmissionFeedback: 'loadSubmissionFeedback',
             storeLoadSubmissionFileTree: 'loadSubmissionFileTree',
         }),

@@ -714,3 +714,8 @@ def stubmailer(monkeypatch):
     monkeypatch.setattr(psef.mail, 'mail', mailer)
 
     yield mailer
+
+
+@pytest.fixture
+def tomorrow():
+    yield datetime.datetime.utcnow() + datetime.timedelta(days=1)

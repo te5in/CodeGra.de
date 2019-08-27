@@ -11,7 +11,7 @@
 
     <ul class="sidebar-list" v-if="sortedFilteredSubmissions.length > 0">
         <li v-for="sub in sortedFilteredSubmissions"
-            :class="{ 'light-selected': sub.id ===  submissionId }"
+            :class="{ 'light-selected': curSub && sub.user.id === curSub.user.id  }"
             :tabindex="0"
             @keyup.enter="gotoSub(sub)"
             class="sidebar-list-item">
@@ -20,7 +20,7 @@
                 <user :user="sub.user"/>
 
                 <small>
-                    Created at: {{ sub.formatted_created_at }}
+                    Latest: {{ sub.formatted_created_at }}
                 </small>
                 <small v-if="sub.assignee">
                     Assignee: {{ sub.assignee.name }}
@@ -61,11 +61,12 @@ export default {
         return {
             filter: this.$route.query.search,
             submitTimeout: null,
+            curSub: null,
         };
     },
 
     computed: {
-        ...mapGetters('courses', ['assignments']),
+        ...mapGetters('submissions', ['latestSubmissions']),
         ...mapGetters({
             userId: 'user/id',
         }),
@@ -74,20 +75,12 @@ export default {
             return Number(this.$route.params.assignmentId);
         },
 
-        assignment() {
-            return this.assignments[this.assignmentId];
-        },
-
         submissionId() {
             return Number(this.$route.params.submissionId);
         },
 
         submissions() {
-            return (this.assignment && this.assignment.submissions) || [];
-        },
-
-        latestOnly() {
-            return parseBool(this.$route.query.latest, true);
+            return this.latestSubmissions[this.assignmentId];
         },
 
         filterAssignee() {
@@ -113,7 +106,6 @@ export default {
 
         sortedFilteredSubmissions() {
             return this.filterSubmissionsManager.filter(this.submissions, {
-                latest: this.latestOnly,
                 mine: this.filterAssignee,
                 userId: this.userId,
                 filter: this.filter,
@@ -143,6 +135,20 @@ export default {
         filter() {
             this.submitDelayed();
         },
+
+        submissionId: {
+            immediate: true,
+            async handler() {
+                // We need to reset curSub to null as this isn't the current
+                // submission anymore and loading the new one might take some
+                // time.
+                this.curSub = null;
+                this.curSub = await this.loadSingleSubmission({
+                    assignmentId: this.assignmentId,
+                    submissionId: this.submissionId,
+                });
+            },
+        },
     },
 
     destroyed() {
@@ -150,7 +156,11 @@ export default {
     },
 
     methods: {
-        ...mapActions('courses', ['loadSubmissions', 'forceLoadSubmissions']),
+        ...mapActions('submissions', [
+            'loadSubmissions',
+            'forceLoadSubmissions',
+            'loadSingleSubmission',
+        ]),
 
         submit() {
             if (this.submitTimeout != null) {

@@ -482,6 +482,7 @@ class Work(Base):
         res: t.Dict[str, object] = {
             'comment': None,
             'comment_author': None,
+            'assignment_id': self.assignment.id,
             **self.__to_json__()
         }
 

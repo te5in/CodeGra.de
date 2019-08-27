@@ -38,6 +38,11 @@ doctest: test_setup
 	       --doctest-modules psef \
 	       -vvvvv $(TEST_FLAGS)
 
+.PHONY: reset_db_broker
+reset_db_broker:
+	DEBUG_ON=True ./.scripts/reset_database.sh broker
+
+
 .PHONY: reset_db
 reset_db:
 	DEBUG_ON=True ./.scripts/reset_database.sh

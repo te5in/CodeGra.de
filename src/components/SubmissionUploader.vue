@@ -369,7 +369,7 @@ export default {
     },
 
     methods: {
-        ...mapActions('courses', ['addSubmission']),
+        ...mapActions('submissions', ['addSubmission']),
 
         getRequestData() {
             const data = new FormData();

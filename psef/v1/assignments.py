@@ -1135,6 +1135,50 @@ def set_grader_to_done(assignment_id: int, grader_id: int) -> EmptyResponse:
 WorkList = t.Sequence[models.Work]  # pylint: disable=invalid-name
 
 
+@api.route(
+    '/assignments/<int:assignment_id>/users/<int:user_id>/submissions/',
+    methods=['GET']
+)
+@auth.login_required
+def get_all_works_by_user_for_assignment(
+    assignment_id: int,
+    user_id: int,
+) -> ExtendedJSONResponse[WorkList]:
+    """Return all :class:`.models.Work` objects for the given
+    :class:`.models.Assignment` and a given :class:`.models.User`.
+
+    .. :quickref: Assignment; Get all works for an assignment for a given user.
+
+    .. note:: This always returns extended version of the submissions.
+
+    :param int assignment_id: The id of the assignment
+    :param int user_id: The user of which you want to get the assignments.
+    :returns: A response containing the JSON serialized submissions.
+    """
+    assignment = helpers.get_or_404(models.Assignment, assignment_id)
+    auth.ensure_permission(CPerm.can_see_assignments, assignment.course_id)
+    if assignment.is_hidden:
+        auth.ensure_permission(
+            CPerm.can_see_hidden_assignments, assignment.course_id
+        )
+
+    user = helpers.get_or_404(models.User, user_id)
+    if (
+        user.id != current_user.id and
+        not (user.group and current_user in user.group.members)
+    ):
+        auth.ensure_permission(CPerm.can_see_others_work, assignment.course_id)
+
+    return extended_jsonify(
+        models.Work.query.filter_by(
+            assignment_id=assignment_id, user_id=user.id
+        ).order_by(
+            t.cast(models.DbColumn[object], models.Work.created_at).desc()
+        ).all(),
+        use_extended=models.Work,
+    )
+
+
 @api.route('/assignments/<int:assignment_id>/submissions/', methods=['GET'])
 def get_all_works_for_assignment(
     assignment_id: int
@@ -1147,6 +1191,10 @@ def get_all_works_for_assignment(
     :qparam boolean extended: Whether to get extended or normal
         :class:`.models.Work` objects. The default value is ``false``, you can
         enable extended by passing ``true``, ``1`` or an empty string.
+    :qparam boolean latest_only: Only get the latest submission of a
+        user. Please use this option if at all possible, as students have a
+        tendency to submit many attempts and that can make this route quite
+        slow.
 
     :param int assignment_id: The id of the assignment
     :returns: A response containing the JSON serialized submissions.
@@ -1164,9 +1212,12 @@ def get_all_works_for_assignment(
             CPerm.can_see_hidden_assignments, assignment.course_id
         )
 
-    obj = models.Work.query.filter_by(
-        assignment_id=assignment_id,
-    ).options(
+    if helpers.request_arg_true('latest_only'):
+        obj = assignment.get_all_latest_submissions()
+    else:
+        obj = models.Work.query.filter_by(assignment_id=assignment_id, )
+
+    obj = obj.options(
         joinedload(
             models.Work.selected_items,
         ),

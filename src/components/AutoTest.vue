@@ -399,7 +399,8 @@
              hide-footer
              @hidden="currentResult = null"
              class="result-modal">
-        <template slot="modal-title">
+        <loader v-if="resultSubmissionLoading" class="my-3" />
+        <template slot="modal-title" v-else>
             {{ $utils.nameOfUser(resultSubmission.user) }} -
             {{ $utils.toMaxNDecimals(currentResult.pointsAchieved, 2) }} /
             {{ $utils.toMaxNDecimals(test.pointsPossible, 2) }} points
@@ -407,6 +408,7 @@
 
         <auto-test :assignment="assignment"
                    :submission-id="currentResult.submissionId"
+                   v-if="!resultSubmissionLoading"
                    show-rubric
                    no-poll-run />
     </b-modal>
@@ -542,6 +544,9 @@ export default {
                 { text: 'Minimum percentage needed to reach item', value: 'partial' },
                 { text: 'Maximum percentage needed to reach item', value: 'full' },
             ],
+
+            resultSubmissionLoading: true,
+            resultSubmission: null,
         };
     },
 
@@ -550,6 +555,26 @@ export default {
     },
 
     watch: {
+        resultSubmissionIds: {
+            immediate: true,
+            handler() {
+                this.resultSubmissionLoading = true;
+                this.resultSubmission = null;
+                const { assignmentId, submissionId } = this.resultSubmissionIds;
+                if (assignmentId == null || submissionId == null) {
+                    this.resultSubmissionLoading = false;
+                    return;
+                }
+
+                this.storeLoadSingleSubmission({ assignmentId, submissionId }).then(sub => {
+                    if (sub.id === this.resultSubmissionIds.submissionId) {
+                        this.resultSubmissionLoading = false;
+                        this.resultSubmission = sub;
+                    }
+                });
+            },
+        },
+
         assignmentId: {
             immediate: true,
             handler() {
@@ -586,9 +611,10 @@ export default {
     },
 
     methods: {
-        ...mapActions('courses', {
-            storeForceLoadSubmissions: 'forceLoadSubmissions',
+        ...mapActions('submissions', {
             storeLoadSubmissions: 'loadSubmissions',
+            storeForceLoadSubmissions: 'forceLoadSubmissions',
+            storeLoadSingleSubmission: 'loadSingleSubmission',
         }),
 
         ...mapActions('autotest', {
@@ -682,9 +708,12 @@ export default {
             }).then(
                 () => {
                     if (this.finalRun.finished) {
-                        this.storeForceLoadSubmissions(this.assignment.id);
+                        // We need to reload the submissions as the run has
+                        // finished so the grades/rubric will be updated.
+                        return this.storeForceLoadSubmissions(this.assignment.id);
                     } else {
                         this.pollingTimer = setTimeout(this.loadAutoTestRun, this.pollingInterval);
+                        return Promise.resolve();
                     }
                 },
                 err => {
@@ -1090,14 +1119,13 @@ export default {
             return this.autoTestId && this.finalRun;
         },
 
-        resultSubmission() {
-            const submissionId = this.submissionId || this.currentResult.submissionId;
-
-            if (submissionId == null) {
-                return null;
-            }
-
-            return this.assignment.submissions.find(s => s.id === submissionId);
+        resultSubmissionIds() {
+            return {
+                assignmentId: this.assignment.id,
+                submissionId:
+                    this.submissionId ||
+                    this.$utils.getProps(this.currentResult, null, 'submissionId'),
+            };
         },
 
         currentRun() {

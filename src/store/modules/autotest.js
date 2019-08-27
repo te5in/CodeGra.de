@@ -63,7 +63,7 @@ const actions = {
                     },
                     { root: true },
                 ),
-                dispatch('courses/forceLoadSubmissions', assignmentId, { root: true }),
+                dispatch('submissions/forceLoadSubmissions', assignmentId, { root: true }),
                 commit(types.DELETE_AUTO_TEST, autoTestId),
             ]),
         );
@@ -112,7 +112,7 @@ const actions = {
                 continuous_feedback_run: continuousFeedback,
             })
             .then(({ data }) =>
-                dispatch('courses/forceLoadSubmissions', autoTest.assignment_id, {
+                dispatch('submissions/forceLoadSubmissions', autoTest.assignment_id, {
                     root: true,
                 }).then(() => commit(types.UPDATE_AUTO_TEST_RUNS, { autoTest, run: data })),
             );
@@ -290,7 +290,9 @@ const actions = {
                     runs: autoTest.runs.filter(r => r.id !== runId),
                 },
             });
-            return dispatch('courses/forceLoadSubmissions', autoTest.assignment_id, { root: true });
+            return dispatch('submissions/forceLoadSubmissions', autoTest.assignment_id, {
+                root: true,
+            });
         };
 
         return axios

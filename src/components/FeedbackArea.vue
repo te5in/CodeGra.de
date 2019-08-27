@@ -137,7 +137,7 @@ export default {
         },
         fileId: {
             type: Number,
-            required: true,
+            default: null,
         },
         editable: {
             type: Boolean,
@@ -312,7 +312,7 @@ export default {
             updateSnippetInStore: 'updateSnippet',
         }),
 
-        ...mapActions('courses', {
+        ...mapActions('submissions', {
             storeSubmitFeedbackLine: 'submitSubmissionFeedbackLine',
             storeDeleteFeedbackLine: 'deleteSubmissionFeedbackLine',
         }),

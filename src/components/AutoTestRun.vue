@@ -39,8 +39,12 @@
             </thead>
 
             <tbody v-if="run.results.length > 0">
+                <tr v-if="submissionsLoading">
+                    <td colspan="3"><loader :scale="1" /></td>
+                </tr>
                 <tr v-for="result in run.results"
-                    :key="submissions[result.submissionId].user.id"
+                    v-else
+                    :key="`result-${result.id}-submission-${result.submissionId}`"
                     @click="openResult(result)">
                     <td class="name">
                         {{ $utils.nameOfUser(submissions[result.submissionId].user) }}
@@ -77,6 +81,7 @@ import 'vue-awesome/icons/exclamation-triangle';
 import Collapse from './Collapse';
 import SubmitButton from './SubmitButton';
 import AutoTestState from './AutoTestState';
+import Loader from './Loader';
 
 export default {
     name: 'auto-test-run',
@@ -109,6 +114,8 @@ export default {
         return {
             resultsCollapsed: false,
             resultsCollapseId: `auto-test-results-collapse-${id}`,
+            submissions: {},
+            submissionsLoading: true,
         };
     },
 
@@ -125,15 +132,39 @@ export default {
             }
         },
 
-        submissions() {
-            return this.assignment.submissions.reduce((acc, sub) => {
-                acc[sub.id] = sub;
-                return acc;
-            }, {});
+        submissionIds() {
+            return this.$utils.getProps(this.run, [], 'results').map(res => res.submissionId);
+        },
+    },
+
+    watch: {
+        submissionIds: {
+            immediate: true,
+            handler() {
+                this.submissionsLoading = true;
+                this.submissions = {};
+                const ids = this.submissionIds;
+
+                this.storeLoadGivenSubmissions({
+                    assignmentId: this.assignment.id,
+                    submissionIds: ids,
+                }).then(subs => {
+                    if (this.submissionIds === ids) {
+                        subs.forEach(sub => {
+                            this.submissions[sub.id] = sub;
+                        });
+                        this.submissionsLoading = false;
+                    }
+                });
+            },
         },
     },
 
     methods: {
+        ...mapActions('submissions', {
+            storeLoadGivenSubmissions: 'loadGivenSubmissions',
+        }),
+
         ...mapActions('autotest', {
             storeDeleteAutoTestResults: 'deleteAutoTestResults',
         }),
@@ -161,6 +192,7 @@ export default {
     components: {
         Icon,
         Collapse,
+        Loader,
         SubmitButton,
         AutoTestState,
     },
