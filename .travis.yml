@@ -63,7 +63,6 @@ before_script:
 
 script:
   - bash ./.travis/run
-  - "if [[ $TO_RUN = 'backend-tests' ]]; then travis-sphinx build --source=docs/; fi"
 
 after_success:
   - "[[ $TO_RUN = 'backend-tests' ]] && ( coveralls; codecov; travis-sphinx deploy -c docs.codegra.de; )"

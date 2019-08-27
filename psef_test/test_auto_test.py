@@ -1029,7 +1029,7 @@ def test_hidden_steps(describe, test_client, logged_in, session, basic):
                 'type': str,
                 'weight': float,
                 'hidden': True,
-                'data': {},
+                'data': {'?inputs?': list},
             }
             test_client.req(
                 'get',

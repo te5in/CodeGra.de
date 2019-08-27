@@ -11,12 +11,14 @@
             +
         </b-nav-item>
 
+
         <b-tab class="rubric"
                v-for="(rubric, i) in rubrics"
                :title="rubricCategoryTitle(rubric)"
                :key="`rubric-${rubric.id}-${i}`">
 
-            <b-card no-block>
+            <b-card @mouseenter="$set(lockPopoverShown, rubric.id, true)"
+                    @mouseleave="$delete(lockPopoverShown, rubric.id)">
                 <div class="card-header rubric-header">
                     <b-input-group v-if="editable" class="mb-3">
                         <b-input-group-prepend is-text>
@@ -28,7 +30,13 @@
                                @keydown.ctrl.enter="clickSubmit"
                                v-model="rubric.header"/>
 
-                        <b-input-group-append>
+                        <b-input-group-append is-text
+                                              v-if="rubric.locked"
+                                              v-b-popover.hover.top="rowData[rubric.id].content">
+                            <icon name="lock" />
+                        </b-input-group-append>
+
+                        <b-input-group-append v-else>
                             <submit-button variant="danger"
                                            label="Remove category"
                                            :wait-at-least="0"
@@ -44,7 +52,21 @@
                               v-model="rubric.description"
                               @keydown.ctrl.enter.prevent="clickSubmit"
                               v-if="editable"/>
-                    <p class="mb-0" v-else>{{ rubric.description }}</p>
+                    <p class="mb-0" v-else>
+                        {{ rubric.description }}
+
+                        <template v-if="rubric.locked">
+                            <b-popover :show="lockPopoverShown[rubric.id]"
+                                    :target="rowData[rubric.id].id"
+                                    :content="rowData[rubric.id].content"
+                                    triggers=""
+                                    placement="top" />
+
+                            <icon name="lock"
+                                  class="float-right"
+                                  :id="rowData[rubric.id].id" />
+                        </template>
+                    </p>
                 </div>
                 <b-card-group class="rubric-items-container">
                     <b-card class="rubric-item"
@@ -77,12 +99,12 @@
                                 {{ item.header }}
                             </span>
                             <div class="item-info-button"
-                                 v-if="rubric.items.length - 1 === j && editable"
+                                 v-if="rubric.items.length - 1 === j && rowData[rubric.id].editable"
                                  v-b-popover.top.hover="'Simply start typing to add a new item.'">
                                 <icon name="info"/>
                             </div>
                             <div class="item-delete-button"
-                                 v-else-if="editable"
+                                 v-else-if="rowData[rubric.id].editable"
                                  @click="deleteItem(i, j)">
                                 <icon name="times"/>
                             </div>
@@ -233,12 +255,13 @@
 
 <script>
 import Multiselect from 'vue-multiselect';
-import { mapActions } from 'vuex';
+import { mapActions, mapGetters, mapMutations } from 'vuex';
 
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/plus';
 import 'vue-awesome/icons/times';
 import 'vue-awesome/icons/info';
+import 'vue-awesome/icons/lock';
 import 'vue-awesome/icons/reply';
 import arrayToSentence from 'array-to-sentence';
 
@@ -252,6 +275,7 @@ export default {
     name: 'rubric-editor',
     data() {
         return {
+            id: this.$utils.getUniqueId(),
             rubrics: [],
             selected: null,
             loading: true,
@@ -262,6 +286,7 @@ export default {
             importAssignment: null,
             loadingAssignments: false,
             loadAssignmentsFailed: false,
+            lockPopoverShown: {},
         };
     },
 
@@ -269,21 +294,17 @@ export default {
         assignment: {
             default: null,
         },
-
         editable: {
             type: Boolean,
             default: true,
         },
-
         fixedMaxPoints: {
             type: Number,
             default: null,
         },
-
         defaultRubric: {
             default: null,
         },
-
         hidden: {
             type: Boolean,
             default: false,
@@ -291,8 +312,14 @@ export default {
     },
 
     watch: {
-        assignmentId() {
-            this.getAndSetRubrics();
+        assignmentId: {
+            immediate: true,
+            handler() {
+                this.getAndSetRubrics();
+                this.storeLoadAutoTest({
+                    autoTestId: this.autoTestConfigId,
+                });
+            },
         },
 
         hidden() {
@@ -317,6 +344,18 @@ export default {
     },
 
     computed: {
+        ...mapGetters('autotest', {
+            allAutoTests: 'tests',
+        }),
+
+        autoTestConfigId() {
+            return this.assignment.auto_test_id;
+        },
+
+        autoTestConfig() {
+            return this.allAutoTests[this.autoTestConfigId];
+        },
+
         maximumPointsWarningText() {
             const num = Number(this.internalFixedMaxPoints);
             if (num < this.curMaxPoints) {
@@ -341,10 +380,56 @@ export default {
         curMaxPoints() {
             return this.calcMaxPoints(this.rubrics);
         },
+
+        rowData() {
+            const { rubrics, editable, autoTestConfig } = this;
+
+            if (rubrics == null) {
+                return {};
+            }
+
+            const finalRun = autoTestConfig && autoTestConfig.runs.find(r => !r.isContinuous);
+
+            return rubrics.reduce((acc, row) => {
+                acc[row.id] = {
+                    id: `rubric-editor-${this.id}-row-${row.id}`,
+                    content: this.lockPopover(row),
+                    editable: editable && (!row.locked || !finalRun),
+                };
+                return acc;
+            }, {});
+        },
+
+        autoTestLockPopover() {
+            let msg =
+                'This is an AutoTest category. It will be filled once the ' +
+                'AutoTest for this assignment is done running. ';
+
+            switch (this.autoTestConfig && this.autoTestConfig.grade_calculation) {
+                case 'full':
+                    msg += 'You need to reach the upper bound of a rubric item to achieve it.';
+                    break;
+                case 'partial':
+                    msg += 'You need to reach the lower bound of a rubric item to achieve it.';
+                    break;
+                default:
+                    break;
+            }
+
+            return msg;
+        },
     },
 
     methods: {
         ...mapActions('courses', ['forceLoadSubmissions', 'forceLoadRubric', 'setRubric']),
+
+        ...mapActions('autotest', {
+            storeLoadAutoTest: 'loadAutoTest',
+        }),
+
+        ...mapMutations('rubrics', {
+            storeClearRubric: 'clearRubric',
+        }),
 
         maybeLoadOtherAssignments() {
             if (
@@ -372,6 +457,10 @@ export default {
                 maxPoints: this.calcMaxPoints(response.data),
             });
             this.forceLoadSubmissions(this.assignmentId);
+
+            // TODO: Improve use of rubric store.
+            // Clear rubric from the rubric store so it will be reloaded.
+            this.storeClearRubric({ assignmentId: this.assignmentId });
         },
 
         loadAssignments() {
@@ -444,7 +533,8 @@ export default {
                 row.items = row.items
                     .map(item => Object.assign({}, item))
                     .sort((a, b) => a.points - b.points);
-                if (this.editable) {
+
+                if (this.$utils.getProps(this, false, 'rowData', origRow.id, 'editable')) {
                     row.items.push(this.getEmptyItem());
                 }
 
@@ -494,6 +584,10 @@ export default {
                 rubric: null,
                 maxPoints: null,
             });
+
+            // TODO: Improve use of rubric store.
+            // Clear rubric from the store so it will be reloaded.
+            this.storeClearRubric({ assignmentId: this.assignmentId });
         },
 
         ensureFixedMaxPoints() {
@@ -672,6 +766,15 @@ ${arrayToSentence(wrongCategories)}.`);
                 }
                 return cur + extra;
             }, 0);
+        },
+
+        lockPopover(row) {
+            switch (row.locked) {
+                case 'auto_test':
+                    return this.autoTestLockPopover;
+                default:
+                    return '';
+            }
         },
     },
 

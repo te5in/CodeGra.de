@@ -117,6 +117,7 @@ class AutoTestStepBase(Base, TimestampMixin, IdMixin):
         nullable=False,
     )
 
+    # TODO: Improve data typing
     _data: 'psef.helpers.JSONType' = db.Column(
         'data', JSON, nullable=False, default={}
     )
@@ -205,7 +206,7 @@ class AutoTestStepBase(Base, TimestampMixin, IdMixin):
         try:
             auth.ensure_can_view_autotest_step_details(self)
         except exceptions.PermissionException:
-            pass
+            res['data'] = self.remove_data_details()
         else:
             res['data'] = self.data
 
@@ -280,6 +281,9 @@ class AutoTestStepBase(Base, TimestampMixin, IdMixin):
         {}
         """
         return t.cast(t.Dict[str, str], {})
+
+    def remove_data_details(self) -> JSONType:  # pylint: disable=no-self-use
+        return t.cast(JSONType, {})
 
 
 @_register
@@ -559,9 +563,27 @@ class _IoTest(AutoTestStepBase):
         {'steps': [{'achieved_points': 5}]}
         """
         log_dict = t.cast(t.Dict, log if isinstance(log, dict) else {})
-        steps = log_dict.get('steps', [])
-        steps = [{'achieved_points': s.get('achieved_points')} for s in steps]
+        steps = []
+        for step in log_dict.get('steps', []):
+            item = {'achieved_points': step.get('achieved_points')}
+            state = step.get('state')
+            if state is not None:
+                item['state'] = state
+            steps.append(item)
         return {'steps': steps}
+
+    def remove_data_details(self) -> JSONType:
+        return {
+            'inputs':
+                [
+                    self._remove_input_details(inp)
+                    for inp in self.data['inputs']  # type: ignore
+                ],
+        }
+
+    @staticmethod
+    def _remove_input_details(inp: JSONType) -> JSONType:
+        return {'name': inp['name'], 'weight': inp['weight']}  # type: ignore
 
 
 @_register

@@ -95,6 +95,10 @@
                            max="100"
                            @keyup.ctrl.enter="$refs.submitContinuePointsBtn.onClick()" />
 
+                    <b-input-group-append is-text>
+                        %
+                    </b-input-group-append>
+
                     <b-input-group-append>
                         <submit-button ref="submitContinuePointsBtn"
                                        :submit="submitContinuePoints" />
@@ -267,7 +271,7 @@ export default {
     overflow: hidden;
 
     .input-group {
-        width: initial;
+        width: 14rem;
     }
 }
 

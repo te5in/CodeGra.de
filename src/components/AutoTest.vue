@@ -400,7 +400,8 @@
              class="result-modal">
         <template slot="modal-title">
             {{ $utils.nameOfUser(resultSubmission.user) }} -
-            {{ currentResult.pointsAchieved }} / {{ test.pointsPossible }} points
+            {{ $utils.toMaxNDecimals(currentResult.pointsAchieved, 2) }} /
+            {{ $utils.toMaxNDecimals(test.pointsPossible, 2) }} points
         </template>
 
         <auto-test :assignment="assignment"
@@ -687,15 +688,6 @@ export default {
                 },
                 err => {
                     switch (this.$utils.getProps(err, 500, 'response', 'status')) {
-                        case 404:
-                            if (this.finalRun) {
-                                this.storeDeleteAutoTestResults({
-                                    autoTestId: this.autoTestId,
-                                    runId: this.finalRun.id,
-                                    force: true,
-                                }).then(c => c());
-                            }
-                            break;
                         case 500:
                             this.pollingInterval = setTimeout(
                                 this.loadAutoTestRun,
@@ -703,7 +695,7 @@ export default {
                             );
                             break;
                         default:
-                            break;
+                            throw err;
                     }
                 },
             );
@@ -714,8 +706,9 @@ export default {
                 return null;
             }
 
+            const isContinuous = this.$utils.getProps(this, false, 'currentRun', 'isContinuous');
+
             const promises = [
-                this.loadRubric(),
                 this.storeLoadAutoTestResult({
                     autoTestId: this.autoTestId,
                     submissionId: this.submissionId,
@@ -723,9 +716,17 @@ export default {
                 }),
             ];
 
-            // Poll this result until it's finished, then poll the run so we can get the
-            // rubric when it is finished.
-            if (this.result && this.result.finished && !this.noPollRun) {
+            // Load rubric on first load. It does not need to be reloaded for
+            // Continuous Feedback runs, as they don't fill the rubric anyway.
+            if (!this.result || !isContinuous) {
+                promises.push(this.loadRubric());
+            }
+
+            // If the result is finished, it won't change anymore, so stop
+            // polling it. Instead, poll the run until it's finished, so we can
+            // then update the rubric. This does not need to happen for
+            // Continuous Feedback runs, as they don't fill the rubric.
+            if (!isContinuous && this.result && this.result.finished && !this.noPollRun) {
                 promises.push(
                     this.storeLoadAutoTestRun({
                         autoTestId: this.autoTestId,
@@ -738,9 +739,17 @@ export default {
                 () => {
                     this.message = null;
 
-                    if (this.finalRun && this.finalRun.finished) {
+                    // If the run is finished, neither the results nor the run
+                    // itself will be updated anymore, so just get the rubric results
+                    // one last time and stop polling.
+                    if (!isContinuous && this.currentRun && this.currentRun.finished) {
                         return this.loadRubric(true);
-                    } else if (this.result && !this.result.finished) {
+                    }
+
+                    // Poll the result as long as it is not finished. If the result is
+                    // finished, but this is not a Continuous Feedback run, keep polling,
+                    // as we will start retrieving the run instead of the result now.
+                    if (!this.result || !this.result.finished || !isContinuous) {
                         this.pollingTimer = setTimeout(this.loadSingleResult, this.pollingInterval);
                     }
 

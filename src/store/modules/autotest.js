@@ -2,7 +2,7 @@
 import Vue from 'vue';
 import axios from 'axios';
 
-import { deepCopy } from '@/utils';
+import { deepCopy, getProps } from '@/utils';
 import { AutoTestSuiteData, AutoTestRun } from '@/models/auto_test';
 import * as types from '../mutation-types';
 
@@ -270,7 +270,7 @@ const actions = {
         return loaders.results[resultId];
     },
 
-    async deleteAutoTestResults({ commit, dispatch, state }, { autoTestId, runId, force }) {
+    async deleteAutoTestResults({ commit, dispatch, state }, { autoTestId, runId }) {
         await dispatch('loadAutoTest', { autoTestId });
         const autoTest = state.tests[autoTestId];
 
@@ -304,7 +304,24 @@ const actions = {
                     ),
                 ),
             )
-            .then(() => c, () => (force ? c : () => {}));
+            .then(
+                () => c,
+                err => {
+                    switch (getProps(err, null, 'response', 'status')) {
+                        case 404:
+                            c();
+                            throw new Error(
+                                `${
+                                    run.isContinuous
+                                        ? 'AutoTest results were already deleted.'
+                                        : 'Continuous feedback was already stopped.'
+                                } Please reload the page.`,
+                            );
+                        default:
+                            throw err;
+                    }
+                },
+            );
     },
 
     createFixtures({ commit }, { autoTestId, fixtures, delay }) {

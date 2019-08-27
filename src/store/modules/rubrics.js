@@ -112,6 +112,10 @@ export const mutations = {
         Vue.set(state.rubrics, assignmentId, newRubric);
     },
 
+    clearRubric(state, { assignmentId }) {
+        Vue.delete(state.rubrics, assignmentId);
+    },
+
     setResult(state, { submissionId, result }) {
         Vue.set(state.results, submissionId, new RubricResult(result));
     },

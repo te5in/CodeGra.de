@@ -53,7 +53,10 @@ case "$TO_RUN" in
             echo "$out"
         fi
 
-        res=$(( res1 + res2 + res3 + res4 + res5 + res6 ))
+        travis-sphinx build --source=docs/
+        res7="$?"
+
+        res=$(( res1 + res2 + res3 + res4 + res5 + res6 + res7 ))
         set +x xtrace
         ;;
     "js_unit")
@@ -68,4 +71,5 @@ esac
 
 set +o xtrace
 
-exit "$res"
+[[ "$res" = 0 ]]
+exit "$?"

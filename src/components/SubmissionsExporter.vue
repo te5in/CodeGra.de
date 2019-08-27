@@ -38,7 +38,8 @@
     <submit-button variant="primary"
                    class="export-button"
                    label="Export as CSV"
-                   :submit="createCSV" />
+                   :submit="createCSV"
+                   @success="afterCreateCSV" />
 </div>
 </template>
 
@@ -48,7 +49,7 @@ import 'vue-awesome/icons/cog';
 
 import Baby from 'babyparse';
 
-import { nameOfUser } from '@/utils';
+import { downloadFile, nameOfUser } from '@/utils';
 
 import SubmitButton from './SubmitButton';
 
@@ -187,10 +188,13 @@ export default {
                     fields: this.enabledColumns.map(obj => obj.name),
                     data,
                 });
-                return this.$http.post('/api/v1/files/', csv).then(response => {
-                    window.open(`/api/v1/files/${response.data}/${this.currentFilename}`);
-                });
+
+                return { data: csv, filename: this.currentFilename };
             });
+        },
+
+        afterCreateCSV({ data, filename }) {
+            downloadFile(data, filename, 'text/csv');
         },
     },
 };

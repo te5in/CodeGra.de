@@ -11,7 +11,16 @@
             <b-card
                 class="rubric-category"
                 header-class="rubric-category-header"
-                body-class="rubric-items">
+                body-class="rubric-items"
+                @mouseenter="$set(lockPopoverShown, row.id, true)"
+                @mouseleave="$delete(lockPopoverShown, row.id)">
+                <b-popover v-if="lockPopover"
+                           :show="lockPopoverShown[row.id]"
+                           :target="lockPopoverIds[row.id]"
+                           :content="lockPopover"
+                           triggers=""
+                           placement="top" />
+
                 <template slot="header" v-if="row.locked || row.description">
                     <div class="rubric-category-description">
                         {{ row.description }}
@@ -19,7 +28,7 @@
 
                     <icon name="lock"
                           v-if="row.locked"
-                          v-b-popover.hover.top="lockPopover"/>
+                          :id="lockPopoverIds[row.id]" />
                 </template>
 
                 <b-card-group
@@ -106,9 +115,11 @@ export default {
 
     data() {
         return {
+            id: this.$utils.getUniqueId(),
             origSelected: [],
             current: 0,
             itemStates: {},
+            lockPopoverShown: {},
         };
     },
 
@@ -322,8 +333,8 @@ export default {
 
             if (selectedInRow == null || this.currentProgress == null) {
                 msg =
-                    'This is an AutoTest category. It will be filled once the ' +
-                    'AutoTest for this assignment is done running. ';
+                    'This is an AutoTest category. It will be filled in automatically once the ' +
+                    'AutoTest for this assignment is finished. ';
             } else {
                 msg =
                     `You scored ${this.currentProgress.toFixed(0)}% in the corresponding ` +
@@ -349,6 +360,17 @@ export default {
             }
 
             return msg;
+        },
+
+        lockPopoverIds() {
+            if (this.rubric == null) {
+                return {};
+            }
+
+            return this.rubric.rows.reduce((acc, row) => {
+                acc[row.id] = `rubric-viewer-${this.id}-row-${row.id}`;
+                return acc;
+            }, {});
         },
     },
 

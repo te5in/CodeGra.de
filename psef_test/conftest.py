@@ -263,6 +263,10 @@ def assert_similar():
             if k == '__allow_extra__' and value:
                 allowed_extra = True
                 continue
+            elif not is_list and k[0] == '?' and k[-1] == '?':
+                k = k[1:-1]
+                if k not in vals:
+                    continue
             i += 1
             assert is_list or k in vals
 
