@@ -241,7 +241,8 @@
                                             This script will be run at the beginning of the AutoTest
                                             run. Put all your global setup in this script, such as
                                             installing packages and compiling fixtures. Don't put
-                                            any student-specific setup in this script.
+                                            any student-specific setup in this script. The command
+                                            will be executed in the <code>$FIXTURES</code> directory.
                                         </template>
                                     </description-popover>
                                 </label>
@@ -264,7 +265,7 @@
                                 <div v-else>
                                     <code class="d-block mb-2">{{ test.run_setup_script }}</code>
 
-                                    <template v-if="result && canViewAutoTest">
+                                    <template v-if="result && (currentRun.setupStdout != null || currentRun.setupStderr != null)">
                                         <b-tabs no-fade>
                                             <b-tab title="stdout">
                                                 <inner-code-viewer class="rounded border"
@@ -301,11 +302,11 @@
                                     <description-popover hug-text>
                                         <template slot="description">
                                             Input a bash command to run your setup script that will
-                                            be run for each student specifically.  This command will
-                                            be run in the home directory
-                                            (<code>/home/codegrade/</code>). You can access your
-                                            fixtures through the <code>$FIXTURES</code> environment
-                                            variable.
+                                            be run for each student specifically. This command will
+                                            be run in the directory
+                                            <code>/home/<wbr>codegrade/<wbr>student/</code>.
+                                            You can access your fixtures through the
+                                            <code>$FIXTURES</code> environment variable.
                                         </template>
                                     </description-popover>
                                 </label>
@@ -328,7 +329,7 @@
                                 <div v-else>
                                     <code class="d-block mb-2">{{ test.setup_script }}</code>
 
-                                    <template v-if="result && canViewAutoTest">
+                                    <template v-if="result && (result.setupStdout != null || result.setupStderr != null)">
                                         <b-tabs no-fade>
                                             <b-tab title="stdout">
                                                 <inner-code-viewer class="rounded border"
@@ -345,7 +346,7 @@
                                             <b-tab title="stderr">
                                                 <inner-code-viewer class="rounded border"
                                                                    :assignment="assignment"
-                                                                   :code-lines="prepareOutput(result.setupStdout)"
+                                                                   :code-lines="prepareOutput(result.setupStderr)"
                                                                    :file-id="-1"
                                                                    :feedback="{}"
                                                                    :start-line="0"
@@ -1067,10 +1068,6 @@ export default {
 
         assignmentDone() {
             return this.assignment.state === 'done';
-        },
-
-        canViewAutoTest() {
-            return this.permissions.can_view_autotest_before_done || this.assignmentDone;
         },
 
         canCreateAutoTest() {
