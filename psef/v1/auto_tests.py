@@ -627,9 +627,8 @@ def delete_auto_test_runs(auto_test_id: int, run_id: int) -> EmptyResponse:
         CPerm.can_delete_autotest_run, run.auto_test.assignment.course_id
     )
 
-    callback_after_this_request(
-        lambda: tasks.notify_broker_end_of_job(run.get_job_id())
-    )
+    job_id = run.get_job_id()
+    callback_after_this_request(lambda: tasks.notify_broker_end_of_job(job_id))
 
     run.delete_and_clear_rubric()
     db.session.commit()

@@ -170,7 +170,8 @@ class WorkerPool:
     """
 
     def __init__(
-        self, processes: int, function: t.Callable[[Work], None],
+        self, processes: int,
+        function: t.Callable[[t.Callable[[], t.Optional[Work]]], None],
         sleep_time: float, extra_amount: int, initial_work: t.Iterable[Work]
     ) -> None:
         self._processes = processes
@@ -198,15 +199,9 @@ class WorkerPool:
                 raise val
 
     def _worker_function(self) -> None:
-        work = None
-
         while not self._stop.is_set():
-            work = self._work_queue.get()
-            if work is None:
-                continue
-
             try:
-                self._func(work)
+                self._func(self._work_queue.get)
             except Exception as e:  # pylint: disable=broad-except
                 self._finish_queue.put(WorkerException(e, e.__traceback__))
                 self._work_queue.notify_work_needed()

@@ -15,19 +15,21 @@ def test_check_heartbeat(
     session, describe, monkeypatch, stub_function_class, app,
     assignment_real_works, monkeypatch_celery
 ):
-    _, submission = assignment_real_works
+    assignment, submission = assignment_real_works
 
     with describe('setup'):
         stub_heart = stub_function_class()
         monkeypatch.setattr(t, 'check_heartbeat_auto_test_run', stub_heart)
 
         stub_notify_new = stub_function_class()
-        monkeypatch.setattr(t, 'notify_broker_of_new_job', stub_notify_new)
+        monkeypatch.setattr(t, '_notify_broker_of_new_job_1', stub_notify_new)
 
         stub_notify_stop = stub_function_class()
         monkeypatch.setattr(t, 'notify_broker_end_of_job', stub_notify_stop)
 
-        test = m.AutoTest(setup_script='', run_setup_script='')
+        test = m.AutoTest(
+            setup_script='', run_setup_script='', assignment=assignment
+        )
         run = m.AutoTestRun(_job_id=uuid.uuid4(), auto_test=test)
         run.results = [
             m.AutoTestResult(work_id=submission['id']),
@@ -38,15 +40,17 @@ def test_check_heartbeat(
         session.add(run)
 
         with app.test_request_context('/non_existing', {}):
-            run.start('localhost')
-        runner = run.runner
+            run.add_active_runner('localhost')
+        runner = run.runners[0]
+        assert runner.run
         session.commit()
 
     with describe('not expired'):
         t._check_heartbeat_stop_test_runner_1(runner.id.hex)
         now = datetime.utcnow()
 
-        # As the heartbeats have not expired yet a new check should be scheduled
+        # As the heartbeats have not expired yet a new check should be
+        # scheduled
         assert len(stub_heart.all_args) == 1
         assert stub_heart.all_args[0][0] == (runner.id.hex, )
         assert (stub_heart.all_args[0]['eta'] - now).total_seconds() > 0
@@ -56,7 +60,8 @@ def test_check_heartbeat(
 
     with describe('Already finished'):
         with describe('Inner setup'):
-            run.state = m.AutoTestRunState.done
+            # Use _state as the setter does logic we don't wan't right now
+            run._state = m.AutoTestRunState.done
         session.commit()
         t._check_heartbeat_stop_test_runner_1(runner.id.hex)
 
@@ -64,12 +69,12 @@ def test_check_heartbeat(
         assert not stub_notify_new.called
         assert not stub_notify_stop.called
 
-        run.state = m.AutoTestRunState.running
+        run._state = m.AutoTestRunState.running
         session.commit()
 
     with describe('expired'):
         runner.last_heartbeat = datetime.fromtimestamp(0)
-        old_job_id = runner.run.get_job_id()
+        old_job_id = run.get_job_id()
         session.commit()
         run = runner.run
         t._check_heartbeat_stop_test_runner_1(runner.id.hex)
@@ -81,7 +86,7 @@ def test_check_heartbeat(
 
         run.get_job_id() != old_job_id
         assert runner.run is None
-        assert run.state == m.AutoTestRunState.changing_runner
+        assert run.state == m.AutoTestRunState.running
         assert (
             run.results[0].state == m.AutoTestStepResultState.not_started
         ), 'The results should be cleared'
@@ -114,7 +119,7 @@ def test_stop_auto_test_run(
         session.add(run)
 
         with app.test_request_context('/non_existing', {}):
-            run.start('localhost')
+            run.add_active_runner('localhost')
         session.commit()
 
     with describe('kill before deadline'):
@@ -128,6 +133,7 @@ def test_stop_auto_test_run(
 
     with describe('kill after deadline'):
         run.kill_date = datetime.utcnow()
+        old_job_id = run.get_job_id()
         session.commit()
 
         t._stop_auto_test_run_1(run.id)
@@ -135,7 +141,7 @@ def test_stop_auto_test_run(
         assert not stub_stop.called
 
         assert len(stub_notify_stop.all_args) == 1
-        assert stub_notify_stop.all_args[0][0] == run.get_job_id()
+        assert stub_notify_stop.all_args[0][0] == old_job_id
         assert run.state == m.AutoTestRunState.timed_out
 
     with describe('kill after already done'):

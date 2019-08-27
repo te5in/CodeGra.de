@@ -9,4 +9,6 @@ exclude_lines =
     \.\.\.
     assert False
 
-omit = cg_worker_pool/tests/*
+omit =
+    cg_worker_pool/tests/*
+    cg_threading_utils/tests/*

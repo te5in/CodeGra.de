@@ -13,9 +13,12 @@ case "$TO_RUN" in
 
         pytest --cov psef \
                --cov cg_worker_pool \
+               --cov cg_threading_utils \
                --postgresql=travis_ci_test \
                --cov-report term-missing \
-               "$(pwd)/cg_worker_pool/tests/" "$(pwd)/psef_test" \
+               "$(pwd)/cg_worker_pool/tests/" \
+               "$(pwd)/cg_threading_utils/tests/" \
+               "$(pwd)/psef_test" \
                -vvvv
         res1="$?"
 

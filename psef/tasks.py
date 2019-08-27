@@ -22,6 +22,7 @@ from mypy_extensions import NamedArg, DefaultNamedArg
 
 import psef as p
 import cg_celery
+import cg_logger
 
 logger = structlog.get_logger()
 
@@ -326,14 +327,66 @@ def _stop_auto_test_run_1(auto_test_run_id: int) -> None:
 
 
 @celery.task
-def _notify_broker_of_new_job_1(job_id: str) -> None:
+def _notify_broker_of_new_job_1(
+    run_id: t.Union[int, p.models.AutoTestRun], wanted_runners: int = 1
+) -> None:
+    if isinstance(run_id, int):
+        run = p.models.AutoTestRun.query.filter_by(
+            id=run_id
+        ).with_for_update().one_or_none()
+
+        if run is None:
+            logger.warning('Trying to start run that does not exist')
+            return
+    else:
+        run = run_id
+
     with p.helpers.BrokerSession() as ses:
-        ses.post(
+        ses.put(
             '/api/v1/jobs/',
             json={
-                'job_id': job_id,
+                'job_id': run.get_job_id(),
+                'wanted_runners': wanted_runners,
             },
         ).raise_for_status()
+        run.runners_requested = wanted_runners
+        p.models.db.session.commit()
+
+
+@celery.task
+def _notify_broker_kill_single_runner_1(
+    run_id: int, runner_hex_id: str
+) -> None:
+    run = p.models.AutoTestRun.query.filter_by(
+        id=run_id
+    ).with_for_update().one_or_none()
+
+    runner_id = uuid.UUID(hex=runner_hex_id)
+    runner = p.models.AutoTestRunner.query.with_for_update().get(runner_id)
+
+    if run is None:
+        logger.warning('Run could not be found')
+        return
+    elif runner is None:
+        logger.warning('Runner could not be found')
+        return
+    elif runner not in run.runners:
+        logger.warning(
+            'Runner is not a runner of the run',
+            runners_of_run=[r.id.hex for r in run.runners],
+            runner_hex_id=runner_hex_id,
+        )
+        return
+
+    with p.helpers.BrokerSession() as ses:
+        ses.delete(
+            f'/api/v1/jobs/{runner.job_id}/runners/',
+            json={
+                'ipaddr': runner.ipaddr,
+            }
+        ).raise_for_status()
+        run.runners_requested -= 1
+        p.models.db.session.commit()
 
 
 @celery.task
@@ -347,8 +400,11 @@ def _check_heartbeat_stop_test_runner_1(auto_test_runner_id: str) -> None:
     runner_id = uuid.UUID(hex=auto_test_runner_id)
 
     runner = p.models.AutoTestRunner.query.get(runner_id)
-    if runner is None or runner.run is None:
-        logger.info('Runner already reset or not found', runner=runner)
+    if runner is None:
+        logger.info('Runner not found', runner=runner)
+        return
+    elif runner.run is None:
+        logger.info('Runner already reset', runner=runner)
         return
     elif runner.run.finished:
         logger.info('Run already finished, heartbeats not required')
@@ -376,10 +432,40 @@ def _check_heartbeat_stop_test_runner_1(auto_test_runner_id: str) -> None:
         )
         return
 
-    run = runner.run
-    run.state = p.models.AutoTestRunState.changing_runner
+    run = p.models.AutoTestRun.query.filter_by(id=runner.run_id
+                                               ).with_for_update().one()
+    run.stop_runners([runner])
     p.models.db.session.commit()
-    notify_broker_of_new_job(run.get_job_id())
+    adjust_amount_runners(run.id)
+
+
+@celery.task
+def _adjust_amount_runners_1(auto_test_run_id: int) -> None:
+    run = p.models.AutoTestRun.query.filter_by(
+        id=auto_test_run_id
+    ).with_for_update().one_or_none()
+
+    if run is None:
+        logger.warning('Run to adjust not found')
+        return
+    elif run.finished:
+        logger.info('Run already finished, no adjustments needed')
+        return
+
+    requested_amount = run.runners_requested
+    needed_amount = run.get_amount_needed_runners()
+    with cg_logger.bound_to_logger(
+        requested_amount=requested_amount, needed_amount=needed_amount
+    ):
+        if needed_amount == requested_amount:
+            logger.info('No new runners needed')
+            return
+        elif needed_amount > requested_amount:
+            logger.info('We need more runners')
+        else:
+            logger.info('We have requested too many runners')
+
+        _notify_broker_of_new_job_1(run, needed_amount)
 
 
 @celery.task
@@ -398,6 +484,8 @@ send_grader_status_mail = _send_grader_status_mail_1.delay  # pylint: disable=in
 run_plagiarism_control = _run_plagiarism_control_1.delay  # pylint: disable=invalid-name
 notify_broker_of_new_job = _notify_broker_of_new_job_1.delay  # pylint: disable=invalid-name
 notify_broker_end_of_job = _notify_broker_end_of_job_1.delay  # pylint: disable=invalid-name
+notify_broker_kill_single_runner = _notify_broker_kill_single_runner_1.delay  # pylint: disable=invalid-name
+adjust_amount_runners = _adjust_amount_runners_1.delay  # pylint: disable=invalid-name
 
 send_reminder_mails: t.Callable[[
     t.Tuple[int], NamedArg(t.Optional[datetime.datetime], 'eta')

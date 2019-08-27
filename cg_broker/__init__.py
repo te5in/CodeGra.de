@@ -26,6 +26,7 @@ BrokerConfig = TypedDict(  # pylint: disable=invalid-name
         'SQLALCHEMY_DATABASE_URI': str,
         'AUTO_TEST_TYPE': 'models.RunnerType',
         'AWS_INSTANCE_TYPE': str,
+        'AWS_TAG_VALUE': str,
         'MAX_AMOUNT_OF_RUNNERS': int,
         'CELERY_CONFIG': t.Dict,
         'RUNNER_MAX_TIME_ALIVE': int,
@@ -90,6 +91,9 @@ class BrokerFlask(flask.Flask):
 
         self.config['AWS_INSTANCE_TYPE'] = _parser['General'].get(
             'AWS_INSTANCE_TYPE', 't3.medium'
+        )
+        self.config['AWS_TAG_VALUE'] = _parser['General'].get(
+            'AWS_TAG_VALUE', 'normal'
         )
 
         self.config['MAX_AMOUNT_OF_RUNNERS'] = _parser['General'].getint(

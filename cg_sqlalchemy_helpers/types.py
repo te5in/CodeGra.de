@@ -49,6 +49,14 @@ class MySession:  # pragma: no cover
 
     @t.overload  # NOQA
     def query(
+        self,
+        __y: 'DbColumn[T]',
+        __x: t.Type[Z],
+    ) -> 'MyQuery[t.Tuple[T, Z]]':
+        ...
+
+    @t.overload  # NOQA
+    def query(
         self, __x: t.Type[T], __y: 'DbColumn[Z]'
     ) -> 'MyQuery[t.Tuple[T, Z]]':
         ...
@@ -193,7 +201,9 @@ class DbColumn(t.Generic[T]):  # pragma: no cover
     def __init__(self) -> None:
         raise ValueError
 
-    def in_(self, val: t.Union[t.Iterable[T], 'DbColumn[T]']) -> 'DbColumn[T]':
+    def in_(
+        self, val: t.Union[t.Iterable[T], 'DbColumn[T]', 'MyQuery[T]']
+    ) -> 'DbColumn[T]':
         ...
 
     def isnot(self, val: t.Optional[T]) -> 'DbColumn[bool]':

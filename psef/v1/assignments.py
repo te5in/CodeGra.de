@@ -1371,6 +1371,8 @@ def post_submissions(assignment_id: int) -> EmptyResponse:
         work.add_file_tree(submission_tree)
         if work.assigned_to is not None:
             newly_assigned.add(work.assigned_to)
+        if assignment.auto_test is not None:
+            assignment.auto_test.add_to_continuous_feedback(work)
 
     assignment.set_graders_to_not_done(
         list(newly_assigned),

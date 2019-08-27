@@ -71,6 +71,7 @@ FlaskConfig = TypedDict(
         'AUTO_TEST_BROKER_PASSWORD': str,
         'AUTO_TEST_CF_SLEEP_TIME': float,
         'AUTO_TEST_CF_EXTRA_AMOUNT': int,
+        'AUTO_TEST_MAX_JOBS_PER_RUNNER': int,
         'AUTO_TEST_MAX_OUTPUT_TAIL': int,
         'TESTING': bool,
         '__S_AUTO_TEST_HOSTS': t.Mapping[str, t.Any],
@@ -545,6 +546,8 @@ set_str(CONFIG, auto_test_ops, 'AUTO_TEST_BROKER_URL', '')
 set_str(CONFIG, auto_test_ops, 'AUTO_TEST_BROKER_PASSWORD', None)
 set_str(CONFIG, auto_test_ops, 'AUTO_TEST_PASSWORD', None)
 set_bool(CONFIG, auto_test_ops, 'AUTO_TEST_DISABLE_ORIGIN_CHECK', False)
+set_int(CONFIG, auto_test_ops, 'AUTO_TEST_MAX_JOBS_PER_RUNNER', 25)
+assert CONFIG['AUTO_TEST_MAX_JOBS_PER_RUNNER'] > 0, "Max jobs per runner should be higher than 0"
 
 set_float(CONFIG, auto_test_ops, 'AUTO_TEST_CF_SLEEP_TIME', 5.0)
 set_int(CONFIG, auto_test_ops, 'AUTO_TEST_CF_EXTRA_AMOUNT', 20)

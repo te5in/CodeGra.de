@@ -3,17 +3,10 @@ class Session:
         def raise_for_status(self):
             pass
 
-    def delete(self, _):
+    def delete(self, _, **__):
         return Session.Response()
 
-    def get(self, _):
-        return Session.Response()
-
-    def post(self, _, **__):
-        return Session.Response()
-
-    def patch(self, _, **__):
-        return Session.Response()
+    get = post = patch = put = delete
 
     def __enter__(self):
         return self

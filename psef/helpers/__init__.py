@@ -31,6 +31,7 @@ from cg_json import (
     JSONResponse, ExtendedJSONResponse, jsonify, extended_jsonify
 )
 from cg_timers import timed_code
+from cg_flask_helpers import callback_after_this_request
 from cg_sqlalchemy_helpers.types import Base, MyQuery, DbColumn
 
 from . import features, validate
@@ -845,27 +846,6 @@ def raise_file_too_big_exception(
         msg, 'Request is bigger than maximum upload size of max_size bytes.',
         psef.errors.APICodes.REQUEST_TOO_LARGE, 400
     )
-
-
-def callback_after_this_request(
-    fun: t.Callable[[], object],
-) -> t.Callable[[T], T]:
-    """Execute a callback after this request without changing the response.
-
-    :param fun: The callback to execute after the current request.
-    :returns: The function that will execute after this request that does that
-        the response as argument, so this function wraps your given callback.
-    """
-
-    @flask.after_this_request
-    def after(res: flask.Response) -> flask.Response:
-        """The entire callback that is executed at the end of the request.
-        """
-        if res.status_code < 400:
-            fun()
-        return res
-
-    return after
 
 
 def get_class_by_name(superclass: T_Type, name: str) -> T_Type:

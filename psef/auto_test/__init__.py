@@ -11,6 +11,7 @@ import json
 import time
 import uuid
 import errno
+import queue
 import random
 import select
 import signal
@@ -23,7 +24,7 @@ import collections
 import dataclasses
 import multiprocessing
 from pathlib import Path
-from multiprocessing import Event, Queue, Manager, context
+from multiprocessing import Event, Queue, context, managers
 
 import lxc  # typing: ignore
 import requests
@@ -33,6 +34,7 @@ from mypy_extensions import TypedDict
 import psef
 import cg_logger
 import cg_worker_pool
+import cg_threading_utils
 from cg_timers import timed_code, timed_function
 
 from .. import models, helpers
@@ -231,7 +233,14 @@ class LockableValue(t.Generic[T]):
         self.__lock.release()
 
 
-class CpuCores():
+class _Manager(managers.SyncManager):
+    pass
+
+
+_Manager.register('FairLock', cg_threading_utils.FairLock)
+
+
+class CpuCores:
     """This class contains a reservation system for cpu cores.
 
     With this class you can make sure only one of the containers is using
@@ -241,11 +250,15 @@ class CpuCores():
 
     def __init__(
         self,
+        manager: _Manager,
         number_of_cores: t.Optional[int] = None,
-        make_queue: t.Callable[[int], Queue] = Queue
     ) -> None:
         self._number_of_cores = number_of_cores or _get_amount_cpus()
-        self._available_cores: 'Queue[int]' = make_queue(self._number_of_cores)
+        self._available_cores: 'Queue[int]' = manager.Queue(  # type: ignore
+            self._number_of_cores
+        )
+        self._lock: cg_threading_utils.FairLock = manager.FairLock(  # type: ignore
+        )
         for core in range(self._number_of_cores):
             self._available_cores.put(core)
 
@@ -253,7 +266,12 @@ class CpuCores():
     def reserved_core(self) -> t.Generator[int, None, None]:
         """Reserve a core for the duration of the ``with`` block.
         """
-        core = self._available_cores.get()
+        self._lock.acquire()
+        try:
+            core = self._available_cores.get()
+        finally:
+            self._lock.release()
+
         try:
             yield core
         finally:
@@ -496,9 +514,10 @@ def _push_logging(post_log: t.Callable[[JSONType], object]) -> RepeatedTimer:
 
 # This wrapper function is needed for Python multiprocessing
 def _run_student(
-    cont: 'AutoTestRunner', bc_name: str, cores: CpuCores, result_id: int
+    cont: 'AutoTestRunner', bc_name: str, cores: CpuCores,
+    get_work: t.Callable[[], t.Optional[cg_worker_pool.Work]]
 ) -> None:
-    cont.run_student(bc_name, cores, result_id)
+    cont.run_student(bc_name, cores, get_work)
 
 
 def start_polling(config: 'psef.FlaskConfig', repeat: bool = True) -> None:
@@ -1256,11 +1275,17 @@ class AutoTestContainer:
         started = None
 
         try:
-            _start_container(self._cont)
+            self.start_container()
             started = StartedContainer(self._cont, self._name, self._config)
             yield started
         finally:
             self._stop_container(started)
+
+    def start_container(self) -> None:
+        _start_container(self._cont)
+
+    def destroy_container(self) -> None:
+        self._cont.destroy()
 
     def _stop_container(self, cont: t.Optional[StartedContainer]) -> None:
         with cg_logger.bound_to_logger(cont=self):
@@ -1325,14 +1350,17 @@ class AutoTestRunner:
         return _get_amount_cpus() + 4
 
     def _make_worker_pool(
-        self, base_container_name: str, cpu_cores: CpuCores
+        self,
+        base_container_name: str,
+        cpu_cores: CpuCores,
     ) -> cg_worker_pool.WorkerPool:
         mult = 1 if self.instructions.get('is_continuous_run', False) else 0
+
         return cg_worker_pool.WorkerPool(
             # Over provision a bit so clones can be made quicker.
             processes=self._get_amount_of_needed_workers(),
-            function=lambda work:
-            _run_student(self, base_container_name, cpu_cores, work.result_id),
+            function=lambda get_work:
+            _run_student(self, base_container_name, cpu_cores, get_work),
             sleep_time=mult * self.config['AUTO_TEST_CF_SLEEP_TIME'],
             extra_amount=mult * self.config['AUTO_TEST_CF_EXTRA_AMOUNT'],
             initial_work=self.work,
@@ -1553,76 +1581,66 @@ class AutoTestRunner:
     @timed_function
     def _run_student(
         self,
-        base_container_name: str,
-        cpu_cores: CpuCores,
+        cont: StartedContainer,
+        cpu_number: int,
         result_id: int,
     ) -> None:
-        base_container = AutoTestContainer(base_container_name, self.config)
-        student_container = base_container.clone()
-
         result_url = f'{self.base_url}/results/{result_id}'
-        result_state = models.AutoTestStepResultState.running
+        result_state = models.AutoTestStepResultState.passed
 
         try:
-            with student_container.started_container(
-            ) as cont, cpu_cores.reserved_core() as cpu_number:
-                self.req.patch(result_url, json={'state': result_state.name})
-
-                with timed_code('set_cgroup_limits'):
-                    cont.set_cgroup_item(
-                        'memory.limit_in_bytes',
-                        self.config['AUTO_TEST_MEMORY_LIMIT']
-                    )
-                    cont.set_cgroup_item('cpuset.cpus', str(cpu_number))
-                    cont.set_cgroup_item(
-                        'memory.memsw.limit_in_bytes',
-                        self.config['AUTO_TEST_MEMORY_LIMIT']
-                    )
-
-                self.download_student_code(cont, result_id)
-
-                self._maybe_run_setup(cont, self.setup_script, result_url)
-
-                logger.info('Dropping sudo rights')
-                cont.run_command(['deluser', CODEGRADE_USER, 'sudo'])
-                cont.run_command(
-                    [
-                        'sed', '-i', f's/^{CODEGRADE_USER}.*$//g',
-                        '/etc/sudoers'
-                    ]
+            with timed_code('set_cgroup_limits'):
+                cont.set_cgroup_item(
+                    'memory.limit_in_bytes',
+                    self.config['AUTO_TEST_MEMORY_LIMIT']
                 )
-                assert cont.run_command(
-                    ['grep', '-c', CODEGRADE_USER, '/etc/sudoers'],
-                    check=False
-                ) != 0, 'Sudo was not dropped!'
+                cont.set_cgroup_item('cpuset.cpus', str(cpu_number))
+                cont.set_cgroup_item(
+                    'memory.memsw.limit_in_bytes',
+                    self.config['AUTO_TEST_MEMORY_LIMIT']
+                )
 
-                total_points = 0.0
-                possible_points = 0.0
+            self.download_student_code(cont, result_id)
 
-                for test_set in self.instructions['sets']:
-                    for test_suite in test_set['suites']:
-                        achieved_points, suite_points = self._run_test_suite(
-                            cont, result_id, test_suite
-                        )
-                        total_points += achieved_points
-                        possible_points += suite_points
-                        logger.info(
-                            'Finished suite',
-                            total_points=total_points,
-                            test_suite=test_suite,
-                        )
-                    logger.info(
-                        'Finished set',
-                        total_points=total_points,
-                        stop_points=test_set['stop_points'],
-                        test_set=test_set,
+            self._maybe_run_setup(cont, self.setup_script, result_url)
+
+            logger.info('Dropping sudo rights')
+            cont.run_command(['deluser', CODEGRADE_USER, 'sudo'])
+            # TODO: escape the codegrade user here if that is needed
+            cont.run_command(
+                ['sed', '-i', f's/^{CODEGRADE_USER}.*$//g', '/etc/sudoers']
+            )
+            assert cont.run_command(
+                ['grep', '-c', CODEGRADE_USER, '/etc/sudoers'], check=False
+            ) != 0, 'Sudo was not dropped!'
+
+            total_points = 0.0
+            possible_points = 0.0
+
+            for test_set in self.instructions['sets']:
+                for test_suite in test_set['suites']:
+                    achieved_points, suite_points = self._run_test_suite(
+                        cont, result_id, test_suite
                     )
+                    total_points += achieved_points
+                    possible_points += suite_points
+                    logger.info(
+                        'Finished suite',
+                        total_points=total_points,
+                        test_suite=test_suite,
+                    )
+                logger.info(
+                    'Finished set',
+                    total_points=total_points,
+                    stop_points=test_set['stop_points'],
+                    test_set=test_set,
+                )
 
-                    if helpers.FloatHelpers.le(
-                        helpers.safe_div(total_points, possible_points, 1),
-                        test_set['stop_points']
-                    ):
-                        break
+                if helpers.FloatHelpers.le(
+                    helpers.safe_div(total_points, possible_points, 1),
+                    test_set['stop_points']
+                ):
+                    break
         except:
             logger.error('Something went wrong', exc_info=True)
             result_state = models.AutoTestStepResultState.failed
@@ -1639,7 +1657,7 @@ class AutoTestRunner:
         self,
         base_container_name: str,
         cpu_cores: CpuCores,
-        result_id: int,
+        get_work: t.Callable[[], t.Optional[cg_worker_pool.Work]],
     ) -> None:
         """Run the test for a single student.
 
@@ -1648,9 +1666,34 @@ class AutoTestRunner:
         :param result_id: The id of the student to run.
         :returns: Nothing.
         """
-        with _push_logging(self._push_log
-                           ), cg_logger.bound_to_logger(result_id=result_id):
-            self._run_student(base_container_name, cpu_cores, result_id)
+        base_container = AutoTestContainer(base_container_name, self.config)
+        student_container = base_container.clone()
+
+        with student_container.started_container() as cont, _push_logging(
+            self._push_log
+        ):
+            while True:
+                work = get_work()
+                if work is None:
+                    return
+                result_id = work.result_id
+
+                with cpu_cores.reserved_core() as cpu_number:
+                    patch_res = self.req.patch(
+                        f'{self.base_url}/results/{result_id}',
+                        json={
+                            'state':
+                                models.AutoTestStepResultState.running.name
+                        }
+                    )
+                    patch_res.raise_for_status()
+                    if (
+                        patch_res.status_code != 200 or
+                        not patch_res.json().get('taken', False)
+                    ):
+                        with cg_logger.bound_to_logger(result_id=result_id):
+                            self._run_student(cont, cpu_number, result_id)
+                            return
 
     def _started_heartbeat(self) -> 'RepeatedTimer':
         def push_heartbeat() -> None:
@@ -1770,12 +1813,10 @@ class AutoTestRunner:
 
         with cont.stopped_container() as base_container, timed_code(
             'run_all_students'
-        ), Manager() as manager:
+        ), _Manager() as manager:
             # Known issue from typeshed:
             # https://github.com/python/typeshed/issues/3018
-            make_queue: t.Callable[[int], Queue
-                                   ] = manager.Queue  # type: ignore
-            cpu_cores = CpuCores(make_queue=make_queue)
+            cpu_cores: CpuCores = CpuCores(manager)  # type: ignore
             pool = self._make_worker_pool(base_container.name, cpu_cores)
 
             try:

@@ -3,6 +3,7 @@
 SPDX-License-Identifier: AGPL-3.0-only
 """
 import enum
+import math
 import uuid
 import typing as t
 import numbers
@@ -11,7 +12,10 @@ import itertools
 
 import structlog
 from sqlalchemy import orm, sql
+from sqlalchemy import func as sql_func
+from sqlalchemy import distinct
 from sqlalchemy_utils import UUIDType
+from sqlalchemy.sql.expression import or_, and_, case, nullsfirst
 
 import psef
 import cg_json
@@ -23,6 +27,7 @@ from . import auto_test_step as auto_test_step_models
 from .. import auth
 from .. import auto_test as auto_test_module
 from .. import current_user
+from ..helpers import NotEqualMixin
 from ..registry import auto_test_handlers, auto_test_grade_calculators
 from ..exceptions import (
     APICodes, APIException, PermissionException, InvalidStateException
@@ -220,7 +225,7 @@ class AutoTestSet(Base, TimestampMixin, IdMixin):
         }
 
 
-class AutoTestResult(Base, TimestampMixin, IdMixin):
+class AutoTestResult(Base, TimestampMixin, IdMixin, NotEqualMixin):
     """The result for a single submission (:class:`.work_models.Work`) of a
     :class:`.AutoTestRun`.
     """
@@ -240,8 +245,21 @@ class AutoTestResult(Base, TimestampMixin, IdMixin):
         'AutoTestRun',
         foreign_keys=auto_test_run_id,
         back_populates='results',
-        lazy='joined',
+        lazy='select',
         innerjoin=True,
+    )
+
+    auto_test_runner_id: t.Optional[uuid.UUID] = db.Column(
+        'auto_test_runner_id',
+        UUIDType,
+        db.ForeignKey('AutoTestRunner.id'),
+        nullable=True,
+    )
+
+    runner: t.Optional['AutoTestRunner'] = db.relationship(
+        'AutoTestRunner',
+        foreign_keys=auto_test_runner_id,
+        lazy='selectin',
     )
 
     setup_stdout: t.Optional[str] = orm.deferred(
@@ -289,15 +307,30 @@ class AutoTestResult(Base, TimestampMixin, IdMixin):
         'Work', foreign_keys=work_id, lazy='selectin'
     )  # type: work_models.Work
 
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, AutoTestResult):
+            return other.id == self.id
+        return NotImplemented
+
+    def __hash__(self) -> int:
+        return hash(self.id)
+
     @property
     def state(self) -> auto_test_step_models.AutoTestStepResultState:
         """Get the state of this result
 
-        >>> r = AutoTestResult()
+        >>> called = False
+        >>> def fun(_):
+        ...  global called
+        ...  called = True
+        >>> psef.tasks.adjust_amount_runners = fun
+        >>> r = AutoTestResult(run=AutoTestRun())
         >>> not_set = object()
         >>> r.started_at = not_set
         >>> r.state = auto_test_step_models.AutoTestStepResultState.running
         >>> isinstance(r.started_at, datetime.datetime)
+        True
+        >>> called
         True
         >>> r.state = 6
         >>> r.started_at is None
@@ -319,6 +352,7 @@ class AutoTestResult(Base, TimestampMixin, IdMixin):
         self._state = new_state
         if new_state == auto_test_step_models.AutoTestStepResultState.running:
             self.started_at = datetime.datetime.utcnow()
+            psef.tasks.adjust_amount_runners(self.run.id)
         else:
             self.started_at = None
 
@@ -339,6 +373,7 @@ class AutoTestResult(Base, TimestampMixin, IdMixin):
         self.state = auto_test_step_models.AutoTestStepResultState.not_started
         self.setup_stderr = None
         self.setup_stdout = None
+        self.runner = None
         self.clear_rubric()
 
     def clear_rubric(self) -> None:
@@ -424,11 +459,25 @@ class AutoTestResult(Base, TimestampMixin, IdMixin):
         }
 
     def __extended_to_json__(self) -> t.Mapping[str, object]:
+        approx_before: t.Optional[int] = None
+        not_started = auto_test_step_models.AutoTestStepResultState.not_started
+        if self.state == not_started:
+            approx_before = 0
+            for result in self.run.results:
+                if result == self:
+                    break
+                elif result.state == not_started:
+                    approx_before += 1
+            else:
+                logger.warning('Result not found', exc_info=True)
+                approx_before = None
+
         return {
             **self.__to_json__(),
             'setup_stdout': self.setup_stdout,
             'setup_stderr': self.setup_stderr,
             'step_results': self.step_results,
+            'approx_waiting_before': approx_before,
         }
 
 
@@ -451,7 +500,7 @@ class AutoTestRunState(cg_json.SerializableEnum, enum.Enum):
     changing_runner = 7
 
 
-class AutoTestRunner(Base, TimestampMixin, UUIDMixin):
+class AutoTestRunner(Base, TimestampMixin, UUIDMixin, NotEqualMixin):
     """This class represents the runner of a :class:`.AutoTestRun`.
 
     A single run might have multiple runners, as a runner might crash and in
@@ -470,6 +519,28 @@ class AutoTestRunner(Base, TimestampMixin, UUIDMixin):
 
     _job_id: t.Optional[str] = db.Column('job_id', db.Unicode)
 
+    run_id: t.Optional[int] = db.Column(
+        'run_id',
+        db.Integer,
+        db.ForeignKey('AutoTestRun.id'),
+        nullable=True,
+        default=None,
+    )
+
+    run: t.Optional['AutoTestRun'] = db.relationship(
+        'AutoTestRun',
+        foreign_keys=run_id,
+        back_populates='runners',
+    )
+
+    def __hash__(self) -> int:
+        return hash(self.id)
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, AutoTestRunner):
+            return NotImplemented
+        return self.id == other.id
+
     @property
     def job_id(self) -> str:
         """Get the job id of this runner.
@@ -481,14 +552,6 @@ class AutoTestRunner(Base, TimestampMixin, UUIDMixin):
         """
         return self._job_id or f'INVALID-{uuid.uuid4().hex}'
 
-    run: t.Optional['AutoTestRun'] = db.relationship(
-        "AutoTestRun",
-        back_populates="runner",
-        cascade='all,delete',
-        order_by='AutoTestRun.created_at',
-        uselist=False
-    )
-
     @property
     def ipaddr(self) -> str:
         """The ip address of this runner."""
@@ -498,14 +561,14 @@ class AutoTestRunner(Base, TimestampMixin, UUIDMixin):
     def create(
         cls,
         ipaddr: str,
-        job_id: str,
+        run: 'AutoTestRun',
     ) -> 'AutoTestRunner':
         """Create an :class:`.AutoTestRunner`.
 
         :param ipdaddr: The ip address of this runner.
-        :param job_id: The unique job id of this runner.
+        :param run: The run of this runner.
         """
-        return cls(_ipaddr=ipaddr, _job_id=job_id)
+        return cls(_ipaddr=ipaddr, _job_id=run.get_job_id(), run=run)
 
 
 class AutoTestRun(Base, TimestampMixin, IdMixin):
@@ -541,18 +604,8 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
         )
     )
 
-    runner_id: t.Optional[uuid.UUID] = db.Column(
-        'runner_id',
-        UUIDType,
-        db.ForeignKey('AutoTestRunner.id'),
-        nullable=True,
-        default=None,
-    )
-
-    runner: 'AutoTestRunner' = db.relationship(
-        'AutoTestRunner',
-        foreign_keys=runner_id,
-        back_populates='run',
+    runners: t.List['AutoTestRunner'] = db.relationship(
+        'AutoTestRunner', back_populates='run'
     )
 
     auto_test: 'AutoTest' = db.relationship(
@@ -585,6 +638,13 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
 
     _job_number = db.Column('job_number', db.Integer, default=0)
     _job_id: uuid.UUID = db.Column('job_id', UUIDType, default=uuid.uuid4)
+    runners_requested: int = db.Column(
+        'runners_requested',
+        db.Integer,
+        default=0,
+        server_default='0',
+        nullable=False,
+    )
 
     is_continuous_feedback_run: bool = db.Column(
         'is_continuous_feedback_run',
@@ -635,22 +695,18 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
     def state(self, new_state: AutoTestRunState) -> None:
         assert isinstance(new_state, AutoTestRunState)
 
-        if new_state == AutoTestRunState.changing_runner:
-            self._state = AutoTestRunState.changing_runner
-            self.stop_runner()
-        elif self.is_continuous_feedback_run:
+        if self.is_continuous_feedback_run:
             if new_state.value > AutoTestRunState.running.value:  # pragma: no cover
                 # This should never happen, as it should be handled in the
                 # internal api.
-                start_new = False
-                if self.runner:
-                    start_new = self.stop_runner()
-                start_new = start_new or db.session.query(
-                    self.get_results_to_run().exists()
+                start_new = self.stop_runners(
+                    self.runners,
+                ) or db.session.query(
+                    self.get_results_to_run().exists(),
                 ).scalar()
 
                 if start_new:
-                    psef.tasks.notify_broker_of_new_job(self.get_job_id())
+                    psef.tasks.adjust_amount_runners(self.id)
             else:
                 self._state = new_state
         else:
@@ -661,35 +717,99 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
                     result.update_rubric()
 
             if self.finished:
-                psef.tasks.notify_broker_end_of_job(self.get_job_id())
+                self.stop_runners(self.runners)
 
-    def stop_runner(self) -> bool:
+    def stop_runners(self, runners: t.List[AutoTestRunner]) -> bool:
         """Stop the runner of this run.
 
         This also prepares the run to be migrated to a new runner.
         """
-        job_id_to_stop = self.runner.job_id
-        self.runner_id = None
-        # This needs to be reset to ``None`` so that this job is once again
-        # marked as "available" for new runners.
-        self.started_date = None
-        self.increment_job_id()
-        result = self._clear_non_passed_results()
+        assert all(runner in self.runners for runner in runners)
+        all_deleted = len(runners) == len(self.runners)
+        total_result = False
 
-        psef.tasks.notify_broker_end_of_job(job_id_to_stop)
+        for runner in runners:
+            self.runners.remove(runner)
+            runner.run_id = None
+            psef.tasks.notify_broker_kill_single_runner(self.id, runner.id.hex)
+            # This function has a side effect so make sure short circuiting
+            # doesn't cause the function not to be called.
+            result = self._clear_non_passed_results(runner)
+            total_result = result or total_result
+
+        if all_deleted:
+            psef.tasks.notify_broker_end_of_job(self.get_job_id())
+            self.runners_requested = 0
+            self.increment_job_id()
 
         db.session.flush()
         return result
 
-    def _clear_non_passed_results(self) -> bool:
+    def _clear_non_passed_results(self, runner: AutoTestRunner) -> bool:
         any_cleared = False
 
         for result in self.results:
-            if not result.passed:
+            if (
+                not result.passed and
+                (result.runner is None or result.runner == runner)
+            ):
                 result.clear()
                 any_cleared = True
 
         return any_cleared
+
+    def get_amount_needed_runners(self) -> int:
+        """Get the amount of runners this run needs.
+        """
+        amount_not_done = self.get_results_to_run().count()
+        return math.ceil(
+            amount_not_done / psef.app.config['AUTO_TEST_MAX_JOBS_PER_RUNNER']
+        )
+
+    @classmethod
+    def get_runs_that_need_runners(cls) -> t.List['AutoTestRun']:
+        """Get all runs that need more runners.
+
+        This function gets all runs that have fewer runners than they should,
+        which is calculated using the amount of results that have not yet
+        started.
+        """
+        ARR = AutoTestRunner
+        ARS = AutoTestResult
+
+        amount_results = sql_func.count(distinct(ARS.id))
+        amount_runners = sql_func.count(distinct(ARR.id))
+
+        runs = db.session.query(cls).join(
+            ARS,
+            and_(
+                ARS.auto_test_run_id == cls.id,
+                (
+                    ARS._state ==  # pylint: disable=protected-access
+                    auto_test_step_models.AutoTestStepResultState.not_started
+                ),
+            ),
+        ).join(
+            ARR,
+            ARR.run_id == cls.id,
+            isouter=True,
+        ).having(
+            or_(
+                amount_runners == 0, amount_results / amount_runners >
+                psef.app.config['AUTO_TEST_MAX_JOBS_PER_RUNNER']
+            )
+        ).group_by(cls.id).order_by(
+            nullsfirst(
+                (
+                    amount_results / case(
+                        [(amount_runners == 0, None)],
+                        else_=amount_runners,
+                    )
+                ).desc()
+            )
+        ).options(orm.noload(cls.auto_test))
+
+        return runs.all()
 
     def get_results_to_run(self) -> MyQuery[AutoTestResult]:
         """Get a query to get the :py:class:`.AutoTestResult` items that still
@@ -697,10 +817,9 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
         """
         # We make sure we only give results we actually want run, so only those
         # of the newest submissions.
-        latest_ids = [
-            work_id for work_id, in self.auto_test.assignment.
-            get_from_latest_submissions(work_models.Work.id)
-        ]
+        latest_ids = self.auto_test.assignment.get_from_latest_submissions(
+            work_models.Work.id
+        )
 
         return db.session.query(AutoTestResult).filter_by(
             _state=auto_test_step_models.AutoTestStepResultState.not_started,
@@ -709,10 +828,10 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
             t.cast(DbColumn[int], AutoTestResult.work_id).in_(latest_ids)
         ).order_by(AutoTestResult.created_at)
 
-    def start(
+    def add_active_runner(
         self,
         runner_ipaddr: str,
-    ) -> None:
+    ) -> AutoTestRunner:
         """Start this run.
 
         This means setting the ``started_date``, creating a runner object for
@@ -726,33 +845,45 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
         :param runner_ipaddr: The ip address of the runner that will perform
             this run. This is used for authentication purposes.
         """
-
-        assert self.started_date is None
-        self.started_date = datetime.datetime.utcnow()
-        max_duration = datetime.timedelta(
-            minutes=psef.app.config['AUTO_TEST_MAX_TIME_TOTAL_RUN'],
-        )
-        now = datetime.datetime.utcnow()
-        self.kill_date = now + max_duration
-        self.runner = AutoTestRunner.create(runner_ipaddr, self.get_job_id())
-        db.session.add(self.runner)
+        # This run was not started before this runner, so set all the auxiliary
+        # data.
+        start_sanity_tasks = False
+        if self.started_date is None:
+            self.started_date = datetime.datetime.utcnow()
+            # Continuous feedback runs don't get killed because of time, so
+            # don't set this data.
+            if not self.is_continuous_feedback_run:
+                start_sanity_tasks = True
+                max_duration = datetime.timedelta(
+                    minutes=psef.app.config['AUTO_TEST_MAX_TIME_TOTAL_RUN'],
+                )
+                now = datetime.datetime.utcnow()
+                self.kill_date = now + max_duration
+        runner = AutoTestRunner.create(runner_ipaddr, run=self)
+        db.session.add(runner)
+        db.session.flush()
 
         @psef.helpers.callback_after_this_request
         def __start_tasks() -> None:
-            if not self.is_continuous_feedback_run:
+            if start_sanity_tasks:
                 psef.tasks.notify_slow_auto_test_run(
                     (self.id, ), eta=now + (max_duration / 2)
                 )
                 psef.tasks.stop_auto_test_run((self.id, ), eta=self.kill_date)
-            psef.tasks.check_heartbeat_auto_test_run((self.runner.id.hex, ))
 
-    def get_instructions(self) -> auto_test_module.RunnerInstructions:
+            psef.tasks.check_heartbeat_auto_test_run((runner.id.hex, ))
+
+        return runner
+
+    def get_instructions(
+        self, for_runner: AutoTestRunner
+    ) -> auto_test_module.RunnerInstructions:
         """Get the instructions to run this AutoTestRun.
         """
         results = [r for r in self.results if not r.passed]
 
         return {
-            'runner_id': str(self.runner.id),
+            'runner_id': str(for_runner.id),
             'run_id': self.id,
             'auto_test_id': self.auto_test_id,
             'result_ids': [r.id for r in results],
@@ -1022,7 +1153,8 @@ class AutoTest(Base, TimestampMixin, IdMixin):
         ]
         db.session.bulk_save_objects(results)
         psef.helpers.callback_after_this_request(
-            lambda: psef.tasks.notify_broker_of_new_job(run.get_job_id())
+            lambda: psef.tasks.
+            notify_broker_of_new_job(run.id, run.get_amount_needed_runners())
         )
         return run
 
@@ -1068,8 +1200,11 @@ class AutoTest(Base, TimestampMixin, IdMixin):
         if run is None or self.test_run is not None:
             return False
 
-        if run.runner is None:
-            psef.tasks.notify_broker_of_new_job(run.get_job_id())
+        run_id = run.id
+
+        psef.helpers.callback_after_this_request(
+            lambda: psef.tasks.adjust_amount_runners(run_id)
+        )
 
         result = AutoTestResult(work=work, auto_test_run_id=run.id)
         db.session.add(result)

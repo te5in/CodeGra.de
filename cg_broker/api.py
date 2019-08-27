@@ -13,6 +13,10 @@ import structlog
 from flask import Blueprint, g, request, make_response
 from flask_expects_json import expects_json
 from sqlalchemy.sql.expression import and_ as sql_and
+from sqlalchemy.sql.expression import func as sql_func
+
+from cg_flask_helpers import callback_after_this_request
+from cg_sqlalchemy_helpers.types import DbColumn
 
 from . import BrokerFlask, app, tasks, models
 from .models import db
@@ -65,12 +69,14 @@ def instance_route(f: T_CAL) -> T_CAL:
     return t.cast(T_CAL, __inner)
 
 
-@api.route('/jobs/', methods=['POST'])
+@api.route('/jobs/', methods=['POST', 'PUT'])
 @expects_json({
     'type': 'object',
-    'properties': {'job_id': {'type': 'string', }, },
-    "additionalProperties": False,
-    "minProperties": 1,
+    'properties': {
+        'job_id': {'type': 'string'},
+        'wanted_runners': {'type': 'integer'},
+    },
+    'required': ['job_id'],
 })
 @instance_route
 def register_job() -> EmptyResponse:
@@ -78,16 +84,87 @@ def register_job() -> EmptyResponse:
 
     If needed a runner will be started for this job.
     """
-    job = models.Job(
-        remote_id=g.data['job_id'],
-        cg_url=request.headers['CG-Broker-Instance']
+    remote_job_id = g.data['job_id']
+    cg_url = request.headers['CG-Broker-Instance']
+    job = None
+
+    if request.method == 'PUT':
+        job = db.session.query(models.Job).filter_by(
+            remote_id=remote_job_id,
+            cg_url=cg_url,
+        ).one_or_none()
+
+    if job is None:
+        job = models.Job(
+            remote_id=remote_job_id,
+            cg_url=cg_url,
+        )
+        db.session.add(job)
+
+    job.wanted_runners = g.data.get('wanted_runners', 1)
+    active_runners = models.Runner.get_all_active_runners().filter_by(
+        job_id=job.id
+    ).with_for_update().all()
+
+    too_many = len(active_runners) - job.wanted_runners
+    logger.info(
+        'Job was updated',
+        wanted_runners=job.wanted_runners,
+        amount_active=len(active_runners),
+        too_many=too_many,
     )
-    db.session.add(job)
+
+    for runner in active_runners:
+        if too_many <= 0:
+            break
+
+        if runner.state in models.RunnerState.get_before_running_states():
+            runner.make_unassigned()
+            too_many -= 1
+
     db.session.commit()
 
+    job_id = job.id
+    callback_after_this_request(
+        lambda: tasks.maybe_start_runners_for_job.delay(job_id)
+    )
     assert job.id is not None
-    tasks.maybe_start_runner_for_job.delay(job.id)
 
+    return make_empty_response()
+
+
+@api.route('/jobs/<job_id>/runners/', methods=['DELETE'])
+@expects_json({
+    'type': 'object',
+    'properties': {'ipaddr': {'type': 'string'}, },
+    'required': ['ipaddr'],
+})
+@instance_route
+def remove_runner_of_job(job_id: str) -> EmptyResponse:
+    """Remove (kill) a runner of the given job.
+
+    The runner is given by its ip in the data of the DELETE request.
+    """
+    job = db.session.query(
+        models.Job
+    ).filter_by(remote_id=job_id).with_for_update().one_or_none()
+    if job is None:
+        raise NotFoundException
+
+    runner = db.session.query(models.Runner).filter_by(
+        ipaddr=g.data['ipaddr'], job=job
+    ).filter(
+        t.cast(DbColumn[models.RunnerState], models.Runner.state).in_(
+            models.RunnerState.get_active_states()
+        )
+    ).with_for_update().one_or_none()
+    if runner is None:
+        raise NotFoundException
+
+    runner.job_id = None
+    db.session.commit()
+
+    tasks.kill_runner(runner.id.hex)
     return make_empty_response()
 
 
@@ -115,10 +192,18 @@ def delete_job(job_id: str) -> EmptyResponse:
         logger.info('Job already cleaned')
         return make_empty_response()
 
+    runners = db.session.query(models.Runner).filter_by(
+        job_id=job.id,
+    ).with_for_update().all()
     job.state = models.JobState.finished
+    job.wanted_runners = 0
+    for runner in runners:
+        if runner.state in models.RunnerState.get_before_running_states():
+            runner.make_unassigned()
+
     db.session.commit()
 
-    tasks.cleanup_runner_of_job.delay(job.id)
+    tasks.cleanup_runners_of_job.delay(job.id)
 
     return make_empty_response()
 
@@ -135,15 +220,13 @@ def register_runner_for_job(job_id: str) -> EmptyResponse:
     """Check if the given ``runner_ip`` is allowed to be used for the given
     job (identified by ``job_id``).
     """
+    runner_ip = g.data['runner_ip']
     job = db.session.query(
         models.Job
     ).filter_by(remote_id=job_id).with_for_update().one_or_none()
     if job is None:
         logger.info('Job not found!', job_id=job_id)
         raise NotFoundException
-    elif job.state != models.JobState.waiting_for_runner:
-        # Make sure we don't assign a job two runners.
-        raise PermissionException(403)
 
     logger.info(
         'Searching for runner',
@@ -151,33 +234,80 @@ def register_runner_for_job(job_id: str) -> EmptyResponse:
         job_id=job.id
     )
 
-    runner = db.session.query(models.Runner).filter_by(
-        ipaddr=g.data['runner_ip'],
-        state=models.RunnerState.creating,
-        job_id=job.id,
-    ).with_for_update().one_or_none()
+    # We do an extra query here to make sure we lock these runners.
+    active_job_runners = models.Runner.get_all_active_runners().filter_by(
+        job_id=job.id
+    ).with_for_update().all()
+    runner = next((r for r in active_job_runners if r.ipaddr == runner_ip),
+                  None)
 
     # Job does not have a reserved runner, maybe a unreserved runner is
     # available.
     if runner is None:
+        amount_running = sum(
+            1 for r in active_job_runners
+            if r.state == models.RunnerState.running
+        )
+        if amount_running >= job.wanted_runners:
+            logger.info('Job already has enough runners running')
+            raise NotFoundException
+
+        logger.info(
+            'No runner found in the assigned runners, finding unassigned'
+            ' runner'
+        )
+
         # This job already has an assigned runner. It is fine to use
         # another runner (which might present itself sooner to the
         # CodeGrade instance, so using it will only simply improve
-        # latency). However, this is only OK if this job does not already
-        # have a confirmed runner, so the state should be lower than
-        # ``started``.
+        # latency).
         runner = db.session.query(models.Runner).filter_by(
-            ipaddr=g.data['runner_ip'],
+            ipaddr=runner_ip,
             state=models.RunnerState.creating,
             job_id=None,
         ).with_for_update().first()
 
-        # No unreserved runner available either
-        if runner is None:
-            logger.info(
-                'Runner with given ip not found', ipaddr=g.data['runner_ip']
+    if runner is None:
+        logger.info('No runner found unassigned, trying to steal')
+        # Try to find a runner of a job which has more than one runner
+        # assigned to it.
+        runner = db.session.query(models.Runner).filter(
+            models.Runner.ipaddr == runner_ip,
+            t.cast(DbColumn[models.RunnerState], models.Runner.state).in_(
+                models.RunnerState.get_before_running_states()
+            ),
+            t.cast(DbColumn[int], models.Runner.job_id).in_(
+                db.session.query(t.cast(DbColumn[int], models.Job.id)).join(
+                    models.Runner,
+                    sql_and(
+                        models.Runner.job_id == models.Job.id,
+                        t.cast(
+                            DbColumn[models.RunnerState], models.Runner.state
+                        ).in_(models.RunnerState.get_active_states())
+                    )
+                ).having(
+                    sql_func.count(models.Runner.id) > 1,
+                ).group_by(models.Job.id)
             )
-            raise NotFoundException
+        ).with_for_update().first()
+
+    # No runner available
+    if runner is None:
+        logger.info(
+            'Runner with given ip not found', ipaddr=g.data['runner_ip']
+        )
+        raise NotFoundException
+
+    before_start_job = [
+        r for r in active_job_runners if r.id != runner.id and
+        r.state in models.RunnerState.get_before_running_states()
+    ]
+    if runner.job_id != job.id:
+        active_job_runners.append(runner)
+
+    if before_start_job and len(active_job_runners) > job.wanted_runners:
+        logger.info('Making one of the assigned runners unassigned')
+        before_start_job[0].make_unassigned()
 
     logger.info(
         'Found runner',

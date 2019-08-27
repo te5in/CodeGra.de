@@ -102,7 +102,14 @@
 
                             <auto-test-state v-if="singleResult"
                                              :result="result"
-                                             btn />
+                                             btn>
+                                <template
+                                    slot="extra"
+                                    v-if="$utils.getProps(result, null, 'approxWaitingBefore') != null"
+                                    >, ~{{ $utils.withOrdinalSuffix(result.approxWaitingBefore + 1) }}
+                                    in the queue
+                                </template>
+                            </auto-test-state>
                         </b-card-header>
 
                         <b-card-body>

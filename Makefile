@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-only
-TEST_FILE?=cg_worker_pool/tests/ psef_test/
+TEST_FILE?=cg_worker_pool/tests/ cg_threading_utils/tests/ psef_test/
 SHELL=/bin/bash
 TEST_FLAGS?=
 PYTHON?=env/bin/python3
 export PYTHONPATH=$(CURDIR)
-PY_MODULES?=psef cg_celery cg_sqlalchemy_helpers cg_json cg_broker cg_logger cg_worker_pool
+PY_MODULES?=psef cg_celery cg_sqlalchemy_helpers cg_json cg_broker cg_logger cg_worker_pool cg_threading_utils
 PY_ALL_MODULES=$(PY_MODULES) psef_test
 
 .PHONY: test_setup
@@ -18,7 +18,7 @@ test_quick:
 
 .PHONY: test
 test:
-	$(MAKE) test_no_cov TEST_FLAGS="$(TEST_FLAGS) --cov psef --cov cg_worker_pool --cov-report term-missing"
+	$(MAKE) test_no_cov TEST_FLAGS="$(TEST_FLAGS) --cov psef --cov cg_worker_pool --cov cg_threading_utils --cov-report term-missing"
 
 .PHONY: test_no_cov
 test_no_cov: test_setup

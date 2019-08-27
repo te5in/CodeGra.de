@@ -6,16 +6,18 @@ import enum
 import time
 import typing as t
 import secrets
+from datetime import datetime, timedelta
 
 import boto3
 import structlog
 import transip.service
 from suds import WebFault
-from sqlalchemy.sql.expression import or_ as sql_or
 
+import cg_broker
 import cg_sqlalchemy_helpers as cgs
 from cg_logger import bound_to_logger
 from cg_timers import timed_code
+from cg_flask_helpers import callback_after_this_request
 from cg_sqlalchemy_helpers import types, mixins
 
 from . import BrokerFlask, app
@@ -50,6 +52,22 @@ class RunnerState(enum.IntEnum):
     running = 3
     cleaning = 4
     cleaned = 5
+
+    @classmethod
+    def get_before_running_states(cls) -> t.List['RunnerState']:
+        """Get the states in which a is runner before it has ever done any
+            work.
+
+        This states are considered "safe", i.e. we can still make it switch
+        jobs.
+        """
+        return [cls.not_running, cls.creating]
+
+    @classmethod
+    def get_active_states(cls) -> t.List['RunnerState']:
+        """Get the states in which a runner is considered active.
+        """
+        return [cls.not_running, cls.creating, cls.running]
 
 
 @enum.unique
@@ -97,14 +115,11 @@ class Runner(Base, mixins.TimestampMixin, mixins.UUIDMixin):
         db.ForeignKey('job.id'),
         nullable=True,
         default=None,
-        # This is set to unique to make sure we can ever only have one runner
-        # for each job. BTW, unique works like you would hope with ``NULL``
-        # values, i.e. you CAN have multiple ``NULL``s.
-        unique=True
+        unique=False
     )
 
     job: t.Optional['Job'] = db.relationship(
-        'Job', foreign_keys=job_id, back_populates='runner'
+        'Job', foreign_keys=job_id, back_populates='runners'
     )
 
     def cleanup_runner(self) -> None:
@@ -115,6 +130,17 @@ class Runner(Base, mixins.TimestampMixin, mixins.UUIDMixin):
 
     def is_ip_valid(self, requesting_ip: str) -> bool:
         return secrets.compare_digest(self.ipaddr, requesting_ip)
+
+    def __hash__(self) -> int:
+        return hash(self.id)
+
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, Runner):
+            return self.id == other.id
+        return NotImplemented
+
+    def __ne__(self, other: object) -> bool:
+        return not self == other
 
     @property
     def is_before_run(self) -> bool:
@@ -142,7 +168,7 @@ class Runner(Base, mixins.TimestampMixin, mixins.UUIDMixin):
         """
         # We do a all and len here as count() and with_for_update cannot be
         # used in combination.
-        amount = len(cls.get_active_runners().with_for_update().all())
+        amount = len(cls.get_all_active_runners().with_for_update().all())
 
         max_amount = app.config['MAX_AMOUNT_OF_RUNNERS']
         can_start = amount < max_amount
@@ -170,7 +196,7 @@ class Runner(Base, mixins.TimestampMixin, mixins.UUIDMixin):
         return cls.__mapper__.polymorphic_map[typ].class_._create()  # pylint: disable=protected-access
 
     @classmethod
-    def get_active_runners(cls) -> types.MyQuery['Runner']:
+    def get_all_active_runners(cls) -> types.MyQuery['Runner']:
         """Get a query to get all the currently active runners.
 
         .. warning::
@@ -179,12 +205,45 @@ class Runner(Base, mixins.TimestampMixin, mixins.UUIDMixin):
             needed.
         """
         return db.session.query(cls).filter(
-            sql_or(
-                cls.state == RunnerState.running,
-                cls.state == RunnerState.creating,
-                cls.state == RunnerState.not_running
+            t.cast(types.DbColumn[RunnerState],
+                   cls.state).in_(RunnerState.get_active_states())
+        )
+
+    def make_unassigned(self) -> None:
+        """Make this runner unassigned.
+
+        .. note::
+
+            This also starts a job to kill this runner after a certain amount
+            of time if it is still unassigned.
+        """
+        self.job_id = None
+        eta = datetime.utcnow() + timedelta(
+            minutes=app.config['RUNNER_MAX_TIME_ALIVE']
+        )
+        runner_hex_id = self.id.hex
+
+        callback_after_this_request(
+            lambda: cg_broker.tasks.maybe_kill_unneeded_runner.apply_async(
+                (runner_hex_id, ),
+                eta=eta,
             )
         )
+
+    def kill(self, *, maybe_start_new: bool) -> None:
+        """Kill this runner and maybe start a new one.
+
+        :param maybe_start_new: Should we maybe start a new runner after
+            killing this one.
+        """
+        self.state = RunnerState.cleaning
+        db.session.commit()
+        self.cleanup_runner()
+        self.state = RunnerState.cleaned
+        db.session.commit()
+
+        if maybe_start_new:
+            cg_broker.tasks.maybe_start_unassigned_runner.delay()
 
     def __structlog__(self) -> t.Dict[str, t.Union[str, int, None]]:
         return {
@@ -291,7 +350,10 @@ class AWSRunner(Runner):
 
         images = client.describe_images(
             Owners=['self'],
-            Filters=[{'Name': 'tag:AutoTest', 'Values': ['normal']}],
+            Filters=[{
+                'Name': 'tag:AutoTest',
+                'Values': [app.config['AWS_TAG_VALUE']]
+            }],
         ).get('Images', [])
         assert images
         image = max(images, key=lambda image: image['CreationDate'])
@@ -369,9 +431,27 @@ class Job(Base, mixins.TimestampMixin, mixins.IdMixin):
     remote_id = db.Column(
         'remote_id', db.Unicode, nullable=False, index=True, unique=True
     )
-    runner: t.Optional['Runner'] = db.relationship(
-        'Runner', back_populates='job', uselist=False
+    runners: t.List['Runner'] = db.relationship(
+        'Runner', back_populates='job', uselist=True
     )
+
+    _wanted_runners: int = db.Column(
+        'wanted_runners',
+        db.Integer,
+        default=1,
+        server_default='1',
+        nullable=False
+    )
+
+    @property
+    def wanted_runners(self) -> int:
+        """The amount of runners this job wants.
+        """
+        return self._wanted_runners
+
+    @wanted_runners.setter
+    def wanted_runners(self, new_value: int) -> None:
+        self._wanted_runners = max(new_value, 1)
 
     @property
     def state(self) -> JobState:
@@ -386,6 +466,12 @@ class Job(Base, mixins.TimestampMixin, mixins.IdMixin):
                 'Cannot decrease the state!', self.state, new_state
             )
         self._state = new_state
+
+    def get_active_runners(self) -> t.List[Runner]:
+        return [
+            r for r in self.runners
+            if r.state in RunnerState.get_active_states()
+        ]
 
     def __log__(self) -> t.Dict[str, object]:
         return {
