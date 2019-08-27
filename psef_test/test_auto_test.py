@@ -26,6 +26,7 @@ import requests_stubs
 @pytest.fixture
 def monkeypatch_for_run(monkeypatch, lxc_stub, stub_function_class):
     old_run_command = psef.auto_test.StartedContainer._run_command
+    psef.auto_test._STOP_CONTAINERS.clear()
 
     def new_run_command(self, cmd_user):
         signal_start = psef.auto_test.StartedContainer._signal_start
@@ -41,6 +42,7 @@ def monkeypatch_for_run(monkeypatch, lxc_stub, stub_function_class):
             return 0
         return old_run_command(self, cmd_user)
 
+    monkeypatch.setattr(psef.auto_test, 'CODEGRADE_USER', getpass.getuser())
     monkeypatch.setattr(
         psef.helpers, 'ensure_on_test_server', stub_function_class()
     )
@@ -603,7 +605,6 @@ def test_run_auto_test(
         tmpdir = upper_tmpdir
 
         t = m.AutoTest.query.get(test['id'])
-        psef.auto_test.CODEGRADE_USER = getpass.getuser()
         with logged_in(teacher):
             test_client.req(
                 'post',
@@ -1251,3 +1252,35 @@ def test_getting_fixture_no_permssion(
         401,
         headers={'CG-Internal-Api-Password': app.config['AUTO_TEST_PASSWORD']}
     )
+
+
+def test_run_command_too_much_output(
+    describe, monkeypatch_for_run, app, monkeypatch, stub_function_class
+):
+    monkeypatch.setitem(app.config, 'AUTO_TEST_MAX_OUTPUT_TAIL', 64)
+    monkeypatch.setitem(app.config, 'AUTO_TEST_OUTPUT_LIMIT', 128)
+    cmd = 'echo -n "' + 'a' * 128 + 'b' * 128 + 'c' * 32 + '"'
+    with tempfile.TemporaryDirectory(
+    ) as tmpdir, psef.auto_test._get_base_container(
+        app.config
+    ).started_container() as cont:
+        os.mkdir(os.path.join(tmpdir, 'student'))
+
+        monkeypatch.setattr(
+            psef.auto_test, '_get_home_dir',
+            stub_function_class(lambda: tmpdir)
+        )
+        with describe('without capturing extra output'):
+            res = cont.run_student_command(cmd, 6)
+            assert res.exit_code == 0
+            assert res.stdout == 'a' * 128 + ' <OUTPUT TRUNCATED>\n'
+            assert res.stderr == ''
+            assert list(res.stdout_tail.data) == []
+
+        with describe('with capturing extra output'):
+            res = cont.run_student_command(cmd, 6, keep_stdout_tail=True)
+            assert res.exit_code == 0
+            assert res.stdout == 'a' * 128 + ' <OUTPUT TRUNCATED>\n'
+            assert res.stderr == ''
+            assert bytes(res.stdout_tail.data
+                         ).decode() == ('b' * 32 + 'c' * 32)

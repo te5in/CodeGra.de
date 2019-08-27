@@ -505,7 +505,10 @@ class _IoTest(AutoTestStepBase):
                     time_limit,
                     stdin=step['stdin'].encode('utf-8')
                 )
-                code, stdout, stderr, time_spend = res
+                code = res.exit_code
+                stdout = res.stdout
+                stderr = res.stderr
+                time_spend = res.time_spend
             except psef.auto_test.CommandTimeoutException as e:
                 code = -1
                 stderr = e.stderr
@@ -611,12 +614,12 @@ class _RunProgram(AutoTestStepBase):
 
         res = 0.0
 
-        code, stdout, stderr, time_spend = container.run_student_command(
+        command_res = container.run_student_command(
             t.cast(str, data['program']),
             test_instructions['command_time_limit'],
         )
 
-        if code == 0:
+        if command_res.exit_code == 0:
             state = AutoTestStepResultState.passed
             res = test_instructions['weight']
         else:
@@ -624,10 +627,10 @@ class _RunProgram(AutoTestStepBase):
 
         update_test_result(
             state, {
-                'stdout': stdout,
-                'stderr': stderr,
-                'exit_code': code,
-                'time_spend': time_spend,
+                'stdout': command_res.stdout,
+                'stderr': command_res.stderr,
+                'exit_code': command_res.exit_code,
+                'time_spend': command_res.time_spend,
             }
         )
 
@@ -641,7 +644,7 @@ class _CustomOutput(AutoTestStepBase):
     }
 
     _MATCH_GROUP_NAME = 'amount_of_points'
-    _FLOAT_REGEX = r'(?P<{}>(?:-\s*)?(?:1(?:\.0*)?|0(?:\.\d*)?))'.format(
+    _FLOAT_REGEX = r'(?P<{}>(?:-\s*)?(?:1(?:\.0*)?|0(?:\.\d*)?|(?:\.\d+)))'.format(
         _MATCH_GROUP_NAME
     )
 
@@ -726,29 +729,27 @@ class _CustomOutput(AutoTestStepBase):
         test_instructions: 'auto_test_module.StepInstructions',
         achieved_percentage: float,
     ) -> float:
-        state = AutoTestStepResultState.failed
         points = 0.0
 
         data = test_instructions['data']
         assert isinstance(data, dict)
         regex, _ = cls._replace_custom_escape_code(t.cast(str, data['regex']))
 
-        code, stdout, stderr, time_spend = container.run_student_command(
+        res = container.run_student_command(
             t.cast(str, data['program']),
             test_instructions['command_time_limit'],
+            keep_stdout_tail=True,
         )
-
-        logger.info(
-            'Searching for points',
-            regex=regex,
-            stdout=stdout,
-            stderr=stderr,
-            code=code
-        )
+        stderr = res.stderr
+        code = res.exit_code
+        stdout = res.stdout
+        haystack = bytes(res.stdout_tail.data
+                         ).decode('utf-8', 'backslashreplace')
+        state = AutoTestStepResultState.failed
 
         if code == 0:
             try:
-                match = re.search(regex, stdout, flags=re.REVERSE, timeout=2)
+                match = re.search(regex, haystack, flags=re.REVERSE, timeout=2)
                 if match:
                     points = between(
                         0.0, float(match.group(cls._MATCH_GROUP_NAME)), 1.0
@@ -768,7 +769,8 @@ class _CustomOutput(AutoTestStepBase):
                 'stderr': stderr,
                 'points': points,
                 'exit_code': code,
-                'time_spend': time_spend,
+                'haystack': haystack,
+                'time_spend': res.time_spend,
             }
         )
 

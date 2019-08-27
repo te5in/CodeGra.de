@@ -19,6 +19,8 @@ import datetime
 import tempfile
 import threading
 import contextlib
+import collections
+import dataclasses
 import multiprocessing
 from pathlib import Path
 from multiprocessing import Event, Queue, Manager, context
@@ -57,6 +59,28 @@ CODEGRADE_USER = 'codegrade'
 
 class LXCProcessError(Exception):
     pass
+
+
+@dataclasses.dataclass(frozen=True)
+class OutputTail:
+    """This class represents the tail of an output stream.
+
+    If ``overflowed`` is ``True`` there was even more data captured, but this
+    was thrown away.
+    """
+    data: t.Sequence[int]
+    overflowed: bool
+
+
+@dataclasses.dataclass(frozen=True)
+class StudentCommandResult:
+    """The result of a student command.
+    """
+    exit_code: int
+    stdout: str
+    stderr: str
+    time_spend: float
+    stdout_tail: OutputTail
 
 
 def _get_home_dir(name: str) -> str:
@@ -850,14 +874,17 @@ class StartedContainer:
 
     @staticmethod
     def _make_restricted_append(
-        lst: t.List[bytes], size_left: LockableValue[int]
+        lst: t.List[bytes],
+        size_left: LockableValue[int],
+        callback: t.Callable[[bytes], None] = lambda _: None
     ) -> t.Callable[[bytes], None]:
         r"""Make a restricted append function.
 
         The returned function will append its argument to ``lst`` while
         ``size_left`` is still higher than 0. It is safe to share ``size_left``
         between multiple append functions, the total size of all lists will not
-        exceed ``size_left`` in this case.
+        exceed ``size_left`` in this case. The function ``callback`` is called
+        for every output, no matter how much output we already received.
 
         >>> from copy import deepcopy
         >>> max_size = LockableValue(10)
@@ -897,6 +924,7 @@ class StartedContainer:
                 outputed_truncated_emitted = True
 
         def fun(data: bytes) -> None:
+            callback(data)
             if outputed_truncated_emitted:
                 return
 
@@ -922,7 +950,8 @@ class StartedContainer:
         stdin: t.Union[None, bytes] = None,
         *,
         cwd: str = None,
-    ) -> t.Tuple[int, str, str, float]:
+        keep_stdout_tail: bool = False,
+    ) -> StudentCommandResult:
         """Run a command provided by the student or teacher.
 
         The main difference between this function and
@@ -940,6 +969,9 @@ class StartedContainer:
         """
         stdout: t.List[bytes] = []
         stderr: t.List[bytes] = []
+        max_tail_len = self._config['AUTO_TEST_MAX_OUTPUT_TAIL']
+        stdout_tail: t.Deque[int] = collections.deque([], maxlen=max_tail_len)
+        tail_overflowed: bool = False
 
         user = CODEGRADE_USER
         if cwd is None:
@@ -957,13 +989,29 @@ class StartedContainer:
                 for v in [stdout, stderr]
             ]
 
+        if keep_stdout_tail:
+
+            def on_stdout(data: bytes) -> None:
+                nonlocal tail_overflowed
+                tail_overflowed = (
+                    tail_overflowed or
+                    len(data) + len(stdout_tail) > max_tail_len
+                )
+                stdout_tail.extend(data)
+        else:
+
+            def on_stdout(data: bytes) -> None:  # pylint: disable=unused-argument
+                return
+
         time_spend = 0.0
         try:
             with timed_code('run_student_command') as get_time_spend:
                 code = self._run(
                     cmd=(cmd, cwd, user),
                     callback=self._run_shell,
-                    stdout=self._make_restricted_append(stdout, size_left),
+                    stdout=self._make_restricted_append(
+                        stdout, size_left, on_stdout
+                    ),
                     stderr=self._make_restricted_append(stderr, size_left),
                     stdin=stdin,
                     check=False,
@@ -980,7 +1028,15 @@ class StartedContainer:
             )
 
         stdout_str, stderr_str = get_stdout_and_stderr()
-        return code, stdout_str, stderr_str, time_spend
+        return StudentCommandResult(
+            exit_code=code,
+            stdout=stdout_str,
+            stderr=stderr_str,
+            time_spend=time_spend,
+            stdout_tail=OutputTail(
+                data=stdout_tail, overflowed=tail_overflowed
+            ),
+        )
 
     def run_command(
         self,
@@ -1658,19 +1714,15 @@ class AutoTestRunner:
         cwd: str = None,
     ) -> None:
         if cmd:
-            with timed_code(
-                'run_setup_script', setup_cmd=cmd
-            ) as get_time_spend:
-                _, stdout, stderr, _ = cont.run_student_command(
-                    cmd, 900, cwd=cwd
-                )
+            with timed_code('run_setup_script', setup_cmd=cmd):
+                res = cont.run_student_command(cmd, 900, cwd=cwd)
 
             self.req.patch(
                 url,
                 json={
-                    'setup_time_spend': get_time_spend(),
-                    'setup_stdout': stdout,
-                    'setup_stderr': stderr
+                    'setup_time_spend': res.time_spend,
+                    'setup_stdout': res.stdout,
+                    'setup_stderr': res.stderr
                 },
             )
 

@@ -71,6 +71,7 @@ FlaskConfig = TypedDict(
         'AUTO_TEST_BROKER_PASSWORD': str,
         'AUTO_TEST_CF_SLEEP_TIME': float,
         'AUTO_TEST_CF_EXTRA_AMOUNT': int,
+        'AUTO_TEST_MAX_OUTPUT_TAIL': int,
         'TESTING': bool,
         '__S_AUTO_TEST_HOSTS': t.Mapping[str, t.Any],
         'Celery': CeleryConfig,
@@ -534,6 +535,7 @@ set_int(CONFIG, auto_test_ops, 'AUTO_TEST_MAX_TIME_COMMAND', 5 * 60)
 set_int(CONFIG, auto_test_ops, 'AUTO_TEST_MAX_TIME_TOTAL_RUN', 1440)
 set_int(CONFIG, auto_test_ops, 'AUTO_TEST_POLL_TIME', 30)
 set_int(CONFIG, auto_test_ops, 'AUTO_TEST_OUTPUT_LIMIT', 32768)
+set_int(CONFIG, auto_test_ops, 'AUTO_TEST_MAX_OUTPUT_TAIL', 2 ** 13)
 set_str(CONFIG, auto_test_ops, 'AUTO_TEST_MEMORY_LIMIT', '512M')
 set_str(CONFIG, auto_test_ops, 'AUTO_TEST_BDEVTYPE', 'best')
 set_int(CONFIG, auto_test_ops, 'AUTO_TEST_HEARTBEAT_INTERVAL', 10)
