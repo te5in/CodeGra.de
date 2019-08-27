@@ -740,7 +740,7 @@ class StartedContainer:
             while fds and not stop.get():
                 reads, _, _ = select.select(list(fds.keys()), [], [], 0.5)
                 for f in reads:
-                    # Read almost 1024, this is a low value as otherwise we
+                    # Read at most 1024, this is a low value as otherwise we
                     # might fill the limited output buffers with only one of
                     # the two file descriptors. (see
                     # ``_make_restricted_append`` for how the shared output
@@ -818,6 +818,11 @@ class StartedContainer:
             'LC_ALL': 'en_US.UTF-8',
         }
 
+    @staticmethod
+    def _signal_start() -> None:
+        sys.stdout.buffer.write(b'\0')
+        sys.stdout.flush()
+
     def _run_command(
         self, cmd_user: t.Tuple[t.List[str], t.Optional[str]]
     ) -> int:
@@ -827,6 +832,7 @@ class StartedContainer:
         if user:
             self._change_user(user)
 
+        self._signal_start()
         os.execvpe(cmd[0], cmd, env)
 
     def _run_shell(self, cmd_cwd_user: t.Tuple[str, str, str]) -> int:
@@ -839,6 +845,7 @@ class StartedContainer:
         cmd_list = ['/bin/bash', '-c', cmd]
         os.chdir(cwd)
 
+        self._signal_start()
         os.execve(cmd_list[0], cmd_list, env)
 
     @staticmethod
@@ -1073,12 +1080,23 @@ class StartedContainer:
 
                 return inner
 
+            command_started = threading.Event()
             stop_reader_threads = LockableValue(False)
+            stdout_callback = stdout or _make_log_function('stdout')
+
+            def stdout_inceptor(data: bytes) -> None:
+                if not command_started.is_set():
+                    if data[0] == 0:
+                        data = data[1:]
+                    command_started.set()
+
+                stdout_callback(data)
+
             reader_thread = threading.Thread(
                 target=self._read_fifo,
                 args=(
                     {
-                        stdout_fifo: stdout or _make_log_function('stdout'),
+                        stdout_fifo: stdout_inceptor,
                         stderr_fifo: stderr or _make_log_function('stderr')
                     }, stop_reader_threads
                 )
@@ -1106,6 +1124,8 @@ class StartedContainer:
                     stderr=err,
                     stdin=stdin_file,
                 )
+                with timed_code('waiting_for_attach'):
+                    command_started.wait()
 
                 try:
                     res, left = _wait_for_pid(pid, timeout or sys.maxsize)

@@ -28,12 +28,16 @@ def monkeypatch_for_run(monkeypatch, lxc_stub, stub_function_class):
     old_run_command = psef.auto_test.StartedContainer._run_command
 
     def new_run_command(self, cmd_user):
+        signal_start = psef.auto_test.StartedContainer._signal_start
         cmd, user = cmd_user
         if cmd[0] in {'adduser', 'usermod', 'deluser', 'sudo', 'apt'}:
+            signal_start()
             return 0
         elif cmd == ['grep', '-c', getpass.getuser(), '/etc/sudoers']:
+            signal_start()
             return 1
         elif '/etc/sudoers' in cmd:
+            signal_start()
             return 0
         return old_run_command(self, cmd_user)
 

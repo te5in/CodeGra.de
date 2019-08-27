@@ -9,7 +9,7 @@ import pytest_cov.embed
 
 
 @pytest.fixture
-def lxc_stub(stub_function_class):
+def lxc_stub(stub_function_class, capsys):
     class LXC:
         def __init__(self, name):
             self._name = name
@@ -88,16 +88,17 @@ def lxc_stub(stub_function_class):
             pid = os.fork()
 
             if pid == 0:
-                if pytest_cov.embed._active_cov is None:
-                    pytest_cov.embed.init()
-                os.dup2(stdin.fileno(), 0)
-                os.dup2(stdout.fileno(), 1)
-                os.dup2(stderr.fileno(), 2)
-                ret = callback(cmd)
-                pytest_cov.embed.cleanup()
-                assert isinstance(ret, int)
-                os._exit(ret)
-                assert False
+                with capsys.disabled():
+                    if pytest_cov.embed._active_cov is None:
+                        pytest_cov.embed.init()
+                    os.dup2(stdin.fileno(), 0)
+                    os.dup2(stdout.fileno(), 1)
+                    os.dup2(stderr.fileno(), 2)
+                    ret = callback(cmd)
+                    pytest_cov.embed.cleanup()
+                    assert isinstance(ret, int)
+                    os._exit(ret)
+                    assert False
 
             return pid
 
