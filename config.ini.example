@@ -282,6 +282,22 @@
 [LTI Consumer keys]
 # my_lti = lms:my_secret_key
 
+# Set the languages that your Jplag jar supports
+# [Jplag Languages]
+# Python 3 = python3
+# C/C++ = c/c++
+# Java 1 = java11
+# Java 2 = java12
+# Java 5 = java15dm
+# Java 7 = java17
+# Java 8 = java15
+# C# 1.2 = c#-1.2
+# Chars = char
+# Text = text
+# Scheme = scheme
+# Scala = scala
+
+
 # This are the settings for celery. You need to be running a celery process to
 # run codegra.de. All config options here are passed directly to celery
 [Celery]

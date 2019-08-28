@@ -94,6 +94,7 @@ FlaskConfig = TypedDict(
         'EXTERNAL_URL': str,
         'JAVA_PATH': str,
         'JPLAG_JAR': str,
+        'JPLAG_SUPPORTED_LANGUAGES': t.Mapping[str, str],
         'MAIL_SERVER': str,
         'MAIL_PORT': int,
         'MAIL_USE_TLS': bool,
@@ -515,6 +516,30 @@ if lti_parser.read(config_file) and 'LTI Consumer keys' in lti_parser:
     CONFIG['LTI_CONSUMER_KEY_SECRETS'] = dict(lti_parser['LTI Consumer keys'])
 else:
     CONFIG['LTI_CONSUMER_KEY_SECRETS'] = {}
+
+###################
+# Jplag languages #
+###################
+lang_parser = ConfigParser()
+lang_parser.optionxform = str  # type: ignore
+if lang_parser.read(config_file) and 'Jplag Languages' in lang_parser:
+    CONFIG['JPLAG_SUPPORTED_LANGUAGES'] = dict(lang_parser['Jplag Languages'])
+else:
+    CONFIG['JPLAG_SUPPORTED_LANGUAGES'] = {
+        "Python 3": "python3",
+        "C/C++": "c/c++",
+        "Java 1": "java11",
+        "Java 2": "java12",
+        "Java 5": "java15dm",
+        "Java 7": "java17",
+        "Java 8": "java15",
+        "C# 1.2": "c#-1.2",
+        "Chars": "char",
+        "Text": "text",
+        "Scheme": "scheme",
+        "Scala": "scala",
+    }
+
 
 ##########
 # CELERY #
