@@ -202,7 +202,8 @@ class DbColumn(t.Generic[T]):  # pragma: no cover
         raise ValueError
 
     def in_(
-        self, val: t.Union[t.Iterable[T], 'DbColumn[T]', 'MyQuery[T]']
+        self,
+        val: t.Union[t.Iterable[T], 'DbColumn[T]', 'MyQuery[T]', 'RawTable']
     ) -> 'DbColumn[T]':
         ...
 
@@ -258,8 +259,10 @@ class MyQuery(t.Generic[T], t.Iterable):  # pragma: no cover
     exists: t.Callable[[QuerySelf], DbColumn[bool]]
     count: t.Callable[[QuerySelf], int]
     one: t.Callable[[QuerySelf], T]
-    distinct: t.Callable[[QuerySelf], 'MyQuery[T]']
     __iter__: t.Callable[[QuerySelf], t.Iterator[T]]
+
+    def distinct(self, on: t.Any = None) -> 'MyQuery[T]':
+        pass
 
     def all(self) -> t.List[T]:
         ...

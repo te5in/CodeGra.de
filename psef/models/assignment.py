@@ -957,23 +957,25 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         :returns: A query object with the given fields selected from the last
             submissions.
         """
+        # TODO: Investigate this subquery here. We need to do that right now as
+        # other functions might use this method and might want to order in a
+        # different way or do other distincts. But I have no idea how slow this
+        # subquery makes the query, as postgres could optimize it out.
         sub = db.session.query(
-            work_models.Work.user_id.label('user_id'),  # type: ignore
-            func.max(work_models.Work.created_at).label('max_date')
-        ).filter_by(assignment_id=self.id).group_by(work_models.Work.user_id
-                                                    ).subquery('sub')
-        return db.session.query(*to_query).select_from(work_models.Work).join(
-            sub,
-            and_(
-                sub.c.user_id == work_models.Work.user_id,
-                sub.c.max_date == work_models.Work.created_at
-            )
-        ).filter(work_models.Work.assignment_id == self.id)
+            t.cast(DbColumn[int], work_models.Work.id)
+        ).filter(work_models.Work.assignment_id == self.id).order_by(
+            work_models.Work.user_id,
+            t.cast(DbColumn[object], work_models.Work.created_at).desc()
+        ).distinct(work_models.Work.user_id).subquery('ids')
+
+        return db.session.query(*to_query).select_from(
+            work_models.Work
+        ).filter(t.cast(DbColumn[int], work_models.Work.id).in_(sub))
 
     def get_all_latest_submissions(self) -> MyQuery['work_models.Work']:
-        """Get a list of all the latest submissions (:class:`.work_models.Work`) by each
-        :class:`.user_models.User` who has submitted at least one work for this
-        assignment.
+        """Get a list of all the latest submissions
+        (:class:`.work_models.Work`) by each :class:`.user_models.User` who has
+        submitted at least one work for this assignment.
 
         :returns: The latest submissions.
         """
