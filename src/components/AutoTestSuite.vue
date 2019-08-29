@@ -386,7 +386,7 @@ export default {
             const result = this.$utils.getProps(this.result, null, 'suiteResults', this.value.id);
             const perc = this.$utils.getProps(result, null, 'percentage');
 
-            return perc == null ? '-' : (100 * perc).toFixed(0);
+            return perc == null ? '-' : perc.toFixed(0);
         },
 
         expandedSteps() {

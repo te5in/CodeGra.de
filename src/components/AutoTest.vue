@@ -680,7 +680,9 @@ export default {
                     () => {
                         this.message = null;
                         this.configCollapsed = !!this.finalRun && !this.singleResult;
-                        return this.singleResult ? this.loadSingleResult() : this.loadAutoTestRun();
+                        return this.singleResult
+                            ? this.loadSingleResult(true)
+                            : this.loadAutoTestRun();
                     },
                     err => {
                         switch (this.$utils.getProps(err, null, 'response', 'status')) {
@@ -738,7 +740,7 @@ export default {
             );
         },
 
-        loadSingleResult() {
+        loadSingleResult(force = false) {
             if (!this.singleResult) {
                 return null;
             }
@@ -750,6 +752,7 @@ export default {
                     autoTestId: this.autoTestId,
                     submissionId: this.submissionId,
                     acceptContinuous: this.acceptContinuous,
+                    force,
                 }),
             ];
 

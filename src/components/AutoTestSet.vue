@@ -52,11 +52,15 @@
                 <template v-if="stopPoints > 0">
                     <b-alert show
                              v-if="setResult.finished"
-                             :variant="setPassed ? 'success' : 'danger'">
-                        You scored <code class="percentage">{{ $utils.toMaxNDecimals(100 * setResult.percentage, 2) }}%</code> of the
+                             :variant="setResult.passed ? 'success' : 'danger'">
+                        You scored <code class="percentage">{{ $utils.toMaxNDecimals(setResult.percentage, 2) }}%</code> of the
                         <code class="percentage">{{ stopPoints }}%</code> required to continue.
 
-                        <template v-if="!setPassed">
+                        <template v-if="!previousSetPassed && setResult.percentage >= stopPoints">
+                            However, you failed a previous level.
+                        </template>
+
+                        <template v-if="!setResult.passed">
                             No further tests will be run.
                         </template>
                     </b-alert>
@@ -200,8 +204,12 @@ export default {
             return !this.test.sets.some((s, j) => j > this.setIndex && !s.deleted);
         },
 
-        setPassed() {
-            return 100 * this.setResult.percentage >= this.stopPoints;
+        previousSetPassed() {
+            const previousSet = this.test.sets[this.setIndex - 1];
+            if (previousSet == null) {
+                return true;
+            }
+            return this.$utils.getProps(this.result.setResults, true, previousSet.id, 'passed');
         },
     },
 

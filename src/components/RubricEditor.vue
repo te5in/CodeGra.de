@@ -526,6 +526,8 @@ export default {
         },
 
         setRubricData(serverRubrics) {
+            const editable = this.$utils.getProps(this, false, 'editable');
+
             this.rubrics = serverRubrics.map(origRow => {
                 const row = Object.assign({}, origRow);
 
@@ -535,7 +537,7 @@ export default {
                     .map(item => Object.assign({}, item))
                     .sort((a, b) => a.points - b.points);
 
-                if (this.$utils.getProps(this, false, 'rowData', origRow.id, 'editable')) {
+                if (this.$utils.getProps(this, editable, 'rowData', origRow.id, 'editable')) {
                     row.items.push(this.getEmptyItem());
                 }
 

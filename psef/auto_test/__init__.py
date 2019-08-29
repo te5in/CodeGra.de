@@ -30,6 +30,8 @@ import lxc  # typing: ignore
 import requests
 import structlog
 from mypy_extensions import TypedDict
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 import psef
 import cg_logger
@@ -1399,6 +1401,19 @@ class AutoTestRunner:
         """
         return os.getpid(), threading.get_ident()
 
+    @staticmethod
+    def _get_retry_adapter() -> HTTPAdapter:
+        retries = 5
+        return HTTPAdapter(
+            max_retries=Retry(
+                total=retries,
+                read=retries,
+                connect=retries,
+                backoff_factor=1,
+                status_forcelist=(500, 502, 503, 504),
+            )
+        )
+
     @property
     def req(self) -> requests.Session:
         """Get a request session unique for this thread and process.
@@ -1417,6 +1432,9 @@ class AutoTestRunner:
                     'CG-Internal-Api-Runner-Password': self._local_password,
                 }
             )
+            adapter = self._get_retry_adapter()
+            req.mount('http://', adapter)
+            req.mount('https://', adapter)
             self._reqs[key] = req
         return self._reqs[key]
 

@@ -3,6 +3,7 @@ This module implements generic helpers and convenience functions.
 
 SPDX-License-Identifier: AGPL-3.0-only
 """
+import os
 import re
 import abc
 import sys
@@ -1023,7 +1024,9 @@ class RepeatedTimer(StoppableThread):
 
 def call_external(
     call_args: t.List[str],
-    input_callback: t.Callable[[str], bool] = lambda _: False
+    input_callback: t.Callable[[str], bool] = lambda _: False,
+    *,
+    nice_level: t.Optional[int] = None,
 ) -> t.Tuple[bool, str]:
     """Safely call an external program without any exceptions.
 
@@ -1046,14 +1049,26 @@ def call_external(
         if not input_callback(out):
             output.append(out)
 
+    def preexec_fn() -> None:  # pragma: no cover
+        if nice_level is not None:
+            try:
+                os.nice(nice_level)
+            except:  # pylint: disable=bare-except
+                pass
+
     try:
-        with subprocess.Popen(
+        # The preexec_fn is not really safe when combined with
+        # threads. However, we don't combine it with threads as celery doesn't
+        # run threaded. Even if it would run threaded, the function is really
+        # simple so the chance of a deadlock is quite low.
+        with subprocess.Popen(  # pylint: disable=subprocess-popen-preexec-fn
             call_args,
             stderr=subprocess.STDOUT,
             stdout=subprocess.PIPE,
             shell=False,
             universal_newlines=True,
             bufsize=1,
+            preexec_fn=preexec_fn,
         ) as proc:
             while proc.poll() is None:
                 process_line(proc.stdout.readline())

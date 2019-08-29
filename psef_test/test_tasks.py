@@ -27,6 +27,11 @@ def test_check_heartbeat(
         stub_notify_stop = stub_function_class()
         monkeypatch.setattr(t, 'notify_broker_end_of_job', stub_notify_stop)
 
+        stub_notify_kill_single = stub_function_class()
+        monkeypatch.setattr(
+            t, 'notify_broker_kill_single_runner', stub_notify_kill_single
+        )
+
         test = m.AutoTest(
             setup_script='', run_setup_script='', assignment=assignment
         )
@@ -57,6 +62,7 @@ def test_check_heartbeat(
 
         assert not stub_notify_new.called
         assert not stub_notify_stop.all_args
+        assert not stub_notify_kill_single.all_args
 
     with describe('Already finished'):
         with describe('Inner setup'):
@@ -68,6 +74,7 @@ def test_check_heartbeat(
         assert not stub_heart.called
         assert not stub_notify_new.called
         assert not stub_notify_stop.called
+        assert not stub_notify_kill_single.all_args
 
         run._state = m.AutoTestRunState.running
         session.commit()
@@ -82,6 +89,7 @@ def test_check_heartbeat(
         assert not stub_heart.called
         assert len(stub_notify_new.all_args) == 1
         assert len(stub_notify_stop.all_args) == 1
+        assert len(stub_notify_kill_single.all_args) == 1
         assert stub_notify_new.call_dates[0] > stub_notify_stop.call_dates[0]
 
         run.get_job_id() != old_job_id
@@ -100,6 +108,7 @@ def test_check_heartbeat(
         assert not stub_heart.called
         assert not stub_notify_new.called
         assert not stub_notify_stop.called
+        assert not stub_notify_kill_single.called
 
 
 def test_stop_auto_test_run(
@@ -112,6 +121,11 @@ def test_stop_auto_test_run(
 
         stub_notify_stop = stub_function_class()
         monkeypatch.setattr(t, 'notify_broker_end_of_job', stub_notify_stop)
+
+        stub_notify_kill_single = stub_function_class()
+        monkeypatch.setattr(
+            t, 'notify_broker_kill_single_runner', stub_notify_kill_single
+        )
 
         test = m.AutoTest(setup_script='', run_setup_script='')
         run = m.AutoTestRun(_job_id=uuid.uuid4(), auto_test=test)
@@ -130,6 +144,7 @@ def test_stop_auto_test_run(
         assert stub_stop.all_args[0]['eta'] == run.kill_date
 
         assert not stub_notify_stop.called
+        assert not stub_notify_kill_single.called
 
     with describe('kill after deadline'):
         run.kill_date = datetime.utcnow()
@@ -141,6 +156,7 @@ def test_stop_auto_test_run(
         assert not stub_stop.called
 
         assert len(stub_notify_stop.all_args) == 1
+        assert len(stub_notify_kill_single.all_args) == 1
         assert stub_notify_stop.all_args[0][0] == old_job_id
         assert run.state == m.AutoTestRunState.timed_out
 
@@ -149,9 +165,11 @@ def test_stop_auto_test_run(
 
         assert not stub_stop.called
         assert not stub_notify_stop.called
+        assert not stub_notify_kill_single.called
 
     with describe('kill with unknown runner'):
         t._stop_auto_test_run_1((run.id + 2) ** 4)
 
         assert not stub_stop.called
         assert not stub_notify_stop.called
+        assert not stub_notify_kill_single.called

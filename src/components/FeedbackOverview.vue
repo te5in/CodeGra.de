@@ -47,6 +47,9 @@
                                    :submission="submission" />
                 </div>
 
+                <div v-else-if="codeLines[id] == null">
+                    <loader/>
+                </div>
                 <div v-else
                      v-for="(part, i) in getParts(id)"
                      :key="`file-${id}-line-${part[0]}`">
@@ -138,6 +141,10 @@ export default {
             return Object.keys(this.$utils.getProps(this.feedback, {}, 'user'));
         },
 
+        nonDisabledFileIds() {
+            return this.fileIds.filter(id => !this.disabledFileType(id));
+        },
+
         generalFeedback() {
             return this.submission.comment || '';
         },
@@ -151,7 +158,7 @@ export default {
             },
         },
 
-        fileIds: {
+        nonDisabledFileIds: {
             immediate: true,
             handler() {
                 this.loadCode();
@@ -193,12 +200,13 @@ export default {
                 return;
             }
 
-            const codeLines = await Promise.all(this.fileIds.map(this.loadCodeWithSettings));
+            if (this.codeLines == null) {
+                this.codeLines = {};
+            }
 
-            this.codeLines = this.fileIds.reduce((acc, id, i) => {
-                acc[id] = codeLines[i];
-                return acc;
-            }, {});
+            this.nonDisabledFileIds.filter(id => this.codeLines[id] == null).map(async id => {
+                this.$set(this.codeLines, id, await this.loadCodeWithSettings(id));
+            });
         },
 
         async loadCodeWithSettings(fileId) {

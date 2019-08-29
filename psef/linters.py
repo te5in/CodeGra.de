@@ -28,6 +28,7 @@ from .exceptions import ValidationException
 logger = structlog.get_logger()
 
 T_LINTER = t.TypeVar('T_LINTER', bound='Linter')  # pylint: disable=invalid-name
+_NICE_LEVEL = 10
 
 ProcessCompletedCallback = t.Callable[[subprocess.CompletedProcess], None]
 
@@ -51,6 +52,22 @@ def _read_config_file(config_cat: str, config_name: str) -> str:
         ), 'r'
     ) as f:
         return f.read()
+
+
+def _run_command(cmd: t.List[str]) -> subprocess.CompletedProcess:
+    def preexec_fn() -> None:  # pragma: no cover
+        try:
+            os.nice(_NICE_LEVEL)
+        except:  # pylint: disable=bare-except
+            pass
+
+    return subprocess.run(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        preexec_fn=preexec_fn,
+    )
 
 
 class LinterCrash(Exception):
@@ -148,14 +165,11 @@ class Pylint(Linter):
             cfg.write(self.config)
             cfg.flush()
 
-            out = subprocess.run(
+            out = _run_command(
                 [
                     part.format(config=cfg.name, files=tempdir)
                     for part in app.config['PYLINT_PROGRAM']
-                ],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
+                ]
             )
             process_completed(out)
 
@@ -205,14 +219,11 @@ class Flake8(Linter):
         with tempfile.NamedTemporaryFile('w') as cfg:
             cfg.write(self.config)
             cfg.flush()
-            out = subprocess.run(
+            out = _run_command(
                 [
                     part.format(config=cfg.name, files=tempdir, line_fmt=fmt)
                     for part in app.config['FLAKE8_PROGRAM']
-                ],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
+                ]
             )
             process_completed(out)
 
@@ -369,14 +380,11 @@ class Checkstyle(Linter):
             cfg.write(ET.tostring(module, encoding='unicode'))
             cfg.flush()
 
-            out = subprocess.run(
+            out = _run_command(
                 [
                     part.format(config=cfg.name, files=tempdir)
                     for part in app.config['CHECKSTYLE_PROGRAM']
-                ],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
+                ]
             )
             process_completed(out)
             if out.returncode == 254:
@@ -465,14 +473,11 @@ class PMD(Linter):
             cfg.write(self.config)
             cfg.flush()
 
-            out = subprocess.run(
+            out = _run_command(
                 [
                     part.format(config=cfg.name, files=tempdir)
                     for part in app.config['PMD_PROGRAM']
-                ],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
+                ]
             )
             process_completed(out)
             assert out.returncode == 0

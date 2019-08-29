@@ -322,7 +322,8 @@ export class AutoTestResult {
                     return stepResult;
                 });
 
-                suiteResult.percentage = safeDivide(suiteResult.achieved, suiteResult.possible, 0);
+                suiteResult.percentage =
+                    100 * safeDivide(suiteResult.achieved, suiteResult.possible, 0);
                 suiteResult.finished = suiteResult.stepResults.every(s => s.finished);
                 suiteResults[suite.id] = suiteResult;
 
@@ -337,7 +338,6 @@ export class AutoTestResult {
 
                 setResult.achieved += suiteResult.achieved;
                 setResult.possible += suiteResult.possible;
-                setResult.percentage = safeDivide(setResult.achieved, setResult.possible, null);
 
                 suiteResults[suite.id] = suiteResult;
                 return suiteResult;
@@ -346,6 +346,10 @@ export class AutoTestResult {
             totalAchieved = setResult.achieved;
             totalPossible = setResult.possible;
 
+            setResult.percentage = 100 * safeDivide(setResult.achieved, setResult.possible, 0);
+            setResult.passed =
+                setResult.percentage >= 100 * set.stop_points &&
+                Object.values(setResults).every(prevSet => prevSet.passed);
             setResult.finished =
                 setResult.suiteResults.every(s => s && s.finished) &&
                 Object.values(setResults).every(prevSet => prevSet.finished);

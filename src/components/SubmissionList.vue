@@ -126,6 +126,18 @@
                            v-else/>
         </template>
     </b-table>
+    <div class="no-submissions-found"
+         v-if="!canSeeOthersWork && this.submissions.length === 0">
+        You have no submissions yet!
+    </div>
+    <div class="no-submissions-found"
+         v-else-if="this.submissions.length === 0">
+        There are no submissions yet.
+    </div>
+    <div class="no-submissions-found"
+         v-else-if="this.submissions && this.filteredSubmissions.length === 0">
+        No submissions found for the given filters.
+    </div>
 
     <div v-if="canSeeOthersWork"
          class="submission-count">
@@ -501,7 +513,8 @@ export default {
     border: 1px solid transparent;
 }
 
-.submission-count {
+.submission-count,
+.no-submissions-found {
     padding: 0.75rem;
     border: 1px solid #dee2e6;
     border-right-width: 0;
@@ -510,6 +523,10 @@ export default {
     #app.dark & {
         border-color: @color-primary-darker;
     }
+}
+
+.no-submissions-found {
+    color: @text-color-muted;
 }
 
 .late-icon {

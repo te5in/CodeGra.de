@@ -154,18 +154,20 @@ def maybe_start_runners_for_job(job_id: int) -> None:
 
     to_start = []
 
+    startable = models.Runner.get_amount_of_startable_runners()
     for _ in range(still_needed):
         if unassigned_runners:
             # Aha, we are lucky, we have an unassigned runner. Lets assign it
             # :)
             unassigned_runners.pop().job = job
-        elif not models.Runner.can_start_more_runners():
+        elif startable <= 0:
             break
         else:
             runner = models.Runner.create_of_type(app.config['AUTO_TEST_TYPE'])
             runner.job_id = job_id
             db.session.add(runner)
             to_start.append(runner)
+            startable -= 1
 
     db.session.commit()
 

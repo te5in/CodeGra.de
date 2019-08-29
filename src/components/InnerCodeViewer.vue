@@ -190,6 +190,10 @@ export default {
 
             const line = Number(el.getAttribute('data-line')) - 1;
 
+            if (this.editing[line]) {
+                return;
+            }
+
             if (!this.feedback[line] || !this.feedback[line].msg) {
                 await this.storeAddFeedbackLine({
                     assignmentId: this.assignment.id,

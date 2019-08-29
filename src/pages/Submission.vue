@@ -780,15 +780,16 @@ export default {
         },
 
         deleteSubmission() {
-            return this.$http.delete(`/api/v1/submissions/${this.submissionId}`);
+            const sub = this.submission;
+            return this.$http.delete(`/api/v1/submissions/${this.submissionId}`).then(() =>
+                this.storeDeleteSubmission({
+                    assignmentId: this.assignmentId,
+                    submission: sub,
+                }),
+            );
         },
 
         afterDeleteSubmission() {
-            this.storeDeleteSubmission({
-                assignmentId: this.assignmentId,
-                submissionId: this.submissionId,
-            });
-
             this.$router.replace({
                 name: 'assignment_submissions',
                 params: {

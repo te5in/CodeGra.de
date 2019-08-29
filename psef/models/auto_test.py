@@ -666,7 +666,7 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
         self._job_number = cur_number + 1
 
     def get_job_id(self) -> str:
-        return f'{self._job_id.hex}-{self._job_number}'
+        return f'{self._job_id.hex}-{self._job_number or 0}'
 
     @property
     def active(self) -> bool:

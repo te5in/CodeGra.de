@@ -120,7 +120,7 @@ export default {
     position: relative;
     position: sticky;
     top: 0;
-    z-index: 3;
+    z-index: 1000;
     margin: 0 -15px 1rem;
     border: 0;
     padding: 1rem;

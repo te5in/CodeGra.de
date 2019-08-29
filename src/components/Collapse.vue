@@ -101,10 +101,6 @@ export default {
         },
 
         async toggle() {
-            if (this.disabled) {
-                return;
-            }
-
             const wrapperEl = this.$refs.content;
             const contentEl = wrapperEl.firstChild;
             const wrapperHeight = this.getHeight(wrapperEl);

@@ -78,18 +78,6 @@ describe('mutations', () => {
         });
     });
 
-    describe('delete submission', () => {
-        it('should work', () => {
-            const obj1 = {id: 1, user: { id: 1001 }, assignment_id: 2};
-            const obj2 = {id: 2, user: { id: 1001 }, assignment_id: 2};
-            const obj3 = {id: 3, user: { id: 1001 }, assignment_id: 2};
-            state.submissions[2] = [obj1, obj2, obj3];
-
-            store.mutations[types.DELETE_SINGLE_SUBMISSION](state, { assignmentId: 2, submissionId: 2 });
-            expect(state.submissions[2]).toEqual([obj1, obj3]);
-        });
-    });
-
     describe('update submission', () => {
         it('should work for normal props', () => {
             const obj1 = {id: 1, user: { id: 1001 }, assignment_id: 2};
@@ -214,24 +202,6 @@ describe('actions', () => {
                 assignmentId: 2,
                 submissionId: 4,
                 submissionProps: props,
-            });
-        });
-    });
-
-    describe('delete submission', () => {
-        it('should simply work', () => {
-            const props = {};
-            const data = {
-                assignmentId: 2,
-                submissionId: 4,
-                other: 4,
-            };
-            store.actions.deleteSubmission(context, data);
-
-            expect(mockCommit).toBeCalledTimes(1);
-            expect(mockCommit).toBeCalledWith(types.DELETE_SINGLE_SUBMISSION, {
-                assignmentId: 2,
-                submissionId: 4,
             });
         });
     });

@@ -158,13 +158,19 @@ class Runner(Base, mixins.TimestampMixin, mixins.UUIDMixin):
         return self.state not in {RunnerState.cleaned, RunnerState.cleaning}
 
     @classmethod
+    def get_amount_of_startable_runners(cls) -> int:
+        """Get the amount of runners that can still be started.
+        """
+        active = len(cls.get_all_active_runners().with_for_update().all())
+        max_amount = app.config['MAX_AMOUNT_OF_RUNNERS']
+        return max(max_amount - active, 0)
+
+    @classmethod
     def can_start_more_runners(cls) -> bool:
         """Is it currently allowed to start more runners.
 
         This checks the amount of runners currently active and makes sure this
         is less than the maximum amount of runners.
-
-        .. note:: This function locks the active runners so it is safe.
         """
         # We do a all and len here as count() and with_for_update cannot be
         # used in combination.
@@ -451,7 +457,10 @@ class Job(Base, mixins.TimestampMixin, mixins.IdMixin):
 
     @wanted_runners.setter
     def wanted_runners(self, new_value: int) -> None:
-        self._wanted_runners = max(new_value, 1)
+        self._wanted_runners = min(
+            max(new_value, 1),
+            app.config['MAX_AMOUNT_OF_RUNNERS_PER_JOB'],
+        )
 
     @property
     def state(self) -> JobState:

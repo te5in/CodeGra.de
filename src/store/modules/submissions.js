@@ -168,8 +168,8 @@ const actions = {
         return commit(types.ADD_SINGLE_SUBMISSION, { submission });
     },
 
-    deleteSubmission({ commit }, { assignmentId, submissionId }) {
-        commit(types.DELETE_SINGLE_SUBMISSION, { assignmentId, submissionId });
+    deleteSubmission({ dispatch }, { assignmentId }) {
+        return dispatch('forceLoadSubmissions', assignmentId);
     },
 
     forceLoadSubmissions(context, assignmentId) {
@@ -457,15 +457,11 @@ const mutations = {
 
         Vue.set(state.submissions, assignmentId, submissions);
         Vue.set(state.latestSubmissions, assignmentId, addToLatest(oldLatest, submission));
-        Vue.set(state.submissionsByUser[assignmentId], userId, userSubmissions);
-    },
-
-    [types.DELETE_SINGLE_SUBMISSION](state, { assignmentId, submissionId }) {
-        const subs = state.submissions[assignmentId];
-        if (subs == null) {
-            return;
+        if (state.submissionsByUser[assignmentId] == null) {
+            Vue.set(state.submissionsByUser, assignmentId, { userId: userSubmissions });
+        } else {
+            Vue.set(state.submissionsByUser[assignmentId], userId, userSubmissions);
         }
-        Vue.set(state.submissions, assignmentId, subs.filter(sub => sub.id !== submissionId));
     },
 
     [types.CLEAR_SUBMISSIONS](state) {

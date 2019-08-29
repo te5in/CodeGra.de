@@ -146,7 +146,7 @@ def update_run(auto_test_id: int, run_id: int) -> EmptyResponse:
     run = filter_single_or_404(
         models.AutoTestRun,
         models.AutoTestRun.id == run_id,
-        models.AutoTest.id == auto_test_id,
+        also_error=lambda run: run.auto_test_id != auto_test_id,
         with_for_update=True,
     )
     runner = _verify_and_get_runner(run, password)
@@ -221,7 +221,7 @@ def post_heartbeat(auto_test_id: int, run_id: int) -> EmptyResponse:
     run = filter_single_or_404(
         models.AutoTestRun,
         models.AutoTestRun.id == run_id,
-        models.AutoTest.id == auto_test_id,
+        also_error=lambda run: run.auto_test_id != auto_test_id,
     )
     runner = _verify_and_get_runner(run, password)
 
@@ -252,7 +252,7 @@ def emit_log_for_runner(auto_test_id: int, run_id: int) -> EmptyResponse:
     run = filter_single_or_404(
         models.AutoTestRun,
         models.AutoTestRun.id == run_id,
-        models.AutoTest.id == auto_test_id,
+        also_error=lambda run: run.auto_test_id != auto_test_id,
     )
     _verify_and_get_runner(run, password)
 
@@ -338,7 +338,7 @@ def update_result(auto_test_id: int,
     result = filter_single_or_404(
         models.AutoTestResult,
         models.AutoTestResult.id == result_id,
-        models.AutoTest.id == auto_test_id,
+        also_error=lambda result: result.run.auto_test_id != auto_test_id,
         with_for_update=True,
     )
     runner = _verify_and_get_runner(result.run, password)

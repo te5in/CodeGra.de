@@ -220,7 +220,9 @@ const actions = {
 
     async loadAutoTestResult(
         { commit, dispatch, state },
-        { autoTestId, submissionId, acceptContinuous },
+        {
+            autoTestId, submissionId, acceptContinuous, force,
+        },
     ) {
         await dispatch('loadAutoTest', { autoTestId });
         const autoTest = state.tests[autoTestId];
@@ -248,7 +250,8 @@ const actions = {
         const resultId = result.id;
         result = state.results[resultId];
 
-        if (result && result.finished) {
+        // Always reload when force is true.
+        if (result && result.finished && !force) {
             return Promise.resolve();
         }
 

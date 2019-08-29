@@ -29,6 +29,7 @@
         </b-card-header>
 
         <table class="table table-striped results-table"
+               :id="tableId"
                :class="{ 'table-hover': run.results.length > 0 }">
             <thead>
                 <tr>
@@ -42,24 +43,26 @@
                 <tr v-if="submissionsLoading">
                     <td colspan="3"><loader :scale="1" /></td>
                 </tr>
-                <tr v-for="result in run.results"
-                    v-else
-                    :key="`result-${result.id}-submission-${result.submissionId}`"
-                    @click="openResult(result)">
-                    <td class="name">
-                        {{ $utils.nameOfUser(submissions[result.submissionId].user) }}
-                    </td>
-                    <td class="score">
-                        <icon v-if="submissions[result.submissionId].grade_overridden"
+                <template v-else>
+                    <tr v-for="resultOffset in perPage"
+                        v-if="getResult(resultOffset) != null"
+                        :key="`result-${getResult(resultOffset).id}-submission-${getResult(resultOffset).submissionId}`"
+                        @click="openResult(getResult(resultOffset))">
+                        <td class="name">
+                            {{ $utils.nameOfUser(submissions[getResult(resultOffset).submissionId].user) }}
+                        </td>
+                        <td class="score">
+                            <icon v-if="submissions[getResult(resultOffset).submissionId].grade_overridden"
                                 v-b-popover.top.hover="'This submission\'s calculated grade has been manually overridden'"
                                 name="exclamation-triangle"/>
-                        {{ $utils.toMaxNDecimals($utils.getProps(result, '-', 'pointsAchieved'), 2) }} /
-                        {{ $utils.toMaxNDecimals(autoTest.pointsPossible, 2) }}
-                    </td>
-                    <td class="state">
-                        <auto-test-state :result="result" />
-                    </td>
-                </tr>
+                            {{ $utils.toMaxNDecimals($utils.getProps(getResult(resultOffset), '-', 'pointsAchieved'), 2) }} /
+                            {{ $utils.toMaxNDecimals(autoTest.pointsPossible, 2) }}
+                        </td>
+                        <td class="state">
+                            <auto-test-state :result="getResult(resultOffset)" />
+                        </td>
+                    </tr>
+                </template>
             </tbody>
             <tbody v-else>
                 <tr>
@@ -67,6 +70,15 @@
                 </tr>
             </tbody>
         </table>
+
+        <b-pagination
+            class="pagination mt-3"
+            v-if="run.results.length > 0 && run.results.length > perPage"
+            v-model="currentPage"
+            :limit="10"
+            :total-rows="run.results.length"
+            :per-page="perPage"
+            :aria-controls="tableId"/>
     </collapse>
 </b-card>
 </template>
@@ -116,6 +128,9 @@ export default {
             resultsCollapseId: `auto-test-results-collapse-${id}`,
             submissions: {},
             submissionsLoading: true,
+            currentPage: 1,
+            perPage: 15,
+            tableId: `auto-test-results-table-${this.$utils.getUniqueId()}`,
         };
     },
 
@@ -135,9 +150,17 @@ export default {
         submissionIds() {
             return this.$utils.getProps(this.run, [], 'results').map(res => res.submissionId);
         },
+
+        runId() {
+            return this.$utils.getProps(this.run, null, 'id');
+        },
     },
 
     watch: {
+        runId() {
+            this.currentPage = 1;
+        },
+
         submissionIds: {
             immediate: true,
             handler() {
@@ -168,6 +191,17 @@ export default {
         ...mapActions('autotest', {
             storeDeleteAutoTestResults: 'deleteAutoTestResults',
         }),
+
+        getResult(resultOffset) {
+            // We need to substract one here as looping over an integer in vue
+            // returns numbers that are one-indexed.
+            const index = resultOffset - 1 + this.perPage * (this.currentPage - 1);
+            const results = this.$utils.getProps(this.run, [], 'results');
+            if (index >= results.length) {
+                return null;
+            }
+            return results[index];
+        },
 
         deleteResults() {
             return this.storeDeleteAutoTestResults({
@@ -225,6 +259,38 @@ export default {
 
     .state {
         text-align: center;
+    }
+}
+</style>
+
+<style lang="less">
+@import '~mixins.less';
+
+.auto-test-run .pagination {
+    display: flex;
+    justify-content: center;
+
+    .page-item .page-link {
+        &:active,
+        &:focus {
+            box-shadow: none;
+        }
+        #app.dark & {
+            border-color: @color-primary-darkest;
+        }
+    }
+
+    #app.dark & .page-item .page-link {
+        background-color: @color-primary;
+        color: @text-color-dark;
+    }
+
+    .page-item.active .page-link {
+        background-color: @color-primary;
+        color: @text-color-dark;
+        #app.dark & {
+            background-color: @color-primary-darkest;
+        }
     }
 }
 </style>

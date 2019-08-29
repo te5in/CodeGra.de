@@ -340,12 +340,12 @@ export default {
                     return `\\subsection*{Match ${i + 1}}
 \\begin{lstlisting}[firstnumber=${match.lines[0][0] + 1},
     caption={File \\texttt{${captionLeft}} of ${latexNameOfUser(user1)}}]
-    ${left.join('\n')}
+${left.join('\n')}
 \\end{lstlisting}
 ${maybeNewPage}
 \\begin{lstlisting}[firstnumber=${match.lines[1][0] + 1},
     caption={File \\texttt{${captionRight}} of ${latexNameOfUser(user2)}}]
-    ${right.join('\n')}
+${right.join('\n')}
 \\end{lstlisting}`;
                     // prettier-ignore-end
                 }),

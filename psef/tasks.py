@@ -18,6 +18,7 @@ from operator import itemgetter
 import structlog
 from flask import Flask
 from celery import signals
+from requests import HTTPError
 from mypy_extensions import NamedArg, DefaultNamedArg
 
 import psef as p
@@ -258,7 +259,9 @@ def _run_plagiarism_control_1(  # pylint: disable=too-many-branches,too-many-sta
             return False
 
         try:
-            ok, stdout = p.helpers.call_external(call_args, got_output)
+            ok, stdout = p.helpers.call_external(
+                call_args, got_output, nice_level=10
+            )
         # pylint: disable=broad-except
         except Exception:  # pragma: no cover
             set_state(p.models.PlagiarismState.crashed)
@@ -326,7 +329,11 @@ def _stop_auto_test_run_1(auto_test_run_id: int) -> None:
     p.models.db.session.commit()
 
 
-@celery.task
+@celery.task(
+    autoretry_for=(HTTPError, ),
+    retry_backoff=True,
+    retry_kwargs={'max_retries': 15}
+)
 def _notify_broker_of_new_job_1(
     run_id: t.Union[int, p.models.AutoTestRun], wanted_runners: int = 1
 ) -> None:
@@ -353,7 +360,11 @@ def _notify_broker_of_new_job_1(
         p.models.db.session.commit()
 
 
-@celery.task
+@celery.task(
+    autoretry_for=(HTTPError, ),
+    retry_backoff=True,
+    retry_kwargs={'max_retries': 15}
+)
 def _notify_broker_kill_single_runner_1(
     run_id: int, runner_hex_id: str
 ) -> None:
@@ -370,13 +381,6 @@ def _notify_broker_kill_single_runner_1(
     elif runner is None:
         logger.warning('Runner could not be found')
         return
-    elif runner not in run.runners:
-        logger.warning(
-            'Runner is not a runner of the run',
-            runners_of_run=[r.id.hex for r in run.runners],
-            runner_hex_id=runner_hex_id,
-        )
-        return
 
     with p.helpers.BrokerSession() as ses:
         ses.delete(
@@ -389,7 +393,11 @@ def _notify_broker_kill_single_runner_1(
         p.models.db.session.commit()
 
 
-@celery.task
+@celery.task(
+    autoretry_for=(HTTPError, ),
+    retry_backoff=True,
+    retry_kwargs={'max_retries': 15}
+)
 def _notify_broker_end_of_job_1(job_id: str) -> None:
     with p.helpers.BrokerSession() as ses:
         ses.delete(f'/api/v1/jobs/{job_id}').raise_for_status()

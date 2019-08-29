@@ -14,10 +14,13 @@
                 body-class="rubric-items"
                 @mouseenter="$set(lockPopoverShown, row.id, true)"
                 @mouseleave="$delete(lockPopoverShown, row.id)">
-                <b-popover v-if="lockPopover"
+                <!-- Try to find a better fix instead of the :key below. It is
+                     needed so the popover content updates when the text changes. -->
+                <b-popover v-if="row.locked"
+                           :key="`${row.id}-${autoTestLockPopover[row.id]}`"
                            :show="lockPopoverShown[row.id]"
                            :target="lockPopoverIds[row.id]"
-                           :content="lockPopover"
+                           :content="row.locked == 'auto_test' ? autoTestLockPopover[row.id] : ''"
                            triggers=""
                            placement="top" />
 
@@ -312,54 +315,50 @@ export default {
             return prog;
         },
 
-        lockPopover() {
-            if (this.rubric == null) {
-                return '';
-            }
-
-            const lockReason = this.rubric.rows[this.current].locked;
-
-            switch (lockReason) {
-                case 'auto_test':
-                    return this.autoTestLockPopover;
-                default:
-                    return '';
-            }
-        },
-
         autoTestLockPopover() {
-            const selectedInRow = this.selectedRows[this.currentRow.id];
-            let msg;
+            const rows = this.$utils.getProps(this, [], 'rubric', 'rows');
 
-            if (selectedInRow == null || this.currentProgress == null) {
-                msg =
-                    'This is an AutoTest category. It will be filled in automatically once the ' +
-                    'AutoTest for this assignment is finished. ';
-            } else {
-                msg =
-                    `You scored ${this.currentProgress.toFixed(0)}% in the corresponding ` +
-                    `AutoTest category, which scores you ${selectedInRow.points} points ` +
-                    'in this rubric category. ';
-            }
+            return rows.reduce((acc, row) => {
+                if (!row.locked) {
+                    return acc;
+                }
 
-            if (!this.autoTestConfig) {
-                return msg;
-            }
+                const selectedInRow = this.selectedRows[row.id];
+                const progress = this.autoTestProgress[row.id];
+                let msg;
 
-            const gradeCalculation = this.autoTestConfig.grade_calculation;
+                if (selectedInRow == null || progress == null) {
+                    msg =
+                        'This is an AutoTest category. It will be filled in automatically once the ' +
+                        'AutoTest for this assignment is finished. ';
+                } else {
+                    msg =
+                        `You scored ${progress.toFixed(0)}% in the corresponding ` +
+                        `AutoTest category, which scores you ${selectedInRow.points} points ` +
+                        'in this rubric category. ';
+                }
 
-            switch (gradeCalculation) {
-                case 'full':
-                    msg += 'You need to reach the upper bound of a rubric item to achieve it.';
-                    break;
-                case 'partial':
-                    msg += 'You need to reach the lower bound of a rubric item to achieve it.';
-                    break;
-                default:
-                    throw new Error('Invalid grade calculation method.');
-            }
+                if (!this.autoTestConfig) {
+                    acc[row.id] = msg;
+                    return acc;
+                }
 
-            return msg;
+                const gradeCalculation = this.autoTestConfig.grade_calculation;
+
+                switch (gradeCalculation) {
+                    case 'full':
+                        msg += 'You need to reach the upper bound of a rubric item to achieve it.';
+                        break;
+                    case 'partial':
+                        msg += 'You need to reach the lower bound of a rubric item to achieve it.';
+                        break;
+                    default:
+                        throw new Error('Invalid grade calculation method.');
+                }
+
+                acc[row.id] = msg;
+                return acc;
+            }, {});
         },
 
         lockPopoverIds() {
