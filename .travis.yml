@@ -65,5 +65,6 @@ script:
   - bash ./.travis/run
 
 after_success:
-  - "[[ $TO_RUN = 'backend-tests' ]] && ( coveralls; codecov; travis-sphinx deploy -c docs.codegra.de; )"
+  - "[[ $TO_RUN = 'backend-tests' ]] && ( coveralls; codecov; )"
+  - "[[ $TO_RUN = 'lint' ]] && ( travis-sphinx deploy -c docs.codegra.de; )"
   - "[[ $TO_RUN = 'js_unit' ]] && ./cc-test-reporter after-build -t lcov --exit-code $TRAVIS_TEST_RESULT"
