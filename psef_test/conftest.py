@@ -19,6 +19,7 @@ from urllib.request import urlopen
 
 import pytest
 import flask_migrate
+import sqlalchemy.orm as orm
 import flask_jwt_extended as flask_jwt
 from flask import _app_ctx_stack as ctx_stack
 from werkzeug.local import LocalProxy
@@ -262,6 +263,10 @@ def assert_similar():
             if k == '__allow_extra__' and value:
                 allowed_extra = True
                 continue
+            elif not is_list and k[0] == '?' and k[-1] == '?':
+                k = k[1:-1]
+                if k not in vals:
+                    continue
             i += 1
             assert is_list or k in vals
 
@@ -413,7 +418,7 @@ def db(app, request):
         if request.config.getoption('--postgresql'):
             db_name, generated = get_database_name(request)
             if generated:
-                psef.models.db.session.close_all()
+                orm.session.close_all_sessions()
                 psef.models.db.engine.dispose()
                 subprocess.check_call(
                     'dropdb "{}"'.format(db_name),
@@ -709,3 +714,8 @@ def stubmailer(monkeypatch):
     monkeypatch.setattr(psef.mail, 'mail', mailer)
 
     yield mailer
+
+
+@pytest.fixture
+def tomorrow():
+    yield datetime.datetime.utcnow() + datetime.timedelta(days=1)

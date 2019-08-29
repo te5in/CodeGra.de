@@ -96,6 +96,7 @@ export default {
 
     computed: {
         ...mapGetters('courses', ['assignments']),
+        ...mapGetters('submissions', ['latestSubmissions']),
 
         groupSetPageLink() {
             return {
@@ -113,7 +114,7 @@ export default {
         },
 
         submissions() {
-            return (this.assignment && this.assignment.submissions) || [];
+            return this.latestSubmissions[this.assignmentId] || [];
         },
 
         rubric() {
@@ -208,6 +209,8 @@ export default {
     methods: {
         ...mapActions('courses', {
             loadCourses: 'loadCourses',
+        }),
+        ...mapActions('submissions', {
             loadSubmissions: 'loadSubmissions',
             updateSubmission: 'updateSubmission',
         }),

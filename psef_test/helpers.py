@@ -101,11 +101,12 @@ def create_submission(
         'comment': None,
         'comment_author': None,
         'grade_overridden': False,
+        'assignment_id': get_id(assignment_id),
     } if err is None else err_t)
 
     return test_client.req(
         'post',
-        f'/api/v1/assignments/{assignment_id}/submission',
+        f'/api/v1/assignments/{get_id(assignment_id)}/submission',
         status,
         real_data={'file': submission_data},
         result=result,

@@ -106,7 +106,7 @@ export default {
     },
 
     methods: {
-        ...mapActions('courses', {
+        ...mapActions('submissions', {
             storeAddFeedbackLine: 'addSubmissionFeedbackLine',
         }),
 

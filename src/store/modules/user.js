@@ -72,6 +72,7 @@ const actions = {
 
     logout({ commit }) {
         return Promise.all([
+            commit(`submissions/${types.CLEAR_SUBMISSIONS}`, null, { root: true }),
             commit(`courses/${types.CLEAR_COURSES}`, null, { root: true }),
             commit(`plagiarism/${types.CLEAR_PLAGIARISM_RUNS}`, null, {
                 root: true,

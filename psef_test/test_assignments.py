@@ -1015,7 +1015,7 @@ def test_upload_files(
                 },
                 result=error_template
             )
-            assert res['message'].startswith('No file in HTTP')
+            assert res['message'].startswith('Request did not contain')
 
             if assignment.is_open or named_user.has_permission(
                 CPerm.can_upload_after_deadline, assignment.course_id
@@ -1031,10 +1031,15 @@ def test_upload_files(
                         )
                     },
                     result={
-                        'id': int, 'user': named_user.__to_json__(),
-                        'created_at': str, 'assignee': None, 'grade': None,
-                        'comment': None, 'comment_author': None,
-                        'grade_overridden': False
+                        'id': int,
+                        'user': named_user.__to_json__(),
+                        'created_at': str,
+                        'assignee': None,
+                        'grade': None,
+                        'comment': None,
+                        'comment_author': None,
+                        'grade_overridden': False,
+                        'assignment_id': assignment.id,
                     }
                 )
 
@@ -1748,6 +1753,7 @@ def test_get_all_submissions(
                     res[-1]['comment_author'] = (
                         None if no_grade or not work.comment else dict
                     )
+                    res[-1]['assignment_id'] = int
         else:
             code = marker.kwargs['error']
 
@@ -4293,4 +4299,109 @@ def test_upload_files_with_duplicate_filenames(
                 'id': int,
                 'name': 'top',
             }
+        )
+
+
+def test_get_latest_submissions_only(
+    logged_in, session, test_client, admin_user, tomorrow
+):
+    with logged_in(admin_user):
+        course = helpers.create_course(test_client)
+
+    student1 = helpers.create_user_with_role(session, 'Student', course)
+    student2 = helpers.create_user_with_role(session, 'Student', course)
+    teacher = helpers.create_user_with_role(session, 'Teacher', course)
+
+    with logged_in(teacher):
+        assig_id = helpers.create_assignment(
+            test_client, course, 'open', deadline=tomorrow
+        )['id']
+
+    with logged_in(student1):
+        sub1 = helpers.create_submission(test_client, assig_id)
+        sub2 = helpers.create_submission(test_client, assig_id)
+    with logged_in(student2):
+        sub3 = helpers.create_submission(test_client, assig_id)
+
+    base_url = f'/api/v1/assignments/{assig_id}/submissions/?extended'
+
+    with logged_in(teacher):
+        # By default you get all the submissions
+        test_client.req('get', base_url, 200, result=[sub3, sub2, sub1])
+
+        # With latest_only you get all the latest submissions by each user, so
+        # in this case sub2 is the latest by student1, while sub1 is not.
+        test_client.req(
+            'get', f'{base_url}&latest_only', 200, result=[sub3, sub2]
+        )
+
+
+def test_all_submissions_by_a_user(
+    logged_in, session, test_client, admin_user, tomorrow
+):
+    with logged_in(admin_user):
+        course = helpers.create_course(test_client)
+
+    student1 = helpers.create_user_with_role(session, 'Student', course)
+    student2 = helpers.create_user_with_role(session, 'Student', course)
+    teacher = helpers.create_user_with_role(session, 'Teacher', course)
+
+    with logged_in(teacher):
+        assig_id = helpers.create_assignment(
+            test_client, course, 'open', deadline=tomorrow
+        )['id']
+
+    with logged_in(student1):
+        sub1 = helpers.create_submission(test_client, assig_id)
+        sub2 = helpers.create_submission(test_client, assig_id)
+    with logged_in(student2):
+        sub3 = helpers.create_submission(test_client, assig_id)
+
+    def fix_subs(*subs):
+        for sub in subs:
+            sub['user'] = dict
+
+    fix_subs(sub1, sub2, sub3)
+
+    with logged_in(teacher):
+        # A teacher can get all the submissions of a student
+        test_client.req(
+            'get',
+            f'/api/v1/assignments/{assig_id}/users/{student1.id}/submissions/',
+            200,
+            result=[sub2, sub1]
+        )
+    with logged_in(student2):
+        # A student cannot get all the submissions by another student.
+        test_client.req(
+            'get',
+            f'/api/v1/assignments/{assig_id}/users/{student1.id}/submissions/',
+            403,
+        )
+
+        # A student can get all the submissions by itself
+        test_client.req(
+            'get',
+            f'/api/v1/assignments/{assig_id}/users/{student2.id}/submissions/',
+            200,
+            result=[sub3]
+        )
+
+    with logged_in(teacher):
+        test_client.req(
+            'patch',
+            f'/api/v1/assignments/{assig_id}',
+            200,
+            data={
+                'state': 'hidden',
+            }
+        )
+
+    with logged_in(student2):
+        # We don't have permission to see hidden assignments, so we can no
+        # longer see our submissions.
+        test_client.req(
+            'get',
+            f'/api/v1/assignments/{assig_id}/users/{student2.id}/submissions/',
+            403,
         )

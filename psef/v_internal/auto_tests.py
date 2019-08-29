@@ -5,7 +5,6 @@ which are registered as active runners.
 
 SPDX-License-Identifier: AGPL-3.0-only
 """
-import random
 import typing as t
 
 import requests
@@ -43,28 +42,30 @@ def _get_local_runner(
     )
 
 
-def _verify_runner(
-    runner: t.Optional[models.AutoTestRunner], local: LocalRunner
-) -> None:
+def _verify_and_get_runner(
+    run: t.Optional[models.AutoTestRun], local: LocalRunner
+) -> models.AutoTestRunner:
     password, check_ip = local
     exc = PermissionException(
         'You do not have permission to use this route',
         'No valid password given', APICodes.NOT_LOGGED_IN, 401
     )
-
-    if runner is None:
-        raise exc
-    elif not password or not runner.id or password != str(runner.id):
-        raise exc
-    elif check_ip and runner.ipaddr != request.remote_addr:
-        raise exc
-
-    if runner.run is None or runner.run.finished:
+    if run is None or run.finished:
         raise PermissionException(
             'You cannot update runs which have finished',
             f'The run {{ runner.run_id }} has finished',
             APICodes.INCORRECT_PERMISSION, 403
         )
+
+    for runner in run.runners:
+        if not password or not runner.id or password != str(runner.id):
+            continue
+        elif check_ip and runner.ipaddr != request.remote_addr:
+            continue
+        else:
+            return runner
+
+    raise exc
 
 
 def _verify_global_header_password() -> LocalRunner:
@@ -90,20 +91,10 @@ def get_auto_test_status(
     to_get = request.args.get('get', object())
 
     if to_get == 'tests_to_run':
-        runs = models.AutoTestRun.query.filter_by(
-            started_date=None,
-        ).with_for_update().all()
-        random.shuffle(runs)
+        runs = models.AutoTestRun.get_runs_that_need_runners()
 
         with helpers.BrokerSession() as ses:
             for run in runs:
-                # Do not assign continuous feedback runs which do not have any
-                # thing to run.
-                if run.is_continuous_feedback_run and not db.session.query(
-                    run.get_results_to_run().exists()
-                ).scalar():
-                    continue
-
                 logger.info(
                     'Trying to register job for runner',
                     run=run.__to_json__(),
@@ -125,9 +116,9 @@ def get_auto_test_status(
                         run_id=run.id,
                     )
                 else:
-                    run.start(request.remote_addr)
+                    runner = run.add_active_runner(request.remote_addr)
                     db.session.commit()
-                    return jsonify(run.get_instructions())
+                    return jsonify(run.get_instructions(runner))
 
     return make_empty_response()
 
@@ -155,15 +146,22 @@ def update_run(auto_test_id: int, run_id: int) -> EmptyResponse:
     run = filter_single_or_404(
         models.AutoTestRun,
         models.AutoTestRun.id == run_id,
-        models.AutoTest.id == auto_test_id,
+        also_error=lambda run: run.auto_test_id != auto_test_id,
         with_for_update=True,
     )
-    _verify_runner(run.runner, password)
+    runner = _verify_and_get_runner(run, password)
 
     if state is not None:
         new_state = parse_enum(state, models.AutoTestRunState)
         assert new_state is not None
-        run.state = new_state
+        if new_state == models.AutoTestRunState.done:
+            if run.runners == [runner]:
+                # This also stops the runner
+                run.state = models.AutoTestRunState.done
+            else:
+                run.stop_runners([runner])
+        else:
+            run.state = new_state
     if setup_stdout is not None:
         run.setup_stdout = setup_stdout
     if setup_stderr is not None:
@@ -193,8 +191,7 @@ def get_result_data(auto_test_id: int, result_id: int
         also_error=lambda res: res.run.auto_test_id != auto_test_id,
     )
 
-    runner = result.run.runner
-    _verify_runner(runner, password)
+    _verify_and_get_runner(result.run, password)
 
     res = make_empty_response()
 
@@ -224,12 +221,16 @@ def post_heartbeat(auto_test_id: int, run_id: int) -> EmptyResponse:
     run = filter_single_or_404(
         models.AutoTestRun,
         models.AutoTestRun.id == run_id,
-        models.AutoTest.id == auto_test_id,
+        also_error=lambda run: run.auto_test_id != auto_test_id,
     )
-    _verify_runner(run.runner, password)
-    assert run.runner is not None
+    runner = _verify_and_get_runner(run, password)
 
-    run.runner.last_heartbeat = g.request_start_time
+    logger.info(
+        'Updating heartbeat',
+        runner_id=runner.id.hex,
+    )
+
+    runner.last_heartbeat = g.request_start_time
     db.session.commit()
     return make_empty_response()
 
@@ -251,9 +252,9 @@ def emit_log_for_runner(auto_test_id: int, run_id: int) -> EmptyResponse:
     run = filter_single_or_404(
         models.AutoTestRun,
         models.AutoTestRun.id == run_id,
-        models.AutoTest.id == auto_test_id,
+        also_error=lambda run: run.auto_test_id != auto_test_id,
     )
-    _verify_runner(run.runner, password)
+    _verify_and_get_runner(run, password)
 
     for log in logs:
         assert isinstance(log, dict)
@@ -292,9 +293,8 @@ def get_fixture(
     runs: t.Sequence[t.Optional[models.AutoTestRun]] = [None]
     runs = fixture.auto_test.get_all_runs() or runs
     for run in runs:
-        runner = run.runner if run else None
         try:
-            _verify_runner(runner, password)
+            _verify_and_get_runner(run, password)
         except Exception as e:  # pylint: disable=broad-except; #pragma: no cover
             exc = e
         else:
@@ -313,7 +313,8 @@ def get_fixture(
     methods=['PATCH']
 )
 @feature_required(Feature.AUTO_TEST)
-def update_result(auto_test_id: int, result_id: int) -> EmptyResponse:
+def update_result(auto_test_id: int,
+                  result_id: int) -> JSONResponse[t.Dict[str, bool]]:
     """Update the the state of a result.
 
     This route does not update the results of steps!
@@ -337,9 +338,23 @@ def update_result(auto_test_id: int, result_id: int) -> EmptyResponse:
     result = filter_single_or_404(
         models.AutoTestResult,
         models.AutoTestResult.id == result_id,
-        models.AutoTest.id == auto_test_id,
+        also_error=lambda result: result.run.auto_test_id != auto_test_id,
+        with_for_update=True,
     )
-    _verify_runner(result.run.runner, password)
+    runner = _verify_and_get_runner(result.run, password)
+
+    logger.info(
+        'Updating result',
+        state=state,
+        remote_addr=runner.ipaddr,
+        result_runner=result.runner and result.runner.ipaddr,
+        result_id=result.id,
+    )
+
+    if result.runner is not None and result.runner != runner:
+        return jsonify({'taken': True})
+    else:
+        result.runner = runner
 
     if state is not None:
         new_state = parse_enum(state, models.AutoTestStepResultState)
@@ -351,7 +366,7 @@ def update_result(auto_test_id: int, result_id: int) -> EmptyResponse:
         result.setup_stderr = setup_stderr
 
     db.session.commit()
-    return make_empty_response()
+    return jsonify({'taken': False})
 
 
 @api.route(
@@ -387,7 +402,7 @@ def update_step_result(auto_test_id: int, result_id: int
         result_id,
         also_error=lambda res: res.run.auto_test_id != auto_test_id,
     )
-    _verify_runner(result.run.runner, password)
+    _verify_and_get_runner(result.run, password)
 
     if res_id is None:
         step_result = models.AutoTestStepResult(
@@ -437,12 +452,12 @@ def get_extra_results_to_process(
         also_error=lambda run: run.auto_test_id != auto_test_id,
         with_for_update=True,
     )
-    _verify_runner(run.runner, password)
+    runner = _verify_and_get_runner(run, password)
 
-    results = run.get_results_to_run().with_for_update().all()
+    results = run.get_results_to_run().all()
 
     if request_arg_true('last_call') and not results:
-        run.stop_runner()
+        run.stop_runners([runner])
         db.session.commit()
 
     return jsonify(

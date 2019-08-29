@@ -2,7 +2,7 @@
 import Vue from 'vue';
 import axios from 'axios';
 
-import { deepCopy } from '@/utils';
+import { deepCopy, getProps } from '@/utils';
 import { AutoTestSuiteData, AutoTestRun } from '@/models/auto_test';
 import * as types from '../mutation-types';
 
@@ -63,7 +63,7 @@ const actions = {
                     },
                     { root: true },
                 ),
-                dispatch('courses/forceLoadSubmissions', assignmentId, { root: true }),
+                dispatch('submissions/forceLoadSubmissions', assignmentId, { root: true }),
                 commit(types.DELETE_AUTO_TEST, autoTestId),
             ]),
         );
@@ -111,7 +111,11 @@ const actions = {
             .post(`/api/v1/auto_tests/${autoTestId}/runs/`, {
                 continuous_feedback_run: continuousFeedback,
             })
-            .then(({ data }) => commit(types.UPDATE_AUTO_TEST_RUNS, { autoTest, run: data }));
+            .then(({ data }) =>
+                dispatch('submissions/forceLoadSubmissions', autoTest.assignment_id, {
+                    root: true,
+                }).then(() => commit(types.UPDATE_AUTO_TEST_RUNS, { autoTest, run: data })),
+            );
     },
 
     async loadAutoTestRun({ commit, dispatch, state }, { autoTestId, acceptContinuous, force }) {
@@ -216,7 +220,9 @@ const actions = {
 
     async loadAutoTestResult(
         { commit, dispatch, state },
-        { autoTestId, submissionId, acceptContinuous },
+        {
+            autoTestId, submissionId, acceptContinuous, force,
+        },
     ) {
         await dispatch('loadAutoTest', { autoTestId });
         const autoTest = state.tests[autoTestId];
@@ -244,7 +250,8 @@ const actions = {
         const resultId = result.id;
         result = state.results[resultId];
 
-        if (result && result.finished) {
+        // Always reload when force is true.
+        if (result && result.finished && !force) {
             return Promise.resolve();
         }
 
@@ -266,7 +273,7 @@ const actions = {
         return loaders.results[resultId];
     },
 
-    async deleteAutoTestResults({ commit, dispatch, state }, { autoTestId, runId, force }) {
+    async deleteAutoTestResults({ commit, dispatch, state }, { autoTestId, runId }) {
         await dispatch('loadAutoTest', { autoTestId });
         const autoTest = state.tests[autoTestId];
 
@@ -286,7 +293,9 @@ const actions = {
                     runs: autoTest.runs.filter(r => r.id !== runId),
                 },
             });
-            return dispatch('courses/forceLoadSubmissions', autoTest.assignment_id, { root: true });
+            return dispatch('submissions/forceLoadSubmissions', autoTest.assignment_id, {
+                root: true,
+            });
         };
 
         return axios
@@ -300,7 +309,24 @@ const actions = {
                     ),
                 ),
             )
-            .then(() => c, () => (force ? c : () => {}));
+            .then(
+                () => c,
+                err => {
+                    switch (getProps(err, null, 'response', 'status')) {
+                        case 404:
+                            c();
+                            throw new Error(
+                                `${
+                                    run.isContinuous
+                                        ? 'AutoTest results were already deleted.'
+                                        : 'Continuous feedback was already stopped.'
+                                } Please reload the page.`,
+                            );
+                        default:
+                            throw err;
+                    }
+                },
+            );
     },
 
     createFixtures({ commit }, { autoTestId, fixtures, delay }) {

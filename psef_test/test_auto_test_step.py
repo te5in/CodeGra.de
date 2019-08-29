@@ -10,6 +10,7 @@ from werkzeug.local import LocalProxy
 import psef
 import psef.models as m
 from psef import helpers
+from psef.auto_test import OutputTail, StudentCommandResult
 from psef.exceptions import APIException
 from psef.models.auto_test_step import _IoTest as IoTest
 from psef.models.auto_test_step import _RunProgram as RunProgram
@@ -34,20 +35,35 @@ def raises_api(msg, full=False):
 @pytest.fixture
 def stub_container_class(stub_function_class):
     class Stub(stub_function_class):
-        def __init__(self, code, stdout, stderr, time_spend):
+        def __init__(self, code, stdout, stderr, time_spend, tail=None):
             def maybe_call(a):
                 return a(self) if callable(a) else a
 
-            super().__init__(
-                lambda: (
-                    maybe_call(self.code), maybe_call(self.stdout),
-                    maybe_call(self.stderr), maybe_call(self.time_spend)
+            def fun():
+                code = maybe_call(self.code)
+                stdout = maybe_call(self.stdout)
+                stderr = maybe_call(self.stderr)
+                time_spend = maybe_call(self.time_spend)
+                tail = maybe_call(self.tail)
+                if tail is None:
+                    tail = stdout
+
+                return StudentCommandResult(
+                    exit_code=code,
+                    stdout=stdout,
+                    stderr=stderr,
+                    time_spend=time_spend,
+                    stdout_tail=OutputTail(
+                        data=list(tail.encode()), overflowed=False
+                    )
                 )
-            )
+
+            super().__init__(fun)
             self.code = code
             self.stdout = stdout
             self.stderr = stderr
             self.time_spend = time_spend
+            self.tail = tail
 
         def run_student_command(self, *args, **kwargs):
             res = super().__call__(*args, **kwargs)
@@ -413,7 +429,9 @@ def test_execute_custom_output(
         monkeypatch.setattr(helpers, 'ensure_on_test_server', stub_ensure)
 
         stub_update_result = stub_function_class()
-        stub_container = stub_container_class(0, '0.5\n', 'asdf', 5)
+        stub_container = stub_container_class(
+            0, 'SHOULD NOT BE USED', 'asdf', 5, '0.5\n'
+        )
 
     def step():
         return o.execute_step(
@@ -444,7 +462,7 @@ def test_execute_custom_output(
     with describe('regex matching not integer should fail test'
                   ), monkeypatch.context() as m:
         m.setitem(data, 'regex', '\\f?')
-        m.setattr(stub_container, 'stdout', 'NOT A FLOAT')
+        m.setattr(stub_container, 'tail', '.NOT_A_FLOAT')
 
         res = step()
         assert res == 0
@@ -454,10 +472,23 @@ def test_execute_custom_output(
         assert last_update[1]['exit_code'] == -2  # Indicates non int
         assert last_update[1]['points'] == 0
 
+    with describe('regex matching number starting with . should pass'
+                  ), monkeypatch.context() as m:
+        m.setitem(data, 'regex', '\\f')
+        m.setattr(stub_container, 'tail', '.14')
+
+        res = step()
+        assert res == 0.14 * o.weight
+
+        last_update = stub_update_result.all_args[-1]
+        assert last_update[0].name == 'passed'
+        assert last_update[1]['exit_code'] == 0
+        assert last_update[1]['points'] == 0.14
+
     with describe('number lower than 0 should be capped'
                   ), monkeypatch.context() as m:
         for val, expected in [(-1, 0), (-0.5, 0), (-0.0, 0)]:
-            m.setattr(stub_container, 'stdout', str(val))
+            m.setattr(stub_container, 'tail', str(val))
 
             res = step()
             assert res == expected

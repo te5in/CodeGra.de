@@ -13,22 +13,6 @@ import psef.helpers
 from .. import app
 from .. import plagiarism as plag
 
-_SUPPORTED_LANGS = {
-    "Python 3": "python3",
-    "C/C++": "c/c++",
-    "Java 1": "java11",
-    "Java 2": "java12",
-    "Java 5": "java15dm",
-    "Java 7": "java17",
-    "Java 8": "java15",
-    "C# 1.2": "c#-1.2",
-    "Chars": "char",
-    "Text": "text",
-    "Scheme": "scheme",
-    "Scala": "scala",
-}
-"""Supported languages for JPlag and their human readable equivalent."""
-
 
 class JPlag(plag.PlagiarismProvider):
     """This class implements the JPlag plagiarism provider.
@@ -78,7 +62,7 @@ class JPlag(plag.PlagiarismProvider):
                 "The language used to parse the files from the student",
                 plag.OptionTypes.singleselect,
                 True,
-                list(_SUPPORTED_LANGS.keys()),
+                list(app.config['JPLAG_SUPPORTED_LANGUAGES'].keys()),
             ),
             plag.Option(
                 "suffixes",
@@ -119,7 +103,9 @@ class JPlag(plag.PlagiarismProvider):
         :param values: The values to be set.
         :returns: Nothing.
         """
-        self.lang = _SUPPORTED_LANGS[str(values['lang'])]
+        self.lang = app.config['JPLAG_SUPPORTED_LANGUAGES'][str(
+            values['lang']
+        )]
         self.has_base_code = bool(values['has_base_code'])
 
         if 'suffixes' in values:

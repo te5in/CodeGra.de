@@ -13,7 +13,7 @@
     <div class="scroller">
         <b-card header="General feedback">
             <pre v-if="generalFeedback"
-                 class="mb-0">{{ generalFeedback }}</pre>
+                 class="general-feedback mb-0">{{ generalFeedback }}</pre>
             <span v-else class="text-muted font-italic">
                 No general feedback given.
             </span>
@@ -41,11 +41,15 @@
                     <feedback-area v-if="disabledFileType(id).singleLine"
                                    :line="0"
                                    :feedback="feedback.user[id][0].msg"
+                                   :total-amount-lines="0"
                                    :author="feedback.user[id][0].author"
                                    :assignment="assignment"
                                    :submission="submission" />
                 </div>
 
+                <div v-else-if="codeLines[id] == null">
+                    <loader/>
+                </div>
                 <div v-else
                      v-for="(part, i) in getParts(id)"
                      :key="`file-${id}-line-${part[0]}`">
@@ -137,6 +141,10 @@ export default {
             return Object.keys(this.$utils.getProps(this.feedback, {}, 'user'));
         },
 
+        nonDisabledFileIds() {
+            return this.fileIds.filter(id => !this.disabledFileType(id));
+        },
+
         generalFeedback() {
             return this.submission.comment || '';
         },
@@ -150,7 +158,7 @@ export default {
             },
         },
 
-        fileIds: {
+        nonDisabledFileIds: {
             immediate: true,
             handler() {
                 this.loadCode();
@@ -159,7 +167,7 @@ export default {
     },
 
     methods: {
-        ...mapActions('courses', {
+        ...mapActions('submissions', {
             storeLoadSubmissionFeedback: 'loadSubmissionFeedback',
             storeLoadSubmissionFileTree: 'loadSubmissionFileTree',
         }),
@@ -192,12 +200,13 @@ export default {
                 return;
             }
 
-            const codeLines = await Promise.all(this.fileIds.map(this.loadCodeWithSettings));
+            if (this.codeLines == null) {
+                this.codeLines = {};
+            }
 
-            this.codeLines = this.fileIds.reduce((acc, id, i) => {
-                acc[id] = codeLines[i];
-                return acc;
-            }, {});
+            this.nonDisabledFileIds.filter(id => this.codeLines[id] == null).map(async id => {
+                this.$set(this.codeLines, id, await this.loadCodeWithSettings(id));
+            });
         },
 
         async loadCodeWithSettings(fileId) {
@@ -356,8 +365,12 @@ export default {
     overflow: hidden;
 }
 
-#app.dark pre {
-    color: @text-color-dark;
+.general-feedback {
+    white-space: pre-wrap;
+
+    #app.dark & {
+        color: @text-color-dark;
+    }
 }
 </style>
 

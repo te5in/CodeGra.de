@@ -250,7 +250,7 @@ action is required.${divEnd}`;
             // server. Now we know there is `timeoutTime` between each request.
             this.$http
                 .get(
-                    `/api/v1/group_sets/${this.assignment.id}/groups/${
+                    `/api/v1/assignments/${this.assignment.id}/groups/${
                         this.group.id
                     }/member_states/`,
                 )

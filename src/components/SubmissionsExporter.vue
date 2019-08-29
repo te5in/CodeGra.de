@@ -35,11 +35,11 @@
         </b-form-radio-group>
     </b-form-fieldset>
 
-    <b-button variant="primary"
-              class="export-button"
-              @click="createCSV">
-        Export as CSV
-    </b-button>
+    <submit-button variant="primary"
+                   class="export-button"
+                   label="Export as CSV"
+                   :submit="createCSV"
+                   @success="afterCreateCSV" />
 </div>
 </template>
 
@@ -49,13 +49,16 @@ import 'vue-awesome/icons/cog';
 
 import Baby from 'babyparse';
 
-import { nameOfUser } from '@/utils';
+import { downloadFile, nameOfUser } from '@/utils';
+
+import SubmitButton from './SubmitButton';
 
 export default {
     name: 'submissions-exporter',
 
     components: {
         Icon,
+        SubmitButton,
     },
 
     props: {
@@ -109,22 +112,14 @@ export default {
                     {
                         name: 'General feedback',
                         enabled: false,
-                        getter: submission => {
-                            if (submission.feedback && submission.feedback.general !== '') {
-                                return submission.feedback.general;
-                            }
-                            return '';
-                        },
+                        getter: submission =>
+                            this.$utils.getProps(submission, '', 'feedback', 'general'),
                     },
                     {
                         name: 'Line feedback',
                         enabled: false,
-                        getter: submission => {
-                            if (submission.feedback && submission.feedback.user) {
-                                return submission.feedback.user.join('\n');
-                            }
-                            return '';
-                        },
+                        getter: submission =>
+                            this.$utils.getProps(submission, [], 'feedback', 'user').join('\n'),
                     },
                 ];
 
@@ -132,12 +127,8 @@ export default {
                     cols.push({
                         name: 'Linter feedback',
                         enabled: false,
-                        getter: submission => {
-                            if (submission.feedback && submission.feedback.linter) {
-                                return submission.feedback.user.join('\n');
-                            }
-                            return '';
-                        },
+                        getter: submission =>
+                            this.$utils.getProps(submission, [], 'feedback', 'linter').join('\n'),
                     });
                 }
 
@@ -178,21 +169,14 @@ export default {
             if (this.enabledColumns.find(item => item.name.endsWith('feedback')) === undefined) {
                 cont = Promise.resolve({ data: {} });
             } else {
-                cont = this.$http
-                    .get(`/api/v1/assignments/${this.assignmentId}/feedbacks/`)
-                    .catch(() => ({
-                        data: {},
-                    }));
+                cont = this.$http.get(`/api/v1/assignments/${this.assignmentId}/feedbacks/`);
             }
 
-            cont.then(({ data: feedback }) => {
+            return cont.then(({ data: feedback }) => {
                 for (let i = 0; i < this.items.length; i += 1) {
-                    const item = Object.assign(
-                        {
-                            feedback: feedback[this.items[i].id],
-                        },
-                        this.items[i],
-                    );
+                    const item = Object.assign({}, this.items[i], {
+                        feedback: feedback[this.items[i].id],
+                    });
                     const row = {};
                     for (let j = 0; j < idx.length; j += 1) {
                         const col = this.enabledColumns[idx[j]];
@@ -204,10 +188,13 @@ export default {
                     fields: this.enabledColumns.map(obj => obj.name),
                     data,
                 });
-                this.$http.post('/api/v1/files/', csv).then(response => {
-                    window.open(`/api/v1/files/${response.data}/${this.currentFilename}`);
-                });
+
+                return { data: csv, filename: this.currentFilename };
             });
+        },
+
+        afterCreateCSV({ data, filename }) {
+            downloadFile(data, filename, 'text/csv');
         },
     },
 };

@@ -82,7 +82,7 @@
                 <submit-button :submit="deleteFeedback"
                                :filter-error="deleteFilter"
                                :duration="300"
-                               confirm="Are you sure you want to delete this comment?"
+                               :confirm="internalFeedback ? 'Are you sure you want to delete this comment?' : ''"
                                @after-success="afterDeleteFeedback"
                                @error="deleteFeedbackError"
                                variant="danger"
@@ -137,7 +137,7 @@ export default {
         },
         fileId: {
             type: Number,
-            required: true,
+            default: null,
         },
         editable: {
             type: Boolean,
@@ -312,7 +312,7 @@ export default {
             updateSnippetInStore: 'updateSnippet',
         }),
 
-        ...mapActions('courses', {
+        ...mapActions('submissions', {
             storeSubmitFeedbackLine: 'submitSubmissionFeedbackLine',
             storeDeleteFeedbackLine: 'deleteSubmissionFeedbackLine',
         }),

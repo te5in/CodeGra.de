@@ -29,6 +29,7 @@
         </b-card-header>
 
         <table class="table table-striped results-table"
+               :id="tableId"
                :class="{ 'table-hover': run.results.length > 0 }">
             <thead>
                 <tr>
@@ -39,23 +40,29 @@
             </thead>
 
             <tbody v-if="run.results.length > 0">
-                <tr v-for="result in run.results"
-                    :key="submissions[result.submissionId].user.id"
-                    @click="openResult(result)">
-                    <td class="name">
-                        {{ $utils.nameOfUser(submissions[result.submissionId].user) }}
-                    </td>
-                    <td class="score">
-                        <icon v-if="submissions[result.submissionId].grade_overridden"
+                <tr v-if="submissionsLoading">
+                    <td colspan="3"><loader :scale="1" /></td>
+                </tr>
+                <template v-else>
+                    <tr v-for="resultOffset in perPage"
+                        v-if="getResult(resultOffset) != null"
+                        :key="`result-${getResult(resultOffset).id}-submission-${getResult(resultOffset).submissionId}`"
+                        @click="openResult(getResult(resultOffset))">
+                        <td class="name">
+                            {{ $utils.nameOfUser(submissions[getResult(resultOffset).submissionId].user) }}
+                        </td>
+                        <td class="score">
+                            <icon v-if="submissions[getResult(resultOffset).submissionId].grade_overridden"
                                 v-b-popover.top.hover="'This submission\'s calculated grade has been manually overridden'"
                                 name="exclamation-triangle"/>
-                        {{ $utils.toMaxNDecimals($utils.getProps(result, '-', 'pointsAchieved'), 2) }} /
-                        {{ $utils.toMaxNDecimals(autoTest.pointsPossible, 2) }}
-                    </td>
-                    <td class="state">
-                        <auto-test-state :result="result" />
-                    </td>
-                </tr>
+                            {{ $utils.toMaxNDecimals($utils.getProps(getResult(resultOffset), '-', 'pointsAchieved'), 2) }} /
+                            {{ $utils.toMaxNDecimals(autoTest.pointsPossible, 2) }}
+                        </td>
+                        <td class="state">
+                            <auto-test-state :result="getResult(resultOffset)" />
+                        </td>
+                    </tr>
+                </template>
             </tbody>
             <tbody v-else>
                 <tr>
@@ -63,6 +70,15 @@
                 </tr>
             </tbody>
         </table>
+
+        <b-pagination
+            class="pagination mt-3"
+            v-if="run.results.length > 0 && run.results.length > perPage"
+            v-model="currentPage"
+            :limit="10"
+            :total-rows="run.results.length"
+            :per-page="perPage"
+            :aria-controls="tableId"/>
     </collapse>
 </b-card>
 </template>
@@ -77,6 +93,7 @@ import 'vue-awesome/icons/exclamation-triangle';
 import Collapse from './Collapse';
 import SubmitButton from './SubmitButton';
 import AutoTestState from './AutoTestState';
+import Loader from './Loader';
 
 export default {
     name: 'auto-test-run',
@@ -109,6 +126,11 @@ export default {
         return {
             resultsCollapsed: false,
             resultsCollapseId: `auto-test-results-collapse-${id}`,
+            submissions: {},
+            submissionsLoading: true,
+            currentPage: 1,
+            perPage: 15,
+            tableId: `auto-test-results-table-${this.$utils.getUniqueId()}`,
         };
     },
 
@@ -125,18 +147,61 @@ export default {
             }
         },
 
-        submissions() {
-            return this.assignment.submissions.reduce((acc, sub) => {
-                acc[sub.id] = sub;
-                return acc;
-            }, {});
+        submissionIds() {
+            return this.$utils.getProps(this.run, [], 'results').map(res => res.submissionId);
+        },
+
+        runId() {
+            return this.$utils.getProps(this.run, null, 'id');
+        },
+    },
+
+    watch: {
+        runId() {
+            this.currentPage = 1;
+        },
+
+        submissionIds: {
+            immediate: true,
+            handler() {
+                this.submissionsLoading = true;
+                this.submissions = {};
+                const ids = this.submissionIds;
+
+                this.storeLoadGivenSubmissions({
+                    assignmentId: this.assignment.id,
+                    submissionIds: ids,
+                }).then(subs => {
+                    if (this.submissionIds === ids) {
+                        subs.forEach(sub => {
+                            this.submissions[sub.id] = sub;
+                        });
+                        this.submissionsLoading = false;
+                    }
+                });
+            },
         },
     },
 
     methods: {
+        ...mapActions('submissions', {
+            storeLoadGivenSubmissions: 'loadGivenSubmissions',
+        }),
+
         ...mapActions('autotest', {
             storeDeleteAutoTestResults: 'deleteAutoTestResults',
         }),
+
+        getResult(resultOffset) {
+            // We need to substract one here as looping over an integer in vue
+            // returns numbers that are one-indexed.
+            const index = resultOffset - 1 + this.perPage * (this.currentPage - 1);
+            const results = this.$utils.getProps(this.run, [], 'results');
+            if (index >= results.length) {
+                return null;
+            }
+            return results[index];
+        },
 
         deleteResults() {
             return this.storeDeleteAutoTestResults({
@@ -161,6 +226,7 @@ export default {
     components: {
         Icon,
         Collapse,
+        Loader,
         SubmitButton,
         AutoTestState,
     },
@@ -193,6 +259,38 @@ export default {
 
     .state {
         text-align: center;
+    }
+}
+</style>
+
+<style lang="less">
+@import '~mixins.less';
+
+.auto-test-run .pagination {
+    display: flex;
+    justify-content: center;
+
+    .page-item .page-link {
+        &:active,
+        &:focus {
+            box-shadow: none;
+        }
+        #app.dark & {
+            border-color: @color-primary-darkest;
+        }
+    }
+
+    #app.dark & .page-item .page-link {
+        background-color: @color-primary;
+        color: @text-color-dark;
+    }
+
+    .page-item.active .page-link {
+        background-color: @color-primary;
+        color: @text-color-dark;
+        #app.dark & {
+            background-color: @color-primary-darkest;
+        }
     }
 }
 </style>

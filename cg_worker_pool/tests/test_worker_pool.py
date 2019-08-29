@@ -25,8 +25,10 @@ def test_all_work_is_done_once(work_done):
     extra_work = [Work(i + 500, i * 2 + 1000) for i in range(50)]
     all_work = sorted(initial_work + extra_work)
 
-    def worker_fun(work):
-        work_done.put(work)
+    def worker_fun(get_work):
+        work = get_work()
+        if work:
+            work_done.put(work)
 
     final_calls = 0
 
@@ -61,7 +63,10 @@ def test_newest_work_is_done(work_done, continue_work):
         Work(result_id=6, student_id=90),
     ]
 
-    def worker_fun(work):
+    def worker_fun(get_work):
+        work = get_work()
+        if not work:
+            return
         if work.student_id == 9:
             continue_work.wait()
             time.sleep(0.1)
@@ -85,7 +90,10 @@ def test_newest_work_is_done(work_done, continue_work):
 def test_raises_exception():
     final_set = mp.Event()
 
-    def worker_fun(work):
+    def worker_fun(get_work):
+        work = get_work()
+        if not work:
+            return
         time.sleep(1)
         raise CustomExc(work.result_id)
 

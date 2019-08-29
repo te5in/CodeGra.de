@@ -86,6 +86,11 @@ the output of this program. The output of the program can be captured using a
 and 1.0**. This number is then multiplied with the weight of the Capture Point
 Test to get to the final score of the test.
 
+.. note::
+
+    The float captured for a *Capture Points Test* is captured from the **last**
+    ``32 kB`` of output data.
+
 Use-cases
 ~~~~~~~~~~~
 Capture Points Tests are especially useful to run programs of which the output

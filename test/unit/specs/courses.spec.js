@@ -25,7 +25,6 @@ function createState() {
             },
         },
         currentCourseLoader: null,
-        submissionsLoaders: {},
     };
 };
 
@@ -83,7 +82,6 @@ describe('mutations', () => {
             expect(state).toEqual({
                 courses: {},
                 currentCourseLoader: null,
-                submissionsLoaders: {},
             });
         });
     });
@@ -139,10 +137,16 @@ describe('mutations', () => {
                     state, { assignmentId: 2, assignmentProps: { newProp: 5 }},
                 ),
             ).toThrow();
+
+            expect(
+                () => store.mutations[types.UPDATE_ASSIGNMENT](
+                    state, { assignmentId: 2, assignmentProps: { submission: 5 }},
+                ),
+            ).toThrow();
         });
 
         it('should work for some unknown props', () => {
-            ['submissions', 'rubric', 'graders'].forEach((key) => {
+            ['rubric', 'graders'].forEach((key) => {
                 const obj1 = {};
 
                 store.mutations[types.UPDATE_ASSIGNMENT](
@@ -179,138 +183,6 @@ describe('mutations', () => {
             const obj1 = {};
             store.mutations[types.SET_COURSES_PROMISE](state, obj1);
             expect(state.currentCourseLoader).toBe(obj1);
-        });
-    });
-
-    describe('set submissions promise', () => {
-        it('should set the state prop with correct key', () => {
-            const obj1 = {};
-            const obj2 = {};
-
-            store.mutations[types.SET_SUBMISSIONS_PROMISE](state, { promise: obj1, assignmentId: 2 });
-            expect(state.submissionsLoaders).toEqual({
-                2: obj1,
-            });
-
-            store.mutations[types.SET_SUBMISSIONS_PROMISE](state, { promise: obj2, assignmentId: 3 });
-            expect(state.submissionsLoaders).toEqual({
-                2: obj1,
-                3: obj2,
-            });
-        });
-    });
-
-    describe('add submission', () => {
-        it('should work and have correct order', () => {
-            const obj1 = {a: 1};
-            const obj2 = {b: 2};
-            const obj3 = {c: 3};
-            state.courses[1].assignments[0].submissions = [obj1, obj2];
-
-            store.mutations[types.ADD_SUBMISSION](state, { assignmentId: 2, submission: obj3 });
-            expect(state.courses[1].assignments[0].submissions).toEqual([
-                obj3,
-                obj1,
-                obj2,
-            ]);
-            expect(state.courses[1].assignments[0].submissions[0]).toBe(obj3);
-            expect(state.courses[1].assignments[0].submissions[1]).toBe(obj1);
-            expect(state.courses[1].assignments[0].submissions[2]).toBe(obj2);
-        });
-
-        it('should work when assignment has no submissions', () => {
-            const obj = {a: 1};
-            delete state.courses[1].assignments[0].submissions;
-
-            store.mutations[types.ADD_SUBMISSION](state, { assignmentId: 2, submission: obj });
-            expect(state.courses[1].assignments[0].submissions).toEqual([
-                obj,
-            ]);
-            expect(state.courses[1].assignments[0].submissions[0]).toBe(obj);
-        });
-    });
-
-    describe('delete submission', () => {
-        it('should work', () => {
-            const obj1 = {id: 1};
-            const obj2 = {id: 2};
-            const obj3 = {id: 3};
-            state.courses[1].assignments[0].submissions = [obj1, obj2, obj3];
-
-            store.mutations[types.DELETE_SUBMISSION](state, { assignmentId: 2, submissionId: 2 });
-            expect(state.courses[1].assignments[0].submissions).toEqual([
-                obj1,
-                obj3,
-            ]);
-            expect(state.courses[1].assignments[0].submissions[0]).toBe(obj1);
-            expect(state.courses[1].assignments[0].submissions[1]).toBe(obj3);
-        });
-    });
-
-    describe('update submission', () => {
-        it('should work for normal props', () => {
-            const obj1 = {id: 1};
-            const obj2 = {id: 2};
-            const obj3 = {id: 3};
-            state.courses[1].assignments[0].submissions = [obj1, obj2, obj3];
-
-            store.mutations[types.UPDATE_SUBMISSION](state, { assignmentId: 2, submissionId: 2, submissionProps: { a: 4 } });
-            expect(state.courses[1].assignments[0].submissions).toEqual([
-                obj1,
-                obj2,
-                obj3,
-            ]);
-            expect(obj2).toEqual({
-                id: 2,
-                a: 4,
-            })
-        });
-
-        it('should work for not unknown submissions', () => {
-            const obj1 = {id: 1};
-            const obj2 = {id: 2};
-            const obj3 = {id: 3};
-            state.courses[1].assignments[0].submissions = [obj1, obj2, obj3];
-
-            expect(
-                () => store.mutations[types.UPDATE_SUBMISSION](state, { assignmentId: 2, submissionId: 'UNKNOWN', submissionProps: { name: 4 } }),
-            ).toThrow();
-        });
-
-        it('should work for not work for id', () => {
-            const obj1 = {id: 1};
-            const obj2 = {id: 2};
-            const obj3 = {id: 3};
-            state.courses[1].assignments[0].submissions = [obj1, obj2, obj3];
-
-            expect(
-                () => store.mutations[types.UPDATE_SUBMISSION](state, { assignmentId: 2, submissionId: 2, submissionProps: { id: 4 } }),
-            ).toThrow();
-        });
-
-        it('grade prop should be formatted', () => {
-            mockFormatGrade.mockClear();
-            const single1 = {};
-            const single2 = {};
-            mockFormatGrade.mockReturnValueOnce(single2);
-            const obj1 = {id: 1};
-            const obj2 = {id: 2};
-            const obj3 = {id: 3};
-            state.courses[1].assignments[0].submissions = [obj1, obj2, obj3];
-
-            store.mutations[types.UPDATE_SUBMISSION](state, { assignmentId: 2, submissionId: 2, submissionProps: { grade: single1 } });
-            expect(state.courses[1].assignments[0].submissions).toEqual([
-                obj1,
-                obj2,
-                obj3,
-            ]);
-            expect(obj2).toEqual({
-                id: 2,
-                grade: single2,
-            })
-
-            expect(mockFormatGrade).toBeCalledTimes(1);
-            expect(mockFormatGrade).toBeCalledWith(single1);
         });
     });
 });
@@ -356,30 +228,6 @@ describe('actions', () => {
         });
     });
 
-    describe('load submissions', () => {
-        it('should reload submissions', async () => {
-            const obj1 = {};
-            const obj2 = {};
-            mockDispatch.mockReturnValueOnce(obj1);
-
-            await store.actions.loadSubmissions(context, obj2);
-
-            expect(mockDispatch).toBeCalledTimes(1);
-            expect(mockDispatch).toBeCalledWith('forceLoadSubmissions', obj2);
-        });
-
-        it('should return submissions promise', async () => {
-            const obj1 = {};
-            const obj2 = {};
-            state.submissionsLoaders[obj2] = obj1;
-
-            await expect(store.actions.loadSubmissions(context, obj2)).resolves.toBe(obj1);
-
-            expect(mockDispatch).not.toBeCalled();
-            expect(mockCommit).not.toBeCalled();
-        });
-    });
-
     describe('update course', () => {
         it('should simply work', () => {
             const obj1 = {};
@@ -397,26 +245,6 @@ describe('actions', () => {
 
             expect(mockCommit).toBeCalledTimes(1);
             expect(mockCommit).toBeCalledWith(types.UPDATE_ASSIGNMENT, obj1);
-        });
-    });
-
-    describe('update submission', () => {
-        it('should simply work', () => {
-            const props = {};
-            const data = {
-                assignmentId: 2,
-                submissionId: 4,
-                submissionProps: props,
-                other: 4,
-            };
-            store.actions.updateSubmission(context, data);
-
-            expect(mockCommit).toBeCalledTimes(1);
-            expect(mockCommit).toBeCalledWith(types.UPDATE_SUBMISSION, {
-                assignmentId: 2,
-                submissionId: 4,
-                submissionProps: props,
-            });
         });
     });
 
@@ -442,56 +270,6 @@ describe('actions', () => {
                     fixed_max_rubric_points: maxPoints,
                 },
             });
-        });
-    });
-
-    describe('delete submission', () => {
-        it('should simply work', () => {
-            const props = {};
-            const data = {
-                assignmentId: 2,
-                submissionId: 4,
-                other: 4,
-            };
-            store.actions.deleteSubmission(context, data);
-
-            expect(mockCommit).toBeCalledTimes(1);
-            expect(mockCommit).toBeCalledWith(types.DELETE_SUBMISSION, {
-                assignmentId: 2,
-                submissionId: 4,
-            });
-        });
-    });
-
-    describe('add submission', () => {
-        it('should simply work', () => {
-            mockFormatGrade.mockClear();
-            const single1 = {a: 1};
-            const single2 = {b: 2};
-            const props = {
-                grade: single1,
-                anything: 5,
-            };
-            const data = {
-                assignmentId: 2,
-                submissionId: 4,
-                submission: props,
-            };
-            mockFormatGrade.mockReturnValueOnce(single2);
-
-            store.actions.addSubmission(context, data);
-
-            expect(mockCommit).toBeCalledTimes(1);
-            expect(mockCommit).toBeCalledWith(types.ADD_SUBMISSION, {
-                assignmentId: 2,
-                submission: {
-                    formatted_created_at: expect.any(String),
-                    grade: single2,
-                    anything: 5,
-                },
-            });
-            expect(mockFormatGrade).toBeCalledTimes(1);
-            expect(mockFormatGrade).toBeCalledWith(single1);
         });
     });
 

@@ -14,9 +14,7 @@
               :name="icon" />
     </span>
 
-    <template v-if="btn">
-        {{ readable }}
-    </template>
+    <template v-if="btn">{{ readable }}</template><slot name="extra" v-if="$slots.extra"/>
 </component>
 </template>
 

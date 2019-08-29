@@ -1,6 +1,11 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
-<loader center v-if="loadingPage"/>
+<div v-if="error != null" class="mt-3">
+    <b-alert show variant="danger">
+        {{ error }}
+    </b-alert>
+</div>
+<loader center v-else-if="loadingPage"/>
 <div class="page submission outer-container" id="submission-page" v-else>
     <b-modal id="modal_delete" title="Are you sure?" hide-footer v-if="canDeleteSubmission">
         <p style="text-align: center;">
@@ -25,7 +30,10 @@
                   back-popover="Go back to submissions list"
                   always-show-extra-slot
                   :force-extra-drawer="!$root.$isLargeWindow">
-        <submission-nav-bar/>
+        <submission-nav-bar
+            :current-submission="submission"
+            :latest-submissions="latestSubmissions"
+            :not-latest="!currentSubmissionIsLatest"/>
 
         <b-button-group class="submission-header-buttons">
             <b-button class="settings-toggle"
@@ -72,7 +80,7 @@
                     <general-feedback-area style="width: 35em;"
                                            :assignment="assignment"
                                            :submission="submission"
-                                           :editable="editable"/>
+                                           :editable="true"/>
                 </b-popover>
             </b-button>
 
@@ -202,6 +210,7 @@
 
     <grade-viewer :assignment="assignment"
                   :submission="submission"
+                  :not-latest="!currentSubmissionIsLatest"
                   :editable="editable"
                   :rubric-start-open="rubricStartOpen"
                   v-if="!loadingInner"
@@ -259,7 +268,7 @@ export default {
             canSeeFeedback: false,
             canSeeRevision: false,
             canSeeGradeHistory: true,
-            editable: false,
+            canGrade: false,
             canUseSnippets: false,
 
             selectedCat: '',
@@ -268,12 +277,18 @@ export default {
             showWhitespace: true,
             selectedLanguage: 'Default',
             currentFile: null,
+
+            submission: null,
+            error: null,
         };
     },
 
     computed: {
         ...mapGetters('pref', ['contextAmount', 'fontSize']),
         ...mapGetters('user', { userId: 'id' }),
+        ...mapGetters('submissions', {
+            storeLatestSubmissions: 'latestSubmissions',
+        }),
         ...mapGetters('courses', ['assignments']),
         ...mapGetters('autotest', {
             allAutoTests: 'tests',
@@ -294,6 +309,10 @@ export default {
         fileId() {
             const fileId = Number(this.$route.params.fileId);
             return Number.isNaN(fileId) ? null : fileId;
+        },
+
+        editable() {
+            return !!(this.canGrade && this.currentSubmissionIsLatest);
         },
 
         prefFileId() {
@@ -319,12 +338,12 @@ export default {
             return this.assignments[this.assignmentId] || null;
         },
 
-        submissions() {
-            return (this.assignment && this.assignment.submissions) || [];
+        latestSubmissions() {
+            return this.storeLatestSubmissions[this.assignmentId] || [];
         },
 
-        submission() {
-            return this.submissions.find(sub => sub.id === this.submissionId) || null;
+        currentSubmissionIsLatest() {
+            return !!this.latestSubmissions.find(sub => sub.id === this.submissionId);
         },
 
         fileTree() {
@@ -359,7 +378,7 @@ export default {
         },
 
         loadingPage() {
-            return !(this.assignment && this.assignment.submissions);
+            return !this.assignment || this.submission == null;
         },
 
         loadingInner() {
@@ -552,8 +571,11 @@ export default {
 
         submissionId: {
             immediate: true,
-            handler() {
-                this.loadData();
+            async handler() {
+                await this.loadCurrentSubmission();
+                if (this.error == null) {
+                    this.loadData();
+                }
             },
         },
 
@@ -587,8 +609,9 @@ export default {
     },
 
     methods: {
-        ...mapActions('courses', {
+        ...mapActions('submissions', {
             storeLoadSubmissions: 'loadSubmissions',
+            storeLoadSingleSubmission: 'loadSingleSubmission',
             storeUpdateSubmission: 'updateSubmission',
             storeDeleteSubmission: 'deleteSubmission',
             storeLoadFileTree: 'loadSubmissionFileTree',
@@ -630,7 +653,7 @@ export default {
                     canUseSnippets,
                 ]) => {
                     if (courseId === this.courseId) {
-                        this.editable = canGrade;
+                        this.canGrade = canGrade;
                         this.canSeeFeedback = canSeeGradeBeforeDone || this.assignmentDone;
                         this.canDeleteSubmission = canDeleteSubmission;
                         this.canSeeGradeHistory = canSeeGradeHistory;
@@ -649,6 +672,28 @@ export default {
 
                         this.loadingPermissions = null;
                     }
+                },
+            );
+        },
+
+        loadCurrentSubmission() {
+            // We need to reset the current file to `null` as changing the
+            // current submission reloads the current file, which means we
+            // download it again while it is not needed.
+            this.currentFile = null;
+            this.submission = null;
+            // Reset the error so we show a loader and not the old error.
+            this.error = null;
+
+            return this.storeLoadSingleSubmission({
+                assignmentId: this.assignmentId,
+                submissionId: this.submissionId,
+            }).then(
+                sub => {
+                    this.submission = sub;
+                },
+                err => {
+                    this.error = this.$utils.getErrorMessage(err);
                 },
             );
         },
@@ -735,15 +780,16 @@ export default {
         },
 
         deleteSubmission() {
-            return this.$http.delete(`/api/v1/submissions/${this.submissionId}`);
+            const sub = this.submission;
+            return this.$http.delete(`/api/v1/submissions/${this.submissionId}`).then(() =>
+                this.storeDeleteSubmission({
+                    assignmentId: this.assignmentId,
+                    submission: sub,
+                }),
+            );
         },
 
         afterDeleteSubmission() {
-            this.storeDeleteSubmission({
-                assignmentId: this.assignmentId,
-                submissionId: this.submissionId,
-            });
-
             this.$router.replace({
                 name: 'assignment_submissions',
                 params: {

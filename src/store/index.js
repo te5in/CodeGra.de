@@ -10,6 +10,7 @@ import courses from './modules/courses';
 import rubrics from './modules/rubrics';
 import autotest from './modules/autotest';
 import plagiarism from './modules/plagiarism';
+import submissions from './modules/submissions';
 
 Vue.use(Vuex);
 
@@ -49,6 +50,7 @@ export default new Vuex.Store({
         rubrics,
         autotest,
         plagiarism,
+        submissions,
     },
     strict: debug,
     plugins,

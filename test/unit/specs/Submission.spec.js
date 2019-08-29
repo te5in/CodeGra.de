@@ -27,6 +27,7 @@ describe('Submission.vue', () => {
     let submissions;
     let autoTests;
     let mockLoadSubs;
+    let mockLoadSub;
     let mockLoadTree;
     let mockLoadFeedback;
     let wrapper;
@@ -85,7 +86,7 @@ describe('Submission.vue', () => {
             id: 8,
         });
 
-        const user = {id: 1000};
+        const user = { id: 1000 };
         submissions = [
             { id: 1, user, grade: null, feedback: null, fileTree: null },
             { id: 2, user, grade: null, feedback: null, fileTree: null },
@@ -129,6 +130,9 @@ describe('Submission.vue', () => {
         }));
 
         mockLoadSubs = jest.fn(() => Promise.resolve(true));
+        mockLoadSub = jest.fn((context, { submissionId }) =>
+            Promise.resolve(submissions.find(s => s.id === submissionId)),
+        );
         mockLoadTree = jest.fn((context, { submissionId }) => {
             return Promise.all([
                 mockGet(`/api/v1/submissions/${submissionId}/files/`),
@@ -175,8 +179,19 @@ describe('Submission.vue', () => {
                         courses: () => courses,
                         assignments: () => ({ 2: courses[1].assignments[0] }),
                     },
+                    namespaced: true,
+                },
+                submissions: {
+                    state: {
+                        submissions: { 2: submissions },
+                        latestSubmissions: { 2: submissions },
+                    },
+                    getters: {
+                        latestSubmissions: state => state.latestSubmissions,
+                    },
                     actions: {
                         loadSubmissions: mockLoadSubs,
+                        loadSingleSubmission: mockLoadSub,
                         loadSubmissionFileTree: mockLoadTree,
                         loadSubmissionFeedback: mockLoadFeedback,
                     },
@@ -250,7 +265,7 @@ describe('Submission.vue', () => {
             expect(comp.assignment).toBe(courses[1].assignments[0]);
             expect(comp.assignment.id).toBe(2);
 
-            expect(comp.submissions).toBe(submissions);
+            expect(comp.latestSubmissions).toBe(submissions);
             expect(comp.submission).toBe(submissions[2]);
             expect(comp.submission.id).toBe(3);
 
@@ -259,7 +274,6 @@ describe('Submission.vue', () => {
             $route.params.submissionId = 'hello';
 
             expect(comp.assignment).toBeNull();
-            expect(comp.submissions).toHaveLength(0);
             expect(comp.submission).toBeNull();
         });
 
@@ -308,7 +322,9 @@ describe('Submission.vue', () => {
                 expect(comp.defaultCat).toBe('code');
             });
 
-            it('should be "Feedback Overview" when the assignment is done and the submission has feedback', () => {
+            it('should be "Feedback Overview" when the assignment is done and the submission has feedback', async () => {
+                await comp.loadData();
+
                 comp.$set(comp.assignment, 'state', assignmentState.DONE);
                 comp.$set(comp.feedback, 'general', 'abc');
 
@@ -372,7 +388,8 @@ describe('Submission.vue', () => {
             expect(mockLoadTree).toBeCalledTimes(1);
             expect(mockLoadFeedback).toBeCalledTimes(1);
 
-            $route.params.submissionId = '4';
+            comp.$set(comp.$route.params, 'submissionId', '4');
+            await comp.$nextTick();
             await comp.$nextTick();
 
             expect(mockLoadTree).toBeCalledTimes(2);

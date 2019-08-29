@@ -27,6 +27,8 @@ details on `the CodeGrade website <https://codegrade.com>`_.
    guides/creating-an-assignment
    guides/setting-up-autotest
    guides/enabling-continuous-feedback-for-an-assignment
+   guides/installing-codegrade-filesystem
+   guides/use-codegrade-filesystem
    guides/creating-managing-and-using-snippets
    guides/checking-for-plagiarism
    guides/set-up-group-assignment

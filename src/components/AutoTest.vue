@@ -102,7 +102,14 @@
 
                             <auto-test-state v-if="singleResult"
                                              :result="result"
-                                             btn />
+                                             btn>
+                                <template
+                                    slot="extra"
+                                    v-if="$utils.getProps(result, null, 'approxWaitingBefore') != null"
+                                    >, ~{{ $utils.withOrdinalSuffix(result.approxWaitingBefore + 1) }}
+                                    in the queue
+                                </template>
+                            </auto-test-state>
                         </b-card-header>
 
                         <b-card-body>
@@ -241,7 +248,8 @@
                                             This script will be run at the beginning of the AutoTest
                                             run. Put all your global setup in this script, such as
                                             installing packages and compiling fixtures. Don't put
-                                            any student-specific setup in this script.
+                                            any student-specific setup in this script. The command
+                                            will be executed in the <code>$FIXTURES</code> directory.
                                         </template>
                                     </description-popover>
                                 </label>
@@ -264,7 +272,7 @@
                                 <div v-else>
                                     <code class="d-block mb-2">{{ test.run_setup_script }}</code>
 
-                                    <template v-if="result && canViewAutoTest">
+                                    <template v-if="result && (currentRun.setupStdout != null || currentRun.setupStderr != null)">
                                         <b-tabs no-fade>
                                             <b-tab title="stdout">
                                                 <inner-code-viewer class="rounded border"
@@ -301,11 +309,11 @@
                                     <description-popover hug-text>
                                         <template slot="description">
                                             Input a bash command to run your setup script that will
-                                            be run for each student specifically.  This command will
-                                            be run in the home directory
-                                            (<code>/home/codegrade/</code>). You can access your
-                                            fixtures through the <code>$FIXTURES</code> environment
-                                            variable.
+                                            be run for each student specifically. This command will
+                                            be run in the directory
+                                            <code>/home/<wbr>codegrade/<wbr>student/</code>.
+                                            You can access your fixtures through the
+                                            <code>$FIXTURES</code> environment variable.
                                         </template>
                                     </description-popover>
                                 </label>
@@ -328,7 +336,7 @@
                                 <div v-else>
                                     <code class="d-block mb-2">{{ test.setup_script }}</code>
 
-                                    <template v-if="result && canViewAutoTest">
+                                    <template v-if="result && (result.setupStdout != null || result.setupStderr != null)">
                                         <b-tabs no-fade>
                                             <b-tab title="stdout">
                                                 <inner-code-viewer class="rounded border"
@@ -345,7 +353,7 @@
                                             <b-tab title="stderr">
                                                 <inner-code-viewer class="rounded border"
                                                                    :assignment="assignment"
-                                                                   :code-lines="prepareOutput(result.setupStdout)"
+                                                                   :code-lines="prepareOutput(result.setupStderr)"
                                                                    :file-id="-1"
                                                                    :feedback="{}"
                                                                    :start-line="0"
@@ -398,13 +406,16 @@
              hide-footer
              @hidden="currentResult = null"
              class="result-modal">
-        <template slot="modal-title">
+        <loader v-if="resultSubmissionLoading" class="my-3" />
+        <template slot="modal-title" v-else>
             {{ $utils.nameOfUser(resultSubmission.user) }} -
-            {{ currentResult.pointsAchieved }} / {{ test.pointsPossible }} points
+            {{ $utils.toMaxNDecimals(currentResult.pointsAchieved, 2) }} /
+            {{ $utils.toMaxNDecimals(test.pointsPossible, 2) }} points
         </template>
 
         <auto-test :assignment="assignment"
                    :submission-id="currentResult.submissionId"
+                   v-if="!resultSubmissionLoading"
                    show-rubric
                    no-poll-run />
     </b-modal>
@@ -540,6 +551,9 @@ export default {
                 { text: 'Minimum percentage needed to reach item', value: 'partial' },
                 { text: 'Maximum percentage needed to reach item', value: 'full' },
             ],
+
+            resultSubmissionLoading: true,
+            resultSubmission: null,
         };
     },
 
@@ -548,6 +562,26 @@ export default {
     },
 
     watch: {
+        resultSubmissionIds: {
+            immediate: true,
+            handler() {
+                this.resultSubmissionLoading = true;
+                this.resultSubmission = null;
+                const { assignmentId, submissionId } = this.resultSubmissionIds;
+                if (assignmentId == null || submissionId == null) {
+                    this.resultSubmissionLoading = false;
+                    return;
+                }
+
+                this.storeLoadSingleSubmission({ assignmentId, submissionId }).then(sub => {
+                    if (sub.id === this.resultSubmissionIds.submissionId) {
+                        this.resultSubmissionLoading = false;
+                        this.resultSubmission = sub;
+                    }
+                });
+            },
+        },
+
         assignmentId: {
             immediate: true,
             handler() {
@@ -584,9 +618,10 @@ export default {
     },
 
     methods: {
-        ...mapActions('courses', {
-            storeForceLoadSubmissions: 'forceLoadSubmissions',
+        ...mapActions('submissions', {
             storeLoadSubmissions: 'loadSubmissions',
+            storeForceLoadSubmissions: 'forceLoadSubmissions',
+            storeLoadSingleSubmission: 'loadSingleSubmission',
         }),
 
         ...mapActions('autotest', {
@@ -612,7 +647,7 @@ export default {
             return this.storeCreateAutoTestRun({
                 autoTestId: this.autoTestId,
                 continuousFeedback,
-            }).then(() => this.storeForceLoadSubmissions(this.assignmentId));
+            });
         },
 
         afterRunAutoTest() {
@@ -645,7 +680,9 @@ export default {
                     () => {
                         this.message = null;
                         this.configCollapsed = !!this.finalRun && !this.singleResult;
-                        return this.singleResult ? this.loadSingleResult() : this.loadAutoTestRun();
+                        return this.singleResult
+                            ? this.loadSingleResult(true)
+                            : this.loadAutoTestRun();
                     },
                     err => {
                         switch (this.$utils.getProps(err, null, 'response', 'status')) {
@@ -680,22 +717,16 @@ export default {
             }).then(
                 () => {
                     if (this.finalRun.finished) {
-                        this.storeForceLoadSubmissions(this.assignment.id);
+                        // We need to reload the submissions as the run has
+                        // finished so the grades/rubric will be updated.
+                        return this.storeForceLoadSubmissions(this.assignment.id);
                     } else {
                         this.pollingTimer = setTimeout(this.loadAutoTestRun, this.pollingInterval);
+                        return Promise.resolve();
                     }
                 },
                 err => {
                     switch (this.$utils.getProps(err, 500, 'response', 'status')) {
-                        case 404:
-                            if (this.finalRun) {
-                                this.storeDeleteAutoTestResults({
-                                    autoTestId: this.autoTestId,
-                                    runId: this.finalRun.id,
-                                    force: true,
-                                }).then(c => c());
-                            }
-                            break;
                         case 500:
                             this.pollingInterval = setTimeout(
                                 this.loadAutoTestRun,
@@ -703,29 +734,39 @@ export default {
                             );
                             break;
                         default:
-                            break;
+                            throw err;
                     }
                 },
             );
         },
 
-        loadSingleResult() {
+        loadSingleResult(force = false) {
             if (!this.singleResult) {
                 return null;
             }
 
+            const isContinuous = this.$utils.getProps(this, false, 'currentRun', 'isContinuous');
+
             const promises = [
-                this.loadRubric(),
                 this.storeLoadAutoTestResult({
                     autoTestId: this.autoTestId,
                     submissionId: this.submissionId,
                     acceptContinuous: this.acceptContinuous,
+                    force,
                 }),
             ];
 
-            // Poll this result until it's finished, then poll the run so we can get the
-            // rubric when it is finished.
-            if (this.result && this.result.finished && !this.noPollRun) {
+            // Load rubric on first load. It does not need to be reloaded for
+            // Continuous Feedback runs, as they don't fill the rubric anyway.
+            if (!this.result || !isContinuous) {
+                promises.push(this.loadRubric());
+            }
+
+            // If the result is finished, it won't change anymore, so stop
+            // polling it. Instead, poll the run until it's finished, so we can
+            // then update the rubric. This does not need to happen for
+            // Continuous Feedback runs, as they don't fill the rubric.
+            if (!isContinuous && this.result && this.result.finished && !this.noPollRun) {
                 promises.push(
                     this.storeLoadAutoTestRun({
                         autoTestId: this.autoTestId,
@@ -738,9 +779,17 @@ export default {
                 () => {
                     this.message = null;
 
-                    if (this.finalRun && this.finalRun.finished) {
+                    // If the run is finished, neither the results nor the run
+                    // itself will be updated anymore, so just get the rubric results
+                    // one last time and stop polling.
+                    if (!isContinuous && this.currentRun && this.currentRun.finished) {
                         return this.loadRubric(true);
-                    } else if (this.result && !this.result.finished) {
+                    }
+
+                    // Poll the result as long as it is not finished. If the result is
+                    // finished, but this is not a Continuous Feedback run, keep polling,
+                    // as we will start retrieving the run instead of the result now.
+                    if (!this.result || !this.result.finished || !isContinuous) {
                         this.pollingTimer = setTimeout(this.loadSingleResult, this.pollingInterval);
                     }
 
@@ -1060,10 +1109,6 @@ export default {
             return this.assignment.state === 'done';
         },
 
-        canViewAutoTest() {
-            return this.permissions.can_view_autotest_before_done || this.assignmentDone;
-        },
-
         canCreateAutoTest() {
             return this.permissions.can_edit_autotest && this.assignment.rubric == null;
         },
@@ -1084,14 +1129,13 @@ export default {
             return this.autoTestId && this.finalRun;
         },
 
-        resultSubmission() {
-            const submissionId = this.submissionId || this.currentResult.submissionId;
-
-            if (submissionId == null) {
-                return null;
-            }
-
-            return this.assignment.submissions.find(s => s.id === submissionId);
+        resultSubmissionIds() {
+            return {
+                assignmentId: this.assignment.id,
+                submissionId:
+                    this.submissionId ||
+                    this.$utils.getProps(this.currentResult, null, 'submissionId'),
+            };
         },
 
         currentRun() {

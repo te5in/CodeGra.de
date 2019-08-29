@@ -1,6 +1,104 @@
 Changelog
 ==========
 
+Version 1.10.3 (JungleJoy.2)
+-----------------------------
+
+**Released**: August 28th, 2019
+
+It is now significantly more efficient to run AutoTest or Continuous Feedback by
+a big improvement in our back-end. Additionally, our latest update adds further
+improvements to CodeGrade and fixes several minor and rare bugs.
+
+**Features**
+
+-  Use multiple runners
+   `(#1037) <https://github.com/CodeGra-de/CodeGra.de/pull/1037>`__: make
+   AutoTest or Continuous Feedback more efficient by allowing multiple runners
+   to work on one run.
+-  Only show latest submissions by default
+   `(#1040) <https://github.com/CodeGra-de/CodeGra.de/pull/1040>`__: make
+   loading of submission(s) pages more efficient by only loading latest
+   submissions by default, which especially is a problem with continuous
+   feedback which can cause high amounts of attempts per student. Additionally
+   adds an improved dropdown to switch between submissions of one student.
+
+
+**Minor updates**
+
+-  Improve popovers for locked rubric rows
+   `(#1016) <https://github.com/CodeGra-de/CodeGra.de/pull/1016>`__:
+   improves presentation of rubrics on more pages and adds popover to the whole
+   rubric instead of only the lock icon.
+-  Increase indentation of files in the file tree
+   `(#1022) <https://github.com/CodeGra-de/CodeGra.de/pull/1022>`__.
+-  Improve scrolling to match near end in plagiarism detail
+   `(#1024) <https://github.com/CodeGra-de/CodeGra.de/pull/1024>`__: make it
+   possible to align plagiarism matches even if one is near the bottom of the
+   file.
+-  Remove confirmation to delete feedback when FeedbackArea is empty
+   `(#1034) <https://github.com/CodeGra-de/CodeGra.de/pull/1034>`__: make it
+   quicker to remove empty inline comments by removing confirmation dialog.
+-  Use a tail of output use for custom output matching
+   `(#1036) <https://github.com/CodeGra-de/CodeGra.de/pull/1036>`__: capture
+   points tests have a cap on the output of the command. Now the points are
+   always captured from the tail of this output.
+-  Minor AutoTest setup script improvements
+   `(#1041) <https://github.com/CodeGra-de/CodeGra.de/pull/1041>`__: make
+   Continuous Feedback setup script output visible to students and improve the
+   setup scripts popover texts.
+-  Move Jplag languages to the config
+   `(#1043) <https://github.com/CodeGra-de/CodeGra.de/pull/1043>`__: adding
+   new languages to our plagiarism detection is easier now, as it does now not
+   need modifications in the CodeGrade source code.
+-  Add pagination to the AutoTest run overview `(#1045)
+   <https://github.com/CodeGra-de/CodeGra.de/pull/1045>`__: if there are too
+   many results for an AutoTest run the results will be paginated, which
+   decreases loading time and makes the page responsive.
+
+**Fixes**
+
+-  Fix general feedback overflow
+   `(#1012) <https://github.com/CodeGra-de/CodeGra.de/pull/1012>`__:
+   fixes the bug where too long general feedback causes an overflow.
+-  Fix race condition when starting an AutoTest run
+   `(#1014) <https://github.com/CodeGra-de/CodeGra.de/pull/1014>`__:
+   fixes the UI glitch that continuously reloads the student list.
+-  Fix infinitely reloading a Continuous Feedback AutoTestRun
+   `(#1015) <https://github.com/CodeGra-de/CodeGra.de/pull/1015>`__.
+-  Fix selecting text in the InnerCodeViewer
+   `(#1017) <https://github.com/CodeGra-de/CodeGra.de/pull/1017>`__.
+-  Fix issue with inline feedback in exported CSV
+   `(#1018) <https://github.com/CodeGra-de/CodeGra.de/pull/1018>`__.
+-  Return IO substep name and weight when no permission to view details
+   `(#1023) <https://github.com/CodeGra-de/CodeGra.de/pull/1023>`__: still
+   display names of substeps of IO tests if these are hidden. Details do not
+   show.
+-  Make sure waiting on pid only starts after command is started
+   `(#1030) <https://github.com/CodeGra-de/CodeGra.de/pull/1030>`__.
+-  Fix "Stop CF" button not working sometimes
+   `(#1032) <https://github.com/CodeGra-de/CodeGra.de/pull/1032>`__: fixes a
+   very rare bug which would break the "Stop CF" or "Delete Run" buttons.
+-  Clear store rubrics in the RubricEditor when they change
+   `(#1033) <https://github.com/CodeGra-de/CodeGra.de/pull/1033>`__: fixes the
+   bug that required a refresh before a new rubric would show up on the
+   submission page.
+-  Use correct URL in group management component
+   `(#1035) <https://github.com/CodeGra-de/CodeGra.de/pull/1035>`__.
+-  Lots of bugfixes and minor improvements
+   `(#1038) <https://github.com/CodeGra-de/CodeGra.de/pull/1038>`__: this fixes
+   numerous small bugs, including:
+
+   - Download files without posting them to the server first
+   - Do the doc build in the unit build on Travis
+   - Round number of decimals in AutoTest result modal header
+   - Add percent sign to checkpoint inputs
+   - Merge "Info" and "Output" tabs in AutoTest result
+
+-  Fix a bug where multiple submisions of a user could be shown if they had the
+   exact same date `(#1042) <https://github.com/CodeGra-de/CodeGra.de/pull/1042>`__.
+
+
 Version 1.9.0 (JungleJoy.1)
 -----------------------------
 
@@ -25,7 +123,7 @@ more intuitive.
 
 **Minor updates**
 
--  Add ``all_whitespace`` option to IO test
+-  Add *all_whitespace* option to IO test
    `(#969) <https://github.com/CodeGra-de/CodeGra.de/pull/969>`__: add new
    option to IO tests to ignore all whitespace when comparing.
 -  Update stop points to percentages
@@ -34,10 +132,10 @@ more intuitive.
    or check points now work with percentages instead of points. (**not backwards
    compatible!!**)
 
-.. warning::
-    Update `#978 <https://github.com/CodeGra-de/CodeGra.de/pull/978>`__ is
-    **not** backwards compatible. Previous stop / check points break if not
-    updated to percentages.
+   .. warning::
+      Update `#978 <https://github.com/CodeGra-de/CodeGra.de/pull/978>`__ is
+      **not** backwards compatible. Previous stop / check points break if not
+      updated to percentages.
 
 **Fixes**
 
@@ -45,7 +143,7 @@ more intuitive.
    `(#968) <https://github.com/CodeGra-de/CodeGra.de/pull/968>`__:
    fix non-escaped underscores and add option to output each listing on new page.
 -  Change text on 'delete files' button when handing in
-    `(#959) <https://github.com/CodeGra-de/CodeGra.de/pull/959>`__:
+   `(#959) <https://github.com/CodeGra-de/CodeGra.de/pull/959>`__.
 
 
 Version 1.7.0 (JungleJoy)

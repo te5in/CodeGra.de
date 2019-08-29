@@ -60,3 +60,16 @@ String.prototype.startsWith =
     function startsWith(search, pos) {
         return this.substr(!pos || pos < 0 ? 0 : +pos, search.length) === search;
     };
+
+// eslint-disable-next-line
+String.prototype.endsWith =
+    String.prototype.endsWith ||
+    function endsWith(search, thisLen) {
+        let len;
+        if (thisLen === undefined || thisLen > this.length) {
+            len = this.length;
+        } else {
+            len = thisLen;
+        }
+        return this.substring(len - search.length, len) === search;
+    };

@@ -589,7 +589,7 @@ export default {
 .sidebar {
     position: fixed;
     position: sticky;
-    z-index: 10;
+    z-index: 1001;
     top: 0;
     height: 100vh;
 
@@ -1037,7 +1037,7 @@ export default {
 
     .submenu hr.separator {
         position: relative;
-        z-index: 100;
+        z-index: 10;
     }
 
     small {

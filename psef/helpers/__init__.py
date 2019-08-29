@@ -3,6 +3,7 @@ This module implements generic helpers and convenience functions.
 
 SPDX-License-Identifier: AGPL-3.0-only
 """
+import os
 import re
 import abc
 import sys
@@ -31,6 +32,7 @@ from cg_json import (
     JSONResponse, ExtendedJSONResponse, jsonify, extended_jsonify
 )
 from cg_timers import timed_code
+from cg_flask_helpers import callback_after_this_request
 from cg_sqlalchemy_helpers.types import Base, MyQuery, DbColumn
 
 from . import features, validate
@@ -847,27 +849,6 @@ def raise_file_too_big_exception(
     )
 
 
-def callback_after_this_request(
-    fun: t.Callable[[], object],
-) -> t.Callable[[T], T]:
-    """Execute a callback after this request without changing the response.
-
-    :param fun: The callback to execute after the current request.
-    :returns: The function that will execute after this request that does that
-        the response as argument, so this function wraps your given callback.
-    """
-
-    @flask.after_this_request
-    def after(res: flask.Response) -> flask.Response:
-        """The entire callback that is executed at the end of the request.
-        """
-        if res.status_code < 400:
-            fun()
-        return res
-
-    return after
-
-
 def get_class_by_name(superclass: T_Type, name: str) -> T_Type:
     """Get a class with given name
 
@@ -1043,7 +1024,9 @@ class RepeatedTimer(StoppableThread):
 
 def call_external(
     call_args: t.List[str],
-    input_callback: t.Callable[[str], bool] = lambda _: False
+    input_callback: t.Callable[[str], bool] = lambda _: False,
+    *,
+    nice_level: t.Optional[int] = None,
 ) -> t.Tuple[bool, str]:
     """Safely call an external program without any exceptions.
 
@@ -1066,14 +1049,26 @@ def call_external(
         if not input_callback(out):
             output.append(out)
 
+    def preexec_fn() -> None:  # pragma: no cover
+        if nice_level is not None:
+            try:
+                os.nice(nice_level)
+            except:  # pylint: disable=bare-except
+                pass
+
     try:
-        with subprocess.Popen(
+        # The preexec_fn is not really safe when combined with
+        # threads. However, we don't combine it with threads as celery doesn't
+        # run threaded. Even if it would run threaded, the function is really
+        # simple so the chance of a deadlock is quite low.
+        with subprocess.Popen(  # pylint: disable=subprocess-popen-preexec-fn
             call_args,
             stderr=subprocess.STDOUT,
             stdout=subprocess.PIPE,
             shell=False,
             universal_newlines=True,
             bufsize=1,
+            preexec_fn=preexec_fn,
         ) as proc:
             while proc.poll() is None:
                 process_line(proc.stdout.readline())
@@ -1108,7 +1103,7 @@ def get_files_from_request(
     lot too large if you provide check_size. This is done for the entire
     request, not only the processed files.
 
-    :param only_small_files: Only allow small files to be uploaded.
+    :param max_size: Maximum file size.
     :param keys: The keys the files should match in the request.
     :param only_start: If set to false the key of the request should only match
         the start of one of the keys in ``keys``.
@@ -1131,12 +1126,16 @@ def get_files_from_request(
 
     if only_start:
         for key, file in flask.request.files.items():
-            if any(key.startswith(cur_key) for cur_key in keys):
+            if any(
+                key.startswith(cur_key) for cur_key in keys
+            ) and file.filename:
                 res.append(file)
     else:
         for key in keys:
             if key in flask.request.files:
-                res.append(flask.request.files[key])
+                file = flask.request.files[key]
+                if file.filename:
+                    res.append(file)
 
         # Make sure we never return more files than requested.
         assert len(keys) >= len(res)

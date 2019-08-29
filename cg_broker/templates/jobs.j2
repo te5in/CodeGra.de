@@ -5,7 +5,8 @@
     <thead>
         <th>ID</th>
         <th>Instance</th>
-        <th>Runner</th>
+        <th>Wanted runners</th>
+        <th>Amount of of runners</th>
         <th>Created at</th>
         <th>Updated at</th>
         <th>State</th>
@@ -16,11 +17,8 @@
         <tr>
             <td>{{ job.id }}</td>
             <td>{{ job.cg_url }}</td>
-            {% if job.runner %}
-            <td>{{ job.runner.id }}</td>
-            {% else %}
-            <td>None</td>
-            {% endif %}
+            <td>{{ job.wanted_runners }}</td>
+            <td>{{ job.runners | length }}</td>
             <td>{{ job.created_at }}</td>
             <td>{{ job.updated_at }}</td>
             <td>{{ job.state.name }}</td>

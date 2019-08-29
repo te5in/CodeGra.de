@@ -1,32 +1,12 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { cmpOneNull, cmpNoCase, nameOfUser, groupMembers } from '@/utils';
 
-export function filterSubmissions(
-    submissions,
-    latest,
-    mine,
-    userId,
-    filter,
-    callback = () => false,
-) {
+export function filterSubmissions(submissions, mine, userId, filter, callback = () => false) {
     const l = new Set();
-    let latestSubs = submissions;
 
-    // BLAZE IT: R y a n C e l s i u s ° S o u n d s
-    if (latest) {
-        latestSubs = submissions.filter(item => {
-            if (l.has(item.user.id)) {
-                return callback(item);
-            } else {
-                l.add(item.user.id);
-                return true;
-            }
-        });
-    }
+    const filterAssignee = submissions.some(s => s.assignee && s.assignee.id === userId);
 
-    const filterAssignee = latestSubs.some(s => s.assignee && s.assignee.id === userId);
-
-    return latestSubs.filter(item => {
+    return submissions.filter(item => {
         if (filterAssignee && mine && (item.assignee == null || item.assignee.id !== userId)) {
             if (!callback(item)) return false;
         } else if (!filter) {
@@ -64,9 +44,9 @@ export function sortSubmissions(a, b, sortBy) {
         return cmpNoCase(nameOfUser(first), nameOfUser(second));
     } else if (sortBy === 'user') {
         return cmpNoCase(nameOfUser(first), nameOfUser(second));
-    } else if (sortBy === 'formatted_created_at') {
-        const createdA = a.formatted_created_at;
-        const createdB = b.formatted_created_at;
+    } else if (sortBy === 'formatted_created_at' || sortBy === 'created_at') {
+        const createdA = a.created_at;
+        const createdB = b.created_at;
 
         const res = cmpOneNull(createdA, createdB);
         if (res !== null) return res;
@@ -119,7 +99,7 @@ export default class FilterSubmissionsManager {
     }
 
     filter(submissions, {
-        latest, mine, userId, filter, sortBy, asc,
+        mine, userId, filter, sortBy, asc,
     } = {}) {
         this.query = filter;
         if (submissions.length === 0) {
@@ -127,7 +107,6 @@ export default class FilterSubmissionsManager {
         }
         const res = filterSubmissions(
             submissions,
-            latest,
             mine,
             userId,
             filter,

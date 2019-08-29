@@ -26,17 +26,23 @@ import requests_stubs
 @pytest.fixture
 def monkeypatch_for_run(monkeypatch, lxc_stub, stub_function_class):
     old_run_command = psef.auto_test.StartedContainer._run_command
+    psef.auto_test._STOP_CONTAINERS.clear()
 
     def new_run_command(self, cmd_user):
+        signal_start = psef.auto_test.StartedContainer._signal_start
         cmd, user = cmd_user
         if cmd[0] in {'adduser', 'usermod', 'deluser', 'sudo', 'apt'}:
+            signal_start()
             return 0
         elif cmd == ['grep', '-c', getpass.getuser(), '/etc/sudoers']:
+            signal_start()
             return 1
         elif '/etc/sudoers' in cmd:
+            signal_start()
             return 0
         return old_run_command(self, cmd_user)
 
+    monkeypatch.setattr(psef.auto_test, 'CODEGRADE_USER', getpass.getuser())
     monkeypatch.setattr(
         psef.helpers, 'ensure_on_test_server', stub_function_class()
     )
@@ -599,7 +605,6 @@ def test_run_auto_test(
         tmpdir = upper_tmpdir
 
         t = m.AutoTest.query.get(test['id'])
-        psef.auto_test.CODEGRADE_USER = getpass.getuser()
         with logged_in(teacher):
             test_client.req(
                 'post',
@@ -626,7 +631,7 @@ def test_run_auto_test(
                     'id': run.id,
                     'created_at': str,
                     'state': 'done',
-                    'results': list,
+                    'results': [object, object],
                     'setup_stderr': str,
                     'setup_stdout': str,
                     'is_continuous': False,
@@ -862,12 +867,11 @@ def test_internal_api_auth(test_client, app, describe, session):
     with describe('setup'):
         ipaddr = object()
         other_ipaddr = object()
-        runner = m.AutoTestRunner(
-            _ipaddr=ipaddr, run=m.AutoTestRun(), id=uuid.uuid4()
-        )
+        run = m.AutoTestRun()
+        runner = m.AutoTestRunner(_ipaddr=ipaddr, run=run, id=uuid.uuid4())
         assert runner.id
 
-        verify_runner = psef.v_internal.auto_tests._verify_runner
+        verify_runner = psef.v_internal.auto_tests._verify_and_get_runner
 
     with describe('Without correct global password'):
         test_client.req(
@@ -881,32 +885,32 @@ def test_internal_api_auth(test_client, app, describe, session):
         with pytest.raises(psef.exceptions.PermissionException):
             verify_runner(None, ('', False))
 
-    with describe('wrong password to verify_runner'):
+    with describe('wrong password to any verify_runner'):
         with pytest.raises(psef.exceptions.PermissionException):
-            verify_runner(runner, ('', False))
+            verify_runner(run, ('', False))
 
         with pytest.raises(psef.exceptions.PermissionException):
-            verify_runner(runner, ('Not correct', False))
+            verify_runner(run, ('Not correct', False))
 
     with app.test_request_context(
         '/', environ_base={'REMOTE_ADDR': other_ipaddr}
     ):
         with describe('Wrong ip address'):
             with pytest.raises(psef.exceptions.PermissionException):
-                verify_runner(runner, (str(runner.id), True))
+                verify_runner(run, (str(runner.id), True))
 
             # It should work when verification is turned off
-            verify_runner(runner, (str(runner.id), False))
+            assert runner == verify_runner(run, (str(runner.id), False))
 
             runner._ipaddr = other_ipaddr
 
             # It should work when ip is correct
-            verify_runner(runner, (str(runner.id), True))
+            assert runner == verify_runner(run, (str(runner.id), True))
 
         with describe('no run should not work'):
             runner.run = None
             with pytest.raises(psef.exceptions.PermissionException):
-                verify_runner(runner, (str(runner.id), True))
+                verify_runner(run, (str(runner.id), True))
 
 
 def test_update_locked_rubric(basic, test_client, logged_in, describe):
@@ -1029,7 +1033,7 @@ def test_hidden_steps(describe, test_client, logged_in, session, basic):
                 'type': str,
                 'weight': float,
                 'hidden': True,
-                'data': {},
+                'data': {'?inputs?': list},
             }
             test_client.req(
                 'get',
@@ -1220,7 +1224,7 @@ def test_continuous_feedback_auto_test(
             t.start_continuous_feedback_run()
 
 
-def test_getting_fixture_no_permssion(
+def test_getting_fixture_no_permission(
     describe, basic, logged_in, test_client, session, app
 ):
     with describe('setup'):
@@ -1244,6 +1248,38 @@ def test_getting_fixture_no_permssion(
         '/api/v-internal/auto_tests/{}/fixtures/{}'.format(
             fixture.auto_test_id, fixture.id
         ),
-        401,
+        403,
         headers={'CG-Internal-Api-Password': app.config['AUTO_TEST_PASSWORD']}
     )
+
+
+def test_run_command_too_much_output(
+    describe, monkeypatch_for_run, app, monkeypatch, stub_function_class
+):
+    monkeypatch.setitem(app.config, 'AUTO_TEST_MAX_OUTPUT_TAIL', 64)
+    monkeypatch.setitem(app.config, 'AUTO_TEST_OUTPUT_LIMIT', 128)
+    cmd = 'echo -n "' + 'a' * 128 + 'b' * 128 + 'c' * 32 + '"'
+    with tempfile.TemporaryDirectory(
+    ) as tmpdir, psef.auto_test._get_base_container(
+        app.config
+    ).started_container() as cont:
+        os.mkdir(os.path.join(tmpdir, 'student'))
+
+        monkeypatch.setattr(
+            psef.auto_test, '_get_home_dir',
+            stub_function_class(lambda: tmpdir)
+        )
+        with describe('without capturing extra output'):
+            res = cont.run_student_command(cmd, 6)
+            assert res.exit_code == 0
+            assert res.stdout == 'a' * 128 + ' <OUTPUT TRUNCATED>\n'
+            assert res.stderr == ''
+            assert list(res.stdout_tail.data) == []
+
+        with describe('with capturing extra output'):
+            res = cont.run_student_command(cmd, 6, keep_stdout_tail=True)
+            assert res.exit_code == 0
+            assert res.stdout == 'a' * 128 + ' <OUTPUT TRUNCATED>\n'
+            assert res.stderr == ''
+            assert bytes(res.stdout_tail.data
+                         ).decode() == ('b' * 32 + 'c' * 32)

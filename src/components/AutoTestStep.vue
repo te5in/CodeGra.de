@@ -80,13 +80,19 @@
                     Stop test category if percentage of points achieved is below
                 </label>
 
-                <input class="form-control text-left"
-                       :id="pointsThresholdId"
-                       type="number"
-                       :value="value.data.min_points"
-                       min="0"
-                       max="100"
-                       @input="updateValue('min_points', $event.target.value)"/>
+                <b-input-group>
+                    <input class="form-control text-left"
+                           :id="pointsThresholdId"
+                           type="number"
+                           :value="value.data.min_points"
+                           min="0"
+                           max="100"
+                           @input="updateValue('min_points', $event.target.value)"/>
+
+                    <b-input-group-append is-text>
+                        %
+                    </b-input-group-append>
+                </b-input-group>
             </template>
 
             <template v-if="value.type === 'custom_output'">
@@ -269,10 +275,8 @@
                 <b-collapse :id="resultsCollapseId" class="container-fluid">
                     <div class="row mb-3">
                         <div class="col-12">
-                            <template v-if="canViewOutput">
-                                You {{ stepResult.state === 'passed' ? 'scored' : 'did not score' }}
-                                enough points.
-                            </template>
+                            You {{ stepResult.state === 'passed' ? 'scored' : 'did not score' }}
+                            enough points.
                         </div>
                     </div>
                 </b-collapse>
@@ -315,15 +319,14 @@
                 <b-collapse :id="resultsCollapseId">
                     <b-card no-body>
                         <b-tabs card no-fade>
-                            <b-tab title="Info" class="mb-3">
-                                <p class="col-12">
-                                    Exit code
+                            <b-tab title="Output" class="mb-3 flex-wrap">
+                                <p class="col-12 mb-1">
+                                    <label>Exit code</label>
                                     <code>{{ $utils.getProps(stepResult.log, '(unknown)', 'exit_code') }}</code>
                                 </p>
-                            </b-tab>
 
-                            <b-tab title="Output" class="mb-3">
                                 <div class="col-12">
+                                    <label>Output</label>
                                     <inner-code-viewer class="rounded border"
                                                        :assignment="assignment"
                                                        :code-lines="stepStdout"
@@ -390,8 +393,8 @@
                 <b-collapse :id="resultsCollapseId">
                     <b-card no-body v-if="canViewOutput">
                         <b-tabs card no-fade>
-                            <b-tab title="Info" class="mb-3">
-                                <p class="col-12" v-if="canViewDetails">
+                            <b-tab title="Output" class="mb-3 flex-wrap">
+                                <p class="col-6 mb-1" v-if="canViewDetails">
                                     <label>
                                         Match output on
 
@@ -403,17 +406,40 @@
                                     </label>
 
                                     <code>{{ value.data.regex }}</code>
+                                </p>
 
-                                    Exit code
+                                <p class="col-6 mb-1" v-if="canViewDetails">
+                                    <label>Exit code</label>
                                     <code>{{ $utils.getProps(stepResult.log, '(unknown)', 'exit_code') }}</code>
                                 </p>
-                            </b-tab>
 
-                            <b-tab title="Output" class="mb-3">
                                 <div class="col-12">
+                                    <label>Output</label>
                                     <inner-code-viewer class="rounded border"
                                                        :assignment="assignment"
                                                        :code-lines="stepStdout"
+                                                       :file-id="-1"
+                                                       :feedback="{}"
+                                                       :start-line="0"
+                                                       :show-whitespace="true"
+                                                       :warn-no-newline="false"
+                                                       :empty-file-message="'No output.'" />
+                                </div>
+                            </b-tab>
+
+                            <b-tab title="Output (tail)" class="mb-3" v-if="shouldShowOutputTail">
+                                <div class="col-12">
+                                    <label>
+                                        End of output
+
+                                        <description-popover hug-text>
+                                            This is the part of the output that is searched for the
+                                            achieved score.
+                                        </description-popover>
+                                    </label>
+                                    <inner-code-viewer class="rounded border"
+                                                       :assignment="assignment"
+                                                       :code-lines="stepStdoutEnd"
                                                        :file-id="-1"
                                                        :feedback="{}"
                                                        :start-line="0"
@@ -522,7 +548,7 @@
                         <b-card no-body v-if="canViewSubStepOutput(i)">
                             <b-tabs card no-fade>
                                 <b-tab title="Output" class="mb-3 flex-wrap">
-                                    <p v-if="ioSubStepProps(i, '', 'exit_code')" class="col-12">
+                                    <p v-if="ioSubStepProps(i, '', 'exit_code')" class="col-12 mb-1">
                                         <label>Exit code</label>
                                         <code>{{ ioSubStepProps(i, '', 'exit_code') }}</code>
                                     </p>
@@ -999,9 +1025,20 @@ export default {
             return this.prepareOutput(stdout);
         },
 
+        stepStdoutEnd() {
+            const stdout = this.$utils.getProps(this, '', 'stepResult', 'log', 'haystack');
+            return this.prepareOutput(stdout);
+        },
+
         stepStderr() {
             const stderr = this.$utils.getProps(this, '', 'stepResult', 'log', 'stderr');
             return this.prepareOutput(stderr);
+        },
+
+        shouldShowOutputTail() {
+            const out = this.$utils.getProps(this, null, 'stepResult', 'log', 'stdout');
+            const tail = this.$utils.getProps(this, null, 'stepResult', 'log', 'haystack');
+            return tail != null && tail && !out.endsWith(tail);
         },
     },
 

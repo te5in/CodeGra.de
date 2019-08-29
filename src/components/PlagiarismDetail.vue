@@ -72,7 +72,7 @@
             </b-button>
             <submit-button label="Export"
                            :submit="exportToLatex"
-                           @after-success="afterExportToLatex"/>
+                           @success="afterExportToLatex"/>
         </b-button-toolbar>
     </b-modal>
 
@@ -150,7 +150,7 @@ import lescape from 'escape-latex';
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/chevron-down';
 
-import { nameOfUser } from '@/utils';
+import { downloadFile, nameOfUser } from '@/utils';
 
 import { Loader, LocalHeader, SubmitButton, User } from '@/components';
 
@@ -340,12 +340,12 @@ export default {
                     return `\\subsection*{Match ${i + 1}}
 \\begin{lstlisting}[firstnumber=${match.lines[0][0] + 1},
     caption={File \\texttt{${captionLeft}} of ${latexNameOfUser(user1)}}]
-    ${left.join('\n')}
+${left.join('\n')}
 \\end{lstlisting}
 ${maybeNewPage}
 \\begin{lstlisting}[firstnumber=${match.lines[1][0] + 1},
     caption={File \\texttt{${captionRight}} of ${latexNameOfUser(user2)}}]
-    ${right.join('\n')}
+${right.join('\n')}
 \\end{lstlisting}`;
                     // prettier-ignore-end
                 }),
@@ -550,14 +550,14 @@ ${maybeNewPage}
                 throw new Error('Select at least one case.');
             }
 
-            return this.getTexFile(matches).then(text => this.$http.post('/api/v1/files/', text));
+            return this.getTexFile(matches);
         },
 
-        afterExportToLatex(response) {
+        afterExportToLatex(texData) {
             this.exportMatches = {};
             const [user1, user2] = this.detail.users;
             const fileName = `plagiarism_case_${nameOfUser(user1)}+${nameOfUser(user2)}.tex`;
-            window.open(`/api/v1/files/${response.data}/${encodeURIComponent(fileName)}`, '_blank');
+            downloadFile(texData, fileName, 'text/x-tex');
         },
     },
 
@@ -642,6 +642,12 @@ ${maybeNewPage}
     max-height: 100vh;
     overflow: auto;
     position: relative;
+
+    &::after {
+        content: '';
+        display: block;
+        height: ~'calc(100% - 10rem)';
+    }
 }
 
 .student-file {

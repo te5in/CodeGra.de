@@ -47,8 +47,8 @@ if t.TYPE_CHECKING:  # pragma: no cover
             autoretry_for: t.Iterable[t.Type[Exception]],
             retry_kwargs: t.Dict[str, object],
             retry_backoff: bool,
-            retry_backoff_max: int,
-            retry_jitter: bool,
+            retry_jitter: bool = True,
+            retry_backoff_max: t.Optional[int] = None,
         ) -> t.Callable[[T], CeleryTask[T]]:
             ...
 

@@ -7,13 +7,46 @@
                   @click="selectSub(prevSub)">
             <icon name="angle-left"/>
         </b-button>
-        <div class="title">
-            <span v-if="curSub">
-                Submission by <user :user="curSub.user"/>
-            </span>
-            <span v-else>
-                -
-            </span>
+        <b-dropdown @show="onDropdownShow" v-if="curSub"
+                    class="title navbar-old-subs-dropdown">
+            <template slot="button-content">
+                <span class="button-content">
+                    <user :user="curSub.user"/> at {{ curSub.formatted_created_at }}
+                    <icon name="exclamation-triangle"
+                          class="text-warning ml-1"
+                          style="margin-bottom: -1px;"
+                          v-b-popover.top.hover="'You are currently not viewing the latest submission.'"
+                          v-if="notLatest"/>
+                </span>
+            </template>
+            <template v-if="!loadingOldSubs && oldSubmissions != null">
+                <b-dropdown-item v-if="oldSubmissions.length === 0">
+                    <b>No submissions found on the server</b>
+                </b-dropdown-item>
+                <b-dropdown-item v-for="sub in oldSubmissions"
+                                 :key="sub.id"
+                                 v-else
+                                 href="#"
+                                 @click="selectSub(sub)"
+                                 :class="{currentSub: sub.id === curSub.id}"
+                                 class="old-sub">
+                    {{ sub.formatted_created_at }}
+                    <template v-if="sub.grade != null">
+                        graded with a {{ sub.grade }}
+                    </template>
+                    <template v-if="sub === oldSubmissions[0]">
+                        <i>(Newest version)</i>
+                    </template>
+                </b-dropdown-item>
+            </template>
+            <b-dropdown-item v-else>
+                <loader :scale="1"
+                        class="old-sub"
+                        :center="true"/>
+            </b-dropdown-item>
+        </b-dropdown>
+        <div class="title placeholder" v-else>
+            -
         </div>
         <b-button :disabled="nextSub == null"
                   v-b-popover.hover.bottom="generatePopoverTitle(nextSub)"
@@ -27,21 +60,64 @@
 <script>
 import { parseBool, nameOfUser } from '@/utils';
 import FilterSubmissionsManager from '@/utils/FilterSubmissionsManager';
-import { mapGetters } from 'vuex';
+import { mapGetters, mapActions } from 'vuex';
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/angle-left';
+import 'vue-awesome/icons/exclamation-triangle';
 import 'vue-awesome/icons/angle-right';
 
 import User from './User';
+import Loader from './Loader';
 
 export default {
     name: 'submission-nav-bar',
 
+    props: {
+        latestSubmissions: {
+            type: Array,
+            required: true,
+        },
+
+        currentSubmission: {
+            type: Object,
+            required: true,
+        },
+
+        notLatest: {
+            type: Boolean,
+            required: true,
+        },
+    },
+
+    data() {
+        return {
+            oldSubmissions: null,
+            loadingOldSubs: false,
+        };
+    },
+
+    watch: {
+        curUserId() {
+            this.oldSubmissions = null;
+        },
+    },
+
     computed: {
-        ...mapGetters('courses', ['assignments']),
         ...mapGetters({
             userId: 'user/id',
         }),
+
+        curUserId() {
+            return this.curSub ? null : this.curSub.user.id;
+        },
+
+        curSub() {
+            return this.currentSubmission;
+        },
+
+        loading() {
+            return this.curSub == null;
+        },
 
         assignmentId() {
             return Number(this.$route.params.assignmentId);
@@ -53,14 +129,6 @@ export default {
 
         submissionId() {
             return Number(this.$route.params.submissionId);
-        },
-
-        submissions() {
-            return (this.assignment && this.assignment.submissions) || [];
-        },
-
-        latestOnly() {
-            return parseBool(this.$route.query.latest, true);
         },
 
         filterAssignee() {
@@ -89,8 +157,7 @@ export default {
         },
 
         filteredSubmissions() {
-            return this.filterSubmissionsManager.filter(this.submissions, {
-                latest: this.latestOnly,
+            return this.filterSubmissionsManager.filter(this.latestSubmissions, {
                 mine: this.filterAssignee,
                 userId: this.userId,
                 filter: this.filter,
@@ -100,14 +167,16 @@ export default {
         },
 
         optionIndex() {
-            return this.filteredSubmissions.findIndex(sub => sub.id === this.submissionId);
-        },
-
-        curSub() {
-            return (this.submissions && this.filteredSubmissions[this.optionIndex]) || null;
+            if (this.loading) {
+                return null;
+            }
+            return this.filteredSubmissions.findIndex(sub => sub.user.id === this.curSub.user.id);
         },
 
         prevSub() {
+            if (this.loading) {
+                return null;
+            }
             if (this.optionIndex > 0 && this.optionIndex < this.filteredSubmissions.length) {
                 return this.filteredSubmissions[this.optionIndex - 1];
             }
@@ -115,6 +184,9 @@ export default {
         },
 
         nextSub() {
+            if (this.loading) {
+                return null;
+            }
             if (this.optionIndex >= 0 && this.optionIndex < this.filteredSubmissions.length - 1) {
                 return this.filteredSubmissions[this.optionIndex + 1];
             }
@@ -123,8 +195,12 @@ export default {
     },
 
     methods: {
+        ...mapActions('submissions', ['loadSingleSubmission', 'loadSubmissionsByUser']),
+
         selectSub(sub) {
             if (sub == null) {
+                return;
+            } else if (sub.id === this.curSub.id) {
                 return;
             }
 
@@ -140,6 +216,23 @@ export default {
             );
         },
 
+        async onDropdownShow() {
+            const sub = this.curSub;
+            if (this.oldSubmissions != null || sub == null) {
+                return;
+            }
+            this.loadingOldSubs = true;
+            const subs = await this.loadSubmissionsByUser({
+                assignmentId: this.assignmentId,
+                userId: sub.user.id,
+            });
+
+            if (this.curSub && this.curSub.id === sub.id) {
+                this.oldSubmissions = subs;
+                this.loadingOldSubs = false;
+            }
+        },
+
         generatePopoverTitle(sub) {
             return `Go to ${sub && nameOfUser(sub.user)}'s submission`;
         },
@@ -148,11 +241,13 @@ export default {
     components: {
         Icon,
         User,
+        Loader,
     },
 };
 </script>
 
 <style lang="less" scoped>
+@import '~mixins.less';
 .local-header {
     flex: 1 1 auto;
 }
@@ -169,10 +264,6 @@ export default {
 .nav-wrapper {
     flex: 1 1 auto;
 }
-</style>
-
-<style lang="less">
-@import '~mixins.less';
 
 .submission-nav-bar .dropdown button {
     width: 100%;
@@ -194,14 +285,46 @@ export default {
     .default-text-colors;
 
     flex: 1;
-    background-color: white;
-    border: 1px solid #ccc;
     text-align: center;
-    padding: 0.375rem 0.75rem;
+    &.placeholder {
+        background-color: white;
+        border: 1px solid #ccc;
+        padding: 0.375rem 0.75rem;
+    }
 
     #app.dark & {
         background-color: @color-primary;
         border-color: @color-primary-darker;
+    }
+}
+
+.old-sub {
+    text-align: center;
+}
+
+.currentSub {
+    background-color: @color-lighter-gray;
+
+    #app:not(.lti).dark & {
+        background-color: @color-primary-darkest;
+    }
+}
+</style>
+
+<style lang="less">
+.navbar-old-subs-dropdown {
+    .btn {
+        width: 100%;
+        display: flex;
+        align-items: center;
+
+        .button-content {
+            flex: 1 1 auto;
+        }
+    }
+    .dropdown-menu {
+        width: 100%;
+        overflow: auto;
     }
 }
 </style>

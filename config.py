@@ -71,6 +71,8 @@ FlaskConfig = TypedDict(
         'AUTO_TEST_BROKER_PASSWORD': str,
         'AUTO_TEST_CF_SLEEP_TIME': float,
         'AUTO_TEST_CF_EXTRA_AMOUNT': int,
+        'AUTO_TEST_MAX_JOBS_PER_RUNNER': int,
+        'AUTO_TEST_MAX_OUTPUT_TAIL': int,
         'TESTING': bool,
         '__S_AUTO_TEST_HOSTS': t.Mapping[str, t.Any],
         'Celery': CeleryConfig,
@@ -92,6 +94,7 @@ FlaskConfig = TypedDict(
         'EXTERNAL_URL': str,
         'JAVA_PATH': str,
         'JPLAG_JAR': str,
+        'JPLAG_SUPPORTED_LANGUAGES': t.Mapping[str, str],
         'MAIL_SERVER': str,
         'MAIL_PORT': int,
         'MAIL_USE_TLS': bool,
@@ -514,6 +517,30 @@ if lti_parser.read(config_file) and 'LTI Consumer keys' in lti_parser:
 else:
     CONFIG['LTI_CONSUMER_KEY_SECRETS'] = {}
 
+###################
+# Jplag languages #
+###################
+lang_parser = ConfigParser()
+lang_parser.optionxform = str  # type: ignore
+if lang_parser.read(config_file) and 'Jplag Languages' in lang_parser:
+    CONFIG['JPLAG_SUPPORTED_LANGUAGES'] = dict(lang_parser['Jplag Languages'])
+else:
+    CONFIG['JPLAG_SUPPORTED_LANGUAGES'] = {
+        "Python 3": "python3",
+        "C/C++": "c/c++",
+        "Java 1": "java11",
+        "Java 2": "java12",
+        "Java 5": "java15dm",
+        "Java 7": "java17",
+        "Java 8": "java15",
+        "C# 1.2": "c#-1.2",
+        "Chars": "char",
+        "Text": "text",
+        "Scheme": "scheme",
+        "Scala": "scala",
+    }
+
+
 ##########
 # CELERY #
 ##########
@@ -534,6 +561,7 @@ set_int(CONFIG, auto_test_ops, 'AUTO_TEST_MAX_TIME_COMMAND', 5 * 60)
 set_int(CONFIG, auto_test_ops, 'AUTO_TEST_MAX_TIME_TOTAL_RUN', 1440)
 set_int(CONFIG, auto_test_ops, 'AUTO_TEST_POLL_TIME', 30)
 set_int(CONFIG, auto_test_ops, 'AUTO_TEST_OUTPUT_LIMIT', 32768)
+set_int(CONFIG, auto_test_ops, 'AUTO_TEST_MAX_OUTPUT_TAIL', 2 ** 13)
 set_str(CONFIG, auto_test_ops, 'AUTO_TEST_MEMORY_LIMIT', '512M')
 set_str(CONFIG, auto_test_ops, 'AUTO_TEST_BDEVTYPE', 'best')
 set_int(CONFIG, auto_test_ops, 'AUTO_TEST_HEARTBEAT_INTERVAL', 10)
@@ -543,6 +571,8 @@ set_str(CONFIG, auto_test_ops, 'AUTO_TEST_BROKER_URL', '')
 set_str(CONFIG, auto_test_ops, 'AUTO_TEST_BROKER_PASSWORD', None)
 set_str(CONFIG, auto_test_ops, 'AUTO_TEST_PASSWORD', None)
 set_bool(CONFIG, auto_test_ops, 'AUTO_TEST_DISABLE_ORIGIN_CHECK', False)
+set_int(CONFIG, auto_test_ops, 'AUTO_TEST_MAX_JOBS_PER_RUNNER', 25)
+assert CONFIG['AUTO_TEST_MAX_JOBS_PER_RUNNER'] > 0, "Max jobs per runner should be higher than 0"
 
 set_float(CONFIG, auto_test_ops, 'AUTO_TEST_CF_SLEEP_TIME', 5.0)
 set_int(CONFIG, auto_test_ops, 'AUTO_TEST_CF_EXTRA_AMOUNT', 20)

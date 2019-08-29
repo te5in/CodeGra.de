@@ -198,7 +198,8 @@ export default {
     },
 
     methods: {
-        ...mapActions('courses', ['forceLoadSubmissions', 'updateAssignment']),
+        ...mapActions('courses', ['updateAssignment']),
+        ...mapActions('submissions', ['forceLoadSubmissions']),
 
         getDivisionParent(assig) {
             return this.assignments[this.assignments[assig.id].division_parent_id];
