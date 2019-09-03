@@ -57,14 +57,14 @@
 
                         <template v-if="rubric.locked">
                             <b-popover :show="lockPopoverShown[rubric.id]"
-                                    :target="rowData[rubric.id].id"
-                                    :content="rowData[rubric.id].content"
-                                    triggers=""
-                                    placement="top" />
+                                       :target="`rubric-lock-${rowData[rubric.id].id}`"
+                                       :content="rowData[rubric.id].content"
+                                       triggers=""
+                                       placement="top" />
 
                             <icon name="lock"
                                   class="float-right"
-                                  :id="rowData[rubric.id].id" />
+                                  :id="`rubric-lock-${rowData[rubric.id].id}`" />
                         </template>
                     </p>
                 </div>
@@ -247,8 +247,20 @@
         </b-button-group>
 
         <submit-button ref="submitButton"
+                       :confirm="deletedRubricItems.length > 0 ? 'yes' : ''"
                        :submit="submit"
-                       @after-success="afterSubmit"/>
+                       @after-success="afterSubmit">
+            <div slot="confirm" style="text-align: justify;">
+                <p>
+                Are you sure you want to remove the following item{{ deletedRubricItems.length > 1 ? 's' : ''}}?
+                </p>
+
+                <b>Deleted item{{ deletedRubricItems.length > 1 ? 's' : ''}}</b>
+                <ul>
+                    <li v-for="item in deletedRubricItems">{{ item }}</li>
+                </ul>
+            </div>
+        </submit-button>
     </b-card>
 </div>
 </template>
@@ -287,6 +299,7 @@ export default {
             loadingAssignments: false,
             loadAssignmentsFailed: false,
             lockPopoverShown: {},
+            oldItemIds: {},
         };
     },
 
@@ -341,12 +354,26 @@ export default {
             });
         }
         this.maybeLoadOtherAssignments();
+
+        // TODO: This should probably do something special when there are
+        // changes to the current rubric.
+        this.$root.$on('cg::rubric-editor::reload', this.resetRubric);
+    },
+
+    destroyed() {
+        this.$root.$off('cg::rubric-editor::reload', this.resetRubric);
     },
 
     computed: {
         ...mapGetters('autotest', {
             allAutoTests: 'tests',
         }),
+
+        deletedRubricItems() {
+            const curItemIds = this.getRubricItemIds(this.rubrics);
+            const removedIds = Object.keys(this.oldItemIds).filter(id => curItemIds[id] == null);
+            return removedIds.map(id => this.oldItemIds[id]);
+        },
 
         autoTestConfigId() {
             return this.assignment.auto_test_id;
@@ -394,7 +421,10 @@ export default {
                 acc[row.id] = {
                     id: `rubric-editor-${this.id}-row-${row.id}`,
                     content: this.lockPopover(row),
-                    editable: editable && (!row.locked || !finalRun),
+                    // The row is editable if the entire rubricRow is editable.
+                    // However it is not editable if the row is locked, and
+                    // there is a final run.
+                    editable: editable && !(row.locked && finalRun),
                 };
                 return acc;
             }, {});
@@ -431,6 +461,23 @@ export default {
         ...mapMutations('rubrics', {
             storeClearRubric: 'clearRubric',
         }),
+
+        setOldRubricIds() {
+            this.oldItemIds = this.getRubricItemIds(this.rubrics);
+        },
+
+        getRubricItemIds(rows) {
+            return rows.reduce((accum, row) => {
+                row.items.forEach(item => {
+                    if (item.id != null) {
+                        const itemHeader = item.header || '[No name]';
+                        const rowHeader = row.header || '[No name]';
+                        accum[item.id] = `${rowHeader} - ${itemHeader}`;
+                    }
+                });
+                return accum;
+            }, {});
+        },
 
         maybeLoadOtherAssignments() {
             if (
@@ -527,6 +574,8 @@ export default {
 
         setRubricData(serverRubrics) {
             const editable = this.$utils.getProps(this, false, 'editable');
+            const finalRun =
+                this.autoTestConfig && this.autoTestConfig.runs.find(r => !r.isContinuous);
 
             this.rubrics = serverRubrics.map(origRow => {
                 const row = Object.assign({}, origRow);
@@ -537,12 +586,13 @@ export default {
                     .map(item => Object.assign({}, item))
                     .sort((a, b) => a.points - b.points);
 
-                if (this.$utils.getProps(this, editable, 'rowData', origRow.id, 'editable')) {
+                if (editable && !(row.locked && finalRun)) {
                     row.items.push(this.getEmptyItem());
                 }
 
                 return row;
             });
+            this.setOldRubricIds();
         },
 
         async getAndSetRubrics() {
@@ -624,16 +674,25 @@ export default {
                     hasUnnamedCategories = true;
                 }
 
-                for (let j = 0, len2 = row.items.length - 1; j < len2; j += 1) {
-                    if (Number.isNaN(parseFloat(row.items[j].points))) {
+                const amountOfItems = row.items.length - (this.rowData[row.id].editable ? 1 : 0);
+                for (let j = 0; j < row.items.length; j += 1) {
+                    const item = row.items[j];
+                    if (j >= amountOfItems) {
+                        if (item.points || item.description || item.header || item.id) {
+                            throw new Error('Something internal went wrong!');
+                        }
+                        // eslint-disable-next-line
+                        continue;
+                    }
+
+                    if (Number.isNaN(parseFloat(item.points))) {
                         wrongItems.push(
-                            `'${row.header || '[No name]'} - ${row.items[j].header ||
-                                '[No name]'}'`,
+                            `'${row.header || '[No name]'} - ${item.header || '[No name]'}'`,
                         );
                     }
-                    row.items[j].points = parseFloat(row.items[j].points);
+                    item.points = parseFloat(row.items[j].points);
 
-                    res.items.push(row.items[j]);
+                    res.items.push(item);
                 }
 
                 if (res.items.length === 0) {
@@ -715,7 +774,12 @@ ${arrayToSentence(wrongCategories)}.`);
                 throw Error('This rubric editor is not editable.');
             }
 
-            if (this.rubrics[i].items.length - 1 === j) {
+            const row = this.rubrics[i];
+            if (!this.rowData[row.id].editable) {
+                return;
+            }
+
+            if (row.items.length - 1 === j) {
                 this.$set(this.rubrics[i].items, j + 1, this.getEmptyItem());
             }
         },

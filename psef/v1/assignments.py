@@ -651,7 +651,7 @@ def process_rubric_row(row: JSONType) -> models.RubricRow:
         ) for it in t.cast(list, row['items'])
     ]
 
-    if header == '':
+    if not header:
         raise APIException(
             "A row can't have an empty header",
             f'The row "{row}" has an empty header', APICodes.INVALID_PARAM, 400
