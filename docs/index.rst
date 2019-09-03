@@ -23,6 +23,7 @@ details on `the CodeGrade website <https://codegrade.com>`_.
    :maxdepth: 2
    :caption: User Guides
 
+   guides/use-codegrade-as-a-student
    guides/getting-started-with-codegrade
    guides/creating-an-assignment
    guides/setting-up-autotest
