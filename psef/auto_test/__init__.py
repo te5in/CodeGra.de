@@ -20,6 +20,7 @@ import datetime
 import tempfile
 import threading
 import contextlib
+import subprocess
 import collections
 import dataclasses
 import multiprocessing
@@ -59,6 +60,12 @@ UpdateResultFunction = t.Callable[
     ['models.AutoTestStepResultState', t.Dict[str, object]], None]
 
 CODEGRADE_USER = 'codegrade'
+_SYSTEMD_WAIT_CMD = [
+    'systemd-run',
+    '--property=After=basic.target',
+    '--wait',
+    '/bin/true',
+]
 
 
 class LXCProcessError(Exception):
@@ -379,12 +386,28 @@ def _start_container(
     with timed_code('start_container'):
         assert cont.start()
         assert cont.wait('RUNNING', 3)
+
+        def callback(domain_or_systemd: t.Optional[str]) -> int:
+            if domain_or_systemd is None:
+                for _ in range(10):
+                    res = subprocess.run(_SYSTEMD_WAIT_CMD, timeout=1)
+                    if res.returncode == 0:
+                        break
+                    else:
+                        time.sleep(0.25)
+                else:  # pragma: no cover
+                    os._exit(1)  # pylint: disable=protected-access
+                os._exit(0)  # pylint: disable=protected-access
+            else:
+                os.execvp('ping', ['ping', '-w', '1', '-c', '1', domain])
+            assert False
+
+        with timed_code('wait_for_system_start'):
+            out_code = cont.attach_wait(callback, None)
+            logger.info('Started system', systemd_wait_exit_code=out_code)
+
         if check_network:
             with timed_code('wait_for_network'):
-
-                def callback(domain: str) -> int:
-                    os.execvp('ping', ['ping', '-w', '1', '-c', '1', domain])
-                    assert False
 
                 for _ in helpers.retry_loop(60, sleep_time=0.5):
                     if not always:

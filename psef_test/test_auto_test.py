@@ -29,6 +29,11 @@ def monkeypatch_for_run(monkeypatch, lxc_stub, stub_function_class):
     old_run_command = psef.auto_test.StartedContainer._run_command
     psef.auto_test._STOP_CONTAINERS.clear()
 
+    monkeypatch.setattr(
+        psef.auto_test, '_SYSTEMD_WAIT_CMD',
+        ['python', '-c', 'import random; exit(random.randint(0, 1))']
+    )
+
     def new_run_command(self, cmd_user):
         signal_start = psef.auto_test.StartedContainer._signal_start
         cmd, user = cmd_user
@@ -89,7 +94,7 @@ def monkeypatch_os_exec(monkeypatch):
 
         return inner
 
-    for func in ['execve', 'execvpe', 'execvp']:
+    for func in ['execve', 'execvpe', 'execvp', '_exit']:
         orig = getattr(os, func)
         monkeypatch.setattr(os, func, flush_and_call(orig))
     yield
