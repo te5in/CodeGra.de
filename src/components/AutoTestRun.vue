@@ -216,6 +216,7 @@ export default {
 
         afterAfterDeleteResults(cont) {
             cont();
+            this.$root.$emit('cg::rubric-editor::reload');
         },
 
         openResult(result) {

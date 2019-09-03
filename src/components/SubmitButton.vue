@@ -74,9 +74,11 @@
                :target="btnId"
                triggers=""
                @hide="resetConfirm">
-        <p class="confirm-message">
-            {{ confirm }}
-        </p>
+        <slot name="confirm">
+            <p class="confirm-message">
+                {{ confirm }}
+            </p>
+        </slot>
 
         <b-button-toolbar justify>
             <b-button size="sm"

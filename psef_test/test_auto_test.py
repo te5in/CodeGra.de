@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 import io
 import os
+import copy
 import json
 import time
 import uuid
@@ -913,7 +914,9 @@ def test_internal_api_auth(test_client, app, describe, session):
                 verify_runner(run, (str(runner.id), True))
 
 
-def test_update_locked_rubric(basic, test_client, logged_in, describe):
+def test_update_locked_rubric(
+    session, basic, test_client, logged_in, describe, app
+):
     with describe('setup'):
         course, assig_id, teacher, student = basic
         rubric_data = helpers.get_simple_rubric()
@@ -950,8 +953,9 @@ def test_update_locked_rubric(basic, test_client, logged_in, describe):
 
     with describe('cannot update locked rubric rows'):
         with logged_in(teacher):
-            test_id = helpers.create_auto_test(test_client, assig_id, 0,
-                                               0)['id']
+            test_id = helpers.create_auto_test(
+                test_client, assig_id, 0, 0, grade_calculation='full'
+            )['id']
             set_id = test_client.req(
                 'post', f'/api/v1/auto_tests/{test_id}/sets/', 200
             )['id']
@@ -960,7 +964,7 @@ def test_update_locked_rubric(basic, test_client, logged_in, describe):
                 f'/api/v1/auto_tests/{test_id}/sets/{set_id}/suites/',
                 200,
                 data={
-                    'steps': [],
+                    'steps': [helpers.get_auto_test_io_step()],
                     'rubric_row_id': rubric[0]['id'],
                     'network_disabled': True,
                 },
@@ -1005,6 +1009,31 @@ def test_update_locked_rubric(basic, test_client, logged_in, describe):
             409,
         )
         assert 'cannot delete a rubric with locked' in res['message']
+
+    with describe('cannot delete items from locked rubric row after run'
+                  ), logged_in(teacher):
+        print(rubric)
+        rubric_data = {'rows': rubric}
+        old_rubric_data = copy.deepcopy(rubric_data)
+        rubric_data['rows'][0]['items'].pop()
+        # Before should work
+        rubric = test_client.req(
+            'put',
+            f'/api/v1/assignments/{assig_id}/rubrics/',
+            200,
+            data=rubric_data
+        )
+        with app.test_request_context('/non_existing', {}):
+            assig = m.Assignment.query.get(assig_id)
+            assig.auto_test.start_test_run()
+            session.commit()
+        err = test_client.req(
+            'put',
+            f'/api/v1/assignments/{assig_id}/rubrics/',
+            400,
+            data=old_rubric_data
+        )
+        assert 'No items can be added or deleted' in err['message']
 
 
 def test_hidden_steps(describe, test_client, logged_in, session, basic):

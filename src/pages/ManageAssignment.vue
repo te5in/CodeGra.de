@@ -256,14 +256,13 @@
                                :hidden="selectedCat !== 'rubric'"
                                ref="rubricEditor"
                                editable/>
-
             </b-card>
         </div>
 
         <div class="cat-wrapper" :class="{hidden: selectedCat !== 'auto-test'}">
             <auto-test :assignment="assignment"
                        :hidden="selectedCat !== 'auto-test'"
-                       editable/>
+                       editable />
         </div>
     </div>
 </div>

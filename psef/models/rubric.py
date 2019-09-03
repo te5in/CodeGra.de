@@ -122,7 +122,7 @@ class RubricRow(Base):
         order_by='asc(RubricItem.points)',
     )  # type: t.MutableSequence[RubricItem]
 
-    assignment: 'assignment_models.Assignment' = db.relationship(
+    assignment: t.Optional['assignment_models.Assignment'] = db.relationship(
         'Assignment',
         foreign_keys=assignment_id,
         back_populates='rubric_rows',
@@ -160,6 +160,16 @@ class RubricRow(Base):
             return False
         return max(it.points for it in self.items) >= 0
 
+    @property
+    def locked(self) -> t.Union[RubricLockReason, bool]:
+        """Is this rubric row locked.
+
+        If it is locked the reason is returned.
+        """
+        if self.assignment is None:
+            return False
+        return self.assignment.locked_rubric_rows.get(self.id, False)
+
     def __to_json__(self) -> t.Mapping[str, t.Any]:
         """Creates a JSON serializable representation of this object.
         """
@@ -168,7 +178,7 @@ class RubricRow(Base):
             'header': self.header,
             'description': self.description,
             'items': self.items,
-            'locked': self.assignment.locked_rubric_rows.get(self.id, False)
+            'locked': self.locked,
         }
 
     def _get_item(self, item_id: int) -> t.Optional['RubricItem']:
@@ -203,6 +213,24 @@ class RubricRow(Base):
         # to search for items in `self.items` if a rubric item needs to be
         # updated (instead of added).
         new_items: t.List[RubricItem] = []
+
+        if (
+            self.locked == RubricLockReason.auto_test and self.assignment and
+            self.assignment.auto_test and self.assignment.auto_test.test_run
+        ):
+            new_ids = set(t.cast(dict, item).get('id', None) for item in items)
+            old_ids = set(item.id for item in self.items)
+            if new_ids != old_ids:
+                row_name = self.header
+                raise APIException(
+                    (
+                        f'No items can be added or deleted from row'
+                        f' "{row_name}" as it is locked for an AutoTestRun.'
+                    ), (
+                        'Some items were added or removed, but this is not'
+                        ' allowed as an AutoTest run has already been done'
+                    ), APICodes.LOCKED_UPDATE, 400
+                )
 
         for item in items:
             item_description: str = item['description']

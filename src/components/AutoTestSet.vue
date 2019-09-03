@@ -257,6 +257,8 @@ export default {
                 autoTestSet: this.value,
                 index,
                 suite,
+            }).then(() => {
+                this.$root.$emit('cg::rubric-editor::reload');
             });
         },
     },

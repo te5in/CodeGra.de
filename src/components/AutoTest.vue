@@ -653,6 +653,7 @@ export default {
         afterRunAutoTest() {
             this.configCollapsed = true;
             this.pollingTimer = setTimeout(this.loadAutoTestRun, this.pollingInterval);
+            this.$root.$emit('cg::rubric-editor::reload');
         },
 
         toggleContinuousFeedback() {

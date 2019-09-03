@@ -412,7 +412,7 @@ export default {
                     selectedPoints,
                     maxPoints,
                 )}</span>`;
-            } else if (this.editable) {
+            } else if (this.editable || !this.hasSelectedItems) {
                 res = header;
             } else {
                 res = `<span>${header}</span> - <span>${getFraction('Nothing', maxPoints)}<span>`;
