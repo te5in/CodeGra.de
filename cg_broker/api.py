@@ -75,6 +75,7 @@ def instance_route(f: T_CAL) -> T_CAL:
     'properties': {
         'job_id': {'type': 'string'},
         'wanted_runners': {'type': 'integer'},
+        'metadata': {'type': 'object'},
     },
     'required': ['job_id'],
 })
@@ -101,6 +102,7 @@ def register_job() -> EmptyResponse:
         )
         db.session.add(job)
 
+    job.update_metadata(g.data.get('metadata', {}))
     job.wanted_runners = g.data.get('wanted_runners', 1)
     active_runners = models.Runner.get_all_active_runners().filter_by(
         job_id=job.id
@@ -112,6 +114,7 @@ def register_job() -> EmptyResponse:
         wanted_runners=job.wanted_runners,
         amount_active=len(active_runners),
         too_many=too_many,
+        metadata=job.job_metadata,
     )
 
     for runner in active_runners:

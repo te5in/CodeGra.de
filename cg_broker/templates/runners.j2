@@ -28,8 +28,8 @@
             <td>{{ runner.id }}</td>
             <td>{{ runner.job_id }}</td>
             <td>{{ runner.ipaddr }}</td>
-            <td>{{ runner.created_at }}</td>
-            <td>{{ runner.updated_at }}</td>
+            <td>{{ runner.created_at | datetime }}</td>
+            <td>{{ runner.updated_at | datetime }}</td>
             <td>{{ runner.state.name }}</td>
             <td>{{ runner.instance_id }}</td>
             <td>{{ runner.__class__.__name__ }}</td>

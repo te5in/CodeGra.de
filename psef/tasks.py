@@ -354,6 +354,7 @@ def _notify_broker_of_new_job_1(
             json={
                 'job_id': run.get_job_id(),
                 'wanted_runners': wanted_runners,
+                'metadata': run.get_broker_metadata(),
             },
         ).raise_for_status()
         run.runners_requested = wanted_runners

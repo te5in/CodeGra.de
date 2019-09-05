@@ -5,6 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 import uuid
 import typing as t
 import secrets
+import datetime
 
 import structlog
 from flask import (
@@ -45,6 +46,18 @@ def unauthorized_request() -> Response:
         requested_url=request.url
     )
     return redirect(url_for('.login', next_url=request.url))
+
+
+@admin.add_app_template_global
+def utcnow() -> datetime.datetime:
+    """Get current date.
+    """
+    return datetime.datetime.utcnow()
+
+
+@admin.app_template_filter('datetime')
+def _format_datetime(date: datetime.datetime) -> str:
+    return date.strftime('%Y-%m-%d %T')
 
 
 @admin.add_app_template_global

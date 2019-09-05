@@ -12,6 +12,7 @@ import boto3
 import structlog
 import transip.service
 from suds import WebFault
+from sqlalchemy.types import JSON
 
 import cg_broker
 import cg_sqlalchemy_helpers as cgs
@@ -440,6 +441,19 @@ class Job(Base, mixins.TimestampMixin, mixins.IdMixin):
     runners: t.List['Runner'] = db.relationship(
         'Runner', back_populates='job', uselist=True
     )
+
+    _job_metadata: t.Optional[t.Dict[str, object]] = db.Column(
+        'job_metadata', JSON, nullable=True, default={}
+    )
+
+    @property
+    def job_metadata(self) -> t.Dict[str, object]:
+        """Metadata connected to this job.
+        """
+        return self._job_metadata or {}
+
+    def update_metadata(self, new_values: t.Dict[str, object]) -> None:
+        self._job_metadata = {**self.job_metadata, **new_values}
 
     _wanted_runners: int = db.Column(
         'wanted_runners',

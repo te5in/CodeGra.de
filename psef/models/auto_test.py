@@ -745,6 +745,25 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
         db.session.flush()
         return result
 
+    def get_broker_metadata(self) -> t.Mapping[str, object]:
+        """Get metadata that is useful for the broker of this run.
+        """
+        assig = self.auto_test.assignment
+        return {
+            'course': {
+                'id': assig.course.id,
+                'name': assig.course.name,
+            },
+            'assignment': {
+                'id': assig.id,
+                'name': assig.name,
+            },
+            'created_at': self.created_at.isoformat(),
+            'id': self.id,
+            'type':
+                'continuous' if self.is_continuous_feedback_run else 'final',
+        }
+
     def _clear_non_passed_results(self, runner: AutoTestRunner) -> bool:
         any_cleared = False
 
