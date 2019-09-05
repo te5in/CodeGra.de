@@ -667,7 +667,9 @@ class LTI:  # pylint: disable=too-many-public-methods
                 course_id=course.id, name=new_role
             ).first()
             if existing_role is None:
-                existing_role = models.CourseRole(course=course, name=new_role)
+                existing_role = models.CourseRole(
+                    course=course, name=new_role, hidden=False
+                )
                 db.session.add(existing_role)
                 new_created = new_role
             user.courses[course.id] = existing_role

@@ -527,6 +527,13 @@ def update_submission_grader(submission_id: int) -> EmptyResponse:
 
     auth.ensure_permission(CPerm.can_assign_graders, work.assignment.course_id)
 
+    if work.user.is_test_student:
+        raise APIException(
+            'You cannot assign test submissions to a grader',
+            f'The submission {work.id} is from a test student',
+            APICodes.INVALID_PARAM, 400
+        )
+
     grader = helpers.get_or_404(models.User, user_id)
     if not grader.has_permission(
         CPerm.can_grade_work, work.assignment.course_id

@@ -696,32 +696,57 @@ def upload_work(assignment_id: int) -> ExtendedJSONResponse[models.Work]:
     )
     assig = helpers.get_or_404(models.Assignment, assignment_id)
     given_author = request.args.get('author', None)
+    is_test_submission = helpers.request_arg_true('is_test_submission')
+    logger.info(
+        'Uploading submission',
+        is_test_submission=is_test_submission,
+        given_author=given_author,
+        assignment_id=assig.id,
+    )
 
-    if assig.deadline is None:
+    if given_author is not None and is_test_submission:
         raise APIException(
-            (
-                'The deadline for this assignment has not yet been set. '
-                'Please ask your teacher to set a deadline before you can '
-                'submit your work.'
-            ),
+            'You cannot provide an author for a test submission', (
+                'The options `given_author` and `is_test_submission` cannot be'
+                ' combined'
+            ), APICodes.INVALID_PARAM, 400
+        )
+
+    if assig.deadline is None and not is_test_submission:
+        msg = (
+            'The deadline for this assignment has not yet been set. '
+            'Please ask your teacher to set a deadline before you can '
+            'submit your work.'
+        )
+        if current_user.has_permission(
+            CPerm.can_submit_others_work, assig.course_id
+        ):
+            msg += ' You can still upload a test submission.'
+        raise APIException(
+            msg,
             f'The deadline for assignment {assig.name} is unset.',
             APICodes.ASSIGNMENT_DEADLINE_UNSET,
             400,
         )
 
-    if given_author is None:
+    if is_test_submission:
+        author = assig.course.get_test_student()
+        db.session.flush()
+    elif given_author is None:
         author = current_user
     else:
         author = helpers.filter_single_or_404(
             models.User,
             models.User.username == given_author,
+            also_error=lambda user: user.is_test_student,
         )
 
     auth.ensure_can_submit_work(assig, author)
 
     group = None
-    if assig.group_set:
+    if assig.group_set and not author.is_test_student:
         group = assig.group_set.get_valid_group_for_user(author)
+
     if group is not None:
         author = group.virtual_user
         if assig.is_lti and any(
@@ -737,7 +762,8 @@ def upload_work(assignment_id: int) -> ExtendedJSONResponse[models.Work]:
                 group=group,
             )
 
-    work = models.Work(assignment=assig, user_id=author.id)
+    # TODO: Check why we need to pass both user_id and user.
+    work = models.Work(assignment=assig, user_id=author.id, user=author)
     work.divide_new_work()
 
     try:

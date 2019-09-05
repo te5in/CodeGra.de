@@ -131,9 +131,12 @@ class Course(NotEqualMixin, Base):
         if virtual:
             return
         for role_name, perms in CourseRole.get_default_course_roles().items():
-            CourseRole(name=role_name, course=self, _permissions=perms)
+            CourseRole(
+                name=role_name, course=self, _permissions=perms, hidden=False
+            )
 
-    __hash__ = object.__hash__
+    def __hash__(self) -> int:
+        return hash(self.id)
 
     def __eq__(self, other: object) -> bool:
         """Check if two courses are equal.
@@ -198,14 +201,16 @@ class Course(NotEqualMixin, Base):
             assigs, key=lambda item: item.deadline or datetime.datetime.max
         )
 
-    def get_all_users_in_course(self) -> '_MyQuery[t.Tuple[User, CourseRole]]':
+    def get_all_users_in_course(
+        self, *, include_test_students: bool
+    ) -> '_MyQuery[t.Tuple[User, CourseRole]]':
         """Get a query that returns all users in the current course and their
             role.
 
         :returns: A query that contains all users in the current course and
             their role.
         """
-        return db.session.query(User, CourseRole).join(
+        res = db.session.query(User, CourseRole).join(
             user_course,
             user_course.c.user_id == User.id,
         ).join(
@@ -215,6 +220,11 @@ class Course(NotEqualMixin, Base):
             CourseRole.course_id == self.id,
             t.cast(DbColumn[bool], User.virtual).isnot(True)
         )
+
+        if not include_test_students:
+            res = res.filter(~User.is_test_student)
+
+        return res
 
     @classmethod
     def create_virtual_course(
@@ -254,3 +264,27 @@ class Course(NotEqualMixin, Base):
                 subdir = child
             work.add_file_tree(subdir)
         return self
+
+    def get_test_student(self) -> User:
+        """Get the test student for this course. If no test student exists yet
+        for this course, create a new one and return that.
+
+        :returns: A test student user.
+        """
+
+        user = self.get_all_users_in_course(include_test_students=True).filter(
+            User.is_test_student,
+        ).from_self(User).first()
+
+        if user is None:
+            role = CourseRole(
+                name=f'Test_Student_Role__{uuid.uuid4()}',
+                course=self,
+                hidden=True
+            )
+            db.session.add(role)
+            user = User.create_new_test_student()
+            user.courses[self.id] = role
+            db.session.add(user)
+
+        return user

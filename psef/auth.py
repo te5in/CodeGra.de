@@ -193,7 +193,11 @@ def ensure_can_submit_work(
     if not assig.is_open:
         ensure_permission(CPerm.can_upload_after_deadline, assig.course_id)
 
-    if assig.is_lti and assig.id not in author.assignment_results:
+    if assig.is_lti and not (
+        # We do not passback test student grades, so we do not need them to
+        # be present in the assignment_results
+        author.is_test_student or assig.id in author.assignment_results
+    ):
         lms_name = assig.course.lti_provider.lms_name
         raise APIException(
             (
@@ -499,6 +503,12 @@ def ensure_can_edit_members_of_group(
 
     for member in members:
         ensure_enrolled(group.group_set.course_id, member)
+        if member.is_test_student:
+            raise APIException(
+                'You cannot add test students to groups',
+                f'The user {member.id} is a test student',
+                APICodes.INVALID_PARAM, 400
+            )
 
     if group.has_a_submission:
         ensure_permission(

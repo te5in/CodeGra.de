@@ -203,6 +203,14 @@ class CourseRole(AbstractRole[CoursePermission], Base):
         'Course', foreign_keys=course_id, backref="roles", innerjoin=True
     )
 
+    hidden: bool = db.Column(
+        'hidden',
+        db.Boolean,
+        default=False,
+        server_default='false',
+        nullable=False
+    )
+
     @property
     def uses_course_permissions(self) -> bool:
         return True
@@ -213,6 +221,8 @@ class CourseRole(AbstractRole[CoursePermission], Base):
         course: 'course_models.Course',
         _permissions: t.Optional[t.MutableMapping[CoursePermission, Permission]
                                  ] = None,
+        *,
+        hidden: bool,
     ) -> None:
         if _permissions:
             assert all(
@@ -222,12 +232,14 @@ class CourseRole(AbstractRole[CoursePermission], Base):
 
         # Mypy doesn't get the sqlalchemy magic
         self.course = course
+        self.hidden = hidden
 
     def __to_json__(self) -> t.MutableMapping[str, t.Any]:
         """Creates a JSON serializable representation of this object.
         """
         res = super().__to_json__()
         res['course'] = self.course
+        res['hidden'] = self.hidden
         return res
 
     @classmethod

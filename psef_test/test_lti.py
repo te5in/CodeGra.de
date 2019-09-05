@@ -1478,6 +1478,108 @@ def test_lti_grade_passback_with_groups(
             )
 
 
+def test_lti_grade_passback_test_submission(
+    test_client, app, logged_in, teacher_user, tomorrow, monkeypatch,
+    monkeypatch_celery
+):
+    source_id = str(uuid.uuid4())
+
+    class Patch:
+        def __init__(self):
+            self._called = 0
+            self._xmls = []
+
+        def get_and_reset(self):
+            old = self._called
+            xmls = self._xmls
+            self._called = 0
+            self._xmls = []
+            return old, xmls
+
+        def __call__(self, uri, method, body, headers):
+            self._called += 1
+            assert method == 'POST'
+            assert isinstance(headers, dict)
+            assert headers['Content-Type'] == 'application/xml'
+            assert isinstance(body, bytes)
+            self._xmls.append(body.decode('utf-8'))
+            return '', SUCCESS_XML
+
+    patch_request = Patch()
+    monkeypatch.setattr(oauth2.Client, 'request', patch_request)
+
+    def do_lti_launch(
+        username='A the A-er',
+        lti_id='USER_ID',
+        canvas_id='MY_COURSE_ID_100',
+    ):
+        with app.app_context():
+            data = {
+                'custom_canvas_course_name': 'NEW_COURSE',
+                'custom_canvas_course_id': canvas_id,
+                'custom_canvas_assignment_id': f'{canvas_id}_ASSIG_1',
+                'custom_canvas_assignment_title': 'MY_ASSIG_TITLE',
+                'ext_roles':
+                    'urn:lti:sysrole:ims/lis/Administrator,urn:lti:role:ims/lis/Instructor',
+                'custom_canvas_user_login_id': username,
+                'custom_canvas_assignment_due_at': tomorrow.isoformat(),
+                'custom_canvas_assignment_published': 'true',
+                'user_id': lti_id,
+                'lis_person_contact_email_primary': 'a@a.nl',
+                'lis_person_name_full': username,
+                'context_id': 'NO_CONTEXT!!',
+                'context_title': 'WRONG_TITLE!!',
+                'oauth_consumer_key': 'my_lti',
+                'lis_outcome_service_url': source_id,
+                'custom_canvas_points_possible': 10,
+            }
+            if source_id:
+                data['lis_result_sourcedid'] = source_id
+            res = test_client.post('/api/v1/lti/launch/1', data=data)
+
+            url = urllib.parse.urlparse(res.headers['Location'])
+            jwt = urllib.parse.parse_qs(url.query)['jwt'][0]
+            lti_res = test_client.req(
+                'post',
+                '/api/v1/lti/launch/2',
+                200,
+                data={'jwt_token': jwt},
+            )
+            assert m.Assignment.query.get(
+                lti_res['assignment']['id']
+            ).state == m._AssignmentStateEnum.open
+            assert lti_res['assignment']['course']['name'] == 'NEW_COURSE'
+            return lti_res['assignment'], lti_res.get('access_token', None)
+
+    with logged_in(teacher_user):
+        assig, token = do_lti_launch()
+
+        test_sub = create_submission(
+            test_client,
+            assig['id'],
+            is_test_submission=True,
+        )
+
+        test_client.req(
+            'patch',
+            f'/api/v1/submissions/{test_sub["id"]}',
+            200,
+            data={'grade': 8.5, 'feedback': 'feedback'},
+        )
+
+        test_client.req(
+            'patch',
+            f'/api/v1/assignments/{assig["id"]}',
+            200,
+            data={
+                'state': 'done',
+            },
+        )
+
+        num, xmls = patch_request.get_and_reset()
+        assert num == 0
+
+
 @pytest.mark.parametrize('patch', [True, False])
 @pytest.mark.parametrize('filename', [
     ('correct.tar.gz'),

@@ -85,7 +85,8 @@ def create_submission(
             'multiple_dir_archive.zip'
         ),
         'f.zip',
-    )
+    ),
+    is_test_submission=False,
 ):
     status = err or 201
     err_t = create_error_template()
@@ -104,9 +105,13 @@ def create_submission(
         'assignment_id': get_id(assignment_id),
     } if err is None else err_t)
 
+    path = f'/api/v1/assignments/{get_id(assignment_id)}/submission'
+    if is_test_submission:
+        path += '?is_test_submission'
+
     return test_client.req(
         'post',
-        f'/api/v1/assignments/{get_id(assignment_id)}/submission',
+        path,
         status,
         real_data={'file': submission_data},
         result=result,
@@ -169,7 +174,7 @@ def create_user_with_perms(session, perms, courses, name=None):
     for course in courses:
         if isinstance(course, dict):
             course = m.Course.query.get(course['id'])
-        crole = m.CourseRole(name=role_name, course=course)
+        crole = m.CourseRole(name=role_name, course=course, hidden=False)
         for perm in CPerm:
             crole.set_permission(perm, perm in perms)
         session.add(crole)

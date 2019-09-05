@@ -118,12 +118,15 @@
                 <span v-else>-</span>
             </span>
             <loader :scale="1" v-else-if="assigneeUpdating[item.item.id]"/>
-            <b-form-select :options="assignees"
-                           :value="item.value ? item.value.id : null"
-                           @input="updateAssignee($event, item)"
-                           @click.native.stop
-                           style="max-width: 20em; margin: -.35rem 0;"
-                           v-else/>
+            <div v-else
+                 v-b-popover.top.hover="item.item.user.is_test_student ? 'You cannot assign test students to graders.' : ''">
+                <b-form-select :options="assignees"
+                               :disabled="item.item.user.is_test_student"
+                               :value="item.value ? item.value.id : null"
+                               @input="updateAssignee($event, item)"
+                               @click.native.stop
+                               class="user-form-select"/>
+            </div>
         </template>
     </b-table>
     <div class="no-submissions-found"
@@ -533,6 +536,15 @@ export default {
     text-decoration: bold;
     margin-bottom: -0.125em;
     cursor: help;
+}
+
+.user-form-select {
+    max-width: 20em;
+    margin: -0.35rem 0;
+    cursor: pointer;
+    &[disabled] {
+        cursor: not-allowed;
+    }
 }
 </style>
 

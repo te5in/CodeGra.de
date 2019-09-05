@@ -83,6 +83,7 @@ def test_login(
                     'hidden': False,
                     'permissions': dict,
                     'group': None,
+                    'is_test_student': False,
                 }, 'access_token': str
             }
         )
@@ -162,6 +163,7 @@ def test_extended_get_login(test_client, named_user, logged_in, request):
                 'permissions': dict,
                 'group': None,
                 'username': str,
+                'is_test_student': False,
             }
         )
 
@@ -236,6 +238,7 @@ def test_login_duplicate_email(
                         'username': user.username,
                         'hidden': False,
                         'group': None,
+                        'is_test_student': False,
                     },
                     'access_token': str,
                 }
@@ -253,6 +256,7 @@ def test_login_duplicate_email(
                     'id': int,
                     'name': user.name,
                     'group': None,
+                    'is_test_student': False,
                 }
             )
 

@@ -1,8 +1,13 @@
 # SPDX-License-Identifier: AGPL-3.0-only
+import uuid
+
 import pytest
 
 import psef.models as m
-from helpers import create_marker, create_user_with_perms
+from helpers import (
+    create_marker, create_assignment, create_submission, create_user_with_role,
+    create_user_with_perms
+)
 from psef.permissions import CoursePermission as CPerm
 
 perm_error = create_marker(pytest.mark.perm_error)
@@ -453,13 +458,16 @@ def test_get_courseroles(
         result = []
         for crole in course_roles:
             item = {
-                'name': crole.name, 'id': int, 'course': {
+                'name': crole.name,
+                'id': int,
+                'hidden': False,
+                'course': {
                     'name': course_n,
                     'id': int,
                     'created_at': str,
                     'is_lti': False,
                     'virtual': False,
-                }
+                },
             }
             if extended:
                 item['perms'] = dict
@@ -626,6 +634,45 @@ def test_update_courseroles(
             error or 204,
             data=data,
             result=error_template if error else None
+        )
+
+
+def test_update_test_student_role(
+    teacher_user,
+    logged_in,
+    test_client,
+    describe,
+    tomorrow,
+    assignment,
+    error_template,
+):
+    c_id = assignment.course.id
+
+    with logged_in(teacher_user):
+        test_sub = create_submission(
+            test_client,
+            assignment.id,
+            is_test_submission=True,
+        )
+        test_user = test_sub['user']
+
+        roles = test_client.req(
+            'get',
+            f'/api/v1/courses/{c_id}/roles/',
+            200,
+        )
+
+        role = next(r for r in roles if not r['hidden'])
+
+        test_client.req(
+            'put',
+            f'/api/v1/courses/{assignment.course.id}/users/',
+            400,
+            result=error_template,
+            data={
+                'user_id': test_user['id'],
+                'role_id': role['id'],
+            },
         )
 
 
@@ -843,7 +890,7 @@ def test_add_assignment(
 )
 def test_searching_user_in_course(
     named_user, error_template, logged_in, test_client, q, users, request,
-    course_id, assignment, session, teacher_user
+    course_id, assignment, session, teacher_user, tomorrow
 ):
     perm_marker = request.node.get_closest_marker('perm_error')
     http_marker = request.node.get_closest_marker('http_error')
@@ -874,6 +921,43 @@ def test_searching_user_in_course(
         )
         if code < 400:
             assert [i['username'] for i in res] == sorted(users)
+
+
+def test_searching_test_student_in_course(
+    logged_in, test_client, assignment, session, teacher_user, tomorrow
+):
+    c_id = assignment.course_id
+
+    with logged_in(teacher_user):
+        actual_student_name = f'TEST_STUDENT_{str(uuid.uuid4())}'
+        student = create_user_with_role(
+            session,
+            'Student',
+            c_id,
+            name=actual_student_name,
+        )
+
+        assig_id = create_assignment(
+            test_client, c_id, 'open', deadline=tomorrow
+        )['id']
+
+        res = create_submission(
+            test_client,
+            assig_id,
+            is_test_submission=True,
+        )
+        test_user_id = res['user']['id']
+
+        res = test_client.req(
+            'get',
+            f'/api/v1/courses/{c_id}/users/?q=TEST_STUDENT',
+            200,
+        )
+
+        assert res
+        for user in res:
+            assert user['id'] != test_user_id
+        assert student.id in set(user['id'] for user in res)
 
 
 def test_course_snippets(
