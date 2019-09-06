@@ -2,7 +2,8 @@
 <template>
 <b-input-group class="submission-nav-bar">
     <b-button-group class="nav-wrapper">
-        <b-button :disabled="prevSub == null"
+        <b-button v-if="showUserButtons || filteredSubmissions.length > 1"
+                  :disabled="prevSub == null"
                   v-b-popover.hover.bottom="generatePopoverTitle(prevSub)"
                   @click="selectSub(prevSub)">
             <icon name="angle-left"/>
@@ -48,7 +49,8 @@
         <div class="title placeholder" v-else>
             -
         </div>
-        <b-button :disabled="nextSub == null"
+        <b-button v-if="showUserButtons || filteredSubmissions.length > 1"
+                  :disabled="nextSub == null"
                   v-b-popover.hover.bottom="generatePopoverTitle(nextSub)"
                   @click="selectSub(nextSub)">
             <icon name="angle-right"/>
@@ -86,6 +88,11 @@ export default {
         notLatest: {
             type: Boolean,
             required: true,
+        },
+
+        showUserButtons: {
+            type: Boolean,
+            default: true,
         },
     },
 

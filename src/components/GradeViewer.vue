@@ -31,7 +31,7 @@
                    min="0"
                    :max="maxAllowedGrade"
                    :readonly="!realEditable"
-                   placeholder="Grade"
+                   :placeholder="editable ? 'Grade' : 'Not yet available'"
                    @keydown.enter="$refs.submitButton.onClick"
                    @input="rubricOverridden = showRubric"
                    v-model="grade"/>
