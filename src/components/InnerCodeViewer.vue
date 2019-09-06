@@ -189,17 +189,18 @@ export default {
             if (!el) return;
 
             const line = Number(el.getAttribute('data-line')) - 1;
+            const feedbackLine = line + this.lineFeedbackOffset;
 
             if (this.editing[line]) {
                 return;
             }
 
-            if (!this.feedback[line] || !this.feedback[line].msg) {
+            if (!this.feedback[feedbackLine] || !this.feedback[feedbackLine].msg) {
                 await this.storeAddFeedbackLine({
                     assignmentId: this.assignment.id,
                     submissionId: this.submission.id,
                     fileId: this.fileId,
-                    line: line + this.lineFeedbackOffset,
+                    line: feedbackLine,
                     author: { name: this.currentUserName },
                 });
             }
