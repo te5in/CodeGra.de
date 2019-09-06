@@ -236,40 +236,6 @@ def post_heartbeat(auto_test_id: int, run_id: int) -> EmptyResponse:
 
 
 @api.route(
-    '/auto_tests/<int:auto_test_id>/runs/<int:run_id>/logs/', methods=['POST']
-)
-@feature_required(Feature.AUTO_TEST)
-def emit_log_for_runner(auto_test_id: int, run_id: int) -> EmptyResponse:
-    """Emit log lines for the current runner.
-    """
-    password = _verify_global_header_password()
-
-    with get_from_map_transaction(
-        get_json_dict_from_request(log_object=False)
-    ) as [get, _]:
-        logs = get('logs', list)
-
-    run = filter_single_or_404(
-        models.AutoTestRun,
-        models.AutoTestRun.id == run_id,
-        also_error=lambda run: run.auto_test_id != auto_test_id,
-    )
-    _verify_and_get_runner(run, password)
-
-    for log in logs:
-        assert isinstance(log, dict)
-        assert 'level' in log
-        getattr(logger, log['level'], logger.info)(
-            **log,
-            from_tester=True,
-            original_timestamp=log['timestamp'],
-            run_id=run_id
-        )
-
-    return make_empty_response()
-
-
-@api.route(
     '/auto_tests/<int:auto_test_id>/fixtures/<int:fixture_id>',
     methods=['GET']
 )
