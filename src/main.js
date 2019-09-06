@@ -5,6 +5,7 @@ import 'highlightjs/styles/solarized-dark.css';
 import 'vue-multiselect/dist/vue-multiselect.min.css';
 import '@/style.less';
 
+import Icon from 'vue-awesome/components/Icon';
 import Vue from 'vue';
 import BootstrapVue from 'bootstrap-vue';
 import axios from 'axios';
@@ -26,6 +27,15 @@ Vue.use(Toasted);
 Vue.use(VueMasonry);
 
 Vue.config.productionTip = false;
+
+Icon.register({
+    tilde: {
+        width: 24,
+        height: 24,
+        d:
+            'M2,15C2,15 2,9 8,9C12,9 12.5,12.5 15.5,12.5C19.5,12.5 19.5,9 19.5,9H22C22,9 22,15 16,15C12,15 10.5,11.5 8.5,11.5C4.5,11.5 4.5,15 4.5,15H2',
+    },
+});
 
 axios.defaults.transformRequest.push((data, headers) => {
     if (store.state.user.jwtToken) {

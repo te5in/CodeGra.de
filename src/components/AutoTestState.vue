@@ -9,7 +9,7 @@
                 {{ minutes }}:{{ seconds }}
             </template>
         </span>
-        <icon v-else-if="icon"
+        <icon v-else-if="showIcon && icon"
               :class="iconClass"
               :name="icon" />
     </span>
@@ -26,7 +26,6 @@ import 'vue-awesome/icons/ban';
 import 'vue-awesome/icons/check';
 import 'vue-awesome/icons/times';
 import 'vue-awesome/icons/clock-o';
-import 'vue-awesome/icons/exchange';
 import 'vue-awesome/icons/exclamation-triangle';
 
 export default {
@@ -45,6 +44,10 @@ export default {
             type: Boolean,
             default: false,
         },
+        showIcon: {
+            type: Boolean,
+            default: false,
+        },
     },
 
     computed: {
@@ -57,6 +60,8 @@ export default {
                 case 'passed':
                 case 'done':
                     return 'check';
+                case 'partial':
+                    return 'tilde';
                 case 'failed':
                     return 'times';
                 case 'hidden':
@@ -66,8 +71,6 @@ export default {
                 case 'not_started':
                 case 'waiting_for_runner':
                     return 'clock-o';
-                case 'changing_runner':
-                    return 'exchange';
                 case 'timed_out':
                 case 'crashed':
                     return 'exclamation-triangle';
@@ -79,6 +82,7 @@ export default {
         iconClass() {
             switch (this.state) {
                 case 'passed':
+                case 'done':
                     return 'text-success';
                 case 'failed':
                 case 'timed_out':

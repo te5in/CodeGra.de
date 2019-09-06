@@ -266,7 +266,7 @@
                 </template>
             </td>
             <td class="shrink text-center" v-if="result">
-                <auto-test-state :result="stepResult" />
+                <auto-test-state :result="stepResult" show-icon />
             </td>
         </tr>
 
@@ -310,7 +310,7 @@
                 {{ $utils.toMaxNDecimals(value.weight, 2) }}
             </td>
             <td class="shrink text-center" v-if="result">
-                <auto-test-state :result="stepResult" />
+                <auto-test-state :result="stepResult" show-icon />
             </td>
         </tr>
 
@@ -384,7 +384,7 @@
                 {{ $utils.toMaxNDecimals(value.weight, 2) }}
             </td>
             <td class="shrink text-center" v-if="result">
-                <auto-test-state :result="stepResult" />
+                <auto-test-state :result="stepResult" show-icon />
             </td>
         </tr>
 
@@ -507,7 +507,7 @@
                 {{ $utils.toMaxNDecimals(value.weight, 2) }}
             </td>
             <td class="shrink text-center" v-if="result">
-                <auto-test-state v-if="stepResult.state === 'hidden'" :result="stepResult" />
+                <auto-test-state v-if="stepResult.state === 'hidden'" :result="stepResult" show-icon />
             </td>
         </tr>
 
@@ -538,7 +538,7 @@
                     {{ $utils.toMaxNDecimals(input.weight, 2) }}
                 </td>
                 <td class="shrink text-center" v-if="result">
-                    <auto-test-state :result="ioSubStepProps(i, stepResult)" />
+                    <auto-test-state :result="ioSubStepProps(i, stepResult)" show-icon />
                 </td>
             </tr>
 
