@@ -1,9 +1,10 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div class="toggle-container"
-     :class="{ disabled, colors }"
-     :checked="current == valueOn">
-    <div :id="toggleId">
+     :class="{ disabled, colors, inline }"
+     :checked="current">
+    <div :id="toggleId"
+         class="toggle-div">
         <div class="label-off"
             @click="toggle(false)">
             {{ labelOff }}
@@ -59,6 +60,10 @@ export default {
             default: true,
             type: Boolean,
         },
+        inline: {
+            default: false,
+            type: Boolean,
+        },
     },
 
     data() {
@@ -70,7 +75,7 @@ export default {
 
     watch: {
         value(to) {
-            this.current = to;
+            this.current = to === this.valueOn;
         },
     },
 
@@ -100,13 +105,21 @@ export default {
     &.disabled {
         cursor: not-allowed;
     }
+
+    &.inline,
+    &.inline .toggle-div {
+        display: inline;
+    }
 }
 
 .label-off,
 .label-on,
 .toggle {
     display: inline-block;
-    vertical-align: middle;
+    vertical-align: top;
+    .toggle-container:not(.inline) & {
+        vertical-align: middle;
+    }
     cursor: pointer;
 
     .disabled & {
