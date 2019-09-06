@@ -2,13 +2,24 @@
 <template>
 <loader v-if="loading"/>
 <div v-else class="groups">
-    <local-header>
+    <local-header :back-route="$utils.getProps(getPreviousRoute(), null, 'name') && getPreviousRoute()"
+                  :back-popover="backPopover">
         <template slot="title">
             <span v-if="groupSet.assignment_ids.length === 0">
                 Unused group set
             </span>
             <span v-else>
-                Group set used by {{ formattedAssignments }}
+                Group set used by
+                <span v-for="(assig, index) in groupAssignments">
+                    <router-link
+                        :to="getAssignmentLink(assig)"
+                        class="inline-link"
+                        >{{ assig.name }}</router-link
+                                                      ><template
+                                                           v-if="index + 1 < groupAssignments.length"
+                                                           >,
+                    </template>
+                </span>
             </span>
         </template>
         <b-form-fieldset class="filter-input">
@@ -40,6 +51,8 @@ import { mapActions, mapGetters } from 'vuex';
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/refresh';
 
+import { getPreviousRoute } from '@/router';
+
 import { nameOfUser, waitAtLeast } from '@/utils';
 
 import GroupsManagement from '@/components/GroupsManagement';
@@ -54,6 +67,7 @@ export default {
         return {
             loading: true,
             filter: '',
+            getPreviousRoute,
         };
     },
 
@@ -67,6 +81,14 @@ export default {
 
     computed: {
         ...mapGetters('courses', ['assignments', 'courses']),
+
+        backPopover() {
+            const prev = this.getPreviousRoute();
+            if (prev == null || prev.name == null) {
+                return '';
+            }
+            return `Go back to the ${prev.name.replace(/_/g, ' ')} page`;
+        },
 
         course() {
             return this.courses[this.courseId];
@@ -88,11 +110,10 @@ export default {
             return set.length > 0 ? set[0] : null;
         },
 
-        formattedAssignments() {
+        groupAssignments() {
             return this.groupSet.assignment_ids
-                .map(id => this.assignments[id] && this.assignments[id].name)
-                .filter(name => name != null)
-                .join(', ');
+                .map(id => this.assignments[id])
+                .filter(assig => this.$utils.getProps(assig, null, 'name') != null);
         },
     },
 
@@ -102,6 +123,16 @@ export default {
 
     methods: {
         ...mapActions('courses', ['loadCourses', 'reloadCourses']),
+
+        getAssignmentLink(assig) {
+            return {
+                name: 'assignment_submissions',
+                params: {
+                    courseId: this.courseId,
+                    assignmentId: assig.id,
+                },
+            };
+        },
 
         loadData() {
             this.loading = true;
