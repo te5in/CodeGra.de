@@ -60,6 +60,11 @@ def _format_datetime(date: datetime.datetime) -> str:
     return date.strftime('%Y-%m-%d %T')
 
 
+@admin.app_template_filter('age')
+def _get_age_datetime(date: datetime.datetime) -> float:
+    return (datetime.datetime.utcnow() - date).total_seconds() / 60
+
+
 @admin.add_app_template_global
 def csrf_token() -> str:
     """Get the csrf_token of this session, and generate one if it is not
@@ -142,7 +147,7 @@ def show_all_runners() -> Response:
     """
     runners = db.session.query(models.Runner).order_by(
         t.cast(DbColumn, models.Runner.created_at).desc()
-    ).all()
+    ).limit(400).all()
     return render_template('runners.j2', runners=runners)
 
 
@@ -153,7 +158,7 @@ def show_all_jobs() -> Response:
     """
     jobs = db.session.query(models.Job).order_by(
         t.cast(DbColumn, models.Job.created_at).desc()
-    ).all()
+    ).limit(400).all()
     return render_template('jobs.j2', jobs=jobs)
 
 
@@ -169,9 +174,10 @@ def stop_runner(runner_hex_id: str) -> Response:
     """
     runner_id = uuid.UUID(hex=runner_hex_id)
     runner = db.session.query(models.Runner).get(runner_id)
+    shutdown = request.args.get('shutdown', 'false') == 'true'
     assert runner is not None
 
-    tasks.kill_runner.delay(runner.id.hex)
+    tasks.kill_runner.delay(runner.id.hex, shutdown)
     flash('Stopping runner')
 
     return redirect(url_for('.show_all_runners'))

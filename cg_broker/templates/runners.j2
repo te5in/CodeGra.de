@@ -15,6 +15,7 @@
         <th>ID</th>
         <th>Job</th>
         <th>Ip address</th>
+        <th>Age</th>
         <th>Created at</th>
         <th>Updated at</th>
         <th>State</th>
@@ -28,22 +29,36 @@
             <td>{{ runner.id }}</td>
             <td>{{ runner.job_id }}</td>
             <td>{{ runner.ipaddr }}</td>
+            <td>{{ runner.created_at | age | round | int }}</td>
             <td>{{ runner.created_at | datetime }}</td>
             <td>{{ runner.updated_at | datetime }}</td>
             <td>{{ runner.state.name }}</td>
             <td>{{ runner.instance_id }}</td>
             <td>{{ runner.__class__.__name__ }}</td>
             <td>
+                <div class="btn-group">
                 <form action="{{ url_for('.stop_runner', runner_hex_id=runner.id.hex) }}"
+                      method="post"
+                      class="mr-3">
+                    <input name="_csrf_token" type="hidden"
+                           value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-primary"
+                            {% if not runner.should_clean %}disabled="true"{% endif %}
+                            >
+                        Kill
+                    </button>
+                </form>
+                <form action="{{ url_for('.stop_runner', runner_hex_id=runner.id.hex) }}?shutdown=true"
                       method="post">
                     <input name="_csrf_token" type="hidden"
                            value="{{ csrf_token() }}">
                     <button type="submit" class="btn btn-primary"
                             {% if not runner.should_clean %}disabled="true"{% endif %}
                             >
-                        Stop
+                        Shutdown
                     </button>
                 </form>
+                </div>
             </td>
         </tr>
         {% endfor %}

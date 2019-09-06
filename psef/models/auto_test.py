@@ -760,8 +760,7 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
             },
             'created_at': self.created_at.isoformat(),
             'id': self.id,
-            'type':
-                'continuous' if self.is_continuous_feedback_run else 'final',
+            'type': 'CF' if self.is_continuous_feedback_run else 'AT',
         }
 
     def _clear_non_passed_results(self, runner: AutoTestRunner) -> bool:

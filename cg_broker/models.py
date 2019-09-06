@@ -123,7 +123,7 @@ class Runner(Base, mixins.TimestampMixin, mixins.UUIDMixin):
         'Job', foreign_keys=job_id, back_populates='runners'
     )
 
-    def cleanup_runner(self) -> None:
+    def cleanup_runner(self, shutdown_only: bool) -> None:
         raise NotImplementedError
 
     def start_runner(self) -> None:
@@ -237,7 +237,7 @@ class Runner(Base, mixins.TimestampMixin, mixins.UUIDMixin):
             )
         )
 
-    def kill(self, *, maybe_start_new: bool) -> None:
+    def kill(self, *, maybe_start_new: bool, shutdown_only: bool) -> None:
         """Kill this runner and maybe start a new one.
 
         :param maybe_start_new: Should we maybe start a new runner after
@@ -245,7 +245,7 @@ class Runner(Base, mixins.TimestampMixin, mixins.UUIDMixin):
         """
         self.state = RunnerState.cleaning
         db.session.commit()
-        self.cleanup_runner()
+        self.cleanup_runner(shutdown_only)
         self.state = RunnerState.cleaned
         db.session.commit()
 
@@ -284,7 +284,7 @@ class DevRunner(Runner):
     def start_runner(self) -> None:
         pass
 
-    def cleanup_runner(self) -> None:
+    def cleanup_runner(self, shutdown_only: bool) -> None:
         pass
 
 
@@ -298,7 +298,7 @@ class TransipRunner(Runner):
     def start_runner(self) -> None:
         pass
 
-    def cleanup_runner(self) -> None:
+    def cleanup_runner(self, shutdown_only: bool) -> None:
         username = app.config['_TRANSIP_USERNAME']
         key_file = app.config['_TRANSIP_PRIVATE_KEY_FILE']
         vps_service = transip.service.VpsService(
@@ -394,10 +394,15 @@ class AWSRunner(Runner):
             logger.error('Timed out waiting on AWS instance')
             raise TimeoutError
 
-    def cleanup_runner(self) -> None:
+    def cleanup_runner(self, shutdown_only: bool) -> None:
         assert self.instance_id
         client = boto3.client('ec2')
-        client.terminate_instances(InstanceIds=[self.instance_id])
+        if shutdown_only:
+            client.stop_instances(
+                InstanceIds=[self.instance_id], Hibernate=True
+            )
+        else:
+            client.terminate_instances(InstanceIds=[self.instance_id])
 
     __mapper_args__ = {'polymorphic_identity': RunnerType.aws}
 
@@ -412,6 +417,12 @@ class JobState(enum.IntEnum):
     waiting_for_runner = 1
     started = 2
     finished = 3
+
+    @property
+    def is_finished(self) -> bool:
+        """Is this a finished state.
+        """
+        return self == self.finished
 
 
 class Job(Base, mixins.TimestampMixin, mixins.IdMixin):
