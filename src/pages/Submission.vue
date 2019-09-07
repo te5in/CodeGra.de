@@ -204,6 +204,7 @@
                 <auto-test v-if="!hiddenCats.has('auto-test')"
                            accept-continuous
                            :assignment="assignment"
+                           :force-run="autoTestRun"
                            :submission-id="submissionId" />
             </div>
         </div>
@@ -373,6 +374,8 @@ export default {
             let run = runs.find(r => !r.isContinuous);
             if (run == null) {
                 run = runs.find(r => r.isContinuous);
+            } else if (run.results.find(res => res.submissionId === this.submissionId) == null) {
+                run = runs.find(r => r.isContinuous) || run;
             }
 
             return run;

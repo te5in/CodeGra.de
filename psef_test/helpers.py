@@ -266,7 +266,7 @@ def get_auto_test_io_step():
 def get_auto_test_custom_output_step():
     return {
         'type': 'custom_output',
-        'data': {'program': 'echo 1', 'regex': '\\f'},
+        'data': {'program': 'echo 1.0', 'regex': '\\f'},
         'name': 'Custom output',
         'weight': 1,
         'hidden': False,

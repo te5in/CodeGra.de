@@ -399,7 +399,7 @@ class AWSRunner(Runner):
         client = boto3.client('ec2')
         if shutdown_only:
             client.stop_instances(
-                InstanceIds=[self.instance_id], Hibernate=True
+                InstanceIds=[self.instance_id], Hibernate=False
             )
         else:
             client.terminate_instances(InstanceIds=[self.instance_id])
@@ -518,4 +518,5 @@ class Job(Base, mixins.TimestampMixin, mixins.IdMixin):
         return {
             'id': self.remote_id,
             'state': self.state.name,
+            'wanted_runners': self.wanted_runners,
         }

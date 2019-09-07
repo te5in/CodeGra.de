@@ -14,13 +14,13 @@
 
 <div v-else class="auto-test" :class="{ editable: configEditable }">
     <transition-group v-if="!singleResult" name="auto-test-runs">
-        <auto-test-run v-if="finalRun"
-                       :key="finalRun.id"
+        <auto-test-run v-if="isFinalRun"
+                       :key="currentRun.id"
                        class="mb-3"
                        :class="{ border: editable }"
                        :assignment="assignment"
                        :auto-test="test"
-                       :run="finalRun"
+                       :run="currentRun"
                        :editable="editable"
                        @open-result="openResult"
                        @results-deleted="afterDeleteResults" />
@@ -47,7 +47,7 @@
 
                 <b-button-toolbar v-else>
                     <div v-b-popover.hover.top="continuousBtnPopover">
-                        <submit-button :label="(continuousRun ? 'Stop' : 'Start') + ' CF'"
+                        <submit-button :label="(hasContinuousRun ? 'Stop' : 'Start') + ' CF'"
                                        class="mr-1"
                                        :confirm="continuousBtnConfirm"
                                        :variant="continuousBtnVariant"
@@ -61,7 +61,6 @@
                                        class="mr-1"
                                        :disabled="!!runAutoTestPopover"
                                        :submit="runAutoTest"
-                                       :confirm="startRunBtnConfirm"
                                        @after-success="afterRunAutoTest" />
                     </div>
 
@@ -81,7 +80,7 @@
                 This assignment does not have an AutoTest configuration.
             </b-card-body>
             <b-card-body v-else class="p-3">
-                <b-alert v-if="singleResult && continuousRun && !finalRun"
+                <b-alert v-if="singleResult && isContinuousRun"
                          variant="warning"
                          dismissible
                          show>
@@ -383,7 +382,7 @@
                                    :editable="configEditable"
                                    :result="result"
                                    :other-suites="allNonDeletedSuites"
-                                   :is-continuous="currentRun && currentRun.isContinuous" />
+                                   :is-continuous="isContinuousRun" />
                     <p class="text-muted font-italic mb-3"
                        key="no-sets"
                        v-if="test.sets.filter(s => !s.deleted).length === 0">
@@ -518,6 +517,10 @@ export default {
         acceptContinuous: {
             type: Boolean,
             default: false,
+        },
+        forceRun: {
+            type: Object,
+            default: null,
         },
     },
 
@@ -657,7 +660,7 @@ export default {
         },
 
         toggleContinuousFeedback() {
-            if (!this.continuousRun) {
+            if (!this.hasContinuousRun) {
                 return this.runAutoTest(true);
             } else {
                 return this.storeDeleteAutoTestResults({
@@ -708,16 +711,17 @@ export default {
         },
 
         loadAutoTestRun() {
-            if (!this.finalRun || this.finalRun.finished) {
+            if (!this.isFinalRun || this.currentRun.finished) {
                 return null;
             }
 
             return this.storeLoadAutoTestRun({
                 autoTestId: this.autoTestId,
                 acceptContinuous: this.acceptContinuous,
+                autoTestRunId: this.$utils.getProps(this.currentRun, undefined, 'id'),
             }).then(
                 () => {
-                    if (this.finalRun.finished) {
+                    if (this.currentRun.finished) {
                         // We need to reload the submissions as the run has
                         // finished so the grades/rubric will be updated.
                         return this.storeForceLoadSubmissions(this.assignment.id);
@@ -754,6 +758,7 @@ export default {
                     submissionId: this.submissionId,
                     acceptContinuous: this.acceptContinuous,
                     force,
+                    autoTestRunId: this.$utils.getProps(this.currentRun, undefined, 'id'),
                 }),
             ];
 
@@ -772,6 +777,7 @@ export default {
                     this.storeLoadAutoTestRun({
                         autoTestId: this.autoTestId,
                         acceptContinuous: this.acceptContinuous,
+                        autoTestRunId: this.$utils.getProps(this.currentRun, undefined, 'id'),
                     }),
                 );
             }
@@ -1029,9 +1035,9 @@ export default {
         },
 
         result() {
-            let run = this.finalRun;
-            if (this.acceptContinuous && run == null) {
-                run = this.continuousRun;
+            const run = this.currentRun;
+            if (this.isContinuousRun && !this.acceptContinuous) {
+                return null;
             }
             if (run == null || this.submissionId == null) {
                 return null;
@@ -1080,7 +1086,7 @@ export default {
 
             if (!this.permissions.can_run_autotest) {
                 msg += 'you do not have permission to start an AutoTest.';
-            } else if (this.finalRun) {
+            } else if (this.isFinalRun) {
                 msg += 'the final results are already available.';
             } else if (this.test && this.test.grade_calculation == null) {
                 msg += 'no rubric calculation mode has been selected.';
@@ -1115,7 +1121,7 @@ export default {
         },
 
         canRunAutoTest() {
-            return this.permissions.can_run_autotest && !this.finalRun;
+            return this.permissions.can_run_autotest && !this.isFinalRun;
         },
 
         canDeleteAutoTest() {
@@ -1127,7 +1133,7 @@ export default {
         },
 
         isConfigCollapsible() {
-            return this.autoTestId && this.finalRun;
+            return this.autoTestId && this.isFinalRun;
         },
 
         resultSubmissionIds() {
@@ -1140,30 +1146,41 @@ export default {
         },
 
         currentRun() {
-            return this.finalRun || this.continuousRun;
+            if (this.forceRun) {
+                return this.forceRun;
+            }
+            if (!this.test) {
+                return null;
+            }
+            const finalRun = this.test.runs.find(run => !run.isContinuous);
+            const continuousRun = this.test.runs.find(run => run.isContinuous);
+            return finalRun || continuousRun;
         },
 
-        finalRun() {
-            return this.test && this.test.runs.find(run => !run.isContinuous);
+        isFinalRun() {
+            return !this.$utils.getProps(this.currentRun, true, 'isContinuous');
+        },
+
+        isContinuousRun() {
+            return this.$utils.getProps(this.currentRun, false, 'isContinuous');
         },
 
         continuousRun() {
+            if (this.isContinuousRun) {
+                return this.currentRun;
+            }
             return this.test && this.test.runs.find(run => run.isContinuous);
         },
 
+        hasContinuousRun() {
+            return !!this.continuousRun;
+        },
+
         continuousBtnConfirm() {
-            if (this.continuousRun) {
+            if (this.hasContinuousRun) {
                 return 'Are you sure you want to disable Continuous Feedback? This will remove all current results.';
             } else {
                 return 'Do you want to start Continuous Feedback?';
-            }
-        },
-
-        startRunBtnConfirm() {
-            if (this.continuousRun) {
-                return 'This will temporarily disable Continuous Feedback, it will be resumed when you delete the AutoTest run.';
-            } else {
-                return '';
             }
         },
 
@@ -1172,9 +1189,7 @@ export default {
         },
 
         continuousBtnPopover() {
-            if (this.finalRun) {
-                return 'Continuous Feedback cannot be toggled because there is an AutoTest run.';
-            } else if (this.test && this.test.grade_calculation == null) {
+            if (this.test && this.test.grade_calculation == null) {
                 return 'Continuous Feedback cannot be enabled because no rubric calculation mode has been selected.';
             } else if (this.testSuites.length === 0) {
                 return 'Continuous Feedback cannot be enabled because there are no test categories.';
@@ -1188,11 +1203,10 @@ export default {
         },
 
         canRunContinuous() {
-            const finalRun = this.finalRun;
             const gradeCalc = this.test && this.test.grade_calculation;
             const unhidden = this.hasUnhiddenSteps;
 
-            return finalRun == null && gradeCalc != null && unhidden;
+            return gradeCalc != null && unhidden;
         },
 
         hasUnhiddenSteps() {

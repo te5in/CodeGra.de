@@ -17,8 +17,13 @@ const loaders = {
     runs: {},
 };
 
-function getRun(autoTest, acceptContinuous) {
-    let run = autoTest.runs.find(r => !r.isContinuous);
+function getRun(autoTest, acceptContinuous, runId) {
+    let run;
+    if (runId != null) {
+        return autoTest.runs.find(r => r.id === runId);
+    } else {
+        run = autoTest.runs.find(r => !r.isContinuous);
+    }
     if (run == null && acceptContinuous) {
         run = autoTest.runs.find(r => r.isContinuous);
     }
@@ -103,10 +108,6 @@ const actions = {
         await dispatch('loadAutoTest', { autoTestId });
         const autoTest = state.tests[autoTestId];
 
-        if (autoTest.runs.find(r => !r.isContinuous)) {
-            throw new Error('AutoTest has already been run.');
-        }
-
         return axios
             .post(`/api/v1/auto_tests/${autoTestId}/runs/`, {
                 continuous_feedback_run: continuousFeedback,
@@ -118,10 +119,15 @@ const actions = {
             );
     },
 
-    async loadAutoTestRun({ commit, dispatch, state }, { autoTestId, acceptContinuous, force }) {
+    async loadAutoTestRun(
+        { commit, dispatch, state },
+        {
+            autoTestId, acceptContinuous, force, autoTestRunId,
+        },
+    ) {
         await dispatch('loadAutoTest', { autoTestId });
         const autoTest = state.tests[autoTestId];
-        const oldRun = getRun(autoTest, acceptContinuous);
+        const oldRun = getRun(autoTest, acceptContinuous, autoTestRunId);
 
         if (oldRun == null) {
             throw new Error('AutoTest has not been run yet.');
@@ -221,12 +227,12 @@ const actions = {
     async loadAutoTestResult(
         { commit, dispatch, state },
         {
-            autoTestId, submissionId, acceptContinuous, force,
+            autoTestId, submissionId, acceptContinuous, force, autoTestRunId,
         },
     ) {
         await dispatch('loadAutoTest', { autoTestId });
         const autoTest = state.tests[autoTestId];
-        const run = getRun(autoTest, acceptContinuous);
+        let run = getRun(autoTest, acceptContinuous, autoTestRunId);
 
         if (run == null) {
             throw new Error('AutoTest has not been run yet.');
@@ -239,7 +245,9 @@ const actions = {
                     autoTestId,
                     acceptContinuous,
                     force: true,
+                    autoTestRunId,
                 });
+                run = getRun(autoTest, acceptContinuous, autoTestRunId);
                 result = run.results.find(r => r.submissionId === submissionId);
             }
             if (result == null) {

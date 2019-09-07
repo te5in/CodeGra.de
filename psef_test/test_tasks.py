@@ -6,6 +6,7 @@ import pytest
 
 from psef import tasks as t
 from psef import models as m
+from cg_flask_helpers import callback_after_this_request
 
 
 @pytest.mark.parametrize(
@@ -173,3 +174,79 @@ def test_stop_auto_test_run(
         assert not stub_stop.called
         assert not stub_notify_stop.called
         assert not stub_notify_kill_single.called
+
+
+def test_after_this_request_in_celery(monkeypatch_celery):
+    res = []
+    amount = -1
+
+    @t.celery.task
+    def test_task():
+        nonlocal amount
+        if amount == -1:
+            amount += 2
+            test_task()
+
+        @callback_after_this_request
+        def after():
+            res.append(3)
+
+        res.append(amount)
+        amount += 1
+
+    test_task.delay()
+    assert res == [1, 2, 3, 3]
+
+
+@pytest.mark.parametrize(
+    'filename', ['../test_submissions/single_dir_archive.zip'], indirect=True
+)
+def test_adjust_amomunt_runners(
+    session, describe, monkeypatch, stub_function_class, app,
+    assignment_real_works, monkeypatch_celery
+):
+    assignment, submission = assignment_real_works
+
+    with describe('setup'):
+        stub_notify_new = stub_function_class()
+        monkeypatch.setattr(t, '_notify_broker_of_new_job_1', stub_notify_new)
+
+        test = m.AutoTest(
+            setup_script='', run_setup_script='', assignment=assignment
+        )
+        run = m.AutoTestRun(_job_id=uuid.uuid4(), auto_test=test)
+        run.results = [m.AutoTestResult(work_id=submission['id'])]
+        run.results[0].state = m.AutoTestStepResultState.passed
+        session.add(run)
+
+        with app.test_request_context('/non_existing', {}):
+            run.add_active_runner('localhost')
+        runner = run.runners[0]
+        assert runner.run
+        session.commit()
+
+    with describe("Should not request runners when we don't need any"):
+        t.adjust_amount_runners(run.id)
+        assert not stub_notify_new.called
+
+    with describe('Should be called when there are results'):
+        run.results.append(m.AutoTestResult(work_id=submission['id']))
+        run.results[-1].state = m.AutoTestStepResultState.not_started
+        session.commit()
+
+        t.adjust_amount_runners(run.id)
+        assert stub_notify_new.called
+
+    with describe('Should be called when we have enough'):
+        run.runners_requested = 1
+        session.commit()
+
+        t.adjust_amount_runners(run.id)
+        assert not stub_notify_new.called
+
+    with describe('Should be called when we have too many'):
+        run.runners_requested = 2
+        session.commit()
+
+        t.adjust_amount_runners(run.id)
+        assert stub_notify_new.called
