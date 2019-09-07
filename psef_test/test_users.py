@@ -1,7 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-only
+import uuid
+
 import pytest
 
 import psef as p
+import helpers
 import psef.errors as e
 import psef.models as m
 from helpers import create_marker
@@ -123,6 +126,43 @@ def test_searching_users_rate_limit(
                 'get', f'/api/v1/users/?q=query', 429, result=error_template
             )
             assert res['code'] == e.APICodes.RATE_LIMIT_EXCEEDED.name
+
+
+def test_searching_test_student(
+    logged_in, session, error_template, test_client, request, admin_user,
+    ta_user, tomorrow, assignment
+):
+    with logged_in(admin_user):
+        course = helpers.create_course(test_client)
+        teacher = helpers.create_user_with_role(session, 'Teacher', course)
+
+        actual_student_name = f'TEST_STUDENT_{str(uuid.uuid4())}'
+        student = helpers.create_user_with_role(
+            session, 'Student', course, name=actual_student_name
+        )
+
+    with logged_in(teacher):
+        assig_id = helpers.create_assignment(
+            test_client, course, 'open', deadline=tomorrow
+        )['id']
+
+        res = helpers.create_submission(
+            test_client,
+            assignment_id=assig_id,
+            is_test_submission=True,
+        )
+        test_user_id = res['user']['id']
+
+        res = test_client.req(
+            'get',
+            '/api/v1/users/?q=TEST_STUDENT',
+            200,
+        )
+
+        assert res
+        for user in res:
+            assert user['id'] != test_user_id
+        assert student.id in set(user['id'] for user in res)
 
 
 @pytest.mark.parametrize(

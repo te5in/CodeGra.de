@@ -59,7 +59,7 @@
                             {{ $utils.toMaxNDecimals(autoTest.pointsPossible, 2) }}
                         </td>
                         <td class="state">
-                            <auto-test-state :result="getResult(resultOffset)" />
+                            <auto-test-state :result="getResult(resultOffset)" show-icon />
                         </td>
                     </tr>
                 </template>

@@ -7,6 +7,7 @@ the mapping of the variables at the bottom of this file.
 SPDX-License-Identifier: AGPL-3.0-only
 """
 import os
+import json
 import uuid
 import shutil
 import typing as t
@@ -349,14 +350,21 @@ def _notify_broker_of_new_job_1(
         run = run_id
 
     with p.helpers.BrokerSession() as ses:
-        ses.put(
+        req = ses.put(
             '/api/v1/jobs/',
             json={
                 'job_id': run.get_job_id(),
                 'wanted_runners': wanted_runners,
+                'metadata': run.get_broker_metadata(),
             },
-        ).raise_for_status()
-        run.runners_requested = wanted_runners
+        )
+        req.raise_for_status()
+        try:
+            run.runners_requested = req.json().get(
+                'wanted_runners', wanted_runners
+            )
+        except json.decoder.JSONDecodeError:
+            run.runners_requested = max(wanted_runners, 1)
         p.models.db.session.commit()
 
 
@@ -467,6 +475,11 @@ def _adjust_amount_runners_1(auto_test_run_id: int) -> None:
     ):
         if needed_amount == requested_amount:
             logger.info('No new runners needed')
+            return
+        elif needed_amount == 0 and run.runners_requested < 2:
+            # If we have requested more than 2 runners we should decrease this,
+            # so do send this request to the broker.
+            logger.info("We don't need any runners")
             return
         elif needed_amount > requested_amount:
             logger.info('We need more runners')

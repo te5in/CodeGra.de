@@ -15,6 +15,7 @@ from flask_expects_json import expects_json
 from sqlalchemy.sql.expression import and_ as sql_and
 from sqlalchemy.sql.expression import func as sql_func
 
+import cg_json
 from cg_flask_helpers import callback_after_this_request
 from cg_sqlalchemy_helpers.types import DbColumn
 
@@ -75,11 +76,12 @@ def instance_route(f: T_CAL) -> T_CAL:
     'properties': {
         'job_id': {'type': 'string'},
         'wanted_runners': {'type': 'integer'},
+        'metadata': {'type': 'object'},
     },
     'required': ['job_id'],
 })
 @instance_route
-def register_job() -> EmptyResponse:
+def register_job() -> cg_json.JSONResponse:
     """Register a new job.
 
     If needed a runner will be started for this job.
@@ -101,6 +103,7 @@ def register_job() -> EmptyResponse:
         )
         db.session.add(job)
 
+    job.update_metadata(g.data.get('metadata', {}))
     job.wanted_runners = g.data.get('wanted_runners', 1)
     active_runners = models.Runner.get_all_active_runners().filter_by(
         job_id=job.id
@@ -112,6 +115,7 @@ def register_job() -> EmptyResponse:
         wanted_runners=job.wanted_runners,
         amount_active=len(active_runners),
         too_many=too_many,
+        metadata=job.job_metadata,
     )
 
     for runner in active_runners:
@@ -130,7 +134,7 @@ def register_job() -> EmptyResponse:
     )
     assert job.id is not None
 
-    return make_empty_response()
+    return cg_json.jsonify(job)
 
 
 @api.route('/jobs/<job_id>/runners/', methods=['DELETE'])

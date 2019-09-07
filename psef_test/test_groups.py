@@ -1061,3 +1061,63 @@ def test_change_name_of_group(
             result=error_template
         )
         check_name(None)
+
+
+def test_add_test_student_to_group(
+    session, test_client, logged_in, assignment, teacher_user, error_template,
+    describe
+):
+    c_id = assignment.course.id
+
+    with logged_in(teacher_user):
+        g_set = create_group_set(test_client, c_id, 1, 4)
+
+        res = create_submission(
+            test_client,
+            assignment.id,
+            is_test_submission=True,
+        )
+        test_student = res['user']
+
+        with describe('new group with a test student cannot be created'):
+            res = test_client.req(
+                'post',
+                f'/api/v1/group_sets/{g_set["id"]}/group',
+                400,
+                result=error_template,
+                data={
+                    'member_ids': [test_student['id']],
+                },
+            )
+
+        with describe(
+            'new group with a test student and other students cannot be created'
+        ):
+            u1 = create_user_with_perms(
+                session, [CPerm.can_edit_own_groups], assignment.course
+            )
+            res = test_client.req(
+                'post',
+                f'/api/v1/group_sets/{g_set["id"]}/group',
+                400,
+                result=error_template,
+                data={
+                    'member_ids': [test_student['id'], u1.id],
+                },
+            )
+
+        with describe('test student can not be added to existing group'):
+            g1 = create_group(
+                test_client,
+                g_set['id'],
+                [],
+            )
+            res = test_client.req(
+                'post',
+                f'/api/v1/groups/{g1["id"]}/member',
+                400,
+                result=error_template,
+                data={
+                    'username': test_student['username'],
+                },
+            )

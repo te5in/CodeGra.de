@@ -376,6 +376,11 @@ def test_start_auto_test_before_complete(
         assert 'no grade_calculation' in err['message']
         update_test(grade_calculation='full')
 
+    with describe('no submissions'), logged_in(teacher):
+        err = start_run(409)
+        assert 'there are no submissions' in err['message']
+        helpers.create_submission(test_client, assig_id)
+
     with describe('already has a run'), logged_in(teacher):
         start_run(200)
         err = start_run(409)
@@ -454,7 +459,11 @@ def test_update_auto_test(
 
     with describe('setup'):
         course, assig_id, teacher, student = basic
+
         with logged_in(teacher):
+            # We need to make a submission, otherwise we cannot start tests
+            helpers.create_submission(test_client, assig_id)
+
             test = helpers.create_auto_test(test_client, assig_id)
             url = f'/api/v1/auto_tests/{test["id"]}'
             update_test()

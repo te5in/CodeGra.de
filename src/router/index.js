@@ -115,9 +115,15 @@ export function setRestoreRoute(route) {
     restoreRoute = Object.assign({}, route);
 }
 
+let previousRoute = null;
+export function getPreviousRoute() {
+    return previousRoute;
+}
+
 router.beforeEach((to, from, next) => {
     // Unset page title. Pages will set title,
     // this is mostly to catch pages that don't.
+    previousRoute = Object.assign({}, from);
     resetPageTitle();
 
     const loggedIn = store.getters['user/loggedIn'];

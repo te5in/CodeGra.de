@@ -2,7 +2,7 @@
 
 SPDX-License-Identifier: AGPL-3.0-only
 """
-
+import enum
 import typing as t
 import logging as system_logging
 
@@ -68,16 +68,27 @@ else:
     Celery = _Celery
 
 
+class TaskStatus(enum.Enum):
+    success = enum.auto()
+    failure = enum.auto()
+
+
 class CGCelery(Celery):
     """A subclass of celery that makes sure tasks are always called with a
     flask app context
     """
 
+    def after_this_task(self, callback: t.Callable[[TaskStatus], None]
+                        ) -> t.Callable[[object], object]:
+        self._after_task_callbacks.append(callback)
+        return lambda x: x
+
     def __init__(self, name: str, signals: t.Any) -> None:
         super().__init__(name)
         self._signals = signals
         self._flask_app: t.Any = None
-        self.__enable_logging()
+        self.__enable_callbacks()
+        self._after_task_callbacks: t.List[t.Callable[[TaskStatus], None]] = []
 
         if t.TYPE_CHECKING:  # pragma: no cover
 
@@ -116,6 +127,7 @@ class CGCelery(Celery):
                     argsrepr=repr(args),
                     kwargsrepr=repr(kwargs),
                 )
+                outer_self._after_task_callbacks = []
 
                 if outer_self._flask_app.testing:
                     g.request_id = self.request.id
@@ -156,7 +168,16 @@ class CGCelery(Celery):
         })
         self._flask_app = app
 
-    def __enable_logging(self) -> None:
+    def _call_callbacks(self, status: TaskStatus) -> None:
+        for callback in self._after_task_callbacks:
+            try:
+                callback(status)
+            except:  # pragma: no cover
+                logger.error(
+                    'Callback failed', callback=callback, exc_info=True
+                )
+
+    def __enable_callbacks(self) -> None:
         system_logging.getLogger('cg_celery').setLevel(system_logging.DEBUG)
 
         @self._signals.before_task_publish.connect(weak=False)
@@ -173,6 +194,7 @@ class CGCelery(Celery):
 
         @self._signals.task_success.connect(weak=False)
         def __celery_success(**kwargs: object) -> None:
+            self._call_callbacks(TaskStatus.success)
             logger.info(
                 'Task finished',
                 result=kwargs['result'],
@@ -180,6 +202,7 @@ class CGCelery(Celery):
 
         @self._signals.task_failure.connect(weak=False)
         def __celery_failure(**_: object) -> None:  # pragma: no cover
+            self._call_callbacks(TaskStatus.failure)
             logger.error(
                 'Task failed',
                 exc_info=True,

@@ -66,8 +66,8 @@ class _PrioQueue:
         self._new_work = mp.Condition(self.mutex)
         self._work_needed = mp.Semaphore(0)
 
-    def wait_on_work_needed(self) -> None:
-        self._work_needed.acquire()
+    def wait_on_work_needed(self, timeout: t.Optional[int]) -> bool:
+        return self._work_needed.acquire(True, timeout=timeout)
 
     def notify_work_needed(self) -> None:
         """Notify that more work is needed.
@@ -286,7 +286,10 @@ class WorkerPool:
         self, bonus_round: threading.Event, bonus_round_result: 'Queue[bool]'
     ) -> None:
         while True:
-            self._work_queue.wait_on_work_needed()
+            # Wait with a timeout. This reduces the chance that every thread is
+            # waiting and we need to start the bonus round, but we do not do it
+            # because of some weird timing bug.
+            self._work_queue.wait_on_work_needed(30)
             try:
                 raise self._finish_queue.get(False)
             except Empty:
@@ -298,6 +301,12 @@ class WorkerPool:
                 # Some workers might still be busy so we need to check that.
                 (old_wq_version, queue_empty,
                  amount_waiting) = self._work_queue.get_version()
+                logger.info(
+                    'Checking if queue is empty',
+                    queue_empty=queue_empty,
+                    amount_waiting=amount_waiting,
+                    amount_processes=self._processes,
+                )
 
                 # Every thread is waiting for more work to do, and there is no
                 # more work.
@@ -306,15 +315,20 @@ class WorkerPool:
                 else:
                     continue
 
+            logger.info('Starting bonus round')
+
             # We need to release the ``_new_work`` lock, as otherwise the
             # producer will never run. We do need to set the ``bonus_round``
             # Event while we hold the lock, as otherwise we might get out of
             # sync.
-            for _ in range(self._extra_amount):
+            for bonus_index in range(self._extra_amount):
+                logger.info('Doing bonus round', round_number=bonus_index)
                 if bonus_round_result.get():
+                    logger.info('Got results, so stopping bonus')
                     break
             else:
                 # The queue should be not changed, as we indicated that no
                 # results were produced.
+                logger.info('Bonus round finished, got no work')
                 assert self._work_queue.get_version()[0] == old_wq_version
                 return

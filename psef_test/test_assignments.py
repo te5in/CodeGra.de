@@ -1251,11 +1251,7 @@ def test_upload_too_large_file(
 
 
 def test_upload_archive_with_dev_file(
-    student_user,
-    test_client,
-    error_template,
-    logged_in,
-    assignment,
+    student_user, test_client, error_template, logged_in, assignment
 ):
     with logged_in(student_user):
         res = test_client.req(
@@ -1464,7 +1460,9 @@ def test_divide_assignment_negative_weights(
 ):
     users_roles = filter(
         lambda user_role: user_role[1].has_permission(CPerm.can_grade_work),
-        assignment.course.get_all_users_in_course().all(),
+        assignment.course.get_all_users_in_course(
+            include_test_students=False,
+        ).all(),
     )
     users = [user_role[0] for user_role in users_roles]
 
@@ -1506,6 +1504,86 @@ def test_divide_non_existing_assignment(
         test_client.req(
             'patch', f'/api/v1/assignments/0/divide', 404, error_template
         )
+
+
+def test_divide_test_student_submission(
+    teacher_user, logged_in, test_client, assignment, describe, tomorrow
+):
+    users_roles = filter(
+        lambda user_role: user_role[1].has_permission(CPerm.can_grade_work),
+        assignment.course.get_all_users_in_course(
+            include_test_students=False,
+        ).all(),
+    )
+    users = [user_role[0] for user_role in users_roles]
+
+    with logged_in(teacher_user):
+        with describe('existing test submissions will not be divided'):
+            test_sub = create_submission(
+                test_client,
+                assignment.id,
+                is_test_submission=True,
+            )
+
+            test_client.req(
+                'patch',
+                f'/api/v1/assignments/{assignment.id}/divide',
+                204,
+                data={
+                    'graders': {str(user.id): 1
+                                for user in users},
+                },
+            )
+
+            res = test_client.req(
+                'get',
+                f'/api/v1/submissions/{test_sub["id"]}',
+                200,
+                result={
+                    'assignee': None,
+                    '__allow_extra__': True,
+                },
+            )
+
+        with describe('new submissions will not be divided'):
+            test_sub = create_submission(
+                test_client,
+                assignment.id,
+                is_test_submission=True,
+            )
+            assert test_sub['assignee'] is None
+
+        with describe(
+            'connecting a division parent will not assign to test submission'
+        ):
+            assig2 = create_assignment(
+                test_client, assignment.course.id, deadline=tomorrow
+            )
+
+            test_sub = create_submission(
+                test_client,
+                assig2['id'],
+                is_test_submission=True,
+            )
+
+            test_client.req(
+                'patch',
+                f'/api/v1/assignments/{assig2["id"]}/division_parent',
+                204,
+                data={
+                    'parent_id': assignment.id,
+                },
+            )
+
+            res = test_client.req(
+                'get',
+                f'/api/v1/submissions/{test_sub["id"]}',
+                200,
+                result={
+                    'assignee': None,
+                    '__allow_extra__': True,
+                },
+            )
 
 
 @pytest.mark.parametrize('with_works', [True], indirect=True)
@@ -3967,12 +4045,19 @@ def test_prevent_submitting_to_assignment_without_deadline(
     test_client, session, assignment, logged_in, admin_user, student_user,
     error_template
 ):
+    test_sub_msg = 'You can still upload a test submission.'
+
     with logged_in(admin_user):
         course = create_course(test_client)
         assig = create_assignment(test_client, get_id(course), state='open')
+        teacher = create_user_with_perms(
+            session,
+            [CPerm.can_submit_others_work, CPerm.can_upload_after_deadline],
+            courses=[course],
+        )
 
     with logged_in(student_user):
-        test_client.req(
+        res = test_client.req(
             'post',
             f'/api/v1/assignments/{assig["id"]}/submission',
             400,
@@ -3984,6 +4069,21 @@ def test_prevent_submitting_to_assignment_without_deadline(
             },
             result=error_template,
         )
+        assert not res['message'].endswith(test_sub_msg)
+
+    with logged_in(teacher):
+        res = test_client.req(
+            'post',
+            f'/api/v1/assignments/{assig["id"]}/submission',
+            400,
+            real_data={
+                'file': (
+                    f'{os.path.dirname(__file__)}/../test_data/'
+                    'test_submissions/multiple_dir_archive.zip', 'f.zip'
+                )
+            },
+        )
+        assert res['message'].endswith(test_sub_msg)
 
 
 def parse_ignore_v2_test_files():
@@ -4405,3 +4505,83 @@ def test_all_submissions_by_a_user(
             f'/api/v1/assignments/{assig_id}/users/{student2.id}/submissions/',
             403,
         )
+
+
+def test_upload_test_submission(
+    logged_in, session, error_template, test_client, request, admin_user,
+    tomorrow, describe
+):
+    with logged_in(admin_user):
+        course = helpers.create_course(test_client)
+
+    student = helpers.create_user_with_role(session, 'Student', course)
+    teacher = helpers.create_user_with_role(session, 'Teacher', course)
+    test_student = None
+
+    with logged_in(teacher):
+        assig_id = helpers.create_assignment(test_client, course, 'open')['id']
+
+        with describe('Fails if the "author" query is given'):
+            res = test_client.req(
+                'post',
+                f'/api/v1/assignments/{assig_id}/submission?is_test_submission&author={student.username}',
+                400,
+                real_data={
+                    'file': (
+                        get_submission_archive('single_file_archive.tar.gz'),
+                        'single_file_archive',
+                    )
+                },
+                result=error_template,
+            )
+
+        def assert_submitted(data=None, real_data=None):
+            nonlocal test_student
+
+            res = test_client.req(
+                'post',
+                f'/api/v1/assignments/{assig_id}/submission?is_test_submission',
+                201,
+                real_data={
+                    'file': (
+                        get_submission_archive('single_file_archive.tar.gz'),
+                        'single_file_archive',
+                    ),
+                },
+                result={
+                    'id': int,
+                    # Check that multiple submissions yield the same test
+                    # student.
+                    'user': dict if test_student is None else test_student,
+                    'created_at': str,
+                    'assignee': None,
+                    'grade': None,
+                    'comment': None,
+                    'comment_author': None,
+                    'grade_overridden': False,
+                    'assignment_id': assig_id,
+                }
+            )
+
+            if test_student is None:
+                test_student = res['user']
+
+            assert res['user']['username'].startswith('TEST_STUDENT_')
+            assert res['user']['is_test_student']
+
+        with describe('Succeeds even if no deadline is set'):
+            assert_submitted()
+
+        with describe(
+            'Succeeds after the deadline is set and is submitted by TEST_STUDENT_'
+        ):
+            test_client.req(
+                'patch',
+                f'/api/v1/assignments/{assig_id}',
+                200,
+                data={
+                    'deadline': tomorrow.isoformat(),
+                },
+            )
+
+            assert_submitted()

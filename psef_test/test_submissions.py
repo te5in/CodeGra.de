@@ -8,7 +8,7 @@ import pytest
 from pytest import approx
 
 import psef.models as m
-from helpers import create_marker
+from helpers import create_marker, create_submission
 
 http_error = create_marker(pytest.mark.http_error)
 perm_error = create_marker(pytest.mark.perm_error)
@@ -1536,6 +1536,27 @@ def test_change_grader(
             assert submission['assignee'] is None
         else:
             assert submission['assignee']['name'] == old_grader
+
+
+def test_update_test_submission_grader(
+    test_client, logged_in, teacher_user, ta_user, assignment, error_template
+):
+    with logged_in(teacher_user):
+        test_sub = create_submission(
+            test_client,
+            assignment.id,
+            is_test_submission=True,
+        )
+
+        test_client.req(
+            'patch',
+            f'/api/v1/submissions/{test_sub["id"]}/grader',
+            400,
+            result=error_template,
+            data={
+                'user_id': ta_user.id,
+            },
+        )
 
 
 @pytest.mark.parametrize('filename', ['test_flake8.tar.gz'], indirect=True)

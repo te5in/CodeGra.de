@@ -5,6 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 import uuid
 import typing as t
 import secrets
+import datetime
 
 import structlog
 from flask import (
@@ -45,6 +46,23 @@ def unauthorized_request() -> Response:
         requested_url=request.url
     )
     return redirect(url_for('.login', next_url=request.url))
+
+
+@admin.add_app_template_global
+def utcnow() -> datetime.datetime:
+    """Get current date.
+    """
+    return datetime.datetime.utcnow()
+
+
+@admin.app_template_filter('datetime')
+def _format_datetime(date: datetime.datetime) -> str:
+    return date.strftime('%Y-%m-%d %T')
+
+
+@admin.app_template_filter('age')
+def _get_age_datetime(date: datetime.datetime) -> float:
+    return (datetime.datetime.utcnow() - date).total_seconds() / 60
 
 
 @admin.add_app_template_global
@@ -129,7 +147,7 @@ def show_all_runners() -> Response:
     """
     runners = db.session.query(models.Runner).order_by(
         t.cast(DbColumn, models.Runner.created_at).desc()
-    ).all()
+    ).limit(400).all()
     return render_template('runners.j2', runners=runners)
 
 
@@ -140,7 +158,7 @@ def show_all_jobs() -> Response:
     """
     jobs = db.session.query(models.Job).order_by(
         t.cast(DbColumn, models.Job.created_at).desc()
-    ).all()
+    ).limit(400).all()
     return render_template('jobs.j2', jobs=jobs)
 
 
@@ -156,9 +174,10 @@ def stop_runner(runner_hex_id: str) -> Response:
     """
     runner_id = uuid.UUID(hex=runner_hex_id)
     runner = db.session.query(models.Runner).get(runner_id)
+    shutdown = request.args.get('shutdown', 'false') == 'true'
     assert runner is not None
 
-    tasks.kill_runner.delay(runner.id.hex)
+    tasks.kill_runner.delay(runner.id.hex, shutdown)
     flash('Stopping runner')
 
     return redirect(url_for('.show_all_runners'))

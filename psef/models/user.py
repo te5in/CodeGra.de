@@ -89,6 +89,14 @@ class User(NotEqualMixin, Base):
     virtual = db.Column(
         'virtual', db.Boolean, default=False, nullable=False, index=True
     )
+    is_test_student = db.Column(
+        'is_test_student',
+        db.Boolean,
+        default=False,
+        nullable=False,
+        index=True
+    )
+
     role_id: int = db.Column('Role_id', db.Integer, db.ForeignKey('Role.id'))
     courses: t.MutableMapping[int, CourseRole] = db.relationship(
         'CourseRole',
@@ -167,6 +175,21 @@ class User(NotEqualMixin, Base):
         return hash(self.id)
 
     @classmethod
+    def create_new_test_student(cls) -> 'User':
+        """Create a new test student.
+
+        :return: A newly created test student user named
+            'TEST_STUDENT' followed by a random string.
+        """
+
+        return cls(
+            name='Test Student',
+            username=f'TEST_STUDENT__{uuid.uuid4()}',
+            is_test_student=True,
+            email='',
+        )
+
+    @classmethod
     def create_virtual_user(cls: t.Type['User'], name: str) -> 'User':
         """Create a virtual user with the given name.
 
@@ -210,7 +233,7 @@ class User(NotEqualMixin, Base):
         :raises KeyError: If the permission parameter is a string and no
                          permission with this name exists.
         """
-        if not self.active or self.virtual:
+        if not self.active or self.virtual or self.is_test_student:
             return False
 
         if course_id is None:
@@ -353,6 +376,7 @@ class User(NotEqualMixin, Base):
             'name': self.name,
             'username': self.username,
             'group': self.group,
+            'is_test_student': self.is_test_student,
         }
 
     def __extended_to_json__(self) -> t.MutableMapping[str, t.Any]:

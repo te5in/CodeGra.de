@@ -63,8 +63,10 @@ def delete_role(course_id: int, role_id: int) -> EmptyResponse:
         also_error=lambda c: c.virtual,
     )
     role = helpers.filter_single_or_404(
-        models.CourseRole, models.CourseRole.course_id == course_id,
-        models.CourseRole.id == role_id
+        models.CourseRole,
+        models.CourseRole.course_id == course_id,
+        models.CourseRole.id == role_id,
+        also_error=lambda r: r.hidden,
     )
 
     if course.lti_provider is not None:
@@ -139,7 +141,7 @@ def add_role(course_id: int) -> EmptyResponse:
             ), APICodes.INVALID_PARAM, 400
         )
 
-    role = models.CourseRole(name=name, course=course)
+    role = models.CourseRole(name=name, course=course, hidden=False)
     db.session.add(role)
     db.session.commit()
 
@@ -183,6 +185,7 @@ def update_role(course_id: int, role_id: int) -> EmptyResponse:
         models.CourseRole,
         models.CourseRole.course_id == course_id,
         models.CourseRole.id == role_id,
+        also_error=lambda r: r.hidden,
     )
 
     if (
@@ -231,10 +234,9 @@ def get_all_course_roles(
     auth.ensure_permission(CPerm.can_edit_course_roles, course_id)
 
     course_roles: t.Sequence[models.CourseRole]
-    course_roles = models.CourseRole.query.filter_by(course_id=course_id
-                                                     ).order_by(
-                                                         models.CourseRole.name
-                                                     ).all()
+    course_roles = models.CourseRole.query.filter_by(
+        course_id=course_id, hidden=False
+    ).order_by(models.CourseRole.name).all()
 
     if request.args.get('with_roles') == 'true':
         res = []
@@ -333,6 +335,13 @@ def set_course_permission_user(
             ).format(content), APICodes.MISSING_REQUIRED_PARAM, 400
         )
 
+    if user.is_test_student:
+        raise APIException(
+            'You cannot change the role of a test student',
+            f'The user {user.id} is a test student', APICodes.INVALID_PARAM,
+            400
+        )
+
     user.courses[role.course_id] = role
     db.session.commit()
     return res
@@ -368,12 +377,13 @@ def get_all_course_users(
         @limiter.limit('1 per second', key_func=lambda: str(current_user.id))
         def get_users_in_course() -> t.List[models.User]:
             query: str = request.args.get('q', '')
-            base = course.get_all_users_in_course().from_self(models.User)
+            base = course.get_all_users_in_course(include_test_students=False
+                                                  ).from_self(models.User)
             return helpers.filter_users_by_name(query, base).all()
 
         return jsonify(get_users_in_course())
 
-    users = course.get_all_users_in_course()
+    users = course.get_all_users_in_course(include_test_students=False)
 
     user_course: t.List[_UserCourse]
     user_course = [

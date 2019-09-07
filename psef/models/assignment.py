@@ -961,6 +961,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         # other functions might use this method and might want to order in a
         # different way or do other distincts. But I have no idea how slow this
         # subquery makes the query, as postgres could optimize it out.
+
         sub = db.session.query(
             t.cast(DbColumn[int], work_models.Work.id)
         ).filter(work_models.Work.assignment_id == self.id).order_by(
@@ -1095,7 +1096,9 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         if not self._weights_changed(user_weights):
             return
 
-        submissions = self.get_all_latest_submissions().all()
+        submissions = self.get_all_latest_submissions().join(
+            work_models.Work.user
+        ).filter(~user_models.User.is_test_student).all()
         shuffle(submissions)
 
         counts: t.MutableMapping[int, int] = defaultdict(int)
@@ -1209,6 +1212,9 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
             methods fail.
         :returns: The id of the assignee or ``None`` if no assignee was found.
         """
+        if sub.user.is_test_student:
+            return None
+
         user_id = self.get_from_latest_submissions(
             work_models.Work.assigned_to
         ).filter(work_models.Work.user_id == sub.user_id).first()
@@ -1287,6 +1293,12 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         db.session.flush()
         missing, recalc = self.get_divided_amount_missing()
         for sub in list(todo.values()):
+            if sub.user.is_test_student:
+                # Remove from todo as we simply do not want to assign these
+                # submissions.
+                del todo[sub.id]
+                continue
+
             other = parent.get_assignee_from_division_children(sub.user_id)
             if other is None and missing:
                 other = max(missing.keys(), key=missing.get)

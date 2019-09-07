@@ -201,9 +201,9 @@ export default {
         colorPairs() {
             return ['#00FF00', '#FF0000', '#0000FF', '#FFFB00', '#00FFFF', '#7F00FF'].map(color => {
                 const rgbInt = parseInt(color.slice(1), 16);
-                const b = rgbInt & 0xff;
-                const g = (rgbInt >> 8) & 0xff;
                 const r = (rgbInt >> 16) & 0xff;
+                const g = (rgbInt >> 8) & 0xff;
+                const b = rgbInt & 0xff;
                 const background = [r, g, b];
                 return {
                     background,

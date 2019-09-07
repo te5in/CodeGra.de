@@ -487,7 +487,7 @@ def test_execute_custom_output(
 
     with describe('number lower than 0 should be capped'
                   ), monkeypatch.context() as m:
-        for val, expected in [(-1, 0), (-0.5, 0), (-0.0, 0)]:
+        for val, expected in [(-1.0, 0), (-0.5, 0), (-0.0, 0)]:
             m.setattr(stub_container, 'tail', str(val))
 
             res = step()
@@ -495,6 +495,15 @@ def test_execute_custom_output(
 
             last_update = stub_update_result.all_args[-1]
             assert last_update[0].name == 'passed'
+
+    with describe('0.1 should work correctly'), monkeypatch.context() as m:
+        m.setattr(stub_container, 'tail', '0.1')
+
+        res = step()
+        assert res == 0.1 * o.weight
+
+        last_update = stub_update_result.all_args[-1]
+        assert last_update[0].name == 'passed'
 
     with describe('crashing command should fail'), monkeypatch.context() as m:
         m.setattr(stub_container, 'code', 1)

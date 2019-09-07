@@ -56,7 +56,7 @@ def maybe_kill_unneeded_runner(runner_hex_id: str) -> None:
             return
 
         logger.error('Runner is still not doing anything')
-        runner.kill(maybe_start_new=False)
+        runner.kill(maybe_start_new=False, shutdown_only=False)
 
 
 @celery.task
@@ -176,7 +176,7 @@ def maybe_start_runners_for_job(job_id: int) -> None:
 
 
 @celery.task
-def kill_runner(runner_hex_id: str) -> None:
+def kill_runner(runner_hex_id: str, shutdown_only: bool = False) -> None:
     """Kill the runner with the given ``runner_hex_id``.
     """
     runner_id = uuid.UUID(hex=runner_hex_id)
@@ -190,7 +190,7 @@ def kill_runner(runner_hex_id: str) -> None:
         logger.info('Runner already cleaned up')
         return
 
-    runner.kill(maybe_start_new=True)
+    runner.kill(maybe_start_new=True, shutdown_only=shutdown_only)
 
 
 @celery.task
@@ -224,7 +224,7 @@ def _start_runner(runner_hex_id: str) -> None:
     except:
         logger.error('Failed to start runner', exc_info=True)
         # The kill method commits
-        runner.kill(maybe_start_new=True)
+        runner.kill(maybe_start_new=True, shutdown_only=False)
         raise
     else:
         db.session.commit()
@@ -249,7 +249,7 @@ def cleanup_runners_of_job(job_id: int) -> None:
     db.session.commit()
 
     for runner in to_clean:
-        runner.kill(maybe_start_new=True)
+        runner.kill(maybe_start_new=True, shutdown_only=False)
 
 
 @celery.task

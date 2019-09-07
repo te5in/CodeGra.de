@@ -227,14 +227,25 @@ export class AutoTestResult {
     }
 
     update(result, autoTest) {
-        this.state = result.state;
         this.startedAt = result.started_at;
         this.pointsAchieved = result.points_achieved;
+        this.updateState(result.state);
 
         this.updateStepResults(result.step_results, autoTest);
 
         if (this.isFinishedState(result.state)) {
             this.finished = true;
+        }
+    }
+
+    updateState(newState) {
+        switch (newState) {
+            case 'passed':
+                this.state = 'done';
+                break;
+            default:
+                this.state = newState;
+                break;
         }
     }
 
@@ -314,6 +325,13 @@ export class AutoTestResult {
 
                     if (step.type === 'check_points' && stepResult.state === 'failed') {
                         suiteFailed = true;
+                    } else if (step.type === 'custom_output' && stepResult.state === 'passed') {
+                        const points = stepResult.log.points;
+                        if (points === 0) {
+                            stepResult.state = 'failed';
+                        } else if (points < 1) {
+                            stepResult.state = 'partial';
+                        }
                     } else {
                         suiteResult.achieved += getProps(stepResult, 0, 'achieved_points');
                     }

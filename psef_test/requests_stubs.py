@@ -1,5 +1,11 @@
+import json
+
+
 class Session:
     class Response:
+        def json(self):
+            raise json.decoder.JSONDecodeError('err', '', -1)
+
         def raise_for_status(self):
             pass
 

@@ -266,7 +266,7 @@
                 </template>
             </td>
             <td class="shrink text-center" v-if="result">
-                <auto-test-state :result="stepResult" />
+                <auto-test-state :result="stepResult" show-icon />
             </td>
         </tr>
 
@@ -292,7 +292,7 @@
             <td class="expand shrink">
                 <icon v-if="canViewOutput" name="chevron-down" :scale="0.75" />
                 <icon v-else-if="value.hidden" name="eye-slash" :scale="0.85"
-                        v-b-popover.hover.top="hiddenPopover" />
+                      v-b-popover.hover.top="hiddenPopover" />
             </td>
             <td class="shrink">{{ index }}</td>
             <td>
@@ -310,7 +310,7 @@
                 {{ $utils.toMaxNDecimals(value.weight, 2) }}
             </td>
             <td class="shrink text-center" v-if="result">
-                <auto-test-state :result="stepResult" />
+                <auto-test-state :result="stepResult" show-icon />
             </td>
         </tr>
 
@@ -367,7 +367,7 @@
             <td class="expand shrink">
                 <icon v-if="canViewDetails" name="chevron-down" :scale="0.75" />
                 <icon v-else-if="value.hidden" name="eye-slash" :scale="0.85"
-                        v-b-popover.hover.top="hiddenPopover" />
+                      v-b-popover.hover.top="hiddenPopover" />
             </td>
             <td class="shrink">{{ index }}</td>
             <td>
@@ -384,7 +384,7 @@
                 {{ $utils.toMaxNDecimals(value.weight, 2) }}
             </td>
             <td class="shrink text-center" v-if="result">
-                <auto-test-state :result="stepResult" />
+                <auto-test-state :result="stepResult" show-icon />
             </td>
         </tr>
 
@@ -500,14 +500,14 @@
                     and match its output to an expected value.
                 </template>
             </td>
-                <td class="shrink text-center">
-                    <template v-if="result">
-                        {{ achievedPoints }} /
-                    </template>
-                    {{ $utils.toMaxNDecimals(value.weight, 2) }}
-                </td>
+            <td class="shrink text-center">
+                <template v-if="result">
+                    {{ achievedPoints }} /
+                </template>
+                {{ $utils.toMaxNDecimals(value.weight, 2) }}
+            </td>
             <td class="shrink text-center" v-if="result">
-                <auto-test-state v-if="stepResult.state === 'hidden'" :result="stepResult" />
+                <auto-test-state v-if="stepResult.state === 'hidden'" :result="stepResult" show-icon />
             </td>
         </tr>
 
@@ -538,7 +538,7 @@
                     {{ $utils.toMaxNDecimals(input.weight, 2) }}
                 </td>
                 <td class="shrink text-center" v-if="result">
-                    <auto-test-state :result="ioSubStepProps(i, stepResult)" />
+                    <auto-test-state :result="ioSubStepProps(i, stepResult)" show-icon />
                 </td>
             </tr>
 
@@ -546,7 +546,7 @@
                 <td colspan="5">
                     <b-collapse :id="`${resultsCollapseId}-${i}`">
                         <b-card no-body v-if="canViewSubStepOutput(i)">
-                            <b-tabs card no-fade>
+                            <b-tabs v-model="activeIoTab[i]" card no-fade>
                                 <b-tab title="Output" class="mb-3 flex-wrap">
                                     <p v-if="ioSubStepProps(i, '', 'exit_code')" class="col-12 mb-1">
                                         <label>Exit code</label>
@@ -588,6 +588,60 @@
                                                            :warn-no-newline="false"
                                                            :show-whitespace="true"
                                                            :empty-file-message="'No output.'" />
+                                    </div>
+                                </b-tab>
+
+                                <b-tab title="Difference"
+                                       v-if="input.options.find(o => o == 'regex') == null && ioSubStepProps(i, false, 'state') === 'failed'">
+                                    <div class="col-12 diff">
+                                        <div class="legenda mb-2">
+                                            <span>
+                                                <span class="ignored legenda-item"/>
+                                                Ignored output
+                                                (<toggle :value="hideIgnoredPartOfDiff[i] || false"
+                                                        inline
+                                                        @input="$set(hideIgnoredPartOfDiff, i, $event);"
+                                                        :value-on="false"
+                                                        :value-off="true"
+                                                        label-off="Hide"
+                                                        label-on="Show"/>)
+                                                <description-popover hug-text>
+                                                    Output that differs from the
+                                                    expected output, but which is
+                                                    ignored. I.e. you don't need to
+                                                    fix this to pass this test.
+                                                </description-popover>
+                                            </span>
+                                            <span>
+                                                <span class="added legenda-item"/>Missing output
+                                                <description-popover hug-text>
+                                                    Output that is present in the
+                                                    expected output, but not in your
+                                                    output. I.e. missing output.
+                                                </description-popover>
+                                            </span>
+                                            <span>
+                                                <span class="removed legenda-item"/>
+                                                Superfluous output
+                                                <description-popover hug-text>
+                                                Output that is present in your
+                                                output, but not in the expected
+                                                output. I.e. output that shouldn't
+                                                be there.
+                                                </description-popover>
+                                            </span>
+                                            <span>
+                                                <code class="legenda-item">¶</code>
+                                                A newline
+                                            </span>
+                                        </div>
+                                        <ul class="diff-list rounded border show-whitespace"
+                                            v-if="activeIoTab[i] === 1"
+                                            :style="{ fontSize: `${fontSize}px` }">
+                                            <li v-for="line in getDiff(input.output, ioSubStepProps(i, '', 'stdout'), input.options, !hideIgnoredPartOfDiff[i])">
+                                                <code v-html="line"/>
+                                            </li>
+                                        </ul>
                                     </div>
                                 </b-tab>
 
@@ -756,12 +810,15 @@ import 'vue-awesome/icons/ban';
 
 import * as assignmentStates from '@/store/assignment-states';
 import { visualizeWhitespace } from '@/utils/visualize';
+import { getCapturePointsDiff } from '@/utils/diff';
+import { mapGetters } from 'vuex';
 
 import Collapse from './Collapse';
 import SubmitButton from './SubmitButton';
 import DescriptionPopover from './DescriptionPopover';
 import AutoTestState from './AutoTestState';
 import InnerCodeViewer from './InnerCodeViewer';
+import Toggle from './Toggle';
 
 export default {
     name: 'auto-test-step',
@@ -808,6 +865,9 @@ export default {
             id,
             collapseState: {},
             codeFontSize: 14,
+            activeIoTab: {},
+            hideIgnoredPartOfDiff: {},
+            getDiff: getCapturePointsDiff,
         };
     },
 
@@ -818,6 +878,8 @@ export default {
     },
 
     computed: {
+        ...mapGetters('pref', ['fontSize']),
+
         valueCopy() {
             return this.$utils.deepCopy(this.value);
         },
@@ -1169,6 +1231,7 @@ export default {
         DescriptionPopover,
         AutoTestState,
         InnerCodeViewer,
+        Toggle,
     },
 };
 </script>
@@ -1272,6 +1335,8 @@ export default {
 </style>
 
 <style lang="less">
+@import '~mixins.less';
+
 .auto-test-step {
     .results-log-collapse-row {
         .card-header {
@@ -1291,6 +1356,68 @@ export default {
         .custom-checkbox {
             margin-right: 0.75rem;
             pointer-events: none;
+        }
+    }
+}
+
+.auto-test-step .diff {
+    .diff-list {
+        padding: 0;
+        list-style-type: none;
+        overflow: hidden;
+        border: 1px solid black;
+    }
+
+    .legenda .legenda-item {
+        display: inline-block;
+        width: 1em;
+        text-align: center;
+        height: 1em;
+        margin-right: 0.25rem;
+        user-select: none;
+    }
+
+    li {
+        position: relative;
+        padding-left: 0.75em;
+        padding-right: 0.75em;
+        background-color: lighten(@linum-bg, 1%);
+        min-height: 1.5em;
+        #app.dark & {
+            background-color: @color-primary-darker;
+        }
+    }
+
+    .added {
+        background-color: #00ffff !important;
+        color: #009191 !important;
+        text-decoration: underline;
+    }
+
+    .removed {
+        background-color: @color-diff-removed-light !important;
+        text-decoration: line-through;
+
+        #app.dark & {
+            background-color: @color-diff-removed-dark !important;
+            color: black;
+        }
+    }
+
+    .ignored {
+        color: lighten(@text-color-muted, 20%);
+        background: lighten(@text-color-muted, 40%);
+    }
+
+    code {
+        color: @color-secondary-text;
+        background: transparent;
+        white-space: pre-wrap;
+        font-size: 100%;
+        line-height: 1;
+
+        #app.dark & {
+            color: #839496;
         }
     }
 }

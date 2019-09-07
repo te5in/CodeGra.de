@@ -932,12 +932,7 @@ class StoppableThread(abc.ABC):
 
 
 class RepeatedTimer(StoppableThread):
-    """Call a function repeatedly in a separate thread.
-
-    .. warning::
-
-        This class doesn't work when threads don't work, which is the case when
-        using it in a flask context.
+    """Call a function repeatedly in a separate process.
     """
 
     def __init__(
@@ -947,7 +942,6 @@ class RepeatedTimer(StoppableThread):
         *,
         cleanup: t.Callable[[], None] = lambda: None,
         setup: t.Callable[[], None] = lambda: None,
-        use_process: bool = False,
     ) -> None:
         super().__init__()
         self.__interval = interval
@@ -971,7 +965,6 @@ class RepeatedTimer(StoppableThread):
         self.__started = get_event()
 
         self.__cleanup = cleanup
-        self.__use_process = use_process
         self.__setup = setup
         self.__background: t.Union[None, threading.Thread, multiprocessing.
                                    Process]
@@ -1009,12 +1002,7 @@ class RepeatedTimer(StoppableThread):
                     finally:
                         self.__finished.set()
 
-        back: t.Union[threading.Thread, multiprocessing.Process]
-        if self.__use_process:
-            back = multiprocessing.Process(target=fun)
-        else:
-            back = threading.Thread(target=fun)
-
+        back = multiprocessing.Process(target=fun)
         back.start()
         self.__background = back
         self.__started.wait()

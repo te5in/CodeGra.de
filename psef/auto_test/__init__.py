@@ -390,11 +390,15 @@ def _start_container(
         def callback(domain_or_systemd: t.Optional[str]) -> int:
             if domain_or_systemd is None:
                 for _ in range(10):
-                    res = subprocess.run(_SYSTEMD_WAIT_CMD, timeout=1)
-                    if res.returncode == 0:
-                        break
+                    try:
+                        res = subprocess.run(_SYSTEMD_WAIT_CMD, timeout=1)
+                    except subprocess.TimeoutExpired:  # pragma: no cover
+                        pass
                     else:
-                        time.sleep(0.25)
+                        if res.returncode == 0:
+                            break
+
+                    time.sleep(0.25)
                 else:  # pragma: no cover
                     os._exit(1)  # pylint: disable=protected-access
                 os._exit(0)  # pylint: disable=protected-access
@@ -513,30 +517,6 @@ def process_config(config: 'psef.FlaskConfig') -> None:
     config['AUTO_TEST_HOSTS'] = res  # type: ignore
 
 
-def _push_logging(post_log: t.Callable[[JSONType], object]) -> RepeatedTimer:
-    logs: t.List[t.Dict[str, object]] = []
-    logs_lock = threading.RLock()
-
-    @cg_logger.logger_callback
-    def log_line(_: object, __: str, event_dict: str) -> None:
-        # DO NOT LOCK HERE AS THIS WILL CREATE DEADLOCKS!!!
-        # Locking is also not needed as a list is a threadsafe object.
-        json_event = json.loads(event_dict)
-        logs.append(json_event)
-
-    def push_logs() -> None:
-        logger.info('Pushing logs')
-        with logs_lock:
-            logs_copy = list(logs)
-            if logs_copy:
-                post_log(logs_copy)
-            del logs[:len(logs_copy)]
-
-    return RepeatedTimer(
-        15, push_logs, cleanup=log_line.disable, use_process=False
-    )
-
-
 # This wrapper function is needed for Python multiprocessing
 def _run_student(
     cont: 'AutoTestRunner', bc_name: str, cores: CpuCores,
@@ -554,7 +534,6 @@ def start_polling(config: 'psef.FlaskConfig', repeat: bool = True) -> None:
     """
     items = list(config['AUTO_TEST_HOSTS'].items())
     sleep_time = config['AUTO_TEST_POLL_TIME']
-    broker_url = config['AUTO_TEST_BROKER_URL']
 
     def do_job(cont: 'StartedContainer') -> bool:
         random.shuffle(items)
@@ -587,8 +566,6 @@ def start_polling(config: 'psef.FlaskConfig', repeat: bool = True) -> None:
                     auto_test_id=data.get('auto_test_id')
                 )
 
-                logger_service.cancel()
-
                 try:
                     AutoTestRunner(
                         URL(url_config.get('container_url') or url), data,
@@ -604,16 +581,6 @@ def start_polling(config: 'psef.FlaskConfig', repeat: bool = True) -> None:
     first = True
     while first or repeat:
         first = False
-        logger_service: RepeatedTimer = _push_logging(
-            lambda logs: requests.post(
-                f'{broker_url}/api/v1/logs/',
-                json={
-                    'logs': logs
-                },
-            ).raise_for_status()
-        )
-        logger_service.start()
-
         _STOP_CONTAINERS.clear()
 
         with _get_base_container(config).started_container() as cont:
@@ -628,7 +595,6 @@ def start_polling(config: 'psef.FlaskConfig', repeat: bool = True) -> None:
                 if do_job(cont):
                     break
                 time.sleep(sleep_time)
-    logger_service.cancel()
 
 
 class StartedContainer:
@@ -1710,9 +1676,7 @@ class AutoTestRunner:
         base_container = AutoTestContainer(base_container_name, self.config)
         student_container = base_container.clone()
 
-        with student_container.started_container() as cont, _push_logging(
-            self._push_log
-        ):
+        with student_container.started_container() as cont:
             while True:
                 work = get_work()
                 if work is None:
@@ -1745,13 +1709,7 @@ class AutoTestRunner:
 
         interval = self.instructions['heartbeat_interval']
         logger.info('Starting heartbeat interval', interval=interval)
-        return RepeatedTimer(interval, push_heartbeat, use_process=True)
-
-    def _push_log(self, logs: JSONType) -> object:
-        return self.req.post(
-            f'{self.base_url}/runs/{self.instructions["run_id"]}/logs/',
-            json={'logs': logs},
-        )
+        return RepeatedTimer(interval, push_heartbeat)
 
     def run_test(self, cont: StartedContainer) -> None:
         """Run the test for all students using the given container as base.
@@ -1761,7 +1719,6 @@ class AutoTestRunner:
         """
         run_result_url = f'{self.base_url}/runs/{self.instructions["run_id"]}'
         time_taken: t.Optional[float] = None
-        push_log_timer = _push_logging(self._push_log).start()
 
         with self._started_heartbeat():
             self.req.patch(
@@ -1779,16 +1736,13 @@ class AutoTestRunner:
                 logger.info('Finished running tests')
                 end_state = models.AutoTestRunState.done.name
             finally:
-                try:
-                    push_log_timer.cancel()
-                finally:
-                    self.req.patch(
-                        run_result_url,
-                        json={
-                            'state': end_state,
-                            'time_taken': time_taken,
-                        },
-                    )
+                self.req.patch(
+                    run_result_url,
+                    json={
+                        'state': end_state,
+                        'time_taken': time_taken,
+                    },
+                )
 
     def _maybe_run_setup(
         self,

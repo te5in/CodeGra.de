@@ -364,7 +364,7 @@ class AutoTestResult(Base, TimestampMixin, IdMixin, NotEqualMixin):
             self.state == auto_test_step_models.AutoTestStepResultState.passed
         )
 
-    def clear(self) -> None:
+    def clear(self, *, clear_rubric: bool) -> None:
         """Clear this result and set it state back to ``not_started``.
 
         .. note:: This also clears the rubric
@@ -374,7 +374,8 @@ class AutoTestResult(Base, TimestampMixin, IdMixin, NotEqualMixin):
         self.setup_stderr = None
         self.setup_stdout = None
         self.runner = None
-        self.clear_rubric()
+        if clear_rubric:
+            self.clear_rubric()
 
     def clear_rubric(self) -> None:
         """Clear all the rubric categories connected to this AutoTest for this
@@ -745,6 +746,24 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
         db.session.flush()
         return result
 
+    def get_broker_metadata(self) -> t.Mapping[str, object]:
+        """Get metadata that is useful for the broker of this run.
+        """
+        assig = self.auto_test.assignment
+        return {
+            'course': {
+                'id': assig.course.id,
+                'name': assig.course.name,
+            },
+            'assignment': {
+                'id': assig.id,
+                'name': assig.name,
+            },
+            'created_at': self.created_at.isoformat(),
+            'id': self.id,
+            'type': 'CF' if self.is_continuous_feedback_run else 'AT',
+        }
+
     def _clear_non_passed_results(self, runner: AutoTestRunner) -> bool:
         any_cleared = False
 
@@ -753,7 +772,7 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
                 not result.passed and
                 (result.runner is None or result.runner == runner)
             ):
-                result.clear()
+                result.clear(clear_rubric=not self.is_continuous_feedback_run)
                 any_cleared = True
 
         return any_cleared
@@ -1142,14 +1161,23 @@ class AutoTest(Base, TimestampMixin, IdMixin):
                 APICodes.INVALID_STATE, 409
             )
 
+        work_ids = self.assignment.get_from_latest_submissions(
+            work_models.Work.id
+        ).all()
+        if not work_ids:
+            raise APIException(
+                'You cannot start an AutoTest when there are no submissions',
+                f'The assignment {self.assignment.id} has no submission yet',
+                APICodes.INVALID_STATE, 409
+            )
+
         run = AutoTestRun()
         self._runs.append(run)
         db.session.flush()
 
         results = [
             AutoTestResult(work_id=work_id, auto_test_run_id=run.id)
-            for work_id, in
-            self.assignment.get_from_latest_submissions(work_models.Work.id)
+            for work_id, in work_ids
         ]
         db.session.bulk_save_objects(results)
         psef.helpers.callback_after_this_request(
@@ -1195,9 +1223,8 @@ class AutoTest(Base, TimestampMixin, IdMixin):
             commit is necessary in that case.
         """
         run = self.continuous_feedback_run
-        # Do not start if there is a normal test run, as that run will test
-        # everything.
-        if run is None or self.test_run is not None:
+        # Even start it if there is a normal auto test run
+        if run is None:
             return False
 
         run_id = run.id

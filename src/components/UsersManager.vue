@@ -24,7 +24,6 @@
                         v-else-if="item.item.User.name == userName"/>
             <b-dropdown :text="item.value.name"
                         class="role-dropdown"
-                        :disabled="item.item.User.name == userName"
                         v-else>
                 <b-dropdown-header>Select the new role</b-dropdown-header>
                 <b-dropdown-item v-for="role in roles"

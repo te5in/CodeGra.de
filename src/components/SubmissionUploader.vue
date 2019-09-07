@@ -87,11 +87,11 @@
         <b-button-toolbar justify>
             <div v-b-popover.top.hover="canDeleteFiles ? '' : 'You are missing required files.'">
                 <submit-button label="Delete disallowed files and hand in"
-                            variant="danger"
-                            :submit="() => overrideSubmit('delete')"
-                            :disabled="!canDeleteFiles"
-                            @after-success="afterOverrideSubmit"
-                            @error="$emit('error', $event)"/>
+                               variant="danger"
+                               :submit="() => overrideSubmit('delete')"
+                               :disabled="!canDeleteFiles"
+                               @after-success="afterOverrideSubmit"
+                               @error="$emit('error', $event)"/>
             </div>
 
             <div v-b-popover.top.hover="canOverrideIgnore ? '' : (canDeleteFiles ? 'You are not allowed to override the hand-in requirements.' : 'You are missing required files.')">
@@ -174,13 +174,33 @@
         v-model="files" />
 
     <b-input-group>
-        <user-selector v-if="forOthers"
-                       v-model="author"
-                       select-label=""
-                       :disabled="disabled"
-                       :base-url="`/api/v1/courses/${assignment.course.id}/users/`"
-                       :use-selector="canListUsers"
-                       :placeholder="`${defaultAuthor.name} (${defaultAuthor.username})`"/>
+        <template v-if="forOthers">
+            <div class="author-wrapper"
+                 v-b-popover.hover.top="authorDisabledPopover">
+                    <user-selector v-if="forOthers"
+                                   v-model="author"
+                                   select-label=""
+                                   :disabled="disabled || isTestSubmission"
+                                   :base-url="`/api/v1/courses/${assignment.course.id}/users/`"
+                                   :use-selector="canListUsers"
+                                   :placeholder="`${defaultAuthor.name} (${defaultAuthor.username})`" />
+            </div>
+
+            <b-input-group-prepend is-text
+                                   class="test-student-checkbox"
+                                   v-b-popover.hover.top="testSubmissionDisabledPopover">
+                <b-form-checkbox v-model="isTestSubmission"
+                                 :disabled="disabled || author">
+                    Test submission
+                    <description-popover hug-text>
+                        This submission will be uploaded by a special test student.
+                        When you enable this option you will not be able to select
+                        another author.
+                    </description-popover>
+                </b-form-checkbox>
+            </b-input-group-prepend>
+        </template>
+
         <b-input-group-prepend v-else
                                is-text
                                class="deadline-information">
@@ -213,6 +233,7 @@ import FileRule from './FileRule';
 import CGIgnoreFile from './CGIgnoreFile';
 import FileTreeInner from './FileTreeInner';
 import MultipleFilesUploader from './MultipleFilesUploader';
+import DescriptionPopover from './DescriptionPopover';
 
 export default {
     name: 'submission-uploader',
@@ -269,6 +290,7 @@ export default {
         confirmationMessage() {
             if (
                 this.forOthers &&
+                !this.isTestSubmission &&
                 (this.author == null || this.defaultAuthor.username === this.author.username)
             ) {
                 return 'You are now submitting with yourself as author, are you sure you want to continue?';
@@ -323,7 +345,9 @@ export default {
             let res = `/api/v1/assignments/${this.assignment.id}/submission?ignored_files=${
                 this.ignored
             }`;
-            if (this.differentAuthor) {
+            if (this.isTestSubmission) {
+                res += '&is_test_submission';
+            } else if (this.differentAuthor) {
                 res += `&author=${this.author.username}`;
             }
             return res;
@@ -331,6 +355,18 @@ export default {
 
         readableDeadline() {
             return moment(this.assignment.deadline).from(this.$root.$now);
+        },
+
+        authorDisabledPopover() {
+            return this.disabled || this.isTestSubmission
+                ? 'You cannot select both an author and upload as a test submission.'
+                : '';
+        },
+
+        testSubmissionDisabledPopover() {
+            return this.disabled || this.author
+                ? 'You cannot select both an author and upload as a test submission.'
+                : '';
         },
     },
 
@@ -353,6 +389,7 @@ export default {
             currentGroup: null,
             ruleCache: {},
             files: [],
+            isTestSubmission: false,
         };
     },
 
@@ -512,6 +549,7 @@ export default {
         FileTreeInner,
         Icon,
         MultipleFilesUploader,
+        DescriptionPopover,
     },
 };
 </script>
@@ -601,6 +639,10 @@ export default {
     border-top-right-radius: 0;
     border-bottom-left-radius: 0;
 }
+
+.author-wrapper {
+    flex: 1 1 auto;
+}
 </style>
 
 <style lang="less">
@@ -626,6 +668,7 @@ export default {
     }
 
     .deadline-information .input-group-text,
+    .test-student-checkbox .input-group-text,
     .multiselect .multiselect__tags {
         border-top-left-radius: 0;
         border-top-right-radius: 0;

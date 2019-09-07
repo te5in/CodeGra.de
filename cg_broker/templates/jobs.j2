@@ -6,23 +6,55 @@
         <th>ID</th>
         <th>Instance</th>
         <th>Wanted runners</th>
-        <th>Amount of of runners</th>
+        <th>Amount of runners</th>
+        <th>Age</th>
         <th>Created at</th>
         <th>Updated at</th>
         <th>State</th>
-        <th>Remote id</th>
+        <th>Course - Assig</th>
+        <th>Type</th>
     </thead>
     <tbody>
         {% for job in jobs %}
         <tr>
-            <td>{{ job.id }}</td>
+            {% if not job.state.is_finished %}
+                {% if job.waiting_for_runner and job.created_at | age > 10 %}
+                    <td style="background-color: red">
+                {% elif job.waiting_for_runner and job.created_at | age > 3 %}
+                    <td style="background-color: orange">
+                {% elif job.created_at | age < 10 %}
+                    <td style="background-color: lime">
+                {% elif job.created_at | age > 60 %}
+                    <td style="background-color: yellow">
+                {% else %}
+                    <td style="background-color: rgba(0, 255, 0, 0.25)">
+                {% endif %}
+            {% else %}
+                <td>
+            {% endif %}
+            {{ job.id }}
+            </td>
+            {% if job.job_metadata and job.job_metadata.get('course') and job.job_metadata.get('assignment') %}
+            <td>
+                <a href="{{ job.cg_url }}/courses/{{ job.job_metadata['course']['id'] }}/assignments/{{ job.job_metadata['assignment']['id'] }}/submissions/"
+                   target="_blank">
+                    {{ job.cg_url }}
+                </a>
+            </td>
+            {% else %}
             <td>{{ job.cg_url }}</td>
+            {% endif %}
             <td>{{ job.wanted_runners }}</td>
             <td>{{ job.runners | length }}</td>
-            <td>{{ job.created_at }}</td>
-            <td>{{ job.updated_at }}</td>
+            <td>{{ job.created_at | age | round | int }}</td>
+            <td>{{ job.created_at | datetime }}</td>
+            <td>{{ job.updated_at | datetime }}</td>
             <td>{{ job.state.name }}</td>
-            <td>{{ job.remote_id }}</td>
+            <td>
+            {{ job.job_metadata.get('course',{}).get('name', '?') }} -
+            {{ job.job_metadata.get('assignment',{}).get('name', '?') }}
+            </td>
+            <td>{{ job.job_metadata.get('type', '') }}</td>
         </tr>
         {% endfor %}
     </tbody>
