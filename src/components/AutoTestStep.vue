@@ -1391,12 +1391,10 @@ export default {
     .added {
         background-color: #00ffff !important;
         color: #009191 !important;
-        text-decoration: underline;
     }
 
     .removed {
         background-color: @color-diff-removed-light !important;
-        text-decoration: line-through;
 
         #app.dark & {
             background-color: @color-diff-removed-dark !important;

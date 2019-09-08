@@ -163,7 +163,7 @@ export function getCapturePointsDiff(
                 }
             } else if (line && cls) {
                 // Nothing special about this, simply highlight it.
-                toAdd = highlight(line);
+                toAdd = highlight(line.replace(/\0/g, NEWLINE_CHAR));
             } else if (line) {
                 // We don't need to add any class to this line, so don't render
                 // the span around it.
