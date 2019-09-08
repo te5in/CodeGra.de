@@ -85,4 +85,13 @@ describe('getCapturePointsDiff', () => {
             '![removed, "!"][added, "?"]',
         ]);
     });
+
+    it('should work with substring and missing leading newlines', () => {
+        txt1 = '\nHello';
+        const txt2 = 'Hello';
+        const res = getCapturePointsDiff(txt1, txt2, ['substring'], false, mockSpan);
+        expect(res).toEqual([
+            '[added, "_"]Hello'
+        ]);
+    });
 });

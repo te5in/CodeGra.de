@@ -321,8 +321,6 @@ export class AutoTestResult {
                         }
                     }
 
-                    stepResult.finished = this.isFinishedState(stepResult.state);
-
                     if (step.type === 'check_points' && stepResult.state === 'failed') {
                         suiteFailed = true;
                     } else if (step.type === 'custom_output' && stepResult.state === 'passed') {
@@ -332,9 +330,10 @@ export class AutoTestResult {
                         } else if (points < 1) {
                             stepResult.state = 'partial';
                         }
-                    } else {
-                        suiteResult.achieved += getProps(stepResult, 0, 'achieved_points');
                     }
+
+                    suiteResult.achieved += getProps(stepResult, 0, 'achieved_points');
+                    stepResult.finished = this.isFinishedState(stepResult.state);
 
                     stepResults[step.id] = stepResult;
                     return stepResult;
@@ -389,7 +388,7 @@ export class AutoTestResult {
     isFinishedState(state) {
         // Steps can only be in state hidden if this is a Continuous Feedback
         // run.
-        return ['passed', 'failed', 'timed_out', 'hidden'].indexOf(state) !== -1;
+        return ['passed', 'partial', 'failed', 'timed_out', 'hidden'].indexOf(state) !== -1;
     }
 }
 

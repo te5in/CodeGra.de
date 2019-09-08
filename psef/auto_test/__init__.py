@@ -51,6 +51,7 @@ OutputCallback = t.Callable[[bytes], None]
 URL = t.NewType('URL', str)
 
 _STOP_CONTAINERS = Event()
+_LXC_START_STOP_LOCK = multiprocessing.Lock()
 
 T = t.TypeVar('T')
 Y = t.TypeVar('Y')
@@ -105,6 +106,71 @@ def _get_home_dir(name: str) -> str:
     return f'/home/{name}'
 
 
+def _waitpid_noblock(pid: int) -> t.Optional[int]:
+    """Wait for the given pid without blocking.
+
+    :returns: ``None`` if the process has not exited, -1 if the process
+        signaled and the exit code (which is > 0) if the process exited
+        normally.
+    """
+    new_pid, status = os.waitpid(pid, os.WNOHANG)
+
+    if new_pid == status == 0:
+        return None
+    elif os.WIFEXITED(status):
+        return os.WEXITSTATUS(status)
+    elif os.WIFSIGNALED(status):
+        logger.warning(
+            'Process signaled',
+            pid=pid,
+            new_pid=new_pid,
+            status=status,
+            signal=os.WTERMSIG(status),
+        )
+        return -1
+    # This should not be possible, as either the process should either
+    # not be exited (new_pid == status == 0), or should exit normally
+    # (os.WIFEXITED), or it exited through a signal (os.WIFSIGNALED).
+    assert False
+    # Pylint issue https://github.com/PyCQA/pylint/issues/2908
+    return None  # pragma: no cover
+
+
+def _wait_for_attach(
+    pid: int,
+    command_started: threading.Event,
+    timeout_time: int = 10,
+) -> t.Optional[int]:
+    """Wait on the given pid until it signaled a start.
+
+    This is done by waiting on the given :class:`.threading.Event` and every
+    ``timeout_time`` seconds checking if the process has not already stopped.
+
+    >>> import doctest
+    >>> doctest.ELLIPSIS_MARKER = '-etc-'
+    >>> from subprocess import Popen
+    >>> event = threading.Event()
+    >>> p = Popen('exit 1', shell=True)
+    >>> assert _wait_for_attach(p.pid, event, 1) == 1
+    -etc-
+    >>> event.set()
+    >>> p = Popen('exit 2', shell=True)
+    >>> assert _wait_for_attach(p.pid, event, 1) is None
+    -etc-
+    """
+    with timed_code('waiting_for_attach'):
+        while not command_started.wait(timeout_time):  # pragma: no cover
+            logger.info('Still not attached', pid=pid)
+
+            code = _waitpid_noblock(pid)
+            if code is not None:
+                code = code if code > -1 else 258
+                logger.info('Program exited before attach', code=code)
+                return code
+
+    return None
+
+
 def _wait_for_pid(pid: int, timeout: float) -> t.Tuple[int, float]:
     """Wait for ``pid`` at most ``timeout`` amount of seconds.
 
@@ -142,7 +208,7 @@ def _wait_for_pid(pid: int, timeout: float) -> t.Tuple[int, float]:
     >>> doctest.ELLIPSIS_MARKER = '-etc-'
     >>> p = Popen('kill -11 $$', shell=True)  # This segfaults
     >>> _wait_for_pid(p.pid, 1)[0] == -1
-    -etc-Unusual process exit-etc-
+    -etc-Process signaled-etc-
     True
     """
     start_time = time.time()
@@ -160,32 +226,18 @@ def _wait_for_pid(pid: int, timeout: float) -> t.Tuple[int, float]:
     delay = 0.0005
 
     while not timed_out():
-        new_pid, status = os.waitpid(pid, os.WNOHANG)
+        exit_code = _waitpid_noblock(pid)
 
-        if new_pid == status == 0:
+        if exit_code is None:
             delay = min(delay * 2, get_time_left(), 0.05)
             time.sleep(delay)
-        elif os.WIFEXITED(status):
-            return os.WEXITSTATUS(status), get_time_left()
-        elif os.WIFSIGNALED(status):
-            logger.warning(
-                'Unusual process exit',
-                pid=pid,
-                new_pid=new_pid,
-                status=status
-            )
-            return -1, get_time_left()
         else:
-            # This should not be possible, as either the process should either
-            # not be exited (new_pid == status == 0), or should exit normally
-            # (os.WIFEXITED), or it exited through a signal (os.WIFSIGNALED).
-            assert False
+            return exit_code, get_time_left()
 
     logger.warning('Process took too long, killing', pid=pid)
     os.kill(pid, signal.SIGTERM)
     for _ in range(10):
-        new_pid, status = os.waitpid(pid, os.WNOHANG)
-        if new_pid == status == 0:
+        if _waitpid_noblock(pid) is None:
             time.sleep(0.1)
         else:
             break
@@ -370,7 +422,8 @@ def _get_base_container(config: 'psef.FlaskConfig') -> 'AutoTestContainer':
 def _stop_container(cont: lxc.Container) -> None:
     if cont.running:
         with timed_code('stop_container'):
-            assert cont.stop()
+            with _LXC_START_STOP_LOCK:
+                assert cont.stop()
             assert cont.wait('STOPPED', 3)
 
 
@@ -384,7 +437,8 @@ def _start_container(
         return
 
     with timed_code('start_container'):
-        assert cont.start()
+        with _LXC_START_STOP_LOCK:
+            assert cont.start()
         assert cont.wait('RUNNING', 3)
 
         def callback(domain_or_systemd: t.Optional[str]) -> int:
@@ -854,8 +908,8 @@ class StartedContainer:
 
     @staticmethod
     def _signal_start() -> None:
-        sys.stdout.buffer.write(b'\0')
-        sys.stdout.flush()
+        sys.stderr.buffer.write(b'\0')
+        sys.stderr.flush()
 
     def _run_command(
         self, cmd_user: t.Tuple[t.List[str], t.Optional[str]]
@@ -1148,22 +1202,22 @@ class StartedContainer:
 
             command_started = threading.Event()
             stop_reader_threads = LockableValue(False)
-            stdout_callback = stdout or _make_log_function('stdout')
+            stderr_callback = stderr or _make_log_function('stderr')
 
-            def stdout_inceptor(data: bytes) -> None:
+            def stderr_inceptor(data: bytes) -> None:
                 if not command_started.is_set():
                     if data[0] == 0:
                         data = data[1:]
                     command_started.set()
 
-                stdout_callback(data)
+                stderr_callback(data)
 
             reader_thread = threading.Thread(
                 target=self._read_fifo,
                 args=(
                     {
-                        stdout_fifo: stdout_inceptor,
-                        stderr_fifo: stderr or _make_log_function('stderr')
+                        stderr_fifo: stderr_inceptor,
+                        stdout_fifo: stdout or _make_log_function('stdout')
                     }, stop_reader_threads
                 )
             )
@@ -1190,11 +1244,13 @@ class StartedContainer:
                     stderr=err,
                     stdin=stdin_file,
                 )
-                with timed_code('waiting_for_attach'):
-                    command_started.wait()
+
+                res = _wait_for_attach(pid, command_started)
+                left = 0.0
 
                 try:
-                    res, left = _wait_for_pid(pid, timeout or sys.maxsize)
+                    if res is None:
+                        res, left = _wait_for_pid(pid, timeout or sys.maxsize)
                 except CommandTimeoutException:
                     logger.info(
                         'Exception occurred when waiting', exc_info=True
