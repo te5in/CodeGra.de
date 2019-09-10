@@ -40,6 +40,7 @@
                     :can-use-snippets="canUseSnippets"
                     :line-feedback-offset="cell.feedback_offset"
                     :file-id="Number(file.id)"
+                    empty-file-message="Cell is empty"
                     :editable="editable"
                     :warn-no-newline="false"/>
                 <div v-for="out in cell.outputs"

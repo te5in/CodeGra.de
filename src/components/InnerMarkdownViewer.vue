@@ -8,25 +8,12 @@
 </template>
 
 <script>
-import markdownIt from 'markdown-it';
-import markdownItMathjax from 'markdown-it-mathjax';
+import { CgMarkdownIt } from '@/cg-math';
 import markdownItSanitizer from 'markdown-it-sanitizer';
 
-import { highlightCode } from '@/utils';
+const md = new CgMarkdownIt();
 
-const makeMd = () =>
-    markdownIt({
-        html: true,
-        typographer: false,
-        highlight(str, lang) {
-            return highlightCode(str.split('\n'), lang).join('<br>');
-        },
-    });
-const md = makeMd();
-const mdNoMath = makeMd();
-
-md.use(markdownItMathjax()).use(markdownItSanitizer);
-mdNoMath.use(markdownItSanitizer);
+md.use(markdownItSanitizer);
 
 export default {
     name: 'inner-markdown-viewer',
@@ -50,11 +37,7 @@ export default {
 
     computed: {
         html() {
-            if (this.disableMath) {
-                return mdNoMath.render(this.markdown);
-            } else {
-                return md.render(this.markdown);
-            }
+            return md.render(this.markdown, this.disableMath);
         },
     },
 
@@ -76,12 +59,13 @@ export default {
 <style lang="less">
 .inner-markdown-viewer {
     pre {
-        margin-bottom: 0;
+        margin-bottom: 1rem;
         font-size: 100%;
         white-space: pre-wrap;
         word-wrap: break-word;
         word-break: break-word;
         hyphens: auto;
+        margin-left: 1.5rem;
     }
     .MathJax_SVG svg {
         max-width: 100%;
