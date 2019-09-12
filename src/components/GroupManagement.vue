@@ -43,10 +43,10 @@
                 <div style="display: flex">
                     <span>{{ user.name }} ({{ user.username }})</span>
                     <span class="lti-progress" style="" v-if="showLtiProgress">
-                        <div  v-b-popover.top.click.html="ltiTexts.done(user)" v-if="memberStates[user.id] && 0">
+                        <div  v-b-popover.top.hover.html="ltiTexts.done(user)" v-if="memberStates[user.id]">
                             <icon style="margin-top: 1px" name="check"/>
                         </div>
-                        <loader :scale="1" v-b-popover.top.click.html="ltiTexts.loading(user)" v-else/>
+                        <loader :scale="1" v-b-popover.top.hover.html="ltiTexts.loading(user)" v-else/>
                     </span>
                 </div>
                 <submit-button v-if="canEdit && (myId === user.id || canEditOthers)"
@@ -215,6 +215,7 @@ export default {
             const divEnd = '</div>';
             const { myId } = this;
 
+            // Group members can never be groups themselves.
             const makeName = user => (myId === user.id ? 'You' : this.$utils.htmlEscape(user.name));
             const lmsName = this.$utils.htmlEscape(this.assignment.lms_name);
 
