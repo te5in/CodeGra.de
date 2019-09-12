@@ -10,6 +10,11 @@
 
     <ul class="sidebar-list"
         v-if="sortedCourses.length > 0">
+        <li class="sidebar-list-section-header text-muted"
+            v-if="showTopCourses">
+            <small>Courses with closest deadlines</small>
+        </li>
+
         <course-list-item v-for="course in topCourses"
                           :key="`top-course-${course.id}`"
                           v-if="showTopCourses"
@@ -89,17 +94,30 @@ export default {
             const now = this.$root.$now;
 
             function closestDeadline(course) {
+                if (!course.assignments.length) {
+                    return Infinity;
+                }
                 return Math.min(
-                    ...course.assignments.map(assig => Math.abs(moment(assig.deadline).diff(now))),
+                    ...course.assignments.map(assig => {
+                        if (assig.deadline == null) {
+                            return Infinity;
+                        } else {
+                            return Math.abs(moment(assig.deadline).diff(now));
+                        }
+                    }),
                 );
             }
 
             const lookup = Object.values(this.courses).reduce((res, course) => {
-                res[course.id] = closestDeadline(course);
+                const deadline = closestDeadline(course);
+                if (deadline !== Infinity) {
+                    res[course.id] = deadline;
+                }
                 return res;
             }, {});
 
             return Object.values(this.courses)
+                .filter(a => lookup[a.id] != null)
                 .sort((a, b) => lookup[a.id] - lookup[b.id])
                 .slice(0, 3);
         },
