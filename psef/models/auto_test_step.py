@@ -75,6 +75,19 @@ class AutoTestStepResultState(enum.Enum):
     passed = enum.auto()
     failed = enum.auto()
     timed_out = enum.auto()
+    skipped = enum.auto()
+
+    @classmethod
+    def get_not_finished_states(cls) -> t.Sequence['AutoTestStepResultState']:
+        """Get all states that are not finished.
+        """
+        return [cls.not_started, cls.running]
+
+    @classmethod
+    def get_finished_states(cls) -> t.Collection['AutoTestStepResultState']:
+        """Get all states that are considered finished.
+        """
+        return {cls.skipped, cls.timed_out, cls.failed, cls.passed}
 
 
 class AutoTestStepBase(Base, TimestampMixin, IdMixin):
@@ -222,9 +235,7 @@ class AutoTestStepBase(Base, TimestampMixin, IdMixin):
     def execute_step(
         cls,
         container: 'auto_test_module.StartedContainer',
-        update_test_result: 'auto_test_module.UpdateResultFunction',
-        test_instructions: 'auto_test_module.StepInstructions',
-        achieved_percentage: float,
+        opts: 'auto_test_module.ExecuteOptions',
     ) -> float:
         """Execute this step.
 
@@ -235,29 +246,20 @@ class AutoTestStepBase(Base, TimestampMixin, IdMixin):
             this function will execute user provided (untrusted) code.
 
         :param container: The container to execute the code in.
-        :parm update_test_result: A function that can be used to update the
-            result of the step.
-        :param test_instructions: The test instructions for this step.
-        :param achieved_percentage: The percentage of points achieved at this
-            point.
+        :param opts: The execute options for executing this step.
         :returns: The amount of points achieved in this step.
         """
         # Make sure we are not on a webserver
         helpers.ensure_on_test_server()
 
-        update_test_result(AutoTestStepResultState.running, {})
-        return cls._execute(
-            container, update_test_result, test_instructions,
-            achieved_percentage
-        )
+        opts.update_test_result(AutoTestStepResultState.running, {})
+        return cls._execute(container, opts)
 
     @classmethod
     def _execute(
         cls,
         container: 'auto_test_module.StartedContainer',
-        update_test_result: 'auto_test_module.UpdateResultFunction',
-        test_instructions: 'auto_test_module.StepInstructions',
-        achieved_percentage: float,
+        opts: 'auto_test_module.ExecuteOptions',
     ) -> float:
         raise NotImplementedError
 
@@ -465,14 +467,12 @@ class _IoTest(AutoTestStepBase):
     def _execute(
         cls,
         container: 'auto_test_module.StartedContainer',
-        update_test_result: 'auto_test_module.UpdateResultFunction',
-        test_instructions: 'auto_test_module.StepInstructions',
-        achieved_percentage: float,
+        opts: 'auto_test_module.ExecuteOptions',
     ) -> float:
         def now() -> str:
             return datetime.datetime.utcnow().isoformat()
 
-        data = test_instructions['data']
+        data = opts.test_instructions['data']
         assert isinstance(data, dict)
         inputs = t.cast(t.List[dict], data['inputs'])
 
@@ -483,10 +483,10 @@ class _IoTest(AutoTestStepBase):
         test_result: t.Dict[str, t.Any] = {
             'steps': [copy.deepcopy(default_result) for _ in inputs]
         }
-        update_test_result(AutoTestStepResultState.running, test_result)
+        opts.update_test_result(AutoTestStepResultState.running, test_result)
 
         prog = t.cast(str, data['program'])
-        time_limit = test_instructions['command_time_limit']
+        time_limit = opts.test_instructions['command_time_limit']
         total_state = AutoTestStepResultState.failed
         total_weight = 0
 
@@ -497,23 +497,29 @@ class _IoTest(AutoTestStepBase):
                     'started_at': now(),
                 }
             )
-            update_test_result(AutoTestStepResultState.running, test_result)
+            opts.update_test_result(
+                AutoTestStepResultState.running, test_result
+            )
 
+            state: t.Optional[AutoTestStepResultState]
             try:
                 res = container.run_student_command(
                     f'{prog} {step["args"]}',
                     time_limit,
                     stdin=step['stdin'].encode('utf-8')
                 )
+            except psef.auto_test.CommandTimeoutException as e:
+                code = e.EXIT_CODE
+                stderr = e.stderr
+                stdout = e.stdout
+                time_spend = e.time_spend
+                state = AutoTestStepResultState.timed_out
+            else:
                 code = res.exit_code
                 stdout = res.stdout
                 stderr = res.stderr
                 time_spend = res.time_spend
-            except psef.auto_test.CommandTimeoutException as e:
-                code = -1
-                stderr = e.stderr
-                stdout = e.stdout
-                time_spend = e.time_spend
+                state = None
 
             if code == 0:
                 step_options = t.cast(t.List[str], step['options'])
@@ -533,10 +539,8 @@ class _IoTest(AutoTestStepBase):
                 state = AutoTestStepResultState.passed
                 total_weight += step['weight']
                 achieved_points = step['weight']
-            elif code < 0:
-                state = AutoTestStepResultState.timed_out
             else:
-                state = AutoTestStepResultState.failed
+                state = state or AutoTestStepResultState.failed
 
             test_result['steps'][idx].update(
                 {
@@ -549,9 +553,14 @@ class _IoTest(AutoTestStepBase):
                     'started_at': None,
                 }
             )
-            update_test_result(AutoTestStepResultState.running, test_result)
+            opts.update_test_result(
+                AutoTestStepResultState.running, test_result
+            )
 
-        update_test_result(total_state, test_result)
+            if state == AutoTestStepResultState.timed_out:
+                opts.yield_core()
+
+        opts.update_test_result(total_state, test_result)
         return total_weight
 
     @staticmethod
@@ -605,27 +614,25 @@ class _RunProgram(AutoTestStepBase):
     @staticmethod
     def _execute(
         container: 'auto_test_module.StartedContainer',
-        update_test_result: 'auto_test_module.UpdateResultFunction',
-        test_instructions: 'auto_test_module.StepInstructions',
-        achieved_percentage: float,
+        opts: 'auto_test_module.ExecuteOptions',
     ) -> float:
-        data = test_instructions['data']
+        data = opts.test_instructions['data']
         assert isinstance(data, dict)
 
         res = 0.0
 
         command_res = container.run_student_command(
             t.cast(str, data['program']),
-            test_instructions['command_time_limit'],
+            opts.test_instructions['command_time_limit'],
         )
 
         if command_res.exit_code == 0:
             state = AutoTestStepResultState.passed
-            res = test_instructions['weight']
+            res = opts.test_instructions['weight']
         else:
             state = AutoTestStepResultState.failed
 
-        update_test_result(
+        opts.update_test_result(
             state, {
                 'stdout': command_res.stdout,
                 'stderr': command_res.stderr,
@@ -725,19 +732,17 @@ class _CustomOutput(AutoTestStepBase):
     def _execute(
         cls,
         container: 'auto_test_module.StartedContainer',
-        update_test_result: 'auto_test_module.UpdateResultFunction',
-        test_instructions: 'auto_test_module.StepInstructions',
-        achieved_percentage: float,
+        opts: 'auto_test_module.ExecuteOptions',
     ) -> float:
         points = 0.0
 
-        data = test_instructions['data']
+        data = opts.test_instructions['data']
         assert isinstance(data, dict)
         regex, _ = cls._replace_custom_escape_code(t.cast(str, data['regex']))
 
         res = container.run_student_command(
             t.cast(str, data['program']),
-            test_instructions['command_time_limit'],
+            opts.test_instructions['command_time_limit'],
             keep_stdout_tail=True,
         )
         stderr = res.stderr
@@ -763,7 +768,7 @@ class _CustomOutput(AutoTestStepBase):
                 code = -3
                 stderr += '\nSearching with the regex took too long'
 
-        update_test_result(
+        opts.update_test_result(
             state, {
                 'stdout': stdout,
                 'stderr': stderr,
@@ -774,7 +779,7 @@ class _CustomOutput(AutoTestStepBase):
             }
         )
 
-        return points * test_instructions['weight']
+        return points * opts.test_instructions['weight']
 
     @staticmethod
     def get_amount_achieved_points(result: 'AutoTestStepResult') -> float:
@@ -828,23 +833,21 @@ class _CheckPoints(AutoTestStepBase):
     @staticmethod
     def _execute(
         _: 'auto_test_module.StartedContainer',
-        update_test_result: 'auto_test_module.UpdateResultFunction',
-        test_instructions: 'auto_test_module.StepInstructions',
-        achieved_percentage: float,
+        opts: 'auto_test_module.ExecuteOptions',
     ) -> float:
-        data = test_instructions['data']
+        data = opts.test_instructions['data']
         assert isinstance(data, dict)
         min_points = t.cast(float, data['min_points'])
 
-        if helpers.FloatHelpers.geq(achieved_percentage, min_points):
-            update_test_result(AutoTestStepResultState.passed, {})
+        if helpers.FloatHelpers.geq(opts.achieved_percentage, min_points):
+            opts.update_test_result(AutoTestStepResultState.passed, {})
             return 0
         else:
             logger.warning(
                 "Didn't score enough points",
-                achieved_percentage=achieved_percentage
+                achieved_percentage=opts.achieved_percentage
             )
-            update_test_result(AutoTestStepResultState.failed, {})
+            opts.update_test_result(AutoTestStepResultState.failed, {})
             raise StopRunningStepsException('Not enough points')
 
     @staticmethod

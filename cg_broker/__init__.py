@@ -8,6 +8,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 """
 import os
 import typing as t
+import subprocess
 from datetime import timedelta
 from configparser import ConfigParser
 
@@ -33,8 +34,13 @@ BrokerConfig = TypedDict(  # pylint: disable=invalid-name
         'RUNNER_MAX_TIME_ALIVE': int,
         'SECRET_KEY': str,
         'ADMIN_PASSWORD': str,
+        'START_TIMEOUT_TIME': int,
         '_TRANSIP_USERNAME': str,
         '_TRANSIP_PRIVATE_KEY_FILE': str,
+        'OLD_JOB_AGE': int,
+        'SLOW_STARTING_AGE': int,
+        'HEALTH_KEY': t.Optional[str],
+        'VERSION': str,
     }
 )
 
@@ -97,6 +103,17 @@ class BrokerFlask(flask.Flask):
             'AWS_TAG_VALUE', 'normal'
         )
 
+        self.config['START_TIMEOUT_TIME'] = _parser['General'].getint(
+            'START_TIMEOUT_TIME', fallback=9
+        )
+
+        self.config['OLD_JOB_AGE'] = _parser['General'].getint(
+            'OLD_JOB_AGE', fallback=90
+        )
+        self.config['SLOW_STARTING_AGE'] = _parser['General'].getint(
+            'SLOW_STARTING_AGE', fallback=1
+        )
+
         self.config['MAX_AMOUNT_OF_RUNNERS'] = _parser['General'].getint(
             'MAX_AMOUNT_OF_RUNNERS', fallback=1
         )
@@ -119,6 +136,15 @@ class BrokerFlask(flask.Flask):
 
         self.config['SECRET_KEY'] = _parser['General']['SECRET_KEY']
         self.config['ADMIN_PASSWORD'] = _parser['General']['ADMIN_PASSWORD']
+
+        self.config['HEALTH_KEY'] = _parser['General'].get('HEALTH_KEY', None)
+
+        try:
+            self.config['VERSION'] = subprocess.check_output([
+                'git', 'rev-parse', 'HEAD'
+            ]).decode('utf-8').strip()
+        except subprocess.SubprocessError:
+            self.config['VERSION'] = 'unknown'
 
         # Convert parser to case sensitve
         _parser = make_parser(True)

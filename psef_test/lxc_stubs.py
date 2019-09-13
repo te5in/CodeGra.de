@@ -4,13 +4,20 @@ import multiprocessing
 import multiprocessing.managers
 from copy import deepcopy
 
+import lxc
 import pytest
 import pytest_cov.embed
+
+_cont = lxc.Container
 
 
 @pytest.fixture
 def lxc_stub(stub_function_class, capsys):
     class LXC:
+        @staticmethod
+        def signal_start():
+            return _cont.signal_start()
+
         def __init__(self, name):
             self._name = name
             self.__destroyed = False
@@ -68,6 +75,7 @@ def lxc_stub(stub_function_class, capsys):
             self.__destroyed = True
 
         def set_cgroup_item(self, key, value):
+            assert self.running
             assert isinstance(value, str)
             assert key in {
                 'memory.limit_in_bytes',

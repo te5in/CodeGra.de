@@ -145,10 +145,23 @@ def login() -> Response:
 def show_all_runners() -> Response:
     """Get all runners in a nice (?) layout.
     """
-    runners = db.session.query(models.Runner).order_by(
-        t.cast(DbColumn, models.Runner.created_at).desc()
-    ).limit(400).all()
-    return render_template('runners.j2', runners=runners)
+    finished_runners = db.session.query(models.Runner).filter(
+        ~t.cast(DbColumn[models.RunnerState], models.Runner.state
+                ).in_(models.RunnerState.get_active_states())
+    ).order_by(t.cast(DbColumn,
+                      models.Runner.created_at).desc()).limit(50).all()
+
+    active_runners = db.session.query(models.Runner).filter(
+        t.cast(DbColumn[models.RunnerState], models.Runner.state).in_(
+            models.RunnerState.get_active_states()
+        )
+    ).order_by(t.cast(DbColumn, models.Runner.created_at).asc()).all()
+
+    return render_template(
+        'runners.j2',
+        active_runners=active_runners,
+        finished_runners=finished_runners
+    )
 
 
 @admin.route('/jobs/', methods=['GET'])
@@ -156,10 +169,18 @@ def show_all_runners() -> Response:
 def show_all_jobs() -> Response:
     """Get all jobs in a nice (?) layout.
     """
-    jobs = db.session.query(models.Job).order_by(
-        t.cast(DbColumn, models.Job.created_at).desc()
-    ).limit(400).all()
-    return render_template('jobs.j2', jobs=jobs)
+    finished_jobs = db.session.query(models.Job).filter(
+        t.cast(DbColumn[models.JobState],
+               models.Job.state).in_(models.JobState.get_finished_states())
+    ).order_by(t.cast(DbColumn, models.Job.created_at).desc()).limit(50).all()
+
+    active_jobs = db.session.query(models.Job).filter(
+        ~t.cast(DbColumn[models.JobState], models.Job.state
+                ).in_(models.JobState.get_finished_states())
+    ).order_by(t.cast(DbColumn, models.Job.created_at).asc()).all()
+    return render_template(
+        'jobs.j2', active_jobs=active_jobs, finished_jobs=finished_jobs
+    )
 
 
 @admin.route('/runners/<runner_hex_id>/stop', methods=['POST'])

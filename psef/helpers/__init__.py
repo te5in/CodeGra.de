@@ -93,6 +93,17 @@ def add_warning(warning: str, code: psef.exceptions.APIWarnings) -> None:
     g.request_warnings.append(psef.errors.make_warning(warning, code))
 
 
+def handle_none(value: t.Optional[T], default: T) -> T:
+    """Get the given ``value`` or ``default`` if ``value`` is ``None``.
+
+    >>> handle_none(None, 5)
+    5
+    >>> handle_none(5, 6)
+    5
+    """
+    return default if value is None else value
+
+
 def add_deprecate_warning(warning: str) -> None:
     """Add a deprecation warning to the request.
 
@@ -949,12 +960,9 @@ class RepeatedTimer(StoppableThread):
 
         def fun() -> None:
             try:
-                with timed_code(
-                    'repeated_function', function=self.__function_name
-                ):
-                    function()
+                function()
             except:  # pylint: disable=bare-except
-                pass
+                logger.warning('Repeated function crashed', exc_info=True)
 
         get_event = multiprocessing.Event
 
@@ -977,9 +985,7 @@ class RepeatedTimer(StoppableThread):
             self.__finished.wait()
 
     def start(self) -> 'RepeatedTimer':
-        logger.info('Starting repeating timer', function=self.__function_name)
         self.__finish.clear()
-        logger.info('Start repeating timer', function=self.__function_name)
         self.__started.clear()
 
         def fun() -> None:
@@ -1215,12 +1221,25 @@ class BrokerSession(requests.Session):
     """A session to use when doing requests to the AutoTest broker.
     """
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        broker_pass: str = None,
+        external_url: str = None,
+        broker_base: str = None,
+    ) -> None:
         super().__init__()
+        self.broker_base = (
+            broker_base if broker_base is not None else
+            psef.app.config['AUTO_TEST_BROKER_URL']
+        )
         self.headers.update(
             {
-                'CG-Broker-Pass': psef.app.config['AUTO_TEST_BROKER_PASSWORD'],
-                'CG-Broker-Instance': psef.app.config['EXTERNAL_URL'],
+                'CG-Broker-Pass':
+                    broker_pass if broker_pass is not None else
+                    psef.app.config['AUTO_TEST_BROKER_PASSWORD'],
+                'CG-Broker-Instance':
+                    external_url if external_url is not None else
+                    psef.app.config['EXTERNAL_URL'],
             }
         )
 
@@ -1229,9 +1248,9 @@ class BrokerSession(requests.Session):
     ) -> requests.Response:
         """Do a request to the AutoTest broker.
         """
-        url = urllib.parse.urljoin(
-            psef.app.config['AUTO_TEST_BROKER_URL'], url
-        )
+        url = urllib.parse.urljoin(self.broker_base, url)
+        if 'timeout' not in kwargs:
+            kwargs['timeout'] = 10
         return super().request(method, url, *args, **kwargs)
 
 

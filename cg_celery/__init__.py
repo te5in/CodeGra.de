@@ -165,6 +165,7 @@ class CGCelery(Celery):
             'task_ignore_result': True,
             'celery_hijack_root_logger': False,
             'worker_log_format': '%(message)s',
+            'timezone': 'UTC',
         })
         self._flask_app = app
 

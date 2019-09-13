@@ -17,6 +17,9 @@ def test_check_heartbeat(
     assignment_real_works, monkeypatch_celery
 ):
     assignment, submission = assignment_real_works
+    sub2_id = m.Work.query.filter_by(assignment_id=assignment.id
+                                     ).filter(m.Work.id != submission['id']
+                                              ).first().id
 
     with describe('setup'):
         stub_heart = stub_function_class()
@@ -38,10 +41,10 @@ def test_check_heartbeat(
         )
         run = m.AutoTestRun(_job_id=uuid.uuid4(), auto_test=test)
         run.results = [
-            m.AutoTestResult(work_id=submission['id']),
+            m.AutoTestResult(work_id=sub2_id),
             m.AutoTestResult(work_id=submission['id'])
         ]
-        run.results[0].state = m.AutoTestStepResultState.failed
+        run.results[0].state = m.AutoTestStepResultState.running
         run.results[1].state = m.AutoTestStepResultState.passed
         session.add(run)
 

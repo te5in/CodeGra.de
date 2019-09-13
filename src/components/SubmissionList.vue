@@ -28,8 +28,10 @@
                            @keyup.enter="submit"
                            @keyup="submitDelayed"/>
                     <b-input-group-append is-text
+                                          v-if="canSeeOthersWork && !assigneeCheckboxDisabled"
                                           v-b-popover.bottom.hover="'Show only subbmissions assigned to me.'">
-                        <b-form-checkbox v-model="mineOnly" @change="submit">
+                        <b-form-checkbox v-model="mineOnly"
+                                         @change="submit">
                             Assigned to me
                         </b-form-checkbox>
                     </b-input-group-append>
@@ -331,6 +333,16 @@ export default {
         numFilteredStudents() {
             return new Set(this.filteredSubmissions.map(sub => nameOfUser(sub.user))).size;
         },
+
+        assigneeCheckboxDisabled() {
+            if (this.submissions == null) {
+                return true;
+            }
+
+            return !this.submissions.find(
+                s => this.$utils.getProps(s, null, 'assignee', 'id') === this.userId,
+            );
+        },
     },
 
     watch: {
@@ -338,6 +350,16 @@ export default {
             if (graders == null) return;
 
             this.updateGraders(graders);
+        },
+
+        assigneeCheckboxDisabled: {
+            immediate: true,
+            handler(newVal) {
+                if (newVal && this.mineOnly) {
+                    this.mineOnly = false;
+                    this.submit();
+                }
+            },
         },
     },
 

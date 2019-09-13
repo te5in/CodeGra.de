@@ -12,6 +12,8 @@ import {
     safeDivide,
 } from '@/utils';
 
+const FINISHED_STATES = new Set(['passed', 'partial', 'failed', 'timed_out', 'hidden', 'skipped']);
+
 export class AutoTestSuiteData {
     constructor(autoTestId, autoTestSetId, serverData = {}, actuallyFromServer) {
         this.autoTestSetId = autoTestSetId;
@@ -388,7 +390,7 @@ export class AutoTestResult {
     isFinishedState(state) {
         // Steps can only be in state hidden if this is a Continuous Feedback
         // run.
-        return ['passed', 'partial', 'failed', 'timed_out', 'hidden'].indexOf(state) !== -1;
+        return FINISHED_STATES.has(state);
     }
 }
 

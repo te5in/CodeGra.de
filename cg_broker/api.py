@@ -6,7 +6,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 """
 import typing as t
 import secrets
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import wraps
 
 import structlog
@@ -224,6 +224,14 @@ def register_runner_for_job(job_id: str) -> EmptyResponse:
     """Check if the given ``runner_ip`` is allowed to be used for the given
     job (identified by ``job_id``).
     """
+    # TODO: I think this function could be massively simplified by reverting
+    # the logic. Currently we do things quite job oriented, so we look for
+    # runners in the given job, no job and any other job. But maybe it would be
+    # way simpler to rework this function to be runner oriented. So get all the
+    # runners with the given ip that are in before running states, and then
+    # check if we can assign it to the given job (or if it is a runner of this
+    # job).
+
     runner_ip = g.data['runner_ip']
     job = db.session.query(
         models.Job
@@ -267,7 +275,7 @@ def register_runner_for_job(job_id: str) -> EmptyResponse:
         # latency).
         runner = db.session.query(models.Runner).filter_by(
             ipaddr=runner_ip,
-            state=models.RunnerState.creating,
+            state=models.RunnerState.started,
             job_id=None,
         ).with_for_update().first()
 
@@ -326,48 +334,61 @@ def register_runner_for_job(job_id: str) -> EmptyResponse:
     return make_empty_response()
 
 
-@api.route('/logs/', methods=['POST'])
-@expects_json({
-    'type': 'object',
-    'properties': {
-        'logs': {
-            'type': 'array',
-            'items': {'type': 'object', },
-        },
-    },
-    "additionalProperties": False,
-    "minProperties": 1,
-})
-def emit_log_for_runner() -> EmptyResponse:
+@api.route('/alive/', methods=['POST'])
+def mark_runner_as_alive() -> EmptyResponse:
     """Emit log lines for a runner.
     """
     runner = db.session.query(models.Runner).filter(
         models.Runner.ipaddr == request.remote_addr,
-        ~models.Runner.last_log_emitted,
-        sql_and(
-            models.Runner.state != models.RunnerState.cleaning,
-            models.Runner.state != models.RunnerState.cleaned
-        ),
+        models.Runner.state == models.RunnerState.creating,
     ).with_for_update().one_or_none()
     if runner is None:
         raise NotFoundException
 
-    if runner.state == models.RunnerState.running:
-        runner.last_log_emitted = True
+    runner.state = models.RunnerState.started
+    runner.started_at = datetime.utcnow()
     db.session.commit()
 
-    runner_state = runner.state.name
-    main_job_id = runner.job_id
-    del runner
-
-    for log in g.data['logs']:
-        assert 'level' in log
-        getattr(logger, log['level'], logger.info)(
-            **log,
-            from_tester=True,
-            original_timestamp=log['timestamp'],
-            main_job_id=main_job_id,
-            runner_state=runner_state,
-        )
-
     return make_empty_response()
+
+
+@api.route('/about', methods=['GET'])
+def about() -> cg_json.JSONResponse[t.Mapping[str, object]]:
+    """Get some information about the state of this broker.
+
+    When given a valid ``health`` get parameter this will also return some
+    health information.
+    """
+    if request.args.get('health', object()) == app.config['HEALTH_KEY']:
+        now = datetime.utcnow()
+        slow_created_date = now - timedelta(minutes=app.config['OLD_JOB_AGE'])
+
+        slow_jobs = db.session.query(models.Job).filter(
+            models.Job.created_at < slow_created_date,
+            ~t.cast(DbColumn[models.JobState], models.Job.state).in_(
+                models.JobState.get_finished_states()
+            )
+        ).count()
+
+        not_started_created_date = now - timedelta(
+            minutes=app.config['SLOW_STARTING_AGE']
+        )
+        not_starting_jobs = db.session.query(models.Job).filter(
+            models.Job.created_at < not_started_created_date,
+            models.Job.state == models.JobState.waiting_for_runner
+        ).count()
+
+        health = {
+            'not_starting_jobs': not_starting_jobs,
+            'slow_jobs': slow_jobs,
+        }
+    else:
+        health = {}
+
+    return cg_json.jsonify(
+        {
+            'health': health,
+            'version': app.config['VERSION'],
+        },
+        status_code=500 if any(health.values()) else 200,
+    )

@@ -22,10 +22,29 @@ from ..helpers import (
 )
 from ..parsers import parse_enum
 from ..features import Feature, feature_required
-from ..exceptions import APICodes, PermissionException
+from ..exceptions import APICodes, APIException, PermissionException
 
 logger = structlog.get_logger()
 LocalRunner = t.NewType('LocalRunner', t.Tuple[str, bool])
+
+
+def _ensure_from_latest_work(result: models.AutoTestResult) -> None:
+    work = result.work
+    if not result.run.is_continuous_feedback_run:
+        return
+
+    newest_id = db.session.query(
+        t.cast(models.DbColumn[int], models.Work.id)
+    ).filter_by(
+        user_id=work.user_id, assignment_id=work.assignment_id
+    ).order_by(t.cast(models.DbColumn[object],
+                      models.Work.created_at).desc()).limit(1).scalar()
+    if work.id != newest_id:
+        raise APIException(
+            'You are not working on the newest submission',
+            f'The submission {work.id} is not the newest submission',
+            APICodes.NOT_NEWEST_SUBMSSION, 400
+        )
 
 
 def _get_local_runner(
@@ -191,6 +210,9 @@ def get_result_data(auto_test_id: int, result_id: int
         also_error=lambda res: res.run.auto_test_id != auto_test_id,
     )
 
+    # Don't check that this is the latest submission as this request is
+    # probably done by ``wget``, and we do not check why it fails, but if it
+    # fails the entire run goes to a crashed state.
     _verify_and_get_runner(result.run, password)
 
     res = make_empty_response()
@@ -307,6 +329,7 @@ def update_result(auto_test_id: int,
         also_error=lambda result: result.run.auto_test_id != auto_test_id,
         with_for_update=True,
     )
+    _ensure_from_latest_work(result)
     runner = _verify_and_get_runner(result.run, password)
 
     logger.info(
@@ -368,6 +391,7 @@ def update_step_result(auto_test_id: int, result_id: int
         result_id,
         also_error=lambda res: res.run.auto_test_id != auto_test_id,
     )
+    _ensure_from_latest_work(result)
     _verify_and_get_runner(result.run, password)
 
     if res_id is None:

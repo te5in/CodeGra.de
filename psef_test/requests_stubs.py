@@ -1,8 +1,13 @@
 import json
+import random
 
 
 class Session:
     class Response:
+        @property
+        def status_code(self) -> None:
+            return 200
+
         def json(self):
             raise json.decoder.JSONDecodeError('err', '', -1)
 
@@ -11,6 +16,9 @@ class Session:
 
     def delete(self, _, **__):
         return Session.Response()
+
+    def __init__(self, *args):
+        pass
 
     get = post = patch = put = delete
 

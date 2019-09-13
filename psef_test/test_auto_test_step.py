@@ -10,7 +10,7 @@ from werkzeug.local import LocalProxy
 import psef
 import psef.models as m
 from psef import helpers
-from psef.auto_test import OutputTail, StudentCommandResult
+from psef.auto_test import OutputTail, ExecuteOptions, StudentCommandResult
 from psef.exceptions import APIException
 from psef.models.auto_test_step import _IoTest as IoTest
 from psef.models.auto_test_step import _RunProgram as RunProgram
@@ -139,10 +139,16 @@ def test_execute_run_program_step(
         stub_update_result = stub_function_class()
         stub_container = stub_container_class(0, ';', 'asdf', 5)
 
+        def pexec():
+            return p.execute_step(
+                stub_container,
+                ExecuteOptions(
+                    stub_update_result, p.get_instructions(), 1, None
+                )
+            )
+
     with describe('Non crashing program'):
-        p.execute_step(
-            stub_container, stub_update_result, p.get_instructions(), 1
-        )
+        pexec()
         # Make sure correct program is called
         assert stub_container.args[0][0] == 'ls'
         assert len(stub_container.args) == 1
@@ -161,9 +167,7 @@ def test_execute_run_program_step(
 
     with describe('Crashing program'):
         stub_container.code = random.randint(1, 100)
-        p.execute_step(
-            stub_container, stub_update_result, p.get_instructions(), 1
-        )
+        pexec()
         # First should be called with running even if it crashes
         assert stub_update_result.args[0][0].name == 'running'
         assert stub_update_result.args[0][1] == {}
@@ -362,10 +366,19 @@ def test_execute_io_step(
         stub_update_result = stub_function_class()
         stub_container = stub_container_class(0, 'CORRECT STDOUT', 'asdf', 5)
 
+        def iexec(should_yield=False):
+            stub_yield = stub_function_class()
+            res = i.execute_step(
+                stub_container,
+                ExecuteOptions(
+                    stub_update_result, i.get_instructions(), 1, stub_yield
+                )
+            )
+            assert should_yield == stub_yield.called
+            return res
+
     with describe('Non crashing program'):
-        total_weight = i.execute_step(
-            stub_container, stub_update_result, i.get_instructions(), 1
-        )
+        total_weight = iexec()
         # Only one step succeeded
         assert total_weight == 1
 
@@ -389,9 +402,7 @@ def test_execute_io_step(
 
     with describe('Program crashing'):
         stub_container.code = random.randint(1, 100)
-        res = i.execute_step(
-            stub_container, stub_update_result, i.get_instructions(), 1
-        )
+        res = iexec()
         # No steps succeeded
         assert res == 0
 
@@ -404,16 +415,14 @@ def test_execute_io_step(
 
     with describe('Call timing out'):
         stub_container.code = psef.auto_test.CommandTimeoutException(0)
-        res = i.execute_step(
-            stub_container, stub_update_result, i.get_instructions(), 1
-        )
+        res = iexec(should_yield=True)
 
         # All commands timed out so no should pass
         assert res == 0
 
         for step in stub_update_result.all_args[-1][1]['steps']:
             assert step['state'] == 'timed_out'
-            assert step['exit_code'] == -1  # -1 is used for command timeout
+            assert step['exit_code'] == -2  # -2 is used for command timeout
 
 
 def test_execute_custom_output(
@@ -435,7 +444,8 @@ def test_execute_custom_output(
 
     def step():
         return o.execute_step(
-            stub_container, stub_update_result, o.get_instructions(), 1
+            stub_container,
+            ExecuteOptions(stub_update_result, o.get_instructions(), 1, None)
         )
 
     with describe('the outputted number should be used'):
@@ -544,7 +554,9 @@ def test_execute_check_points(
 
     def step(p):
         inst = c.get_instructions()
-        return c.execute_step(cont, stub_update_result, inst, p)
+        return c.execute_step(
+            cont, ExecuteOptions(stub_update_result, inst, p, None)
+        )
 
     with describe('achieved more than min_points should return 0'):
         r = step(0.6)

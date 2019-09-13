@@ -134,6 +134,7 @@ if t.TYPE_CHECKING and getattr(
 ) is not True:  # pragma: no cover
     from cg_sqlalchemy_helpers.types import Base, Comparator
     cached_property = property  # pylint: disable=invalid-name
+    hybrid_property = property  # pylint: disable=invalid-name
 else:
     from sqlalchemy.ext.hybrid import hybrid_property, Comparator  # type: ignore
     Base = db.Model  # type: ignore # pylint: disable=invalid-name

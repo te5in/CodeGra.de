@@ -12,7 +12,7 @@
         v-if="assignments.length > 0">
         <li class="sidebar-list-section-header text-muted"
             v-if="showTopAssignments">
-            <small>Nearest deadlines</small>
+            <small>Closest deadlines</small>
         </li>
 
         <assignment-list-item v-for="assignment in topAssignments"
@@ -138,13 +138,15 @@ export default {
 
         topAssignments() {
             const lookup = this.assignments.reduce((res, cur) => {
-                const deadline = cur.deadline || this.$root.$now;
-                res[cur.id] = Math.abs(moment(deadline).diff(this.$root.$now));
+                const deadline = cur.deadline;
+                if (deadline) {
+                    res[cur.id] = Math.abs(moment(deadline).diff(this.$root.$now));
+                }
                 return res;
             }, {});
 
             return this.assignments
-                .slice()
+                .filter(a => lookup[a.id] != null)
                 .sort((a, b) => lookup[a.id] - lookup[b.id])
                 .slice(0, 3);
         },

@@ -81,7 +81,7 @@ class Permission(Base, t.Generic[_T]):  # pylint: disable=unsubscriptable-object
         :returns: A list of all database permissions of the given type.
         """
         assert perm_type in (GlobalPermission, CoursePermission)
-        return db.session.query(cls).filter_by(
+        return db.session.query(cls).filter_by(  # type: ignore
             course_permission=perm_type == CoursePermission
         ).all()
 

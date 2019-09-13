@@ -1,6 +1,98 @@
 Changelog
 ==========
 
+Version 1.11.11 (JungleJoy.3)
+-----------------------------
+
+**Released**: September 13th, 2019 *(we blame all bugs on Friday the 13th)*
+
+AutoTest and Continuous Feedback are now more reliable and efficient by fixing
+many small bugs and tweaks in the back-end. Additionally, a diff-viewer is added
+to the output of IO tests.
+
+**Features**
+
+-  Add diff view to IO test
+   `(#1070) <https://github.com/CodeGra-de/CodeGra.de/pull/1070>`__: Adds a
+   difference viewer to the IO test in AutoTest and Continuous Feedback.
+-  Make it possible to use CF after a final run
+   `(#1077) <https://github.com/CodeGra-de/CodeGra.de/pull/1077>`__: enable
+   starting Continuous Feedback after an AutoTest run finished.
+
+
+**Minor updates**
+
+-  Add Test Submissions
+   `(#1063) <https://github.com/CodeGra-de/CodeGra.de/pull/1063>`__:
+   makes it possible for teachers to more easily upload test submissions to test
+   Continuous Feedback or Hand in Requirements configurations.
+-  Add guide for students
+   `(#1066) <https://github.com/CodeGra-de/CodeGra.de/pull/1066>`__:
+   Add a new student guide to the documentation.
+-  Remove log pushing functionality
+   `(#1071) <https://github.com/CodeGra-de/CodeGra.de/pull/1071>`__: logs were
+   not useful during debugging. This reduces the amount of threads on the
+   machine too.
+-  Add more info about the job in the broker panel
+   `(#1072) <https://github.com/CodeGra-de/CodeGra.de/pull/1072>`__: adds
+   course name, assignment name and type of job to the internal broker panel.
+-  Show failed auto tests as failed
+   `(#1074) <https://github.com/CodeGra-de/CodeGra.de/pull/1074>`__: better
+   communicate the output of Capture Points tests. Zero points results in
+   failing, full points in passing and anything in between in a ``~``.
+-  Improve broker panel
+   `(#1075) <https://github.com/CodeGra-de/CodeGra.de/pull/1075>`__: adds
+   colors, limits the amount of rendered jobs and runners and adds function to
+   shutdown runner instead of terminating.
+-  Improve Assigned to me filter
+   `(#1086) <https://github.com/CodeGra-de/CodeGra.de/pull/1086>`__: disables
+   the checkbox entirely for users without submissions and makes manually
+   assigning to oneself more smooth.
+-  Improve AutoTest
+   `(#1089) <https://github.com/CodeGra-de/CodeGra.de/pull/1089>`__: this
+   makes AutoTest and Continuous Feedback more reliable and efficient:
+
+   - Fix deadlock when starting commands
+   - Improve the way command timeouts are handled
+   - Add timeouts to all requests to the server
+   - Improve handling of multiple submissions
+
+-  Hide assignments without deadline in sidebar top
+   `(#1093) <https://github.com/CodeGra-de/CodeGra.de/pull/1093>`__: assignments
+   without deadlines were displayed above assignments with a deadline in the
+   upcoming assignments list. This is reversed now.
+
+
+**Fixes**
+
+-  Fix rubric item deletion bug
+   `(#1061) <https://github.com/CodeGra-de/CodeGra.de/pull/1061>`__:
+   fixes the bug where lest rubric items could be removed by accident.
+-  Fix by waiting for systemd to be done booting
+   `(#1065) <https://github.com/CodeGra-de/CodeGra.de/pull/1065>`__:
+   fixes the rare bug that AutoTest runners would never start.
+-  Minor fixes for student submission page
+   `(#1073) <https://github.com/CodeGra-de/CodeGra.de/pull/1073>`__: this
+   changes the grade placeholder when no grade is given yet and removes
+   unavailable buttons.
+-  Make it possible to go back from group page
+   `(#1076) <https://github.com/CodeGra-de/CodeGra.de/pull/1076>`__: adds a
+   back button and clickable assignments to this page.
+-  Fix editing feedback in IPython notebook files
+   `(#1078) <https://github.com/CodeGra-de/CodeGra.de/pull/1078>`__: fixes
+   the broken line feedback for IPython notebook files.
+-  Count the achieved points of capture_points steps in suite percentage
+   `(#1080) <https://github.com/CodeGra-de/CodeGra.de/pull/1080>`__: fixes the
+   bug that points for capture points tests were not counted.
+-  Fix very long waiting on attach bug
+   `(#1081) <https://github.com/CodeGra-de/CodeGra.de/pull/1081>`__.
+-  Make sure markdown rendering is he same as in IPython Notebooks
+   `(#1083) <https://github.com/CodeGra-de/CodeGra.de/pull/1083>`__.
+-  Fix group management loaders in LMS
+   `(#1091) <https://github.com/CodeGra-de/CodeGra.de/pull/1091>`__.
+
+
+
 Version 1.10.3 (JungleJoy.2)
 -----------------------------
 
@@ -362,7 +454,7 @@ between assignments and import rubrics from previous assignments.
 Version 1.2.19 (Izanami)
 ------------------------
 
-**Released**: Februari 07th, 2019
+**Released**: February 07th, 2019
 
 **Features**
 

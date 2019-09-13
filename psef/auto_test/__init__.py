@@ -32,6 +32,7 @@ import requests
 import structlog
 from mypy_extensions import TypedDict
 from requests.adapters import HTTPAdapter
+from typing_extensions import Protocol
 from urllib3.util.retry import Retry
 
 import psef
@@ -43,7 +44,7 @@ from cg_timers import timed_code, timed_function
 from .. import models, helpers
 from ..helpers import JSONType, RepeatedTimer, defer
 from ..registry import auto_test_handlers
-from ..exceptions import StopRunningStepsException
+from ..exceptions import APICodes, StopRunningStepsException
 
 logger = structlog.get_logger()
 
@@ -57,8 +58,27 @@ T = t.TypeVar('T')
 Y = t.TypeVar('Y')
 
 Network = t.NewType('Network', t.Tuple[str, t.List[t.Tuple[str, str]]])
-UpdateResultFunction = t.Callable[
-    ['models.AutoTestStepResultState', t.Dict[str, object]], None]
+
+
+class UpdateResultFunction(Protocol):
+    """A protocol for a function that can update the state of a step.
+    """
+
+    def __call__(
+        self,
+        state: 'models.AutoTestStepResultState',
+        log: t.Dict[str, object],
+    ) -> None:
+        ...
+
+
+class YieldCoreCallback(Protocol):
+    """A protocol for a function that yields the current core.
+    """
+
+    def __call__(self) -> None:
+        ...
+
 
 CODEGRADE_USER = 'codegrade'
 _SYSTEMD_WAIT_CMD = [
@@ -67,6 +87,7 @@ _SYSTEMD_WAIT_CMD = [
     '--wait',
     '/bin/true',
 ]
+_REQUEST_TIMEOUT = 10
 
 
 class LXCProcessError(Exception):
@@ -309,6 +330,38 @@ class CpuCores:
     processes.
     """
 
+    class Core:
+        """A class representing the currently reserved core.
+
+        .. note::
+
+            This class is mutable, so :meth:`~Core.get_core_number` might
+            change.
+        """
+
+        def __init__(self, core_number: int, cores: 'CpuCores') -> None:
+            self._core_number = core_number
+            self._cores = cores
+
+        def get_core_number(self) -> int:
+            """Get the number of the core that is reserved.
+            """
+            return self._core_number
+
+        def yield_core(self) -> bool:
+            """Yield the current core.
+
+            .. warning::
+
+                The core that is reserved might be changed after this call. So
+                make sure that you actually lock the container to this core
+                after the call.
+            """
+            new_number = self._cores.yield_core(self._core_number)
+            old_number = self._core_number
+            self._core_number = new_number
+            return new_number != old_number
+
     def __init__(
         self,
         manager: _Manager,
@@ -323,20 +376,32 @@ class CpuCores:
         for core in range(self._number_of_cores):
             self._available_cores.put(core)
 
-    @contextlib.contextmanager
-    def reserved_core(self) -> t.Generator[int, None, None]:
-        """Reserve a core for the duration of the ``with`` block.
+    def yield_core(self, core_number: int) -> int:
+        """Yield the given core.
+
+        :returns: The number of the newly reserved core.
         """
+        self._available_cores.put(core_number)
+        return self._get_core()
+
+    def _get_core(self) -> int:
         self._lock.acquire()
         try:
-            core = self._available_cores.get()
+            return self._available_cores.get()
         finally:
             self._lock.release()
+
+    @contextlib.contextmanager
+    def reserved_core(self) -> t.Generator['CpuCores.Core', None, None]:
+        """Reserve a core for the duration of the ``with`` block.
+        """
+        core = self.Core(self._get_core(), self)
+        logger.info('Got core number', core=core)
 
         try:
             yield core
         finally:
-            self._available_cores.put(core)
+            self._available_cores.put(core.get_core_number())
 
 
 class StopContainerException(Exception):
@@ -348,6 +413,7 @@ class StopContainerException(Exception):
 class CommandTimeoutException(Exception):
     """This exception is raised when a command takes too much time.
     """
+    EXIT_CODE = -2
 
     def __init__(
         self,
@@ -550,6 +616,25 @@ class RunnerInstructions(TypedDict, total=True):
     is_continuous_run: bool
 
 
+@dataclasses.dataclass(frozen=True)
+class ExecuteOptions:
+    """Options passed to the steps when executing them.
+
+    :ivar update_test_result: A function that can be used to update the step
+        result.
+    :ivar test_instructions: The instructions for how to execute this step.
+    :ivar achieved_percentage: The percentage of points achieved at this point
+        for the current suite.
+    :ivar ~ExecuteOptions.yield_core: A callback that shuts the container down,
+        yields the reserved core and requests a new one, and starts the
+        container back up.
+    """
+    update_test_result: UpdateResultFunction
+    test_instructions: StepInstructions
+    achieved_percentage: float
+    yield_core: YieldCoreCallback
+
+
 def init_app(app: 'psef.PsefFlask') -> None:
     process_config(app.config)
 
@@ -588,6 +673,7 @@ def start_polling(config: 'psef.FlaskConfig', repeat: bool = True) -> None:
     """
     items = list(config['AUTO_TEST_HOSTS'].items())
     sleep_time = config['AUTO_TEST_POLL_TIME']
+    broker_url = config['AUTO_TEST_BROKER_URL']
 
     def do_job(cont: 'StartedContainer') -> bool:
         random.shuffle(items)
@@ -605,7 +691,8 @@ def start_polling(config: 'psef.FlaskConfig', repeat: bool = True) -> None:
                     params={
                         'get': 'tests_to_run',
                     },
-                    headers=headers
+                    headers=headers,
+                    timeout=_REQUEST_TIMEOUT,
                 )
                 response.raise_for_status()
             except requests.exceptions.RequestException:
@@ -645,6 +732,15 @@ def start_polling(config: 'psef.FlaskConfig', repeat: bool = True) -> None:
                     retry_amount=4,
                 )
 
+            for _ in helpers.retry_loop(
+                sys.maxsize, sleep_time=_REQUEST_TIMEOUT
+            ):
+                with helpers.BrokerSession('', '', broker_url) as ses:
+                    res = ses.post('/api/v1/alive/', timeout=_REQUEST_TIMEOUT)
+                    logger.info('Did request to broker', response=res)
+                    if res.status_code < 400:
+                        break
+
             while True:
                 if do_job(cont):
                     break
@@ -683,7 +779,11 @@ class StartedContainer:
         try:
             yield AutoTestContainer(self._name, self._config, self._container)
         finally:
-            _start_container(self._container, always=True)
+            _start_container(
+                self._container,
+                always=True,
+                check_network=self._network_is_enabled
+            )
 
     def destroy_snapshots(self) -> None:
         """Destroy all snapshots of this container.
@@ -694,6 +794,9 @@ class StartedContainer:
         ):
             while self._snapshots:
                 self._container.snapshot_destroy(self._snapshots.pop())
+
+    def pin_to_core(self, core_number: int) -> None:
+        self.set_cgroup_item('cpuset.cpus', str(core_number))
 
     def set_cgroup_item(self, key: str, value: str) -> None:
         """Set a cgroup option in the given container.
@@ -908,8 +1011,7 @@ class StartedContainer:
 
     @staticmethod
     def _signal_start() -> None:
-        sys.stderr.buffer.write(b'\0')
-        sys.stderr.flush()
+        lxc.Container.signal_start()
 
     def _run_command(
         self, cmd_user: t.Tuple[t.List[str], t.Optional[str]]
@@ -1343,7 +1445,7 @@ class AutoTestContainer:
                     cont.destroy_snapshots()
             finally:
                 with timed_code('destroy_container'):
-                    self._cont.destroy()
+                    self.destroy_container()
 
     def clone(self, new_name: str = '') -> 'AutoTestContainer':
         """Clone this container to a new container.
@@ -1421,7 +1523,7 @@ class AutoTestRunner:
             f'{self.base_url}/runs/{self.instructions["run_id"]}/'
             f'results/?last_call={last_call}'
         )
-        res = self.req.get(url)
+        res = self.req.get(url, timeout=_REQUEST_TIMEOUT)
         res.raise_for_status()
         return [cg_worker_pool.Work(**item) for item in res.json()]
 
@@ -1454,7 +1556,11 @@ class AutoTestRunner:
                 total=retries,
                 read=retries,
                 connect=retries,
-                backoff_factor=1,
+                status=retries,
+                backoff_factor=2,
+                method_whitelist=frozenset(
+                    [*Retry.DEFAULT_METHOD_WHITELIST, 'PATCH']
+                ),
                 status_forcelist=(500, 502, 503, 504),
             )
         )
@@ -1567,10 +1673,15 @@ class AutoTestRunner:
     @timed_function
     def _run_test_suite(
         self, student_container: StartedContainer, result_id: int,
-        test_suite: SuiteInstructions
+        test_suite: SuiteInstructions, cpu_core: CpuCores.Core
     ) -> t.Tuple[float, float]:
         total_points = 0.0
         possible_points = 0.0
+
+        def yield_core() -> None:
+            with snap.stopped_container():
+                cpu_core.yield_core()
+            snap.pin_to_core(cpu_core.get_core_number())
 
         with student_container.as_snapshot(
             test_suite['network_disabled']
@@ -1599,9 +1710,10 @@ class AutoTestRunner:
                     response = self.req.put(
                         url,
                         json=data,
+                        timeout=_REQUEST_TIMEOUT,
                     )
                     logger.info('Posted result data', response=response)
-                    assert response.status_code == 200
+                    response.raise_for_status()
                     step_result_id = response.json()['id']
 
                 typ = auto_test_handlers[test_step['test_type_name']]
@@ -1612,8 +1724,15 @@ class AutoTestRunner:
                                 ):
                     try:
                         total_points += typ.execute_step(
-                            snap, update_test_result, test_step,
-                            helpers.safe_div(total_points, possible_points, 1)
+                            snap,
+                            ExecuteOptions(
+                                update_test_result=update_test_result,
+                                test_instructions=test_step,
+                                achieved_percentage=helpers.safe_div(
+                                    total_points, possible_points, 1
+                                ),
+                                yield_core=yield_core
+                            )
                         )
                     except StopRunningStepsException:
                         logger.info('Stopping steps', exc_info=True)
@@ -1628,12 +1747,13 @@ class AutoTestRunner:
                         logger.warning('Command timed out', exc_info=True)
                         update_test_result(
                             models.AutoTestStepResultState.timed_out, {
-                                'exit_code': -1,
+                                'exit_code': e.EXIT_CODE,
                                 'stdout': e.stdout,
                                 'stderr': e.stderr,
                                 'time_spend': get_step_time(),
                             }
                         )
+                        yield_core()
                     else:
                         logger.info('Finished step', total_points=total_points)
                     finally:
@@ -1641,14 +1761,46 @@ class AutoTestRunner:
 
         return total_points, possible_points
 
+    @staticmethod
+    def _is_old_submission_error(exc: requests.HTTPError) -> bool:
+        """Check if the given exception is a ``NOT_NEWEST_SUBMSSION`` error.
+
+        >>> f = AutoTestRunner._is_old_submission_error
+        >>> r = requests.HTTPError()
+        >>> f(r)
+        False
+        >>> r.response = requests.get('https://google.com')
+        >>> f(r)
+        False
+        >>> r.response = requests.get('http://echo.jsontest.com/codes/NOPE')
+        >>> f(r)
+        False
+        >>> code = APICodes.NOT_NEWEST_SUBMSSION.name
+        >>> r.response = requests.get('http://echo.jsontest.com/code/{}'.format(code))
+        >>> f(r)
+        True
+        """
+        if exc.response is None:
+            return False
+
+        try:
+            res = exc.response.json()
+        except ValueError:
+            return False
+
+        res = res if isinstance(res, dict) else {}
+        return res.get('code', None) == APICodes.NOT_NEWEST_SUBMSSION.name
+
     @timed_function
     def _run_student(
         self,
         cont: StartedContainer,
-        cpu_number: int,
+        cpu: CpuCores.Core,
         result_id: int,
     ) -> None:
         result_url = f'{self.base_url}/results/{result_id}'
+
+        result_state: t.Optional[models.AutoTestStepResultState]
         result_state = models.AutoTestStepResultState.passed
 
         try:
@@ -1657,7 +1809,7 @@ class AutoTestRunner:
                     'memory.limit_in_bytes',
                     self.config['AUTO_TEST_MEMORY_LIMIT']
                 )
-                cont.set_cgroup_item('cpuset.cpus', str(cpu_number))
+                cont.pin_to_core(cpu.get_core_number())
                 cont.set_cgroup_item(
                     'memory.memsw.limit_in_bytes',
                     self.config['AUTO_TEST_MEMORY_LIMIT']
@@ -1683,7 +1835,7 @@ class AutoTestRunner:
             for test_set in self.instructions['sets']:
                 for test_suite in test_set['suites']:
                     achieved_points, suite_points = self._run_test_suite(
-                        cont, result_id, test_suite
+                        cont, result_id, test_suite, cpu
                     )
                     total_points += achieved_points
                     possible_points += suite_points
@@ -1704,6 +1856,14 @@ class AutoTestRunner:
                     test_set['stop_points']
                 ):
                     break
+        except requests.HTTPError as e:
+            result_state = None
+            if self._is_old_submission_error(e):
+                logger.warning('Was running old submission', exc_info=True)
+            elif isinstance(e, requests.HTTPError):
+                logger.warning(
+                    'HTTP error, so stopping this student', exc_info=True
+                )
         except:
             logger.error('Something went wrong', exc_info=True)
             result_state = models.AutoTestStepResultState.failed
@@ -1711,10 +1871,12 @@ class AutoTestRunner:
         else:
             result_state = models.AutoTestStepResultState.passed
         finally:
-            self.req.patch(
-                result_url,
-                json={'state': result_state.name},
-            )
+            if result_state is not None:
+                self.req.patch(
+                    result_url,
+                    json={'state': result_state.name},
+                    timeout=_REQUEST_TIMEOUT,
+                )
 
     def run_student(
         self,
@@ -1739,13 +1901,14 @@ class AutoTestRunner:
                     return
                 result_id = work.result_id
 
-                with cpu_cores.reserved_core() as cpu_number:
+                with cpu_cores.reserved_core() as cpu:
                     patch_res = self.req.patch(
                         f'{self.base_url}/results/{result_id}',
                         json={
                             'state':
                                 models.AutoTestStepResultState.running.name
-                        }
+                        },
+                        timeout=_REQUEST_TIMEOUT,
                     )
                     patch_res.raise_for_status()
                     if (
@@ -1753,14 +1916,15 @@ class AutoTestRunner:
                         not patch_res.json().get('taken', False)
                     ):
                         with cg_logger.bound_to_logger(result_id=result_id):
-                            self._run_student(cont, cpu_number, result_id)
+                            self._run_student(cont, cpu, result_id)
                             return
 
     def _started_heartbeat(self) -> 'RepeatedTimer':
         def push_heartbeat() -> None:
             self.req.post(
                 f'{self.base_url}/runs/{self.instructions["run_id"]}/'
-                'heartbeats/'
+                'heartbeats/',
+                timeout=_REQUEST_TIMEOUT,
             ).raise_for_status()
 
         interval = self.instructions['heartbeat_interval']
@@ -1780,6 +1944,7 @@ class AutoTestRunner:
             self.req.patch(
                 run_result_url,
                 json={'state': models.AutoTestRunState.starting.name},
+                timeout=_REQUEST_TIMEOUT,
             )
             try:
                 with timed_code('run_complete_auto_test') as get_time_taken:
@@ -1798,6 +1963,7 @@ class AutoTestRunner:
                         'state': end_state,
                         'time_taken': time_taken,
                     },
+                    timeout=_REQUEST_TIMEOUT,
                 )
 
     def _maybe_run_setup(
@@ -1818,6 +1984,7 @@ class AutoTestRunner:
                     'setup_stdout': res.stdout,
                     'setup_stderr': res.stderr
                 },
+                timeout=_REQUEST_TIMEOUT,
             )
 
     def _run_test(self, cont: StartedContainer) -> None:
@@ -1860,6 +2027,7 @@ class AutoTestRunner:
         self.req.patch(
             f'{self.base_url}/runs/{self.instructions["run_id"]}',
             json={'state': models.AutoTestRunState.running.name},
+            timeout=_REQUEST_TIMEOUT,
         )
 
         with cont.stopped_container() as base_container, timed_code(

@@ -60,6 +60,7 @@ class APICodes(IntEnum):
     PARSING_FAILED = 29
     UNSAFE_ARCHIVE = 30
     LOCKED_UPDATE = 31
+    NOT_NEWEST_SUBMSSION = 32
 
 
 class InvalidAssignmentState(TypeError):

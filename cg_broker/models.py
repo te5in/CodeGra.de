@@ -23,6 +23,11 @@ from cg_sqlalchemy_helpers import types, mixins
 
 from . import BrokerFlask, app
 
+if t.TYPE_CHECKING:
+    hybrid_property = property  # pylint: disable=invalid-name
+else:
+    from sqlalchemy.ext.hybrid import hybrid_property
+
 logger = structlog.get_logger()
 
 db: cgs.types.MyDb = cgs.make_db()
@@ -50,9 +55,17 @@ class RunnerState(enum.IntEnum):
     """
     not_running = 1
     creating = 2
-    running = 3
-    cleaning = 4
-    cleaned = 5
+    started = 3
+    running = 4
+    cleaning = 5
+    cleaned = 6
+
+    @classmethod
+    def get_before_started_states(cls) -> t.List['RunnerState']:
+        """Get the states in which a is runner before it posted to the alive
+            route.
+        """
+        return [cls.not_running, cls.creating]
 
     @classmethod
     def get_before_running_states(cls) -> t.List['RunnerState']:
@@ -62,13 +75,13 @@ class RunnerState(enum.IntEnum):
         This states are considered "safe", i.e. we can still make it switch
         jobs.
         """
-        return [cls.not_running, cls.creating]
+        return [*cls.get_before_started_states(), cls.started]
 
     @classmethod
     def get_active_states(cls) -> t.List['RunnerState']:
         """Get the states in which a runner is considered active.
         """
-        return [cls.not_running, cls.creating, cls.running]
+        return [*cls.get_before_running_states(), cls.running]
 
 
 @enum.unique
@@ -102,6 +115,9 @@ class Runner(Base, mixins.TimestampMixin, mixins.UUIDMixin):
         db.Enum(RunnerState),
         nullable=False,
         default=RunnerState.not_running
+    )
+    started_at: t.Optional[datetime] = db.Column(
+        db.DateTime, default=None, nullable=True
     )
 
     # The id used by the provider of this execution unit
@@ -147,7 +163,7 @@ class Runner(Base, mixins.TimestampMixin, mixins.UUIDMixin):
     def is_before_run(self) -> bool:
         """Is this runner in a state before it started executing any code.
         """
-        return self.state in {RunnerState.not_running, RunnerState.creating}
+        return self.state in RunnerState.get_before_running_states()
 
     @property
     def should_clean(self) -> bool:
@@ -424,6 +440,18 @@ class JobState(enum.IntEnum):
         """
         return self == self.finished
 
+    @property
+    def is_waiting_for_runner(self) -> bool:
+        """Is this waiting for a runner
+        """
+        return self == self.waiting_for_runner
+
+    @classmethod
+    def get_finished_states(cls) -> t.Sequence['JobState']:
+        """Get the states that are considered finished.
+        """
+        return [cls.finished]
+
 
 class Job(Base, mixins.TimestampMixin, mixins.IdMixin):
     """This class represents a single job.
@@ -487,7 +515,7 @@ class Job(Base, mixins.TimestampMixin, mixins.IdMixin):
             app.config['MAX_AMOUNT_OF_RUNNERS_PER_JOB'],
         )
 
-    @property
+    @hybrid_property
     def state(self) -> JobState:
         """Get the state of this job.
         """
