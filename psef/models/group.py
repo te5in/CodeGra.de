@@ -10,6 +10,8 @@ import coolname
 from sqlalchemy.sql.expression import or_ as sql_or
 from sqlalchemy.sql.expression import func as sql_func
 
+from cg_sqlalchemy_helpers.types import MyQueryTuple
+
 from . import Base, DbColumn, db
 from . import user as user_models
 from . import work as work_models
@@ -146,7 +148,7 @@ class GroupSet(NotEqualMixin, Base):
         }
 
     def __get_group_size_query(self, asc: bool,
-                               has_subs: bool) -> _MyQuery[int]:
+                               has_subs: bool) -> MyQueryTuple[int]:
         count = sql_func.count(users_groups.c.user_id)
         res = db.session.query(count).group_by(users_groups.c.group_id).join(
             Group,

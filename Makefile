@@ -49,6 +49,12 @@ reset_db:
 	$(MAKE) db_upgrade
 	$(MAKE) test_data
 
+.PHONY: migrate_broker
+migrate_broker:
+	DEBUG_ON=True $(PYTHON) manage_broker.py db migrate
+	DEBUG_ON=True $(PYTHON) manage_broker.py db edit
+	DEBUG_ON=True $(PYTHON) manage_broker.py db upgrade
+
 .PHONY: migrate
 migrate:
 	DEBUG_ON=True $(PYTHON) manage.py db migrate

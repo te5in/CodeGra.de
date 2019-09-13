@@ -13,9 +13,10 @@ from sqlalchemy.sql.expression import func as sql_func
 
 from cg_celery import CGCelery
 from cg_logger import bound_to_logger
+from cg_flask_helpers import callback_after_this_request
 from cg_sqlalchemy_helpers.types import DbColumn
 
-from . import BrokerFlask, app, models
+from . import BrokerFlask, app, utils, models
 from .models import db
 
 celery = CGCelery(__name__, signals)  # pylint: disable=invalid-name
@@ -194,6 +195,84 @@ def kill_runner(runner_hex_id: str, shutdown_only: bool = False) -> None:
 
 
 @celery.task
+def _kill_slow_starter(runner_hex_id: str) -> None:
+    runner_id = uuid.UUID(hex=runner_hex_id)
+    runner = db.session.query(
+        models.Runner
+    ).filter_by(id=runner_id).with_for_update().one_or_none()
+
+    if runner is None:
+        logger.info('Cannot find runner')
+        return
+    elif runner.state not in models.RunnerState.get_before_started_states():
+        logger.info(
+            'Runner already started', runner=runner, state=runner.state
+        )
+        return
+
+    should_run_date = runner.created_at + datetime.timedelta(
+        minutes=app.config['START_TIMEOUT_TIME']
+    )
+    if utils.maybe_delay_current_task(should_run_date):
+        return
+
+    logger.info('Killing runner', runner=runner, state_of_runner=runner.state)
+
+    if runner.job_id is not None:
+        # For some strange reason the runner still had a job. In this case we
+        # should make a new runner for that job after we killed this runner.
+        job_id = runner.job_id
+        callback_after_this_request(
+            lambda: maybe_start_runners_for_job.delay(job_id)
+        )
+    else:
+        callback_after_this_request(maybe_start_unassigned_runner.delay)
+
+    runner.kill(maybe_start_new=False, shutdown_only=False)
+
+
+@celery.task
+def _check_slow_starter(runner_hex_id: str) -> None:
+    runner_id = uuid.UUID(hex=runner_hex_id)
+    runner = db.session.query(
+        models.Runner
+    ).filter_by(id=runner_id).with_for_update().one_or_none()
+
+    if runner is None:
+        logger.info('Cannot find runner')
+        return
+    elif runner.state not in models.RunnerState.get_before_started_states():
+        logger.info(
+            'Runner already started', runner=runner, state=runner.state
+        )
+        return
+
+    min_age = app.config['START_TIMEOUT_TIME'] / 3
+    should_run_date = runner.created_at + datetime.timedelta(minutes=min_age)
+
+    if utils.maybe_delay_current_task(should_run_date):
+        return
+
+    # If we cannot start more runners we have to kill this old slow starting
+    # runner.
+    should_kill_runner = not models.Runner.can_start_more_runners()
+
+    new_runner = models.Runner.create_of_type(app.config['AUTO_TEST_TYPE'])
+    db.session.add(new_runner)
+
+    if runner.job_id is not None:
+        new_runner.job_id = runner.job_id
+        runner.make_unassigned()
+
+    if should_kill_runner:
+        logger.info('Many runners active, so killing this non starting one')
+        runner.kill(maybe_start_new=False, shutdown_only=False)
+
+    db.session.commit()
+    _start_runner.delay(new_runner.id.hex)
+
+
+@celery.task
 def _start_runner(runner_hex_id: str) -> None:
     runner_id = uuid.UUID(hex=runner_hex_id)
     runner = db.session.query(
@@ -228,6 +307,8 @@ def _start_runner(runner_hex_id: str) -> None:
         raise
     else:
         db.session.commit()
+        _check_slow_starter.delay(runner.id.hex)
+        _kill_slow_starter.delay(runner.id.hex)
 
 
 @celery.task

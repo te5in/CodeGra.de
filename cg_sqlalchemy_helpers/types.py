@@ -36,7 +36,7 @@ class MySession:  # pragma: no cover
         ...
 
     @t.overload
-    def query(self, __x: 'DbColumn[T]') -> 'MyQuery[T]':
+    def query(self, __x: 'DbColumn[T]') -> 'MyQueryTuple[T]':
         ...
 
     @t.overload  # NOQA
@@ -251,32 +251,31 @@ class Base:  # pragma: no cover
 
 class MyQuery(t.Generic[T], t.Iterable):  # pragma: no cover
     delete: t.Callable[[QuerySelf], None]
-    scalar: t.Callable[[QuerySelf], T]
     as_scalar: t.Callable[[QuerySelf], 'MyQuery[T]']
     subquery: t.Callable[[QuerySelf, str], RawTable]
-    limit: t.Callable[[QuerySelf, int], 'MyQuery[T]']
+    limit: t.Callable[[QuerySelf, int], QuerySelf]
     first: t.Callable[[QuerySelf], t.Optional[T]]
     exists: t.Callable[[QuerySelf], DbColumn[bool]]
     count: t.Callable[[QuerySelf], int]
     one: t.Callable[[QuerySelf], T]
     __iter__: t.Callable[[QuerySelf], t.Iterator[T]]
 
-    def distinct(self, on: t.Any = None) -> 'MyQuery[T]':
+    def distinct(self: QuerySelf, on: t.Any = None) -> 'QuerySelf':
         pass
 
     def all(self) -> t.List[T]:
         ...
 
-    def with_for_update(self) -> 'MyQuery[T]':
+    def with_for_update(self: QuerySelf) -> 'QuerySelf':
         ...
 
     def one_or_none(self) -> t.Optional[T]:
         ...
 
-    def select_from(self, other: t.Type[Base]) -> 'MyQuery[T]':
+    def select_from(self: QuerySelf, other: t.Type[Base]) -> 'QuerySelf':
         ...
 
-    def slice(self, start: int, end: int) -> 'MyQuery[T]':
+    def slice(self: QuerySelf, start: int, end: int) -> 'QuerySelf':
         ...
 
     def get(self, arg: t.Any) -> t.Optional[T]:
@@ -284,36 +283,45 @@ class MyQuery(t.Generic[T], t.Iterable):  # pragma: no cover
 
     def update(
         self,
-        vals: t.Mapping[str, t.Any],
-        synchronize_session: str = '__NOT_REAL__'
+        vals: t.Mapping[t.Union[str, DbColumn], t.Any],
+        synchronize_session: t.Union[str, bool] = '__NOT_REAL__'
     ) -> None:
         ...
 
     def from_self(self, *args: t.Type[Z]) -> 'MyQuery[Z]':
         ...
 
-    def join(self, *args: t.Any, **kwargs: t.Any) -> 'MyQuery[T]':
+    def join(self: QuerySelf, *args: t.Any, **kwargs: t.Any) -> 'QuerySelf':
         ...
 
-    def order_by(self, *args: t.Any, **kwargs: t.Any) -> 'MyQuery[T]':
+    def order_by(
+        self: QuerySelf, *args: t.Any, **kwargs: t.Any
+    ) -> 'QuerySelf':
         ...
 
-    def filter(self, *args: t.Any, **kwargs: t.Any) -> 'MyQuery[T]':
+    def filter(self: QuerySelf, *args: t.Any, **kwargs: t.Any) -> 'QuerySelf':
         ...
 
-    def filter_by(self, *args: t.Any, **kwargs: t.Any) -> 'MyQuery[T]':
+    def filter_by(
+        self: QuerySelf, *args: t.Any, **kwargs: t.Any
+    ) -> 'QuerySelf':
         ...
 
-    def options(self, *args: t.Any) -> 'MyQuery[T]':
+    def options(self: QuerySelf, *args: t.Any) -> 'QuerySelf':
         ...
 
-    def having(self, *args: t.Any) -> 'MyQuery[T]':
+    def having(self: QuerySelf, *args: t.Any) -> 'QuerySelf':
         ...
 
-    def group_by(self, arg: t.Any) -> 'MyQuery[T]':
+    def group_by(self: QuerySelf, arg: t.Any) -> 'QuerySelf':
         ...
 
-    def with_entities(self, arg: DbColumn[Z]) -> 'MyQuery[t.Tuple[Z]]':
+    def with_entities(self, arg: DbColumn[Z]) -> 'MyQueryTuple[Z]':
+        ...
+
+
+class MyQueryTuple(t.Generic[T], MyQuery[t.Tuple[T]]):
+    def scalar(self) -> T:
         ...
 
 

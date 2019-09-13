@@ -308,7 +308,7 @@ with open(
 set_str(CONFIG, backend_ops, 'DEFAULT_ROLE', 'Student')
 
 # The external URL the server runs on.
-set_str(CONFIG, backend_ops, 'EXTERNAL_URL', 'http://localhost:8080')
+set_str(CONFIG, backend_ops, 'EXTERNAL_URL', '')
 
 set_str(CONFIG, backend_ops, 'JAVA_PATH', 'java')
 
@@ -584,4 +584,5 @@ if CONFIG['IS_AUTO_TEST_RUNNER']:
     assert CONFIG['LTI_SECRET_KEY'] == ''
     assert CONFIG['SECRET_KEY'] == ''
     assert CONFIG['HEALTH_KEY'] == ''
+    assert CONFIG['EXTERNAL_URL'] == ''
     assert CONFIG['AUTO_TEST_BROKER_PASSWORD'] is None

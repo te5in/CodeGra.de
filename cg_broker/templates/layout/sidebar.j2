@@ -31,6 +31,12 @@
                     <li class="nav-item mt-3">
                         <b>Legenda</b>
                         <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Job color</th>
+                                    <th>Meaning</th>
+                                </tr>
+                            </thead>
                             <tbody>
                                 <tr>
                                     <td>
@@ -81,6 +87,39 @@
                                     </td>
                                 </tr>
                             </tbody>
+                        </table>
+
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>State</th>
+                                    <th>Meaning</th>
+                                </tr>
+                            </thead>
+                            <tr>
+                                <td>not_running</td>
+                                <td>Creating at Amazon</td>
+                            </tr>
+                            <tr>
+                                <td>creating</td>
+                                <td>Created at amazon, but no sign of life yet</td>
+                            </tr>
+                            <tr>
+                                <td>started</td>
+                                <td>Pinged us, but no job yet</td>
+                            </tr>
+                            <tr>
+                                <td>running</td>
+                                <td>Running a job</td>
+                            </tr>
+                            <tr>
+                                <td>cleaning</td>
+                                <td>Terminating at Amazon</td>
+                            </tr>
+                            <tr>
+                                <td>cleaned</td>
+                                <td>Terminated at Amazon</td>
+                            </tr>
                         </table>
                     </li>
                 </ul>

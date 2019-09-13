@@ -1,8 +1,9 @@
 {% extends "layout/sidebar.j2" %}
+{% import "macros/runners_table.j2" as macros %}
 {% block content %}
 <h1>Runners</h1>
 <form action="{{ url_for('.create_runner') }}"
-      method="post" class="col-12 input-group">
+      method="post" class="col-12 input-group mb-3">
     <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
     <input name="amount" type="number" class="form-control"
         placeholder="Amount of runners (default: 1)"/>
@@ -10,58 +11,13 @@
         Create new runner
     </button>
 </form>
-<table class="table">
-    <thead>
-        <th>ID</th>
-        <th>Job</th>
-        <th>Ip address</th>
-        <th>Age</th>
-        <th>Created at</th>
-        <th>Updated at</th>
-        <th>State</th>
-        <th>Instance id</th>
-        <th>Type</th>
-        <th>Stop Runner</th>
-    </thead>
-    <tbody>
-        {% for runner in runners %}
-        <tr>
-            <td>{{ runner.id }}</td>
-            <td>{{ runner.job_id }}</td>
-            <td>{{ runner.ipaddr }}</td>
-            <td>{{ runner.created_at | age | round | int }}</td>
-            <td>{{ runner.created_at | datetime }}</td>
-            <td>{{ runner.updated_at | datetime }}</td>
-            <td>{{ runner.state.name }}</td>
-            <td>{{ runner.instance_id }}</td>
-            <td>{{ runner.__class__.__name__ }}</td>
-            <td>
-                <div class="btn-group">
-                <form action="{{ url_for('.stop_runner', runner_hex_id=runner.id.hex) }}"
-                      method="post"
-                      class="mr-3">
-                    <input name="_csrf_token" type="hidden"
-                           value="{{ csrf_token() }}">
-                    <button type="submit" class="btn btn-primary"
-                            {% if not runner.should_clean %}disabled="true"{% endif %}
-                            >
-                        Kill
-                    </button>
-                </form>
-                <form action="{{ url_for('.stop_runner', runner_hex_id=runner.id.hex) }}?shutdown=true"
-                      method="post">
-                    <input name="_csrf_token" type="hidden"
-                           value="{{ csrf_token() }}">
-                    <button type="submit" class="btn btn-primary"
-                            {% if not runner.should_clean %}disabled="true"{% endif %}
-                            >
-                        Shutdown
-                    </button>
-                </form>
-                </div>
-            </td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
+<h4>Active</h4>
+{% if active_runners %}
+{{ macros.runners_table(active_runners) }}
+{% else %}
+<p>No active runners</p>
+{% endif %}
+
+<h4>Finished</h4>
+{{ macros.runners_table(finished_runners) }}
 {% endblock %}

@@ -22,6 +22,7 @@ import helpers
 import psef.models as m
 import cg_worker_pool
 import requests_stubs
+from psef.exceptions import APICodes, APIException
 
 
 @pytest.fixture
@@ -77,6 +78,7 @@ def monkeypatch_for_run(monkeypatch, lxc_stub, stub_function_class):
     monkeypatch.setattr(
         psef.tasks, 'stop_auto_test_run', stub_function_class()
     )
+    monkeypatch.setattr(psef.auto_test, '_REQUEST_TIMEOUT', 0.1)
 
 
 @pytest.fixture
@@ -1234,8 +1236,6 @@ def test_continuous_feedback_auto_test(
             )
 
         assert len(session.query(m.AutoTestResult).all()) == 1
-
-        psef.auto_test.start_polling(app.config, repeat=False)
         res = session.query(m.AutoTestResult).one()
 
         with logged_in(student):
@@ -1245,7 +1245,23 @@ def test_continuous_feedback_auto_test(
                 f'{url}/runs/{run.id}/results/{res.id}',
                 200,
                 result={
+                    'state': 'not_started',
+                    'approx_waiting_before': 0,
+                    '__allow_extra__': True,
+                }
+            )
+
+        psef.auto_test.start_polling(app.config, repeat=False)
+
+        with logged_in(student):
+            # A student can see results before the assignment is done
+            test_client.req(
+                'get',
+                f'{url}/runs/{run.id}/results/{res.id}',
+                200,
+                result={
                     'state': 'passed',
+                    'approx_waiting_before': None,
                     '__allow_extra__': True,
                 }
             )
@@ -1263,7 +1279,7 @@ def test_continuous_feedback_auto_test(
                 }
             )
 
-        with pytest.raises(psef.errors.APIException):
+        with pytest.raises(APIException):
             t.start_continuous_feedback_run()
 
 
@@ -1326,3 +1342,44 @@ def test_run_command_too_much_output(
             assert res.stderr == ''
             assert bytes(res.stdout_tail.data
                          ).decode() == ('b' * 32 + 'c' * 32)
+
+
+@pytest.mark.parametrize(
+    'filename', ['../test_submissions/single_dir_archive.zip'], indirect=True
+)
+def test_ensure_from_latest_work(session, describe, assignment_real_works):
+    with describe('setup'):
+        assignment, submission = assignment_real_works
+        sub2_id = m.Work.query.filter_by(assignment_id=assignment.id).filter(
+            m.Work.id != submission['id']
+        ).first().id
+        new_work = m.Work(
+            user_id=submission['user']['id'], assignment_id=assignment.id
+        )
+        session.add(new_work)
+        session.commit()
+
+        test = m.AutoTest(
+            setup_script='', run_setup_script='', assignment=assignment
+        )
+        run = m.AutoTestRun(
+            _job_id=uuid.uuid4(),
+            auto_test=test,
+            is_continuous_feedback_run=True,
+        )
+        oldest = m.AutoTestResult(work_id=submission['id'])
+        latest2 = m.AutoTestResult(work_id=sub2_id)
+        run.results = [latest2, oldest]
+        session.commit()
+        latest = m.AutoTestResult(work_id=new_work.id)
+        run.results.append(latest)
+        session.commit()
+
+    with describe('should work with latest'):
+        psef.v_internal.auto_tests._ensure_from_latest_work(latest)
+        psef.v_internal.auto_tests._ensure_from_latest_work(latest2)
+
+    with describe('should raise for non latest submission'):
+        with pytest.raises(APIException) as err:
+            psef.v_internal.auto_tests._ensure_from_latest_work(oldest)
+        assert err.value.api_code == APICodes.NOT_NEWEST_SUBMSSION

@@ -39,6 +39,9 @@ if t.TYPE_CHECKING:  # pragma: no cover
     from . import rubric as rubric_models
     from . import file as file_models
     from . import assignment as assignment_models
+    hybrid_property = property  # pylint: disable=invalid-name
+else:
+    from sqlalchemy.ext.hybrid import hybrid_property
 
 logger = structlog.get_logger()
 
@@ -315,7 +318,7 @@ class AutoTestResult(Base, TimestampMixin, IdMixin, NotEqualMixin):
     def __hash__(self) -> int:
         return hash(self.id)
 
-    @property
+    @hybrid_property
     def state(self) -> auto_test_step_models.AutoTestStepResultState:
         """Get the state of this result
 
@@ -356,12 +359,13 @@ class AutoTestResult(Base, TimestampMixin, IdMixin, NotEqualMixin):
         else:
             self.started_at = None
 
-    @property
-    def passed(self) -> bool:
+    @hybrid_property
+    def is_finished(self) -> bool:
         """Has this state passed?
         """
         return (
-            self.state == auto_test_step_models.AutoTestStepResultState.passed
+            self.state in
+            auto_test_step_models.AutoTestStepResultState.get_finished_states()
         )
 
     def clear(self, *, clear_rubric: bool) -> None:
@@ -461,17 +465,13 @@ class AutoTestResult(Base, TimestampMixin, IdMixin, NotEqualMixin):
 
     def __extended_to_json__(self) -> t.Mapping[str, object]:
         approx_before: t.Optional[int] = None
-        not_started = auto_test_step_models.AutoTestStepResultState.not_started
-        if self.state == not_started:
-            approx_before = 0
-            for result in self.run.results:
-                if result == self:
-                    break
-                elif result.state == not_started:
-                    approx_before += 1
-            else:
-                logger.warning('Result not found', exc_info=True)
-                approx_before = None
+        if (
+            self.state ==
+            auto_test_step_models.AutoTestStepResultState.not_started
+        ):
+            approx_before = self.run.get_results_to_run().filter(
+                AutoTestResult.created_at < self.created_at
+            ).count()
 
         return {
             **self.__to_json__(),
@@ -480,6 +480,20 @@ class AutoTestResult(Base, TimestampMixin, IdMixin, NotEqualMixin):
             'step_results': self.step_results,
             'approx_waiting_before': approx_before,
         }
+
+    @classmethod
+    def get_results_by_user(cls, student_id: int) -> 'MyQuery[AutoTestResult]':
+        """Get the :class:`.AutoTestResult` s for the given student.
+
+        :returns: A query that gets all results by the given user. Notice that
+            these results are for all :class:`.AutoTestRun` s.
+        """
+        return cls.query.filter(
+            t.cast(DbColumn[int], cls.work_id).in_(
+                db.session.query(t.cast(DbColumn[int], work_models.Work.id)
+                                 ).filter_by(user_id=student_id)
+            )
+        )
 
 
 @enum.unique
@@ -769,7 +783,7 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
 
         for result in self.results:
             if (
-                not result.passed and
+                not result.is_finished and
                 (result.runner is None or result.runner == runner)
             ):
                 result.clear(clear_rubric=not self.is_continuous_feedback_run)
@@ -899,7 +913,7 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
     ) -> auto_test_module.RunnerInstructions:
         """Get the instructions to run this AutoTestRun.
         """
-        results = [r for r in self.results if not r.passed]
+        results = self.get_results_to_run().all()
 
         return {
             'runner_id': str(for_runner.id),
@@ -1228,6 +1242,18 @@ class AutoTest(Base, TimestampMixin, IdMixin):
             return False
 
         run_id = run.id
+        AutoTestResult.get_results_by_user(work.user_id).filter(
+            AutoTestResult.auto_test_run_id == run.id,
+            t.cast(DbColumn[object], AutoTestResult.state).in_(
+                auto_test_step_models.AutoTestStepResultState.
+                get_not_finished_states()
+            ),
+        ).update(
+            {
+                t.cast(DbColumn, AutoTestResult.state):
+                    auto_test_step_models.AutoTestStepResultState.skipped,
+            }, False
+        )
 
         psef.helpers.callback_after_this_request(
             lambda: psef.tasks.adjust_amount_runners(run_id)
