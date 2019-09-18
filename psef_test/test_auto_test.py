@@ -41,6 +41,10 @@ def monkeypatch_for_run(monkeypatch, lxc_stub, stub_function_class):
         if cmd[0] in {'adduser', 'usermod', 'deluser', 'sudo', 'apt'}:
             signal_start()
             return 0
+        elif cmd[0] == '/bin/bash' and cmd[2].startswith('adduser'):
+            # Don't make the user, as we cannot do that locally
+            cmd[2] = '&&'.join(cmd[2].split('&&')[1:])
+            cmd_user = (cmd, user)
         elif cmd == ['grep', '-c', getpass.getuser(), '/etc/sudoers']:
             signal_start()
             return 1

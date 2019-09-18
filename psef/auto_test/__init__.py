@@ -1992,17 +1992,19 @@ class AutoTestRunner:
         with timed_code('run_setup_commands'):
             cont.run_command(
                 [
-                    'adduser', '--shell', '/bin/bash', '--disabled-password',
-                    '--gecos', '', CODEGRADE_USER
+                    '/bin/bash',
+                    '-c',
+                    (
+                        'adduser --shell /bin/bash --disabled-password --gecos'
+                        ' "" {user} && '
+                        'mkdir -p "{home_dir}/student/" && '
+                        'mkdir -p "{home_dir}/fixtures/" && '
+                        'chown -R {user}:{user} {home_dir}'
+                    ).format(
+                        user=CODEGRADE_USER,
+                        home_dir=_get_home_dir(CODEGRADE_USER),
+                    ),
                 ],
-            )
-            cont.run_command(
-                ['mkdir', '-p', f'{_get_home_dir(CODEGRADE_USER)}/student/'],
-                user=CODEGRADE_USER
-            )
-            cont.run_command(
-                ['mkdir', '-p', f'{_get_home_dir(CODEGRADE_USER)}/fixtures/'],
-                user=CODEGRADE_USER
             )
 
             cont.run_command(['usermod', '-aG', 'sudo', CODEGRADE_USER])
