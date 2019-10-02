@@ -1215,7 +1215,10 @@ class LTIDeleteResultOperation(LTIOperation):
 
     This operation deletes the result at canvas.
     """
-    request_type = 'deleteResultRequest'
+
+    @property
+    def request_type(self) -> str:
+        return 'deleteResultRequest'
 
 
 SubmissionDetails = TypedDict(  # pylint: disable=invalid-name
@@ -1227,7 +1230,10 @@ SubmissionDetails = TypedDict(  # pylint: disable=invalid-name
 class LTIReplaceResultBaseOperation(LTIOperation, abc.ABC):
     """The base replaceResult LTI operation.
     """
-    request_type = 'replaceResultRequest'
+
+    @property
+    def request_type(self) -> str:
+        return 'replaceResultRequest'
 
     data_type: LTIResultDataType
     data_value: str
