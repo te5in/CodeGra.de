@@ -57,6 +57,14 @@ class MySession:  # pragma: no cover
 
     @t.overload  # NOQA
     def query(
+        self,
+        __y: 'DbColumn[T]',
+        __x: 'DbColumn[Z]',
+    ) -> 'MyQuery[t.Tuple[T, Z]]':
+        ...
+
+    @t.overload  # NOQA
+    def query(
         self, __x: t.Type[T], __y: 'DbColumn[Z]'
     ) -> 'MyQuery[t.Tuple[T, Z]]':
         ...

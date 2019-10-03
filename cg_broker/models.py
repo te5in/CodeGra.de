@@ -13,6 +13,7 @@ import structlog
 import transip.service
 from suds import WebFault
 from sqlalchemy.types import JSON
+from botocore.exceptions import ClientError
 
 import cg_broker
 import cg_sqlalchemy_helpers as cgs
@@ -232,6 +233,17 @@ class Runner(Base, mixins.TimestampMixin, mixins.UUIDMixin):
                    cls.state).in_(RunnerState.get_active_states())
         )
 
+    @classmethod
+    def get_before_active_unassigned_runners(cls) -> types.MyQuery['Runner']:
+        """Get all runners runners that are not running yet, and are not
+        assigned.
+        """
+        return db.session.query(cls).filter(
+            t.cast(types.DbColumn[RunnerState],
+                   cls.state).in_(RunnerState.get_before_running_states()),
+            t.cast(types.DbColumn[t.Optional[int]], cls.job_id).is_(None)
+        )
+
     def make_unassigned(self) -> None:
         """Make this runner unassigned.
 
@@ -266,7 +278,7 @@ class Runner(Base, mixins.TimestampMixin, mixins.UUIDMixin):
         db.session.commit()
 
         if maybe_start_new:
-            cg_broker.tasks.maybe_start_unassigned_runner.delay()
+            cg_broker.tasks.maybe_start_more_runners.delay()
 
     def __structlog__(self) -> t.Dict[str, t.Union[str, int, None]]:
         return {
@@ -400,11 +412,16 @@ class AWSRunner(Runner):
             self.instance_id = inst.id
 
             for _ in range(120):
-                inst = ec2.Instance(inst.id)
-                if inst.public_ip_address:
-                    logger.info('AWS instance up')
-                    self.ipaddr = inst.public_ip_address
-                    return
+                try:
+                    inst = ec2.Instance(inst.id)
+                    if inst.public_ip_address:
+                        logger.info('AWS instance up')
+                        self.ipaddr = inst.public_ip_address
+                        return
+                except ClientError as e:
+                    err = e.response.get('Error', {})
+                    if err.get('Code', '') != 'InvalidInstanceID.NotFound':
+                        raise
                 time.sleep(1)
 
             logger.error('Timed out waiting on AWS instance')
@@ -502,7 +519,7 @@ class Job(Base, mixins.TimestampMixin, mixins.IdMixin):
         nullable=False
     )
 
-    @property
+    @hybrid_property
     def wanted_runners(self) -> int:
         """The amount of runners this job wants.
         """
@@ -542,9 +559,136 @@ class Job(Base, mixins.TimestampMixin, mixins.IdMixin):
             'id': self.id,
         }
 
+    @staticmethod
+    def _can_steal_runner(runner: Runner) -> bool:
+        """Can this job steal the given runner.
+
+        :param runner: The runner we might want to steal.
+        :returns: If we can steal this runner.
+        """
+        if runner.job is None:
+            return True
+
+        # TODO: We might want to check not only if we can steal this runner,
+        # but also if we need this runner more than this other job. For example
+        # if we want 5 runners but have 4, and this other job wants 10 runners
+        # but has 1, we might not want to steal this runner from that other
+        # job.
+        return any(r != runner for r in runner.job.get_active_runners())
+
+    def maybe_use_runner(self, runner: Runner) -> bool:
+        """Maybe use the given ``runner`` for this job.
+
+        This function checks if this job is allowed to use the given
+        runner. This is the case if the runner is assigned to us, if it is
+        unassigned or we can steal it from another job.
+
+        :param runner: The runner we might want to use.
+        :returns: ``True`` if we can use the runner, and ``False`` if we
+            cannot.
+        """
+        if runner in self.runners:
+            return True
+
+        active_runners = self.get_active_runners()
+        before_active = set(RunnerState.get_before_running_states())
+
+        # In this case we have enough running runners for this job.
+        if sum(
+            r.state not in before_active for r in active_runners
+        ) >= self.wanted_runners:
+            logger.info('Too many runners assigned to job')
+            return False
+
+        # We want more, but this should only be given if the runner is not
+        # needed elsewhere.
+
+        # Runner is unassigned, so get it.
+        if runner.job is None:
+            self.runners.append(runner)
+            # However, we might assume that this runner can be used for other
+            # jobs, so we might need to start more runners.
+            callback_after_this_request(
+                cg_broker.tasks.maybe_start_more_runners.delay
+            )
+            return True
+
+        # Runner is assigned but we maybe can steal it.
+        if self._can_steal_runner(runner):
+            logger.info(
+                'Stealing runner from job',
+                new_job_id=self.id,
+                other_job_id=runner.job.id,
+                runner=runner,
+            )
+            self.runners.append(runner)
+            unneeded_runner = next(
+                (r for r in active_runners if r.state in before_active), None
+            )
+            too_many_active = len(active_runners) + 1 > self.wanted_runners
+            if too_many_active and unneeded_runner:
+                # In this case we now have too many runners assigned to us, so
+                # make one of the runners unassigned. But only do this if we
+                # have a runner which isn't already running.
+                unneeded_runner.make_unassigned()
+
+            # The runner we stole might be useful for the other job, as it
+            # might have requested extra runners. So we might want to start
+            # extra runners.
+            callback_after_this_request(
+                cg_broker.tasks.maybe_start_more_runners.delay
+            )
+            return True
+
+        return False
+
     def __to_json__(self) -> t.Dict[str, object]:
         return {
             'id': self.remote_id,
             'state': self.state.name,
             'wanted_runners': self.wanted_runners,
         }
+
+    def add_runners_to_job(
+        self, unassigned_runners: t.List[Runner], startable: int
+    ) -> int:
+        """Add runners to the given job.
+
+        This adds runners from the ``unassigned_runners`` list to the current
+        job, or starts new runners as long as ``startable`` is greater than 0.
+
+        .. note:: The ``unassigned_runners`` list may be mutated in place.
+
+        :param unassigned_runners: Runners that are not assigned yet and can be
+            used by this job.
+        :param startable: The amount of runners we may start.
+        :returns: The amount of new runners started.
+        """
+        needed = self.wanted_runners - len(self.get_active_runners())
+        to_start = []
+        created = []
+
+        for _ in range(needed):
+            if unassigned_runners:
+                self.runners.append(unassigned_runners.pop())
+            elif startable > 0:
+                runner = Runner.create_of_type(app.config['AUTO_TEST_TYPE'])
+                self.runners.append(runner)
+                db.session.add(runner)
+                created.append(runner)
+                startable -= 1
+            else:
+                break
+
+        db.session.flush()
+
+        for runner in created:
+            to_start.append(runner.id.hex)
+
+        def start_runners() -> None:
+            for runner_id in to_start:
+                cg_broker.tasks.start_runner.delay(runner_id)
+
+        callback_after_this_request(start_runners)
+
+        return len(created)
