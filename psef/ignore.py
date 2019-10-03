@@ -591,10 +591,6 @@ class FileRule:
             :returns: ``True`` if this patterns matches the given file,
                 ``False`` otherwise.
             """
-            # Dirs never match a File pattern
-            if f.is_dir and self.name:
-                return False
-
             name_list = f.get_name_list()
             if self.name:
                 if not self.__filename_matches(name_list[-1]):
@@ -1004,23 +1000,33 @@ class SubmissionValidator(SubmissionFilter):
         ]
         found: t.Set[int] = set()
 
+        stop = False
         for f in tree.get_all_children():
-            if len(found) == len(required_files):
-                break
             for idx, required_file in enumerate(required_files):
-                if required_file.matches(f):
-                    # Directory rules are only satisfied when there is a file
-                    # in the directory. So if we match a directory rule we
-                    # should only remove it if we are a child in this
-                    # directory. We check if we are a child in this directory
-                    # by checking if our parent also matches the rule.
-                    if required_file.is_dir_rule and (
-                        f.parent is None or
-                        not required_file.matches(f.parent)
-                    ):
-                        continue
-                    found.add(idx)
+                if not required_file.matches(f):
+                    continue
+                # Directory rules are only satisfied when there is a file
+                # or subdirectory in the directory. So if we match a directory
+                # rule we should only remove it if we are a child in this
+                # directory. We check if we are a child in this directory
+                # by checking if our parent also matches the rule.
+                if required_file.is_dir_rule and (
+                    f.parent is None or not required_file.matches(f.parent)
+                ):
+                    continue
+                # Directories can never satisfy a file rule. Their children
+                # can, and may do so in their own iteration of the outer loop.
+                if not required_file.is_dir_rule and f.is_dir:
+                    continue
+
+                found.add(idx)
+
+                if len(found) == len(required_files):
+                    stop = True
                     break
+
+            if stop:
+                break
 
         logger.info(
             'Found missing files', reqiured_files=required_files, found=found

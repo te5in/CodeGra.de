@@ -1,0 +1,10 @@
+policy: deny
+options: {"delete_empty_directories": false, "remove_leading_directories": false}
+require /a/b
+require /ignore.py
+
+/a/b/
+/ignore.py
+
+MISSING
+/a/b

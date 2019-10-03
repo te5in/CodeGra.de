@@ -4100,8 +4100,9 @@ def parse_ignore_v2_test_files():
 
         def get_expected(self, root_name):
             def build_tree(tree, path):
-                if not path:
+                if not path or path == '/':
                     return
+
                 splitted = [x for x in path.split('/') if x]
                 for idx, e in enumerate(tree['entries']):
                     if e['name'] == splitted[0]:
@@ -4116,7 +4117,11 @@ def parse_ignore_v2_test_files():
                     tree['entries'].append(entry)
                     tree['entries'].sort(key=lambda el: el['name'].lower())
                     idx = -1
-                build_tree(tree['entries'][idx], '/'.join(splitted[1:]))
+
+                new_path = '/'.join(splitted[1:])
+                if path[-1] == '/':
+                    new_path += '/'
+                build_tree(tree['entries'][idx], new_path)
 
             res = {
                 'name': root_name,
