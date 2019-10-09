@@ -1158,6 +1158,45 @@ class MoodleLTI(BareBonesLTIProvider):
         )
 
 
+@lti_classes.register('BrightSpace')
+class BrightSpaceLTI(BareBonesLTIProvider):
+    """The LTI class used for the BrightSpace LMS.
+    """
+
+    @property
+    def username(self) -> str:
+        return self.launch_params['ext_d2l_username']
+
+    def _roles(self, key: str) -> t.Iterable[LTIRole]:
+        # Some Brightspace instances pass all roles as instrole. In those
+        # cases we yield the role twice, once as instrole and once as
+        # course role, because we cannot determine whether a role was meant
+        # to be an instrole or a course role. If any of the roles already
+        # is a course role, we simply continue with the next one.
+
+        roles: t.List[LTIRole] = []
+        for role in self.launch_params[key].split(','):
+            try:
+                roles.append(LTIRole.parse(role))
+            except LTIRoleException:
+                continue
+
+        if any(
+            parsed_role.kind == LTIRoleKind.course for parsed_role in roles
+        ):
+            yield from roles
+        else:
+            for parsed_role in roles:
+                yield parsed_role
+
+                if parsed_role.name in LTI_COURSEROLE_LOOKUPS:
+                    yield LTIRole(
+                        kind=LTIRoleKind.course,
+                        name=parsed_role.name,
+                        subnames=parsed_role.subnames,
+                    )
+
+
 #####################################
 # START OF MIT LICENSED COPIED WORK #
 #####################################

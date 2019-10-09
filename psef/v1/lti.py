@@ -48,8 +48,8 @@ def launch_lti() -> t.Any:
                 ).decode('utf8')
             ),
             redirect=urllib.parse.quote(
-                flask.request.args.get('codegrade_redirect', '')
-            )
+                flask.request.args.get('codegrade_redirect', ''),
+            ),
         )
     )
 

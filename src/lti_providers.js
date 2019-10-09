@@ -15,6 +15,8 @@ const defaultLTIProvider = Object.create(null, {
 
 const blackboardProvider = Object.create(defaultLTIProvider);
 
+const brightSpaceProvider = Object.create(defaultLTIProvider);
+
 const moodleProvider = Object.create(defaultLTIProvider);
 
 const canvasProvider = Object.create(defaultLTIProvider, {
@@ -34,6 +36,7 @@ const canvasProvider = Object.create(defaultLTIProvider, {
 
 export default {
     Blackboard: blackboardProvider,
+    BrightSpace: brightSpaceProvider,
     Canvas: canvasProvider,
     Moodle: moodleProvider,
 };

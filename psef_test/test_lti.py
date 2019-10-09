@@ -999,6 +999,18 @@ def test_lti_assignment_create(
         }
     ),
     (
+        'BrightSpace', {
+            'context_id': 'MY_COURSE_ID_100',
+            'context_title': 'NEW_COURSE',
+            'resource_link_id': 'MY_ASSIG_ID_100',
+            'resource_link_title': 'MY_ASSIG_TITLE',
+            'ext_d2l_username': 'a the a-er',
+            'roles':
+                'NOT_VALID_ROLE,urn:lti:sysrole:ims/lis/Administrator,Instructor',
+            'oauth_consumer_key': 'brightspace_lti',
+        }
+    ),
+    (
         'Moodle', {
             'context_id': 'MY_COURSE_ID_100',
             'context_title': 'NEW_COURSE',
@@ -1751,3 +1763,373 @@ def test_lti_grade_passback_moodle(
     set_grade(token, None, work['id'])
     assert patch_request.called
     assert_grade_deleted(last_xml, patch_request.source_id)
+
+
+@pytest.mark.parametrize('patch', [True, False])
+@pytest.mark.parametrize('filename', [
+    ('correct.tar.gz'),
+])
+def test_lti_grade_passback_brightspace(
+    test_client, app, logged_in, ta_user, filename, monkeypatch, patch,
+    monkeypatch_celery, error_template, session
+):
+    due_at = datetime.datetime.utcnow() + datetime.timedelta(days=1)
+    assig_max_points = 8
+    last_xml = None
+
+    class Patch:
+        def __init__(self):
+            self._called = False
+
+        @property
+        def called(self):
+            old = self._called
+            self._called = False
+            return old
+
+        def __call__(self, uri, method, body, headers):
+            nonlocal last_xml
+            self._called = True
+            assert method == 'POST'
+            assert isinstance(headers, dict)
+            assert headers['Content-Type'] == 'application/xml'
+            assert isinstance(body, bytes)
+            last_xml = body.decode('utf-8')
+            return '', SUCCESS_XML
+
+    if patch:
+        monkeypatch.setitem(app.config, '_USING_SQLITE', True)
+
+    patch_request = Patch()
+    monkeypatch.setattr(oauth2.Client, 'request', patch_request)
+
+    def do_lti_launch(
+        username='A the A-er',
+        lti_id='USER_ID',
+        source_id='NON_EXISTING2!',
+        published='false',
+        canvas_id='MY_COURSE_ID_100',
+    ):
+        nonlocal last_xml
+        with app.app_context():
+            last_xml = None
+            data = {
+                'context_title': 'NEW_COURSE',
+                'context_id': canvas_id,
+                'resource_link_id': f'{canvas_id}_ASSIG_1',
+                'resource_link_title': 'MY_ASSIG_TITLE',
+                'roles': 'urn:lti:sysrole:ims/lis/Administrator,Instructor',
+                'ext_d2l_username': username,
+                'user_id': lti_id,
+                'lis_person_name_full': username,
+                'lis_person_contact_email_primary': 'a@a.nl',
+                'oauth_consumer_key': 'brightspace_lti',
+                'lis_outcome_service_url': source_id,
+            }
+            if source_id:
+                data['lis_result_sourcedid'] = source_id
+            patch_request.source_id = source_id
+            res = test_client.post('/api/v1/lti/launch/1', data=data)
+
+            url = urllib.parse.urlparse(res.headers['Location'])
+            jwt = urllib.parse.parse_qs(url.query)['jwt'][0]
+            lti_res = test_client.req(
+                'post',
+                '/api/v1/lti/launch/2',
+                200,
+                data={'jwt_token': jwt},
+            )
+            token = lti_res.get('access_token', None)
+            test_client.req(
+                'patch',
+                f'/api/v1/assignments/{lti_res["assignment"]["id"]}',
+                200,
+                data={
+                    'deadline': (
+                        datetime.datetime.utcnow() +
+                        datetime.timedelta(days=1)
+                    ).isoformat(),
+                },
+                headers={'Authorization': f'Bearer {token}'},
+            )
+            assert m.Assignment.query.get(
+                lti_res['assignment']['id']
+            ).state == m._AssignmentStateEnum.open
+            assert lti_res['assignment']['course']['name'] == 'NEW_COURSE'
+            return lti_res['assignment'], token
+
+    def get_upload_file(token, assig_id):
+        full_filename = (
+            f'{os.path.dirname(__file__)}/'
+            f'../test_data/test_blackboard/{filename}'
+        )
+        with app.app_context():
+            test_client.req(
+                'post',
+                f'/api/v1/assignments/{assig_id}/submission',
+                201,
+                real_data={'file': (full_filename, 'bb.tar.gz')},
+                headers={'Authorization': f'Bearer {token}'},
+            )
+            res = test_client.req(
+                'get',
+                f'/api/v1/assignments/{assig_id}/submissions/',
+                200,
+                headers={'Authorization': f'Bearer {token}'},
+            )
+            assert len(res) == 1
+            return res[0]
+
+    def set_grade(token, grade, work_id):
+        test_client.req(
+            'patch',
+            f'/api/v1/submissions/{work_id}',
+            200,
+            data={'grade': grade, 'feedback': 'feedback'},
+            headers={'Authorization': f'Bearer {token}'},
+        )
+
+    assig, token = do_lti_launch()
+    work = get_upload_file(token, assig['id'])
+
+    # Assignment is not done so it should not passback the grade
+    set_grade(token, 5.0, work['id'])
+    assert not patch_request.called
+
+    test_client.req(
+        'patch',
+        f'/api/v1/assignments/{assig["id"]}',
+        200,
+        data={
+            'state': 'done',
+        },
+        headers={'Authorization': f'Bearer {token}'},
+    )
+
+    # After setting assignment open it should passback the grades.
+    assert patch_request.called
+    assert_grade_set_to(
+        last_xml,
+        patch_request.source_id,
+        10,
+        5.0,
+        raw=False,
+        created_at=None,
+    )
+
+    # Updating while open should passback straight away
+    set_grade(token, 6, work['id'])
+    assert patch_request.called
+    assert_grade_set_to(
+        last_xml,
+        patch_request.source_id,
+        10,
+        6,
+        raw=False,
+        created_at=None,
+    )
+
+    # Setting grade to ``None`` should do a delete request
+    set_grade(token, None, work['id'])
+    assert patch_request.called
+    assert_grade_deleted(last_xml, patch_request.source_id)
+
+
+def test_lti_roles(
+    test_client, session, app, logged_in, ta_user, monkeypatch,
+    monkeypatch_celery, error_template, describe
+):
+    i = 0
+
+    def do_lti_launch(
+        roles,
+        *,
+        srole=None,
+        crole=None,
+        oauth_key='blackboard_lti',
+    ):
+        assert srole or crole
+
+        nonlocal i
+        user_id = f'LTI_USER_{i}'
+        course = f'LTI_COURSE_{i}'
+        assig = f'{course}_ASSIG_1'
+        i += 1
+
+        with app.app_context():
+            data = {
+                'context_title': course,
+                'context_id': course,
+                'custom_canvas_course_id': course,
+                'custom_canvas_course_name': course,
+                'resource_link_title': assig,
+                'resource_link_id': assig,
+                'custom_canvas_assignment_id': assig,
+                'custom_canvas_assignment_title': assig,
+                'custom_canvas_assignment_published': True,
+                'roles': roles,
+                'ext_roles': roles,
+                'user_id': user_id,
+                'ext_d2l_username': user_id,
+                'ext_user_username': user_id,
+                'lis_person_sourcedid': user_id,
+                'custom_canvas_user_login_id': user_id,
+                'lis_person_name_full': user_id,
+                'lis_person_contact_email_primary': 'a@a.nl',
+                'oauth_consumer_key': oauth_key,
+                'lis_outcome_service_url': 'NON_EXISTING2!',
+                'lis_result_sourcedid': 'NON_EXISTING2!',
+            }
+            res = test_client.post('/api/v1/lti/launch/1', data=data)
+
+            url = urllib.parse.urlparse(res.headers['Location'])
+            jwt = urllib.parse.parse_qs(url.query)['jwt'][0]
+            lti_res = test_client.req(
+                'post',
+                '/api/v1/lti/launch/2',
+                200,
+                data={'jwt_token': jwt},
+            )
+            token = lti_res.get('access_token', None)
+            assert token
+
+            if crole is not None:
+                courses = test_client.req(
+                    'get',
+                    '/api/v1/courses/',
+                    200,
+                    headers={'Authorization': f'Bearer {token}'},
+                )
+                # Make sure we are testing in a new course, because roles are
+                # not set twice.
+                assert len(courses) == 1
+                assert courses[0]['role'] == crole
+
+            if srole is not None:
+                user = test_client.req(
+                    'get',
+                    '/api/v1/login',
+                    200,
+                    headers={'Authorization': f'Bearer {token}'},
+                )
+
+                sysrole = session.query(
+                    m.Role,
+                ).join(
+                    m.User,
+                    m.User.role_id == m.Role.id,
+                ).filter(
+                    m.User.id == user['id'],
+                ).one().name
+                assert sysrole == srole
+
+    with describe('default system role is configurable'):
+        for roles in [
+            'INVALID_ROLE',
+            'INVALID_ROLE,INVALID_ROLE',
+            'urn:lti:role:ims/lis/Administrator',
+            'urn:lti:role:ims/lis/Administrator,INVALID_ROLE',
+            'urn:lti:role:ims/lis/Administrator,urn:lti:sysrole:ims/lis/INVALID_ROLE',
+        ]:
+            do_lti_launch(roles, srole=app.config['DEFAULT_ROLE'])
+
+    with describe('default course role is "New LTI Role"'):
+        for roles in [
+            'INVALID_ROLE',
+            'INVALID_ROLE,INVALID_ROLE',
+            'urn:lti:sysrole:ims/lis/Administrator',
+            'urn:lti:sysrole:ims/lis/Administrator,INVALID_ROLE',
+            'urn:lti:sysrole:ims/lis/Administrator,urn:lti:sysrole:ims/lis/INVALID_ROLE',
+            'urn:lti:instrole:ims/lis/Administrator',
+            'urn:lti:instrole:ims/lis/Administrator,INVALID_ROLE',
+            'urn:lti:instrole:ims/lis/Administrator,urn:lti:instrole:ims/lis/INVALID_ROLE',
+        ]:
+            do_lti_launch(roles, crole='New LTI Role')
+
+    with describe('standard roles are mapped correctly'):
+        for srole in lti.LTI_SYSROLE_LOOKUPS:
+            do_lti_launch(
+                f'urn:lti:sysrole:ims/lis/{srole}',
+                srole=lti.LTI_SYSROLE_LOOKUPS[srole],
+            )
+            do_lti_launch(
+                f'urn:lti:instrole:ims/lis/{srole}',
+                srole=lti.LTI_SYSROLE_LOOKUPS[srole],
+            )
+        for crole in lti.LTI_COURSEROLE_LOOKUPS:
+            do_lti_launch(
+                f'urn:lti:role:ims/lis/{crole}',
+                crole=lti.LTI_COURSEROLE_LOOKUPS[crole],
+            )
+
+    with describe('it works when garbage roles are passed'):
+        for garbage in [
+            '',
+            'INVALID_ROLE',
+            'INVALID_ROLE,INVALID_ROLE',
+            'urn:lti:sysrole:ims/lis/asdaselkgabsg',
+            'urn:lti:instrole:ims/lis/asdaselkgabsg',
+            'urn:lti:xxxxxrole:ims/lis/Administrator',
+        ]:
+            do_lti_launch(
+                garbage,
+                srole=app.config['DEFAULT_ROLE'],
+                crole='New LTI Role',
+            )
+
+    with describe('it uses the given name for non-existing course roles'):
+        do_lti_launch('urn:lti:role:ims/lis/CUSTOM_ROLE', crole='CUSTOM_ROLE')
+
+    with describe('it uses the first valid role'):
+        for oauth_key in [
+            'my_lti',
+            'blackboard_lti',
+            'brightspace_lti',
+            'moodle_lti',
+        ]:
+            do_lti_launch(
+                'INVALID_ROLE,urn:lti:instrole:ims/lis/Administrator,urn:lti:instrole:ims/lis/Instructor',
+                srole='Admin',
+                oauth_key=oauth_key,
+            )
+
+    with describe(
+        'it interprets Moodle\'s roles without a urn: prefix correctly',
+    ):
+        for srole in lti.LTI_SYSROLE_LOOKUPS:
+            do_lti_launch(
+                f'urn:lti:instrole:ims/lis/{srole},Learner',
+                crole='Student',
+                oauth_key='moodle_lti',
+            )
+            do_lti_launch(
+                f'urn:lti:instrole:ims/lis/{srole},Instructor',
+                crole='Teacher',
+                oauth_key='moodle_lti',
+            )
+
+    with describe(
+        'it interprets Brightspace roles as both sysroles and course roles '
+        'when only sysroles are given',
+    ):
+        for srole in lti.LTI_SYSROLE_LOOKUPS:
+            if srole in lti.LTI_COURSEROLE_LOOKUPS:
+                do_lti_launch(
+                    f'urn:lti:instrole:ims/lis/{srole}',
+                    crole=lti.LTI_COURSEROLE_LOOKUPS[srole],
+                    oauth_key='brightspace_lti',
+                )
+
+    with describe(
+        'it interprets Brightspace roles correctly when both sysroles and '
+        'course roles are given',
+    ):
+        for srole in lti.LTI_SYSROLE_LOOKUPS:
+            do_lti_launch(
+                # Use TeachingAssistant role because it is one of the few
+                # that do not exist as standard sysrole.
+                f'urn:lti:instrole:ims/lis/{srole},urn:lti:role:ims/lis/TeachingAssistant',
+                srole=lti.LTI_SYSROLE_LOOKUPS[srole],
+                crole='TA',
+                oauth_key='brightspace_lti',
+            )

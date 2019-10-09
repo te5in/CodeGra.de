@@ -183,8 +183,7 @@ export default {
         },
 
         deadlineEditable() {
-            const lms = this.lmsName;
-            return lms ? !ltiProviders[lms].supportsDeadline : true;
+            return !this.$utils.getProps(ltiProviders, false, this.lmsName, 'supportsDeadline');
         },
     },
 
