@@ -1,7 +1,8 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div class="submission-list">
-    <local-header always-show-extra-slot>
+    <local-header always-show-extra-slot
+                  ref="localHeader">
         <template slot="title" v-if="assignment && Object.keys(assignment).length">
             {{ assignment.name }}
 
@@ -16,52 +17,6 @@
                                :default="defaultCat"
                                v-model="selectedCat"
                                :categories="categories"/>
-
-            <hr class="separator bottom-separator"/>
-
-            <div class="cat-container">
-                <b-input-group v-if="selectedCat === 'search'"
-                               class="search-wrapper">
-                    <input v-model="filter"
-                           class="form-control"
-                           placeholder="Type to Search"
-                           @keyup.enter="submit"
-                           @keyup="submitDelayed"/>
-                    <b-input-group-append is-text
-                                          v-if="canSeeOthersWork && !assigneeCheckboxDisabled"
-                                          v-b-popover.bottom.hover="'Show only subbmissions assigned to me.'">
-                        <b-form-checkbox v-model="mineOnly"
-                                         @change="submit">
-                            Assigned to me
-                        </b-form-checkbox>
-                    </b-input-group-append>
-                </b-input-group>
-
-                <div v-if="selectedCat === 'rubric'">
-                    <rubric-editor v-if="assignment.rubric != null"
-                                   :editable="false"
-                                   :defaultRubric="rubric"
-                                   :assignment="assignment"/>
-                    <div no-body class="empty-text text-muted font-italic" v-else>
-                        There is no rubric for this assignment.
-                    </div>
-                </div>
-
-                <div v-if="selectedCat === 'hand-in-instructions'">
-                    <c-g-ignore-file v-if="assignment.cgignore"
-                                     :assignmentId="assignment.id"
-                                     :editable="false"
-                                     summary-mode/>
-                    <div no-body class="empty-text text-muted font-italic" v-else>
-                        There are no hand-in instructions for this assignment.
-                    </div>
-                </div>
-
-                <submissions-exporter v-if="selectedCat === 'export'"
-                                      :get-submissions="filter => filter ? filteredSubmissions : submissions"
-                                      :assignment-id="assignment.id"
-                                      :filename="exportFilename"/>
-            </div>
         </template>
 
         <b-input-group>
@@ -81,6 +36,52 @@
             </b-button-group>
         </b-input-group>
     </local-header>
+
+    <div class="cat-container border-bottom"
+         :class="selectedCat"
+         :style="catContainerStyle">
+        <b-input-group v-if="selectedCat === 'search'"
+                        class="search-wrapper">
+            <input v-model="filter"
+                   class="form-control"
+                   placeholder="Type to Search"
+                   @keyup.enter="submit"
+                   @keyup="submitDelayed"/>
+            <b-input-group-append is-text
+                                  v-if="canSeeOthersWork && !assigneeCheckboxDisabled"
+                                  v-b-popover.bottom.hover="'Show only subbmissions assigned to me.'">
+                <b-form-checkbox v-model="mineOnly"
+                                 @change="submit">
+                    Assigned to me
+                </b-form-checkbox>
+            </b-input-group-append>
+        </b-input-group>
+
+        <div v-if="selectedCat === 'rubric'">
+            <rubric-editor v-if="assignment.rubric != null"
+                           :editable="false"
+                           :defaultRubric="rubric"
+                           :assignment="assignment"/>
+            <div no-body class="empty-text text-muted font-italic" v-else>
+                There is no rubric for this assignment.
+            </div>
+        </div>
+
+        <div v-if="selectedCat === 'hand-in-instructions'">
+            <c-g-ignore-file v-if="assignment.cgignore"
+                             :assignmentId="assignment.id"
+                             :editable="false"
+                             summary-mode/>
+            <div no-body class="empty-text text-muted font-italic" v-else>
+                There are no hand-in instructions for this assignment.
+            </div>
+        </div>
+
+        <submissions-exporter v-if="selectedCat === 'export'"
+                              :get-submissions="filter => filter ? filteredSubmissions : submissions"
+                              :assignment-id="assignment.id"
+                              :filename="exportFilename"/>
+    </div>
 
     <b-table striped hover
              ref="table"
@@ -339,6 +340,30 @@ export default {
                 s => this.$utils.getProps(s, null, 'assignee', 'id') === this.userId,
             );
         },
+
+        catContainerStyle() {
+            // We get the window width (but we don't need it for anything) as we want this property
+            // to be recomputed when then window size changes, because the clientHeight of the
+            // LocalHeader may change then.
+            // eslint-disable-next-line
+            const winWidth = this.$root.$windowWidth;
+
+            switch (this.selectedCat) {
+                case 'search':
+                    return {
+                        position: 'sticky',
+                        top: `${this.$utils.getProps(
+                            this.$refs,
+                            0,
+                            'localHeader',
+                            '$el',
+                            'clientHeight',
+                        )}px`,
+                    };
+                default:
+                    return {};
+            }
+        },
     },
 
     watch: {
@@ -499,6 +524,7 @@ export default {
 @import '~mixins.less';
 
 .submission-list {
+    position: relative;
     margin-bottom: 1rem;
 }
 
@@ -506,16 +532,11 @@ export default {
     margin: 0.5rem 0;
 }
 
-.separator.bottom-separator {
-    margin-left: -1rem;
-    margin-right: -1rem;
-    margin-top: -1px;
-}
-
 .cat-container {
-    margin: -1rem;
+    margin: -1rem -15px 1rem;
     padding: 1rem;
     background-color: white;
+    z-index: 100;
 
     #app.dark & {
         background-color: @color-primary;

@@ -247,6 +247,10 @@ localforage.defineDriver(memoryStorageDriver).then(() => {
         },
 
         computed: {
+            $windowWidth() {
+                return this.screenWidth;
+            },
+
             $isSmallWindow() {
                 return this.screenWidth <= this.smallWidth;
             },

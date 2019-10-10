@@ -937,6 +937,10 @@ ${arrayToSentence(wrongCategories)}.`);
             background-color: @color-primary;
         }
 
+        .item-header-row {
+            flex-wrap: nowrap;
+        }
+
         .item-description {
             background-color: @color-lightest-gray;
         }
