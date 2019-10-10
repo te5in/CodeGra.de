@@ -27,6 +27,7 @@ if (userConfig.Features === undefined) userConfig.Features = {};
 
 const config = Object.assign({}, {
     email: 'info@CodeGra.de',
+    maxLines: 2500,
 }, userConfig['Front-end']);
 
 const version = execFileSync('git', ['describe', '--abbrev=0', '--tags']).toString().trim();
