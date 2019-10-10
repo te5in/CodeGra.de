@@ -53,7 +53,7 @@ def put_comment(code_id: int, line: int) -> EmptyResponse:
     def __get_comment() -> str:
         content = ensure_json_dict(request.get_json())
         ensure_keys_in_dict(content, [('comment', str)])
-        return t.cast(str, content['comment'])
+        return t.cast(str, content['comment']).replace('\0', '')
 
     if comment:
         auth.ensure_permission(

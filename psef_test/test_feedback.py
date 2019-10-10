@@ -29,6 +29,7 @@ only_own = create_marker(pytest.mark.only_own)
         data_error({'sr': 'err'}),
         data_error({'comment': 5}),
         {'comment': 'correct'},
+        {'comment': '\0', 'expected_result': ''},
     ]
 )
 def test_add_feedback(
@@ -55,7 +56,8 @@ def test_add_feedback(
     def get_result():
         if data_err or perm_err:
             return {}
-        return {'0': {'line': 0, 'msg': data['comment'], 'author': dict}}
+        msg = data.get('expected_result', data['comment'])
+        return {'0': {'line': 0, 'msg': msg, 'author': dict}}
 
     with logged_in(named_user):
         test_client.req(
@@ -80,6 +82,7 @@ def test_add_feedback(
     with logged_in(named_user):
         if not data_err:
             data['comment'] = 'bye'
+            data['expected_result'] = 'bye'
             test_client.req(
                 'put',
                 f'/api/v1/code/{code_id}/comments/0',
@@ -459,7 +462,7 @@ def test_get_assignment_all_feedback(
             'patch',
             f'/api/v1/submissions/{work["id"]}',
             200,
-            data={'grade': 5, 'feedback': 'Niet zo goed'},
+            data={'grade': 5, 'feedback': 'Niet zo goed\0'},
             result=dict
         )
         test_client.req(

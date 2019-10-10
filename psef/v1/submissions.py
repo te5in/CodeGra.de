@@ -474,7 +474,7 @@ def patch_submission(submission_id: int) -> JSONResponse[models.Work]:
 
     if 'feedback' in content:
         ensure_keys_in_dict(content, [('feedback', str)])
-        feedback = t.cast(str, content['feedback'])
+        feedback = t.cast(str, content['feedback']).replace('\0', '')
 
         work.comment = feedback
         work.comment_author = current_user
