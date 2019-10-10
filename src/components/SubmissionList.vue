@@ -107,11 +107,7 @@
 
         <template slot="formatted_created_at" slot-scope="item">
             {{item.value ? item.value : '-'}}
-            <span v-if="item.item.created_at > assignment.deadline">
-                <icon name="clock-o"
-                      class="late-icon"
-                      v-b-popover.hover.top="getHandedInLateText(item.item)"/>
-            </span>
+            <late-submission-icon :submission="item.item" :assignment="assignment" />
         </template>
 
         <template slot="assignee" slot-scope="item">
@@ -152,7 +148,6 @@
 </template>
 
 <script>
-import moment from 'moment';
 import { mapGetters, mapActions } from 'vuex';
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/gear';
@@ -170,6 +165,7 @@ import LocalHeader from './LocalHeader';
 import User from './User';
 import CategorySelector from './CategorySelector';
 import CGIgnoreFile from './CGIgnoreFile';
+import LateSubmissionIcon from './LateSubmissionIcon';
 
 export default {
     name: 'submission-list',
@@ -306,7 +302,7 @@ export default {
 
             return filterSubmissions(this.submissions, this.mineOnly, this.userId, this.filter).map(
                 sub => {
-                    if (sub.created_at > this.assignment.deadline) {
+                    if (sub.formatted_created_at > this.assignment.formatted_deadline) {
                         return Object.assign({}, sub, {
                             _rowVariant: 'danger',
                         });
@@ -482,14 +478,6 @@ export default {
 
         formatGrade,
         sortSubmissions,
-
-        getHandedInLateText(sub) {
-            const diff = moment(sub.created_at, moment.ISO_8601).from(
-                moment(this.assignment.deadline, moment.ISO_8601),
-                true, // Only get time string, not the 'in' before.
-            );
-            return `This submission was submitted ${diff} after the deadline.`;
-        },
     },
 
     components: {
@@ -502,6 +490,7 @@ export default {
         User,
         CategorySelector,
         CGIgnoreFile,
+        LateSubmissionIcon,
     },
 };
 </script>
@@ -552,12 +541,6 @@ export default {
 
 .no-submissions-found {
     color: @text-color-muted;
-}
-
-.late-icon {
-    text-decoration: bold;
-    margin-bottom: -0.125em;
-    cursor: help;
 }
 
 .user-form-select {

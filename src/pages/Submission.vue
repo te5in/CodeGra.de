@@ -34,7 +34,8 @@
             :current-submission="submission"
             :latest-submissions="latestSubmissions"
             :not-latest="!currentSubmissionIsLatest"
-            :show-user-buttons="canGrade"/>
+            :show-user-buttons="canGrade"
+            :assignment="assignment"/>
 
         <b-button-group class="submission-header-buttons">
             <b-button class="settings-toggle"

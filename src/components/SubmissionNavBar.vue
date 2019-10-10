@@ -8,11 +8,18 @@
                   @click="selectSub(prevSub)">
             <icon name="angle-left"/>
         </b-button>
+
         <b-dropdown @show="onDropdownShow" v-if="curSub"
-                    class="title navbar-old-subs-dropdown">
+                    class="title navbar-old-subs-dropdown"
+                    :class="subLate(curSub) ? 'current-sub-late' : ''">
             <template slot="button-content">
                 <span class="button-content">
                     <user :user="curSub.user"/> at {{ curSub.formatted_created_at }}
+                    <span class="d-inline-block" style="tranform: translateY(-2px)">
+                        <late-submission-icon
+                            :submission="curSub"
+                            :assignment="assignment"/>
+                    </span>
                     <icon name="exclamation-triangle"
                           class="text-warning ml-1"
                           style="margin-bottom: -1px;"
@@ -29,7 +36,7 @@
                                  v-else
                                  href="#"
                                  @click="selectSub(sub)"
-                                 :class="{currentSub: sub.id === curSub.id}"
+                                 :class="{currentSub: sub.id === curSub.id, 'sub-late': subLate(sub)}"
                                  class="old-sub">
                     {{ sub.formatted_created_at }}
                     <template v-if="sub.grade != null">
@@ -38,6 +45,10 @@
                     <template v-if="sub === oldSubmissions[0]">
                         <i>(Newest version)</i>
                     </template>
+                    <late-submission-icon
+                        hide-popover
+                        :submission="curSub"
+                        :assignment="assignment"/>
                 </b-dropdown-item>
             </template>
             <b-dropdown-item v-else>
@@ -46,6 +57,7 @@
                         :center="true"/>
             </b-dropdown-item>
         </b-dropdown>
+
         <div class="title placeholder" v-else>
             -
         </div>
@@ -70,6 +82,7 @@ import 'vue-awesome/icons/angle-right';
 
 import User from './User';
 import Loader from './Loader';
+import LateSubmissionIcon from './LateSubmissionIcon';
 
 export default {
     name: 'submission-nav-bar',
@@ -93,6 +106,11 @@ export default {
         showUserButtons: {
             type: Boolean,
             default: true,
+        },
+
+        assignment: {
+            type: Object,
+            required: true,
         },
     },
 
@@ -127,11 +145,7 @@ export default {
         },
 
         assignmentId() {
-            return Number(this.$route.params.assignmentId);
-        },
-
-        assignment() {
-            return this.assignments[this.assignmentId];
+            return this.assignment.id;
         },
 
         submissionId() {
@@ -204,6 +218,10 @@ export default {
     methods: {
         ...mapActions('submissions', ['loadSingleSubmission', 'loadSubmissionsByUser']),
 
+        subLate(sub) {
+            return sub.formatted_created_at > this.assignment.formatted_deadline;
+        },
+
         selectSub(sub) {
             if (sub == null) {
                 return;
@@ -249,6 +267,7 @@ export default {
         Icon,
         User,
         Loader,
+        LateSubmissionIcon,
     },
 };
 </script>
@@ -319,6 +338,8 @@ export default {
 </style>
 
 <style lang="less">
+@import '~mixins.less';
+
 .navbar-old-subs-dropdown {
     .btn {
         width: 100%;
@@ -332,6 +353,12 @@ export default {
     .dropdown-menu {
         width: 100%;
         overflow: auto;
+        padding: 0;
+    }
+
+    .sub-late,
+    &.current-sub-late .dropdown-toggle {
+        background-color: @color-danger-table-row !important;
     }
 }
 </style>
