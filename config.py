@@ -116,6 +116,7 @@ FlaskConfig = TypedDict(
         '_USING_SQLITE': str,
         '_TRANSIP_PRIVATE_KEY_FILE': str,
         '_TRANSIP_USERNAME': str,
+        'ADMIN_USER': t.Optional[str],
     },
     total=True
 )
@@ -465,6 +466,8 @@ set_list(
 
 set_str(CONFIG, backend_ops, '_TRANSIP_PRIVATE_KEY_FILE', '')
 set_str(CONFIG, backend_ops, '_TRANSIP_USERNAME', '')
+
+set_str(CONFIG, backend_ops, 'ADMIN_USER', default=None)
 
 ############
 # FEATURES #

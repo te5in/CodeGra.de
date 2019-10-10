@@ -257,6 +257,22 @@ class CourseRole(AbstractRole[CoursePermission], Base):
                 return cls.query.filter_by(name=name, course=course).one()
         raise ValueError('No initial course role found')
 
+    @classmethod
+    def get_admin_role(cls, course: 'course_models.Course'
+                       ) -> t.Optional['CourseRole']:
+        """Get the role that the admin user in a course should have.
+
+        :param course: The course in which we should search for the role.
+        :returns: The role the admin user should have in a course, or ``None``
+            if no such role could be found.
+        """
+        for name, value in current_app.config['_DEFAULT_COURSE_ROLES'].items():
+            if value.get('admin_role'):
+                return cls.query.filter_by(
+                    name=name, course=course
+                ).one_or_none()
+        return None
+
     @staticmethod
     def get_default_course_roles() -> t.Mapping[
         str, t.MutableMapping[CoursePermission, Permission[CoursePermission]]]:

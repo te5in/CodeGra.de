@@ -130,6 +130,7 @@ def app(request):
         },
         'AUTO_TEST_DISABLE_ORIGIN_CHECK': True,
         'AUTO_TEST_MAX_TIME_COMMAND': 3,
+        'ADMIN_USER': None,
     }
     if request.config.getoption('--postgresql'):
         pdb, _ = get_database_name(request)

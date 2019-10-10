@@ -427,12 +427,11 @@ def test_jplag_old_assignments(
         course=assignment.course,
     )
     session.add(other_assignment)
-    other_course = psef.models.Course(name='Other course')
+    other_course = psef.models.Course.create_and_add(name='Other course')
     other_course_assignment = psef.models.Assignment(
         name='OTHER COURSE ASSIGNMENT',
         course=other_course,
     )
-    session.add(other_course)
     session.add(other_course_assignment)
     session.commit()
 

@@ -11,6 +11,7 @@
       "can_view_autotest_step_details",
       "can_view_autotest_fixture"
     ],
+    "admin_role": false,
     "initial_role": false
   },
   "TA": {
@@ -37,6 +38,7 @@
       "can_view_autotest_step_details",
       "can_view_autotest_fixture"
     ],
+    "admin_role": false,
     "initial_role": false
   },
   "Teacher": {
@@ -87,6 +89,7 @@
       "can_view_autotest_step_details",
       "can_view_autotest_fixture"
     ],
+    "admin_role": true,
     "initial_role": true
   },
   "Observer": {
@@ -95,6 +98,7 @@
       "can_create_groups",
       "can_view_autotest_step_details"
     ],
+    "admin_role": false,
     "initial_role": false
   },
   "Designer": {
@@ -129,6 +133,7 @@
       "can_view_autotest_step_details",
       "can_view_autotest_fixture"
     ],
+    "admin_role": false,
     "initial_role": false
   }
 }

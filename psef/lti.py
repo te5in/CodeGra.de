@@ -512,10 +512,9 @@ class LTI:  # pylint: disable=too-many-public-methods
         course = models.Course.query.filter_by(lti_course_id=self.course_id
                                                ).first()
         if course is None:
-            course = models.Course(
+            course = models.Course.create_and_add(
                 name=self.course_name, lti_course_id=self.course_id
             )
-            db.session.add(course)
 
         if course.name != self.course_name:
             logger.info(

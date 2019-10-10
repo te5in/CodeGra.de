@@ -493,8 +493,7 @@ def add_course() -> JSONResponse[models.Course]:
     ensure_keys_in_dict(content, [('name', str)])
     name = t.cast(str, content['name'])
 
-    new_course = models.Course(name)
-    db.session.add(new_course)
+    new_course = models.Course.create_and_add(name)
     db.session.commit()
 
     role = models.CourseRole.get_initial_course_role(new_course)

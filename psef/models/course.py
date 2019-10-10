@@ -7,6 +7,8 @@ import uuid
 import typing as t
 import datetime
 
+import structlog
+
 import psef
 
 from . import UUID_LENGTH, Base, DbColumn, db, _MyQuery
@@ -22,6 +24,8 @@ if t.TYPE_CHECKING:  # pragma: no cover
     # pylint: disable=unused-import,cyclic-import
     from .lti_provider import LTIProvider
     from .group import GroupSet
+
+logger = structlog.get_logger()
 
 
 class CourseSnippet(Base):
@@ -115,25 +119,69 @@ class Course(NotEqualMixin, Base):
         "Assignment", back_populates="course", cascade='all,delete'
     )  # type: t.MutableSequence[Assignment]
 
-    def __init__(
-        self,
+    @classmethod
+    def create_and_add(
+        cls,
         name: str = None,
         lti_course_id: str = None,
         lti_provider: 'LTIProvider' = None,
         virtual: bool = False,
-    ) -> None:
-        super().__init__(
+    ) -> 'Course':
+        """Create a new course and add it to the current database session.
+
+        :param name: The name of the new course.
+        :param lti_course_id: The id of the course for the LMS.
+        :param lti_provider: The lti provider. Either both ``lti_course_id``
+            and ``lti_provider`` should be ``None``, or both should be a valid
+            value.
+        :param virtual: Is this a virtual course.
+        """
+        self = cls(
             name=name,
             lti_course_id=lti_course_id,
             lti_provider=lti_provider,
             virtual=virtual,
         )
         if virtual:
-            return
+            return self
+
         for role_name, perms in CourseRole.get_default_course_roles().items():
             CourseRole(
                 name=role_name, course=self, _permissions=perms, hidden=False
             )
+
+        db.session.add(self)
+        db.session.flush()
+        admin_username = psef.current_app.config['ADMIN_USER']
+
+        if admin_username is not None:
+            admin_user = User.query.filter_by(
+                username=admin_username,
+            ).one_or_none()
+            admin_role = CourseRole.get_admin_role(self)
+
+            if admin_user is None:
+                logger.error(
+                    'Could not find admin user',
+                    admin_username=admin_username,
+                    admin_role_name=admin_role
+                )
+            elif admin_role is None:
+                logger.error(
+                    'Could not find admin role',
+                    admin_username=admin_username,
+                    admin_role_name=admin_role
+                )
+            else:
+                logger.info(
+                    'Adding admin to course',
+                    course_id=self.id,
+                    admin_role_id=admin_role.id,
+                    admin_user_id=admin_user.id
+                )
+                admin_user.courses[self.id] = admin_role
+
+        return self
 
     def __hash__(self) -> int:
         return hash(self.id)
@@ -240,7 +288,9 @@ class Course(NotEqualMixin, Base):
         :param tree: The tree to use to create the submissions.
         :returns: A virtual course with a random name.
         """
-        self = cls(name=f'VIRTUAL_COURSE__{uuid.uuid4()}', virtual=True)
+        self = cls.create_and_add(
+            name=f'VIRTUAL_COURSE__{uuid.uuid4()}', virtual=True
+        )
         assig = Assignment(
             name=f'Virtual assignment - {tree.name}', course=self
         )
