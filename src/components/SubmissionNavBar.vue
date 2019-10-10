@@ -359,6 +359,10 @@ export default {
     .sub-late,
     &.current-sub-late .dropdown-toggle {
         background-color: @color-danger-table-row !important;
+
+        &:hover {
+            background-color: saturate(darken(@color-danger-table-row, 5%), -20%) !important;
+        }
     }
 }
 </style>
