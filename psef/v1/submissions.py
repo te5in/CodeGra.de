@@ -16,7 +16,7 @@ from sqlalchemy.orm import selectinload
 from mypy_extensions import TypedDict
 
 import psef.files
-from psef import app, current_user
+from psef import app, tasks, current_user
 
 from . import api
 from .. import auth, models, helpers, features
@@ -78,7 +78,9 @@ def get_submission(
                                  work in the attached course.
                                  (INCORRECT_PERMISSION)
     """
-    work = helpers.get_or_404(models.Work, submission_id)
+    work = helpers.filter_single_or_404(
+        models.Work, models.Work.id == submission_id, ~models.Work.deleted
+    )
 
     if not work.has_as_author(current_user):
         auth.ensure_permission(
@@ -169,18 +171,56 @@ def delete_submission(submission_id: int) -> EmptyResponse:
     :param submission_id: The submission to delete.
     :returns: Nothing
     """
-    submission = helpers.get_or_404(models.Work, submission_id)
+    submission = helpers.filter_single_or_404(
+        models.Work, models.Work.id == submission_id, ~models.Work.deleted
+    )
+    # Make sure nobody does a submission while we are deleting.
+    assignment = helpers.filter_single_or_404(
+        models.Assignment,
+        models.Assignment.id == submission.assignment_id,
+        with_for_update=True
+    )
+    user = submission.user
+    was_latest = db.session.query(
+        assignment.get_from_latest_submissions(
+            models.Work.id
+        ).filter_by(id=submission.id).exists()
+    ).scalar()
+
+    logger.info(
+        'Deleting submission',
+        submission_id=submission.id,
+        was_latest=was_latest
+    )
 
     auth.ensure_permission(
         CPerm.can_delete_submission, submission.assignment.course_id
     )
+    submission.deleted = True
+    db.session.flush()
 
-    for sub_file in db.session.query(models.File).filter_by(
-        work_id=submission_id, is_directory=False
-    ).all():
-        helpers.callback_after_this_request(sub_file.delete_from_disk)
+    if was_latest:
+        new_latest = assignment.get_all_latest_submissions().filter_by(
+            user_id=user.id
+        ).one_or_none()
 
-    db.session.delete(submission)
+        if new_latest:
+            if assignment.should_passback:
+                new_latest_id = new_latest.id
+                helpers.callback_after_this_request(
+                    lambda: tasks.passback_grades(
+                        [new_latest_id],
+                        assignment_id=assignment.id,
+                    )
+                )
+            if assignment.auto_test:
+                # This function also sets `final_result` if needed
+                assignment.auto_test.reset_work(new_latest)
+        else:
+            helpers.callback_after_this_request(
+                lambda: tasks.delete_submission(submission_id, assignment.id)
+            )
+
     db.session.commit()
 
     return make_empty_response()
@@ -204,7 +244,9 @@ def get_feedback_from_submission(submission_id: int) -> JSONResponse[Feedback]:
     :>json authors: The authors of the user feedback. In the example above the
         author of the feedback 'Nice job!' would be at ``{5: {0: $USER}}``.
     """
-    work = helpers.get_or_404(models.Work, submission_id)
+    work = helpers.filter_single_or_404(
+        models.Work, models.Work.id == submission_id, ~models.Work.deleted
+    )
     auth.ensure_can_see_grade(work)
     can_view_author = current_user.has_permission(
         CPerm.can_see_assignee, work.assignment.course_id
@@ -267,9 +309,10 @@ def get_rubric(submission_id: int) -> JSONResponse[t.Mapping[str, t.Any]]:
     :raises PermissionException: If the user can not see the assignment of the
                                  given submission. (INCORRECT_PERMISSION)
     """
-    work = helpers.get_or_404(
+    work = helpers.filter_single_or_404(
         models.Work,
-        submission_id,
+        models.Work.id == submission_id,
+        ~models.Work.deleted,
         options=[
             selectinload(
                 models.Work.assignment,
@@ -306,7 +349,9 @@ def select_rubric_items(submission_id: int) -> EmptyResponse:
     :raises PermissionException: If the current user cannot grace work
         (INCORRECT_PERMISSION).
     """
-    submission = helpers.get_or_404(models.Work, submission_id)
+    submission = helpers.filter_single_or_404(
+        models.Work, models.Work.id == submission_id, ~models.Work.deleted
+    )
 
     auth.ensure_permission(
         CPerm.can_grade_work, submission.assignment.course_id
@@ -380,7 +425,9 @@ def unselect_rubric_item(
     :param rubric_item_id: The rubric items id to unselect.
     :returns: Nothing.
     """
-    submission = helpers.get_or_404(models.Work, submission_id)
+    submission = helpers.filter_single_or_404(
+        models.Work, models.Work.id == submission_id, ~models.Work.deleted
+    )
 
     auth.ensure_permission(
         CPerm.can_grade_work, submission.assignment.course_id
@@ -427,7 +474,9 @@ def select_rubric_item(
     :raises PermissionException: If the user can not grade the given submission
                                  (INCORRECT_PERMISSION)
     """
-    work = helpers.get_or_404(models.Work, submission_id)
+    work = helpers.filter_single_or_404(
+        models.Work, models.Work.id == submission_id, ~models.Work.deleted
+    )
     rubric_item = helpers.get_or_404(models.RubricItem, rubricitem_id)
 
     auth.ensure_permission(CPerm.can_grade_work, work.assignment.course_id)
@@ -467,7 +516,9 @@ def patch_submission(submission_id: int) -> JSONResponse[models.Work]:
     :raises PermissionException: If user can not grade the submission with the
         given id (INCORRECT_PERMISSION)
     """
-    work = helpers.get_or_404(models.Work, submission_id)
+    work = helpers.filter_single_or_404(
+        models.Work, models.Work.id == submission_id, ~models.Work.deleted
+    )
     content = ensure_json_dict(request.get_json())
 
     auth.ensure_permission(CPerm.can_grade_work, work.assignment.course_id)
@@ -520,7 +571,9 @@ def update_submission_grader(submission_id: int) -> EmptyResponse:
     :raises APIException: If the new grader does not have the correct
         permission to grade this submission. (INCORRECT_PERMISSION)
     """
-    work = helpers.get_or_404(models.Work, submission_id)
+    work = helpers.filter_single_or_404(
+        models.Work, models.Work.id == submission_id, ~models.Work.deleted
+    )
     content = ensure_json_dict(request.get_json())
     ensure_keys_in_dict(content, [('user_id', int)])
     user_id = t.cast(int, content['user_id'])
@@ -566,7 +619,9 @@ def delete_submission_grader(submission_id: int) -> EmptyResponse:
     :raises PermissionException: If the logged in user cannot manage the
         course of the submission. (INCORRECT_PERMISSION)
     """
-    work = helpers.get_or_404(models.Work, submission_id)
+    work = helpers.filter_single_or_404(
+        models.Work, models.Work.id == submission_id, ~models.Work.deleted
+    )
 
     auth.ensure_permission(CPerm.can_assign_graders, work.assignment.course_id)
 
@@ -588,7 +643,9 @@ def get_grade_history(submission_id: int
     :raises PermissionException: If the current user has no permission to see
         the grade history. (INCORRECT_PERMISSION)
     """
-    work = helpers.get_or_404(models.Work, submission_id)
+    work = helpers.filter_single_or_404(
+        models.Work, models.Work.id == submission_id, ~models.Work.deleted
+    )
 
     auth.ensure_permission(
         CPerm.can_see_grade_history, work.assignment.course_id
@@ -620,7 +677,9 @@ def create_new_file(submission_id: int) -> JSONResponse[t.Mapping[str, t.Any]]:
     :raises APIException: If the request is bigger than the maximum upload
         size. (REQUEST_TOO_LARGE)
     """
-    work = helpers.get_or_404(models.Work, submission_id)
+    work = helpers.filter_single_or_404(
+        models.Work, models.Work.id == submission_id, ~models.Work.deleted
+    )
     exclude_owner = models.File.get_exclude_owner(
         'auto', work.assignment.course_id
     )
@@ -765,7 +824,9 @@ def get_dir_contents(
                                  user and the user can not view files in the
                                  attached course. (INCORRECT_PERMISSION)
     """
-    work = helpers.get_or_404(models.Work, submission_id)
+    work = helpers.filter_single_or_404(
+        models.Work, models.Work.id == submission_id, ~models.Work.deleted
+    )
 
     file_id: str = request.args.get('file_id', '')
     path: str = request.args.get('path', '')

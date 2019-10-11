@@ -519,11 +519,7 @@ export default {
 
             if (cont) cont();
 
-            this.$emit('feedbackChange', {
-                line: this.line,
-                msg: null,
-                author: null,
-            });
+            this.$emit('feedbackChange', this.line);
         },
 
         deleteFeedbackError() {

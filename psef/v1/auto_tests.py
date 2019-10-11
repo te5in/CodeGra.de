@@ -12,13 +12,14 @@ import structlog
 from flask import request, make_response
 
 from . import api
-from .. import app, auth, files, tasks, models, registry, exceptions
+from .. import app, auth, files, tasks, models, helpers, registry, exceptions
 from ..models import db
 from ..helpers import (
     JSONResponse, EmptyResponse, ExtendedJSONResponse, jsonify, get_or_404,
-    add_warning, ensure_json_dict, extended_jsonify, make_empty_response,
-    filter_single_or_404, get_files_from_request, get_from_map_transaction,
-    get_json_dict_from_request, callback_after_this_request
+    add_warning, jsonify_options, ensure_json_dict, extended_jsonify,
+    make_empty_response, filter_single_or_404, get_files_from_request,
+    get_from_map_transaction, get_json_dict_from_request,
+    callback_after_this_request
 )
 from ..features import Feature, feature_required
 from ..exceptions import APICodes, APIWarnings, APIException
@@ -205,6 +206,9 @@ def update_auto_test(auto_test_id: int) -> JSONResponse[models.AutoTest]:
         run_setup_script = optional_get('run_setup_script', str, None)
         has_new_fixtures = optional_get('has_new_fixtures', bool, False)
         grade_calculation = optional_get('grade_calculation', str, None)
+        results_always_visible: t.Optional[bool] = optional_get(
+            'results_always_visible', t.cast(t.Any, (bool, type(None))), None
+        )
 
     if old_fixtures is not None:
         old_fixture_set = set(f['id'] for f in old_fixtures)
@@ -252,6 +256,8 @@ def update_auto_test(auto_test_id: int) -> JSONResponse[models.AutoTest]:
                 ), APICodes.OBJECT_NOT_FOUND, 404
             )
         auto_test.grade_calculator = calc
+    if results_always_visible is not None:
+        auto_test.results_always_visible = results_always_visible
 
     db.session.commit()
 
@@ -522,6 +528,8 @@ def get_auto_test(auto_test_id: int) -> ExtendedJSONResponse[models.AutoTest]:
     test = get_or_404(models.AutoTest, auto_test_id)
     auth.ensure_can_view_autotest(test)
 
+    jsonify_options.get_options(
+    ).latest_only = helpers.request_arg_true('latest_only')
     return extended_jsonify(
         test, use_extended=(models.AutoTest, models.AutoTestRun)
     )
@@ -547,6 +555,8 @@ def get_auto_test_run(auto_test_id: int,
         models.AutoTest.id == auto_test_id,
     )
     auth.ensure_can_view_autotest(run.auto_test)
+    jsonify_options.get_options(
+    ).latest_only = helpers.request_arg_true('latest_only')
     return extended_jsonify(run, use_extended=models.AutoTestRun)
 
 
@@ -564,14 +574,6 @@ def start_auto_test_run(auto_test_id: int) -> t.Union[JSONResponse[
         to see AutoTest runs.
     :raises APIException: If there is already a run for the given AutoTest.
     """
-    if request.get_json(silent=True) is None:
-        cf_run = False
-    else:
-        with get_from_map_transaction(get_json_dict_from_request()) as [
-            get, _
-        ]:
-            cf_run = get('continuous_feedback_run', bool)
-
     test = filter_single_or_404(
         models.AutoTest,
         models.AutoTest.id == auto_test_id,
@@ -581,10 +583,7 @@ def start_auto_test_run(auto_test_id: int) -> t.Union[JSONResponse[
     auth.ensure_permission(CPerm.can_run_autotest, test.assignment.course_id)
 
     try:
-        if cf_run:
-            run = test.start_continuous_feedback_run()
-        else:
-            run = test.start_test_run()
+        run = test.start_test_run()
     except exceptions.InvalidStateException as e:
         raise APIException(
             e.reason,
@@ -628,7 +627,12 @@ def delete_auto_test_runs(auto_test_id: int, run_id: int) -> EmptyResponse:
     )
 
     job_id = run.get_job_id()
-    callback_after_this_request(lambda: tasks.notify_broker_end_of_job(job_id))
+    callback_after_this_request(
+        lambda: tasks.notify_broker_end_of_job(
+            job_id,
+            ignore_non_existing=True,
+        )
+    )
 
     run.delete_and_clear_rubric()
     db.session.commit()
@@ -656,9 +660,11 @@ def get_auto_test_result(auto_test_id: int, run_id: int, result_id: int
     auth.ensure_can_view_autotest(test)
 
     def also_error(obj: models.AutoTestResult) -> bool:
-        return (
-            obj.auto_test_run_id != run_id or obj.run.auto_test_id != test.id
-        )
+        if obj.auto_test_run_id != run_id or obj.run.auto_test_id != test.id:
+            return True
+        elif obj.work.deleted:
+            return True
+        return False
 
     result = get_or_404(
         models.AutoTestResult,

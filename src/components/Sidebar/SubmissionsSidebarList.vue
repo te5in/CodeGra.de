@@ -17,7 +17,8 @@
             class="sidebar-list-item">
             <a class="sidebar-item name"
                @click="gotoSub(sub)">
-                <user :user="sub.user"/>
+                <user :user="sub.user"
+                      show-title/>
 
                 <small>
                     Latest: {{ sub.formatted_created_at }}

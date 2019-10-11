@@ -34,7 +34,7 @@ only_own = create_marker(pytest.mark.only_own)
 )
 def test_add_feedback(
     named_user, request, logged_in, test_client, assignment_real_works,
-    session, data, error_template, ta_user
+    session, data, error_template, ta_user, teacher_user, monkeypatch_celery
 ):
     assignment, work = assignment_real_works
     perm_err = request.node.get_closest_marker('perm_error')
@@ -98,6 +98,18 @@ def test_add_feedback(
             200,
             query={'type': 'feedback'},
             result=get_result()
+        )
+
+    with logged_in(teacher_user):
+        test_client.req('delete', f'/api/v1/submissions/{work["id"]}', 204)
+
+        # You cannot comment on deleted submissions
+        test_client.req(
+            'put',
+            f'/api/v1/code/{code_id}/comments/0',
+            404,
+            data=data,
+            result=error_template,
         )
 
 

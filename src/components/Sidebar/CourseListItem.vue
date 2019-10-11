@@ -6,7 +6,8 @@
             }"
     class="sidebar-list-item course-list-item">
     <a class="sidebar-item course-name"
-       @click="openAssignmentsList">
+       @click="openAssignmentsList"
+       :title="course.name">
         {{ course.name }}
     </a>
     <router-link class="sidebar-item manage-link"

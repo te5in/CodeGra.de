@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "axios": "^0.17.1",
+    "axios-retry": "^3.1.2",
     "babyparse": "^0.4.6",
     "bootstrap": "^4.0.0",
     "bootstrap-vue": "^2.0.0-rc.1",

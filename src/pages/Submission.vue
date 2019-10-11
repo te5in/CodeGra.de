@@ -203,9 +203,7 @@
              :class="{ hidden: selectedCat !== 'auto-test' }">
             <div class="cat-scroller border rounded">
                 <auto-test v-if="!hiddenCats.has('auto-test')"
-                           accept-continuous
                            :assignment="assignment"
-                           :force-run="autoTestRun"
                            :submission-id="submissionId" />
             </div>
         </div>
@@ -281,7 +279,6 @@ export default {
             selectedLanguage: 'Default',
             currentFile: null,
 
-            submission: null,
             error: null,
         };
     },
@@ -291,6 +288,7 @@ export default {
         ...mapGetters('user', { userId: 'id' }),
         ...mapGetters('submissions', {
             storeLatestSubmissions: 'latestSubmissions',
+            storeGetSingleSubmission: 'getSingleSubmission',
         }),
         ...mapGetters('courses', ['assignments']),
         ...mapGetters('autotest', {
@@ -312,6 +310,10 @@ export default {
         fileId() {
             const fileId = Number(this.$route.params.fileId);
             return Number.isNaN(fileId) ? null : fileId;
+        },
+
+        submission() {
+            return this.storeGetSingleSubmission(this.assignmentId, this.submissionId);
         },
 
         editable() {
@@ -366,20 +368,13 @@ export default {
         },
 
         autoTestRun() {
-            const runs = this.autoTest && this.autoTest.runs;
+            return this.$utils.getProps(this.autoTest, null, 'runs', 0);
+        },
 
-            if (runs == null) {
-                return null;
-            }
+        autoTestResult() {
+            const results = this.$utils.getProps(this.autoTestRun, [], 'results');
 
-            let run = runs.find(r => !r.isContinuous);
-            if (run == null) {
-                run = runs.find(r => r.isContinuous);
-            } else if (run.results.find(res => res.submissionId === this.submissionId) == null) {
-                run = runs.find(r => r.isContinuous) || run;
-            }
-
-            return run;
+            return results.find(r => r.submissionId === this.submissionId);
         },
 
         loadingPage() {
@@ -447,9 +442,12 @@ export default {
                     id: 'auto-test',
                     name: () => {
                         let title = 'AutoTest';
-                        const run = this.autoTestRun;
+                        const result = this.autoTestResult;
 
-                        if (run && run.isContinuous) {
+                        if (
+                            (result && !result.isFinal) ||
+                            !this.$utils.canSeeGrade(this.assignment)
+                        ) {
                             title +=
                                 ' <div class="ml-1 badge badge-warning" title="Continuous Feedback">CF</div>';
                         }
@@ -494,7 +492,7 @@ export default {
                 } else {
                     return 'feedback-overview';
                 }
-            } else if (!editable && testRun && testRun.isContinuous) {
+            } else if (!editable && testRun) {
                 return 'auto-test';
             } else {
                 return 'code';
@@ -686,21 +684,16 @@ export default {
             // current submission reloads the current file, which means we
             // download it again while it is not needed.
             this.currentFile = null;
-            this.submission = null;
+
             // Reset the error so we show a loader and not the old error.
             this.error = null;
 
             return this.storeLoadSingleSubmission({
                 assignmentId: this.assignmentId,
                 submissionId: this.submissionId,
-            }).then(
-                sub => {
-                    this.submission = sub;
-                },
-                err => {
-                    this.error = this.$utils.getErrorMessage(err);
-                },
-            );
+            }).catch(err => {
+                this.error = this.$utils.getErrorMessage(err);
+            });
         },
 
         loadData() {
@@ -786,15 +779,14 @@ export default {
 
         deleteSubmission() {
             const sub = this.submission;
-            return this.$http.delete(`/api/v1/submissions/${this.submissionId}`).then(() =>
-                this.storeDeleteSubmission({
-                    assignmentId: this.assignmentId,
-                    submission: sub,
-                }),
-            );
+            return this.$http.delete(`/api/v1/submissions/${this.submissionId}`).then(() => sub);
         },
 
-        afterDeleteSubmission() {
+        afterDeleteSubmission(sub) {
+            this.storeDeleteSubmission({
+                assignmentId: this.assignmentId,
+                submission: sub,
+            });
             this.$router.replace({
                 name: 'assignment_submissions',
                 params: {

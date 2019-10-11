@@ -1,6 +1,7 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template functional>
-<span v-if="props.user.group" class="user">
+<span v-if="props.user.group" class="user"
+      :title="props.showTitle ? props.getNameOfUser(props.user) : undefined">
     Group "{{ props.user.group.name }}"
     <component :is="injections.components.DescriptionPopover"
                 triggers="click"
@@ -20,7 +21,7 @@
         </template>
     </component>
 </span>
-<span v-else class="user">
+<span v-else class="user" :title="props.showTitle ? props.getNameOfUser(props.user) : undefined">
     {{ props.user.name }}
     <span v-if="props.user.is_test_student">
         <icon name="warning"
@@ -32,6 +33,7 @@
 <script>
 import 'vue-awesome/icons/user-plus';
 import 'vue-awesome/icons/warning';
+import { nameOfUser } from '@/utils';
 
 import DescriptionPopover from './DescriptionPopover';
 
@@ -50,6 +52,15 @@ export default {
         user: {
             type: Object,
             required: true,
+        },
+        showTitle: {
+            type: Boolean,
+            default: false,
+        },
+
+        getNameOfUser: {
+            type: Function,
+            default: nameOfUser,
         },
     },
 };

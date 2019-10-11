@@ -18,7 +18,7 @@ case "$TO_RUN" in
                --cov-report term-missing \
                "$(pwd)/cg_worker_pool/tests/" \
                "$(pwd)/cg_threading_utils/tests/" \
-               "$(pwd)/psef_test" \
+               "$(pwd)/psef_test/" \
                -vvvv
         res1="$?"
 

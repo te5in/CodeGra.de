@@ -25,8 +25,8 @@ def test_all_work_is_done_once(work_done):
     extra_work = [Work(i + 500, i * 2 + 1000) for i in range(50)]
     all_work = sorted(initial_work + extra_work)
 
-    def worker_fun(get_work):
-        work = get_work()
+    def worker_fun(opts):
+        work = opts.get_work()
         if work:
             work_done.put(work)
 
@@ -63,8 +63,8 @@ def test_newest_work_is_done(work_done, continue_work):
         Work(result_id=6, student_id=90),
     ]
 
-    def worker_fun(get_work):
-        work = get_work()
+    def worker_fun(opts):
+        work = opts.get_work()
         if not work:
             return
         if work.student_id == 9:
@@ -90,8 +90,8 @@ def test_newest_work_is_done(work_done, continue_work):
 def test_raises_exception():
     final_set = mp.Event()
 
-    def worker_fun(get_work):
-        work = get_work()
+    def worker_fun(opts):
+        work = opts.get_work()
         if not work:
             return
         time.sleep(1)
@@ -113,3 +113,27 @@ def test_raises_exception():
         pool.start(producer)
 
     assert final_set.is_set() is False
+
+
+def test_retry_work(work_done):
+    def worker_fun(opts):
+        work = opts.get_work()
+        if work is None:
+            return
+        work_done.put(work)
+        opts.retry_work(work)
+
+    initial_work = [
+        Work(result_id=4, student_id=1),
+        Work(result_id=5, student_id=2),
+        Work(result_id=6, student_id=3),
+    ]
+    pool = WorkerPool(3, worker_fun, 0, 1, initial_work)
+    pool.start(lambda _: [])
+
+    all_work = initial_work + initial_work + initial_work
+    for _ in range(len(all_work)):
+        all_work.remove(work_done.get(False))
+
+    assert work_done.empty()
+    assert not all_work

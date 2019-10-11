@@ -97,7 +97,7 @@ def maybe_start_more_runners() -> None:
             )
         ),
         isouter=True
-    ).filter(
+    ).having(
         models.Job.wanted_runners > sql_func.count(models.Runner.id),
     ).group_by(models.Job.id).all()
 

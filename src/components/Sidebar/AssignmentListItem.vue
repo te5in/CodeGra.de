@@ -6,7 +6,7 @@
                  :class="{ selected: submissionsSelected || (small && selected) }"
                  :to="submissionsRoute(assignment)">
         <div class="assignment-wrapper">
-            <span class="assignment">{{ assignment.name }}</span>
+            <span :title="assignment.name" class="assignment">{{ assignment.name }}</span>
 
             <assignment-state :assignment="assignment"
                               :editable="false"
@@ -21,7 +21,7 @@
             </small>
         </div>
 
-        <small v-if="!small" class="course">{{ assignment.course.name }}</small>
+        <small v-if="!small" class="course" :title="assignment.course.name">{{ assignment.course.name }}</small>
 
         <small v-if="!small && assignment.deadline" class="deadline">
             Due {{ readableDeadline }}

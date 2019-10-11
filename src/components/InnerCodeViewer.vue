@@ -1,20 +1,20 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
-<b-alert v-if="!confirmedLines && innerCodeLines.length > maxLines"
+<b-alert v-if="!confirmedLines && (computedEndLine - computedStartLine) > maxLines"
          show
          variant="warning"
          class="mb-0 rounded">
-    This file has {{ innerCodeLines.length }} lines. Rendering it may cause the page to freeze or other
-    issues. Do you want to render this file?
+    This file has {{ innerCodeLines.length - (hasMissingNewline ? 0 : 1) }} lines. Rendering it may
+    cause the page to freeze or other issues. Do you want to render this file?
 
     <b-button-toolbar justify class="mt-2">
-        <b-button @click.prevent.stop="confirmedLines = innerCodeLines.length"
+        <b-button @click.prevent.stop="renderNextLines(innerCodeLines.length)"
                   variant="warning"
                   class="d-block">
             Render all lines
         </b-button>
 
-        <b-button @click.prevent.stop="confirmedLines = maxLines"
+        <b-button @click.prevent.stop="renderNextLines(maxLines)"
                   variant="primary"
                   class="d-block">
             Render first {{ maxLines }} lines
@@ -30,7 +30,7 @@
          }"
         :start="computedStartLine"
         :style="{
-            paddingLeft: noLineNumbers ? 0 : `${3 + Math.log10(computedEndLine) * 2/3}em`,
+            paddingLeft: lineNumberWidth,
             listStyle: noLineNumbers ? 'none' : null,
             fontSize: `${fontSize}px`,
         }"
@@ -39,7 +39,7 @@
         @mouseup="dragStop">
 
         <li v-for="i in computedEndLine"
-            v-if="i - 1 >= computedStartLine - 1 && (innerCodeLines[i - 1] !== '')"
+            v-if="i - 1 >= computedStartLine - 1 && (i < innerCodeLines.length || innerCodeLines[i - 1] !== '')"
             :key="i"
             class="line"
             :class="{
@@ -78,16 +78,29 @@
         </li>
     </ol>
 
-    <b-button-toolbar v-if="confirmedLines && !atEndOfFile"
-                      class="justify-content-center">
-        <b-button @click="renderNextLines(maxLines)"
-                  class="my-1">
-            <loader v-if="showLinesLoader" :scale="1.5" />
-            <span v-else>
+    <div class="render-next-lines"
+        v-if="confirmedLines && !atEndOfFile">
+        <div class="left"
+             :style="{ flex: `0 0 ${lineNumberWidth}`, fontSize: `${fontSize}px` }">
+            <loader class="float-right" :scale="1" v-if="showLinesLoader" />
+        </div>
+        <b-button-toolbar class="right py-1 justify-content-center">
+            <b-button class="mr-2"
+                      size="sm"
+                      :variant="remainingLines > nextRenderedLines ? 'warning' : 'primary'"
+                      :disabled="showLinesLoader"
+                      @click="renderNextLines(innerCodeLines.length - confirmedLines)">
+                Show remaining {{ remainingLines }} line{{ remainingLines === 1 ? '' : 's' }}
+            </b-button>
+            <b-button size="sm"
+                      variant="primary"
+                      :disabled="showLinesLoader"
+                      @click="renderNextLines(maxLines)"
+                      v-if="remainingLines > nextRenderedLines">
                 Show next {{ nextRenderedLines }} line{{ nextRenderedLines === 1 ? '' : 's' }}
-            </span>
-        </b-button>
-    </b-button-toolbar>
+            </b-button>
+        </b-button-toolbar>
+    </div>
 </div>
 </template>
 
@@ -241,14 +254,24 @@ export default {
             return this.warnNoNewline && this.atEndOfFile && this.hasMissingNewline;
         },
 
-        nextRenderedLines() {
+        remainingLines() {
             let remaining = this.innerCodeLines.length - this.confirmedLines;
 
             if (!this.hasMissingNewline) {
                 remaining -= 1;
             }
 
-            return Math.min(this.maxLines, remaining);
+            return remaining;
+        },
+
+        nextRenderedLines() {
+            return Math.min(this.maxLines, this.remainingLines);
+        },
+
+        lineNumberWidth() {
+            return this.noLineNumbers
+                ? 0
+                : `${3 + Math.log10(this.innerCodeLines.length) * 2 / 3}em`;
         },
     },
 
@@ -392,7 +415,7 @@ li {
 
     .inner-code-viewer.editable &,
     #app.dark .inner-code-viewer.editable & {
-        &:not(.missing-newline):not(.empty-file):hover {
+        &.line:hover {
             cursor: pointer;
             background-color: rgba(0, 0, 0, 0.025);
         }
@@ -426,6 +449,26 @@ code {
 
     #app.dark & {
         color: #839496;
+    }
+}
+
+.render-next-lines {
+    display: flex;
+
+    .left {
+        align-self: stretch;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .right {
+        flex: 1 1 auto;
+        border-top: 1px solid darken(@linum-bg, 5%);
+
+        #app.dark & {
+            border-top: 1px solid darken(@color-primary-darkest, 5%);
+        }
     }
 }
 </style>

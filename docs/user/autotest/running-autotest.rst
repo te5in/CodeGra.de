@@ -10,10 +10,8 @@ for this AutoTest will be shown after the button is pressed, these are accompani
 by a score (ratio of number of points passed to the number of points possible)
 and a state.
 
-.. note::
-    Continuous Feedback can be turned on for an assignment before running
-    AutoTest. Press the **"Continuous Feedback"** button to enable Continuous
-    Feedback and allow preliminary instant AutoTest feedback to students.
+After AutoTest is started, all newly handed in submissions will be run immediately
+and automatically.
 
 AutoTest States
 -----------------

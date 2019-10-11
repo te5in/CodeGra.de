@@ -5,6 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 import enum
 import typing as t
 import logging as system_logging
+from datetime import datetime
 
 import structlog
 from flask import Flask, g, has_app_context
@@ -17,9 +18,15 @@ if t.TYPE_CHECKING:  # pragma: no cover
     # pylint: disable-all
     T = t.TypeVar('T', bound=t.Callable)
 
+    class CelerySignature(t.Generic[T]):
+        ...
+
     class CeleryTask(t.Generic[T]):
         @property
         def __call__(self) -> T:
+            ...
+
+        def si(self) -> CelerySignature[T]:
             ...
 
         @property
@@ -64,6 +71,11 @@ if t.TYPE_CHECKING:  # pragma: no cover
                 return CeleryTask()
             else:
                 return self.task
+
+        @property
+        def on_after_configure(self) -> t.Any:
+            # Yes this makes no sense, bit it is needed for sphinx
+            return _Celery().on_after_configure
 else:
     Celery = _Celery
 
@@ -129,12 +141,16 @@ class CGCelery(Celery):
                 )
                 outer_self._after_task_callbacks = []
 
-                if outer_self._flask_app.testing:
+                def set_g_vars() -> None:
                     g.request_id = self.request.id
                     g.queries_amount = 0
                     g.queries_total_duration = 0
                     g.queries_max_duration = None
                     g.query_start = None
+                    g.request_start_time = datetime.utcnow()
+
+                if outer_self._flask_app.testing:
+                    set_g_vars()
                     result = TaskBase.__call__(self, *args, **kwargs)
                     logger.bind(
                         queries_amount=g.queries_amount,
@@ -143,11 +159,7 @@ class CGCelery(Celery):
                     )
                     return result
                 with outer_self._flask_app.app_context():  # pragma: no cover
-                    g.request_id = self.request.id
-                    g.queries_amount = 0
-                    g.queries_total_duration = 0
-                    g.queries_max_duration = None
-                    g.query_start = None
+                    set_g_vars()
                     result = TaskBase.__call__(self, *args, **kwargs)
                     logger.bind(
                         queries_amount=g.queries_amount,

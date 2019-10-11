@@ -60,9 +60,29 @@ def _format_datetime(date: datetime.datetime) -> str:
     return date.strftime('%Y-%m-%d %T')
 
 
+@admin.app_template_filter('nested_get')
+def _nested_get(
+    mapping: t.Optional[t.Dict[str, object]], default: object, *keys: str
+) -> object:
+    res: t.Optional[t.Dict] = mapping
+
+    key_list = list(reversed(keys))
+    while key_list and isinstance(res, dict):
+        res = res.get(key_list.pop(), None)
+
+    return default if res is None else res
+
+
 @admin.app_template_filter('age')
-def _get_age_datetime(date: datetime.datetime) -> float:
-    return (datetime.datetime.utcnow() - date).total_seconds() / 60
+def _get_age_datetime(
+    date: t.Union[datetime.datetime, str], add_m: bool = False
+) -> t.Union[float, str]:
+    if isinstance(date, str):
+        date = datetime.datetime.fromisoformat(date)
+    res = int(round((datetime.datetime.utcnow() - date).total_seconds() / 60))
+    if add_m:
+        return f'{res}m'
+    return res
 
 
 @admin.add_app_template_global

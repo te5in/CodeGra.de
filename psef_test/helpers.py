@@ -55,6 +55,9 @@ def create_assignment(
     if course_id is None:
         course_id = create_course(test_client)
 
+    if deadline == 'tomorrow':
+        deadline = datetime.datetime.utcnow() + datetime.timedelta(days=1)
+
     res = test_client.req(
         'post',
         f'/api/v1/courses/{get_id(course_id)}/assignments/',
@@ -273,13 +276,13 @@ def get_auto_test_custom_output_step():
     }
 
 
-def get_auto_test_check_points_step():
+def get_auto_test_check_points_step(hidden=False):
     return {
         'type': 'check_points',
         'data': {'min_points': 0.5},
         'name': 'Check points',
         'weight': 0,
-        'hidden': False,
+        'hidden': hidden,
     }
 
 
@@ -301,24 +304,31 @@ def create_auto_test(
     stop_points=None,
     grade_calculation=None,
     amount_fixtures=0,
+    results_always_visible=False,
+    has_hidden_steps=False,
 ):
     a_id = get_id(assignment)
 
     test = test_client.req(
         'post',
         '/api/v1/auto_tests/',
-        data={'assignment_id': a_id, 'setup_script': 'ls'},
+        data={
+            'assignment_id': a_id,
+            'setup_script': 'ls',
+            'run_setup_script': 'echo 1',
+        },
         status_code=200,
         result={
             'id': int,
             'fixtures': [],
             'setup_script': 'ls',
-            'run_setup_script': '',
+            'run_setup_script': 'echo 1',
             'finalize_script': '',
             'sets': [],
             'assignment_id': a_id,
             'runs': [],
             'grade_calculation': None,
+            'results_always_visible': None,
         },
     )
 
@@ -327,9 +337,14 @@ def create_auto_test(
             'patch',
             f'/api/v1/auto_tests/{get_id(test)}',
             200,
-            data={'grade_calculation': grade_calculation},
+            data={
+                'grade_calculation': grade_calculation,
+                'results_always_visible': results_always_visible,
+            },
             result={
-                'grade_calculation': grade_calculation, '__allow_extra__': True
+                'grade_calculation': grade_calculation,
+                '__allow_extra__': True,
+                'results_always_visible': results_always_visible,
             }
         )
 
@@ -374,7 +389,7 @@ def create_auto_test(
                 data={
                     'steps': [
                         get_auto_test_io_step(),
-                        get_auto_test_check_points_step(),
+                        get_auto_test_check_points_step(has_hidden_steps),
                         get_auto_test_custom_output_step(),
                         get_auto_test_run_program_step(5 if idx1 else 0),
                     ],

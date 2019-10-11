@@ -153,7 +153,6 @@ export default {
                     this.storeLoadAutoTestResult({
                         autoTestId: this.autoTestConfigId,
                         submissionId: this.submission.id,
-                        acceptContinuous: true,
                     }).catch(
                         // Autotest hasn't been started yet.
                         () => {},
@@ -305,7 +304,7 @@ export default {
             this.autoTestConfig.sets.forEach(set => {
                 set.suites.forEach(suite => {
                     const result = suiteResults[suite.id];
-                    if (result != null) {
+                    if (result != null && result.finished) {
                         const p = result.achieved / result.possible * 100;
                         prog[suite.rubricRow.id] = p;
                     }

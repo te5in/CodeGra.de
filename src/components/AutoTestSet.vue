@@ -35,7 +35,6 @@
                              :other-suites="otherSuites"
                              :value="value.suites[j]"
                              :result="result"
-                             :is-continuous="isContinuous"
                              @input="updateSuite(j, $event)" />
         </masonry>
 
@@ -144,10 +143,6 @@ export default {
         otherSuites: {
             type: Array,
             required: true,
-        },
-        isContinuous: {
-            type: Boolean,
-            default: false,
         },
     },
 

@@ -62,7 +62,7 @@
                 </router-link>
             </template>
 
-            <diff-viewer class="form-control"
+            <diff-viewer class="form-control p-0"
                          :file="f"
                          :show-whitespace="showWhitespace"
                          diff-only />

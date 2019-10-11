@@ -8,12 +8,14 @@ import typing as t
 import threading
 import traceback
 import collections
+import dataclasses
 import multiprocessing as mp
 from queue import Empty, Queue
 from types import TracebackType
 from multiprocessing import managers
 
 import structlog
+from typing_extensions import Protocol
 
 logger = structlog.get_logger()
 
@@ -22,6 +24,33 @@ Work = t.NamedTuple('Work', [('result_id', int), ('student_id', int)])
 
 def _make_process(*, target: t.Callable[[], object]) -> mp.Process:
     return mp.Process(target=target)
+
+
+class GetWorkFunction(Protocol):
+    """Protocol to get some work to run.
+    """
+
+    def __call__(self) -> t.Optional[Work]:
+        ...
+
+
+class RetryWorkFunction(Protocol):
+    """Protocol to retry a given work.
+    """
+
+    def __call__(self, work: Work) -> None:
+        ...
+
+
+@dataclasses.dataclass
+class CallbackArguments:
+    """The argument given to the `cg_worker` callback.
+
+    :ivar get_work: Get the work to run.
+    :ivar retry_work: Retry the given work.
+    """
+    get_work: GetWorkFunction
+    retry_work: RetryWorkFunction
 
 
 class WorkerException(Exception):
@@ -53,7 +82,7 @@ class WorkerException(Exception):
 
 
 class _PrioQueue:
-    def __init__(self) -> None:
+    def __init__(self, max_retry_amount: int) -> None:
         self.queue: t.Deque[Work] = collections.deque()
         self.newest: t.Dict[int, int] = {}
         self.mutex = mp.Lock()
@@ -65,6 +94,9 @@ class _PrioQueue:
         self._closed = False
         self._new_work = mp.Condition(self.mutex)
         self._work_needed = mp.Semaphore(0)
+        self._retried: t.MutableMapping[Work, int
+                                        ] = collections.defaultdict(lambda: 0)
+        self._max_retry_amount = max_retry_amount
 
     def wait_on_work_needed(self, timeout: t.Optional[int]) -> bool:
         return self._work_needed.acquire(True, timeout=timeout)
@@ -129,6 +161,27 @@ class _PrioQueue:
 
         return None
 
+    def retry(self, work: Work) -> None:
+        """Retry the given work.
+
+        If the work has been retried for more than `max_retry_amount` this
+        function does nothing.
+
+        :param work: The work to retry.
+        """
+        with self.mutex:
+            if self._retried[work] >= self._max_retry_amount:
+                return
+            self._retried[work] += 1
+
+            assert work.result_id in self.all_results
+
+            self.queue.append(work)
+            # Do not update newest here. We want to retry this work, but we
+            # don't want to do this if we have a newer work for this student.
+            self._inc_version()
+            self._new_work.notify(1)
+
     def get(self) -> t.Optional[Work]:
         """Try to get more work.
 
@@ -144,7 +197,9 @@ class _PrioQueue:
                 if work is not None:
                     # Remove item from the queue
                     self.queue.popleft()
-                    del self.newest[work.student_id]
+                    # Do not forget that what the newest work for this student
+                    # is, as we might want need to retry the returned work
+                    # later.
                     self._inc_version()
 
                     return work
@@ -170,9 +225,13 @@ class WorkerPool:
     """
 
     def __init__(
-        self, processes: int,
-        function: t.Callable[[t.Callable[[], t.Optional[Work]]], None],
-        sleep_time: float, extra_amount: int, initial_work: t.Iterable[Work]
+        self,
+        processes: int,
+        function: t.Callable[[CallbackArguments], None],
+        sleep_time: float,
+        extra_amount: int,
+        initial_work: t.Iterable[Work],
+        max_retry_amount: int = 2,
     ) -> None:
         self._processes = processes
         self._func = function
@@ -183,6 +242,7 @@ class WorkerPool:
             self._manager.Queue(self._processes + 4),
         )
         self._work_queue: _PrioQueue = self._manager.PrioQueue(  # type: ignore
+            max_retry_amount=max_retry_amount,
         )
 
         self._stop = self._manager.Event()
@@ -199,9 +259,13 @@ class WorkerPool:
                 raise val
 
     def _worker_function(self) -> None:
+        callback = CallbackArguments(
+            get_work=self._work_queue.get,
+            retry_work=self._work_queue.retry,
+        )
         while not self._stop.is_set():
             try:
-                self._func(self._work_queue.get)
+                self._func(callback)
             except Exception as e:  # pylint: disable=broad-except
                 self._finish_queue.put(WorkerException(e, e.__traceback__))
                 self._work_queue.notify_work_needed()

@@ -448,16 +448,16 @@ export default {
                 return {};
             }
 
-            const finalRun = autoTestConfig && autoTestConfig.runs.find(r => !r.isContinuous);
+            const autoTestRun = autoTestConfig && autoTestConfig.runs[0];
 
             return rubrics.reduce((acc, row) => {
                 acc[row.id] = {
                     id: `rubric-editor-${this.id}-row-${row.id}`,
                     content: this.lockPopover(row),
-                    // The row is editable if the entire rubricRow is editable.
+                    // The row is editable if the entire rubric is editable.
                     // However it is not editable if the row is locked, and
-                    // there is a final run.
-                    editable: editable && !(row.locked && finalRun),
+                    // the AutoTest has been started.
+                    editable: editable && !(row.locked && autoTestRun != null),
                 };
                 return acc;
             }, {});
@@ -614,8 +614,7 @@ export default {
                 }).then(this.nextTick);
             }
 
-            const finalRun =
-                this.autoTestConfig && this.autoTestConfig.runs.find(r => !r.isContinuous);
+            const autoTestRun = this.autoTestConfig && this.autoTestConfig.runs[0];
 
             this.rubrics = serverRubrics.map(origRow => {
                 const row = Object.assign({}, origRow);
@@ -626,7 +625,7 @@ export default {
                     .map(item => Object.assign({}, item))
                     .sort((a, b) => a.points - b.points);
 
-                if (editable && !(row.locked && finalRun)) {
+                if (editable && !(row.locked && autoTestRun != null)) {
                     row.items.push(this.getEmptyItem());
                 }
 

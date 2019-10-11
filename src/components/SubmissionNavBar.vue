@@ -15,7 +15,7 @@
             <template slot="button-content">
                 <span class="button-content">
                     <user :user="curSub.user"/> at {{ curSub.formatted_created_at }}
-                    <span class="d-inline-block" style="tranform: translateY(-2px)">
+                    <span class="d-inline-block" style="transform: translateY(-2px)">
                         <late-submission-icon
                             :submission="curSub"
                             :assignment="assignment"/>
@@ -359,9 +359,16 @@ export default {
     .sub-late,
     &.current-sub-late .dropdown-toggle {
         background-color: @color-danger-table-row !important;
+        #app.dark & {
+            color: @text-color !important;
+            background-color: @color-danger-dark !important;
+        }
 
         &:hover {
             background-color: saturate(darken(@color-danger-table-row, 5%), -20%) !important;
+            #app.dark & {
+                background-color: saturate(darken(@color-danger-dark, 5%), -20%) !important;
+            }
         }
     }
 }

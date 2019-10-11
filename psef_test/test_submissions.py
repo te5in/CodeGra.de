@@ -7,8 +7,12 @@ import datetime
 import pytest
 from pytest import approx
 
+import psef.tasks as tasks
 import psef.models as m
-from helpers import create_marker, create_submission
+from helpers import (
+    create_course, create_marker, create_assignment, create_submission,
+    create_user_with_role
+)
 
 http_error = create_marker(pytest.mark.http_error)
 perm_error = create_marker(pytest.mark.perm_error)
@@ -88,7 +92,7 @@ def test_get_grade_history(
                     }]
         )
 
-        res = test_client.req(
+        test_client.req(
             'patch',
             f'/api/v1/submissions/{work_id}',
             200,
@@ -1572,7 +1576,7 @@ def test_update_test_submission_grader(
 )
 def test_delete_submission(
     named_user, request, test_client, logged_in, error_template, teacher_user,
-    assignment_real_works, session
+    assignment_real_works, session, monkeypatch_celery
 ):
     assignment, work = assignment_real_works
     work_id = work['id']
@@ -1640,16 +1644,115 @@ def test_delete_submission(
         assert os.path.isfile(diskname)
         for f in files:
             assert m.File.query.get(f)
-        assert m.Work.query.get(work_id)
-        assert m.PlagiarismCase.query.get(p_case_id)
-        assert m.PlagiarismRun.query.get(p_run_id)
+        assert not m.Work.query.get(work_id).deleted
     else:
-        assert not os.path.isfile(diskname)
-        assert m.Work.query.get(work_id) is None
-        for f in files:
-            assert m.File.query.get(f) is None
-        assert m.PlagiarismCase.query.get(p_case_id) is None
-        assert m.PlagiarismRun.query.get(p_run_id)
+        assert m.Work.query.get(work_id).deleted
+        with logged_in(teacher_user):
+            test_client.req('get', f'/api/v1/submissions/{work_id}', 404)
+
+
+def test_delete_submission_with_other_work(
+    test_client, logged_in, admin_user, session, monkeypatch_celery, describe,
+    monkeypatch, stub_function_class, app
+):
+    with describe('setup'), logged_in(admin_user):
+        course = create_course(test_client)
+        assignment = m.Assignment.query.get(
+            create_assignment(
+                test_client, course, 'open', deadline='tomorrow'
+            )['id']
+        )
+        student = create_user_with_role(session, 'Student', course)
+
+        stub_passback = stub_function_class(lambda: 0)
+        monkeypatch.setattr(tasks, 'passback_grades', stub_passback)
+
+        stub_delete_submission = stub_function_class(lambda: 0)
+        monkeypatch.setattr(tasks, 'delete_submission', stub_delete_submission)
+
+        stub_adjust = stub_function_class(lambda: 0)
+        monkeypatch.setattr(tasks, 'adjust_amount_runners', stub_adjust)
+
+        monkeypatch.setattr(
+            tasks, 'update_latest_results_in_broker', stub_function_class()
+        )
+
+        stub_clear = stub_function_class(lambda: 0)
+        monkeypatch.setattr(
+            m.AutoTestResult, 'clear', lambda *args: stub_clear(*args)
+        )
+
+        with logged_in(student):
+            super_oldest = create_submission(test_client, assignment)['id']
+            very_oldest = create_submission(test_client, assignment)['id']
+            oldest = create_submission(test_client, assignment)['id']
+            middle = create_submission(test_client, assignment)['id']
+            newest = create_submission(test_client, assignment)['id']
+
+        monkeypatch.setattr(m.AutoTest, 'has_hidden_steps', True)
+        assignment.auto_test = m.AutoTest(results_always_visible=True)
+        run = m.AutoTestRun(
+            batch_run_done=False, auto_test=assignment.auto_test
+        )
+        session.flush()
+        with app.test_request_context('/', {}):
+            assignment.auto_test.add_to_run(m.Work.query.get(very_oldest))
+        run.batch_run_done = True
+
+        assignment.set_state('done')
+        assignment.course.lti_provider = m.LTIProvider(key='my_lti')
+        session.commit()
+
+    with describe('delete not newest submission'), logged_in(admin_user):
+        test_client.req('delete', f'/api/v1/submissions/{middle}', 204)
+        assert not stub_passback.called
+        assert not stub_delete_submission.called
+        assert not stub_adjust.called
+        assert not stub_clear.called
+
+    with describe('delete newest submission'), logged_in(admin_user):
+        test_client.req('delete', f'/api/v1/submissions/{newest}', 204)
+        assert stub_passback.called
+        assert stub_passback.all_args[0][0] == [oldest]
+        assert not stub_delete_submission.called
+        assert stub_adjust.called
+        assert not stub_clear.called
+
+        result = m.AutoTestResult.query.filter_by(work_id=oldest).one()
+        assert result
+        assert result.final_result is True
+
+    with describe('delete submission with other existing result'
+                  ), logged_in(admin_user):
+        assert m.AutoTestResult.query.filter_by(work_id=very_oldest
+                                                ).one().final_result is False
+        test_client.req('delete', f'/api/v1/submissions/{oldest}', 204)
+
+        assert stub_passback.called
+        assert stub_passback.all_args[0][0] == [very_oldest]
+        assert not stub_delete_submission.called
+        assert stub_adjust.called
+
+        # Make sure this old result was cleared first
+        assert stub_clear.called
+        assert stub_clear.all_args[0][0].work_id == very_oldest
+
+        assert m.AutoTestResult.query.filter_by(work_id=very_oldest
+                                                ).one().final_result is True
+
+    with describe('without AutoTest run or lti'), logged_in(admin_user):
+        assignment.auto_test._runs = []
+        assignment.course.lti_provider = None
+        session.commit()
+        test_client.req('delete', f'/api/v1/submissions/{very_oldest}', 204)
+
+        assert not stub_passback.called
+        assert not stub_delete_submission.called
+        assert not stub_adjust.called
+        assert not stub_clear.called
+
+        assert m.AutoTestResult.query.filter_by(work_id=super_oldest
+                                                ).one_or_none() is None
 
 
 @pytest.mark.parametrize('filename', ['test_flake8.tar.gz'], indirect=True)
@@ -1672,9 +1775,7 @@ def test_selecting_multiple_rubric_items(
     perm_err = request.node.get_closest_marker('perm_error')
     if perm_err:
         error = perm_err.kwargs['error']
-        can_get_rubric = perm_err.kwargs.get('can_get', False)
     else:
-        can_get_rubric = True
         error = False
 
     rubric = {

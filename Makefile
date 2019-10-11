@@ -75,11 +75,11 @@ broker_start_dev_server:
 
 .PHONY: broker_start_dev_celery
 broker_start_dev_celery:
-	DEBUG=on env/bin/celery worker --app=broker_runcelery:celery -E
+	DEBUG=on env/bin/celery worker --app=broker_runcelery:celery -EB
 
 .PHONY: start_dev_celery
 start_dev_celery:
-	DEBUG=on env/bin/celery worker --app=runcelery:celery -E
+	DEBUG=on env/bin/celery worker --app=runcelery:celery -EB
 
 .PHONY: start_dev_server
 start_dev_server:

@@ -72,9 +72,8 @@ def instance_route(f: T_CAL) -> T_CAL:
 @expects_json({
     'type': 'object',
     'properties': {
-        'job_id': {'type': 'string'},
-        'wanted_runners': {'type': 'integer'},
-        'metadata': {'type': 'object'},
+        'job_id': {'type': 'string'}, 'wanted_runners': {'type': 'integer'},
+        'metadata': {'type': 'object'}, 'error_on_create': {'type': 'boolean'}
     },
     'required': ['job_id'],
 })
@@ -92,7 +91,11 @@ def register_job() -> cg_json.JSONResponse:
         job = db.session.query(models.Job).filter_by(
             remote_id=remote_job_id,
             cg_url=cg_url,
-        ).one_or_none()
+        ).with_for_update().one_or_none()
+
+    will_create = job is None
+    if will_create and g.data.get('error_on_create', False):
+        raise NotFoundException
 
     if job is None:
         job = models.Job(
@@ -102,35 +105,36 @@ def register_job() -> cg_json.JSONResponse:
         db.session.add(job)
 
     job.update_metadata(g.data.get('metadata', {}))
-    job.wanted_runners = g.data.get('wanted_runners', 1)
-    active_runners = models.Runner.get_all_active_runners().filter_by(
-        job_id=job.id
-    ).with_for_update().all()
+    if 'wanted_runners' in g.data or will_create:
+        job.wanted_runners = g.data.get('wanted_runners', 1)
+        active_runners = models.Runner.get_all_active_runners().filter_by(
+            job_id=job.id
+        ).with_for_update().all()
 
-    too_many = len(active_runners) - job.wanted_runners
-    logger.info(
-        'Job was updated',
-        wanted_runners=job.wanted_runners,
-        amount_active=len(active_runners),
-        too_many=too_many,
-        metadata=job.job_metadata,
-    )
+        too_many = len(active_runners) - job.wanted_runners
+        logger.info(
+            'Job was updated',
+            wanted_runners=job.wanted_runners,
+            amount_active=len(active_runners),
+            too_many=too_many,
+            metadata=job.job_metadata,
+        )
 
-    for runner in active_runners:
-        if too_many <= 0:
-            break
+        for runner in active_runners:
+            if too_many <= 0:
+                break
 
-        if runner.state in models.RunnerState.get_before_running_states():
-            runner.make_unassigned()
-            too_many -= 1
+            if runner.state in models.RunnerState.get_before_running_states():
+                runner.make_unassigned()
+                too_many -= 1
+
+        db.session.flush()
+        job_id = job.id
+        callback_after_this_request(
+            lambda: tasks.maybe_start_runners_for_job.delay(job_id)
+        )
 
     db.session.commit()
-
-    job_id = job.id
-    callback_after_this_request(
-        lambda: tasks.maybe_start_runners_for_job.delay(job_id)
-    )
-    assert job.id is not None
 
     return cg_json.jsonify(job)
 
@@ -182,6 +186,9 @@ def delete_job(job_id: str) -> EmptyResponse:
         models.Job
     ).filter_by(remote_id=job_id).with_for_update().one_or_none()
     if job is None:
+        if request.args.get('ignore_non_existing') == 'true':
+            return make_empty_response()
+
         # Make sure job will never be able to run
         job = models.Job(
             cg_url=request.headers['CG-Broker-Instance'], remote_id=job_id
@@ -223,9 +230,11 @@ def register_runner_for_job(job_id: str) -> EmptyResponse:
     job (identified by ``job_id``).
     """
     runner_ip = g.data['runner_ip']
-    job = db.session.query(
-        models.Job
-    ).filter_by(remote_id=job_id).with_for_update().one_or_none()
+    job = db.session.query(models.Job).filter_by(remote_id=job_id).filter(
+        ~t.cast(DbColumn[models.JobState], models.Job.state).in_(
+            models.JobState.get_finished_states(),
+        )
+    ).with_for_update().one_or_none()
     if job is None:
         logger.info('Job not found!', job_id=job_id)
         raise NotFoundException
@@ -253,6 +262,7 @@ def register_runner_for_job(job_id: str) -> EmptyResponse:
         raise NotFoundException
 
     runner.state = models.RunnerState.running
+    job.state = models.JobState.started
     db.session.commit()
 
     return make_empty_response()
@@ -264,7 +274,10 @@ def mark_runner_as_alive() -> EmptyResponse:
     """
     runner = db.session.query(models.Runner).filter(
         models.Runner.ipaddr == request.remote_addr,
-        models.Runner.state == models.RunnerState.creating,
+        t.cast(DbColumn[models.RunnerState], models.Runner.state).in_([
+            models.RunnerState.creating,
+            models.RunnerState.started,
+        ])
     ).with_for_update().one_or_none()
     if runner is None:
         raise NotFoundException

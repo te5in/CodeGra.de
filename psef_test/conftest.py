@@ -509,11 +509,9 @@ def describe():
         print('|', name, '|')
         print(sep)
         print()
-        try:
-            yield
-        finally:
-            for i, h in enumerate(DESCRIBE_HOOKS):
-                h()
+        yield
+        for i, h in enumerate(DESCRIBE_HOOKS):
+            h()
 
     yield inner
 
@@ -654,7 +652,7 @@ def live_server(app):
             p.terminate()
             p.join()
 
-    def start():
+    def start(get_stop=False):
         nonlocal p
 
         def _inner():
@@ -681,6 +679,8 @@ def live_server(app):
             stop()
             assert False, "Server on {} could not be reached".format(url)
 
+        if get_stop:
+            return url, stop
         return url
 
     try:

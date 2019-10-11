@@ -3,7 +3,7 @@ import Vue from 'vue';
 import axios from 'axios';
 
 import { deepCopy, getProps } from '@/utils';
-import { AutoTestSuiteData, AutoTestRun } from '@/models/auto_test';
+import { AutoTestSuiteData, AutoTestRun, FINISHED_STATES } from '@/models/auto_test';
 import * as types from '../mutation-types';
 
 const getters = {
@@ -17,17 +17,12 @@ const loaders = {
     runs: {},
 };
 
-function getRun(autoTest, acceptContinuous, runId) {
-    let run;
+function getRun(autoTest, runId) {
     if (runId != null) {
         return autoTest.runs.find(r => r.id === runId);
     } else {
-        run = autoTest.runs.find(r => !r.isContinuous);
+        return getProps(autoTest, null, 'runs', 0);
     }
-    if (run == null && acceptContinuous) {
-        run = autoTest.runs.find(r => r.isContinuous);
-    }
-    return run;
 }
 
 const actions = {
@@ -89,45 +84,38 @@ const actions = {
         }
 
         if (loaders.tests[autoTestId] == null) {
-            loaders.tests[autoTestId] = axios.get(`/api/v1/auto_tests/${autoTestId}`).then(
-                ({ data }) => {
-                    delete loaders.tests[autoTestId];
-                    commit(types.SET_AUTO_TEST, data);
-                },
-                err => {
-                    delete loaders.tests[autoTestId];
-                    throw err;
-                },
-            );
+            loaders.tests[autoTestId] = axios
+                .get(`/api/v1/auto_tests/${autoTestId}?latest_only`)
+                .then(
+                    ({ data }) => {
+                        delete loaders.tests[autoTestId];
+                        commit(types.SET_AUTO_TEST, data);
+                    },
+                    err => {
+                        delete loaders.tests[autoTestId];
+                        throw err;
+                    },
+                );
         }
 
         return loaders.tests[autoTestId];
     },
 
-    async createAutoTestRun({ commit, dispatch, state }, { autoTestId, continuousFeedback }) {
+    async createAutoTestRun({ commit, dispatch, state }, { autoTestId }) {
         await dispatch('loadAutoTest', { autoTestId });
         const autoTest = state.tests[autoTestId];
 
-        return axios
-            .post(`/api/v1/auto_tests/${autoTestId}/runs/`, {
-                continuous_feedback_run: continuousFeedback,
-            })
-            .then(({ data }) =>
-                dispatch('submissions/forceLoadSubmissions', autoTest.assignment_id, {
-                    root: true,
-                }).then(() => commit(types.UPDATE_AUTO_TEST_RUNS, { autoTest, run: data })),
-            );
+        return axios.post(`/api/v1/auto_tests/${autoTestId}/runs/`).then(({ data }) =>
+            dispatch('submissions/forceLoadSubmissions', autoTest.assignment_id, {
+                root: true,
+            }).then(() => commit(types.UPDATE_AUTO_TEST_RUNS, { autoTest, run: data })),
+        );
     },
 
-    async loadAutoTestRun(
-        { commit, dispatch, state },
-        {
-            autoTestId, acceptContinuous, force, autoTestRunId,
-        },
-    ) {
+    async loadAutoTestRun({ commit, dispatch, state }, { autoTestId, force, autoTestRunId }) {
         await dispatch('loadAutoTest', { autoTestId });
         const autoTest = state.tests[autoTestId];
-        const oldRun = getRun(autoTest, acceptContinuous, autoTestRunId);
+        const oldRun = getRun(autoTest, autoTestRunId);
 
         if (oldRun == null) {
             throw new Error('AutoTest has not been run yet.');
@@ -137,16 +125,42 @@ const actions = {
 
         const runId = oldRun.id;
         if (loaders.runs[runId] == null) {
-            loaders.runs[runId] = axios.get(`/api/v1/auto_tests/${autoTestId}/runs/${runId}`).then(
-                ({ data }) => {
-                    delete loaders.runs[runId];
-                    commit(types.UPDATE_AUTO_TEST_RUNS, { autoTest, run: data });
-                },
-                err => {
-                    delete loaders.runs[runId];
-                    throw err;
-                },
-            );
+            loaders.runs[runId] = axios
+                .get(`/api/v1/auto_tests/${autoTestId}/runs/${runId}?latest_only`)
+                .then(
+                    ({ data }) => {
+                        delete loaders.runs[runId];
+
+                        const oldResultMap = oldRun.results.reduce((accum, item) => {
+                            accum[item.id] = item;
+                            return accum;
+                        }, {});
+
+                        // Reload all submissions whose AutoTest is finished now,
+                        // but wasn't finished on the previous request.
+                        data.results.forEach(r => {
+                            const oldResult = oldResultMap[r.id];
+                            if (oldResult && !oldResult.finished && FINISHED_STATES.has(r.state)) {
+                                dispatch(
+                                    'submissions/loadSingleSubmission',
+                                    {
+                                        assignmentId: autoTest.assignment_id,
+                                        submissionId: r.work_id,
+                                        force: true,
+                                    },
+                                    {
+                                        root: true,
+                                    },
+                                );
+                            }
+                        });
+                        commit(types.UPDATE_AUTO_TEST_RUNS, { autoTest, run: data });
+                    },
+                    err => {
+                        delete loaders.runs[runId];
+                        throw err;
+                    },
+                );
         }
 
         return loaders.runs[runId];
@@ -227,12 +241,12 @@ const actions = {
     async loadAutoTestResult(
         { commit, dispatch, state },
         {
-            autoTestId, submissionId, acceptContinuous, force, autoTestRunId,
+            autoTestId, submissionId, force, autoTestRunId,
         },
     ) {
         await dispatch('loadAutoTest', { autoTestId });
         const autoTest = state.tests[autoTestId];
-        let run = getRun(autoTest, acceptContinuous, autoTestRunId);
+        let run = getRun(autoTest, autoTestRunId);
 
         if (run == null) {
             throw new Error('AutoTest has not been run yet.');
@@ -240,16 +254,14 @@ const actions = {
 
         let result = run.results.find(r => r.submissionId === submissionId);
         if (result == null) {
-            if (run.isContinuous) {
-                await dispatch('loadAutoTestRun', {
-                    autoTestId,
-                    acceptContinuous,
-                    force: true,
-                    autoTestRunId,
-                });
-                run = getRun(autoTest, acceptContinuous, autoTestRunId);
-                result = run.results.find(r => r.submissionId === submissionId);
-            }
+            await dispatch('loadAutoTestRun', {
+                autoTestId,
+                force: true,
+                autoTestRunId,
+            });
+            run = getRun(autoTest, autoTestRunId);
+            result = run.results.find(r => r.submissionId === submissionId);
+
             if (result == null) {
                 throw new Error('AutoTest result not found!');
             }
@@ -259,7 +271,7 @@ const actions = {
         result = state.results[resultId];
 
         // Always reload when force is true.
-        if (result && result.finished && !force) {
+        if (result && result.finished && result.isFinal && !force) {
             return Promise.resolve();
         }
 
@@ -289,16 +301,13 @@ const actions = {
             return Promise.resolve();
         }
 
-        const run = autoTest.runs.find(r => r.id === runId);
-        if (run === null) {
-            throw new Error(`AutoTest run not found: ${runId}`);
-        }
+        const run = autoTest.runs[0];
 
         const c = () => {
             commit(types.UPDATE_AUTO_TEST, {
                 autoTestId,
                 autoTestProps: {
-                    runs: autoTest.runs.filter(r => r.id !== runId),
+                    runs: [],
                 },
             });
             return dispatch('submissions/forceLoadSubmissions', autoTest.assignment_id, {
@@ -318,17 +327,13 @@ const actions = {
                 ),
             )
             .then(
-                () => c,
+                () => c(),
                 err => {
                     switch (getProps(err, null, 'response', 'status')) {
                         case 404:
                             c();
                             throw new Error(
-                                `${
-                                    run.isContinuous
-                                        ? 'AutoTest results were already deleted.'
-                                        : 'Continuous feedback was already stopped.'
-                                } Please reload the page.`,
+                                'AutoTest results were already deleted. Please reload the page.',
                             );
                         default:
                             throw err;

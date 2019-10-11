@@ -526,7 +526,7 @@ class LinterRunner:
                                            ).get(linter_instance_id)
 
             # This should never happen however it is better to check here.
-            if linter_inst is None:  # pragma: no cover
+            if linter_inst is None or linter_inst.work.deleted:  # pragma: no cover
                 continue
 
             compl_proc: t.Optional[subprocess.CompletedProcess] = None

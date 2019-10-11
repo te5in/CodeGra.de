@@ -274,7 +274,7 @@ class MyQuery(t.Generic[T], t.Iterable):  # pragma: no cover
     def all(self) -> t.List[T]:
         ...
 
-    def with_for_update(self: QuerySelf) -> 'QuerySelf':
+    def with_for_update(self: QuerySelf, *, read: bool = False) -> 'QuerySelf':
         ...
 
     def one_or_none(self) -> t.Optional[T]:

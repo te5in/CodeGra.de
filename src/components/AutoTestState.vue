@@ -99,7 +99,7 @@ export default {
         readable() {
             switch (this.state) {
                 case 'hidden':
-                    return 'This step is hidden and will not be executed in Continuous Feedback.';
+                    return "This step is hidden and will not be executed until the assignment's deadline has passed.";
                 case 'not_started':
                     return 'Waiting to be started';
                 default:
