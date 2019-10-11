@@ -1,6 +1,52 @@
 Changelog
 ==========
 
+Version 1.13.0 (JungleJoy.4)
+--------------------------------
+
+**Released**: October 11th, 2019
+
+AutoTest and Continuous Feedback cooperate even better with this release. Tests
+are always run immediately after handing in, and even fill in the rubric
+directly when possible. Teachers can still choose when to make results visible
+to students.
+
+**Features**
+
+- Merge AutoTest & Continuous Feedback `(#1127) <https://github.com/CodeGra-de/CodeGra.de/pull/1127>`__:
+  AutoTest and Continuous Feedback are now integrated together. AutoTest
+  automatically runs on all submissions and new submissions and you can choose
+  whether to make the results visible to students immediately (Continuous
+  Feedback) or only after the assignment state is set to done.
+- Brightspace support `(#1102) <https://github.com/CodeGra-de/CodeGra.de/pull/1102>`__:
+  CodeGrade now fully supports Brightspace.
+
+**Minor updates**
+
+- Improve scrolling on the submission list page `(#1129) <https://github.com/CodeGra-de/CodeGra.de/pull/1129>`__:
+  on small screens the rubric sometimes overlaps with the upload field, this has
+  now been improved.
+- Create a new config option to add an admin user to each course `(#1134) <https://github.com/CodeGra-de/CodeGra.de/pull/1134>`__:
+  it is now possible to add an admin user to courses automatically, making
+  technical support easier.
+- Show confirm message when overwriting an existing snippet `(#1097) <https://github.com/CodeGra-de/CodeGra.de/pull/1097>`__.
+- Show warning when rendering extremely large files `(#1121) <https://github.com/CodeGra-de/CodeGra.de/pull/1121>`__.
+- Make it possible to submit comments containing the null byte `(#1135) <https://github.com/CodeGra-de/CodeGra.de/pull/1135>`__.
+- Make it possible to see the plagiarism table without manage permission `(#1126) <https://github.com/CodeGra-de/CodeGra.de/pull/1126>`__:
+  this makes it easier to give TAs the permission to see plagiarism cases,
+  without them being able to edit the plagiairism run.
+- The CodeViewer is faster, and works better when dealing with large files `(#1127) <https://github.com/CodeGra-de/CodeGra.de/pull/1127>`__.
+
+**Fixes**
+
+- Fix race condition in editable rubric editor `(#1131) <https://github.com/CodeGra-de/CodeGra.de/pull/1131>`__.
+- Fix late submission warning `(#1132) <https://github.com/CodeGra-de/CodeGra.de/pull/1132>`__.
+- Fix hand in requirements bugs `(#1120) <https://github.com/CodeGra-de/CodeGra.de/pull/1120>`__:
+  sometimes a file was matched by multiple rules and there was a bug with empty directories when using the deny all policy.
+- Fix race condition when creating unassigned runners `(#1113) <https://github.com/CodeGra-de/CodeGra.de/pull/1113>`__.
+- Fix plagiarism overview when missing permissions on other courses `(#1111) <https://github.com/CodeGra-de/CodeGra.de/pull/1111>`__.
+
+
 Version 1.11.11 (JungleJoy.3)
 -----------------------------
 
