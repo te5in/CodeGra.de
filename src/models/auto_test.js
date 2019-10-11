@@ -12,7 +12,14 @@ import {
     safeDivide,
 } from '@/utils';
 
-const FINISHED_STATES = new Set(['passed', 'partial', 'failed', 'timed_out', 'hidden', 'skipped']);
+export const FINISHED_STATES = new Set([
+    'passed',
+    'partial',
+    'failed',
+    'timed_out',
+    'hidden',
+    'skipped',
+]);
 
 export class AutoTestSuiteData {
     constructor(autoTestId, autoTestSetId, serverData = {}, actuallyFromServer) {
@@ -219,25 +226,21 @@ export class AutoTestSuiteData {
 }
 
 export class AutoTestResult {
-    constructor(result, autoTest, run) {
+    constructor(result, autoTest) {
         this.id = result.id;
         this.submissionId = result.work_id;
         this.finished = false;
-        this.isContinuous = run.isContinuous;
 
         this.update(result, autoTest);
     }
 
     update(result, autoTest) {
+        this.createdAt = result.created_at;
         this.startedAt = result.started_at;
         this.pointsAchieved = result.points_achieved;
+
         this.updateState(result.state);
-
         this.updateStepResults(result.step_results, autoTest);
-
-        if (this.isFinishedState(result.state)) {
-            this.finished = true;
-        }
     }
 
     updateState(newState) {
@@ -249,13 +252,17 @@ export class AutoTestResult {
                 this.state = newState;
                 break;
         }
+
+        this.finished = FINISHED_STATES.has(newState);
     }
 
     updateExtended(result, autoTest) {
-        this.update(result, autoTest);
+        this.isFinal = result.final_result;
         this.setupStdout = result.setup_stdout;
         this.setupStderr = result.setup_stderr;
         this.approxWaitingBefore = result.approx_waiting_before;
+
+        this.update(result, autoTest);
     }
 
     updateStepResults(steps, autoTest) {
@@ -307,7 +314,7 @@ export class AutoTestResult {
                 suiteResult.stepResults = suite.steps.map(step => {
                     let stepResult = stepResults[step.id];
 
-                    if (this.isContinuous && step.hidden) {
+                    if (!this.isFinal && step.hidden) {
                         stepResult = {
                             state: 'hidden',
                             log: null,
@@ -335,7 +342,7 @@ export class AutoTestResult {
                     }
 
                     suiteResult.achieved += getProps(stepResult, 0, 'achieved_points');
-                    stepResult.finished = this.isFinishedState(stepResult.state);
+                    stepResult.finished = FINISHED_STATES.has(stepResult.state);
 
                     stepResults[step.id] = stepResult;
                     return stepResult;
@@ -385,26 +392,17 @@ export class AutoTestResult {
         Vue.set(this, 'suiteResults', suiteResults);
         Vue.set(this, 'setResults', setResults);
     }
-
-    // eslint-disable-next-line
-    isFinishedState(state) {
-        // Steps can only be in state hidden if this is a Continuous Feedback
-        // run.
-        return FINISHED_STATES.has(state);
-    }
 }
 
 export class AutoTestRun {
     constructor(run, autoTest) {
         this.id = run.id;
-        this.startedAt = run.started_at;
-        this.isContinuous = run.is_continuous;
+        this.createdAt = run.created_at;
+        this.results = [];
         this.update(run, autoTest);
     }
 
     update(run, autoTest) {
-        this.state = run.state;
-        this.finished = ['done', 'crashed', 'timed_out'].indexOf(run.state) !== -1;
         this.setupStdout = run.setup_stdout;
         this.setupStderr = run.setup_stderr;
 
@@ -414,21 +412,28 @@ export class AutoTestRun {
     }
 
     updateResults(results, autoTest) {
-        if (!this.results) {
-            this.results = [];
-        }
+        // For each passed result, check if there is already a result with the
+        // same id. If it exists, update that result and discard it from the
+        // new results. Then create a new result for each result that wasn't
+        // found. We do this to prevent the same user from appearing multiple
+        // times in the results listing.
 
-        const resMap = this.results.reduce((acc, r) => {
+        const newResults = results.reduce((acc, r) => {
             acc[r.id] = r;
             return acc;
         }, {});
 
-        results.forEach(r => {
-            if (resMap[r.id]) {
-                resMap[r.id].update(r, autoTest);
-            } else {
-                this.results.push(new AutoTestResult(r, autoTest, this));
+        const oldResults = this.results.reduce((acc, r) => {
+            if (r.id in newResults) {
+                acc.push(r);
+                r.update(newResults[r.id], autoTest);
+                delete newResults[r.id];
             }
-        });
+            return acc;
+        }, []);
+
+        this.results = oldResults.concat(
+            Object.values(newResults).map(r => new AutoTestResult(r, autoTest)),
+        );
     }
 }

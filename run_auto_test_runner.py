@@ -13,4 +13,4 @@ if __name__ == '__main__':
     cg_logger.configure_logging(config.CONFIG['DEBUG'], False)
     psef.enable_testing()
     psef.auto_test.process_config(config.CONFIG)
-    psef.auto_test.start_polling(config.CONFIG)
+    psef.auto_test.start_polling(config.CONFIG, repeat=False)

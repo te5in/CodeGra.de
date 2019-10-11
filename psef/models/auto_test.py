@@ -2,7 +2,6 @@
 
 SPDX-License-Identifier: AGPL-3.0-only
 """
-import enum
 import math
 import uuid
 import typing as t
@@ -11,14 +10,14 @@ import datetime
 import itertools
 
 import structlog
-from sqlalchemy import orm, sql
+from sqlalchemy import orm
 from sqlalchemy import func as sql_func
 from sqlalchemy import distinct
 from sqlalchemy_utils import UUIDType
 from sqlalchemy.sql.expression import or_, and_, case, nullsfirst
 
 import psef
-import cg_json
+from cg_flask_helpers import callback_after_this_request
 from cg_sqlalchemy_helpers.mixins import IdMixin, UUIDMixin, TimestampMixin
 
 from . import Base, MyQuery, DbColumn, db
@@ -26,13 +25,11 @@ from . import work as work_models
 from . import auto_test_step as auto_test_step_models
 from .. import auth
 from .. import auto_test as auto_test_module
-from .. import current_user
 from ..helpers import NotEqualMixin
 from ..registry import auto_test_handlers, auto_test_grade_calculators
 from ..exceptions import (
     APICodes, APIException, PermissionException, InvalidStateException
 )
-from ..permissions import CoursePermission as CPerm
 
 if t.TYPE_CHECKING:  # pragma: no cover
     # pylint: disable=unused-import
@@ -108,7 +105,7 @@ class AutoTestSuite(Base, TimestampMixin, IdMixin):
     ) -> auto_test_module.SuiteInstructions:
         """Get the instructions to run this suite.
         """
-        show_hidden = not run.is_continuous_feedback_run
+        show_hidden = run.run_hidden_steps
         steps = [s for s in self.steps if show_hidden or not s.hidden]
         return {
             'id': self.id,
@@ -307,8 +304,12 @@ class AutoTestResult(Base, TimestampMixin, IdMixin, NotEqualMixin):
         nullable=False,
     )
     work = db.relationship(
-        'Work', foreign_keys=work_id, lazy='selectin'
+        'Work',
+        foreign_keys=work_id,
+        lazy='selectin',
     )  # type: work_models.Work
+
+    final_result: bool = db.Column('final_result', db.Boolean, nullable=False)
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, AutoTestResult):
@@ -356,6 +357,12 @@ class AutoTestResult(Base, TimestampMixin, IdMixin, NotEqualMixin):
         if new_state == auto_test_step_models.AutoTestStepResultState.running:
             self.started_at = datetime.datetime.utcnow()
             psef.tasks.adjust_amount_runners(self.run.id)
+        elif (
+            new_state in
+            auto_test_step_models.AutoTestStepResultState.get_finished_states()
+        ):
+            if self.final_result:
+                self.update_rubric()
         else:
             self.started_at = None
 
@@ -368,7 +375,7 @@ class AutoTestResult(Base, TimestampMixin, IdMixin, NotEqualMixin):
             auto_test_step_models.AutoTestStepResultState.get_finished_states()
         )
 
-    def clear(self, *, clear_rubric: bool) -> None:
+    def clear(self) -> None:
         """Clear this result and set it state back to ``not_started``.
 
         .. note:: This also clears the rubric
@@ -378,7 +385,7 @@ class AutoTestResult(Base, TimestampMixin, IdMixin, NotEqualMixin):
         self.setup_stderr = None
         self.setup_stdout = None
         self.runner = None
-        if clear_rubric:
+        if self.final_result:
             self.clear_rubric()
 
     def clear_rubric(self) -> None:
@@ -450,10 +457,10 @@ class AutoTestResult(Base, TimestampMixin, IdMixin, NotEqualMixin):
     def __to_json__(self) -> t.Mapping[str, object]:
         """Convert this result to a json object.
         """
-
         points_achieved, _ = self.get_amount_points_in_suites(
             *self.run.auto_test.all_suites
         )
+
         return {
             'id': self.id,
             'created_at': self.created_at.isoformat(),
@@ -473,12 +480,22 @@ class AutoTestResult(Base, TimestampMixin, IdMixin, NotEqualMixin):
                 AutoTestResult.created_at < self.created_at
             ).count()
 
+        step_results = self.step_results
+        try:
+            auth.ensure_can_see_grade(self.work)
+        except PermissionException:
+            step_results = [s for s in step_results if not s.step.hidden]
+            final_result = False
+        else:
+            final_result = self.final_result
+
         return {
             **self.__to_json__(),
             'setup_stdout': self.setup_stdout,
             'setup_stderr': self.setup_stderr,
-            'step_results': self.step_results,
+            'step_results': step_results,
             'approx_waiting_before': approx_before,
+            'final_result': final_result,
         }
 
     @classmethod
@@ -494,25 +511,6 @@ class AutoTestResult(Base, TimestampMixin, IdMixin, NotEqualMixin):
                                  ).filter_by(user_id=student_id)
             )
         )
-
-
-@enum.unique
-class AutoTestRunState(cg_json.SerializableEnum, enum.Enum):
-    """This enum represents the state a single run is in.
-
-    .. warning::
-
-        When you change this enum make sure you update the properties of
-        :class:`.AutoTestRun` too as they define some helper functions for this
-        enum.
-    """
-    waiting_for_runner = 1
-    starting = 2
-    running = 3
-    done = 4
-    timed_out = 5
-    crashed = 6
-    changing_runner = 7
 
 
 class AutoTestRunner(Base, TimestampMixin, UUIDMixin, NotEqualMixin):
@@ -638,21 +636,17 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
         order_by='AutoTestResult.created_at'
     )  # type: t.MutableSequence[AutoTestResult]
 
-    _state = db.Column(
-        'state',
-        db.Enum(AutoTestRunState),
-        default=AutoTestRunState.waiting_for_runner,
-        nullable=False,
-    )
     started_date: t.Optional[datetime.datetime] = db.Column(
         'started_date', db.DateTime, nullable=True, default=None
     )
+
     kill_date: t.Optional[datetime.datetime] = db.Column(
         'kill_date', db.DateTime, nullable=True, default=None
     )
 
     _job_number = db.Column('job_number', db.Integer, default=0)
     _job_id: uuid.UUID = db.Column('job_id', UUIDType, default=uuid.uuid4)
+
     runners_requested: int = db.Column(
         'runners_requested',
         db.Integer,
@@ -661,13 +655,22 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
         nullable=False,
     )
 
-    is_continuous_feedback_run: bool = db.Column(
-        'is_continuous_feedback_run',
+    batch_run_done: bool = db.Column(
+        'batch_run_done',
         db.Boolean,
-        default=False,
         nullable=False,
-        server_default=sql.expression.false(),
     )
+
+    @property
+    def run_hidden_steps(self) -> bool:
+        """Should we run the hidden steps of this run.
+        """
+        # If the batch run is done we must make sure that all future runners
+        # will execute the hidden steps, as otherwise they might not get
+        # executed. See the method `make_result` for more explanation.
+        return (
+            self.batch_run_done or self.auto_test.assignment.deadline_expired
+        )
 
     def increment_job_id(self) -> None:
         """Increment the job id of this runner.
@@ -683,82 +686,53 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
     def get_job_id(self) -> str:
         return f'{self._job_id.hex}-{self._job_number or 0}'
 
-    @property
-    def active(self) -> bool:
-        """Check if this run is active.
-        """
-        return self.state in {AutoTestRunState.running}
-
-    @property
-    def finished(self) -> bool:
-        """Check if the state of this run is in one of the states we consider
-        finished.
-        """
-        return self.state in {
-            AutoTestRunState.done,
-            AutoTestRunState.timed_out,
-            AutoTestRunState.crashed,
-        }
-
-    @property
-    def state(self) -> AutoTestRunState:
-        """Get the state of this run.
-        """
-        return self._state
-
-    @state.setter
-    def state(self, new_state: AutoTestRunState) -> None:
-        assert isinstance(new_state, AutoTestRunState)
-
-        if self.is_continuous_feedback_run:
-            if new_state.value > AutoTestRunState.running.value:  # pragma: no cover
-                # This should never happen, as it should be handled in the
-                # internal api.
-                start_new = self.stop_runners(
-                    self.runners,
-                ) or db.session.query(
-                    self.get_results_to_run().exists(),
-                ).scalar()
-
-                if start_new:
-                    psef.tasks.adjust_amount_runners(self.id)
-            else:
-                self._state = new_state
-        else:
-            self._state = new_state
-
-            if new_state == AutoTestRunState.done:
-                for result in self.results:
-                    result.update_rubric()
-
-            if self.finished:
-                self.stop_runners(self.runners)
-
     def stop_runners(self, runners: t.List[AutoTestRunner]) -> bool:
-        """Stop the runner of this run.
+        """Stop the given runners of this run.
 
-        This also prepares the run to be migrated to a new runner.
+        This function also stops the entire job at the broker if needed, or
+        adjust the amount of runners requested at the broker, if needed.
         """
         assert all(runner in self.runners for runner in runners)
         all_deleted = len(runners) == len(self.runners)
-        total_result = False
+        any_cleared = False
 
         for runner in runners:
             self.runners.remove(runner)
             runner.run_id = None
-            psef.tasks.notify_broker_kill_single_runner(self.id, runner.id.hex)
-            # This function has a side effect so make sure short circuiting
+            # This function has side effects so make sure short circuiting
             # doesn't cause the function not to be called.
-            result = self._clear_non_passed_results(runner)
-            total_result = result or total_result
-
-        if all_deleted:
-            psef.tasks.notify_broker_end_of_job(self.get_job_id())
-            self.runners_requested = 0
-            self.increment_job_id()
+            cleared = self._clear_non_passed_results(runner)
+            any_cleared = cleared or any_cleared
 
         db.session.flush()
-        return result
+        any_results_left = any_cleared or db.session.query(
+            self.get_results_to_run().exists()
+        ).scalar()
+
+        logger.info(
+            'Killed runners',
+            all_deleted=all_deleted,
+            any_results_left=any_results_left
+        )
+
+        if all_deleted and not any_results_left:
+            # We don't need to kill each individual runner, as the end of job
+            # will kill all associated runners.
+            job_id = self.get_job_id()
+            callback_after_this_request(
+                lambda: psef.tasks.notify_broker_end_of_job(job_id)
+            )
+            self.runners_requested = 0
+            self.increment_job_id()
+            db.session.flush()
+        else:
+            to_kill = [r.id.hex for r in runners]
+            run_id = self.id
+            callback_after_this_request(
+                lambda: psef.tasks.kill_runners_and_adjust(run_id, to_kill)
+            )
+
+        return any_results_left
 
     def get_broker_metadata(self) -> t.Mapping[str, object]:
         """Get metadata that is useful for the broker of this run.
@@ -775,18 +749,20 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
             },
             'created_at': self.created_at.isoformat(),
             'id': self.id,
-            'type': 'CF' if self.is_continuous_feedback_run else 'AT',
+            'type': 'NS',  # NS=NewStyle
         }
 
     def _clear_non_passed_results(self, runner: AutoTestRunner) -> bool:
+        """Clear all results of the given ``runner`` that are not yet finished.
+
+        :param runner: The runner to clear the non finished results of.
+        :returns: ``True`` if any results where cleared, ``False`` otherwise.
+        """
         any_cleared = False
 
         for result in self.results:
-            if (
-                not result.is_finished and
-                (result.runner is None or result.runner == runner)
-            ):
-                result.clear(clear_rubric=not self.is_continuous_feedback_run)
+            if result.runner == runner and not result.is_finished:
+                result.clear()
                 any_cleared = True
 
         return any_cleared
@@ -844,22 +820,29 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
 
         return runs.all()
 
-    def get_results_to_run(self) -> MyQuery[AutoTestResult]:
-        """Get a query to get the :py:class:`.AutoTestResult` items that still
-            need to be run.
+    def get_results_latest_submissions(self) -> MyQuery[AutoTestResult]:
+        """Get the results for the latest submissions.
+
+        :returns: A query that returns the results for the latest submissions
+            of the connected assignment.
         """
-        # We make sure we only give results we actually want run, so only those
-        # of the newest submissions.
         latest_ids = self.auto_test.assignment.get_from_latest_submissions(
             work_models.Work.id
         )
 
         return db.session.query(AutoTestResult).filter_by(
-            _state=auto_test_step_models.AutoTestStepResultState.not_started,
             auto_test_run_id=self.id,
         ).filter(
             t.cast(DbColumn[int], AutoTestResult.work_id).in_(latest_ids)
         ).order_by(AutoTestResult.created_at)
+
+    def get_results_to_run(self) -> MyQuery[AutoTestResult]:
+        """Get a query to get the :py:class:`.AutoTestResult` items that still
+            need to be run.
+        """
+        return self.get_results_latest_submissions().filter_by(
+            _state=auto_test_step_models.AutoTestStepResultState.not_started,
+        )
 
     def add_active_runner(
         self,
@@ -880,31 +863,18 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
         """
         # This run was not started before this runner, so set all the auxiliary
         # data.
-        start_sanity_tasks = False
         if self.started_date is None:
             self.started_date = datetime.datetime.utcnow()
             # Continuous feedback runs don't get killed because of time, so
             # don't set this data.
-            if not self.is_continuous_feedback_run:
-                start_sanity_tasks = True
-                max_duration = datetime.timedelta(
-                    minutes=psef.app.config['AUTO_TEST_MAX_TIME_TOTAL_RUN'],
-                )
-                now = datetime.datetime.utcnow()
-                self.kill_date = now + max_duration
         runner = AutoTestRunner.create(runner_ipaddr, run=self)
         db.session.add(runner)
         db.session.flush()
+        runner_hex_id = runner.id.hex
 
         @psef.helpers.callback_after_this_request
         def __start_tasks() -> None:
-            if start_sanity_tasks:
-                psef.tasks.notify_slow_auto_test_run(
-                    (self.id, ), eta=now + (max_duration / 2)
-                )
-                psef.tasks.stop_auto_test_run((self.id, ), eta=self.kill_date)
-
-            psef.tasks.check_heartbeat_auto_test_run((runner.id.hex, ))
+            psef.tasks.check_heartbeat_auto_test_run((runner_hex_id, ))
 
         return runner
 
@@ -927,20 +897,28 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
             'heartbeat_interval':
                 psef.app.config['AUTO_TEST_HEARTBEAT_INTERVAL'],
             'run_setup_script': self.auto_test.run_setup_script,
-            'is_continuous_run': self.is_continuous_feedback_run,
+            # TODO: Set this in a more intelligent way
+            'poll_after_done': True,
         }
 
     def __to_json__(self) -> t.Mapping[str, object]:
         return {
             'id': self.id,
             'created_at': self.created_at.isoformat(),
-            'state': self.state.name,
-            'is_continuous': self.is_continuous_feedback_run,
+            'state': 'running',
+            'is_continuous': False,
         }
 
     def __extended_to_json__(self) -> t.Mapping[str, object]:
         results = []
-        for result in self.results:
+
+        all_results: t.Iterable[AutoTestResult]
+        if psef.helpers.jsonify_options.get_options().latest_only:
+            all_results = self.get_results_latest_submissions()
+        else:
+            all_results = [r for r in self.results if not r.work.deleted]
+
+        for result in all_results:
             try:
                 auth.ensure_can_view_autotest_result(result)
             except PermissionException:
@@ -962,6 +940,68 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
         for result in self.results:
             result.clear_rubric()
         db.session.delete(self)
+
+    @property
+    def new_results_should_be_final(self) -> bool:
+        """Should new results (or newly clear results) be final results.
+
+        :returns: The result should the value of ``final_result`` of the
+            :class:`.AutoTestResult`.
+        """
+        return self.batch_run_done or not self.auto_test.has_hidden_steps
+
+    def make_result(
+        self, work_id: t.Union[int, 'work_models.Work']
+    ) -> AutoTestResult:
+        """Make a result for this run.
+
+        :param work_id: The work, or its id, for which we should make a result.
+        :returns: The created result.
+        """
+        # Setting `final_result` here is a bit tricky. We know we can start
+        # making final results when the deadline expired. However, there might
+        # be a runner active that was started **before** the deadline, so this
+        # runner didn't receive the hidden steps. This runner might run this
+        # final result before it is stopped (as there can be quite a
+        # significant delay before the _run_autotest_batch_runs_1 celery task
+        # is executed), and the result would be the hidden steps are not yet
+        # run. So for the moment we simply set it to the value of
+        # `batch_run_done`, as we know that all runners have the hidden steps
+        # if this value is `True`. Finally, if a test does not have hidden
+        # steps, we always execute the complete test, so we can simply
+        # `final_result` to `True`.
+
+        if isinstance(work_id, work_models.Work):
+            return AutoTestResult(
+                work=work_id,
+                auto_test_run_id=self.id,
+                final_result=self.new_results_should_be_final
+            )
+        return AutoTestResult(
+            work_id=work_id,
+            auto_test_run_id=self.id,
+            final_result=(
+                self.batch_run_done or not self.auto_test.has_hidden_steps
+            )
+        )
+
+    def do_batch_run(self) -> None:
+        """Do the batch run for this run.
+        """
+        hidden = self.auto_test.has_hidden_steps
+        logger.info('Doing batch run', run_id=self.id, has_hidden_steps=hidden)
+        # We do not need to clear if the config has no hidden steps, are
+        # already run in this case.
+        if hidden:
+            for result in self.get_results_latest_submissions():
+                result.clear()
+                result.final_result = True
+
+            db.session.flush()
+            # This also starts new runners if needed
+            self.stop_runners(self.runners)
+
+        self.batch_run_done = True
 
 
 @auto_test_grade_calculators.register('full')
@@ -1046,25 +1086,12 @@ class AutoTest(Base, TimestampMixin, IdMixin):
     )  # type: t.MutableSequence[AutoTestRun]
 
     @property
-    def test_run(self) -> t.Optional[AutoTestRun]:
+    def run(self) -> t.Optional[AutoTestRun]:
         """The final run of this AutoTest.
 
         :returns: The final run of this AutoTest or ``None`` if there is none.
         """
-        return next(
-            (r for r in self._runs if not r.is_continuous_feedback_run), None
-        )
-
-    @property
-    def continuous_feedback_run(self) -> t.Optional[AutoTestRun]:
-        """The continuous feedback run of this AutoTest.
-
-        :returns: The continuous feedback run of this AutoTest or ``None`` if
-            there is none.
-        """
-        return next(
-            (r for r in self._runs if r.is_continuous_feedback_run), None
-        )
+        return self._runs[0] if self._runs else None
 
     def get_all_runs(self) -> t.Sequence[AutoTestRun]:
         return self._runs
@@ -1095,12 +1122,19 @@ class AutoTest(Base, TimestampMixin, IdMixin):
         default=None,
     )
 
+    results_always_visible: bool = db.Column(
+        'results_always_visible',
+        db.Boolean,
+        nullable=True,
+        default=None,
+    )
+
     def ensure_no_runs(self) -> None:
         """Ensure that this AutoTest has no runs.
 
         :raises APIException: If the AutoTest has one or more runs.
         """
-        if self.test_run is not None:
+        if self.run is not None:
             raise APIException(
                 'You cannot update an AutoTest which has runs',
                 f'The given AutoTest "{self.id}" has a run',
@@ -1136,24 +1170,27 @@ class AutoTest(Base, TimestampMixin, IdMixin):
                 'This AutoTest has no grade_calculation set, but this options'
                 ' is required.'
             )
-
-        if not self.sets:
+        elif self.results_always_visible is None:
+            raise InvalidStateException(
+                'This AutoTest does not have a results_always_visible set, but'
+                ' this option is required'
+            )
+        elif not self.sets:
             raise InvalidStateException(
                 'This AutoTest has no sets, so it cannot be started'
             )
-
-        if next(self.all_suites, None) is None:
+        elif next(self.all_suites, None) is None:
             raise InvalidStateException(
                 'This AutoTest has no suites, so it cannot be started'
             )
-
-        if any(not s.steps for s in self.all_suites):
+        elif any(not s.steps for s in self.all_suites):
             raise InvalidStateException(
                 'This AutoTest has no steps in some suites, so it cannot be'
                 ' started'
             )
-
-        if any(sum(st.weight for st in s.steps) <= 0 for s in self.all_suites):
+        elif any(
+            sum(st.weight for st in s.steps) <= 0 for s in self.all_suites
+        ):
             raise InvalidStateException(
                 'This AutoTest has zero amount of points possible in some'
                 ' suites, so it cannot be started'
@@ -1168,7 +1205,8 @@ class AutoTest(Base, TimestampMixin, IdMixin):
         database are not committed!
         """
         self._ensure_can_start_run()
-        if self.test_run is not None:
+
+        if self.run is not None:
             raise APIException(
                 'You cannot start an AutoTest which has runs',
                 f'The given AutoTest "{self.id}" has a run',
@@ -1185,14 +1223,15 @@ class AutoTest(Base, TimestampMixin, IdMixin):
                 APICodes.INVALID_STATE, 409
             )
 
-        run = AutoTestRun()
+        run = AutoTestRun(
+            batch_run_done=(
+                not self.has_hidden_steps or self.assignment.deadline_expired
+            )
+        )
         self._runs.append(run)
         db.session.flush()
 
-        results = [
-            AutoTestResult(work_id=work_id, auto_test_run_id=run.id)
-            for work_id, in work_ids
-        ]
+        results = [run.make_result(work_id) for work_id, in work_ids]
         db.session.bulk_save_objects(results)
         psef.helpers.callback_after_this_request(
             lambda: psef.tasks.
@@ -1200,20 +1239,14 @@ class AutoTest(Base, TimestampMixin, IdMixin):
         )
         return run
 
-    def start_continuous_feedback_run(self) -> AutoTestRun:
-        """Start a continuous feedback run for this AutoTest.
+    @property
+    def has_hidden_steps(self) -> bool:
+        """Are there hidden steps in this AutoTest.
         """
-        self._ensure_can_start_run()
-        if self.continuous_feedback_run:
-            raise APIException(
-                'You cannot start an AutoTest which has runs',
-                f'The given AutoTest "{self.id}" has a run',
-                APICodes.INVALID_STATE, 409
-            )
-
-        run = AutoTestRun(is_continuous_feedback_run=True)
-        self._runs.append(run)
-        return run
+        return any(
+            any(step.hidden for step in suite.steps)
+            for suite in self.all_suites
+        )
 
     @property
     def all_suites(self) -> t.Iterator[AutoTestSuite]:
@@ -1221,7 +1254,7 @@ class AutoTest(Base, TimestampMixin, IdMixin):
         """
         return itertools.chain.from_iterable(s.suites for s in self.sets)
 
-    def add_to_continuous_feedback(self, work: 'work_models.Work') -> bool:
+    def add_to_run(self, work: 'work_models.Work') -> bool:
         """Add the given work to the continuous feedback run.
 
         This function only does something if there is an continuous feedback
@@ -1236,8 +1269,7 @@ class AutoTest(Base, TimestampMixin, IdMixin):
             This function changes the session if it returns ``True``, so a
             commit is necessary in that case.
         """
-        run = self.continuous_feedback_run
-        # Even start it if there is a normal auto test run
+        run = self.run
         if run is None:
             return False
 
@@ -1255,26 +1287,46 @@ class AutoTest(Base, TimestampMixin, IdMixin):
             }, False
         )
 
-        psef.helpers.callback_after_this_request(
-            lambda: psef.tasks.adjust_amount_runners(run_id)
-        )
+        def callbacks() -> None:
+            psef.tasks.adjust_amount_runners(run_id)
+            psef.tasks.update_latest_results_in_broker(run_id)
 
-        result = AutoTestResult(work=work, auto_test_run_id=run.id)
+        psef.helpers.callback_after_this_request(callbacks)
+
+        result = run.make_result(work)
         db.session.add(result)
         return True
+
+    def reset_work(self, work: 'work_models.Work') -> None:
+        """Reset the result beloning to the given work.
+
+        If there is not result for the given result, a result is created.
+
+        :param work: The work for which we should reset the work.
+        :returns: Nothing.
+        """
+        if self.run is None:
+            return
+
+        run = self.run
+        run_id = run.id
+        result = AutoTestResult.get_results_by_user(work.user_id).filter_by(
+            auto_test_run_id=run_id, work_id=work.id
+        ).one_or_none()
+
+        if result is None:
+            self.add_to_run(work)
+        else:
+            result.clear()
+            if not result.final_result:
+                result.final_result = run.new_results_should_be_final
+            psef.helpers.callback_after_this_request(
+                lambda: psef.tasks.adjust_amount_runners(run_id)
+            )
 
     def __to_json__(self) -> t.Mapping[str, object]:
         """Covert this AutoTest to json.
         """
-        runs: t.Sequence[AutoTestRun] = []
-
-        if self.assignment.is_done or current_user.has_permission(
-            CPerm.can_see_grade_before_open, self.assignment.course_id
-        ):
-            runs = self._runs
-        elif self.continuous_feedback_run is not None:
-            runs = [self.continuous_feedback_run]
-
         return {
             'id': self.id,
             'fixtures': self.fixtures,
@@ -1284,5 +1336,6 @@ class AutoTest(Base, TimestampMixin, IdMixin):
             'grade_calculation': self._grade_calculation,
             'sets': self.sets,
             'assignment_id': self.assignment.id,
-            'runs': runs,
+            'runs': self._runs,
+            'results_always_visible': self.results_always_visible,
         }

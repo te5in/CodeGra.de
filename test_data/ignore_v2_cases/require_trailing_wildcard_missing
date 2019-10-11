@@ -1,0 +1,9 @@
+policy: deny
+options: {"remove_leading_directories": false}
+require /dir/*
+allow /dir2/hello
+
+/dir2/hello
+
+MISSING
+/dir/*

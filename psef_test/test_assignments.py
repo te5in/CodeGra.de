@@ -17,8 +17,8 @@ import psef
 import helpers
 import psef.models as m
 from helpers import (
-    get_id, create_course, create_marker, create_assignment, create_submission,
-    create_user_with_perms, get_newest_submissions
+    get_id, create_course, create_marker, create_auto_test, create_assignment,
+    create_submission, create_user_with_perms, get_newest_submissions
 )
 from psef.errors import APICodes, APIWarnings
 from psef.ignore import SubmissionValidator
@@ -1978,6 +1978,9 @@ def test_upload_blackboard_zip(
             if u['CourseRole']['name'] == 'Student'
         )
 
+    with logged_in(teacher_user):
+        create_auto_test(test_client, assignment)
+
     marker = request.node.get_closest_marker('http_err')
     with logged_in(named_user):
         if marker is not None:
@@ -2032,6 +2035,11 @@ def test_upload_blackboard_zip(
         res = test_client.req(
             'get', f'/api/v1/assignments/{assignment.id}/submissions/', 200
         )
+
+        assert not [
+            r.work.assignment_id == assignment.id
+            for r in m.AutoTestResult.query
+        ]
 
         if marker is None and result:
             assert res
@@ -4100,8 +4108,9 @@ def parse_ignore_v2_test_files():
 
         def get_expected(self, root_name):
             def build_tree(tree, path):
-                if not path:
+                if not path or path == '/':
                     return
+
                 splitted = [x for x in path.split('/') if x]
                 for idx, e in enumerate(tree['entries']):
                     if e['name'] == splitted[0]:
@@ -4116,7 +4125,11 @@ def parse_ignore_v2_test_files():
                     tree['entries'].append(entry)
                     tree['entries'].sort(key=lambda el: el['name'].lower())
                     idx = -1
-                build_tree(tree['entries'][idx], '/'.join(splitted[1:]))
+
+                new_path = '/'.join(splitted[1:])
+                if path[-1] == '/':
+                    new_path += '/'
+                build_tree(tree['entries'][idx], new_path)
 
             res = {
                 'name': root_name,

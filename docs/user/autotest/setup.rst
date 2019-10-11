@@ -40,6 +40,10 @@ updated to the latest version shipped by Ubuntu:
 - Python 3.7 *(with pip3)*
 - Java 8 *(openjdk-8-jdk)*
 - Java 11 *(openjdk-11-jdk)*
+- Jupyter/IPython
+- Mono *(6.4)*
+- Node *(JavaScript 8.10)*
+- Octave *(4.2.2)*
 - R *(r-base 3.4)*
 - C/C++ *(gcc 7 and clang 6 as compilers)*
 - Go *(golang 1.10)*
@@ -52,6 +56,47 @@ updated to the latest version shipped by Ubuntu:
 
 Read the following sections to find out about extending this environment with
 other required software.
+
+.. _at-result-visibility:
+
+Result visibility
+----------------------
+
+When a student uploads, AutoTest immediately runs on the handed in submission.
+You can choose whether you want the student to directly be able to view the
+AutoTest result (known as :ref:`Continuous Feedback <cont-feedback>`)
+or that the student can only view the result when the assignment is set to "Done" (just like with any other
+feedback).
+
+The AutoTest rubric categories will be filled in automatically and directly in
+either case if you have not created any hidden steps.
+
+.. warning::
+    If you have created hidden steps, AutoTest will be run again automatically
+    within 30 minutes after the deadline, where the hidden steps are also executed.
+    Before the deadline, hidden steps are never executed.
+
+Rubric calculation
+-------------------
+
+There are two modes to fill in the rubric:
+
+Minimum
+~~~~~~~~~
+
+A category's item will be chosen when the lower
+bound of this item is reached (e.g. when a category has 4 items and 75% of the
+tests succeed, the maximum item is filled in).
+
+Maximum
+~~~~~~~~
+
+A category's item will be chosen when the upper bound of
+this item is reached (e.g. you need 100% passed tests to have the maximum item filled in).
+
+.. note::
+    The percentages of the items in a category are independent of the amount of points
+    given to them. E.g. if you have 4 items, item 1 is always 0%-25%, item 2 is 25%-50% and so forth.
 
 Uploading fixtures
 --------------------

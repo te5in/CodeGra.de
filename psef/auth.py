@@ -190,7 +190,10 @@ def ensure_can_submit_work(
     else:
         ensure_permission(CPerm.can_submit_others_work, assig.course_id)
 
-    if not assig.is_open:
+    if assig.is_hidden:
+        ensure_permission(CPerm.can_see_hidden_assignments, assig.course_id)
+
+    if assig.deadline_expired:
         ensure_permission(CPerm.can_upload_after_deadline, assig.course_id)
 
     if assig.is_lti and not (
@@ -364,7 +367,7 @@ def ensure_can_view_autotest(auto_test: 'psef.models.AutoTest') -> None:
     course_id = auto_test.assignment.course_id
     ensure_enrolled(course_id)
 
-    if auto_test.continuous_feedback_run is not None:
+    if auto_test.run and auto_test.results_always_visible:
         return
     elif not auto_test.assignment.is_done:
         ensure_permission(CPerm.can_view_autotest_before_done, course_id)
@@ -383,7 +386,7 @@ def ensure_can_view_autotest_result(
     course_id = run.auto_test.assignment.course_id
     ensure_enrolled(course_id)
 
-    if run.is_continuous_feedback_run:
+    if run.auto_test.results_always_visible:
         if work.has_as_author(psef.current_user):
             return
         ensure_permission(CPerm.can_see_others_work, work.assignment.course_id)
@@ -398,8 +401,11 @@ def ensure_can_view_fixture(fixture: 'psef.models.AutoTestFixture') -> None:
     :param fixture: The fixture to check for.
     :returns: Nothing.
     """
+    ensure_can_view_autotest(fixture.auto_test)
+
     course_id = fixture.auto_test.assignment.course_id
     ensure_permission(CPerm.can_view_autotest_fixture, course_id)
+
     if fixture.hidden:
         ensure_permission(CPerm.can_view_hidden_fixtures, course_id)
 

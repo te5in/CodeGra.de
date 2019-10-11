@@ -35,7 +35,7 @@ from cg_timers import timed_code
 from cg_flask_helpers import callback_after_this_request
 from cg_sqlalchemy_helpers.types import Base, MyQuery, DbColumn
 
-from . import features, validate
+from . import features, validate, jsonify_options
 from .. import errors, current_tester
 
 if t.TYPE_CHECKING and not getattr(t, 'SPHINX', False):  # pragma: no cover
@@ -362,6 +362,13 @@ _JSONValue = t.Union[str, int, float, bool, None, t.Dict[str, t.Any],  # pylint:
 JSONType = t.Union[t.Dict[str, _JSONValue], t.List[_JSONValue], _JSONValue]  # pylint: disable=invalid-name
 
 
+class LockType(enum.Enum):
+    """How should the row be locked.
+    """
+    full = 1
+    read = 2
+
+
 class EmptyResponse:
     """An empty response.
 
@@ -426,7 +433,8 @@ def _filter_or_404(
     get_all: bool,
     criteria: t.Tuple,
     also_error: t.Optional[t.Callable[[Y], bool]],
-    with_for_update: bool,
+    with_for_update: t.Union[bool, LockType],
+    options: t.Optional[t.List[t.Any]] = None,
 ) -> t.Union[Y, t.Sequence[Y]]:
     """Get the specified object by filtering or raise an exception.
 
@@ -440,7 +448,10 @@ def _filter_or_404(
     """
     query = model.query.filter(*criteria)
     if with_for_update:
-        query = query.with_for_update()
+        query = query.with_for_update(read=with_for_update == LockType.read)
+    if options is not None:
+        query = query.options(*options)
+
     obj = query.all() if get_all else query.one_or_none()
 
     if not obj or (also_error is not None and also_error(obj)):
@@ -454,7 +465,9 @@ def _filter_or_404(
 
 
 def filter_all_or_404(
-    model: t.Type[Y], *criteria: t.Any, with_for_update: bool = False
+    model: t.Type[Y],
+    *criteria: t.Any,
+    with_for_update: t.Union[bool, LockType] = False,
 ) -> t.Sequence[Y]:
     """Get all objects of the specified model filtered by the specified
     criteria.
@@ -480,7 +493,8 @@ def filter_single_or_404(
     model: t.Type[Y],
     *criteria: t.Any,
     also_error: t.Optional[t.Callable[[Y], bool]] = None,
-    with_for_update: bool = False
+    with_for_update: t.Union[bool, LockType] = False,
+    options: t.Optional[t.List[t.Any]] = None,
 ) -> Y:
     """Get a single object of the specified model by filtering or raise an
     exception.
@@ -497,7 +511,10 @@ def filter_single_or_404(
         (OBJECT_ID_NOT_FOUND)
     """
     return t.cast(
-        Y, _filter_or_404(model, False, criteria, also_error, with_for_update)
+        Y,
+        _filter_or_404(
+            model, False, criteria, also_error, with_for_update, options
+        )
     )
 
 
@@ -1277,7 +1294,7 @@ class NotEqualMixin:
 def retry_loop(
     amount: int,
     *,
-    sleep_time: float = 1,
+    sleep_time: t.Union[float, t.Callable[[int], float]] = 1,
     make_exception: t.Callable[[], Exception] = None,
 ) -> t.Iterator[int]:
     """Retry
@@ -1298,10 +1315,27 @@ def retry_loop(
     Traceback (most recent call last):
     ...
     ValueError
+    >>> doctest.ELLIPSIS_MARKER = '-etc-'
+    >>> args = []
+    >>> for _ in retry_loop(10, sleep_time=lambda i: args.append(i) or 0):
+    ...  pass
+    Traceback (most recent call last):
+    -etc-
+    AssertionError
+    >>> args  # We retry 10 times, so we expect 9 calls to sleep
+    [1, 2, 3, 4, 5, 6, 7, 8, 9]
     """
     assert amount > 0, "amount should be higher than 0"
 
     i = amount
+
+    if callable(sleep_time):
+        get_sleep_time = sleep_time
+    else:
+        _time: float = sleep_time
+
+        def get_sleep_time(_: int) -> float:
+            return _time
 
     while i > 1:
         i -= 1
@@ -1311,7 +1345,7 @@ def retry_loop(
             amount_of_tries_left=i,
             total_amount_of_tries=amount,
         )
-        time.sleep(sleep_time)
+        time.sleep(get_sleep_time(amount - i))
 
     yield 0
     logger.warning("Retry loop failed", amount_of_tries_left=0)

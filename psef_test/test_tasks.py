@@ -1,12 +1,22 @@
 import time
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import pytest
 
+import psef
+import requests_stubs
 from psef import tasks as t
 from psef import models as m
+from helpers import create_auto_test, create_assignment, create_submission
+from conftest import DESCRIBE_HOOKS
+from cg_celery import TaskStatus
 from cg_flask_helpers import callback_after_this_request
+
+
+def flush_callbacks():
+    t.celery._call_callbacks(TaskStatus.success)
+    t.celery._after_task_callbacks = []
 
 
 @pytest.mark.parametrize(
@@ -28,6 +38,10 @@ def test_check_heartbeat(
         stub_notify_new = stub_function_class()
         monkeypatch.setattr(t, '_notify_broker_of_new_job_1', stub_notify_new)
 
+        orig_kill_and_adjust = t._kill_runners_and_adjust_1
+        kill_and_adjust = stub_function_class(orig_kill_and_adjust)
+        monkeypatch.setattr(t, 'kill_runners_and_adjust', kill_and_adjust)
+
         stub_notify_stop = stub_function_class()
         monkeypatch.setattr(t, 'notify_broker_end_of_job', stub_notify_stop)
 
@@ -39,10 +53,12 @@ def test_check_heartbeat(
         test = m.AutoTest(
             setup_script='', run_setup_script='', assignment=assignment
         )
-        run = m.AutoTestRun(_job_id=uuid.uuid4(), auto_test=test)
+        run = m.AutoTestRun(
+            _job_id=uuid.uuid4(), auto_test=test, batch_run_done=False
+        )
         run.results = [
-            m.AutoTestResult(work_id=sub2_id),
-            m.AutoTestResult(work_id=submission['id'])
+            m.AutoTestResult(work_id=sub2_id, final_result=False),
+            m.AutoTestResult(work_id=submission['id'], final_result=False)
         ]
         run.results[0].state = m.AutoTestStepResultState.running
         run.results[1].state = m.AutoTestStepResultState.passed
@@ -51,11 +67,18 @@ def test_check_heartbeat(
         with app.test_request_context('/non_existing', {}):
             run.add_active_runner('localhost')
         runner = run.runners[0]
+        run.results[0].runner = runner
+        run.results[1].runner = runner
+
+        with app.test_request_context('/non_existing', {}):
+            run.add_active_runner('localhost2')
+
         assert runner.run
         session.commit()
 
     with describe('not expired'):
         t._check_heartbeat_stop_test_runner_1(runner.id.hex)
+        flush_callbacks()
         now = datetime.utcnow()
 
         # As the heartbeats have not expired yet a new check should be
@@ -65,23 +88,9 @@ def test_check_heartbeat(
         assert (stub_heart.all_args[0]['eta'] - now).total_seconds() > 0
 
         assert not stub_notify_new.called
+        assert not kill_and_adjust.called
         assert not stub_notify_stop.all_args
         assert not stub_notify_kill_single.all_args
-
-    with describe('Already finished'):
-        with describe('Inner setup'):
-            # Use _state as the setter does logic we don't wan't right now
-            run._state = m.AutoTestRunState.done
-        session.commit()
-        t._check_heartbeat_stop_test_runner_1(runner.id.hex)
-
-        assert not stub_heart.called
-        assert not stub_notify_new.called
-        assert not stub_notify_stop.called
-        assert not stub_notify_kill_single.all_args
-
-        run._state = m.AutoTestRunState.running
-        session.commit()
 
     with describe('expired'):
         runner.last_heartbeat = datetime.fromtimestamp(0)
@@ -89,16 +98,16 @@ def test_check_heartbeat(
         session.commit()
         run = runner.run
         t._check_heartbeat_stop_test_runner_1(runner.id.hex)
+        flush_callbacks()
 
         assert not stub_heart.called
-        assert len(stub_notify_new.all_args) == 1
-        assert len(stub_notify_stop.all_args) == 1
-        assert len(stub_notify_kill_single.all_args) == 1
-        assert stub_notify_new.call_dates[0] > stub_notify_stop.call_dates[0]
+        assert len(stub_notify_new.all_args) == 0
+        assert len(kill_and_adjust.args) == 1
+        assert len(stub_notify_stop.all_args) == 0
+        assert len(stub_notify_kill_single.all_args) == 0
 
         run.get_job_id() != old_job_id
         assert runner.run is None
-        assert run.state == m.AutoTestRunState.running
         assert (
             run.results[0].state == m.AutoTestStepResultState.not_started
         ), 'The results should be cleared'
@@ -108,73 +117,10 @@ def test_check_heartbeat(
 
     with describe('With non existing runner'):
         t._check_heartbeat_stop_test_runner_1(uuid.uuid4().hex)
+        flush_callbacks()
 
         assert not stub_heart.called
         assert not stub_notify_new.called
-        assert not stub_notify_stop.called
-        assert not stub_notify_kill_single.called
-
-
-def test_stop_auto_test_run(
-    session, describe, monkeypatch, stub_function_class, app,
-    monkeypatch_celery
-):
-    with describe('setup'):
-        stub_stop = stub_function_class()
-        monkeypatch.setattr(t, 'stop_auto_test_run', stub_stop)
-
-        stub_notify_stop = stub_function_class()
-        monkeypatch.setattr(t, 'notify_broker_end_of_job', stub_notify_stop)
-
-        stub_notify_kill_single = stub_function_class()
-        monkeypatch.setattr(
-            t, 'notify_broker_kill_single_runner', stub_notify_kill_single
-        )
-
-        test = m.AutoTest(setup_script='', run_setup_script='')
-        run = m.AutoTestRun(_job_id=uuid.uuid4(), auto_test=test)
-        run.state = m.AutoTestRunState.running
-        session.add(run)
-
-        with app.test_request_context('/non_existing', {}):
-            run.add_active_runner('localhost')
-        session.commit()
-
-    with describe('kill before deadline'):
-        t._stop_auto_test_run_1(run.id)
-
-        assert len(stub_stop.all_args) == 1
-        assert stub_stop.all_args[0][0] == (run.id, )
-        assert stub_stop.all_args[0]['eta'] == run.kill_date
-
-        assert not stub_notify_stop.called
-        assert not stub_notify_kill_single.called
-
-    with describe('kill after deadline'):
-        run.kill_date = datetime.utcnow()
-        old_job_id = run.get_job_id()
-        session.commit()
-
-        t._stop_auto_test_run_1(run.id)
-
-        assert not stub_stop.called
-
-        assert len(stub_notify_stop.all_args) == 1
-        assert len(stub_notify_kill_single.all_args) == 1
-        assert stub_notify_stop.all_args[0][0] == old_job_id
-        assert run.state == m.AutoTestRunState.timed_out
-
-    with describe('kill after already done'):
-        t._stop_auto_test_run_1(run.id)
-
-        assert not stub_stop.called
-        assert not stub_notify_stop.called
-        assert not stub_notify_kill_single.called
-
-    with describe('kill with unknown runner'):
-        t._stop_auto_test_run_1((run.id + 2) ** 4)
-
-        assert not stub_stop.called
         assert not stub_notify_stop.called
         assert not stub_notify_kill_single.called
 
@@ -217,8 +163,12 @@ def test_adjust_amomunt_runners(
         test = m.AutoTest(
             setup_script='', run_setup_script='', assignment=assignment
         )
-        run = m.AutoTestRun(_job_id=uuid.uuid4(), auto_test=test)
-        run.results = [m.AutoTestResult(work_id=submission['id'])]
+        run = m.AutoTestRun(
+            _job_id=uuid.uuid4(), auto_test=test, batch_run_done=False
+        )
+        run.results = [
+            m.AutoTestResult(work_id=submission['id'], final_result=False)
+        ]
         run.results[0].state = m.AutoTestStepResultState.passed
         session.add(run)
 
@@ -233,7 +183,9 @@ def test_adjust_amomunt_runners(
         assert not stub_notify_new.called
 
     with describe('Should be called when there are results'):
-        run.results.append(m.AutoTestResult(work_id=submission['id']))
+        run.results.append(
+            m.AutoTestResult(work_id=submission['id'], final_result=False)
+        )
         run.results[-1].state = m.AutoTestStepResultState.not_started
         session.commit()
 
@@ -253,3 +205,162 @@ def test_adjust_amomunt_runners(
 
         t.adjust_amount_runners(run.id)
         assert stub_notify_new.called
+
+
+def test_batch_run_auto_test(
+    test_client, logged_in, admin_user, session, monkeypatch,
+    stub_function_class, monkeypatch_celery
+):
+    now = datetime.utcnow()
+    five_minutes = timedelta(minutes=5)
+
+    all_args = []
+
+    def stub_stop_runners(*args, **kwargs):
+        all_args.append({
+            **{idx: val
+               for idx, val in enumerate(args)},
+            **kwargs,
+        })
+
+    stub_clear = stub_function_class()
+
+    monkeypatch.setattr(m.AutoTestRun, 'stop_runners', stub_stop_runners)
+    monkeypatch.setattr(
+        m.AutoTestResult, 'clear', lambda *args: stub_clear(*args)
+    )
+    monkeypatch.setattr(t, 'adjust_amount_runners', stub_function_class())
+    monkeypatch.setattr(
+        t, 'update_latest_results_in_broker', stub_function_class()
+    )
+
+    def make_assig(*args, **kwargs):
+        hidden = kwargs.pop('has_hidden', False)
+        with logged_in(admin_user):
+            assig_id = create_assignment(*args, **kwargs)['id']
+            create_auto_test(test_client, assig_id, has_hidden_steps=hidden)
+        assig = m.Assignment.query.get(assig_id)
+        run = m.AutoTestRun(
+            _job_id=uuid.uuid4(),
+            auto_test=assig.auto_test,
+            batch_run_done=False
+        )
+        session.add(run)
+        session.commit()
+
+        with logged_in(admin_user):
+            sub_id = create_submission(test_client, assig.id)['id']
+        assert run.id is not None
+        session.add(
+            m.AutoTestResult(
+                final_result=False, work_id=sub_id, auto_test_run_id=run.id
+            )
+        )
+        session.commit()
+
+        return assig
+
+    assig1 = make_assig(
+        test_client, deadline=now + five_minutes, has_hidden=True
+    )
+    assig2 = make_assig(
+        test_client, deadline=now - five_minutes, has_hidden=True
+    )
+    assig3 = make_assig(test_client, deadline=now - 2 * five_minutes)
+
+    t._run_autotest_batch_runs_1()
+    # We shouldn't stop the runners for assig3, as this assignment doesn't have
+    # hidden steps.
+    assert len(all_args) == 1
+    assert all_args[0][0] == assig2.auto_test.run
+    assert assig3.auto_test.run.batch_run_done
+    assert not assig1.auto_test.run.batch_run_done
+    assert stub_clear.called
+
+    assert stub_clear.all_args[0][0].work.assignment.id == assig2.id
+
+
+@pytest.mark.parametrize(
+    'filename', ['../test_submissions/multiple_dir_archive.tar.gz'],
+    indirect=True
+)
+def test_delete_submission(
+    logged_in, assignment_real_works, session, monkeypatch,
+    stub_function_class, describe
+):
+    assignment, submission = assignment_real_works
+    passback = stub_function_class(lambda: True)
+    monkeypatch.setattr(psef.lti.LTI, '_passback_grade', passback)
+
+    with describe('deleting submission without lti should work'):
+        t._delete_submission_1(submission['id'], assignment.id)
+
+        assert not passback.called
+
+    user_id = submission['user']['id']
+    assignment.assignment_results[user_id] = m.AssignmentResult(
+        sourcedid='wow', user_id=user_id
+    )
+    assignment.course.lti_provider = m.LTIProvider(key='my_lti')
+    session.commit()
+
+    with describe('deleting newest submission'):
+        t._delete_submission_1(submission['id'], assignment.id)
+
+        assert len(passback.all_args) == 1
+        assert passback.all_args[0]['grade'] is None
+        passback.reset()
+
+    with describe('deleting non newest should not delete grade'):
+        session.add(m.Work(user_id=user_id, assignment=assignment))
+        session.commit()
+
+        t._delete_submission_1(submission['id'], assignment.id)
+        assert not passback.called
+
+    with describe('deleting in non existing assignment'):
+        t._delete_submission_1(submission['id'], None)
+        assert not passback.called
+
+    with describe('deleting in non existing submissions'):
+        t._delete_submission_1(-1, assignment.id)
+        assert not passback.called
+
+
+def test_notify_broker_kill_single_runner(
+    describe, session, assignment, monkeypatch, stub_function_class
+):
+    with describe('setup'):
+        test = m.AutoTest(
+            setup_script='', run_setup_script='', assignment=assignment
+        )
+        run = m.AutoTestRun(
+            _job_id=uuid.uuid4(), auto_test=test, batch_run_done=False
+        )
+        session.flush()
+        session.add(run)
+        runner = m.AutoTestRunner(
+            _ipaddr='localhost', run=run, _job_id=run.get_job_id()
+        )
+        session.commit()
+
+        ses = requests_stubs.Session()
+        DESCRIBE_HOOKS.append(ses.reset)
+        monkeypatch.setattr(psef.helpers, 'BrokerSession', lambda *_: ses)
+
+    with describe('kill runner'):
+        psef.tasks._notify_broker_kill_single_runner_1(run.id, runner.id.hex)
+        call, = ses.calls
+        assert call['method'] == 'delete'
+        assert runner.job_id in call['args'][0]
+
+    with describe('invalid run'):
+        psef.tasks._notify_broker_kill_single_runner_1(-1, runner.id.hex)
+        assert not ses.calls
+
+    with describe('invalid runner'):
+        psef.tasks._notify_broker_kill_single_runner_1(
+            run.id,
+            uuid.uuid4().hex
+        )
+        assert not ses.calls

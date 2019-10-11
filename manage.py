@@ -6,6 +6,7 @@ import sys
 import json
 import uuid
 import shutil
+import getpass
 import datetime
 
 import alembic_autogenerate_enums
@@ -64,9 +65,7 @@ def seed_force(db=None):
             else:
                 perm = psef.permissions.GlobalPermission.get_by_name(name)
 
-            old_perm = m.Permission.query.filter_by(
-                value=perm
-            ).first()
+            old_perm = m.Permission.query.filter_by(value=perm).first()
 
             if old_perm is not None:
                 old_perm.default_value = perm.value.default_value
@@ -109,6 +108,30 @@ def seed_force(db=None):
 
 
 @manager.command
+def create_user():
+    db = psef.models.db
+
+    name = input('Name of new user: ').strip('\n')
+    username = input('Username of new user: ').strip('\n')
+    prompt = 'Password of new user: '
+    password = (
+        getpass.getpass(prompt) if sys.stdin.isatty() else input(prompt)
+    ).strip('\n')
+    role = input('Role of new user: ').strip('\n')
+    email = input('Email of new user: ').strip('\n')
+
+    user = psef.models.User(
+        username=username,
+        password=password,
+        role=psef.models.Role.query.filter_by(name=role).one(),
+        name=name,
+        email=email,
+    )
+    db.session.add(user)
+    db.session.commit()
+
+
+@manager.command
 def test_data(db=None):
     db = psef.models.db if db is None else db
 
@@ -127,7 +150,7 @@ def test_data(db=None):
         cs = json.load(c)
         for c in cs:
             if m.Course.query.filter_by(name=c['name']).first() is None:
-                db.session.add(m.Course(name=c['name']))
+                db.session.add(m.Course.create_and_add(name=c['name']))
     db.session.commit()
     with open(
         f'{os.path.dirname(os.path.abspath(__file__))}/test_data/assignments.json',

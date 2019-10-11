@@ -14,13 +14,27 @@ class Session:
         def raise_for_status(self):
             pass
 
-    def delete(self, _, **__):
-        return Session.Response()
+    def make_req_stub(self, meth):
+        def req(*args, **kwargs):
+            self.calls.append({
+                'args': args,
+                'kwargs': kwargs,
+                'method': meth,
+            })
+            return Session.Response()
+
+        return req
 
     def __init__(self, *args):
-        pass
+        self.calls = []
+        self.get = self.make_req_stub('get')
+        self.post = self.make_req_stub('post')
+        self.patch = self.make_req_stub('patch')
+        self.put = self.make_req_stub('put')
+        self.delete = self.make_req_stub('delete')
 
-    get = post = patch = put = delete
+    def reset(self):
+        self.calls = []
 
     def __enter__(self):
         return self

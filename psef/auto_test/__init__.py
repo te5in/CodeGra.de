@@ -28,6 +28,7 @@ from pathlib import Path
 from multiprocessing import Event, Queue, context, managers
 
 import lxc  # typing: ignore
+import urllib3
 import requests
 import structlog
 from mypy_extensions import TypedDict
@@ -59,6 +60,10 @@ Y = t.TypeVar('Y')
 
 Network = t.NewType('Network', t.Tuple[str, t.List[t.Tuple[str, str]]])
 
+NETWORK_EXCEPTIONS = (
+    requests.RequestException, ConnectionError, urllib3.exceptions.HTTPError
+)
+
 
 class UpdateResultFunction(Protocol):
     """A protocol for a function that can update the state of a step.
@@ -88,9 +93,23 @@ _SYSTEMD_WAIT_CMD = [
     '/bin/true',
 ]
 _REQUEST_TIMEOUT = 10
+_REQUEST_RETRIES = 5
+_REQUEST_BACKOFF_FACTOR = 1.2
 
 
 class LXCProcessError(Exception):
+    pass
+
+
+class StopRunningStudentException(Exception):
+    pass
+
+
+class StopRunningTestsException(Exception):
+    pass
+
+
+class AttachTimeoutError(StopRunningTestsException):
     pass
 
 
@@ -161,11 +180,20 @@ def _wait_for_attach(
     pid: int,
     command_started: threading.Event,
     timeout_time: int = 10,
+    max_amount_timeouts: int = 3,
 ) -> t.Optional[int]:
     """Wait on the given pid until it signaled a start.
 
     This is done by waiting on the given :class:`.threading.Event` and every
     ``timeout_time`` seconds checking if the process has not already stopped.
+
+    :param pid: The pid of the attached container.
+    :param command_started: An event to check for if the attach finished.
+    :param timeout_time: The amount of time that should be between checks if
+        the command exited.
+    :param max_amount_timeouts: The maximal amount of times to check if the
+        command exited. If exceeded an :py:class:`.AttachTimeoutError` is
+        raised.
 
     >>> import doctest
     >>> doctest.ELLIPSIS_MARKER = '-etc-'
@@ -178,9 +206,21 @@ def _wait_for_attach(
     >>> p = Popen('exit 2', shell=True)
     >>> assert _wait_for_attach(p.pid, event, 1) is None
     -etc-
+    >>> p = Popen('sleep 120', shell=True)
+    >>> event.clear()
+    >>> assert _wait_for_attach(p.pid, event, 1, 1) is None
+    Traceback (most recent call last):
+    -etc-
+    AttachTimeoutError
     """
     with timed_code('waiting_for_attach'):
-        while not command_started.wait(timeout_time):  # pragma: no cover
+        for _ in helpers.retry_loop(
+            max_amount_timeouts,
+            sleep_time=0,
+            make_exception=AttachTimeoutError,
+        ):
+            if command_started.wait(timeout_time):  # pragma: no cover
+                return None
             logger.info('Still not attached', pid=pid)
 
             code = _waitpid_noblock(pid)
@@ -189,7 +229,7 @@ def _wait_for_attach(
                 logger.info('Program exited before attach', code=code)
                 return code
 
-    return None
+    raise RuntimeError  # pragma: no cover
 
 
 def _wait_for_pid(pid: int, timeout: float) -> t.Tuple[int, float]:
@@ -480,7 +520,7 @@ def _get_base_container(config: 'psef.FlaskConfig') -> 'AutoTestContainer':
         logger.info('No base template set, creating new container')
         res = AutoTestContainer(_get_new_container_name(), config)
         res.create()
-    else:
+    else:  # pragma: no cover
         res = AutoTestContainer(template_name, config).clone()
     return res
 
@@ -613,7 +653,7 @@ class RunnerInstructions(TypedDict, total=True):
     setup_script: str
     heartbeat_interval: int
     run_setup_script: str
-    is_continuous_run: bool
+    poll_after_done: bool
 
 
 @dataclasses.dataclass(frozen=True)
@@ -658,10 +698,12 @@ def process_config(config: 'psef.FlaskConfig') -> None:
 
 # This wrapper function is needed for Python multiprocessing
 def _run_student(
-    cont: 'AutoTestRunner', bc_name: str, cores: CpuCores,
-    get_work: t.Callable[[], t.Optional[cg_worker_pool.Work]]
+    cont: 'AutoTestRunner',
+    bc_name: str,
+    cores: CpuCores,
+    opts: cg_worker_pool.CallbackArguments,
 ) -> None:
-    cont.run_student(bc_name, cores, get_work)
+    cont.run_student(bc_name, cores, opts)
 
 
 def start_polling(config: 'psef.FlaskConfig', repeat: bool = True) -> None:
@@ -736,9 +778,14 @@ def start_polling(config: 'psef.FlaskConfig', repeat: bool = True) -> None:
                 sys.maxsize, sleep_time=_REQUEST_TIMEOUT
             ):
                 with helpers.BrokerSession('', '', broker_url) as ses:
-                    res = ses.post('/api/v1/alive/', timeout=_REQUEST_TIMEOUT)
-                    logger.info('Did request to broker', response=res)
-                    if res.status_code < 400:
+                    try:
+                        ses.post(
+                            '/api/v1/alive/', timeout=_REQUEST_TIMEOUT
+                        ).raise_for_status()
+                    except:  # pylint: disable=bare-except
+                        logger.info('Did request to broker', exc_info=True)
+                        continue
+                    else:
                         break
 
             while True:
@@ -1255,7 +1302,7 @@ class StartedContainer:
             if not check or ret == 0:
                 return ret
 
-        raise RuntimeError
+        raise RuntimeError  # pragma: no cover
 
     def _run(
         self,
@@ -1498,12 +1545,23 @@ class AutoTestRunner:
         """
         return _get_amount_cpus() + 4
 
+    @staticmethod
+    def _should_poll_after_done(instructions: RunnerInstructions) -> bool:
+        """Should we poll after done.
+
+        >>> AutoTestRunner._should_poll_after_done({})
+        False
+        >>> AutoTestRunner._should_poll_after_done({'poll_after_done': True})
+        True
+        """
+        return instructions.get('poll_after_done', False)
+
     def _make_worker_pool(
         self,
         base_container_name: str,
         cpu_cores: CpuCores,
     ) -> cg_worker_pool.WorkerPool:
-        mult = 1 if self.instructions.get('is_continuous_run', False) else 0
+        mult = int(self._should_poll_after_done(self.instructions))
 
         return cg_worker_pool.WorkerPool(
             # Over provision a bit so clones can be made quicker.
@@ -1516,9 +1574,6 @@ class AutoTestRunner:
         )
 
     def _work_producer(self, last_call: bool) -> t.List[cg_worker_pool.Work]:
-        if not self.instructions.get('is_continuous_run', False):
-            return []
-
         url = (
             f'{self.base_url}/runs/{self.instructions["run_id"]}/'
             f'results/?last_call={last_call}'
@@ -1550,18 +1605,17 @@ class AutoTestRunner:
 
     @staticmethod
     def _get_retry_adapter() -> HTTPAdapter:
-        retries = 5
         return HTTPAdapter(
             max_retries=Retry(
-                total=retries,
-                read=retries,
-                connect=retries,
-                status=retries,
-                backoff_factor=2,
+                total=_REQUEST_RETRIES,
+                read=_REQUEST_RETRIES,
+                connect=_REQUEST_RETRIES,
+                status=_REQUEST_RETRIES,
+                backoff_factor=_REQUEST_BACKOFF_FACTOR,
                 method_whitelist=frozenset(
                     [*Retry.DEFAULT_METHOD_WHITELIST, 'PATCH']
                 ),
-                status_forcelist=(500, 502, 503, 504),
+                status_forcelist=(500, 501, 502, 503, 504),
             )
         )
 
@@ -1612,17 +1666,26 @@ class AutoTestRunner:
         :param dst: The path in the container where to store the file.
         """
         dst = f'{_get_home_dir(CODEGRADE_USER)}/{dst}'
-        cont.run_command(
-            [
-                'wget',
-                *self._wget_headers,
-                f'{self.base_url}/{url}',
-                '-O',
-                dst,
-            ],
-            user=CODEGRADE_USER,
-            retry_amount=4,
-        )
+        for _ in helpers.retry_loop(
+            _REQUEST_RETRIES,
+            sleep_time=lambda n: min(
+                _REQUEST_BACKOFF_FACTOR * (2 ** (n - 1)),
+                Retry.BACKOFF_MAX,
+            ),
+            make_exception=StopRunningStudentException
+        ):
+            if cont.run_command(
+                [
+                    'wget',
+                    *self._wget_headers,
+                    f'{self.base_url}/{url}',
+                    '-O',
+                    dst,
+                ],
+                user=CODEGRADE_USER,
+                check=False,
+            ) == 0:
+                break
         cont.run_command(['chmod', '-R', '+x', dst], user=CODEGRADE_USER)
         logger.info('Downloaded file', dst=dst, url=url)
 
@@ -1762,29 +1825,38 @@ class AutoTestRunner:
         return total_points, possible_points
 
     @staticmethod
-    def _is_old_submission_error(exc: requests.HTTPError) -> bool:
+    def _is_old_submission_error(
+        exc: t.Union[Exception, requests.Response]
+    ) -> bool:
         """Check if the given exception is a ``NOT_NEWEST_SUBMSSION`` error.
 
         >>> f = AutoTestRunner._is_old_submission_error
+        >>> f(Exception())
+        False
         >>> r = requests.HTTPError()
         >>> f(r)
         False
         >>> r.response = requests.get('https://google.com')
         >>> f(r)
         False
-        >>> r.response = requests.get('http://echo.jsontest.com/codes/NOPE')
+        >>> # Get {"code": "NOPE"}
+        >>> r.response = requests.get('http://www.mocky.io/v2/5d9e5e2d320000c532329d37')
         >>> f(r)
         False
-        >>> code = APICodes.NOT_NEWEST_SUBMSSION.name
-        >>> r.response = requests.get('http://echo.jsontest.com/code/{}'.format(code))
-        >>> f(r)
-        True
+        >>> f(r.response)
+        False
         """
-        if exc.response is None:
+        if isinstance(exc, requests.HTTPError):
+            if exc.response is None:
+                return False
+            response = exc.response
+        elif isinstance(exc, requests.Response):
+            response = exc
+        else:
             return False
 
         try:
-            res = exc.response.json()
+            res = response.json()
         except ValueError:
             return False
 
@@ -1797,7 +1869,7 @@ class AutoTestRunner:
         cont: StartedContainer,
         cpu: CpuCores.Core,
         result_id: int,
-    ) -> None:
+    ) -> bool:
         result_url = f'{self.base_url}/results/{result_id}'
 
         result_state: t.Optional[models.AutoTestStepResultState]
@@ -1856,20 +1928,25 @@ class AutoTestRunner:
                     test_set['stop_points']
                 ):
                     break
-        except requests.HTTPError as e:
+        except (StopRunningStudentException, *NETWORK_EXCEPTIONS) as e:
             result_state = None
             if self._is_old_submission_error(e):
                 logger.warning('Was running old submission', exc_info=True)
-            elif isinstance(e, requests.HTTPError):
+            else:
                 logger.warning(
                     'HTTP error, so stopping this student', exc_info=True
                 )
+            return False
+        except StopRunningTestsException:
+            logger.warning('Stop running steps', exc_info=True)
+            raise
         except:
             logger.error('Something went wrong', exc_info=True)
             result_state = models.AutoTestStepResultState.failed
             raise
         else:
             result_state = models.AutoTestStepResultState.passed
+            return True
         finally:
             if result_state is not None:
                 self.req.patch(
@@ -1879,24 +1956,38 @@ class AutoTestRunner:
                 )
 
     def run_student(
-        self,
-        base_container_name: str,
-        cpu_cores: CpuCores,
-        get_work: t.Callable[[], t.Optional[cg_worker_pool.Work]],
+        self, base_container_name: str, cpu_cores: CpuCores,
+        opts: cg_worker_pool.CallbackArguments
     ) -> None:
         """Run the test for a single student.
 
         :param base_container_name: The name of the base lxc container.
         :param cpu_cores: The cpu cores which are available during testing.
         :param result_id: The id of the student to run.
+        :param opts: The way to get work from the worker pool.
         :returns: Nothing.
         """
         base_container = AutoTestContainer(base_container_name, self.config)
         student_container = base_container.clone()
 
+        def retry_work(work: cg_worker_pool.Work) -> None:
+            try:
+                self.req.patch(
+                    f'{self.base_url}/results/{work.result_id}',
+                    json={
+                        'state':
+                            models.AutoTestStepResultState.not_started.name
+                    },
+                    timeout=_REQUEST_TIMEOUT,
+                )
+            except:  # pylint: disable=bare-except
+                pass
+            finally:
+                opts.retry_work(work)
+
         with student_container.started_container() as cont:
             while True:
-                work = get_work()
+                work = opts.get_work()
                 if work is None:
                     return
                 result_id = work.result_id
@@ -1910,13 +2001,25 @@ class AutoTestRunner:
                         },
                         timeout=_REQUEST_TIMEOUT,
                     )
-                    patch_res.raise_for_status()
+
+                    try:
+                        patch_res.raise_for_status()
+                    except requests.HTTPError as e:
+                        if not self._is_old_submission_error(e):
+                            retry_work(work)
+                        continue
+
                     if (
                         patch_res.status_code != 200 or
                         not patch_res.json().get('taken', False)
                     ):
                         with cg_logger.bound_to_logger(result_id=result_id):
-                            self._run_student(cont, cpu, result_id)
+                            if not self._run_student(cont, cpu, result_id):
+                                # Student didn't finish correctly. So put back
+                                # in the queue. The retry function contains the
+                                # functionality for only retrying a fixed
+                                # amount of time.
+                                retry_work(work)
                             return
 
     def _started_heartbeat(self) -> 'RepeatedTimer':
@@ -1941,26 +2044,15 @@ class AutoTestRunner:
         time_taken: t.Optional[float] = None
 
         with self._started_heartbeat():
-            self.req.patch(
-                run_result_url,
-                json={'state': models.AutoTestRunState.starting.name},
-                timeout=_REQUEST_TIMEOUT,
-            )
             try:
                 with timed_code('run_complete_auto_test') as get_time_taken:
                     self._run_test(cont)
                 time_taken = get_time_taken()
-            except:
-                end_state = models.AutoTestRunState.crashed.name
-                raise
-            else:
-                logger.info('Finished running tests')
-                end_state = models.AutoTestRunState.done.name
             finally:
                 self.req.patch(
                     run_result_url,
                     json={
-                        'state': end_state,
+                        'state': 'stopped',
                         'time_taken': time_taken,
                     },
                     timeout=_REQUEST_TIMEOUT,
@@ -1992,17 +2084,19 @@ class AutoTestRunner:
         with timed_code('run_setup_commands'):
             cont.run_command(
                 [
-                    'adduser', '--shell', '/bin/bash', '--disabled-password',
-                    '--gecos', '', CODEGRADE_USER
+                    '/bin/bash',
+                    '-c',
+                    (
+                        'adduser --shell /bin/bash --disabled-password --gecos'
+                        ' "" {user} && '
+                        'mkdir -p "{home_dir}/student/" && '
+                        'mkdir -p "{home_dir}/fixtures/" && '
+                        'chown -R {user}:{user} {home_dir}'
+                    ).format(
+                        user=CODEGRADE_USER,
+                        home_dir=_get_home_dir(CODEGRADE_USER),
+                    ),
                 ],
-            )
-            cont.run_command(
-                ['mkdir', '-p', f'{_get_home_dir(CODEGRADE_USER)}/student/'],
-                user=CODEGRADE_USER
-            )
-            cont.run_command(
-                ['mkdir', '-p', f'{_get_home_dir(CODEGRADE_USER)}/fixtures/'],
-                user=CODEGRADE_USER
             )
 
             cont.run_command(['usermod', '-aG', 'sudo', CODEGRADE_USER])
@@ -2022,12 +2116,6 @@ class AutoTestRunner:
             self.instructions['run_setup_script'],
             f'{self.base_url}/runs/{self.instructions["run_id"]}',
             cwd=f'{_get_home_dir(CODEGRADE_USER)}/fixtures/',
-        )
-
-        self.req.patch(
-            f'{self.base_url}/runs/{self.instructions["run_id"]}',
-            json={'state': models.AutoTestRunState.running.name},
-            timeout=_REQUEST_TIMEOUT,
         )
 
         with cont.stopped_container() as base_container, timed_code(

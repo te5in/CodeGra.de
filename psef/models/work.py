@@ -188,6 +188,13 @@ class Work(Base):
     )  # type: t.Optional[user_models.User]
 
     grade_histories: t.List['GradeHistory']
+    deleted: bool = db.Column(
+        'deleted',
+        db.Boolean,
+        default=False,
+        server_default='false',
+        nullable=False
+    )
 
     # This variable is generated from the backref from all files
     files: 't.List["file_models.File"]'
@@ -318,8 +325,13 @@ class Work(Base):
         self.grade_histories.append(history)
 
         if not never_passback and passback:
+            work_id = self.id
+            assignment_id = self.assignment_id
             helpers.callback_after_this_request(
-                lambda: psef.tasks.passback_grades([self.id])
+                lambda: psef.tasks.passback_grades(
+                    [work_id],
+                    assignment_id=assignment_id,
+                )
             )
 
         return history
@@ -781,6 +793,16 @@ class Work(Base):
                 t.cast(DbColumn[int], Work.user_id).in_(groups_of_user)
             )
         )
+
+    def get_all_authors(self) -> t.List['user_models.User']:
+        """Get all the authors of this submission.
+
+        :returns: A list of users that were the authors of this submission.
+        """
+        if self.user.group:
+            return list(self.user.group.members)
+        else:
+            return [self.user]
 
     def has_as_author(self, user: 'user_models.User') -> bool:
         """Check if the given user is (one of) the authors of this submission.

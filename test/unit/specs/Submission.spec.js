@@ -188,6 +188,8 @@ describe('Submission.vue', () => {
                     },
                     getters: {
                         latestSubmissions: state => state.latestSubmissions,
+                        getSingleSubmission: state =>
+                            (assigId, id) => (state.submissions[assigId] || []).find(s => s.id === id) || null,
                     },
                     actions: {
                         loadSubmissions: mockLoadSubs,
@@ -261,7 +263,7 @@ describe('Submission.vue', () => {
             expect(comp.submissionId).toBeNaN();
         });
 
-        it('objects should be retrieved from the store or default', () => {
+        it('objects should be retrieved from the store or default', async () => {
             expect(comp.assignment).toBe(courses[1].assignments[0]);
             expect(comp.assignment.id).toBe(2);
 
@@ -272,6 +274,8 @@ describe('Submission.vue', () => {
             $route.params.assignmentId = 'hello';
             $route.params.courseId = 'hello';
             $route.params.submissionId = 'hello';
+
+            await comp.$nextTick();
 
             expect(comp.assignment).toBeNull();
             expect(comp.submission).toBeNull();

@@ -83,8 +83,7 @@ def test_searching_user_excluding_course(
     if course_id is True:
         c_id = assignment.course_id
     elif course_id == 'Other':
-        other_course = m.Course(name='Other course')
-        session.add(other_course)
+        other_course = m.Course.create_and_add(name='Other course')
         session.flush()
         other_course_teacher_role = m.CourseRole.query.filter_by(
             course_id=other_course.id, name='Teacher'

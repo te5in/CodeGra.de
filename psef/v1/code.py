@@ -49,11 +49,13 @@ def put_comment(code_id: int, line: int) -> EmptyResponse:
         models.Comment
     ).filter(models.Comment.file_id == code_id,
              models.Comment.line == line).one_or_none()
+    if comment and comment.file.work.deleted:
+        comment = None
 
     def __get_comment() -> str:
         content = ensure_json_dict(request.get_json())
         ensure_keys_in_dict(content, [('comment', str)])
-        return t.cast(str, content['comment'])
+        return t.cast(str, content['comment']).replace('\0', '')
 
     if comment:
         auth.ensure_permission(
@@ -62,7 +64,9 @@ def put_comment(code_id: int, line: int) -> EmptyResponse:
 
         comment.comment = __get_comment()
     else:
-        file = helpers.get_or_404(models.File, code_id)
+        file = helpers.get_or_404(
+            models.File, code_id, also_error=lambda f: f.work.deleted
+        )
         auth.ensure_permission(
             CPerm.can_grade_work,
             file.work.assignment.course_id,
@@ -100,8 +104,10 @@ def remove_comment(code_id: int, line: int) -> EmptyResponse:
                                  attached course. (INCORRECT_PERMISSION)
     """
     comment = helpers.filter_single_or_404(
-        models.Comment, models.Comment.file_id == code_id,
-        models.Comment.line == line
+        models.Comment,
+        models.Comment.file_id == code_id,
+        models.Comment.line == line,
+        also_error=lambda c: c.file.work.deleted,
     )
 
     auth.ensure_permission(
@@ -149,7 +155,11 @@ def get_code(file_id: int) -> t.Union[werkzeug.wrappers.Response, JSONResponse[
                                  user can not view files in the attached
                                  course. (INCORRECT_PERMISSION)
     """
-    file = helpers.filter_single_or_404(models.File, models.File.id == file_id)
+    file = helpers.filter_single_or_404(
+        models.File,
+        models.File.id == file_id,
+        also_error=lambda f: f.work.deleted
+    )
 
     auth.ensure_can_view_files(file.work, file.fileowner == FileOwner.teacher)
     get_type = request.args.get('type', None)
@@ -254,7 +264,9 @@ def delete_code(file_id: int) -> EmptyResponse:
     :raises APIException: If you do not have permission to delete the given
         file. (INCORRECT_PERMISSION)
     """
-    code: models.File = helpers.get_or_404(models.File, file_id)
+    code: models.File = helpers.get_or_404(
+        models.File, file_id, also_error=lambda f: f.work.deleted
+    )
 
     auth.ensure_can_edit_work(code.work)
 
@@ -446,6 +458,7 @@ def update_code(file_id: int) -> JSONResponse[models.File]:
         models.File,
         models.File.id == file_id,
         models.File.is_directory != dir_filter,
+        also_error=lambda f: f.work.deleted,
     )
 
     auth.ensure_can_edit_work(code.work)

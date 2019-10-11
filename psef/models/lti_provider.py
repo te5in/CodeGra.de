@@ -28,6 +28,22 @@ class LTIProvider(Base):
     id: str = db.Column('id', db.String(UUID_LENGTH), primary_key=True)
     key: str = db.Column('key', db.Unicode, unique=True)
 
+    def delete_grade_for_submission(self, sub: 'Work') -> None:
+        """Delete the grade for the given submission.
+        """
+        for user in sub.get_all_authors():
+            self.lti_class.passback_grade(
+                key=self.key,
+                secret=self.secret,
+                grade=None,
+                initial=False,
+                service_url=sub.assignment.lti_outcome_service_url,
+                sourcedid=sub.assignment.assignment_results[user.id].sourcedid,
+                lti_points_possible=sub.assignment.lti_points_possible,
+                submission=sub,
+                host=current_app.config['EXTERNAL_URL'],
+            )
+
     def passback_grade(self, sub: 'Work', initial: bool) -> None:
         """Passback the grade for a given submission to this lti provider.
 
@@ -37,12 +53,7 @@ class LTIProvider(Base):
             actually do a passback when this is set to ``True``.
         :returns: Nothing.
         """
-        if sub.user.group:
-            users = sub.user.group.members
-        else:
-            users = [sub.user]
-
-        for user in users:
+        for user in sub.get_all_authors():
             self.lti_class.passback_grade(
                 key=self.key,
                 secret=self.secret,

@@ -168,8 +168,8 @@ if True:  # pylint: disable=using-constant-test
     from .group import GroupSet, Group
     from .link_tables import user_course
     from .auto_test import (
-        AutoTest, AutoTestSet, AutoTestSuite, AutoTestResult, AutoTestRunState,
-        AutoTestRun, AutoTestRunner
+        AutoTest, AutoTestSet, AutoTestSuite, AutoTestResult, AutoTestRun,
+        AutoTestRunner
     )
     from .auto_test_step import (
         AutoTestStepResultState, AutoTestStepResult, AutoTestStepBase

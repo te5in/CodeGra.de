@@ -31,6 +31,7 @@ const getters = {
     getAllSubmissions: state => assignmentId => state.submissions[assignmentId] || [],
     getSingleSubmission: state => (assignmentId, submissionId) =>
         getSubmission(state, assignmentId, submissionId, false),
+    allSubmissions: state => state.submissions,
     latestSubmissions: state => state.latestSubmissions,
 };
 
@@ -45,8 +46,10 @@ function addToLatest(latestSubs, newSub) {
     for (; i < len; ++i) {
         const cur = latestSubs[i];
         if (cur.user.id === newSub.user.id) {
-            if (cur.created_at < newSub.created_at) {
-                latestSubs[i] = newSub;
+            // Need <= here because we may want to update the same submission,
+            // for example when the grade changes.
+            if (cur.created_at <= newSub.created_at) {
+                Vue.set(latestSubs, i, Object.assign({}, latestSubs[i], newSub));
             }
             break;
         }
@@ -78,7 +81,10 @@ function processSubmission(sub) {
 }
 
 function addSubmission(subs, newSub) {
-    if (subs.find(sub => sub.id === newSub.id)) {
+    const idx = subs.findIndex(sub => sub.id === newSub.id);
+
+    if (idx !== -1) {
+        Vue.set(subs, idx, Object.assign({}, subs[idx], newSub));
         return subs;
     }
 
@@ -124,21 +130,21 @@ const actions = {
         );
     },
 
-    async loadSingleSubmission(context, { assignmentId, submissionId }) {
+    async loadSingleSubmission(context, { assignmentId, submissionId, force }) {
         // Don't wait for anything if we simply have the submission
         let submission = getSubmission(context.state, assignmentId, submissionId, false);
-        if (submission != null) {
+        if (submission != null && !force) {
             return submission;
         }
 
         await context.dispatch('loadSubmissions', assignmentId);
 
-        if (context.state.singleSubmissionLoaders[submissionId] != null) {
+        if (context.state.singleSubmissionLoaders[submissionId] != null && !force) {
             return context.state.singleSubmissionLoaders[submissionId];
         }
 
         submission = getSubmission(context.state, assignmentId, submissionId, false);
-        if (submission != null) {
+        if (submission != null && !force) {
             return submission;
         }
 

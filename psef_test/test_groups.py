@@ -574,7 +574,8 @@ def test_delete_group_set(
 
 
 def test_delete_group(
-    test_client, logged_in, prog_course, session, teacher_user, error_template
+    test_client, logged_in, prog_course, session, teacher_user, error_template,
+    app, monkeypatch_celery
 ):
     user_only_own = create_user_with_perms(
         session, [CPerm.can_edit_own_groups, CPerm.can_submit_own_work],
@@ -584,15 +585,18 @@ def test_delete_group(
         session, [CPerm.can_edit_others_groups], prog_course
     )
 
-    assig = [
-        a for a in prog_course.assignments if a.state_name == 'submitting'
-    ][0]
+    with logged_in(teacher_user):
+        assig_id = [
+            a for a in test_client.
+            req('get', f'/api/v1/courses/{prog_course.id}/assignments/', 200)
+            if a['state'] == 'submitting'
+        ][0]['id']
 
     with logged_in(teacher_user):
         group_set = create_group_set(test_client, prog_course.id, 2, 4)
         test_client.req(
             'patch',
-            f'/api/v1/assignments/{assig.id}',
+            f'/api/v1/assignments/{assig_id}',
             200,
             data={'group_set_id': group_set['id']}
         )
@@ -612,7 +616,7 @@ def test_delete_group(
         group_empty_id = create_group(test_client, group_set["id"], [])['id']
 
     with logged_in(user_only_own):
-        sub = create_submission(test_client, assig.id)
+        sub = create_submission(test_client, assig_id)
         assert sub['user']['group']
 
     with logged_in(user_only_own):
@@ -899,7 +903,7 @@ def test_submit_with_small_group(
 @pytest.mark.parametrize('course_name', ['Programmeertalen'], indirect=True)
 def test_remove_user_from_group(
     test_client, session, logged_in, teacher_user, prog_course, error_template,
-    assignment
+    assignment, monkeypatch_celery
 ):
     def make_user():
         return create_user_with_perms(
@@ -1065,7 +1069,7 @@ def test_change_name_of_group(
 
 def test_add_test_student_to_group(
     session, test_client, logged_in, assignment, teacher_user, error_template,
-    describe
+    describe, monkeypatch_celery
 ):
     c_id = assignment.course.id
 

@@ -1,0 +1,8 @@
+policy: deny
+options: {"delete_empty_directories": false, "remove_leading_directories": false}
+require data/*
+
+/data/empty/
+/data/file.py
+
+SAME

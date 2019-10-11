@@ -102,7 +102,7 @@ class APIException(Exception):
         return ret
 
     def __str__(self) -> str:
-        return self.message
+        return '{}: {}'.format(self.message, self.description)
 
 
 class PermissionException(APIException):

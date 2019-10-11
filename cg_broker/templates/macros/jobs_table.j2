@@ -1,15 +1,16 @@
-{% macro jobs_table(jobs) %}
+{% macro jobs_table(jobs, show_result_dates) %}
 <table class="table">
     <thead>
         <th>ID</th>
         <th>Instance</th>
-        <th>Wanted runners</th>
-        <th>Amount of runners</th>
-        <th>Age</th>
+        <th>Runners (wanted - got)</th>
         <th>Created at</th>
         <th>Updated at</th>
         <th>State</th>
         <th>Course - Assig</th>
+        {% if show_result_dates %}
+        <th>Latest results</th>
+        {% endif %}
         <th>Type</th>
     </thead>
     <tbody>
@@ -42,16 +43,25 @@
             {% else %}
             <td>{{ job.cg_url }}</td>
             {% endif %}
-            <td>{{ job.wanted_runners }}</td>
-            <td>{{ job.runners | length }}</td>
-            <td>{{ job.created_at | age | round | int }}</td>
-            <td>{{ job.created_at | datetime }}</td>
-            <td>{{ job.updated_at | datetime }}</td>
+            <td>{{ job.wanted_runners }} - {{ job.runners | length }}</td>
+            <td>{{ job.created_at | datetime }} <b>({{ job.created_at | age(True) }})</b></td>
+            <td>{{ job.updated_at | datetime }} <b>({{ job.updated_at | age(True) }})</b></td>
             <td>{{ job.state.name }}</td>
             <td>
             {{ job.job_metadata.get('course',{}).get('name', '?') }} -
             {{ job.job_metadata.get('assignment',{}).get('name', '?') }}
             </td>
+            {% if show_result_dates %}
+            <td>
+                {% set not_started = job.job_metadata | nested_get(None, 'results', 'not_started') %}
+                {% set running = job.job_metadata | nested_get(None, 'results', 'running') %}
+                {% set passed = job.job_metadata | nested_get(None, 'results', 'passed') %}
+
+                NS: {{ (not_started | age(True)) if not_started else '-' }}<br>
+                R: {{ (running | age(True)) if running else '-' }}<br>
+                P: {{ (passed | age(True)) if passed else '-' }}
+            </td>
+            {% endif %}
             <td>{{ job.job_metadata.get('type', '') }}</td>
         </tr>
         {% endfor %}

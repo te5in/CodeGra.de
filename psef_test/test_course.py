@@ -902,8 +902,7 @@ def test_searching_user_in_course(
     if course_id is True:
         c_id = assignment.course_id
     else:
-        other_course = m.Course(name='Other course')
-        session.add(other_course)
+        other_course = m.Course.create_and_add(name='Other course')
         session.flush()
         other_course_teacher_role = m.CourseRole.query.filter_by(
             course_id=other_course.id, name='Teacher'
@@ -1130,3 +1129,38 @@ def test_course_snippets(
             403,
             result=error_template,
         )
+
+
+def test_create_course(app, monkeypatch, describe, session):
+    with describe('setup'):
+        new_user = create_user_with_role(session, 'Admin', [])
+        monkeypatch.setitem(app.config, 'ADMIN_USER', new_user.username)
+
+        def get_users_in_course(course):
+            links = session.query(m.user_course).filter(
+                m.user_course.c.course_id.in_(
+                    session.query(m.CourseRole.id
+                                  ).filter_by(course_id=course.id)
+                )
+            ).all()
+            return [m.User.query.get(link.user_id) for link in links]
+
+    with describe('create new course'):
+        course = m.Course.create_and_add(str(uuid.uuid4()))
+        session.commit()
+
+        assert new_user.courses[course.id].name == 'Teacher'
+        assert len(get_users_in_course(course)) == 1
+
+    with describe('create new course with non existing admin user'):
+        monkeypatch.setitem(app.config, 'ADMIN_USER', new_user.username + '2')
+        course = m.Course.create_and_add(str(uuid.uuid4()))
+        session.commit()
+        assert len(get_users_in_course(course)) == 0
+
+    with describe('create new course with non existing course role'):
+        monkeypatch.setitem(app.config, 'ADMIN_USER', new_user.username)
+        monkeypatch.setitem(app.config, '_DEFAULT_COURSE_ROLES', {})
+        course = m.Course.create_and_add(str(uuid.uuid4()))
+        session.commit()
+        assert len(get_users_in_course(course)) == 0

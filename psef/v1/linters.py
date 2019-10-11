@@ -103,8 +103,10 @@ def get_linter_instance_state(linter_id: str, linter_instance_id: str
     :returns: A response containing the JSON serialized linter
     """
     linter_instance = helpers.filter_single_or_404(
-        models.LinterInstance, models.LinterInstance.id == linter_instance_id,
-        models.AssignmentLinter.id == linter_id
+        models.LinterInstance,
+        models.LinterInstance.id == linter_instance_id,
+        models.AssignmentLinter.id == linter_id,
+        also_error=lambda l: l.work.deleted
     )
 
     auth.ensure_permission(

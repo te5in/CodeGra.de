@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
-<div class="code-viewer" :class="{ editable }" v-else>
+<div class="code-viewer" :class="{ editable }">
     <inner-code-viewer
         :assignment="assignment"
         :submission="submission"
@@ -27,7 +27,6 @@ import '@/polyfills';
 import decodeBuffer from '@/utils/decode';
 
 import InnerCodeViewer from './InnerCodeViewer';
-import Loader from './Loader';
 import Toggle from './Toggle';
 
 export default {
@@ -120,6 +119,7 @@ export default {
         languages.push('plain');
         languages.sort(cmpNoCase);
         languages.unshift('Default');
+
         return {
             code: '',
             rawCodeLines: [],
@@ -218,7 +218,6 @@ export default {
 
     components: {
         Icon,
-        Loader,
         Toggle,
         InnerCodeViewer,
     },

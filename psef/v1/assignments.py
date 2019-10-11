@@ -694,7 +694,11 @@ def upload_work(assignment_id: int) -> ExtendedJSONResponse[models.Work]:
     files = helpers.get_files_from_request(
         max_size=current_app.max_file_size, keys=['file'], only_start=True
     )
-    assig = helpers.get_or_404(models.Assignment, assignment_id)
+    assig = helpers.filter_single_or_404(
+        models.Assignment,
+        models.Assignment.id == assignment_id,
+        with_for_update=helpers.LockType.read,
+    )
     given_author = request.args.get('author', None)
     is_test_submission = helpers.request_arg_true('is_test_submission')
     logger.info(
@@ -797,14 +801,18 @@ def upload_work(assignment_id: int) -> ExtendedJSONResponse[models.Work]:
         # TODO: Doing this for a LMS other than Canvas is probably not a good
         # idea as it will result in a wrong submission date.
         helpers.callback_after_this_request(
-            lambda: tasks.passback_grades([work.id], initial=True)
+            lambda: tasks.passback_grades(
+                [work.id],
+                assignment_id=assig.id,
+                initial=True,
+            )
         )
     db.session.flush()
 
     work.run_linter()
 
     if work.assignment.auto_test is not None:
-        work.assignment.auto_test.add_to_continuous_feedback(work)
+        work.assignment.auto_test.add_to_run(work)
 
     db.session.commit()
 
@@ -1197,7 +1205,7 @@ def get_all_works_by_user_for_assignment(
 
     return extended_jsonify(
         models.Work.query.filter_by(
-            assignment_id=assignment_id, user_id=user.id
+            assignment_id=assignment_id, user_id=user.id, deleted=False
         ).order_by(
             t.cast(models.DbColumn[object], models.Work.created_at).desc()
         ).all(),
@@ -1241,7 +1249,9 @@ def get_all_works_for_assignment(
     if helpers.request_arg_true('latest_only'):
         obj = assignment.get_all_latest_submissions()
     else:
-        obj = models.Work.query.filter_by(assignment_id=assignment_id, )
+        obj = models.Work.query.filter_by(
+            assignment_id=assignment_id, deleted=False
+        )
 
     obj = obj.options(
         joinedload(
@@ -1305,7 +1315,11 @@ def post_submissions(assignment_id: int) -> EmptyResponse:
     :raises PermissionException: If the user is not allowed to manage the
         course attached to the assignment. (INCORRECT_PERMISSION)
     """
-    assignment = helpers.get_or_404(models.Assignment, assignment_id)
+    assignment = helpers.filter_single_or_404(
+        models.Assignment,
+        models.Assignment.id == assignment_id,
+        with_for_update=helpers.LockType.read,
+    )
     auth.ensure_permission(CPerm.can_upload_bb_zip, assignment.course_id)
     files = helpers.get_files_from_request(
         max_size=current_app.max_large_file_size, keys=['file']
@@ -1398,7 +1412,7 @@ def post_submissions(assignment_id: int) -> EmptyResponse:
         if work.assigned_to is not None:
             newly_assigned.add(work.assigned_to)
         if assignment.auto_test is not None:
-            assignment.auto_test.add_to_continuous_feedback(work)
+            assignment.auto_test.add_to_run(work)
 
     assignment.set_graders_to_not_done(
         list(newly_assigned),

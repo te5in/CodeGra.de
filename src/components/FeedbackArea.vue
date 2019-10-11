@@ -24,6 +24,7 @@
                     <submit-button ref="addSnippetButton"
                                    class="add-snippet-btn"
                                    :submit="addSnippet"
+                                   :confirm="addSnippetConfirm"
                                    @after-success="afterAddSnippet"
                                    @error="snippetDisabled = false">
                         <icon :scale="1" name="check"/>
@@ -303,6 +304,15 @@ export default {
         authorName() {
             return nameOfUser(this.author);
         },
+
+        addSnippetConfirm() {
+            if (this.snippetKey in this.snippets) {
+                return `There is already a snippet with key "${this.snippetKey}".
+                    Do you want to overwrite it?`;
+            } else {
+                return '';
+            }
+        },
     },
 
     methods: {
@@ -509,11 +519,7 @@ export default {
 
             if (cont) cont();
 
-            this.$emit('feedbackChange', {
-                line: this.line,
-                msg: null,
-                author: null,
-            });
+            this.$emit('feedbackChange', this.line);
         },
 
         deleteFeedbackError() {

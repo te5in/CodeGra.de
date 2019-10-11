@@ -200,9 +200,10 @@ export default {
 
             const index = item.assignments[0].id === this.assignmentId ? 1 : 0;
 
-            this.disabledPopoverContent = `You don't have the
-            \`can_view_plagiarism\` permission on the course
-            "${item.assignments[index].course.name}" to view this case.`;
+            this.disabledPopoverContent = `You don't have the permission
+            \`can_view_plagiarism\` for the course
+            "${item.assignments[index].course.name}" which is necessary to view
+            this case.`;
 
             this.$nextTick(() => {
                 this.disabledPopoverRowId = event.target.id;
@@ -239,7 +240,7 @@ export default {
                     this.loadingData = false;
                 },
                 err => {
-                    this.error = err.response.data.message;
+                    this.error = this.$utils.getErrorMessage(err);
                 },
             );
         },

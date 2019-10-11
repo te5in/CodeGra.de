@@ -170,7 +170,7 @@ class PlagiarismRun(Base):
         :returns: A object as described above.
         """
         return {
-            'cases': self.cases,
+            'cases': [c for c in self.cases if not c.any_work_deleted],
             **self.__to_json__(),
         }
 
@@ -254,6 +254,12 @@ class PlagiarismCase(Base):
         cascade='all,delete',
         order_by='PlagiarismMatch.file1_id'
     )  # type: t.List['PlagiarismMatch']
+
+    @property
+    def any_work_deleted(self) -> bool:
+        """Is any of the works connected to this case deleted.
+        """
+        return self.work1.deleted or self.work2.deleted
 
     def __to_json__(self) -> t.Mapping[str, object]:
         """Creates a JSON serializable representation of this object.

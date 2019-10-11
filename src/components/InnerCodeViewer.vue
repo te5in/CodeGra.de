@@ -1,55 +1,107 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
-<ol :class="{ editable: editable, 'lint-whitespace': lintWhitespace, 'show-whitespace': showWhitespace }"
-    :start="computedStartLine"
-    :style="{
-        paddingLeft: noLineNumbers ? 0 : `${3 + Math.log10(computedEndLine) * 2/3}em`,
-        listStyle: noLineNumbers ? 'none' : null,
-        fontSize: `${fontSize}px`,
-    }"
-    class="hljs inner-code-viewer"
-    @mousedown="dragStart"
-    @mouseup="dragStop">
+<b-alert v-if="!confirmedLines && (computedEndLine - computedStartLine) > maxLines"
+         show
+         variant="warning"
+         class="mb-0 rounded">
+    This file has {{ innerCodeLines.length - (hasMissingNewline ? 0 : 1) }} lines. Rendering it may
+    cause the page to freeze or other issues. Do you want to render this file?
 
-    <li v-for="i in computedEndLine"
-        v-if="i - 1 >= computedStartLine - 1 && (i < codeLines.length || codeLines[i - 1] !== '')"
-        :key="i - 1"
-        class="line"
-        :class="{
-            'linter-feedback-outer': $userConfig.features.linters && linterFeedback[i - 1 + lineFeedbackOffset],
-            'feedback-outer': $utils.getProps(feedback, null, i - 1 + lineFeedbackOffset, 'msg') != null
+    <b-button-toolbar justify class="mt-2">
+        <b-button @click.prevent.stop="renderNextLines(innerCodeLines.length)"
+                  variant="warning"
+                  class="d-block">
+            Render all lines
+        </b-button>
+
+        <b-button @click.prevent.stop="renderNextLines(maxLines)"
+                  variant="primary"
+                  class="d-block">
+            Render first {{ maxLines }} lines
+        </b-button>
+    </b-button-toolbar>
+</b-alert>
+
+<div v-else>
+    <ol :class="{
+            editable: editable,
+            'lint-whitespace': lintWhitespace,
+            'show-whitespace': showWhitespace,
+         }"
+        :start="computedStartLine"
+        :style="{
+            paddingLeft: lineNumberWidth,
+            listStyle: noLineNumbers ? 'none' : null,
+            fontSize: `${fontSize}px`,
         }"
-        :data-line="i">
+        class="hljs inner-code-viewer"
+        @mousedown="dragStart"
+        @mouseup="dragStop">
 
-        <code v-html="codeLines[i - 1]" />
+        <li v-for="i in computedEndLine"
+            v-if="i - 1 >= computedStartLine - 1 && (i < innerCodeLines.length || innerCodeLines[i - 1] !== '')"
+            :key="i"
+            class="line"
+            :class="{
+                'linter-feedback-outer': $userConfig.features.linters && linterFeedback[i - 1 + lineFeedbackOffset],
+                'feedback-outer': $utils.getProps(feedback, null, i - 1 + lineFeedbackOffset, 'msg') != null
+            }"
+            :data-line="i">
 
-        <linter-feedback-area :feedback="linterFeedback[i - 1]"
-                              v-if="$userConfig.features.linters && linterFeedback[i - 1] != null"/>
+            <code v-html="innerCodeLines[i - 1]" />
 
-        <feedback-area
-            :editing="editing[i - 1]"
-            :feedback="feedback[i - 1 + lineFeedbackOffset].msg"
-            :author="feedback[i - 1 + lineFeedbackOffset].author"
-            :editable="editable"
-            :line="i - 1 + lineFeedbackOffset"
-            :total-amount-lines="computedEndLine"
-            :file-id="fileId"
-            :can-use-snippets="canUseSnippets"
-            :assignment="assignment"
-            :submission="submission"
-            @editFeedback="editFeedback"
-            @feedbackChange="feedbackChange"
-            v-if="showFeedback && $utils.getProps(feedback, null, i - 1 + lineFeedbackOffset, 'msg') !== null"/>
-    </li>
-    <li class="empty-file"
-        v-if="codeLines.length === 1 && codeLines[0] === ''">
-        {{ emptyFileMessage }}
-    </li>
-    <li class="missing-newline"
-        v-if="warnNoNewline && computedEndLine === codeLines.length && codeLines[codeLines.length - 1] != ''">
-        <icon name="level-up" style="transform: rotate(90deg)"/> Missing newline at the end of file.
-    </li>
-</ol>
+            <linter-feedback-area :feedback="linterFeedback[i - 1]"
+                                  v-if="$userConfig.features.linters && linterFeedback[i - 1] != null"/>
+
+            <feedback-area
+                :editing="editing[i - 1]"
+                :feedback="feedback[i - 1 + lineFeedbackOffset].msg"
+                :author="feedback[i - 1 + lineFeedbackOffset].author"
+                :editable="editable"
+                :line="i - 1 + lineFeedbackOffset"
+                :total-amount-lines="computedEndLine"
+                :file-id="fileId"
+                :can-use-snippets="canUseSnippets"
+                :assignment="assignment"
+                :submission="submission"
+                @editFeedback="editFeedback"
+                @feedbackChange="feedbackChange"
+                v-if="showFeedback && $utils.getProps(feedback, null, i - 1 + lineFeedbackOffset, 'msg') !== null"/>
+        </li>
+        <li class="empty-file"
+            v-if="innerCodeLines.length === 1 && innerCodeLines[0] === ''">
+            {{ emptyFileMessage }}
+        </li>
+        <li class="missing-newline"
+            v-if="showMissingNewline">
+            <icon name="level-up" style="transform: rotate(90deg)"/> Missing newline at the end of file.
+        </li>
+    </ol>
+
+    <div class="render-next-lines"
+        v-if="confirmedLines && !atEndOfFile">
+        <div class="left"
+             :style="{ flex: `0 0 ${lineNumberWidth}`, fontSize: `${fontSize}px` }">
+            <loader class="float-right" :scale="1" v-if="showLinesLoader" />
+        </div>
+        <b-button-toolbar class="right py-1 justify-content-center">
+            <b-button class="mr-2"
+                      size="sm"
+                      :variant="remainingLines > nextRenderedLines ? 'warning' : 'primary'"
+                      :disabled="showLinesLoader"
+                      @click="renderNextLines(innerCodeLines.length - confirmedLines)">
+                Show remaining {{ remainingLines }} line{{ remainingLines === 1 ? '' : 's' }}
+            </b-button>
+            <b-button size="sm"
+                      variant="primary"
+                      :disabled="showLinesLoader"
+                      @click="renderNextLines(maxLines)"
+                      v-if="remainingLines > nextRenderedLines">
+                Show next {{ nextRenderedLines }} line{{ nextRenderedLines === 1 ? '' : 's' }}
+            </b-button>
+        </b-button-toolbar>
+    </div>
+</div>
 </template>
 
 <script>
@@ -58,6 +110,7 @@ import { mapActions, mapGetters } from 'vuex';
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/level-up';
 
+import Loader from './Loader';
 import FeedbackArea from './FeedbackArea';
 import LinterFeedbackArea from './LinterFeedbackArea';
 
@@ -125,13 +178,35 @@ export default {
             type: String,
             default: 'File is empty.',
         },
+        maxLines: {
+            type: Number,
+            default: UserConfig.maxLines,
+        },
     },
 
     data() {
         return {
             editing: {},
             dragEvent: null,
+            confirmedLines: false,
+            showLinesLoader: false,
+            innerCodeLines: [],
         };
+    },
+
+    watch: {
+        fileId() {
+            this.confirmedLines = false;
+        },
+
+        codeLines: {
+            immediate: true,
+            handler() {
+                this.innerCodeLines = Object.freeze(
+                    Object.preventExtensions(this.codeLines.map(x => x)),
+                );
+            },
+        },
     },
 
     computed: {
@@ -146,10 +221,17 @@ export default {
         },
 
         computedEndLine() {
-            if (this.endLine === null) {
-                return this.codeLines.length;
+            let end = this.innerCodeLines.length;
+
+            if (this.confirmedLines !== false) {
+                end = Math.min(end, this.confirmedLines);
             }
-            return Math.min(this.endLine, this.codeLines.length);
+
+            if (this.endLine !== null) {
+                end = Math.min(end, this.endLine);
+            }
+
+            return end;
         },
 
         lintWhitespace() {
@@ -159,12 +241,45 @@ export default {
         showFeedback() {
             return this.assignment != null && this.submission != null;
         },
+
+        atEndOfFile() {
+            return this.computedEndLine >= this.innerCodeLines.length;
+        },
+
+        hasMissingNewline() {
+            return this.innerCodeLines[this.innerCodeLines.length - 1] !== '';
+        },
+
+        showMissingNewline() {
+            return this.warnNoNewline && this.atEndOfFile && this.hasMissingNewline;
+        },
+
+        remainingLines() {
+            let remaining = this.innerCodeLines.length - this.confirmedLines;
+
+            if (!this.hasMissingNewline) {
+                remaining -= 1;
+            }
+
+            return remaining;
+        },
+
+        nextRenderedLines() {
+            return Math.min(this.maxLines, this.remainingLines);
+        },
+
+        lineNumberWidth() {
+            return this.noLineNumbers
+                ? 0
+                : `${3 + Math.log10(this.innerCodeLines.length) * 2 / 3}em`;
+        },
     },
 
     components: {
+        Icon,
+        Loader,
         FeedbackArea,
         LinterFeedbackArea,
-        Icon,
     },
 
     destroyed() {
@@ -248,6 +363,21 @@ export default {
             this.removeDragHandler();
             this.dragEvent = null;
         },
+
+        async renderNextLines(nLines) {
+            // Use of multiple nextTicks and the timeout here is intentional and required
+            // for a correct ordering of events: without them the loader would not be shown
+            // while rendering the next lines.
+
+            this.showLinesLoader = true;
+
+            await this.$nextTick();
+            setTimeout(async () => {
+                this.confirmedLines += nLines;
+                await this.$nextTick();
+                this.showLinesLoader = false;
+            }, 0);
+        },
     },
 };
 </script>
@@ -285,7 +415,7 @@ li {
 
     .inner-code-viewer.editable &,
     #app.dark .inner-code-viewer.editable & {
-        &:not(.missing-newline):not(.empty-file):hover {
+        &.line:hover {
             cursor: pointer;
             background-color: rgba(0, 0, 0, 0.025);
         }
@@ -319,6 +449,26 @@ code {
 
     #app.dark & {
         color: #839496;
+    }
+}
+
+.render-next-lines {
+    display: flex;
+
+    .left {
+        align-self: stretch;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .right {
+        flex: 1 1 auto;
+        border-top: 1px solid darken(@linum-bg, 5%);
+
+        #app.dark & {
+            border-top: 1px solid darken(@color-primary-darkest, 5%);
+        }
     }
 }
 </style>

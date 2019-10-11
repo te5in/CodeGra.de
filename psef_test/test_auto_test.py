@@ -16,6 +16,7 @@ import lxc
 import pytest
 import requests
 import pytest_cov
+from werkzeug.local import LocalProxy
 
 import psef
 import helpers
@@ -41,6 +42,10 @@ def monkeypatch_for_run(monkeypatch, lxc_stub, stub_function_class):
         if cmd[0] in {'adduser', 'usermod', 'deluser', 'sudo', 'apt'}:
             signal_start()
             return 0
+        elif cmd[0] == '/bin/bash' and cmd[2].startswith('adduser'):
+            # Don't make the user, as we cannot do that locally
+            cmd[2] = '&&'.join(cmd[2].split('&&')[1:])
+            cmd_user = (cmd, user)
         elif cmd == ['grep', '-c', getpass.getuser(), '/etc/sudoers']:
             signal_start()
             return 1
@@ -73,18 +78,37 @@ def monkeypatch_for_run(monkeypatch, lxc_stub, stub_function_class):
         stub_function_class(lambda: 1)
     )
     monkeypatch.setattr(
-        psef.tasks, 'check_heartbeat_auto_test_run', stub_function_class()
+        psef.auto_test.AutoTestRunner, '_should_poll_after_done',
+        stub_function_class(lambda: False)
     )
     monkeypatch.setattr(
-        psef.tasks, 'stop_auto_test_run', stub_function_class()
+        psef.tasks, 'check_heartbeat_auto_test_run', stub_function_class()
     )
     monkeypatch.setattr(psef.auto_test, '_REQUEST_TIMEOUT', 0.1)
 
 
 @pytest.fixture
 def monkeypatch_broker(monkeypatch):
-    monkeypatch.setattr(psef.helpers, 'BrokerSession', requests_stubs.Session)
-    yield
+    ses = requests_stubs.Session()
+    raised = True
+
+    def raise_next(get_ses=False):
+        if get_ses:
+            return ses
+
+        nonlocal raised
+        raised = False
+
+    def raise_once(*_):
+        nonlocal raised
+        if raised:
+            return
+        raised = True
+        raise ValueError
+
+    monkeypatch.setattr(ses.Response, 'raise_for_status', raise_once)
+    monkeypatch.setattr(psef.helpers, 'BrokerSession', lambda *_: ses)
+    yield raise_next
 
 
 @pytest.fixture(autouse=True)
@@ -92,6 +116,8 @@ def monkeypatch_os_exec(monkeypatch):
     def flush_and_call(func):
         def inner(*args, **kwargs):
             pytest_cov.embed.cleanup()
+            if args[0] == 'ping':
+                os.execvp('true', ['true'])
             func(*args, **kwargs)
 
         return inner
@@ -146,6 +172,7 @@ def test_create_auto_test(test_client, basic, logged_in, describe):
                 'assignment_id': assig_id,
                 'grade_calculation': None,
                 'runs': [],
+                'results_always_visible': None,
             }
         )
 
@@ -378,6 +405,11 @@ def test_start_auto_test_before_complete(
         assert 'no grade_calculation' in err['message']
         update_test(grade_calculation='full')
 
+    with describe('no results always visible setting'), logged_in(teacher):
+        err = start_run(409)
+        assert 'a results_always_visible set' in err['message']
+        update_test(results_always_visible=True)
+
     with describe('no submissions'), logged_in(teacher):
         err = start_run(409)
         assert 'there are no submissions' in err['message']
@@ -423,7 +455,7 @@ def test_start_auto_test_before_complete(
 
 
 def test_update_auto_test(
-    basic, test_client, logged_in, describe, assert_similar, app
+    basic, test_client, logged_in, describe, assert_similar, app, session
 ):
     test = url = None
 
@@ -512,9 +544,23 @@ def test_update_auto_test(
         test_client.req('delete', f'{url}/fixtures/{fixture["id"]}/hide', 204)
 
         with logged_in(student):
+            # Fixture is not hidden, but the student cannot see the AutoTest
+            # yet.
+            res = test_client.get(f'{url}/fixtures/{fixture["id"]}')
+            assert res.status_code == 403
+
+        update_test(results_always_visible=True)
+        t = m.AutoTest.query.get(test['id'])
+        with app.test_request_context('/'):
+            t.start_test_run()
+
+        with logged_in(student):
             # Fixture is not hidden anymore so student may see it
             res = test_client.get(f'{url}/fixtures/{fixture["id"]}')
             assert res.status_code == 200
+
+        t._runs = []
+        session.commit()
 
         update_test(fixtures=[])
         assert test['fixtures'] == []
@@ -595,14 +641,8 @@ def test_run_auto_test(
         monkeypatch.setattr(psef.auto_test, '_run_student', next_student)
 
         with logged_in(student1):
-            work1 = helpers.create_submission(test_client, assig_id)
-            with logged_in(teacher):
-                test_client.req(
-                    'patch',
-                    f'/api/v1/submissions/{work1["id"]}',
-                    200,
-                    data={'grade': 5.0}
-                )
+            work1_old = helpers.create_submission(test_client, assig_id)
+
         with logged_in(student2):
             prog = """
             import sys
@@ -632,10 +672,62 @@ def test_run_auto_test(
                 }
             )
             session.commit()
-        run = t.test_run
+        run = t.run
 
-        live_server_url = live_server()
-        psef.auto_test.start_polling(app.config, repeat=False)
+        with logged_in(student1):
+            work1 = helpers.create_submission(test_client, assig_id)
+            with logged_in(teacher):
+                test_client.req(
+                    'patch',
+                    f'/api/v1/submissions/{work1["id"]}',
+                    200,
+                    data={'grade': 5.0}
+                )
+        assert session.query(
+            m.AutoTestResult
+        ).filter_by(work_id=work1_old['id']).one().state.name == 'skipped'
+
+        res1 = LocalProxy(
+            lambda: session.query(m.AutoTestResult).
+            filter_by(work_id=work1['id']).one().id
+        )
+        res2 = LocalProxy(
+            lambda: session.query(m.AutoTestResult).
+            filter_by(work_id=work2['id']).one().id
+        )
+
+        with logged_in(teacher):
+            test_client.req(
+                'get',
+                f'{url}/runs/{run.id}/results/{res2}',
+                200,
+                result={
+                    'approx_waiting_before': 0,
+                    '__allow_extra__': True,
+                }
+            )
+            test_client.req(
+                'get',
+                f'{url}/runs/{run.id}/results/{res1}',
+                200,
+                result={
+                    'approx_waiting_before': 1,
+                    '__allow_extra__': True,
+                }
+            )
+
+        live_server_url, stop_server = live_server(get_stop=True)
+        monkeypatch_broker()
+        thread = threading.Thread(
+            target=psef.auto_test.start_polling, args=(app.config, False)
+        )
+        thread.start()
+
+        thread.join(5)
+        stop_server()
+        thread.join(5)
+        live_server()
+        thread.join()
 
         with logged_in(teacher, yield_token=True) as token:
             response = requests.get(
@@ -644,25 +736,43 @@ def test_run_auto_test(
             )
             response.raise_for_status()
             assert_similar(
-                response.json(), {
+                response.json(),
+                {
                     'id': run.id,
                     'created_at': str,
-                    'state': 'done',
-                    'results': [object, object],
+                    'state': 'running',  # This is always running
+                    'results': [object, object, object],
                     'setup_stderr': str,
                     'setup_stdout': str,
                     'is_continuous': False,
                 }
             )
 
-        res1 = session.query(m.AutoTestResult).filter_by(work_id=work1['id']
-                                                         ).one().id
-        res2 = session.query(m.AutoTestResult).filter_by(work_id=work2['id']
-                                                         ).one().id
+            # Latest only show the latest results
+            assert_similar(
+                requests.get(
+                    f'{live_server_url}{url}/runs/{run.id}?latest_only',
+                    headers={'Authorization': f'Bearer {token}'}
+                ).json(), {
+                    'results': [object, object],
+                    '__allow_extra__': True,
+                }
+            )
 
         with logged_in(student1):
             # A student cannot see results before the assignment is done
             test_client.req('get', f'{url}/runs/{run.id}/results/{res1}', 403)
+            run.auto_test.results_always_visible = True
+            # Can see if results are always visible
+            session.commit()
+            assert not any(
+                s['auto_test_step']['hidden'] for s in test_client.req(
+                    'get', f'{url}/runs/{run.id}/results/{res1}', 200
+                )['step_results']
+            )
+
+            run.auto_test.results_always_visible = False
+            session.commit()
 
         with logged_in(teacher):
             # A teacher can see the results before done
@@ -702,6 +812,19 @@ def test_run_auto_test(
             )
 
         with logged_in(student2):
+            # We can only see our own result
+            test_client.req(
+                'get',
+                f'{url}/runs/{run.id}',
+                200,
+                result={
+                    '__allow_extra__': True, 'results': [{
+                        '__allow_extra__': True,
+                        'id': res2,
+                    }]
+                }
+            )
+
             # You should be able too see your own results
             res = test_client.req(
                 'get',
@@ -716,6 +839,7 @@ def test_run_auto_test(
                     '__allow_extra__': True,
                 }
             )
+
             # Nothing should be skipped, so all steps added
             len(res['step_results']) == 4 * 2 * 2
             test_client.req(
@@ -732,10 +856,12 @@ def test_run_auto_test(
             for step in m.AutoTestStepBase.query:
                 step.hidden = True
             session.commit()
+
             old_step_results = res['step_results']
             res = test_client.req(
                 'get', f'{url}/runs/{run.id}/results/{res2}', 200
             )
+
             for step_res1, step_res2 in zip(
                 res['step_results'], old_step_results
             ):
@@ -747,7 +873,28 @@ def test_run_auto_test(
                 if step_res1['achieved_points']:
                     assert step_res1['log'] != step_res2['log']
                 else:
-                    assert step_res1['log'] == {}
+                    # IO tests do have the steps key.
+                    assert (
+                        step_res1['log'] == {} or
+                        step_res1['log'] == {'steps': []}
+                    )
+
+    with describe('getting wrong result'), logged_in(student2):
+        with describe('cannot get with wrong test id'):
+            wrong_url = f'/api/v1/auto_tests/404'
+            res = test_client.req(
+                'get', f'{wrong_url}/runs/{run.id}/results/{res2}', 404
+            )
+        with describe('cannot get with wrong run id'):
+            res = test_client.req('get', f'{url}/runs/404/results/{res2}', 404)
+        with describe('cannot get with deleted work'):
+            session.query(m.AutoTestResult).get(int(res2)).work.deleted = True
+            session.commit()
+            res = test_client.req(
+                'get', f'{url}/runs/{run.id}/results/{res2}', 404
+            )
+            session.query(m.AutoTestResult).get(int(res2)).work.deleted = False
+            session.commit()
 
     with describe('delete result'):
         with logged_in(student1):
@@ -1113,7 +1260,9 @@ def test_get_runs_internal_api(
         )
 
     with describe('setup'):
-        run = m.AutoTestRun(started_date=None, auto_test=m.AutoTest())
+        run = m.AutoTestRun(
+            started_date=None, auto_test=m.AutoTest(), batch_run_done=False
+        )
         session.add(run)
         course, assig_id, teacher, student = basic
 
@@ -1122,7 +1271,7 @@ def test_get_runs_internal_api(
         run = m.AutoTestRun(
             started_date=None,
             auto_test_id=test['id'],
-            is_continuous_feedback_run=True
+            batch_run_done=False,
         )
         session.commit()
 
@@ -1135,152 +1284,6 @@ def test_get_runs_internal_api(
                 'CG-Internal-Api-Password': app.config['AUTO_TEST_PASSWORD']
             }
         )
-
-
-@pytest.mark.parametrize('use_transaction', [False], indirect=True)
-def test_continuous_feedback_auto_test(
-    monkeypatch_celery, monkeypatch_broker, basic, test_client, logged_in,
-    describe, live_server, lxc_stub, monkeypatch, app, session,
-    stub_function_class, assert_similar, monkeypatch_for_run
-):
-    tmpdir = None
-
-    with describe('setup'):
-        course, assig_id, teacher, student = basic
-
-        with logged_in(teacher):
-            test = helpers.create_auto_test(
-                test_client,
-                assig_id,
-                amount_sets=2,
-                amount_suites=2,
-                amount_fixtures=1,
-                stop_points=[0.5, None],
-                grade_calculation='partial',
-            )
-            test_client.req(
-                'patch',
-                f'/api/v1/assignments/{assig_id}',
-                200,
-                data={'state': 'open'}
-            )
-
-        url = f'/api/v1/auto_tests/{test["id"]}'
-        live_server()
-
-        with logged_in(student):
-            prog = """
-            ls
-            """
-            helpers.create_submission(
-                test_client,
-                assig_id,
-                submission_data=(io.BytesIO(dedent(prog).encode()), 'test.py')
-            )
-
-        _run_student = psef.auto_test._run_student
-
-        monkeypatch.setattr(
-            psef.auto_test, '_get_home_dir',
-            stub_function_class(lambda: tmpdir)
-        )
-
-        def next_student(*args, **kwargs):
-            nonlocal tmpdir
-
-            with tempfile.TemporaryDirectory() as tdir:
-                tmpdir = tdir
-                for inner in ['/student', '/fixtures']:
-                    shutil.copytree(upper_tmpdir + inner, tdir + inner)
-                return _run_student(*args, **kwargs)
-
-        monkeypatch.setattr(psef.auto_test, '_run_student', next_student)
-
-    with describe('start_auto_test'
-                  ), tempfile.TemporaryDirectory() as upper_tmpdir:
-        tmpdir = upper_tmpdir
-
-        t = m.AutoTest.query.get(test['id'])
-        psef.auto_test.CODEGRADE_USER = getpass.getuser()
-        session.commit()
-
-        with logged_in(teacher):
-            test_client.req(
-                'post',
-                f'{url}/runs/',
-                200,
-                data={
-                    'continuous_feedback_run': True,
-                }
-            )
-            session.commit()
-
-        run = t.continuous_feedback_run
-        assert run is not None
-
-        # Old submission should not be started directly
-        assert session.query(m.AutoTestResult).all() == []
-
-        with logged_in(student):
-            prog = """
-            import sys
-            if len(sys.argv) > 1:
-                print("hello {}!".format(sys.argv[1]))
-            else:
-                print("hello stranger!")
-            """
-            work = helpers.create_submission(
-                test_client,
-                assig_id,
-                submission_data=(io.BytesIO(dedent(prog).encode()), 'test.py')
-            )
-
-        assert len(session.query(m.AutoTestResult).all()) == 1
-        res = session.query(m.AutoTestResult).one()
-
-        with logged_in(student):
-            # A student can see results before the assignment is done
-            test_client.req(
-                'get',
-                f'{url}/runs/{run.id}/results/{res.id}',
-                200,
-                result={
-                    'state': 'not_started',
-                    'approx_waiting_before': 0,
-                    '__allow_extra__': True,
-                }
-            )
-
-        psef.auto_test.start_polling(app.config, repeat=False)
-
-        with logged_in(student):
-            # A student can see results before the assignment is done
-            test_client.req(
-                'get',
-                f'{url}/runs/{run.id}/results/{res.id}',
-                200,
-                result={
-                    'state': 'passed',
-                    'approx_waiting_before': None,
-                    '__allow_extra__': True,
-                }
-            )
-
-        with logged_in(teacher):
-            # Make sure rubric is not filled in
-            test_client.req(
-                'get',
-                f'/api/v1/submissions/{work["id"]}',
-                200,
-                result={
-                    '__allow_extra__': True,
-                    'grade': None,
-                    'grade_overridden': False,
-                }
-            )
-
-        with pytest.raises(APIException):
-            t.start_continuous_feedback_run()
 
 
 def test_getting_fixture_no_permission(
@@ -1365,13 +1368,13 @@ def test_ensure_from_latest_work(session, describe, assignment_real_works):
         run = m.AutoTestRun(
             _job_id=uuid.uuid4(),
             auto_test=test,
-            is_continuous_feedback_run=True,
+            batch_run_done=True,
         )
-        oldest = m.AutoTestResult(work_id=submission['id'])
-        latest2 = m.AutoTestResult(work_id=sub2_id)
+        oldest = m.AutoTestResult(work_id=submission['id'], final_result=True)
+        latest2 = m.AutoTestResult(work_id=sub2_id, final_result=True)
         run.results = [latest2, oldest]
         session.commit()
-        latest = m.AutoTestResult(work_id=new_work.id)
+        latest = m.AutoTestResult(work_id=new_work.id, final_result=True)
         run.results.append(latest)
         session.commit()
 
@@ -1383,3 +1386,199 @@ def test_ensure_from_latest_work(session, describe, assignment_real_works):
         with pytest.raises(APIException) as err:
             psef.v_internal.auto_tests._ensure_from_latest_work(oldest)
         assert err.value.api_code == APICodes.NOT_NEWEST_SUBMSSION
+
+
+def test_clearing_already_started_result(
+    describe, basic, logged_in, test_client, session, app, monkeypatch,
+    stub_function_class, monkeypatch_celery
+):
+    with describe('setup'):
+        course, assig_id, teacher, student = basic
+        with logged_in(teacher):
+            test = m.AutoTest.query.get(
+                helpers.create_auto_test(
+                    test_client,
+                    assig_id,
+                    amount_sets=2,
+                    amount_suites=2,
+                    amount_fixtures=1,
+                    stop_points=[0.5, None],
+                    grade_calculation='partial',
+                )['id']
+            )
+
+            run = m.AutoTestRun(auto_test=test, batch_run_done=True)
+            run.runners_requested = 1
+            session.add(run)
+
+            session.commit()
+
+            stub_update = stub_function_class()
+            monkeypatch.setattr(
+                psef.tasks, 'update_latest_results_in_broker', stub_update
+            )
+
+            with logged_in(teacher):
+                sub_id = helpers.create_submission(test_client, assig_id)['id']
+                assert stub_update.called
+
+            result = LocalProxy(
+                lambda: m.AutoTestResult.query.filter_by(work_id=sub_id).one()
+            )
+            assert result.state.name == 'not_started'
+
+            runner = m.AutoTestRunner(_ipaddr='localhost', run=run)
+            session.commit()
+
+            stub_clear = stub_function_class(result.clear)
+            monkeypatch.setattr(m.AutoTestResult, 'clear', stub_clear)
+
+    with describe('updating to started state'):
+        test_client.req(
+            'patch',
+            f'/api/v-internal/auto_tests/{test.id}/results/{result.id}',
+            200,
+            data={
+                'state': m.AutoTestStepResultState.running.name,
+                'setup_stdout': 'HELLO'
+            },
+            headers={
+                'CG-Internal-Api-Password': app.config['AUTO_TEST_PASSWORD'],
+                'CG-Internal-Api-Runner-Password': str(runner.id)
+            },
+            environ_base={'REMOTE_ADDR': 'localhost'}
+        )
+        assert result.state.name == 'running'
+        assert result.setup_stdout == 'HELLO'
+        assert not stub_clear.called
+
+    with describe('updating state to not started'):
+        test_client.req(
+            'patch',
+            f'/api/v-internal/auto_tests/{test.id}/results/{result.id}',
+            200,
+            data={
+                'state': m.AutoTestStepResultState.not_started.name,
+                'setup_stdout': 'HELLO'
+            },
+            headers={
+                'CG-Internal-Api-Password': app.config['AUTO_TEST_PASSWORD'],
+                'CG-Internal-Api-Runner-Password': str(runner.id)
+            },
+            environ_base={'REMOTE_ADDR': 'localhost'}
+        )
+        assert stub_clear.called
+        assert result.state.name == 'not_started'
+        assert result.setup_stdout is None
+
+
+def test_update_result_dates_in_broker(
+    describe, basic, logged_in, test_client, session, app, monkeypatch,
+    stub_function_class, monkeypatch_celery, monkeypatch_broker, assert_similar
+):
+    with describe('setup'):
+        course, assig_id, teacher, student = basic
+        broker_ses = monkeypatch_broker(True)
+
+        with logged_in(teacher):
+            test = m.AutoTest.query.get(
+                helpers.create_auto_test(
+                    test_client,
+                    assig_id,
+                    amount_sets=2,
+                    amount_suites=2,
+                    amount_fixtures=1,
+                    stop_points=[0.5, None],
+                    grade_calculation='partial',
+                )['id']
+            )
+
+        run = m.AutoTestRun(auto_test=test, batch_run_done=True)
+        run.runners_requested = 1
+        session.add(run)
+        session.commit()
+
+    with describe('handing in new submission'), logged_in(teacher):
+        sub_id = helpers.create_submission(test_client, assig_id)['id']
+        helpers.create_submission(
+            test_client, assig_id, is_test_submission=True
+        )
+
+        _, call = broker_ses.calls
+        assert call['method'] == 'put'
+        assert_similar(
+            call['kwargs']['json']['metadata'], {
+                'results': {
+                    'not_started': str,
+                    'running': None,
+                    'passed': None,
+                }
+            }
+        )
+
+    result = LocalProxy(
+        lambda: m.AutoTestResult.query.filter_by(work_id=sub_id).one()
+    )
+    runner = m.AutoTestRunner(_ipaddr='localhost', run=run)
+    session.commit()
+    broker_ses.reset()
+    headers = {
+        'CG-Internal-Api-Password': app.config['AUTO_TEST_PASSWORD'],
+        'CG-Internal-Api-Runner-Password': str(runner.id)
+    }
+
+    with describe('updating to started state'):
+        test_client.req(
+            'patch',
+            f'/api/v-internal/auto_tests/{test.id}/results/{result.id}',
+            200,
+            data={
+                'state': m.AutoTestStepResultState.running.name,
+            },
+            headers=headers,
+            environ_base={'REMOTE_ADDR': 'localhost'}
+        )
+
+        call, = broker_ses.calls
+
+        # We still have one not started result
+        assert_similar(
+            call['kwargs']['json']['metadata'], {
+                'results': {
+                    'not_started': str,
+                    'running': str,
+                    'passed': None,
+                }
+            }
+        )
+
+    broker_ses.reset()
+
+    with describe('updating state to passed state'):
+        test_client.req(
+            'patch',
+            f'/api/v-internal/auto_tests/{test.id}/results/{result.id}',
+            200,
+            data={
+                'state': m.AutoTestStepResultState.passed.name,
+            },
+            headers=headers,
+            environ_base={'REMOTE_ADDR': 'localhost'}
+        )
+
+        call, = broker_ses.calls
+        # We still have one not started result
+        assert_similar(
+            call['kwargs']['json']['metadata'], {
+                'results': {
+                    'not_started': str,
+                    'running': None,
+                    'passed': str,
+                }
+            }
+        )
+
+    broker_ses.reset()
+    with describe('try task without existing run'):
+        psef.tasks.update_latest_results_in_broker(-1)
+        assert not broker_ses.calls

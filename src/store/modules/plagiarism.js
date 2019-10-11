@@ -15,7 +15,9 @@ const processCase = (run, serverCase) => {
     if (serverCase.assignments[0].id !== run.assignment.id) {
         serverCase.assignments.reverse();
         serverCase.users.reverse();
-        serverCase.submissions.reverse();
+        if (serverCase.submissions != null) {
+            serverCase.submissions.reverse();
+        }
     }
     serverCase.canView =
         serverCase.submissions != null &&

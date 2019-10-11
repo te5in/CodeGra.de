@@ -61,21 +61,33 @@ def maybe_kill_unneeded_runner(runner_hex_id: str) -> None:
 
 
 @celery.task
-def maybe_start_unassigned_runner() -> None:
-    """Start an unassigned runner if we have jobs that need a runner.
+def maybe_start_more_runners() -> None:
+    """Start more runners for jobs that still need runners.
+
+    This assigns all unassigned runners if possible, and if needed it also
+    starts new runners.
     """
     # Do not use count so we can lock all these runners, this makes sure we
     # will not create new runners while we are counting.
-    active_runners = models.Runner.get_all_active_runners()
-    not_assigned_runners = len(
-        active_runners.filter_by(job_id=None).with_for_update().all()
-    )
+    active_jobs = {
+        job.id: job
+        for job in db.session.query(models.Job).filter(
+            models.Job.state != models.JobState.finished
+        ).with_for_update()
+    }
 
-    sql = db.session.query(
-        t.cast(DbColumn[int], models.Job._wanted_runners),  # pylint: disable=protected-access
-        t.cast(t.Type[int], sql_func.count(models.Runner.id))
+    unassigned_runners = models.Runner.get_all_active_runners().filter_by(
+        job_id=None
+    ).with_for_update().all()
+
+    jobs_needed_runners = db.session.query(
+        t.cast(DbColumn[int], models.Job.id),
+        t.cast(
+            DbColumn[int],
+            models.Job.wanted_runners - sql_func.count(models.Runner.id),
+        ),
     ).filter(
-        models.Job._state != models.JobState.finished,  # pylint: disable=protected-access
+        t.cast(DbColumn[int], models.Job.id).in_(list(active_jobs.keys()))
     ).join(
         models.Runner,
         and_(
@@ -85,20 +97,31 @@ def maybe_start_unassigned_runner() -> None:
             )
         ),
         isouter=True
-    ).group_by(models.Job.id)
-    needed_runners = sum(max(0, wanted - has) for wanted, has in sql)
+    ).having(
+        models.Job.wanted_runners > sql_func.count(models.Runner.id),
+    ).group_by(models.Job.id).all()
 
     with bound_to_logger(
-        needed_runners=needed_runners,
-        unassigned_runners=not_assigned_runners,
+        jobs_needed_runners=jobs_needed_runners,
+        all_unassigned_runners=unassigned_runners,
     ):
-        if needed_runners < not_assigned_runners:
-            logger.error('More runners than jobs active')
-        elif needed_runners == not_assigned_runners:
-            logger.info('No new runners needed')
-        else:
+        if jobs_needed_runners:
+            startable = models.Runner.get_amount_of_startable_runners()
+
             logger.info('More runners are needed')
-            start_unassigned_runner(needed_runners)
+
+            for job_id, _ in jobs_needed_runners:
+                # This never raises a key error as only jobs in this dictionary
+                # are selected.
+                job = active_jobs[job_id]
+                startable -= job.add_runners_to_job(
+                    unassigned_runners, startable
+                )
+            db.session.commit()
+        elif unassigned_runners:
+            logger.error('More runners than jobs active')
+        else:
+            logger.info('No new runners needed')
 
 
 @celery.task
@@ -119,7 +142,7 @@ def start_unassigned_runner(amount: int = 1) -> None:
     db.session.commit()
 
     for runner in to_start:
-        _start_runner.delay(runner.id.hex)
+        start_runner.delay(runner.id.hex)
 
 
 @celery.task
@@ -137,43 +160,13 @@ def maybe_start_runners_for_job(job_id: int) -> None:
         logger.warning('Job to start runner for not found', job_id=job_id)
         return
 
-    active_runners = models.Runner.get_all_active_runners().filter_by(
-        job_id=job.id
-    ).all()
-    still_needed = job.wanted_runners - len(active_runners)
-
-    if still_needed <= 0:
-        logger.warning('Job to already has enough runners assigned')
-        return
-
-    unassigned_runners = db.session.query(models.Runner).filter(
-        t.cast(DbColumn[models.RunnerState], models.Runner.state).in_(
-            models.RunnerState.get_before_running_states()
-        ),
-        t.cast(DbColumn[t.Optional[int]], models.Runner.job_id).is_(None)
-    ).with_for_update().limit(still_needed).all()
-
-    to_start = []
+    unassigned_runners = models.Runner.get_before_active_unassigned_runners(
+    ).with_for_update().all()
 
     startable = models.Runner.get_amount_of_startable_runners()
-    for _ in range(still_needed):
-        if unassigned_runners:
-            # Aha, we are lucky, we have an unassigned runner. Lets assign it
-            # :)
-            unassigned_runners.pop().job = job
-        elif startable <= 0:
-            break
-        else:
-            runner = models.Runner.create_of_type(app.config['AUTO_TEST_TYPE'])
-            runner.job_id = job_id
-            db.session.add(runner)
-            to_start.append(runner)
-            startable -= 1
 
+    job.add_runners_to_job(unassigned_runners, startable)
     db.session.commit()
-
-    for runner in to_start:
-        _start_runner.delay(runner.id.hex)
 
 
 @celery.task
@@ -226,7 +219,7 @@ def _kill_slow_starter(runner_hex_id: str) -> None:
             lambda: maybe_start_runners_for_job.delay(job_id)
         )
     else:
-        callback_after_this_request(maybe_start_unassigned_runner.delay)
+        callback_after_this_request(maybe_start_more_runners)
 
     runner.kill(maybe_start_new=False, shutdown_only=False)
 
@@ -269,11 +262,16 @@ def _check_slow_starter(runner_hex_id: str) -> None:
         runner.kill(maybe_start_new=False, shutdown_only=False)
 
     db.session.commit()
-    _start_runner.delay(new_runner.id.hex)
+    start_runner.delay(new_runner.id.hex)
 
 
 @celery.task
-def _start_runner(runner_hex_id: str) -> None:
+def start_runner(runner_hex_id: str) -> None:
+    """Start the given runner.
+
+    :param runner_hex_id: The hex id of the runner in string format.
+    :returns: Nothing.
+    """
     runner_id = uuid.UUID(hex=runner_hex_id)
     runner = db.session.query(
         models.Runner

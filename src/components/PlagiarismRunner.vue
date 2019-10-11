@@ -75,6 +75,9 @@
                 </tr>
             </tbody>
         </table>
+        <div v-else-if="!canManage" class="text-muted ml-3 mt-3">
+            There are no runs yet, and you do not have permission to create them.
+        </div>
 
         <div v-if="canManage">
             <b-form-radio-group v-model="selectedProvider"
@@ -328,7 +331,7 @@ export default {
             }
             const provider = this.providers.find(prov => prov.name === provName);
             return (
-                provider.options.find(opt => opt.name === optName) || {
+                this.$utils.getProps(provider, [], 'options').find(opt => opt.name === optName) || {
                     title: optName,
                 }
             ).title;
@@ -517,12 +520,9 @@ export default {
         },
 
         async loadProviders() {
-            if (!this.canManage) {
-                this.providers = [];
-                return;
-            }
-
-            const { data: providers } = await this.$http.get('/api/v1/plagiarism/').catch(() => []);
+            const { data: providers } = await this.$http
+                .get('/api/v1/plagiarism/')
+                .catch(() => ({ data: [] }));
             this.providers = providers;
             if (this.providers.length === 1) {
                 [this.selectedProvider] = this.providers;

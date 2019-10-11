@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import moment from 'moment';
+import * as assignmentState from '@/store/assignment-states';
 import { getLanguage, highlight } from 'highlightjs';
 import { visualizeWhitespace } from './visualize';
 
@@ -340,4 +341,65 @@ export function deepExtend(target, ...sources) {
 // Divide a by b, or return dfl if b == 0.
 export function safeDivide(a, b, dfl) {
     return b === 0 ? dfl : a / b;
+}
+
+export function deadlinePassed(assignment, now) {
+    return now.isAfter(assignment.deadline);
+}
+
+export function canUploadWork(assignment, now) {
+    const perms = assignment.course.permissions;
+
+    if (!(perms.can_submit_own_work || perms.can_submit_others_work)) {
+        return false;
+    } else if (assignment.state === assignmentState.HIDDEN) {
+        return false;
+    } else if (deadlinePassed(assignment, now) && !perms.can_upload_after_deadline) {
+        return false;
+    } else {
+        return true;
+    }
+}
+
+export function canSeeGrade(assignment) {
+    const perms = assignment.course.permissions;
+
+    return assignment.state === assignmentState.DONE || perms.can_see_grade_before_done;
+}
+
+export function autoTestHasCheckpointAfterHiddenStep(autoTest) {
+    let testHasHiddenStep = false;
+
+    const sets = autoTest.sets;
+    const nSets = sets.length;
+
+    for (let i = 0; i < nSets; i++) {
+        const set = sets[i];
+        const suites = set.suites;
+        const nSuites = suites.length;
+
+        for (let j = 0; j < nSuites; j++) {
+            const steps = suites[j].steps;
+            const nSteps = steps.length;
+
+            let suiteHasHiddenStep = false;
+
+            for (let k = 0; k < nSteps; k++) {
+                const step = steps[k];
+                if (step.hidden) {
+                    testHasHiddenStep = true;
+                    suiteHasHiddenStep = true;
+                }
+                if (suiteHasHiddenStep && step.type === 'check_points') {
+                    return true;
+                }
+            }
+        }
+
+        if (testHasHiddenStep && set.stop_points && i < nSets - 1) {
+            return true;
+        }
+    }
+
+    return false;
 }

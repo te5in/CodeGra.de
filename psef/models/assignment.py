@@ -207,7 +207,7 @@ class AssignmentLinter(Base):
         :returns: An object as described above.
         """
         return {
-            'tests': self.tests,
+            'tests': [t for t in self.tests if not t.work.deleted],
             'id': self.id,
             'name': self.name,
         }
@@ -539,7 +539,10 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
             self.get_from_latest_submissions(work_models.Work.id).all()
         )
         for i in range(0, len(subs), 10):
-            psef.tasks.passback_grades([s[0] for s in subs[i:i + 10]])
+            psef.tasks.passback_grades(
+                [s[0] for s in subs[i:i + 10]],
+                assignment_id=self.id,
+            )
 
     def change_notifications(
         self,
@@ -714,6 +717,24 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
             for s in self.auto_test.all_suites
         }
 
+    @property
+    def deadline_expired(self) -> bool:
+        """Has the deadline of this assignment expired.
+
+        >>> a = Assignment(deadline=None)
+        >>> a.deadline_expired
+        False
+        >>> from datetime import datetime
+        >>> before = datetime.utcnow()
+        >>> helpers.get_request_start_time = datetime.utcnow
+        >>> a.deadline = before
+        >>> a.deadline_expired
+        True
+        """
+        if self.deadline is None:
+            return False
+        return self.deadline < helpers.get_request_start_time()
+
     @cached_property
     def _dynamic_max_points(self) -> t.Optional[float]:
         sub = db.session.query(
@@ -734,7 +755,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         return bool(
             self.deadline is not None and
             self.state == _AssignmentStateEnum.open and
-            self.deadline >= helpers.get_request_start_time()
+            not self.deadline_expired
         )
 
     @property
@@ -935,7 +956,9 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
     @t.overload
     def get_from_latest_submissions(  # pylint: disable=function-redefined,missing-docstring,unused-argument,no-self-use
         self,
-        __to_query: T
+        __to_query: T,
+        *,
+        include_deleted: bool = False,
     ) -> MyQuery[t.Tuple[T]]:
         ...
 
@@ -944,12 +967,15 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         self,
         __first: T,
         __second: Y,
+        *,
+        include_deleted: bool = False,
     ) -> MyQuery[t.Tuple[T, Y]]:
         ...
 
     def get_from_latest_submissions(  # pylint: disable=function-redefined
         self,
-        *to_query: t.Any
+        *to_query: t.Any,
+        include_deleted: bool = False,
     ) -> MyQuery[t.Any]:
         """Get the given fields from all last submitted submissions.
 
@@ -962,18 +988,25 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         # different way or do other distincts. But I have no idea how slow this
         # subquery makes the query, as postgres could optimize it out.
 
-        sub = db.session.query(
+        sql = db.session.query(
             t.cast(DbColumn[int], work_models.Work.id)
-        ).filter(work_models.Work.assignment_id == self.id).order_by(
+        ).filter(
+            work_models.Work.assignment_id == self.id,
+        ).order_by(
             work_models.Work.user_id,
             t.cast(DbColumn[object], work_models.Work.created_at).desc()
-        ).distinct(work_models.Work.user_id).subquery('ids')
+        )
+        if not include_deleted:
+            sql = sql.filter_by(deleted=False)
+
+        sub = sql.distinct(work_models.Work.user_id).subquery('ids')
 
         return db.session.query(*to_query).select_from(
             work_models.Work
         ).filter(t.cast(DbColumn[int], work_models.Work.id).in_(sub))
 
-    def get_all_latest_submissions(self) -> MyQuery['work_models.Work']:
+    def get_all_latest_submissions(self, *, include_deleted: bool = False
+                                   ) -> MyQuery['work_models.Work']:
         """Get a list of all the latest submissions
         (:class:`.work_models.Work`) by each :class:`.user_models.User` who has
         submitted at least one work for this assignment.
@@ -985,7 +1018,8 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         return t.cast(
             MyQuery[work_models.Work],
             self.get_from_latest_submissions(
-                t.cast(work_models.Work, work_models.Work)
+                t.cast(work_models.Work, work_models.Work),
+                include_deleted=include_deleted,
             )
         )
 

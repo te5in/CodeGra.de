@@ -183,8 +183,7 @@ export default {
         },
 
         deadlineEditable() {
-            const lms = this.lmsName;
-            return lms ? !ltiProviders[lms].supportsDeadline : true;
+            return !this.$utils.getProps(ltiProviders, false, this.lmsName, 'supportsDeadline');
         },
     },
 
@@ -223,11 +222,9 @@ export default {
                     [
                         'can_see_assignee',
                         'can_assign_graders',
-                        'can_submit_own_work',
                         'can_submit_others_work',
                         'can_see_others_work',
                         'can_see_grade_before_open',
-                        'can_upload_after_deadline',
                         'can_list_course_users',
                         'can_edit_assignment_info',
                     ],
@@ -239,11 +236,9 @@ export default {
                     [
                         seeAssignee,
                         assignGrader,
-                        submitOwn,
                         submitOthers,
                         others,
                         before,
-                        afterDeadline,
                         canList,
                         canEditDeadline,
                     ],
@@ -253,10 +248,7 @@ export default {
                     this.canAssignGrader = assignGrader;
                     this.canUploadForOthers = submitOthers;
                     this.canListUsers = canList;
-                    this.canUpload =
-                        (submitOwn || submitOthers) &&
-                        (this.assignment.state === assignmentState.SUBMITTING ||
-                            (afterDeadline && this.assignment.state !== assignmentState.HIDDEN));
+                    this.canUpload = this.$utils.canUploadWork(this.assignment, this.$root.$now);
 
                     this.canSeeOthersWork = false;
                     this.canDownload = false;

@@ -253,6 +253,10 @@ export default {
             const max = toFixed(this.rubric.maxPoints);
             return `${scored} / ${max}`;
         },
+
+        submissionGrade() {
+            return this.submission.grade;
+        },
     },
 
     watch: {
@@ -278,6 +282,13 @@ export default {
                 this.storeLoadRubricResult({
                     submissionId: this.submission.id,
                 });
+            },
+        },
+
+        submissionGrade: {
+            immediate: false,
+            handler(newGrade) {
+                this.grade = formatGrade(newGrade);
             },
         },
     },

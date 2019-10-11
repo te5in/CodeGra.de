@@ -9,6 +9,7 @@ import Icon from 'vue-awesome/components/Icon';
 import Vue from 'vue';
 import BootstrapVue from 'bootstrap-vue';
 import axios from 'axios';
+import axiosRetry from 'axios-retry';
 import Toasted from 'vue-toasted';
 import localforage from 'localforage';
 import memoryStorageDriver from 'localforage-memoryStorageDriver';
@@ -56,6 +57,15 @@ axios.defaults.transformResponse = [
     },
 ];
 
+axiosRetry(axios, {
+    retries: 3,
+    retryDelay: (retryNumber = 0) => {
+        const delay = 2 ** retryNumber * 500;
+        const randomSum = delay * 0.2 * Math.random(); // 0-20% of the delay
+        return delay + randomSum;
+    },
+});
+
 axios.interceptors.response.use(
     response => response,
     (() => {
@@ -77,6 +87,7 @@ axios.interceptors.response.use(
                     },
                 );
             } else if (
+                config &&
                 config.method === 'get' &&
                 response.status === 401 &&
                 !config.url.match(/\/api\/v1\/login.*/)
@@ -247,6 +258,10 @@ localforage.defineDriver(memoryStorageDriver).then(() => {
         },
 
         computed: {
+            $windowWidth() {
+                return this.screenWidth;
+            },
+
             $isSmallWindow() {
                 return this.screenWidth <= this.smallWidth;
             },

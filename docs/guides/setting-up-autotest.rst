@@ -15,19 +15,23 @@ AutoTest servers in the cloud.
 
 3. Firstly, let's setup the AutoTest run:
 
-    a. Select the rubric calculation mode.
+    a. Select the result visibility.
+
+          - **Immediate**: let students view the results immediately after uploading, this is known as Continuous Feedback.
+          - **When assignment is done**: let students view the result after the assignment state is set to done, just like any other feedback.
+    b. Select the rubric calculation mode.
 
           - **Minimum**: a category's item will be chosen when the lower
             bound of this item is reached (e.g. when a category has 4 items and 75% of the
             tests succeed, the maximum item is filled in).
           - **Maximum**: a category's item will be chosen when the upper bound of
             this item is reached (e.g. you need 100% passed tests to have the maximum item filled in).
-    b. Upload your fixtures (this could be unit tests, setup scripts or anything else you need).
+    c. Upload your fixtures (this could be unit tests, setup scripts or anything else you need).
        These fixtures will be available through the ``$FIXTURES`` directory.
-    c. *Optionally* input a global setup script to run, for example to install
+    d. *Optionally* input a global setup script to run, for example to install
        packages you might need. :ref:`Click here <autotest-setup>` to see which
        packages are installed by default.
-    d. *Optionally* input a per student setup script to run, for example to
+    e. *Optionally* input a per student setup script to run, for example to
        compile the students' code. Do all of your global setup in the global
        setup script, as this speeds up the AutoTest run.
 

@@ -1,9 +1,12 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import moment from 'moment';
+
 import {
     range,
     last,
     isDecimalNumber,
     formatGrade,
+    formatDate,
     cmpOneNull,
     hashString,
     getExtension,
@@ -11,8 +14,14 @@ import {
     highlightCode,
     nameOfUser,
     groupMembers,
+    deadlinePassed,
+    canUploadWork,
+    canSeeGrade,
+    autoTestHasCheckpointAfterHiddenStep,
+    safeDivide,
 } from '@/utils';
 
+import * as assignmentState from '@/store/assignment-states';
 import * as visualize from '@/utils/visualize';
 
 import * as highlight from 'highlightjs';
@@ -283,6 +292,445 @@ describe('utils.js', () => {
         it('should work for empty objects', () => {
             expect(groupMembers(null)).toEqual([]);
             expect(groupMembers({})).toEqual([]);
+        });
+    });
+
+    describe('deadlinePassed', () => {
+        it.each([
+            [-1, 'minutes'],
+            [-1, 'hours'],
+            [-1, 'days'],
+            [-1, 'months'],
+            [-1, 'years'],
+            [1, 'minutes'],
+            [1, 'hours'],
+            [1, 'days'],
+            [1, 'months'],
+            [1, 'years'],
+        ])('should return true (false) when the deadline has (not) passed', (delta, type) => {
+            const now = moment();
+
+            expect(deadlinePassed({
+                deadline: formatDate(moment(now).add(delta, type)),
+            }, now)).toBe(delta < 0 ? true : false);
+        });
+    });
+
+    describe('canUploadWork', () => {
+        it('should return false when you cannot submit work', () => {
+            expect(canUploadWork({
+                course: {
+                    permissions: {
+                        can_submit_own_work: false,
+                        can_submit_others_work: false,
+                    },
+                },
+            })).toBe(false);
+        });
+
+        it.each([
+            [false],
+            [true],
+        ])('should return false when the assignment is hidden', (submitOwn) => {
+            const assig = {
+                state: assignmentState.HIDDEN,
+                course: {
+                    permissions: {
+                        can_submit_own_work: true,
+                        can_submit_others_work: false,
+                    },
+                },
+            };
+
+            expect(canUploadWork(assig)).toBe(false);
+
+            assig.course.permissions = {
+                can_submit_own_work: false,
+                can_submit_others_work: true,
+            };
+
+            expect(canUploadWork(assig)).toBe(false);
+
+            assig.course.permissions.can_submit_own_work = true;
+
+            expect(canUploadWork(assig)).toBe(false);
+        });
+
+        it('should return false when the deadline has passed and you do not have permission to submit after the deadline', () => {
+            const now = moment();
+            const assig = {
+                state: assignmentState.OPEN,
+                deadline: formatDate(moment(now).add(-1, 'days')),
+                course: {
+                    permissions: {
+                        can_submit_own_work: true,
+                        can_submit_others_work: false,
+                        can_upload_after_deadline: false,
+                    },
+                },
+            };
+
+            expect(canUploadWork(assig, now)).toBe(false);
+
+            assig.course.permissions = {
+                can_submit_own_work: false,
+                can_submit_others_work: true,
+            };
+
+            expect(canUploadWork(assig, now)).toBe(false);
+
+            assig.course.permissions.can_submit_own_work = true;
+
+            expect(canUploadWork(assig, now)).toBe(false);
+
+            assig.state = assignmentState.DONE;
+            assig.course.permissions.can_submit_others_work = false;
+
+            expect(canUploadWork(assig, now)).toBe(false);
+
+            assig.course.permissions = {
+                can_submit_own_work: false,
+                can_submit_others_work: true,
+            };
+
+            expect(canUploadWork(assig, now)).toBe(false);
+
+            assig.course.permissions.can_submit_own_work = true;
+
+            expect(canUploadWork(assig, now)).toBe(false);
+
+        });
+
+        it('should return true when you can submit work, the assignment is not hidden, and the deadline has not passed', () => {
+            const now = moment();
+            const assig = {
+                state: assignmentState.OPEN,
+                deadline: moment(now).add(1, 'days'),
+                course: {
+                    permissions: {
+                        can_submit_own_work: true,
+                        can_submit_others_work: false,
+                    },
+                },
+            };
+
+            expect(canUploadWork(assig, now)).toBe(true);
+
+            assig.state = assignmentState.DONE;
+
+            expect(canUploadWork(assig, now)).toBe(true);
+        });
+    });
+
+    describe('canSeeGrade', () => {
+        it.each([
+            assignmentState.HIDDEN,
+            assignmentState.SUBMITTING,
+            assignmentState.GRADING,
+            assignmentState.OPEN,
+        ])('should return false when the assignment state is %s and you don\'t have permission can_see_grade_before_done', (state) => {
+            const assig = {
+                state,
+                course: {
+                    permissions: {
+                        can_see_grade_before_done: false,
+                    },
+                },
+            };
+
+            expect(canSeeGrade(assig)).toBe(false);
+        });
+
+        it('should return true when the assignment state is done', () => {
+            const assig = {
+                state: assignmentState.DONE,
+                course: {
+                    permissions: {
+                        can_see_grade_before_done: false,
+                    },
+                },
+            };
+
+            expect(canSeeGrade(assig)).toBe(true);
+        });
+
+        it.each([
+            assignmentState.HIDDEN,
+            assignmentState.SUBMITTING,
+            assignmentState.GRADING,
+            assignmentState.OPEN,
+        ])('should return true when you have the permission can_see_grade_before_done', (state) => {
+            const assig = {
+                state,
+                course: {
+                    permissions: {
+                        can_see_grade_before_done: true,
+                    },
+                },
+            };
+
+            expect(canSeeGrade(assig)).toBe(true);
+        });
+    });
+
+    describe('autoTestHasCheckpointAfterHiddenStep', () => {
+        function makeTest(sets) {
+            return {
+                sets,
+            };
+        }
+
+        function makeSet(suites, stopPoints = 0) {
+            return {
+                suites,
+                stop_points: stopPoints,
+            };
+        }
+
+        function makeSuite(steps) {
+            return {
+                steps,
+            };
+        }
+
+        function makeStep(type, hidden = false) {
+            return {
+                type,
+                hidden,
+            };
+        }
+
+        it('should return false when the test has no checkpoints', () => {
+            expect(autoTestHasCheckpointAfterHiddenStep(makeTest([
+                makeSet([
+                    makeSuite([
+                        makeStep('custom_output'),
+                        makeStep('io_test', true),
+                        makeStep('run_program', true),
+                    ]),
+                    makeSuite([
+                        makeStep('custom_output'),
+                        makeStep('io_test'),
+                        makeStep('run_program', true),
+                    ]),
+                ]),
+                makeSet([
+                    makeSuite([
+                        makeStep('custom_output', true),
+                        makeStep('io_test', true),
+                        makeStep('run_program'),
+                    ]),
+                    makeSuite([
+                        makeStep('custom_output', true),
+                        makeStep('io_test'),
+                        makeStep('run_program'),
+                    ]),
+                ]),
+            ]))).toBe(false);
+        });
+
+        it('should return false when the test has no hidden steps but does contain check_points steps', () => {
+            expect(autoTestHasCheckpointAfterHiddenStep(makeTest([
+                makeSet([
+                    makeSuite([
+                        makeStep('check_points'),
+                        makeStep('custom_output'),
+                        makeStep('io_test'),
+                        makeStep('run_program'),
+                    ]),
+                    makeSuite([
+                        makeStep('custom_output'),
+                        makeStep('io_test'),
+                        makeStep('run_program'),
+                        makeStep('check_points'),
+                    ]),
+                ]),
+                makeSet([
+                    makeSuite([
+                        makeStep('custom_output'),
+                        makeStep('check_points'),
+                        makeStep('io_test'),
+                        makeStep('run_program'),
+                    ]),
+                    makeSuite([
+                        makeStep('custom_output'),
+                        makeStep('io_test'),
+                        makeStep('check_points'),
+                        makeStep('run_program'),
+                    ]),
+                ]),
+            ]))).toBe(false);
+        });
+
+        it('should return false when the test has no hidden steps but does contain set checkpoints', () => {
+            expect(autoTestHasCheckpointAfterHiddenStep(makeTest([
+                makeSet([
+                    makeSuite([
+                        makeStep('custom_output'),
+                        makeStep('io_test'),
+                        makeStep('run_program'),
+                    ]),
+                    makeSuite([
+                        makeStep('custom_output'),
+                        makeStep('io_test'),
+                        makeStep('run_program'),
+                    ]),
+                ], 0.5),
+                makeSet([
+                    makeSuite([
+                        makeStep('custom_output'),
+                        makeStep('io_test'),
+                        makeStep('run_program'),
+                    ]),
+                    makeSuite([
+                        makeStep('custom_output'),
+                        makeStep('io_test'),
+                        makeStep('run_program'),
+                    ]),
+                ]),
+            ]))).toBe(false);
+        });
+
+        it('should return false when all check_points steps occur before the first hidden step in the same suite', () => {
+            expect(autoTestHasCheckpointAfterHiddenStep(makeTest([
+                makeSet([
+                    makeSuite([
+                        makeStep('check_points'),
+                        makeStep('custom_output', true),
+                        makeStep('io_test', true),
+                        makeStep('run_program', true),
+                    ]),
+                ]),
+            ]))).toBe(false);
+        });
+
+        it('should return false when a check_points step occurs after a suite with hidden steps', () => {
+            expect(autoTestHasCheckpointAfterHiddenStep(makeTest([
+                makeSet([
+                    makeSuite([
+                        makeStep('custom_output', true),
+                        makeStep('io_test', true),
+                        makeStep('run_program', true),
+                    ]),
+                    makeSuite([
+                        makeStep('check_points'),
+                    ]),
+                ]),
+            ]))).toBe(false);
+        });
+
+        it('should return false when all set checkpoints occur before the first hidden step', () => {
+            expect(autoTestHasCheckpointAfterHiddenStep(makeTest([
+                makeSet([
+                    makeSuite([
+                        makeStep('custom_output'),
+                        makeStep('io_test'),
+                        makeStep('run_program'),
+                    ]),
+                ], 0.5),
+                makeSet([
+                    makeSuite([
+                        makeStep('custom_output', true),
+                        makeStep('io_test'),
+                        makeStep('run_program', true),
+                    ]),
+                ]),
+            ]))).toBe(false);
+        });
+
+        it('should return false when a set checkpoint of the only set happens after hidden steps', () => {
+            expect(autoTestHasCheckpointAfterHiddenStep(makeTest([
+                makeSet([
+                    makeSuite([
+                        makeStep('custom_output', true),
+                        makeStep('io_test', true),
+                        makeStep('run_program'),
+                    ]),
+                ], 1.0),
+            ]))).toBe(false);
+        });
+
+        it('should return false when a set checkpoint of the last set happens after hidden steps in a previous set', () => {
+            expect(autoTestHasCheckpointAfterHiddenStep(makeTest([
+                makeSet([
+                    makeSuite([
+                        makeStep('custom_output', true),
+                        makeStep('io_test', true),
+                        makeStep('run_program'),
+                    ]),
+                ]),
+                makeSet([
+                    makeSuite([
+                        makeStep('custom_output'),
+                        makeStep('io_test'),
+                        makeStep('run_program'),
+                    ]),
+                ], 1.0),
+            ]))).toBe(false);
+        });
+
+        it('should return false when a set checkpoint of the last set happens after hidden steps in the same set', () => {
+            expect(autoTestHasCheckpointAfterHiddenStep(makeTest([
+                makeSet([
+                    makeSuite([
+                        makeStep('custom_output'),
+                        makeStep('io_test'),
+                        makeStep('run_program'),
+                    ]),
+                ]),
+                makeSet([
+                    makeSuite([
+                        makeStep('custom_output', true),
+                        makeStep('io_test', true),
+                        makeStep('run_program'),
+                    ]),
+                ], 1.0),
+            ]))).toBe(false);
+        });
+
+        it('should return true when a check_points step happens after hidden steps in the same suite', () => {
+            expect(autoTestHasCheckpointAfterHiddenStep(makeTest([
+                makeSet([
+                    makeSuite([
+                        makeStep('custom_output', true),
+                        makeStep('io_test', true),
+                        makeStep('run_program'),
+                        makeStep('check_points'),
+                    ]),
+                ]),
+            ]))).toBe(true);
+        });
+
+        it('should return true when a set checkpoint happens after hidden steps', () => {
+            expect(autoTestHasCheckpointAfterHiddenStep(makeTest([
+                makeSet([
+                    makeSuite([
+                        makeStep('custom_output', true),
+                        makeStep('io_test', true),
+                        makeStep('run_program'),
+                    ]),
+                ], 1.0),
+                makeSet([
+                    makeSuite([
+                        makeStep('custom_output'),
+                    ]),
+                ]),
+            ]))).toBe(true);
+        });
+    });
+
+    describe('safeDivide', () => {
+        it('should work when both are not 0', () => {
+            expect(safeDivide(4, 10, {})).toBe(4 / 10);
+        });
+        it('should work when both are 0', () => {
+            const res = {};
+            expect(safeDivide(0, 0, res)).toBe(res);
+        });
+        it('should work when one is 0', () => {
+            const res = {};
+            expect(safeDivide(10, 0, res)).toBe(res);
+            expect(safeDivide(0, 10, res)).toBe(0);
         });
     });
 });

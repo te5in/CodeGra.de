@@ -21,13 +21,11 @@ Feedback:
 
 4. All created AutoTest tests are automatically used for Continuous Feedback too. Differentiate between AutoTest and Continuous Feedback by hiding and disabling individual tests for Continuous Feedback, this is done by pressing the :fa:`eye` button next to the test.
 
-5. After setting up AutoTest and hiding and disabling individual tests you do not want used in Continuous Feedback, turn on Continuous Feedback for your assignment by pressing the **"Start CF"** button on top of the page.
+5. After setting up AutoTest and hiding and disabling individual tests you do not want used in Continuous Feedback, turn on Continuous Feedback for your assignment by setting the *Results Visibility* mode to *Immediate*.
 
 Continuous Feedback is now turned on for your assignment. Near instant feedback
 will be presented to the students for every submission they make.
 
-.. note::
-    Continuous Feedback can be used in collaboration with AutoTest. Continuous
-    Feedback will only provide preliminary results and will not result in final
-    grades. Simply press the **"Run"** button on the same AutoTest set-up to
-    fill in the rubrics to calculate final grades for the assignment.
+.. warning::
+    If you have created hidden steps, the rubric is not filled in immediately,
+    but only after the deadline of the assignment has passed.

@@ -260,6 +260,40 @@
                     <li v-for="item in deletedRubricItems">{{ item }}</li>
                 </ul>
             </div>
+
+            <div slot="error"
+                 slot-scope="scope"
+                 class="error-popover text-left">
+                <p v-if="scope.error.empty" class="mb-2">
+                    You cannot submit an empty rubric.
+                </p>
+
+                <p v-if="scope.error.unnamed" class="mb-2">
+                    There are unnamed categories!
+                </p>
+
+                <p v-if="scope.error.categories.length > 0" class="mb-2">
+                    The following categor{{ scope.error.categories.length >= 2 ? 'ies have' : 'y has' }}
+                    no items.
+
+                    <ul>
+                        <li v-for="msg in scope.error.categories">
+                            {{ msg }}
+                        </li>
+                    </ul>
+                </p>
+
+                <p v-if="scope.error.items.length > 0" class="mb-2">
+                    Make sure "points" is a number for the following
+                    item{{ scope.error.items.length >= 2 ? 's' : '' }}:
+
+                    <ul>
+                        <li v-for="msg in scope.error.items">
+                            {{ msg }}
+                        </li>
+                    </ul>
+                </p>
+            </div>
         </submit-button>
     </b-card>
 </div>
@@ -275,7 +309,6 @@ import 'vue-awesome/icons/times';
 import 'vue-awesome/icons/info';
 import 'vue-awesome/icons/lock';
 import 'vue-awesome/icons/reply';
-import arrayToSentence from 'array-to-sentence';
 
 import { formatGrade } from '@/utils';
 
@@ -415,16 +448,16 @@ export default {
                 return {};
             }
 
-            const finalRun = autoTestConfig && autoTestConfig.runs.find(r => !r.isContinuous);
+            const autoTestRun = autoTestConfig && autoTestConfig.runs[0];
 
             return rubrics.reduce((acc, row) => {
                 acc[row.id] = {
                     id: `rubric-editor-${this.id}-row-${row.id}`,
                     content: this.lockPopover(row),
-                    // The row is editable if the entire rubricRow is editable.
+                    // The row is editable if the entire rubric is editable.
                     // However it is not editable if the row is locked, and
-                    // there is a final run.
-                    editable: editable && !(row.locked && finalRun),
+                    // the AutoTest has been started.
+                    editable: editable && !(row.locked && autoTestRun != null),
                 };
                 return acc;
             }, {});
@@ -572,10 +605,16 @@ export default {
             );
         },
 
-        setRubricData(serverRubrics) {
+        async setRubricData(serverRubrics) {
             const editable = this.$utils.getProps(this, false, 'editable');
-            const finalRun =
-                this.autoTestConfig && this.autoTestConfig.runs.find(r => !r.isContinuous);
+
+            if (this.autoTestConfigId != null && this.autoTestConfig == null) {
+                await this.storeLoadAutoTest({
+                    autoTestId: this.autoTestConfigId,
+                }).then(this.nextTick);
+            }
+
+            const autoTestRun = this.autoTestConfig && this.autoTestConfig.runs[0];
 
             this.rubrics = serverRubrics.map(origRow => {
                 const row = Object.assign({}, origRow);
@@ -586,7 +625,7 @@ export default {
                     .map(item => Object.assign({}, item))
                     .sort((a, b) => a.points - b.points);
 
-                if (editable && !(row.locked && finalRun)) {
+                if (editable && !(row.locked && autoTestRun != null)) {
                     row.items.push(this.getEmptyItem());
                 }
 
@@ -656,9 +695,18 @@ export default {
         },
 
         getCheckedRubricRows() {
-            const wrongCategories = [];
-            const wrongItems = [];
-            let hasUnnamedCategories = false;
+            const errors = {
+                categories: [],
+                items: [],
+                unnamed: false,
+                empty: false,
+
+                hasErrors() {
+                    return (
+                        this.categories.length || this.items.length || this.empty || this.unnamed
+                    );
+                },
+            };
 
             const rows = [];
             for (let i = 0, len = this.rubrics.length; i < len; i += 1) {
@@ -671,7 +719,7 @@ export default {
                 };
 
                 if (res.header.length === 0) {
-                    hasUnnamedCategories = true;
+                    errors.unnamed = true;
                 }
 
                 const amountOfItems = row.items.length - (this.rowData[row.id].editable ? 1 : 0);
@@ -686,7 +734,7 @@ export default {
                     }
 
                     if (Number.isNaN(parseFloat(item.points))) {
-                        wrongItems.push(
+                        errors.items.push(
                             `'${row.header || '[No name]'} - ${item.header || '[No name]'}'`,
                         );
                     }
@@ -696,7 +744,7 @@ export default {
                 }
 
                 if (res.items.length === 0) {
-                    wrongCategories.push(row.header || '[No name]');
+                    errors.categories.push(row.header || '[No name]');
                 }
 
                 if (row.id !== undefined) res.id = row.id;
@@ -704,26 +752,8 @@ export default {
                 rows.push(res);
             }
 
-            if (hasUnnamedCategories) {
-                throw new Error('There are unnamed categories!');
-            }
-
-            if (wrongItems.length > 0) {
-                const multiple = wrongItems.length > 2;
-                throw new Error(`
-For the following item${multiple ? 's' : ''} please make sure "points" is
-a number: ${arrayToSentence(wrongItems)}.`);
-            }
-
-            if (wrongCategories.length > 0) {
-                const multiple = wrongCategories.length > 2;
-                throw new Error(`
-The following categor${multiple ? 'ies have' : 'y has'} a no items:
-${arrayToSentence(wrongCategories)}.`);
-            }
-
-            if (rows.length === 0) {
-                throw new Error('You cannot submit an empty rubric.');
+            if (errors.hasErrors()) {
+                throw errors;
             }
 
             return rows;
@@ -937,6 +967,10 @@ ${arrayToSentence(wrongCategories)}.`);
             background-color: @color-primary;
         }
 
+        .item-header-row {
+            flex-wrap: nowrap;
+        }
+
         .item-description {
             background-color: @color-lightest-gray;
         }
@@ -1087,6 +1121,12 @@ ${arrayToSentence(wrongCategories)}.`);
 
 .assignment-alert.alert {
     margin-bottom: 0;
+}
+
+.error-popover {
+    :last-child {
+        margin-bottom: 0 !important;
+    }
 }
 </style>
 

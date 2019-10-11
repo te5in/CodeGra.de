@@ -24,3 +24,4 @@ PRIVACY_STATEMENT.md
 .cov2emacs.log
 /coverage/
 /pmd/
+/celerybeat-schedule.db

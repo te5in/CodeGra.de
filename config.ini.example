@@ -55,6 +55,9 @@
 # The email to display
 # email = info@CodeGra.de
 
+# The maximum number of lines the CodeViewer renders at once.
+# max-lines = 2500
+
 # This section is for the options of the backend.
 [Back-end]
 # Enable debug mode. Set this to off for production mode.
@@ -349,3 +352,6 @@
 
 # The amount we should query for extra work before stopping
 # auto_test_cf_extra_amount = 20
+
+# The maximum amount of batch runs we start at once
+# auto_test_max_concurrent_batch_runs = 3

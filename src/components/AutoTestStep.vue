@@ -852,10 +852,6 @@ export default {
             type: Object,
             default: null,
         },
-        isContinuous: {
-            type: Boolean,
-            default: false,
-        },
     },
 
     data() {
@@ -1020,7 +1016,7 @@ export default {
             if (this.valueCopy.hidden) {
                 return 'Make the details of this step visible to students.';
             } else {
-                return 'Disable this step for Continuous Feedback runs and hide the details from students.';
+                return "Disable this step and hide the details from students until the assignment's deadline has passed.";
             }
         },
 
@@ -1062,14 +1058,15 @@ export default {
         },
 
         canViewOutput() {
-            const result = this.result && this.stepResult.state !== 'hidden';
+            const result = this.result;
+            const hidden = this.$utils.getProps(this.stepResult, null, 'state') === 'hidden';
             const canViewDetails = this.canViewDetails;
             const canViewFeedback =
-                this.isContinuous ||
+                (result && result.isVisible) ||
                 this.assignment.state === assignmentStates.DONE ||
                 this.permissions.can_view_autotest_before_done;
 
-            if (!result || !canViewDetails || !canViewFeedback) {
+            if (!result || hidden || !canViewDetails || !canViewFeedback) {
                 return false;
             }
 

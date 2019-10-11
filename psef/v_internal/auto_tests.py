@@ -13,7 +13,7 @@ import structlog
 from flask import g, request, make_response, send_from_directory
 
 from . import api
-from .. import app, files, models, helpers, auto_test
+from .. import app, files, tasks, models, helpers, auto_test
 from ..models import db
 from ..helpers import (
     JSONResponse, EmptyResponse, jsonify, get_or_404, request_arg_true,
@@ -30,16 +30,12 @@ LocalRunner = t.NewType('LocalRunner', t.Tuple[str, bool])
 
 def _ensure_from_latest_work(result: models.AutoTestResult) -> None:
     work = result.work
-    if not result.run.is_continuous_feedback_run:
-        return
 
-    newest_id = db.session.query(
-        t.cast(models.DbColumn[int], models.Work.id)
-    ).filter_by(
-        user_id=work.user_id, assignment_id=work.assignment_id
-    ).order_by(t.cast(models.DbColumn[object],
-                      models.Work.created_at).desc()).limit(1).scalar()
-    if work.id != newest_id:
+    if not db.session.query(
+        work.assignment.get_from_latest_submissions(
+            models.Work.id
+        ).filter(models.Work.id == work.id).exists()
+    ).scalar():
         raise APIException(
             'You are not working on the newest submission',
             f'The submission {work.id} is not the newest submission',
@@ -69,11 +65,11 @@ def _verify_and_get_runner(
         'You do not have permission to use this route',
         'No valid password given', APICodes.NOT_LOGGED_IN, 401
     )
-    if run is None or run.finished:
+    if run is None:
         raise PermissionException(
             'You cannot update runs which have finished',
-            f'The run {{ runner.run_id }} has finished',
-            APICodes.INCORRECT_PERMISSION, 403
+            f'The run does not exist (anymore)', APICodes.INCORRECT_PERMISSION,
+            403
         )
 
     for runner in run.runners:
@@ -170,21 +166,13 @@ def update_run(auto_test_id: int, run_id: int) -> EmptyResponse:
     )
     runner = _verify_and_get_runner(run, password)
 
-    if state is not None:
-        new_state = parse_enum(state, models.AutoTestRunState)
-        assert new_state is not None
-        if new_state == models.AutoTestRunState.done:
-            if run.runners == [runner]:
-                # This also stops the runner
-                run.state = models.AutoTestRunState.done
-            else:
-                run.stop_runners([runner])
-        else:
-            run.state = new_state
-    if setup_stdout is not None:
-        run.setup_stdout = setup_stdout
-    if setup_stderr is not None:
-        run.setup_stderr = setup_stderr
+    if state == 'stopped':
+        run.stop_runners([runner])
+    else:
+        if setup_stdout is not None:
+            run.setup_stdout = setup_stdout
+        if setup_stderr is not None:
+            run.setup_stderr = setup_stderr
 
     db.session.commit()
 
@@ -312,7 +300,7 @@ def update_result(auto_test_id: int,
     :param result_id: The id of the result which you want to update.
     :>json state: The new state of the result (OPTIONAL).
     :>json setup_stdout: The output of the setup script (OPTIONAL).
-    :>json setup_stderr: The outuput to stderr of the setup script (OPTIONAL).
+    :>json setup_stderr: The output to stderr of the setup script (OPTIONAL).
     """
     password = _verify_global_header_password()
 
@@ -345,14 +333,28 @@ def update_result(auto_test_id: int,
     else:
         result.runner = runner
 
-    if state is not None:
-        new_state = parse_enum(state, models.AutoTestStepResultState)
-        assert new_state is not None
-        result.state = new_state
     if setup_stdout is not None:
         result.setup_stdout = setup_stdout
     if setup_stderr is not None:
         result.setup_stderr = setup_stderr
+    if state is not None:
+        new_state = parse_enum(state, models.AutoTestStepResultState)
+        assert new_state is not None
+
+        if new_state in {
+            models.AutoTestStepResultState.not_started,
+            models.AutoTestStepResultState.running,
+            models.AutoTestStepResultState.passed,
+        }:
+            run_id = result.auto_test_run_id
+            helpers.callback_after_this_request(
+                lambda: tasks.update_latest_results_in_broker(run_id)
+            )
+
+        if new_state == models.AutoTestStepResultState.not_started:
+            result.clear()
+        else:
+            result.state = new_state
 
     db.session.commit()
     return jsonify({'taken': False})

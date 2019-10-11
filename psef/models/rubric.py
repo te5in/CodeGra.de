@@ -216,7 +216,7 @@ class RubricRow(Base):
 
         if (
             self.locked == RubricLockReason.auto_test and self.assignment and
-            self.assignment.auto_test and self.assignment.auto_test.test_run
+            self.assignment.auto_test and self.assignment.auto_test.run
         ):
             new_ids = set(t.cast(dict, item).get('id', None) for item in items)
             old_ids = set(item.id for item in self.items)

@@ -20,11 +20,14 @@ import structlog
 from flask import Flask
 from celery import signals
 from requests import HTTPError
+from sqlalchemy.orm import contains_eager
 from mypy_extensions import NamedArg, DefaultNamedArg
+from celery.schedules import crontab
 
 import psef as p
 import cg_celery
 import cg_logger
+from cg_sqlalchemy_helpers.types import DbColumn
 
 logger = structlog.get_logger()
 
@@ -33,6 +36,15 @@ celery = cg_celery.CGCelery('psef', signals)  # pylint: disable=invalid-name
 
 def init_app(app: Flask) -> None:
     celery.init_flask_app(app)
+
+
+@celery.on_after_configure.connect
+def _setup_periodic_tasks(sender: t.Any, **_: object) -> None:
+    logger.info('Setting up periodic tasks')
+    sender.add_periodic_task(
+        crontab(minute='*/15'),
+        _run_autotest_batch_runs_1.si(),
+    )
 
 
 @celery.task
@@ -58,16 +70,30 @@ def _lint_instances_1(
 # with the ``KILL`` signal) the task will also be retried.
 @celery.task(acks_late=True, max_retries=10, reject_on_worker_lost=True)  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
 def _passback_grades_1(
-    submission_ids: t.Sequence[int], initial: bool = False
+    submission_ids: t.Sequence[int],
+    *,
+    assignment_id: int = None,
+    initial: bool = False
 ) -> None:
     if not submission_ids:  # pragma: no cover
         return
 
-    subs = p.models.Work.query.filter(
-        t.cast(p.models.DbColumn[int], p.models.Work.id).in_(
-            submission_ids,
-        )
-    ).all()
+    assignment = p.models.Assignment.query.filter_by(
+        id=assignment_id
+    ).with_for_update().one_or_none()
+    if assignment is None:  # pragma: no cover
+        subs = p.models.Work.query.filter(
+            t.cast(p.models.DbColumn[int], p.models.Work.id).in_(
+                submission_ids,
+            ),
+            ~p.models.Work.deleted,
+        ).all()
+    else:
+        subs = assignment.get_all_latest_submissions().filter(
+            t.cast(p.models.DbColumn[int], p.models.Work.id).in_(
+                submission_ids,
+            )
+        ).all()
 
     found_ids = [s.id for s in subs]
     logger.info(
@@ -80,6 +106,29 @@ def _passback_grades_1(
 
     for sub in subs:
         sub.passback_grade(initial=initial)
+
+
+@celery.task
+def _delete_submission_1(work_id: int, assignment_id: int) -> None:
+    assignment = p.models.Assignment.query.filter_by(
+        id=assignment_id
+    ).with_for_update().one_or_none()
+    if assignment is None:
+        logger.info('Could not find assignment', assignment_id=assignment_id)
+        return
+    if assignment.course.lti_provider is None:
+        logger.info('Not an LTI submission, ignoring')
+        return
+
+    sub = assignment.get_all_latest_submissions(include_deleted=True).filter(
+        p.models.Work.id == work_id
+    ).one_or_none()
+
+    if sub is None:
+        logger.info('Could not find submission', work_id=work_id)
+        return
+    logger.info('Deleting grade for submission', work_id=sub.id)
+    assignment.course.lti_provider.delete_grade_for_submission(sub)
 
 
 @celery.task
@@ -286,47 +335,26 @@ def _run_plagiarism_control_1(  # pylint: disable=too-many-branches,too-many-sta
 
 
 @celery.task
-def _notify_slow_auto_test_run_1(auto_test_run_id: int) -> None:
-    run = p.models.AutoTestRun.query.get(auto_test_run_id)
-    if run is None:
-        return
-    if run.finished:
-        return
+def _run_autotest_batch_runs_1() -> None:
+    now = datetime.datetime.utcnow()
+    # Limit the amount of runs, this way we never accidentally overload the
+    # server by doing a large amount of batch run.
+    max_runs = p.app.config['AUTO_TEST_MAX_CONCURRENT_BATCH_RUNS']
 
-    logger.warning(
-        'A AutoTest run is slow!',
-        started_date=run.started_date,
-        kill_date=run.kill_date,
-        run_id=run.id,
-        run=run.__extended_to_json__(),
-    )
+    runs = p.models.AutoTestRun.query.join(
+        p.models.AutoTestRun.auto_test
+    ).join(p.models.Assignment).filter(
+        t.cast(DbColumn[bool], p.models.AutoTestRun.batch_run_done).is_(False),
+        p.models.Assignment.deadline < now,  # type: ignore
+    ).options(contains_eager(p.models.AutoTestRun.auto_test)).order_by(
+        p.models.Assignment.deadline
+    ).with_for_update().limit(max_runs).all()
 
+    logger.info('Running batch run', run_ids=[r.id for r in runs])
 
-@celery.task
-def _stop_auto_test_run_1(auto_test_run_id: int) -> None:
-    run = p.models.AutoTestRun.query.filter_by(
-        id=auto_test_run_id
-    ).with_for_update().one_or_none()
+    for run in runs:
+        run.do_batch_run()
 
-    if run is None:
-        return
-    elif (
-        run.kill_date is not None and
-        run.kill_date > datetime.datetime.utcnow()
-    ):
-        stop_auto_test_run((auto_test_run_id, ), eta=run.kill_date)
-        return
-    elif not run.active:
-        return
-
-    logger.warning(
-        'Run timed out',
-        auto_test_run_id=auto_test_run_id,
-        run=run.__to_json__(),
-    )
-
-    # This automatically notifies the broker that the job has finished
-    run.state = p.models.AutoTestRunState.timed_out
     p.models.db.session.commit()
 
 
@@ -361,11 +389,13 @@ def _notify_broker_of_new_job_1(
         req.raise_for_status()
         try:
             run.runners_requested = req.json().get(
-                'wanted_runners', wanted_runners
+                'wanted_runners', max(wanted_runners, 1)
             )
         except json.decoder.JSONDecodeError:
             run.runners_requested = max(wanted_runners, 1)
         p.models.db.session.commit()
+
+    _update_latest_results_in_broker_1.delay(run.id)
 
 
 @celery.task(
@@ -406,9 +436,13 @@ def _notify_broker_kill_single_runner_1(
     retry_backoff=True,
     retry_kwargs={'max_retries': 15}
 )
-def _notify_broker_end_of_job_1(job_id: str) -> None:
+def _notify_broker_end_of_job_1(
+    job_id: str, ignore_non_existing: bool = False
+) -> None:
+    ignore = str(ignore_non_existing).lower()
     with p.helpers.BrokerSession() as ses:
-        ses.delete(f'/api/v1/jobs/{job_id}').raise_for_status()
+        ses.delete(f'/api/v1/jobs/{job_id}?ignore_non_existing={ignore}'
+                   ).raise_for_status()
 
 
 @celery.task
@@ -421,9 +455,6 @@ def _check_heartbeat_stop_test_runner_1(auto_test_runner_id: str) -> None:
         return
     elif runner.run is None:
         logger.info('Runner already reset', runner=runner)
-        return
-    elif runner.run.finished:
-        logger.info('Run already finished, heartbeats not required')
         return
 
     interval = p.app.config['AUTO_TEST_HEARTBEAT_INTERVAL']
@@ -452,7 +483,6 @@ def _check_heartbeat_stop_test_runner_1(auto_test_runner_id: str) -> None:
                                                ).with_for_update().one()
     run.stop_runners([runner])
     p.models.db.session.commit()
-    adjust_amount_runners(run.id)
 
 
 @celery.task
@@ -463,9 +493,6 @@ def _adjust_amount_runners_1(auto_test_run_id: int) -> None:
 
     if run is None:
         logger.warning('Run to adjust not found')
-        return
-    elif run.finished:
-        logger.info('Run already finished, no adjustments needed')
         return
 
     requested_amount = run.runners_requested
@@ -490,6 +517,68 @@ def _adjust_amount_runners_1(auto_test_run_id: int) -> None:
 
 
 @celery.task
+def _kill_runners_and_adjust_1(
+    run_id: int, runners_to_kill_hex_ids: t.List[str]
+) -> None:
+    for runner_hex_id in runners_to_kill_hex_ids:
+        _notify_broker_kill_single_runner_1(run_id, runner_hex_id)
+    _adjust_amount_runners_1(run_id)
+
+
+@celery.task
+def _update_latest_results_in_broker_1(auto_test_run_id: int) -> None:
+    m = p.models  # pylint: disable=invalid-name
+
+    run = m.AutoTestRun.query.get(auto_test_run_id)
+    if run is None:
+        logger.info('Run not found', run_id=auto_test_run_id)
+        return
+
+    def get_latest_date(
+        state: m.AutoTestStepResultState,
+        col: t.Optional[datetime.datetime],
+        oldest: bool = True
+    ) -> t.Optional[str]:
+        c = t.cast(m.DbColumn[datetime.datetime], col)  # pylint: disable=invalid-name
+        date = m.db.session.query(c).filter_by(
+            auto_test_run_id=auto_test_run_id,
+            state=state,
+        ).order_by(c if oldest else c.desc()).first()
+
+        return date and date[0].isoformat()
+
+    # yapf: disable
+    results = {
+        'not_started': get_latest_date(
+            m.AutoTestStepResultState.not_started,
+            m.AutoTestResult.updated_at,
+        ),
+        'running': get_latest_date(
+            m.AutoTestStepResultState.running,
+            m.AutoTestResult.started_at,
+        ),
+        'passed': get_latest_date(
+            m.AutoTestStepResultState.passed,
+            m.AutoTestResult.updated_at,
+            False,
+        ),
+    }
+    # yapf: enable
+
+    with p.helpers.BrokerSession() as ses:
+        ses.put(
+            '/api/v1/jobs/',
+            json={
+                'job_id': run.get_job_id(),
+                'metadata': {
+                    'results': results,
+                },
+                'error_on_create': True,
+            },
+        ).raise_for_status()
+
+
+@celery.task
 def _add_1(first: int, second: int) -> int:  # pragma: no cover
     """This function is used for testing if celery works. What it actually does
     is completely irrelevant.
@@ -507,18 +596,13 @@ notify_broker_of_new_job = _notify_broker_of_new_job_1.delay  # pylint: disable=
 notify_broker_end_of_job = _notify_broker_end_of_job_1.delay  # pylint: disable=invalid-name
 notify_broker_kill_single_runner = _notify_broker_kill_single_runner_1.delay  # pylint: disable=invalid-name
 adjust_amount_runners = _adjust_amount_runners_1.delay  # pylint: disable=invalid-name
+kill_runners_and_adjust = _kill_runners_and_adjust_1.delay  # pylint: disable=invalid-name
+delete_submission = _delete_submission_1.delay  # pylint: disable=invalid-name
+update_latest_results_in_broker = _update_latest_results_in_broker_1.delay  # pylint: disable=invalid-name
 
 send_reminder_mails: t.Callable[[
     t.Tuple[int], NamedArg(t.Optional[datetime.datetime], 'eta')
 ], t.Any] = _send_reminder_mails_1.apply_async  # pylint: disable=invalid-name
-
-stop_auto_test_run: t.Callable[[
-    t.Tuple[int], NamedArg(t.Optional[datetime.datetime], 'eta')
-], t.Any] = _stop_auto_test_run_1.apply_async  # pylint: disable=invalid-name
-
-notify_slow_auto_test_run: t.Callable[[
-    t.Tuple[int], NamedArg(t.Optional[datetime.datetime], 'eta')
-], t.Any] = _notify_slow_auto_test_run_1.apply_async  # pylint: disable=invalid-name
 
 check_heartbeat_auto_test_run: t.Callable[
     [t.Tuple[str],

@@ -1,0 +1,8 @@
+policy: deny
+options: {"remove_leading_directories": false}
+require /dir/*
+require abc.py
+
+/dir/abc.py
+
+/dir/abc.py

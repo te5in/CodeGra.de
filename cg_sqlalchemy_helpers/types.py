@@ -57,6 +57,14 @@ class MySession:  # pragma: no cover
 
     @t.overload  # NOQA
     def query(
+        self,
+        __y: 'DbColumn[T]',
+        __x: 'DbColumn[Z]',
+    ) -> 'MyQuery[t.Tuple[T, Z]]':
+        ...
+
+    @t.overload  # NOQA
+    def query(
         self, __x: t.Type[T], __y: 'DbColumn[Z]'
     ) -> 'MyQuery[t.Tuple[T, Z]]':
         ...
@@ -266,7 +274,7 @@ class MyQuery(t.Generic[T], t.Iterable):  # pragma: no cover
     def all(self) -> t.List[T]:
         ...
 
-    def with_for_update(self: QuerySelf) -> 'QuerySelf':
+    def with_for_update(self: QuerySelf, *, read: bool = False) -> 'QuerySelf':
         ...
 
     def one_or_none(self) -> t.Optional[T]:
