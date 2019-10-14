@@ -133,7 +133,7 @@ export default {
         }),
 
         curUserId() {
-            return this.curSub ? null : this.curSub.user.id;
+            return this.$utils.getProps(this.curSub, null, 'user', 'id');
         },
 
         curSub() {
