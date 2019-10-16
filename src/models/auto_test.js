@@ -356,8 +356,15 @@ export class AutoTestResult {
                 if (testFailed || setFailed || suiteFailed) {
                     suiteResult.finished = true;
                     suiteResult.stepResults.forEach(s => {
-                        if (s.state === 'not_started') {
-                            s.state = 'skipped';
+                        switch (s.state) {
+                            case 'not_started':
+                                s.state = 'skipped';
+                                break;
+                            case 'running':
+                                s.state = 'failed';
+                                break;
+                            default:
+                                break;
                         }
                     });
                 }
@@ -399,6 +406,7 @@ export class AutoTestRun {
         this.id = run.id;
         this.createdAt = run.created_at;
         this.results = [];
+        this.resultsByUser = {};
         this.update(run, autoTest);
     }
 
@@ -411,29 +419,87 @@ export class AutoTestRun {
         }
     }
 
-    updateResults(results, autoTest) {
+    static makeNewResultArray(oldResults, newResults, autoTest) {
         // For each passed result, check if there is already a result with the
         // same id. If it exists, update that result and discard it from the
         // new results. Then create a new result for each result that wasn't
         // found. We do this to prevent the same user from appearing multiple
         // times in the results listing.
-
-        const newResults = results.reduce((acc, r) => {
+        const mapping = newResults.reduce((acc, r) => {
             acc[r.id] = r;
             return acc;
         }, {});
 
-        const oldResults = this.results.reduce((acc, r) => {
-            if (r.id in newResults) {
+        const updated = oldResults.reduce((acc, r) => {
+            if (r.id in mapping) {
                 acc.push(r);
-                r.update(newResults[r.id], autoTest);
-                delete newResults[r.id];
+                r.update(mapping[r.id], autoTest);
+                delete mapping[r.id];
             }
             return acc;
         }, []);
 
-        this.results = oldResults.concat(
-            Object.values(newResults).map(r => new AutoTestResult(r, autoTest)),
+        return updated.concat(Object.values(mapping).map(r => new AutoTestResult(r, autoTest)));
+    }
+
+    updateResultsByUser(userId, newResults, autoTest) {
+        Vue.set(
+            this.resultsByUser,
+            userId,
+            AutoTestRun.makeNewResultArray(
+                getProps(this.resultsByUser, [], userId),
+                newResults,
+                autoTest,
+            ),
         );
+    }
+
+    updateResults(results, autoTest) {
+        this.results = AutoTestRun.makeNewResultArray(this.results, results, autoTest);
+    }
+
+    findResultBySubId(submissionId) {
+        let res = this.results.find(r => r.submissionId === submissionId);
+        if (res == null) {
+            Object.values(this.resultsByUser).find(results =>
+                results.find(r => {
+                    if (r.submissionId === submissionId) {
+                        res = r;
+                    }
+                    return !!res;
+                }),
+            );
+        }
+        return res;
+    }
+
+    findResultById(resultId) {
+        let res = this.results.find(r => r.id === resultId);
+        if (res == null) {
+            Object.values(this.resultsByUser).find(results =>
+                results.find(r => {
+                    if (r.id === resultId) {
+                        res = r;
+                    }
+                    return !!res;
+                }),
+            );
+        }
+        return res;
+    }
+
+    setResultById(result) {
+        let index = this.results.findIndex(res => res.id === result.id);
+        if (index !== -1) {
+            Vue.set(this.results, index, result);
+        } else {
+            const userId = Object.keys(this.resultsByUser).find(uId => {
+                index = this.resultsByUser[uId].findIndex(r => r.id === result.id);
+                return index !== -1;
+            });
+            Vue.set(this.resultsByUser[userId], index, result);
+            Vue.set(this.resultsByUser, userId, this.resultsByUser[userId]);
+        }
+        return this;
     }
 }

@@ -6,3 +6,4 @@ Name,Description
 **Create course**,Users with this permission can create new courses.
 **Manage site users**,Users with this permission can change the global permissions for other users on the site.
 **Search users** \*,"Users with this permission can search for users on the side, this means they can see all other users on the site."
+**Impersonate users**,"Users with this permission can impersonate users, i.e. they can login as other users."

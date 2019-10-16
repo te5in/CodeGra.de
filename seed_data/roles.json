@@ -26,7 +26,8 @@
       "can_add_users",
       "can_create_courses",
       "can_edit_own_password",
-      "can_manage_site_users"
+      "can_manage_site_users",
+      "can_impersonate_users"
     ]
   }
 }

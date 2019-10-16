@@ -552,7 +552,7 @@ def get_auto_test_run(auto_test_id: int,
     run = filter_single_or_404(
         models.AutoTestRun,
         models.AutoTestRun.id == run_id,
-        models.AutoTest.id == auto_test_id,
+        also_error=lambda run: run.auto_test_id != auto_test_id
     )
     auth.ensure_can_view_autotest(run.auto_test)
     jsonify_options.get_options(
@@ -638,6 +638,54 @@ def delete_auto_test_runs(auto_test_id: int, run_id: int) -> EmptyResponse:
     db.session.commit()
 
     return make_empty_response()
+
+
+@api.route(
+    (
+        '/auto_tests/<int:auto_test_id>/runs/<int:run_id>'
+        '/users/<int:user_id>/results/'
+    ),
+    methods=['GET']
+)
+@feature_required(Feature.AUTO_TEST)
+def get_auto_test_results_for_user(
+    auto_test_id: int, run_id: int, user_id: int
+) -> JSONResponse[t.List[models.AutoTestResult]]:
+    """Get all AutoTest results for a given user.
+
+    .. :quickref: AutoTest; Get all AutoTest results for a given.
+
+    :param auto_test_id: The id of the AutoTest in which to get the results.
+    :param run_id: The id of the AutoTestRun in which to get the results.
+    :param user_id: The id of the user of which we should get the results.
+    :returns: The list of AutoTest results for the given user, sorted from
+        oldest to latest.
+
+    If you don't have permission to see the results of the requested user an
+    empty list will be returned.
+    """
+    run = filter_single_or_404(
+        models.AutoTestRun,
+        models.AutoTestRun.id == run_id,
+        also_error=lambda obj: obj.auto_test_id != auto_test_id,
+    )
+    user = get_or_404(models.User, user_id)
+    auth.ensure_enrolled(run.auto_test.assignment.course_id)
+
+    results = []
+    for result in models.AutoTestResult.get_results_by_user(
+        user.id
+    ).filter_by(auto_test_run_id=run.id).order_by(
+        models.AutoTestResult.created_at
+    ):
+        try:
+            auth.ensure_can_view_autotest_result(result)
+        except exceptions.PermissionException:
+            continue
+        else:
+            results.append(result)
+
+    return jsonify(results)
 
 
 @api.route(

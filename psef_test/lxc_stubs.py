@@ -47,6 +47,7 @@ def lxc_stub(stub_function_class, capsys):
             self.wait = stub_function_class(lambda: True)
             self.get_ips = stub_function_class(lambda: True)
             self.stop = stub_function_class(lambda: set_running(False))
+            self.shutdown = stub_function_class(lambda: set_running(False))
 
             class StubNetwork:
                 type = 'nw-type-1'

@@ -3,7 +3,9 @@ import multiprocessing as mp
 
 import pytest
 
-from cg_worker_pool import Work, WorkerPool, WorkerException
+from cg_worker_pool import (
+    Work, WorkerPool, WorkerException, KillWorkerException
+)
 
 
 @pytest.fixture
@@ -132,6 +134,30 @@ def test_retry_work(work_done):
     pool.start(lambda _: [])
 
     all_work = initial_work + initial_work + initial_work
+    for _ in range(len(all_work)):
+        all_work.remove(work_done.get(False))
+
+    assert work_done.empty()
+    assert not all_work
+
+
+def test_killing_and_replacing_worker(work_done):
+    def worker_fun(opts):
+        work = opts.get_work()
+        if work is None:
+            return
+        work_done.put(work)
+        raise KillWorkerException
+
+    initial_work = [
+        Work(result_id=4, student_id=1),
+        Work(result_id=5, student_id=2),
+        Work(result_id=6, student_id=3),
+    ]
+    pool = WorkerPool(3, worker_fun, 0, 1, initial_work)
+    pool.start(lambda _: [])
+
+    all_work = initial_work
     for _ in range(len(all_work)):
         all_work.remove(work_done.get(False))
 

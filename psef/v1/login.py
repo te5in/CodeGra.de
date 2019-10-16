@@ -10,21 +10,17 @@ import typing as t
 import flask_jwt_extended as flask_jwt
 from flask import request
 
-import psef.auth as auth
-import psef.mail as mail
-import psef.models as models
-import psef.helpers as helpers
-from psef import current_user
-from psef.errors import APICodes, APIWarnings, APIException
-from psef.models import db
-from psef.helpers import (
+from psef.exceptions import WeakPasswordException
+
+from . import api
+from .. import auth, mail, models, helpers, current_user
+from ..errors import APICodes, APIWarnings, APIException
+from ..models import db
+from ..helpers import (
     JSONResponse, EmptyResponse, ExtendedJSONResponse, jsonify, validate,
     add_warning, ensure_json_dict, extended_jsonify, request_arg_true,
     ensure_keys_in_dict, make_empty_response
 )
-from psef.exceptions import WeakPasswordException
-
-from . import api
 from ..permissions import GlobalPermission as GPerm
 
 
@@ -37,8 +33,15 @@ def login() -> ExtendedJSONResponse[
 
     :returns: A response containing the JSON serialized user
 
+    :query impersonate: When set to a truthy value you can use this route to
+        login as other users. This only allowed when you have the correct
+        permissions.
+
     :<json str username: The username of the user to log in.
-    :<json str password: The password of the user to log in.
+    :<json str password: The password of the user to log in. Only required when
+        `impersonate` is not `true`.
+    :<json str own_password: Your own password, only required when
+        `impersonate` is `true`.
     :query with_permissions: Setting this to true will add the key
         ``permissions`` to the user. The value will be a mapping indicating
         which global permissions this user has.
@@ -57,48 +60,71 @@ def login() -> ExtendedJSONResponse[
         request.get_json(),
         replace_log=lambda k, v: '<PASSWORD>' if k == 'password' else v
     )
-    ensure_keys_in_dict(data, [('username', str), ('password', str)])
-    username = t.cast(str, data['username'])
-    password = t.cast(str, data['password'])
-
-    # WARNING: Do not use the `helpers.filter_single_or_404` function here as
-    # we have to return the same error for a wrong email as for a wrong
-    # password!
     user: t.Optional[models.User]
-    user = db.session.query(
-        models.User,
-    ).filter(
-        models.User.username == username,
-        ~models.User.is_test_student,
-    ).first()
 
-    if user is None or user.password != password:
-        raise APIException(
-            'The supplied username or password is wrong.', (
-                f'The user with username "{username}" does not exist '
-                'or has a different password'
-            ), APICodes.LOGIN_FAILURE, 400
+    if helpers.request_arg_true('impersonate'):
+        auth.ensure_permission(GPerm.can_impersonate_users)
+
+        with helpers.get_from_map_transaction(data) as [get, _]:
+            username = get('username', str)
+            own_password = get('own_password', str)
+
+        if current_user.password != own_password:
+            raise APIException(
+                'The supplied own password is incorrect',
+                f'The user {current_user.id} has a different password',
+                APICodes.INVALID_CREDENTIALS, 403
+            )
+
+        user = helpers.filter_single_or_404(
+            models.User,
+            models.User.username == username,
+            ~models.User.is_test_student,
+            models.User.active,
         )
 
-    if not user.is_active:
-        raise APIException(
-            'User is not active',
-            ('The user with id "{}" is not active any more').format(user.id),
-            APICodes.INACTIVE_USER, 403
-        )
+    else:
+        with helpers.get_from_map_transaction(data) as [get, _]:
+            username = get('username', str)
+            password = get('password', str)
 
-    # Check if the current password is safe, and add a warning to the response
-    # if it is not.
-    try:
-        validate.ensure_valid_password(password, user=user)
-    except WeakPasswordException:
-        add_warning(
-            (
-                'Your password does not meet the requirements, consider '
-                'changing it.'
-            ),
-            APIWarnings.WEAK_PASSWORD,
-        )
+        # WARNING: Do not use the `helpers.filter_single_or_404` function here
+        # as we have to return the same error for a wrong email as for a wrong
+        # password!
+        user = db.session.query(
+            models.User,
+        ).filter(
+            models.User.username == username,
+            ~models.User.is_test_student,
+        ).first()
+
+        if user is None or user.password != password:
+            raise APIException(
+                'The supplied username or password is wrong.', (
+                    f'The user with username "{username}" does not exist '
+                    'or has a different password'
+                ), APICodes.LOGIN_FAILURE, 400
+            )
+
+        if not user.is_active:
+            raise APIException(
+                'User is not active',
+                f'The user with id "{user.id}" is not active any more',
+                APICodes.INACTIVE_USER, 403
+            )
+
+        # Check if the current password is safe, and add a warning to the response
+        # if it is not.
+        try:
+            validate.ensure_valid_password(password, user=user)
+        except WeakPasswordException:
+            add_warning(
+                (
+                    'Your password does not meet the requirements, consider '
+                    'changing it.'
+                ),
+                APIWarnings.WEAK_PASSWORD,
+            )
 
     auth.set_current_user(user)
     json_user = user.__extended_to_json__()

@@ -6,7 +6,7 @@ from werkzeug.local import LocalProxy
 
 import psef
 import psef.models as m
-from helpers import create_marker
+from helpers import create_marker, create_user_with_perms
 from psef.permissions import GlobalPermission
 
 data_error = create_marker(pytest.mark.data_error)
@@ -609,3 +609,88 @@ def test_reset_email_on_lti(
             ).reset_email_on_lti, """
             Property should still be set
             """
+
+
+def test_impersonate(logged_in, describe, test_client, session):
+    with describe('setup'):
+        admin_password = 'HELLO!!!'
+        user_password = 'HELLO'
+
+        with_perm = create_user_with_perms(
+            session, [], [], [GlobalPermission.can_impersonate_users]
+        )
+        no_perm = create_user_with_perms(session, [], [], [])
+        with_perm.password = admin_password
+        no_perm.password = admin_password
+
+        active = create_user_with_perms(session, [], [])
+        not_active = create_user_with_perms(session, [], [])
+        not_active.active = False
+        active.password = user_password
+        not_active.password = user_password
+
+        session.commit()
+
+    with describe('no perm cannot impersonate'), logged_in(no_perm):
+        test_client.req(
+            'post',
+            '/api/v1/login?impersonate',
+            403,
+            data={
+                'username': active.username,
+                'own_password': admin_password,
+            }
+        )
+
+        test_client.req(
+            'post',
+            '/api/v1/login?impersonate',
+            403,
+            data={
+                'username': active.username,
+                'own_password': user_password,
+            }
+        )
+
+    with describe('with perm can impersonate'), logged_in(with_perm):
+        # Does not work with users password
+        test_client.req(
+            'post',
+            '/api/v1/login?impersonate',
+            403,
+            data={'username': active.username, 'own_password': user_password}
+        )
+
+        # Does work with own password
+        test_client.req(
+            'post',
+            '/api/v1/login?impersonate',
+            200,
+            data={'username': active.username, 'own_password': admin_password},
+            result={
+                'user': {
+                    '__allow_extra__': True,
+                    'username': active.username,
+                    'email': active.email,
+                },
+                'access_token': str,
+            }
+        )
+
+    with describe('cannot impersonate non active user'), logged_in(with_perm):
+        test_client.req(
+            'post',
+            '/api/v1/login?impersonate',
+            404,
+            data={
+                'username': not_active.username, 'own_password': admin_password
+            }
+        )
+
+    with describe('cannot impersonate while not logged in'):
+        test_client.req(
+            'post',
+            '/api/v1/login?impersonate',
+            401,
+            data={'username': active.username, 'own_password': admin_password}
+        )

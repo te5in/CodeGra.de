@@ -312,5 +312,11 @@
     "course_permission": true,
     "short_description": "View non hidden AutoTest fixtures",
     "long_description": "Users with this permission are allowed to see non hidden AutoTest fixtures"
+  },
+  "can_impersonate_users": {
+    "default_value": false,
+    "course_permission": false,
+    "short_description": "Impersonate users",
+    "long_description": "Users with this permission can impersonate users, i.e. they can login as other users."
   }
 }

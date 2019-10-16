@@ -379,7 +379,7 @@ export default {
 
     async mounted() {
         if (this.defaultRubric) {
-            this.setRubricData(this.defaultRubric);
+            await this.setRubricData(this.defaultRubric);
             this.loading = false;
         } else {
             await this.getAndSetRubrics().then(() => {
@@ -611,7 +611,7 @@ export default {
             if (this.autoTestConfigId != null && this.autoTestConfig == null) {
                 await this.storeLoadAutoTest({
                     autoTestId: this.autoTestConfigId,
-                }).then(this.nextTick);
+                }).catch(() => {});
             }
 
             const autoTestRun = this.autoTestConfig && this.autoTestConfig.runs[0];
@@ -635,14 +635,17 @@ export default {
         },
 
         async getAndSetRubrics() {
-            if (!this.assignmentId) return;
+            let res = Promise.resolve();
+            if (!this.assignmentId) return res;
 
             await this.forceLoadRubric(this.assignmentId);
             if (this.assignment && this.assignment.rubric) {
-                this.setRubricData(this.assignment.rubric);
+                res = this.setRubricData(this.assignment.rubric);
             } else {
                 this.rubrics = [];
             }
+
+            return res;
         },
 
         createRow() {

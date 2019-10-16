@@ -69,6 +69,7 @@
                                        :disabled="runAutoTestPopover.length > 0"
                                        :confirm="runAutoTestConfirm"
                                        :submit="toggleAutoTest"
+                                       @success="collapseConfig"
                                        @after-success="afterToggleAutoTest" />
                     </div>
 
@@ -88,7 +89,7 @@
                 This assignment does not have an AutoTest configuration.
             </b-card-body>
             <b-card-body v-else class="p-3">
-                <b-alert v-if="singleResult && (!result.isFinal || !$utils.canSeeGrade(assignment))"
+                <b-alert v-if="singleResult && (result.isFinal === false || !$utils.canSeeGrade(assignment))"
                          variant="warning"
                          dismissible
                          show>
@@ -410,7 +411,7 @@
                 <transition-group name="level-list">
                     <auto-test-set v-for="set, i in test.sets"
                                    v-if="!set.deleted"
-                                   :class="{ 'mb-3': configEditable }"
+                                   :class="{ 'mb-3': !singleResult }"
                                    :key="set.id"
                                    :value="set"
                                    :assignment="assignment"
@@ -692,13 +693,11 @@ export default {
 
         toggleAutoTest() {
             if (this.currentRun) {
-                this.configCollapsed = false;
                 return this.storeDeleteAutoTestResults({
                     autoTestId: this.autoTestId,
                     runId: this.currentRun.id,
                 }).then(() => false);
             } else {
-                this.configCollapsed = true;
                 return this.storeCreateAutoTestRun({
                     autoTestId: this.autoTestId,
                 }).then(() => true);
@@ -711,6 +710,10 @@ export default {
             }
 
             this.$root.$emit('cg::rubric-editor::reload');
+        },
+
+        collapseConfig(collapsed) {
+            this.configCollapsed = collapsed;
         },
 
         loadAutoTest() {
@@ -1057,7 +1060,7 @@ export default {
             if (run == null || this.submissionId == null) {
                 return null;
             }
-            return run.results.find(r => r.submissionId === this.submissionId);
+            return run.findResultBySubId(this.submissionId);
         },
 
         testSuites() {
