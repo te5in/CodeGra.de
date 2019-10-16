@@ -273,9 +273,10 @@ export class AutoTestResult {
         const stepResults = steps.reduce((acc, step) => {
             acc[step.auto_test_step.id] = step;
             step.startedAt = step.started_at;
+
             if (step.log && step.log.steps) {
                 step.log.steps.forEach(s => {
-                    s.startedAt = step.startedAt;
+                    s.startedAt = s.started_at;
                 });
             }
             return acc;
