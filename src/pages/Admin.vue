@@ -3,8 +3,13 @@
 <div class="page admin">
     <local-header title="Admin"/>
     <loader v-if="loading"/>
-    <div class="row" v-else-if="manage">
-        <div class="col-12">
+    <div class="row" v-else>
+        <div class="col-12" v-if="impersonate">
+            <b-card header="Impersonate user">
+                <impersonate-user />
+            </b-card>
+        </div>
+        <div class="col-12" v-if="manage">
             <b-card header="Manage site permissions">
                 <permissions-manager :showAddRole="false"
                                      fixedPermission="can_manage_site_users"
@@ -19,7 +24,7 @@
 
 <script>
 import { mapGetters } from 'vuex';
-import { LocalHeader, PermissionsManager, Loader } from '@/components';
+import { LocalHeader, PermissionsManager, Loader, ImpersonateUser } from '@/components';
 
 import { setPageTitle } from './title';
 
@@ -30,11 +35,13 @@ export default {
         PermissionsManager,
         Loader,
         LocalHeader,
+        ImpersonateUser,
     },
 
     data() {
         return {
             manage: false,
+            impersonate: false,
             loading: true,
         };
     },
@@ -42,10 +49,13 @@ export default {
     mounted() {
         setPageTitle('Admin page');
         // Do not forget to add new permissions to constants file
-        this.$hasPermission('can_manage_site_users').then(manage => {
-            this.manage = manage;
-            this.loading = false;
-        });
+        this.$hasPermission(['can_manage_site_users', 'can_impersonate_users']).then(
+            ([manage, impersonate]) => {
+                this.manage = manage;
+                this.impersonate = impersonate;
+                this.loading = false;
+            },
+        );
     },
 
     computed: {

@@ -353,7 +353,7 @@ def test_lti_no_roles_found(test_client, app, logged_in, ta_user, monkeypatch):
     assert out['id'] == old_id
 
     user = m.User.query.filter_by(name=out['name']).one()
-    assert user.role.name == 'Admin'
+    assert user.role.name == 'Staff'
     assert len(user.courses) == 1
     assert list(user.courses.values())[0].name == 'non_existing'
 
@@ -2089,7 +2089,7 @@ def test_lti_roles(
         ]:
             do_lti_launch(
                 'INVALID_ROLE,urn:lti:instrole:ims/lis/Administrator,urn:lti:instrole:ims/lis/Instructor',
-                srole='Admin',
+                srole='Staff',
                 oauth_key=oauth_key,
             )
 

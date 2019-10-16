@@ -1213,16 +1213,6 @@ class AutoTest(Base, TimestampMixin, IdMixin):
                 APICodes.INVALID_STATE, 409
             )
 
-        work_ids = self.assignment.get_from_latest_submissions(
-            work_models.Work.id
-        ).all()
-        if not work_ids:
-            raise APIException(
-                'You cannot start an AutoTest when there are no submissions',
-                f'The assignment {self.assignment.id} has no submission yet',
-                APICodes.INVALID_STATE, 409
-            )
-
         run = AutoTestRun(
             batch_run_done=(
                 not self.has_hidden_steps or self.assignment.deadline_expired
@@ -1231,6 +1221,9 @@ class AutoTest(Base, TimestampMixin, IdMixin):
         self._runs.append(run)
         db.session.flush()
 
+        work_ids = self.assignment.get_from_latest_submissions(
+            work_models.Work.id
+        )
         results = [run.make_result(work_id) for work_id, in work_ids]
         db.session.bulk_save_objects(results)
         psef.helpers.callback_after_this_request(

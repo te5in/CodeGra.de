@@ -28,7 +28,7 @@
                            :disabled="tableDisabled"
                            type="number"
                            min="0"
-                           step="1"
+                           step="any"
                            ref="inputField"
                            style="min-width: 3em;"
                            @keydown.ctrl.enter="$refs.submitButton.onClick"

@@ -410,11 +410,6 @@ def test_start_auto_test_before_complete(
         assert 'a results_always_visible set' in err['message']
         update_test(results_always_visible=True)
 
-    with describe('no submissions'), logged_in(teacher):
-        err = start_run(409)
-        assert 'there are no submissions' in err['message']
-        helpers.create_submission(test_client, assig_id)
-
     with describe('already has a run'), logged_in(teacher):
         start_run(200)
         err = start_run(409)
@@ -683,6 +678,7 @@ def test_run_auto_test(
                     200,
                     data={'grade': 5.0}
                 )
+
         assert session.query(
             m.AutoTestResult
         ).filter_by(work_id=work1_old['id']).one().state.name == 'skipped'
@@ -771,8 +767,35 @@ def test_run_auto_test(
                 )['step_results']
             )
 
+            # Can get all results of own runs
+            test_client.req(
+                'get',
+                f'{url}/runs/{run.id}/users/{student1.id}/results/',
+                200,
+                result=[
+                    {'__allow_extra__': True, 'work_id': work1_old['id']},
+                    {'__allow_extra__': True, 'work_id': work1['id']},
+                ]
+            )
+
+            # Cannot get results of other user
+            test_client.req(
+                'get',
+                f'{url}/runs/{run.id}/users/{student2.id}/results/',
+                200,
+                result=[]
+            )
+
             run.auto_test.results_always_visible = False
             session.commit()
+
+            # Can no longer see our results
+            test_client.req(
+                'get',
+                f'{url}/runs/{run.id}/users/{student1.id}/results/',
+                200,
+                result=[]
+            )
 
         with logged_in(teacher):
             # A teacher can see the results before done

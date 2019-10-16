@@ -300,7 +300,7 @@ export default {
         ...mapGetters('pref', ['darkMode']),
 
         canManageSite() {
-            return MANAGE_SITE_PERIMSSIONS.every(x => this.globalPermissions[x]);
+            return MANAGE_SITE_PERIMSSIONS.some(x => this.globalPermissions[x]);
         },
 
         canManageCurrentLtiAssignment() {

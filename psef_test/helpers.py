@@ -11,6 +11,7 @@ from werkzeug.local import LocalProxy
 
 import psef.models as m
 from psef.permissions import CoursePermission as CPerm
+from psef.permissions import GlobalPermission as GPerm
 
 
 def get_id(obj):
@@ -148,11 +149,15 @@ def create_group_set(
     return g_set
 
 
-def create_user_with_role(session, role, courses, name=None):
+def create_user_with_role(session, role, courses, gperms=None, name=None):
     if not isinstance(courses, list):
         courses = [courses]
     n_id = str(uuid.uuid4())
     new_role = m.Role(name=f'NEW_ROLE--{n_id}')
+    if gperms is not None:
+        for gperm in GPerm:
+            new_role.set_permission(gperm, gperm in gperms)
+
     user = m.User(
         name=f'NEW_USER-{n_id}' if name is None else name,
         email=f'new_user-{n_id}@a.nl',
@@ -171,7 +176,7 @@ def create_user_with_role(session, role, courses, name=None):
     return LocalProxy(lambda: m.User.query.get(u_id))
 
 
-def create_user_with_perms(session, perms, courses, name=None):
+def create_user_with_perms(session, perms, courses, gperms=None, name=None):
     role_name = f'NEW-COURSE-ROLE-{uuid.uuid4().hex}'
     courses = courses if isinstance(courses, list) else [courses]
     for course in courses:
@@ -182,7 +187,9 @@ def create_user_with_perms(session, perms, courses, name=None):
             crole.set_permission(perm, perm in perms)
         session.add(crole)
     session.flush()
-    user = create_user_with_role(session, role_name, courses, name)
+    user = create_user_with_role(
+        session, role_name, courses, name=name, gperms=gperms
+    )
     print('Created user', user.id, 'with permissions:', perms)
     return user
 
