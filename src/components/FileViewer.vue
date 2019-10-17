@@ -2,7 +2,7 @@
 <div class="file-viewer"
      :class="dynamicClasses">
     <b-alert class="error mb-0" variant="danger" show v-if="error">
-        <div v-html="error"/>
+        {{ error }}
     </b-alert>
 
     <loader v-else-if="loading"
@@ -135,6 +135,10 @@ export default {
         },
 
         fileData() {
+            // access file id to make sure this computed value changes when `fileId` changes.
+            // eslint-disable-next-line
+            const _ = this.fileId;
+
             return this.file ? this.fileTypes.find(ft => ft.cond(this.file)) : null;
         },
 
@@ -145,12 +149,16 @@ export default {
                 return '';
             }
         },
+
+        fileId() {
+            return this.file && (this.file.id || this.file.ids[0] || this.file.ids[1]);
+        },
     },
 
     watch: {
-        file: {
+        fileId: {
             handler(newVal, oldVal) {
-                if (oldVal && newVal && oldVal.id === newVal.id) {
+                if (oldVal && newVal && oldVal === newVal) {
                     return;
                 }
 

@@ -74,7 +74,8 @@ module.exports = {
     ]
   },
   node: {
-    fs: 'empty'
+    fs: 'empty',
+    buffer: false,
   },
   plugins: [
     new webpack.DefinePlugin({

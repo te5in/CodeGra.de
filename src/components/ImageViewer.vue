@@ -22,7 +22,7 @@
 </template>
 
 <script>
-import Loader from './Loader';
+import { mapActions } from 'vuex';
 import FloatingFeedbackButton from './FloatingFeedbackButton';
 
 export default {
@@ -49,6 +49,10 @@ export default {
             type: Boolean,
             required: true,
         },
+        revision: {
+            type: String,
+            required: true,
+        },
     },
 
     data() {
@@ -72,7 +76,7 @@ export default {
 
     computed: {
         id() {
-            return this.file ? this.file.id : -1;
+            return this.file && (this.file.id || this.file.ids[0] || this.file.ids[1]);
         },
 
         name() {
@@ -96,14 +100,24 @@ export default {
     },
 
     methods: {
-        embedImg() {
-            this.imgURL = '';
+        ...mapActions('code', {
+            storeLoadCode: 'loadCode',
+        }),
 
-            this.$http.get(`/api/v1/code/${this.id}?type=file-url`).then(
-                ({ data }) => {
-                    this.imgURL = `/api/v1/files/${
-                        data.name
-                    }?not_as_attachment&mime=${this.getMimeType()}`;
+        async embedImg() {
+            this.imgURL = '';
+            await this.$afterRerender();
+
+            if (this.revision === 'diff') {
+                this.$emit('error', 'The image viewer is not available in diff mode');
+                return;
+            }
+
+            this.storeLoadCode(this.id).then(
+                buffer => {
+                    const blob = new Blob([buffer], { type: this.getMimeType() });
+                    this.imgURL = URL.createObjectURL(blob);
+                    // The image viewer itself emits a loaded event.
                 },
                 err => {
                     this.$emit(
@@ -134,7 +148,6 @@ export default {
     },
 
     components: {
-        Loader,
         FloatingFeedbackButton,
     },
 };

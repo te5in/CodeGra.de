@@ -5,6 +5,8 @@ import VueRouter from 'vue-router';
 import Vuex from 'vuex';
 import BootstrapVue from 'bootstrap-vue';
 import * as utils from '@/utils';
+import axios from 'axios';
+import util from 'util';
 
 jest.mock('axios');
 
@@ -36,13 +38,19 @@ describe('IPythonViewer.vue', () => {
     let curId = 1;
 
     const setData = async (data) => {
-        mockIPython = JSON.stringify({
-            metadata: {
-                language_info: { name: 'python' },
-            },
-            cells: data,
-        });
+        let str;
+        if (typeof data === 'string') {
+            str = data;
+        } else {
+            str = JSON.stringify({
+                metadata: {
+                    language_info: { name: 'python' },
+                },
+                cells: data,
+            });
+        }
 
+        mockIPython = (new util.TextEncoder()).encode(str);
         wrapper.setProps({ file: { id: curId++ } });
 
         await comp.$nextTick();
@@ -52,7 +60,7 @@ describe('IPythonViewer.vue', () => {
     beforeEach(() => {
         utils.highlightCode = jest.fn(a => a);
 
-        curId = 1;
+        curId = Math.round(Math.random() * 1000);
         assignment = { id: curId++ };
         submission = {
             id: curId++,
@@ -75,6 +83,8 @@ describe('IPythonViewer.vue', () => {
             }
             resolve({ data: res });
         }));
+
+        axios.get = mockGet;
 
         wrapper = shallowMount(IPythonViewer, {
             localVue,
@@ -106,6 +116,12 @@ describe('IPythonViewer.vue', () => {
                             fontSize: state => state.fontSize,
                         },
                     },
+                    code: {
+                        namespaced: true,
+                        actions: {
+                            loadCode: id => mockGet(`/api/v1/code/${id}`).then(() => mockIPython),
+                        },
+                    },
                 },
             }),
         });
@@ -126,7 +142,7 @@ describe('IPythonViewer.vue', () => {
         });
 
         it('should join test in sources', async () => {
-            setData([
+            await setData([
                 {
                     cell_type: 'markdown',
                     source: ['hello'],
@@ -143,25 +159,25 @@ describe('IPythonViewer.vue', () => {
                     cell_type: 'markdown',
                     source: 'bye',
                 },
-            ]).then(() => {
-                expect(comp.outputCells).toEqual([
-                    {
-                        cell_type: 'markdown',
-                        source: 'hello',
-                        feedback_offset: 0,
-                    },
-                    {
-                        cell_type: 'markdown',
-                        source: 'hellobye',
-                        feedback_offset: 1,
-                    },
-                    {
-                        cell_type: 'markdown',
-                        source: 'bye',
-                        feedback_offset: 2,
-                    },
-                ]);
-            });
+            ]);
+
+            expect(comp.outputCells).toEqual([
+                {
+                    cell_type: 'markdown',
+                    source: 'hello',
+                    feedback_offset: 0,
+                },
+                {
+                    cell_type: 'markdown',
+                    source: 'hellobye',
+                    feedback_offset: 1,
+                },
+                {
+                    cell_type: 'markdown',
+                    source: 'bye',
+                    feedback_offset: 2,
+                },
+            ]);
         });
 
         it('should work with code', async () => {
@@ -185,9 +201,7 @@ describe('IPythonViewer.vue', () => {
                     ],
                 },
             ]);
-            await comp.$nextTick();
-            await comp.$nextTick();
-
+            expect(comp.data).not.toEqual({});
             expect(comp.outputCells).toEqual([
                 {
                     cell_type: 'markdown',
@@ -227,24 +241,16 @@ describe('IPythonViewer.vue', () => {
 
         it('should work when the api fails', async () => {
             const errMsg = `WAAA A ERROR!!!${Math.random()}`;
-            mockGet.mockImplementation(() => new Promise((_, reject) => reject({
-                response: {
-                    data: { message: errMsg },
-                },
-            })));
+            const err = {}
+            mockGet.mockImplementation(() => new Promise((_, reject) => reject(err)));
 
             await setData([]);
 
-            expect(emitMock).toBeCalledWith('error', errMsg);
+            expect(emitMock).toBeCalledWith('error', err);
         });
 
         it('should work when the api returns invalid JSON', async () => {
-            mockGet.mockImplementation(() => new Promise((resolve) => resolve({
-                data: 'THIS IS NOT JSON!',
-            })));
-
-            await setData([]);
-
+            await setData('THIS IS NOT JSON');
             expect(emitMock).toBeCalledWith('error', comp.invalidJsonMessage);
         });
     });

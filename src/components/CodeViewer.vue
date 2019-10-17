@@ -10,13 +10,13 @@
         :show-whitespace="showWhitespace"
         :editable="feedbackEditable"
         :can-use-snippets="canUseSnippets"
-        :file-id="file.id"/>
+        :file-id="fileId"/>
 </div>
 </template>
 
 <script>
 import { listLanguages } from 'highlightjs';
-import { mapGetters } from 'vuex';
+import { mapGetters, mapActions } from 'vuex';
 
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/plus';
@@ -121,7 +121,6 @@ export default {
         languages.unshift('Default');
 
         return {
-            code: '',
             rawCodeLines: [],
             codeLines: [],
             selectedLanguage: 'Default',
@@ -140,11 +139,8 @@ export default {
     },
 
     watch: {
-        file(f, oldF) {
-            if (!f) {
-                return;
-            }
-            if (!oldF || f.id !== oldF.id) {
+        fileId(newId, oldId) {
+            if (newId != null && (oldId == null || newId !== oldId)) {
                 this.loadCodeWithSettings();
             }
         },
@@ -161,6 +157,10 @@ export default {
     },
 
     methods: {
+        ...mapActions('code', {
+            storeLoadCode: 'loadCode',
+        }),
+
         loadCodeWithSettings() {
             return this.$hlanguageStore.getItem(`${this.file.id}`).then(lang => {
                 if (lang !== null) {
@@ -174,39 +174,31 @@ export default {
             });
         },
 
-        getCode() {
-            const error = [];
+        async getCode() {
+            this.codeLines = [];
+            this.rawCodeLines = [];
+            await this.$afterRerender();
 
-            // Split in two promises so that highlighting can begin before we
-            // have feedback as this is not needed anyway.
-            return Promise.all([
-                this.$http
-                    .get(`/api/v1/code/${this.fileId}`, {
-                        responseType: 'arraybuffer',
-                    })
-                    .then(
-                        code => {
-                            try {
-                                this.code = decodeBuffer(code.data);
-                            } catch (e) {
-                                error.push('This file cannot be displayed');
-                                return;
-                            }
-                            this.rawCodeLines = this.code.split('\n');
+            let code;
 
-                            this.highlightCode(this.selectedLanguage);
-                        },
-                        ({ response: { data: { message } } }) => {
-                            error.push(this.$utils.htmlEscape(message));
-                        },
-                    ),
-            ]).then(() => {
-                if (error.length) {
-                    this.$emit('error', error.join('<br>'));
-                } else {
-                    this.$emit('load');
-                }
-            });
+            try {
+                code = await this.storeLoadCode(this.fileId);
+            } catch (e) {
+                this.$emit('error', e);
+                return;
+            }
+
+            try {
+                code = decodeBuffer(code);
+            } catch (e) {
+                this.$emit('error', 'This file cannot be displayed');
+                return;
+            }
+
+            this.rawCodeLines = code.split('\n');
+
+            this.highlightCode(this.selectedLanguage);
+            this.$emit('load');
         },
 
         // Highlight this.codeLines.

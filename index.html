@@ -32,9 +32,20 @@
   </head>
   <body>
     <noscript>
-      CodeGrade requires JavaScript to be enabled.
+        <div class="m-3 alert alert-danger">
+            CodeGrade requires JavaScript to be enabled.
+        </div>
     </noscript>
     <div id="app"></div>
     <!-- built files will be auto injected -->
   </body>
+  <script type="text/javascript">
+      function isIE() {
+          var ua = window.navigator.userAgent;
+          return ua.indexOf('MSIE ') > -1 || ua.indexOf('Trident/') > -1;
+      };
+      if (isIE()) {
+          document.getElementById('app').innerHTML = '<div class="m-3 alert alert-danger">CodeGrade does not support Internet Explorer, please use a more recent browser.</div>';
+      }
+  </script>
 </html>

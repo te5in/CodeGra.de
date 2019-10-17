@@ -257,6 +257,9 @@ export default {
 
     methods: {
         ...mapActions('courses', ['loadCourses']),
+        ...mapActions('code', {
+            storeLoadCode: 'loadCode',
+        }),
 
         async getTexFile(matches) {
             const header = `\\documentclass{article}
@@ -302,16 +305,12 @@ export default {
                     return accum;
                 }, {}),
             ).reduce((accum, fileId) => {
-                accum[fileId] = this.$http
-                    .get(`/api/v1/code/${fileId}`, {
-                        responseType: 'arraybuffer',
-                    })
-                    .then(({ data }) => {
-                        const content = decodeBuffer(data, true);
-                        return content
-                            .split('\n')
-                            .map(l => l.replace(endListingRegex, '\\end {lstlisting}'));
-                    });
+                accum[fileId] = this.storeLoadCode(fileId).then(data => {
+                    const content = decodeBuffer(data, true);
+                    return content
+                        .split('\n')
+                        .map(l => l.replace(endListingRegex, '\\end {lstlisting}'));
+                });
                 return accum;
             }, {});
 
@@ -394,9 +393,7 @@ ${right.join('\n')}
 
             await Promise.all(
                 this.sortedFiles.map(async file => {
-                    const { data } = await this.$http.get(`/api/v1/code/${file.id}`, {
-                        responseType: 'arraybuffer',
-                    });
+                    const data = await this.storeLoadCode(file.id);
                     const content = decodeBuffer(data, true);
                     file.content = content.split('\n').map(this.$utils.htmlEscape);
                 }),
