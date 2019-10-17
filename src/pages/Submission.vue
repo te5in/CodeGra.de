@@ -372,9 +372,7 @@ export default {
         },
 
         autoTestResult() {
-            const results = this.$utils.getProps(this.autoTestRun, [], 'results');
-
-            return results.find(r => r.submissionId === this.submissionId);
+            return this.autoTestRun && this.autoTestRun.findResultBySubId(this.submissionId);
         },
 
         loadingPage() {
@@ -442,11 +440,17 @@ export default {
                     id: 'auto-test',
                     name: () => {
                         let title = 'AutoTest';
+                        const test = this.autoTest;
                         const result = this.autoTestResult;
 
+                        // Check that result.isFinal is exactly false, because it may be
+                        // `undefined` when we haven't received the extended result yet,
+                        // which would cause the CF badge to flicker on page load.
                         if (
-                            (result && !result.isFinal) ||
-                            !this.$utils.canSeeGrade(this.assignment)
+                            test &&
+                            test.results_always_visible &&
+                            ((result && result.isFinal === false) ||
+                                !this.$utils.canSeeGrade(this.assignment))
                         ) {
                             title +=
                                 ' <div class="ml-1 badge badge-warning" title="Continuous Feedback">CF</div>';

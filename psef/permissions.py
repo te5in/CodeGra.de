@@ -111,6 +111,7 @@ class GlobalPermission(BasePermission):
     :ivar can_create_courses: Users with this permission can create new courses.
     :ivar can_manage_site_users: Users with this permission can change the global permissions for other users on the site.
     :ivar can_search_users: Users with this permission can search for users on the side, this means they can see all other users on the site.
+    :ivar can_impersonate_users: Users with this permission can impersonate users, i.e. they can login as other users.
     """
 
     @staticmethod
@@ -124,6 +125,7 @@ class GlobalPermission(BasePermission):
     can_create_courses = _PermissionValue(item=4, default_value=False)
     can_manage_site_users = _PermissionValue(item=5, default_value=False)
     can_search_users = _PermissionValue(item=6, default_value=True)
+    can_impersonate_users = _PermissionValue(item=7, default_value=False)
 
 
 @enum.unique

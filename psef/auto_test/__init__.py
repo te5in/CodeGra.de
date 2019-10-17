@@ -290,7 +290,7 @@ def _wait_for_pid(pid: int, timeout: float) -> t.Tuple[int, float]:
         exit_code = _waitpid_noblock(pid)
 
         if exit_code is None:
-            delay = min(delay * 2, get_time_left(), 0.05)
+            delay = max(min(delay * 2, get_time_left(), 0.05), 0)
             time.sleep(delay)
         else:
             return exit_code, get_time_left()
@@ -529,7 +529,8 @@ def _stop_container(cont: lxc.Container) -> None:
     if cont.running:
         with timed_code('stop_container'):
             with _LXC_START_STOP_LOCK:
-                assert cont.stop()
+                if not cont.shutdown(10):
+                    raise cg_worker_pool.KillWorkerException
             assert cont.wait('STOPPED', 3)
 
 

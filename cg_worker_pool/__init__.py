@@ -53,6 +53,10 @@ class CallbackArguments:
     retry_work: RetryWorkFunction
 
 
+class KillWorkerException(Exception):
+    pass
+
+
 class WorkerException(Exception):
     """The exception that is raised when a worker raises an exception.
     """
@@ -251,6 +255,7 @@ class WorkerPool:
         self._work_queue.put_all(initial_work)
         self._alive_procs: t.List[mp.Process] = []
         self._producer_lock = self._manager.Lock()
+        self._processes_update_lock = mp.Lock()
 
     def _drain_finish_queue(self) -> None:
         while not self._finish_queue.empty():
@@ -278,6 +283,18 @@ class WorkerPool:
             proc = _make_process(target=self._worker_function)
             proc.start()
             self._alive_procs.append(proc)
+
+    def _join_all_procs(self) -> None:
+        # This is we cleanup all these processes and their associated data in
+        # the kernel.
+        for proc in self._alive_procs:
+            proc.join(0)
+
+    def _add_new_worker(self) -> None:
+        proc = _make_process(target=self._worker_function)
+        proc.start()
+        logger.info('Adding new worker', worker=proc)
+        self._alive_procs.append(proc)
 
     def _stop_workers(self) -> None:
         # We need to set this flag before waking up all the processes, as
@@ -356,8 +373,19 @@ class WorkerPool:
             self._work_queue.wait_on_work_needed(30)
             try:
                 raise self._finish_queue.get(False)
+            except WorkerException as e:
+                logger.info(
+                    'Got exception from worker',
+                    exception=str(type(e.exception))
+                )
+                if isinstance(e.exception, KillWorkerException):
+                    self._add_new_worker()
+                else:
+                    raise
             except Empty:
                 pass
+
+            self._join_all_procs()
 
             # We make sure that once the queue is empty it will not fill up, as
             # we lock the producer.

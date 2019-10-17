@@ -190,7 +190,7 @@
                                    class="test-student-checkbox"
                                    v-b-popover.hover.top="testSubmissionDisabledPopover">
                 <b-form-checkbox v-model="isTestSubmission"
-                                 :disabled="disabled || author">
+                                 :disabled="disabled || !!author">
                     Test submission
                     <description-popover hug-text>
                         This submission will be uploaded by a special test student.

@@ -50,12 +50,12 @@ T_LTI_ROLE = t.TypeVar('T_LTI_ROLE', bound='LTIRole')  # pylint: disable=invalid
 
 LTI_SYSROLE_LOOKUPS: t.Mapping[str, str] = {
     # LIS standard System Roles
-    'SysAdmin': 'Admin',
+    'SysAdmin': 'Staff',
     'SysSupport': 'Staff',
     'Creator': 'Staff',
-    'AccountAdmin': 'Admin',
+    'AccountAdmin': 'Staff',
     'User': 'Student',
-    'Administrator': 'Admin',
+    'Administrator': 'Staff',
     'None': 'Nobody',
     # LIS standard Institution Roles
     'Student': 'Student',

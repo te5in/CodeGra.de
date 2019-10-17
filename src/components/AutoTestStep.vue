@@ -808,7 +808,6 @@ import 'vue-awesome/icons/chevron-down';
 import 'vue-awesome/icons/clock-o';
 import 'vue-awesome/icons/ban';
 
-import * as assignmentStates from '@/store/assignment-states';
 import { visualizeWhitespace } from '@/utils/visualize';
 import { getCapturePointsDiff } from '@/utils/diff';
 import { mapGetters } from 'vuex';
@@ -1058,15 +1057,9 @@ export default {
         },
 
         canViewOutput() {
-            const result = this.result;
-            const hidden = this.$utils.getProps(this.stepResult, null, 'state') === 'hidden';
-            const canViewDetails = this.canViewDetails;
-            const canViewFeedback =
-                (result && result.isVisible) ||
-                this.assignment.state === assignmentStates.DONE ||
-                this.permissions.can_view_autotest_before_done;
+            const hasLog = this.$utils.getProps(this.stepResult, null, 'log');
 
-            if (!result || hidden || !canViewDetails || !canViewFeedback) {
+            if (!this.canViewDetails || !hasLog) {
                 return false;
             }
 
@@ -1186,7 +1179,7 @@ export default {
 
         canViewSubStepOutput(i) {
             return (
-                this.canViewOutput &&
+                this.canViewDetails &&
                 ['passed', 'failed', 'timed_out'].indexOf(
                     this.ioSubStepProps(i, false, 'state'),
                 ) !== -1

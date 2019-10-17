@@ -57,3 +57,4 @@ export { default as MarkdownViewer } from './MarkdownViewer';
 export { default as DatetimePicker } from './DatetimePicker';
 export { default as AutoTest } from './AutoTest';
 export { default as Collapse } from './Collapse';
+export { default as ImpersonateUser } from './ImpersonateUser';

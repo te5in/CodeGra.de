@@ -110,9 +110,9 @@ def main() -> None:
     out = subprocess.check_output(
         ['python',
         os.path.join(BASE_DIR, 'manage.py'), 'db', 'heads']
-    ).decode('utf-8').strip()
+    ).decode('utf-8').strip().split('\n')[-1]
     match = re.match(r'([a-z0-9]+) \(head\)', out)
-    assert match is not None
+    assert match is not None, f'{out} does not match'
     old_rev = match.group(1)
     new_rev = secrets.token_hex(10)
     with open(

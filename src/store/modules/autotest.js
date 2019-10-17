@@ -15,6 +15,7 @@ const loaders = {
     tests: {},
     results: {},
     runs: {},
+    resultsByUser: {},
 };
 
 function getRun(autoTest, runId) {
@@ -238,6 +239,37 @@ const actions = {
         });
     },
 
+    loadAutoTestRunByUser({ commit, state }, { autoTestId, userId, autoTestRunId }) {
+        if (userId in loaders.resultsByUser) {
+            return loaders.resultsByUser[userId];
+        }
+
+        let promise;
+        function finish() {
+            promise = null;
+            delete loaders.resultsByUser[userId];
+        }
+
+        promise = axios
+            .get(`/api/v1/auto_tests/${autoTestId}/runs/${autoTestRunId}/users/${userId}/results/`)
+            .then(result => {
+                const autoTest = state.tests[autoTestId];
+
+                if (autoTest) {
+                    commit(types.SET_AUTO_TEST_RESULTS_BY_USER, {
+                        autoTest,
+                        autoTestRunId,
+                        userId,
+                        results: getProps(result, [], 'data'),
+                    });
+                }
+                finish();
+            }, finish);
+
+        loaders.resultsByUser[userId] = promise;
+        return promise;
+    },
+
     async loadAutoTestResult(
         { commit, dispatch, state },
         {
@@ -252,7 +284,7 @@ const actions = {
             throw new Error('AutoTest has not been run yet.');
         }
 
-        let result = run.results.find(r => r.submissionId === submissionId);
+        let result = run.findResultBySubId(submissionId);
         if (result == null) {
             await dispatch('loadAutoTestRun', {
                 autoTestId,
@@ -260,13 +292,31 @@ const actions = {
                 autoTestRunId,
             });
             run = getRun(autoTest, autoTestRunId);
-            result = run.results.find(r => r.submissionId === submissionId);
-
-            if (result == null) {
-                throw new Error('AutoTest result not found!');
-            }
+            result = run.findResultBySubId(submissionId);
         }
 
+        if (result == null && run != null) {
+            const submission = await dispatch(
+                'submissions/loadSingleSubmission',
+                {
+                    submissionId,
+                    assignmentId: autoTest.assignment_id,
+                },
+                { root: true },
+            );
+            await dispatch('loadAutoTestRunByUser', {
+                autoTestId,
+                autoTestRunId: run.id,
+                userId: submission && submission.user.id,
+            });
+
+            run = getRun(autoTest, autoTestRunId);
+            result = run.findResultBySubId(submissionId);
+        }
+
+        if (result == null) {
+            throw new Error('AutoTest result not found!');
+        }
         const resultId = result.id;
         result = state.results[resultId];
 
@@ -447,21 +497,32 @@ const mutations = {
     },
 
     [types.UPDATE_AUTO_TEST_RESULT](state, { result, autoTest }) {
-        let resultIndex;
+        let storeResult;
         const run = autoTest.runs.find(r => {
-            resultIndex = r.results.findIndex(res => res.id === result.id);
-            return resultIndex !== -1;
+            storeResult = r.findResultById(result.id);
+            return storeResult != null;
         });
 
-        if (run == null || resultIndex === -1) {
+        if (run == null || storeResult == null) {
             return;
         }
 
-        const storeResult = run.results[resultIndex];
         storeResult.updateExtended(result, autoTest);
 
-        Vue.set(run.results, resultIndex, storeResult);
-        Vue.set(state.results, result.id, storeResult);
+        run.setResultById(storeResult);
+        Vue.set(state.results, storeResult.id, storeResult);
+    },
+
+    [types.SET_AUTO_TEST_RESULTS_BY_USER](state, {
+        results, autoTest, autoTestRunId, userId,
+    }) {
+        const runIndex = autoTest.runs.findIndex(r => r.id === autoTestRunId);
+        if (runIndex === -1) {
+            throw new Error('Could not find run');
+        }
+        const run = autoTest.runs[runIndex];
+        run.updateResultsByUser(userId, results, autoTest);
+        Vue.set(autoTest.runs, runIndex, run);
     },
 };
 
