@@ -49,8 +49,7 @@
                     <b-popover v-if="runAutoTestPopover.length > 0"
                                :target="runAutoTestId"
                                triggers="hover"
-                               placement="top"
-                               show>
+                               placement="top">
                         <div class="text-left">
                             You cannot start the AutoTest because:
 
