@@ -164,13 +164,14 @@ def delete_submission(submission_id: int) -> EmptyResponse:
 
     .. :quickref: Submission; Delete a submission and all its files.
 
-    .. warning::
-
-        This is irreversible, so make sure the user really wants this!
-
     :param submission_id: The submission to delete.
     :returns: Nothing
     """
+    # TODO: This function doesn't really work for submissions by a user which
+    # is also in a group. This is mainly caused by the fact that the
+    # `get_from_latest_submissions` function doesn't really work when a user
+    # has submissions in a group and individually.
+
     submission = helpers.filter_single_or_404(
         models.Work, models.Work.id == submission_id, ~models.Work.deleted
     )

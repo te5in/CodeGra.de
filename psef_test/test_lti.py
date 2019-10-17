@@ -1390,6 +1390,21 @@ def test_lti_grade_passback_with_groups(
             session, [CPerm.can_submit_own_work],
             m.Course.query.get(assig['course']['id'])
         )
+        u1_lti_id = str(uuid.uuid4())
+        u2_lti_id = str(uuid.uuid4())
+
+        with logged_in(u1):
+            do_lti_launch(lti_id=u1_lti_id)
+            wrong_sub = create_submission(test_client, assig['id'])
+        with logged_in(teacher_user):
+            set_grade(4.5, wrong_sub['id'])
+        session.delete(
+            session.query(m.AssignmentResult).filter_by(
+                user_id=u1.id,
+                assignment_id=assig['id']
+            ).one()
+        )
+
         u2 = create_user_with_perms(
             session, [CPerm.can_submit_own_work],
             m.Course.query.get(assig['course']['id'])
@@ -1398,8 +1413,6 @@ def test_lti_grade_passback_with_groups(
             session, [CPerm.can_submit_own_work],
             m.Course.query.get(assig['course']['id'])
         )
-        u1_lti_id = str(uuid.uuid4())
-        u2_lti_id = str(uuid.uuid4())
 
         g_set = create_group_set(
             test_client, assig['course']['id'], 2, 4, [assig["id"]]
@@ -1461,7 +1474,9 @@ def test_lti_grade_passback_with_groups(
         assert sub['user']['group']['id'] == g['id']
 
         num, xmls = patch_request.get_and_reset()
-        assert num == 2
+        # Three, one for the individual of u1 (there was no group yet), one for
+        # the group of u1 and u2 and one for u3.
+        assert num == 3
         for xml in xmls:
             assert_initial_passback(xml, source_id)
 
@@ -1478,6 +1493,7 @@ def test_lti_grade_passback_with_groups(
         )
 
         num, xmls = patch_request.get_and_reset()
+        # Two, as the individual submission of u1 should not be passed back.
         assert num == 2
         for xml in xmls:
             assert_grade_set_to(
