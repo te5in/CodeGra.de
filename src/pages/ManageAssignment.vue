@@ -32,7 +32,10 @@
         </template>
     </local-header>
 
-    <div class="page-content">
+    <div class="page-content" v-if="loadingInner">
+        <loader page-loader />
+    </div>
+    <div class="page-content" v-show="!loadingInner">
         <b-alert v-if="$route.query.created"
                  variant="success"
                  class="text-center"
@@ -310,6 +313,7 @@ export default {
             assignmentTempDeadline: '',
             permissions: null,
             loading: true,
+            loadingInner: true,
             selectedCat: '',
         };
     },
@@ -472,8 +476,8 @@ export default {
     },
 
     watch: {
-        assignment(newVal, oldVal) {
-            if (oldVal && newVal.id !== oldVal.id) {
+        assignmentId(newVal, oldVal) {
+            if (oldVal && newVal !== oldVal) {
                 this.loadData();
             }
         },
@@ -489,11 +493,23 @@ export default {
 
         async loadData() {
             this.loading = true;
-            await this.loadCourses();
-            this.assignmentTempName = this.assignment.name;
-            this.assignmentTempDeadline = this.assignment.deadline;
-            await Promise.all([this.loadPermissions(), this.loadGraders()]);
-            this.loading = false;
+            this.loadingInner = true;
+            this.loadGraders();
+
+            return Promise.all([
+                this.$afterRerender(),
+                this.loadCourses().then(() => {
+                    this.assignmentTempName = this.assignment.name;
+                    this.assignmentTempDeadline = this.assignment.deadline;
+
+                    return this.loadPermissions().then(() => {
+                        this.loading = false;
+                        return this.$afterRerender();
+                    });
+                }),
+            ]).then(() => {
+                this.loadingInner = false;
+            });
         },
 
         async loadPermissions() {
@@ -511,7 +527,7 @@ export default {
             }
 
             const { data } = await this.$http.get(
-                `/api/v1/assignments/${this.assignment.id}/graders/`,
+                `/api/v1/assignments/${this.assignmentId}/graders/`,
             );
             this.graders = data;
             this.gradersLoading = false;

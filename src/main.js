@@ -187,6 +187,19 @@ try {
 Vue.prototype.$utils = utils;
 Vue.prototype.$userConfig = UserConfig;
 
+Vue.prototype.$afterRerender = function doubleRequestAnimationFrame(cb) {
+    return new Promise(resolve => {
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                if (cb) {
+                    cb();
+                }
+                resolve();
+            });
+        });
+    });
+};
+
 // eslint-disable-next-line
 localforage.defineDriver(memoryStorageDriver).then(() => {
     Vue.prototype.$hlanguageStore = localforage.createInstance({

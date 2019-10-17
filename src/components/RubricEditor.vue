@@ -361,10 +361,8 @@ export default {
         assignmentId: {
             immediate: true,
             handler() {
-                this.getAndSetRubrics();
-                this.storeLoadAutoTest({
-                    autoTestId: this.autoTestConfigId,
-                });
+                this.assignments = null;
+                this.loadInitialData();
             },
         },
 
@@ -378,16 +376,6 @@ export default {
     },
 
     async mounted() {
-        if (this.defaultRubric) {
-            await this.setRubricData(this.defaultRubric);
-            this.loading = false;
-        } else {
-            await this.getAndSetRubrics().then(() => {
-                this.loading = false;
-            });
-        }
-        this.maybeLoadOtherAssignments();
-
         // TODO: This should probably do something special when there are
         // changes to the current rubric.
         this.$root.$on('cg::rubric-editor::reload', this.resetRubric);
@@ -494,6 +482,16 @@ export default {
         ...mapMutations('rubrics', {
             storeClearRubric: 'clearRubric',
         }),
+
+        async loadInitialData() {
+            if (this.defaultRubric) {
+                await this.setRubricData(this.defaultRubric);
+            } else {
+                await this.getAndSetRubrics();
+            }
+            this.loading = false;
+            this.maybeLoadOtherAssignments();
+        },
 
         setOldRubricIds() {
             this.oldItemIds = this.getRubricItemIds(this.rubrics);

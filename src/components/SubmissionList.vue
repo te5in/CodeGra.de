@@ -60,7 +60,7 @@
         <div v-if="selectedCat === 'rubric'">
             <rubric-editor v-if="assignment.rubric != null"
                            :editable="false"
-                           :defaultRubric="rubric"
+                           :default-rubric="rubric"
                            :assignment="assignment"/>
             <div no-body class="empty-text text-muted font-italic" v-else>
                 There is no rubric for this assignment.
