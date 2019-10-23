@@ -20,6 +20,7 @@
             <small v-else class="text-muted"><i>- No deadline</i></small>
         </template>
         <assignment-state :assignment="assignment"
+                          :key="assignmentId"
                           class="assignment-state"
                           :editable="canEditState"
                           size="sm"/>
@@ -275,7 +276,6 @@
 import { mapActions, mapGetters } from 'vuex';
 
 import { convertToUTC, readableFormatDate } from '@/utils';
-import { MANAGE_COURSE_PERMISSIONS } from '@/constants';
 import ltiProviders from '@/lti_providers';
 
 import {
@@ -492,33 +492,30 @@ export default {
         ...mapActions('submissions', ['forceLoadSubmissions']),
 
         async loadData() {
-            this.loading = true;
-            this.loadingInner = true;
-            this.loadGraders();
-
-            return Promise.all([
-                this.$afterRerender(),
-                this.loadCourses().then(() => {
+            const setAssigData = () => {
+                if (this.loading) {
+                    this.permissions = this.assignment.course.permissions;
                     this.assignmentTempName = this.assignment.name;
                     this.assignmentTempDeadline = this.assignment.deadline;
+                    this.loading = false;
+                }
+            };
 
-                    return this.loadPermissions().then(() => {
-                        this.loading = false;
-                        return this.$afterRerender();
-                    });
-                }),
-            ]).then(() => {
+            this.loading = true;
+            this.loadingInner = true;
+
+            if (this.assignment.id === this.assignmentId) {
+                setAssigData();
+            }
+
+            await this.$afterRerender();
+
+            this.loadGraders();
+
+            return this.loadCourses().then(() => {
+                setAssigData();
                 this.loadingInner = false;
             });
-        },
-
-        async loadPermissions() {
-            this.permissions = null;
-            this.permissions = await this.$hasPermission(
-                ['can_list_course_users', ...MANAGE_COURSE_PERMISSIONS],
-                this.assignment.course.id,
-                true,
-            );
         },
 
         async loadGraders() {

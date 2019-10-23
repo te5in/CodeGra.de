@@ -386,18 +386,12 @@ export default {
         },
 
         async renderNextLines(nLines) {
-            // Use of multiple nextTicks and the timeout here is intentional and required
-            // for a correct ordering of events: without them the loader would not be shown
-            // while rendering the next lines.
-
             this.showLinesLoader = true;
 
-            await this.$nextTick();
-            setTimeout(async () => {
-                this.confirmedLines += nLines;
-                await this.$nextTick();
-                this.showLinesLoader = false;
-            }, 0);
+            await this.$afterRerender();
+
+            this.confirmedLines += nLines;
+            this.showLinesLoader = false;
         },
     },
 };

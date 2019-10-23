@@ -189,12 +189,14 @@ Vue.prototype.$userConfig = UserConfig;
 
 Vue.prototype.$afterRerender = function doubleRequestAnimationFrame(cb) {
     return new Promise(resolve => {
-        requestAnimationFrame(() => {
+        this.$nextTick(() => {
             requestAnimationFrame(() => {
-                if (cb) {
-                    cb();
-                }
-                resolve();
+                requestAnimationFrame(() => {
+                    if (cb) {
+                        cb();
+                    }
+                    resolve();
+                });
             });
         });
     });
