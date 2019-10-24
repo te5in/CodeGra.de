@@ -1,19 +1,19 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <loader center v-if="loading"/>
-<div class="submission-list" v-else>
-    <submission-list
-        :assignment="assignment"
-        :submissions="submissions"
-        :canDownload="canDownload"
-        :rubric="rubric"
-        :graders="graders"
-        :can-see-assignee="canSeeAssignee"
-        :can-assign-grader="canAssignGrader"
-        :can-see-others-work="canSeeOthersWork"
-        @assigneeUpdated="updateAssignee"/>
+<div class="submission-list d-flex flex-column" v-else>
+    <submission-list :assignment="assignment"
+                     :submissions="submissions"
+                     :canDownload="canDownload"
+                     :rubric="rubric"
+                     :graders="graders"
+                     :can-see-assignee="canSeeAssignee"
+                     :can-assign-grader="canAssignGrader"
+                     :can-see-others-work="canSeeOthersWork"
+                     @assigneeUpdated="updateAssignee"
+                     :show-loader="loadingInner" />
 
-    <div v-if="canUpload || !assignment.deadline">
+    <div v-if="!loadingInner && (canUpload || !assignment.deadline)">
         <b-alert show variant="warning"
                  class="disabled-warning"
                  v-if="uploaderDisabled">
@@ -42,7 +42,7 @@
 
         <span v-else>
             <b-alert show variant="info" class="assignment-alert"
-                        v-if="assignment.group_set">
+                     v-if="assignment.group_set">
                 This assignment is a group assignment.
                 <template v-if="assignment.group_set.minimum_size > 1">
                     To submit you have to be in a group with at least
@@ -81,6 +81,7 @@ export default {
     data() {
         return {
             loading: true,
+            loadingInner: true,
             canUpload: false,
             canUploadForOthers: false,
             canDownload: false,
@@ -209,13 +210,27 @@ export default {
         ...mapActions('courses', {
             loadCourses: 'loadCourses',
         }),
+
         ...mapActions('submissions', {
             loadSubmissions: 'loadSubmissions',
             updateSubmission: 'updateSubmission',
         }),
 
-        loadData() {
-            this.loading = true;
+        async loadData() {
+            // Don't set loading if we already have the assignment data to
+            // prevent the LocalHeader from disappearing for a fraction of
+            // a second.
+            if (this.assignment == null) {
+                this.loading = true;
+
+                await this.loadCourses();
+            }
+
+            // Always set loading to false, otherwise you'd get an infinite
+            // when the page/component is reloaded in dev mode.
+            this.loading = false;
+            this.loadingInner = true;
+
             Promise.all([
                 this.loadSubmissions(this.assignmentId),
                 this.$hasPermission(
@@ -230,6 +245,7 @@ export default {
                     ],
                     this.courseId,
                 ),
+                this.$afterRerender(),
             ]).then(
                 ([
                     ,
@@ -263,13 +279,13 @@ export default {
                         }
                     }
                     this.canEditDeadline = canEditDeadline;
-
-                    this.loading = false;
+                    this.loadingInner = false;
                 },
                 err => {
                     // TODO: visual feedback
                     // eslint-disable-next-line
-                    console.dir(err);
+                    console.error(err);
+                    this.loadingInner = false;
                 },
             );
         },
@@ -302,6 +318,10 @@ export default {
 <style lang="less" scoped>
 .loader {
     padding-top: 3.5em;
+}
+
+.submission-list {
+    flex: 1 1 auto;
 }
 
 #wrong-files-modal ul {

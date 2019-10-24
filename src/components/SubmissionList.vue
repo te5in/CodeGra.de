@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
-<div class="submission-list">
+<div class="submission-list d-flex flex-column">
     <local-header always-show-extra-slot
                   ref="localHeader">
         <template slot="title" v-if="assignment && Object.keys(assignment).length">
@@ -37,114 +37,119 @@
         </b-input-group>
     </local-header>
 
-    <div class="cat-container border-bottom"
-         :class="selectedCat"
-         :style="catContainerStyle">
-        <b-input-group v-if="selectedCat === 'search'"
-                        class="search-wrapper">
-            <input v-model="filter"
-                   class="form-control"
-                   placeholder="Type to Search"
-                   @keyup.enter="submit"
-                   @keyup="submitDelayed"/>
-            <b-input-group-append is-text
-                                  v-if="canSeeOthersWork && !assigneeCheckboxDisabled"
-                                  v-b-popover.bottom.hover="'Show only subbmissions assigned to me.'">
-                <b-form-checkbox v-model="mineOnly"
-                                 @change="submit">
-                    Assigned to me
-                </b-form-checkbox>
-            </b-input-group-append>
-        </b-input-group>
+    <loader center page-loader v-if="showLoader" />
 
-        <div v-if="selectedCat === 'rubric'">
-            <rubric-editor v-if="assignment.rubric != null"
-                           :editable="false"
-                           :default-rubric="rubric"
-                           :assignment="assignment"/>
-            <div no-body class="empty-text text-muted font-italic" v-else>
-                There is no rubric for this assignment.
+    <template v-else>
+        <div class="cat-container border-bottom"
+             :class="selectedCat"
+             :style="catContainerStyle">
+            <b-input-group v-if="selectedCat === 'search'"
+                           class="search-wrapper">
+                <input v-model="filter"
+                       class="form-control"
+                       placeholder="Type to Search"
+                       @keyup.enter="submit"
+                       @keyup="submitDelayed"/>
+                <b-input-group-append is-text
+                                      v-if="canSeeOthersWork && !assigneeCheckboxDisabled"
+                                      v-b-popover.bottom.hover="'Show only subbmissions assigned to me.'">
+                    <b-form-checkbox v-model="mineOnly"
+                                     @change="submit">
+                        Assigned to me
+                    </b-form-checkbox>
+                </b-input-group-append>
+            </b-input-group>
+
+            <div v-if="selectedCat === 'rubric'">
+                <rubric-editor v-if="assignment.rubric != null"
+                               :editable="false"
+                               :default-rubric="rubric"
+                               :assignment="assignment"/>
+                <div class="empty-text text-muted font-italic" v-else>
+                    There is no rubric for this assignment.
+                </div>
             </div>
+
+            <div v-if="selectedCat === 'hand-in-instructions'">
+                <c-g-ignore-file v-if="assignment.cgignore"
+                                 :assignmentId="assignment.id"
+                                 :editable="false"
+                                 summary-mode/>
+                <div class="empty-text text-muted font-italic" v-else>
+                    There are no hand-in instructions for this assignment.
+                </div>
+            </div>
+
+            <submissions-exporter v-if="selectedCat === 'export'"
+                                  :get-submissions="filter => filter ? filteredSubmissions : submissions"
+                                  :assignment-id="assignment.id"
+                                  :filename="exportFilename"/>
         </div>
 
-        <div v-if="selectedCat === 'hand-in-instructions'">
-            <c-g-ignore-file v-if="assignment.cgignore"
-                             :assignmentId="assignment.id"
-                             :editable="false"
-                             summary-mode/>
-            <div no-body class="empty-text text-muted font-italic" v-else>
-                There are no hand-in instructions for this assignment.
-            </div>
+        <b-table striped
+                 hover
+                 ref="table"
+                 @row-clicked="gotoSubmission"
+                 @sort-changed="(ctx) => $nextTick(() => sortChanged(ctx))"
+                 :items="filteredSubmissions"
+                 :fields="fields"
+                 :current-page="currentPage"
+                 :sort-compare="sortSubmissions"
+                 :sort-by="this.$route.query.sortBy || 'user'"
+                 :sort-desc="!parseBool(this.$route.query.sortAsc, true)"
+                 class="submissions-table">
+            <a class="invisible-link"
+               href="#"
+               slot="user"
+               slot-scope="item"
+               @click.prevent>
+                <user :user="item.value"/>
+            </a>
+
+            <template slot="grade" slot-scope="item">
+                {{ formatGrade(item.value) || '-' }}
+            </template>
+
+            <template slot="formatted_created_at" slot-scope="item">
+                {{item.value ? item.value : '-'}}
+                <late-submission-icon :submission="item.item" :assignment="assignment" />
+            </template>
+
+            <template slot="assignee" slot-scope="item">
+                <span v-if="!canAssignGrader || graders == null">
+                    <user :user="item.value" v-if="item.value"/>
+                    <span v-else>-</span>
+                </span>
+                <loader :scale="1" v-else-if="assigneeUpdating[item.item.id]"/>
+                <div v-else
+                    v-b-popover.top.hover="item.item.user.is_test_student ? 'You cannot assign test students to graders.' : ''">
+                    <b-form-select :options="assignees"
+                                   :disabled="item.item.user.is_test_student"
+                                   :value="item.value ? item.value.id : null"
+                                   @input="updateAssignee($event, item)"
+                                   @click.native.stop
+                                   class="user-form-select"/>
+                </div>
+            </template>
+        </b-table>
+        <div class="no-submissions-found"
+             v-if="!canSeeOthersWork && this.submissions.length === 0">
+            You have no submissions yet!
+        </div>
+        <div class="no-submissions-found"
+             v-else-if="this.submissions.length === 0">
+            There are no submissions yet.
+        </div>
+        <div class="no-submissions-found"
+             v-else-if="this.submissions && this.filteredSubmissions.length === 0">
+            No submissions found for the given filters.
         </div>
 
-        <submissions-exporter v-if="selectedCat === 'export'"
-                              :get-submissions="filter => filter ? filteredSubmissions : submissions"
-                              :assignment-id="assignment.id"
-                              :filename="exportFilename"/>
-    </div>
-
-    <b-table striped hover
-             ref="table"
-             @row-clicked="gotoSubmission"
-             @sort-changed="(ctx) => $nextTick(() => sortChanged(ctx))"
-             :items="filteredSubmissions"
-             :fields="fields"
-             :current-page="currentPage"
-             :sort-compare="sortSubmissions"
-             :sort-by="this.$route.query.sortBy || 'user'"
-             :sort-desc="!parseBool(this.$route.query.sortAsc, true)"
-             class="submissions-table">
-        <a class="invisible-link"
-           href="#"
-           slot="user"
-           slot-scope="item"
-           @click.prevent>
-            <user :user="item.value"/>
-        </a>
-
-        <template slot="grade" slot-scope="item">
-            {{ formatGrade(item.value) || '-' }}
-        </template>
-
-        <template slot="formatted_created_at" slot-scope="item">
-            {{item.value ? item.value : '-'}}
-            <late-submission-icon :submission="item.item" :assignment="assignment" />
-        </template>
-
-        <template slot="assignee" slot-scope="item">
-            <span v-if="!canAssignGrader || graders == null">
-                <user :user="item.value" v-if="item.value"/>
-                <span v-else>-</span>
-            </span>
-            <loader :scale="1" v-else-if="assigneeUpdating[item.item.id]"/>
-            <div v-else
-                 v-b-popover.top.hover="item.item.user.is_test_student ? 'You cannot assign test students to graders.' : ''">
-                <b-form-select :options="assignees"
-                               :disabled="item.item.user.is_test_student"
-                               :value="item.value ? item.value.id : null"
-                               @input="updateAssignee($event, item)"
-                               @click.native.stop
-                               class="user-form-select"/>
-            </div>
-        </template>
-    </b-table>
-    <div class="no-submissions-found"
-         v-if="!canSeeOthersWork && this.submissions.length === 0">
-        You have no submissions yet!
-    </div>
-    <div class="no-submissions-found"
-         v-else-if="this.submissions.length === 0">
-        There are no submissions yet.
-    </div>
-    <div class="no-submissions-found"
-         v-else-if="this.submissions && this.filteredSubmissions.length === 0">
-        No submissions found for the given filters.
-    </div>
-
-    <div v-if="canSeeOthersWork"
-         class="submission-count">
-        Showing {{ numFilteredStudents }} out of {{ numStudents }} students.
-    </div>
+        <div v-if="canSeeOthersWork"
+            class="submission-count">
+            Showing {{ numFilteredStudents }} out of {{ numStudents }} students.
+        </div>
+    </template>
 </div>
 </template>
 
@@ -202,6 +207,10 @@ export default {
         canSeeOthersWork: {
             type: Boolean,
             required: false,
+        },
+        showLoader: {
+            type: Boolean,
+            default: false,
         },
     },
 
