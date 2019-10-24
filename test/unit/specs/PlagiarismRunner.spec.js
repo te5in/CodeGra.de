@@ -65,6 +65,15 @@ describe('PlagiarismRunner.vue', () => {
         });
 
         store = new Vuex.Store({
+            modules: {
+                courses: {
+                    namespaced: true,
+                    getters: {
+                        courses: state => ({}),
+                        assignments: state => ({}),
+                    },
+                },
+            },
         });
 
         remount = () => {

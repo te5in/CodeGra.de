@@ -209,6 +209,8 @@
 </template>
 
 <script>
+import { mapGetters, mapActions } from 'vuex';
+
 import Multiselect from 'vue-multiselect';
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/times';
@@ -250,7 +252,6 @@ export default {
             selectedProvider: null,
             selectedOptionsMap: new WeakMap(),
             selectedOptions: null,
-            allOldAssignments: null,
             runs: null,
             oldSubmissions: null,
             runsPollingInterval: null,
@@ -264,6 +265,8 @@ export default {
     },
 
     computed: {
+        ...mapGetters('courses', { allAssignments: 'assignments' }),
+
         course() {
             return this.assignment.course;
         },
@@ -272,23 +275,44 @@ export default {
             return this.selectedProvider.options.every(option => this.isValid(option));
         },
 
+        allOldAssignments() {
+            return Object.values(this.allAssignments)
+                .filter(a => a.course.permissions.can_view_plagiarism)
+                .map(assig => {
+                    const courseName = this.$utils.htmlEscape(assig.course.name);
+                    const assigName = this.$utils.htmlEscape(assig.name);
+                    return {
+                        id: assig.id,
+                        label: `${courseName} - ${assigName}`,
+                    };
+                })
+                .sort((a, b) => cmpNoCase(a.label, b.label));
+        },
+
         oldAssignments() {
-            return this.allOldAssignments.filter(assig => assig.id !== this.assignment.id);
+            const assigId = this.assignmentId;
+            return this.allOldAssignments.filter(assig => assig.id !== assigId);
+        },
+
+        assignmentId() {
+            return this.assignment && this.assignment.id;
         },
     },
 
     watch: {
-        hidden: {
+        assignmentId: {
             immediate: true,
             handler() {
-                if (!this.hidden && this.allOldAssignments === null) {
-                    this.getOldAssignments();
-                }
+                this.runs = null;
+                this.loadRuns();
             },
         },
 
         selectedProvider(provider) {
             if (provider == null) {
+                if (this.providers && this.providers.length === 1) {
+                    [this.selectedProvider] = this.providers;
+                }
                 return;
             }
 
@@ -297,20 +321,12 @@ export default {
             }
 
             this.selectedOptions = this.selectedOptionsMap.get(provider);
-
-            // Old assignments are loaded using the watcher on `hidden`. That
-            // should probably be changed when we have more than one provider.
-        },
-
-        $route(oldRoute, newRoute) {
-            if (oldRoute.params.assignmentId !== newRoute.params.assignmentId) {
-                this.selectedProvider = null;
-                this.loadRuns();
-            }
         },
     },
 
     methods: {
+        ...mapActions('courses', ['loadCourses']),
+
         showProgress(run) {
             const provider = this.providers.find(prov => prov.name === run.provider_name);
             return (
@@ -407,47 +423,6 @@ export default {
             this.runs.push(run);
         },
 
-        async getOldAssignments() {
-            const permissions = Object.entries(
-                await this.$http
-                    .get('/api/v1/permissions/?type=course&permission=can_view_plagiarism')
-                    .then(({ data }) => data, () => {}),
-            );
-
-            let assignments = [];
-            if (permissions.length) {
-                assignments = (await Promise.all(
-                    permissions.reduce((promises, [courseId, { can_view_plagiarism: canView }]) => {
-                        if (canView) {
-                            promises.push(
-                                this.$http
-                                    .get(`/api/v1/courses/${courseId}/assignments/`)
-                                    .then(({ data }) => data, () => []),
-                            );
-                        }
-                        return promises;
-                    }, []),
-                ))
-                    .reduce((a, b) => a.concat(b))
-                    .map(assig => {
-                        const courseName = this.$utils.htmlEscape(assig.course.name);
-                        const assigName = this.$utils.htmlEscape(assig.name);
-                        assig.label = `${courseName} - ${assigName}`;
-                        return assig;
-                    })
-                    .sort((a, b) => cmpNoCase(a.label, b.label));
-            }
-
-            this.allOldAssignments = assignments;
-            this.providers.forEach(prov => {
-                prov.options.forEach(opt => {
-                    if (opt.name === 'old_assignments') {
-                        opt.possible_options = this.oldAssignments;
-                    }
-                });
-            });
-        },
-
         addOldSubmissionsOption() {
             this.providers.forEach(provider => {
                 provider.options.push({
@@ -491,7 +466,7 @@ export default {
                         'Include submissions from assignments from previous years in this run.',
                     type: 'multiselect',
                     mandatory: false,
-                    possible_options: null,
+                    possible_options: this.oldAssignments,
                 });
             }
         },
@@ -566,7 +541,7 @@ export default {
     },
 
     async mounted() {
-        await Promise.all([this.loadProviders(), this.loadRuns()]);
+        await Promise.all([this.loadProviders(), this.loadRuns(), this.loadCourses()]);
 
         this.addOldAssignmentsOption();
         this.addOldSubmissionsOption();

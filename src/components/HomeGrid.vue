@@ -174,7 +174,7 @@ export default {
     },
 
     mounted() {
-        this.loadCourses().then(() => {
+        Promise.all([this.$afterRerender(), this.loadCourses()]).then(() => {
             this.loadingCourses = false;
             this.$nextTick(() => {
                 this.$refs.searchInput.focus();
