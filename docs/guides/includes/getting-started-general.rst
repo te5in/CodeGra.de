@@ -24,7 +24,7 @@ shown** in the Code Viewer on the corresponding line.
 
 .. note::
     If you want to use a linter that is not yet integrated in CodeGrade,
-    let us know at `support@codegrade.com <mailto:support@codegrade.com>`_, and we’ll make sure to add it to
+    let us know at `support@codegra.de <mailto:support@codegra.de>`_, and we’ll make sure to add it to
     CodeGrade in our next release.
 
 Plagiarism
