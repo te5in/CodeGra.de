@@ -428,12 +428,12 @@ describe('utils.js', () => {
             assignmentState.SUBMITTING,
             assignmentState.GRADING,
             assignmentState.OPEN,
-        ])('should return false when the assignment state is %s and you don\'t have permission can_see_grade_before_done', (state) => {
+        ])('should return false when the assignment state is %s and you don\'t have permission can_see_grade_before_open', (state) => {
             const assig = {
                 state,
                 course: {
                     permissions: {
-                        can_see_grade_before_done: false,
+                        can_see_grade_before_open: false,
                     },
                 },
             };
@@ -446,7 +446,7 @@ describe('utils.js', () => {
                 state: assignmentState.DONE,
                 course: {
                     permissions: {
-                        can_see_grade_before_done: false,
+                        can_see_grade_before_open: false,
                     },
                 },
             };
@@ -459,12 +459,12 @@ describe('utils.js', () => {
             assignmentState.SUBMITTING,
             assignmentState.GRADING,
             assignmentState.OPEN,
-        ])('should return true when you have the permission can_see_grade_before_done', (state) => {
+        ])('should return true when you have the permission can_see_grade_before_open', (state) => {
             const assig = {
                 state,
                 course: {
                     permissions: {
-                        can_see_grade_before_done: true,
+                        can_see_grade_before_open: true,
                     },
                 },
             };

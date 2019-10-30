@@ -361,10 +361,8 @@ export default {
         assignmentId: {
             immediate: true,
             handler() {
-                this.getAndSetRubrics();
-                this.storeLoadAutoTest({
-                    autoTestId: this.autoTestConfigId,
-                });
+                this.assignments = null;
+                this.loadInitialData();
             },
         },
 
@@ -378,16 +376,6 @@ export default {
     },
 
     async mounted() {
-        if (this.defaultRubric) {
-            await this.setRubricData(this.defaultRubric);
-            this.loading = false;
-        } else {
-            await this.getAndSetRubrics().then(() => {
-                this.loading = false;
-            });
-        }
-        this.maybeLoadOtherAssignments();
-
         // TODO: This should probably do something special when there are
         // changes to the current rubric.
         this.$root.$on('cg::rubric-editor::reload', this.resetRubric);
@@ -495,6 +483,16 @@ export default {
             storeClearRubric: 'clearRubric',
         }),
 
+        async loadInitialData() {
+            if (this.defaultRubric) {
+                await this.setRubricData(this.defaultRubric);
+            } else {
+                await this.getAndSetRubrics();
+            }
+            this.loading = false;
+            this.maybeLoadOtherAssignments();
+        },
+
         setOldRubricIds() {
             this.oldItemIds = this.getRubricItemIds(this.rubrics);
         },
@@ -529,19 +527,21 @@ export default {
             });
         },
 
-        afterLoadOldRubric(response) {
+        async afterLoadOldRubric(response) {
             this.importAssignment = null;
             this.setRubricData(response.data);
-            this.setRubric({
-                assignmentId: this.assignmentId,
-                rubric: response.data,
-                maxPoints: this.calcMaxPoints(response.data),
-            });
-            this.forceLoadSubmissions(this.assignmentId);
+            await Promise.all([
+                this.setRubric({
+                    assignmentId: this.assignmentId,
+                    rubric: response.data,
+                    maxPoints: this.calcMaxPoints(response.data),
+                }),
+                this.forceLoadSubmissions(this.assignmentId),
 
-            // TODO: Improve use of rubric store.
-            // Clear rubric from the rubric store so it will be reloaded.
-            this.storeClearRubric({ assignmentId: this.assignmentId });
+                // TODO: Improve use of rubric store.
+                // Clear rubric from the rubric store so it will be reloaded.
+                this.storeClearRubric({ assignmentId: this.assignmentId }),
+            ]);
         },
 
         loadAssignments() {

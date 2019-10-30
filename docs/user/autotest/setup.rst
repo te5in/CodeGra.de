@@ -5,16 +5,18 @@ Setup
 
 To make CodeGrade AutoTest as flexible as possible, it is possible to customize
 the complete environment the tests are run in. Each separate assignment that
-makes use of AutoTest runs on its own Virtual Server in the cloud, to which you have
-superuser rights and network access during the setup phase. Every server on
+makes use of AutoTest runs on its own Virtual Server in the cloud, to which you
+have superuser rights and network access during the setup phase. Every server on
 official CodeGrade instances runs with the latest LTS version of Ubuntu, which
 is **Ubuntu 18.04.2 LTS**.
 
 After the Setup Phase is finished, a snapshot is created which is used to
 initialize the containers used to run the actual tests on the student
 submissions. The Setup Phase consists of the default installed software,
-fixtures (which are available in the ``/home/codegrade/fixtures/`` folder, or using the
-``$FIXTURES`` environment variable) and setup script.
+fixtures (the location of the fixtures directory is random for every category
+and setup script to make it more virtually impossible for students to guess the
+location and changes. The location is stored in the ``$FIXTURES`` environment
+variable) and setup script.
 
 .. warning::
     Setup scripts and other scrips (fixtures) that are executed have to use
@@ -113,8 +115,10 @@ here too.
 .. warning::
     Archives are **not** automatically extracted when uploading fixtures. This
     makes it possible to use *unextracted* archives as fixtures too. Use the
-    commands ``tart xfvz $FIXTURES/ARCHIVE.tar.gz`` or
-    ``unzip $FIXTURES/ARCHIVE.zip`` to extract archives manually.
+    commands ``tar xfvz $FIXTURES/ARCHIVE.tar.gz`` or
+    ``unzip $FIXTURES/ARCHIVE.zip`` to extract archives manually. Be careful
+    with the permissions, we recommend running ``chown -R codegrade:codegrade
+    $FIXTURES/dir`` and ``chmod -R 750 $FIXTURES/dir`` after extracting.
 
 Global setup script
 ---------------------

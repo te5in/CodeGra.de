@@ -1,5 +1,5 @@
 import { mutations } from '@/store/modules/rubrics';
-import { Rubric, RubricResult } from '@/models/rubric.js';
+import { RubricResult } from '@/models/rubric.js';
 
 describe('The rubric store', () => {
     let state;
@@ -7,6 +7,10 @@ describe('The rubric store', () => {
     let submissionId;
     let mockRubric;
     let mockResult;
+
+    function getResult() {
+        return state.results[submissionId];
+    }
 
     beforeEach(() => {
         state = {
@@ -40,41 +44,6 @@ describe('The rubric store', () => {
     });
 
     describe('mutations', () => {
-        describe('setRubric', () => {
-            it('should store null if null is passed', () => {
-                mutations.setRubric(state, {
-                    assignmentId,
-                    rubric: null,
-                });
-
-                expect(state.rubrics[assignmentId]).toBeNull();
-            });
-
-            it('should store a new Rubric model', () => {
-                mutations.setRubric(state, {
-                    assignmentId,
-                    rubric: mockRubric,
-                });
-
-                expect(state.rubrics[assignmentId]).toBeInstanceOf(Rubric);
-            });
-
-            it('should calculate the max number of points in the rubric', () => {
-                mutations.setRubric(state, {
-                    assignmentId,
-                    rubric: [],
-                });
-
-                expect(state.rubrics[assignmentId].maxPoints).toBe(0);
-
-                mutations.setRubric(state, {
-                    assignmentId,
-                    rubric: mockRubric,
-                });
-
-                expect(state.rubrics[assignmentId].maxPoints).toBe(18);
-            });
-        });
 
         describe('setResult', () => {
             it('should store a new RubricResult model', () => {
@@ -112,7 +81,7 @@ describe('The rubric store', () => {
 
                 mutations.clearResult(state, { submissionId });
 
-                expect(state.results[submissionId]).toBeUndefined();
+                expect(getResult()).toBeUndefined();
             });
         });
 
@@ -121,16 +90,16 @@ describe('The rubric store', () => {
                 mutations.setResult(state, {
                     submissionId,
                     result: mockResult,
+                    submissionId,
                 });
-
-                const result = state.results[submissionId];
 
                 mutations.setSelected(state, {
-                    result,
+                    result: getResult(),
                     selected: [{ id: 0, points: 0 }],
+                    submissionId,
                 });
 
-                expect(result.selected).toEqual([{ id: 0, points: 0 }]);
+                expect(getResult().selected).toEqual([{ id: 0, points: 0 }]);
             });
 
             it('should update the points of the result', () => {
@@ -139,34 +108,35 @@ describe('The rubric store', () => {
                     result: mockResult,
                 });
 
-                const result = state.results[submissionId];
-
-                expect(result.points).toBe(1);
+                expect(getResult().points).toBe(1);
 
                 mutations.setSelected(state, {
-                    result,
+                    result: getResult(),
                     selected: [{ id: 0, points: 0 }],
+                    submissionId,
                 });
 
-                expect(result.points).toBe(0);
+                expect(getResult().points).toBe(0);
 
                 mutations.setSelected(state, {
-                    result,
+                    result: getResult(),
                     selected: [
                         { id: 0, points: 0 },
                         { id: 1, points: 1 },
                         { id: 2, points: 2 },
                     ],
+                    submissionId,
                 });
 
-                expect(result.points).toBe(3);
+                expect(getResult().points).toBe(3);
 
                 mutations.setSelected(state, {
-                    result,
+                    result: getResult(),
                     selected: [],
+                    submissionId,
                 });
 
-                expect(result.points).toBeNull();
+                expect(getResult().points).toBeNull();
             });
         });
 
@@ -177,15 +147,14 @@ describe('The rubric store', () => {
                     result: mockResult,
                 });
 
-                const result = state.results[submissionId];
                 const row = mockRubric[1];
                 const item = row.items[1];
 
-                mutations.selectItem(state, { result, row, item });
+                mutations.selectItem(state, { result: getResult(), row, item, submissionId });
 
-                expect(result.selected.length).toBe(2);
-                expect(result.selected).toContainEqual(item);
-                expect(result.points).toBe(9);
+                expect(getResult().selected.length).toBe(2);
+                expect(getResult().selected).toContainEqual(item);
+                expect(getResult().points).toBe(9);
             });
 
             it('should remove selected items from the same row', () => {
@@ -194,15 +163,14 @@ describe('The rubric store', () => {
                     result: mockResult,
                 });
 
-                const result = state.results[submissionId];
                 const row = mockRubric[0];
                 const item = row.items[0];
 
-                mutations.selectItem(state, { result, row, item });
+                mutations.selectItem(state, { result: getResult(), row, item, submissionId });
 
-                expect(result.selected.length).toBe(1);
-                expect(result.selected).toContainEqual(item);
-                expect(result.points).toBe(0);
+                expect(getResult().selected.length).toBe(1);
+                expect(getResult().selected).toContainEqual(item);
+                expect(getResult().points).toBe(0);
             });
         });
 
@@ -213,12 +181,11 @@ describe('The rubric store', () => {
                     result: mockResult,
                 });
 
-                const result = state.results[submissionId];
                 const row = mockRubric[1];
                 const item = row.items[0];
 
                 expect(() => {
-                    mutations.unselectItem(state, { result, row, item });
+                    mutations.unselectItem(state, { result: getResult(), row, item, submissionId });
                 }).toThrow(ReferenceError);
             });
 
@@ -228,26 +195,25 @@ describe('The rubric store', () => {
                     result: mockResult,
                 });
 
-                const result = state.results[submissionId];
                 let row = mockRubric[1];
                 let item = row.items[0];
 
-                mutations.selectItem(state, { result, row, item });
+                mutations.selectItem(state, { result: getResult(), row, item, submissionId });
 
-                mutations.unselectItem(state, { result, row, item });
+                mutations.unselectItem(state, { result: getResult(), row, item, submissionId });
 
-                expect(result.selected.length).toBe(1);
-                expect(result.selected).toEqual([{ id: 1, points: 1 }]);
-                expect(result.points).toBe(1);
+                expect(getResult().selected.length).toBe(1);
+                expect(getResult().selected).toEqual([{ id: 1, points: 1 }]);
+                expect(getResult().points).toBe(1);
 
                 row = mockRubric[0];
                 item = mockRubric[1];
 
-                mutations.unselectItem(state, { result, row, item });
+                mutations.unselectItem(state, { result: getResult(), row, item, submissionId });
 
-                expect(result.selected.length).toBe(0);
-                expect(result.selected).toEqual([]);
-                expect(result.points).toBeNull();
+                expect(getResult().selected.length).toBe(0);
+                expect(getResult().selected).toEqual([]);
+                expect(getResult().points).toBeNull();
             });
         });
     });

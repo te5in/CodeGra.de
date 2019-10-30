@@ -28,4 +28,4 @@ Set up a rubric for an assignment
     **Only change this value if you want to allow bonus points or a maximum grade of less than 10**.
 
 .. note::
-    Want to brainstorm about what a good rubric entails? Contact us at `support@codegrade.com <mailto:support@codegrade.com>`_.
+    Want to brainstorm about what a good rubric entails? Contact us at `support@codegra.de <mailto:support@codegra.de>`_.

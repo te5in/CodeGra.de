@@ -723,9 +723,13 @@ export default {
 .author {
     flex: 0 1 auto;
     padding: 0.5rem 10px;
+    min-width: 6rem;
     max-width: 20%;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    overflow-wrap: break-word;
+
+    @media @media-small {
+        max-width: 100%;
+    }
 }
 
 .feedback-area-wrapper {
@@ -743,6 +747,10 @@ export default {
         border: 1px solid rgba(0, 0, 0, 0.125);
         border-radius: 0.25rem;
     }
+
+    @media @media-small {
+        flex-direction: column-reverse;
+    }
 }
 
 .feedback-area {
@@ -751,12 +759,20 @@ export default {
         background-color: @footer-color;
         flex: 1 1 auto;
 
-        &.has-author {
-            border-top: 0;
-            border-right: 0;
-            border-bottom: 0;
-            border-top-left-radius: 0;
-            border-bottom-left-radius: 0;
+        @media @media-no-small {
+            &.has-author {
+                border-width: 0 0 0 1px;
+                border-top-left-radius: 0;
+                border-bottom-left-radius: 0;
+            }
+        }
+
+        @media @media-small {
+            &.has-author {
+                border-width: 0 0 1px 0;
+                border-bottom-left-radius: 0;
+                border-bottom-right-radius: 0;
+            }
         }
 
         &:not(.has-author) {

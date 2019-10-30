@@ -36,6 +36,8 @@ def monkeypatch_for_run(monkeypatch, lxc_stub, stub_function_class):
         ['python', '-c', 'import random; exit(random.randint(0, 1))']
     )
 
+    monkeypatch.setattr(psef.auto_test, 'FIXTURES_ROOT', '/tmp')
+
     def new_run_command(self, cmd_user):
         signal_start = psef.auto_test.StartedContainer._signal_start
         cmd, user = cmd_user
@@ -44,7 +46,7 @@ def monkeypatch_for_run(monkeypatch, lxc_stub, stub_function_class):
             return 0
         elif cmd[0] == '/bin/bash' and cmd[2].startswith('adduser'):
             # Don't make the user, as we cannot do that locally
-            cmd[2] = '&&'.join(cmd[2].split('&&')[1:])
+            cmd[2] = '&&'.join(cmd[2].split('&&')[1:-2])
             cmd_user = (cmd, user)
         elif cmd == ['grep', '-c', getpass.getuser(), '/etc/sudoers']:
             signal_start()
@@ -629,7 +631,7 @@ def test_run_auto_test(
 
             with tempfile.TemporaryDirectory() as tdir:
                 tmpdir = tdir
-                for inner in ['/student', '/fixtures']:
+                for inner in ['/student']:
                     shutil.copytree(upper_tmpdir + inner, tdir + inner)
                 return _run_student(*args, **kwargs)
 

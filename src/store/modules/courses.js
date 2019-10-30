@@ -4,6 +4,8 @@ import axios from 'axios';
 import moment from 'moment';
 
 import * as utils from '@/utils';
+import { Rubric } from '@/models/rubric';
+
 import * as types from '../mutation-types';
 import { MANAGE_ASSIGNMENT_PERMISSIONS, MANAGE_GENERAL_COURSE_PERMISSIONS } from '../../constants';
 
@@ -19,6 +21,10 @@ const getters = {
             return assignments;
         }, {});
     },
+};
+
+const loaders = {
+    rubrics: {},
 };
 
 function getAssignment(state, assignmentId) {
@@ -57,14 +63,33 @@ const actions = {
         });
     },
 
-    async forceLoadRubric({ commit }, assignmentId) {
-        const rubric = await axios
-            .get(`/api/v1/assignments/${assignmentId}/rubrics/`)
-            .then(({ data }) => data, () => null);
-        commit(types.UPDATE_ASSIGNMENT, {
-            assignmentId,
-            assignmentProps: { rubric },
-        });
+    async loadRubric(context, assignmentId) {
+        await context.dispatch('loadCourses');
+
+        const assig = context.getters.assignments[assignmentId];
+        if (assig.rubric) {
+            return;
+        }
+
+        await context.dispatch('forceLoadRubric', assignmentId);
+    },
+
+    forceLoadRubric({ commit }, assignmentId) {
+        if (!loaders.rubrics[assignmentId]) {
+            loaders.rubrics[assignmentId] = new Promise(async resolve => {
+                const rubric = await axios
+                    .get(`/api/v1/assignments/${assignmentId}/rubrics/`)
+                    .then(({ data }) => data, () => null);
+                commit(types.UPDATE_ASSIGNMENT, {
+                    assignmentId,
+                    assignmentProps: { rubric },
+                });
+                delete loaders.rubrics[assignmentId];
+                resolve();
+            });
+        }
+
+        return loaders.rubrics[assignmentId];
     },
 
     async reloadCourses({ commit }) {
@@ -175,6 +200,7 @@ const mutations = {
     [types.CLEAR_COURSES](state) {
         state.courses = {};
         state.currentCourseLoader = null;
+        loaders.rubrics = {};
     },
 
     [types.UPDATE_COURSE](state, { courseId, courseProps }) {
@@ -199,6 +225,7 @@ const mutations = {
 
     [types.UPDATE_ASSIGNMENT](state, { assignmentId, assignmentProps }) {
         const assignment = getAssignment(state, assignmentId);
+        let sawRubric = false;
 
         Object.keys(assignmentProps).forEach(key => {
             if (
@@ -209,8 +236,12 @@ const mutations = {
                 throw TypeError(`Cannot set assignment property: ${key}`);
             }
 
+            sawRubric = sawRubric || key === 'rubric';
             Vue.set(assignment, key, assignmentProps[key]);
         });
+        if (sawRubric) {
+            Vue.set(assignment, 'rubricModel', new Rubric(assignmentProps.rubric, assignment));
+        }
     },
 };
 

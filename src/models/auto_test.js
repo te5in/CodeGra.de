@@ -297,6 +297,7 @@ export class AutoTestResult {
                 achieved: totalAchieved,
                 possible: totalPossible,
                 finished: false,
+                set,
             };
 
             setResult.suiteResults = set.suites.map(suite => {
@@ -310,6 +311,7 @@ export class AutoTestResult {
                     achieved: 0,
                     possible: 0,
                     finished: false,
+                    suite,
                 };
 
                 suiteResult.stepResults = suite.steps.map(step => {
@@ -330,6 +332,7 @@ export class AutoTestResult {
                             };
                         }
                     }
+                    stepResult.step = step;
 
                     if (step.type === 'check_points' && stepResult.state === 'failed') {
                         suiteFailed = true;

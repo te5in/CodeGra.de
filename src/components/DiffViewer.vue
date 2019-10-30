@@ -36,7 +36,7 @@
 </template>
 
 <script>
-import { mapGetters } from 'vuex';
+import { mapGetters, mapActions } from 'vuex';
 
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/plus';
@@ -91,22 +91,24 @@ export default {
     },
 
     methods: {
+        ...mapActions('code', {
+            storeLoadCode: 'loadCode',
+        }),
+
         getCode() {
             let error = '';
 
             const promises = this.file.ids.map(id => {
                 if (id) {
-                    return this.$http.get(`/api/v1/code/${id}`, {
-                        responseType: 'arraybuffer',
-                    });
+                    return this.storeLoadCode(id);
                 } else {
-                    return Promise.resolve('');
+                    return Promise.resolve(new ArrayBuffer(0));
                 }
             });
 
             Promise.all(promises)
                 .then(
-                    ([{ data: orig }, { data: rev }]) => {
+                    ([orig, rev]) => {
                         let origCode;
                         let revCode;
                         try {
@@ -119,8 +121,8 @@ export default {
 
                         this.diffCode(origCode, revCode);
                     },
-                    ({ response: { data: { message } } }) => {
-                        error = message;
+                    err => {
+                        error = err;
                     },
                 )
                 .then(() => {

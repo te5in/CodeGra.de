@@ -20,6 +20,7 @@
             <small v-else class="text-muted"><i>- No deadline</i></small>
         </template>
         <assignment-state :assignment="assignment"
+                          :key="assignmentId"
                           class="assignment-state"
                           :editable="canEditState"
                           size="sm"/>
@@ -32,7 +33,10 @@
         </template>
     </local-header>
 
-    <div class="page-content">
+    <div class="page-content" v-if="loadingInner">
+        <loader page-loader />
+    </div>
+    <div class="page-content" v-show="!loadingInner">
         <b-alert v-if="$route.query.created"
                  variant="success"
                  class="text-center"
@@ -252,7 +256,9 @@
 
         <div class="cat-wrapper" :class="{hidden: selectedCat !== 'rubric'}">
             <b-card header="Rubric" v-if="canUseRubrics">
-                <rubric-editor :assignment="assignment"
+                <!-- TODO: Properfix instead of :key hack -->
+                <rubric-editor :key="assignment.id"
+                               :assignment="assignment"
                                :hidden="selectedCat !== 'rubric'"
                                ref="rubricEditor"
                                editable/>
@@ -260,7 +266,9 @@
         </div>
 
         <div class="cat-wrapper" :class="{hidden: selectedCat !== 'auto-test'}">
-            <auto-test :assignment="assignment"
+            <!-- TODO: Properfix instead of :key hack -->
+            <auto-test :key="assignment.id"
+                       :assignment="assignment"
                        :hidden="selectedCat !== 'auto-test'"
                        editable />
         </div>
@@ -272,7 +280,6 @@
 import { mapActions, mapGetters } from 'vuex';
 
 import { convertToUTC, readableFormatDate } from '@/utils';
-import { MANAGE_COURSE_PERMISSIONS } from '@/constants';
 import ltiProviders from '@/lti_providers';
 
 import {
@@ -310,6 +317,7 @@ export default {
             assignmentTempDeadline: '',
             permissions: null,
             loading: true,
+            loadingInner: true,
             selectedCat: '',
         };
     },
@@ -472,8 +480,8 @@ export default {
     },
 
     watch: {
-        assignment(newVal, oldVal) {
-            if (oldVal && newVal.id !== oldVal.id) {
+        assignmentId(newVal, oldVal) {
+            if (oldVal && newVal !== oldVal) {
                 this.loadData();
             }
         },
@@ -488,21 +496,30 @@ export default {
         ...mapActions('submissions', ['forceLoadSubmissions']),
 
         async loadData() {
-            this.loading = true;
-            await this.loadCourses();
-            this.assignmentTempName = this.assignment.name;
-            this.assignmentTempDeadline = this.assignment.deadline;
-            await Promise.all([this.loadPermissions(), this.loadGraders()]);
-            this.loading = false;
-        },
+            const setAssigData = () => {
+                if (this.loading) {
+                    this.permissions = this.assignment.course.permissions;
+                    this.assignmentTempName = this.assignment.name;
+                    this.assignmentTempDeadline = this.assignment.deadline;
+                    this.loading = false;
+                }
+            };
 
-        async loadPermissions() {
-            this.permissions = null;
-            this.permissions = await this.$hasPermission(
-                ['can_list_course_users', ...MANAGE_COURSE_PERMISSIONS],
-                this.assignment.course.id,
-                true,
-            );
+            this.loading = true;
+            this.loadingInner = true;
+
+            if (this.assignment.id === this.assignmentId) {
+                setAssigData();
+            }
+
+            await this.$afterRerender();
+
+            this.loadGraders();
+
+            return this.loadCourses().then(() => {
+                setAssigData();
+                this.loadingInner = false;
+            });
         },
 
         async loadGraders() {
@@ -511,7 +528,7 @@ export default {
             }
 
             const { data } = await this.$http.get(
-                `/api/v1/assignments/${this.assignment.id}/graders/`,
+                `/api/v1/assignments/${this.assignmentId}/graders/`,
             );
             this.graders = data;
             this.gradersLoading = false;

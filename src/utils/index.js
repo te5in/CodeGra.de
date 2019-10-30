@@ -364,7 +364,7 @@ export function canUploadWork(assignment, now) {
 export function canSeeGrade(assignment) {
     const perms = assignment.course.permissions;
 
-    return assignment.state === assignmentState.DONE || perms.can_see_grade_before_done;
+    return assignment.state === assignmentState.DONE || perms.can_see_grade_before_open;
 }
 
 export function autoTestHasCheckpointAfterHiddenStep(autoTest) {

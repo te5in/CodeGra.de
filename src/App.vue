@@ -6,14 +6,6 @@
              v-if="!loading && showSidebar"/>
     <div class="container-fluid" v-if="!loading">
         <main class="row justify-content-center" id="main-content">
-            <b-alert class="ie-banner"
-                     :show="$root.isIE"
-                     variant="warning"
-                     dismissible>
-                It seems the browser you are using is Internet Explorer which
-                is not fully supported. We suggest you use another browser to get
-                the most out of CodeGrade!
-            </b-alert>
             <router-view class="page col-lg-12"/>
             <footer-bar v-if="showFooter"/>
         </main>

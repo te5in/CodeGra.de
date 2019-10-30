@@ -108,6 +108,12 @@ export default {
             const newHeight = this.collapsed ? 0 : contentHeight;
             const duration = this.getDuration(contentHeight);
 
+            if (contentHeight === 0) {
+                // Collapse is not visible, so don't bother animating.
+                this.contentStyle = { height: this.collapsed ? 0 : 'auto' };
+                return;
+            }
+
             this.setState(newHeight ? 'expanding' : 'collapsing');
 
             this.contentStyle = {

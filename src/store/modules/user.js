@@ -73,10 +73,14 @@ const actions = {
     logout({ commit }) {
         return Promise.all([
             commit(`submissions/${types.CLEAR_SUBMISSIONS}`, null, { root: true }),
+            commit(`code/${types.CLEAR_CODE_CACHE}`, null, { root: true }),
             commit(`courses/${types.CLEAR_COURSES}`, null, { root: true }),
             commit(`plagiarism/${types.CLEAR_PLAGIARISM_RUNS}`, null, {
                 root: true,
             }),
+            commit(`courses/${types.CLEAR_COURSES}`, null, { root: true }),
+            commit(`rubrics/${types.CLEAR_RUBRIC_RESULTS}`, null, { root: true }),
+            commit(`autotest/${types.CLEAR_AUTO_TESTS}`, null, { root: true }),
             commit(types.LOGOUT),
         ]);
     },

@@ -63,6 +63,8 @@ Network = t.NewType('Network', t.Tuple[str, t.List[t.Tuple[str, str]]])
 NETWORK_EXCEPTIONS = (
     requests.RequestException, ConnectionError, urllib3.exceptions.HTTPError
 )
+FIXTURES_ROOT = f'/.{uuid.uuid4().hex}'
+PRE_STUDENT_FIXTURES_DIR = f'{uuid.uuid4().hex}/'
 
 
 class UpdateResultFunction(Protocol):
@@ -812,9 +814,41 @@ class StartedContainer:
         self._name = name
         self._network_is_enabled = True
         self._networks: t.List[Network] = []
+        self._fixtures_dir: t.Optional[str] = None
 
     def _stop_container(self) -> None:
         _stop_container(self._container)
+
+    def move_fixtures_dir(self, new_dir: str) -> None:
+        """Move the fixtures directory to the given new directory.
+
+        :param new_dir: The new directory where the fixtures should be
+            located. This directory will be created within ``FIXTURES_ROOT``.
+        :returns: Nothing
+        """
+        new_path = f'{FIXTURES_ROOT}/{new_dir}'
+        self.run_command(
+            [
+                '/bin/bash',
+                '-c',
+                (
+                    'mv "{old_path}" "{new_path}" && '
+                    'chown {user}:{user} "{new_path}"'
+                ).format(
+                    user=CODEGRADE_USER,
+                    old_path=self.fixtures_dir,
+                    new_path=new_path,
+                ),
+            ],
+        )
+        self._fixtures_dir = new_dir
+
+    @property
+    def fixtures_dir(self) -> str:
+        """The directory where the fixtures are located.
+        """
+        inner_dir = self._fixtures_dir or PRE_STUDENT_FIXTURES_DIR.strip('/')
+        return f'{FIXTURES_ROOT}/{inner_dir}/'
 
     @contextlib.contextmanager
     def stopped_container(self
@@ -1016,13 +1050,12 @@ class StartedContainer:
         os.setgid(user_gid)
         os.setuid(user_uid)
 
-    @staticmethod
-    def _create_env(username: str) -> t.Dict:
+    def _create_env(self, username: str) -> t.Dict:
         """Create the env for within a lxc subprocess call
 
         >>> import getpass
         >>> cur_user = getpass.getuser()
-        >>> env = StartedContainer._create_env(cur_user)
+        >>> env = StartedContainer(None, '', {})._create_env(cur_user)
         >>> env['USER'] == cur_user
         True
         >>> isinstance(env['USER'], str)
@@ -1051,7 +1084,7 @@ class StartedContainer:
             'HOME': home_dir,
             'DEBIAN_FRONTEND': 'noninteractive',
             'TERM': 'dumb',
-            'FIXTURES': f'{_get_home_dir(username)}/fixtures/',
+            'FIXTURES': self.fixtures_dir,
             'STUDENT': f'{_get_home_dir(username)}/student/',
             'LANG': 'en_US.UTF-8',
             'LC_ALL': 'en_US.UTF-8',
@@ -1077,7 +1110,7 @@ class StartedContainer:
         cmd, cwd, user = cmd_cwd_user
         env = self._create_env(user)
         home_dir = _get_home_dir(CODEGRADE_USER)
-        env['PATH'] += f'{home_dir}/student/:{home_dir}/fixtures/'
+        env['PATH'] += f'{home_dir}/student/:{self.fixtures_dir}'
 
         self._change_user(user)
         cmd_list = ['/bin/bash', '-c', cmd]
@@ -1495,7 +1528,7 @@ class AutoTestContainer:
                 with timed_code('destroy_container'):
                     self.destroy_container()
 
-    def clone(self, new_name: str = '') -> 'AutoTestContainer':
+    def clone(self, *, new_name: str = '') -> 'AutoTestContainer':
         """Clone this container to a new container.
 
         :param new_name: The name of the new container, will be randomly
@@ -1658,15 +1691,22 @@ class AutoTestRunner:
         ]
 
     def download_file(
-        self, cont: StartedContainer, url: str, dst: str
+        self,
+        cont: StartedContainer,
+        url: str,
+        dst: str,
+        from_home: bool = True
     ) -> None:
         """Download the given url to the given destination.
 
         :param cont: The container in which to download the files.
         :param url: The url from which to download the files.
         :param dst: The path in the container where to store the file.
+        :param from_home: Should the ``dst`` path be interpreted as a relative
+            path from the home directory of the codegrade user.
         """
-        dst = f'{_get_home_dir(CODEGRADE_USER)}/{dst}'
+        if from_home:
+            dst = f'{_get_home_dir(CODEGRADE_USER)}/{dst}'
         for _ in helpers.retry_loop(
             _REQUEST_RETRIES,
             sleep_time=lambda n: min(
@@ -1687,7 +1727,7 @@ class AutoTestRunner:
                 check=False,
             ) == 0:
                 break
-        cont.run_command(['chmod', '-R', '+x', dst], user=CODEGRADE_USER)
+        cont.run_command(['chmod', '-R', '750', dst], user=CODEGRADE_USER)
         logger.info('Downloaded file', dst=dst, url=url)
 
     def download_fixtures(self, cont: StartedContainer) -> None:
@@ -1697,11 +1737,14 @@ class AutoTestRunner:
         """
         for name, fixture_id in self.fixtures:
             self.download_file(
-                cont, f'fixtures/{fixture_id}', f'fixtures/{name}'
+                cont,
+                f'fixtures/{fixture_id}',
+                f'{cont.fixtures_dir}{name}',
+                from_home=False,
             )
 
         cont.run_command(
-            ['ls', '-hl', f'{_get_home_dir(CODEGRADE_USER)}/fixtures/'],
+            ['ls', '-hl', cont.fixtures_dir],
             user=CODEGRADE_USER,
         )
 
@@ -1890,6 +1933,7 @@ class AutoTestRunner:
 
             self.download_student_code(cont, result_id)
 
+            cont.move_fixtures_dir(uuid.uuid4().hex)
             self._maybe_run_setup(cont, self.setup_script, result_url)
 
             logger.info('Dropping sudo rights')
@@ -1907,6 +1951,7 @@ class AutoTestRunner:
 
             for test_set in self.instructions['sets']:
                 for test_suite in test_set['suites']:
+                    cont.move_fixtures_dir(uuid.uuid4().hex)
                     achieved_points, suite_points = self._run_test_suite(
                         cont, result_id, test_suite, cpu
                     )
@@ -2091,11 +2136,15 @@ class AutoTestRunner:
                         'adduser --shell /bin/bash --disabled-password --gecos'
                         ' "" {user} && '
                         'mkdir -p "{home_dir}/student/" && '
-                        'mkdir -p "{home_dir}/fixtures/" && '
-                        'chown -R {user}:{user} {home_dir}'
+                        'mkdir -p "{fixtures_root}/{fixtures}" && '
+                        'chown -R {user}:{user} {home_dir} && '
+                        'chown -R {user}:{user} "{fixtures_root}" && '
+                        'chmod 110 "{fixtures_root}"'
                     ).format(
                         user=CODEGRADE_USER,
                         home_dir=_get_home_dir(CODEGRADE_USER),
+                        fixtures=PRE_STUDENT_FIXTURES_DIR,
+                        fixtures_root=FIXTURES_ROOT,
                     ),
                 ],
             )
@@ -2116,7 +2165,7 @@ class AutoTestRunner:
             cont,
             self.instructions['run_setup_script'],
             f'{self.base_url}/runs/{self.instructions["run_id"]}',
-            cwd=f'{_get_home_dir(CODEGRADE_USER)}/fixtures/',
+            cwd=f'{FIXTURES_ROOT}/{PRE_STUDENT_FIXTURES_DIR}',
         )
 
         with cont.stopped_container() as base_container, timed_code(

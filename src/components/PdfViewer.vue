@@ -28,7 +28,8 @@
 </template>
 
 <script>
-import Loader from './Loader';
+import { mapActions } from 'vuex';
+
 import FloatingFeedbackButton from './FloatingFeedbackButton';
 
 export default {
@@ -98,19 +99,35 @@ export default {
     },
 
     methods: {
-        embedPdf() {
+        ...mapActions('code', {
+            storeLoadCode: 'loadCode',
+        }),
+
+        async embedPdf() {
             this.pdfURL = '';
+            await this.$afterRerender;
 
             if (this.revision === 'diff') {
                 this.$emit('error', 'The pdf viewer is not available in diff mode');
                 return;
             }
 
-            this.$http.get(`/api/v1/code/${this.id}?type=file-url`).then(
-                ({ data }) => {
+            let prom;
+            if (this.$root.isEdge) {
+                prom = this.$http.get(`/api/v1/code/${this.id}?type=file-url`).then(({ data }) => {
                     this.pdfURL = `/api/v1/files/${
                         data.name
                     }?not_as_attachment&mime=application/pdf`;
+                });
+            } else {
+                prom = this.storeLoadCode(this.id).then(buffer => {
+                    const blob = new Blob([buffer], { type: 'application/pdf' });
+                    this.pdfURL = `${URL.createObjectURL(blob)}`;
+                });
+            }
+
+            prom.then(
+                () => {
                     this.$emit('load');
                 },
                 err => {
@@ -126,7 +143,6 @@ export default {
     },
 
     components: {
-        Loader,
         FloatingFeedbackButton,
     },
 };

@@ -9,5 +9,6 @@ Select your Learning Management System (LMS):
     :maxdepth: 1
 
     In Blackboard <creating-a-blackboard-assignment>
+    In BrightSpace <creating-a-brightspace-assignment>
     In Canvas <creating-a-canvas-assignment>
     In Moodle <creating-a-moodle-assignment>

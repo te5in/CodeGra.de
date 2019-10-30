@@ -6,6 +6,7 @@ import axios from 'axios';
 import * as utils from '@/utils';
 
 Vue.prototype.$utils = utils;
+Vue.prototype.$afterRerender = function() {};
 
 config.mocks.$http = axios;
 global.UserConfig = {

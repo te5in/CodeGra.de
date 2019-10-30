@@ -33,6 +33,7 @@
             paddingLeft: lineNumberWidth,
             listStyle: noLineNumbers ? 'none' : null,
             fontSize: `${fontSize}px`,
+            cursor: editable ? cursorType : 'text',
         }"
         class="hljs inner-code-viewer"
         @mousedown="dragStart"
@@ -191,6 +192,7 @@ export default {
             confirmedLines: false,
             showLinesLoader: false,
             innerCodeLines: [],
+            cursorType: 'pointer',
         };
     },
 
@@ -206,6 +208,12 @@ export default {
                     Object.preventExtensions(this.codeLines.map(x => x)),
                 );
             },
+        },
+
+        editable() {
+            if (this.editable) {
+                this.cursorType = 'pointer';
+            }
         },
     },
 
@@ -337,46 +345,53 @@ export default {
             this.$set(this.editing, line - this.lineFeedbackOffset, true);
         },
 
-        dragStart() {
-            this.$el.addEventListener('mousemove', this.dragMove);
+        dragStart(event) {
+            if (event.button === 0 && this.editable) {
+                this.dragEvent = event;
+                this.$el.addEventListener('mousemove', this.dragMove);
+            }
         },
 
         dragMove(event) {
-            if (this.dragEvent == null) {
-                this.dragEvent = event;
-            }
+            this.cursorType = this.movedTooFar(event) ? 'text' : 'cursor';
         },
 
-        dragStop(event) {
+        movedTooFar(currentEvent) {
+            const firstEvent = this.dragEvent;
+            if (!firstEvent) {
+                return false;
+            }
+
             let dx = 0;
             let dy = 0;
 
-            if (this.dragEvent != null) {
-                dx = Math.abs(event.clientX - this.dragEvent.clientX);
-                dy = Math.abs(event.clientY - this.dragEvent.clientY);
+            if (firstEvent.clientX != null) {
+                dx = Math.abs(currentEvent.clientX - firstEvent.clientX);
+            }
+            if (firstEvent.clientY != null) {
+                dy = Math.abs(currentEvent.clientY - firstEvent.clientY);
             }
 
-            if (!this.dragEvent || dx + dy < 1) {
+            return dx + dy >= 1;
+        },
+
+        dragStop(event) {
+            if ((this.dragEvent != null || event.button === 0) && !this.movedTooFar(event)) {
                 this.addFeedback(event);
             }
 
-            this.removeDragHandler();
             this.dragEvent = null;
+            this.cursorType = 'pointer';
+            this.removeDragHandler();
         },
 
         async renderNextLines(nLines) {
-            // Use of multiple nextTicks and the timeout here is intentional and required
-            // for a correct ordering of events: without them the loader would not be shown
-            // while rendering the next lines.
-
             this.showLinesLoader = true;
 
-            await this.$nextTick();
-            setTimeout(async () => {
-                this.confirmedLines += nLines;
-                await this.$nextTick();
-                this.showLinesLoader = false;
-            }, 0);
+            await this.$afterRerender();
+
+            this.confirmedLines += nLines;
+            this.showLinesLoader = false;
         },
     },
 };
@@ -403,7 +418,6 @@ li {
     position: relative;
     padding-left: 0.75em;
     padding-right: 0.75em;
-    cursor: text;
 
     background-color: lighten(@linum-bg, 1%);
     border-left: 1px solid darken(@linum-bg, 5%);
@@ -416,7 +430,6 @@ li {
     .inner-code-viewer.editable &,
     #app.dark .inner-code-viewer.editable & {
         &.line:hover {
-            cursor: pointer;
             background-color: rgba(0, 0, 0, 0.025);
         }
     }

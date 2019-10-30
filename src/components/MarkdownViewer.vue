@@ -22,7 +22,8 @@
 </template>
 
 <script>
-import { mapGetters } from 'vuex';
+import { mapGetters, mapActions } from 'vuex';
+import decodeBuffer from '@/utils/decode';
 
 import InnerMarkdownViewer from './InnerMarkdownViewer';
 import FloatingFeedbackButton from './FloatingFeedbackButton';
@@ -88,17 +89,20 @@ export default {
     },
 
     methods: {
-        loadCode() {
+        ...mapActions('code', {
+            storeLoadCode: 'loadCode',
+        }),
+
+        async loadCode() {
             this.data = '';
-            this.$http.get(`/api/v1/code/${this.fileId}`).then(
-                ({ data }) => {
-                    this.data = data;
-                    this.$emit('load');
-                },
-                err => {
-                    this.$emit('error', this.$utils.getErrorMessage(err));
-                },
-            );
+            await this.$afterRerender();
+
+            try {
+                this.data = decodeBuffer(await this.storeLoadCode(this.fileId));
+                this.$emit('load');
+            } catch (e) {
+                this.$emit('error', e);
+            }
         },
     },
 

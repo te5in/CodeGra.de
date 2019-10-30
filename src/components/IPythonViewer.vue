@@ -89,9 +89,10 @@
 </template>
 
 <script>
-import { mapGetters } from 'vuex';
+import { mapGetters, mapActions } from 'vuex';
 
 import { highlightCode } from '@/utils';
+import decodeBuffer from '@/utils/decode';
 
 import InnerMarkdownViewer from './InnerMarkdownViewer';
 import InnerCodeViewer from './InnerCodeViewer';
@@ -193,6 +194,10 @@ export default {
     },
 
     methods: {
+        ...mapActions('code', {
+            storeLoadCode: 'loadCode',
+        }),
+
         outputData(output, types) {
             for (let i = 0; i < types.length; ++i) {
                 if (output.data[types[i]]) {
@@ -202,21 +207,27 @@ export default {
             return null;
         },
 
-        loadCode() {
+        async loadCode() {
             this.data = {};
-            this.$http.get(`/api/v1/code/${this.fileId}`).then(
-                ({ data }) => {
-                    try {
-                        this.data = JSON.parse(data);
-                        this.$emit('load');
-                    } catch (_) {
-                        this.$emit('error', this.invalidJsonMessage);
-                    }
-                },
-                err => {
-                    this.$emit('error', this.$utils.getErrorMessage(err));
-                },
-            );
+            let jsonString;
+            await this.$afterRerender();
+
+            try {
+                const code = await this.storeLoadCode(this.fileId);
+                jsonString = decodeBuffer(code);
+            } catch (e) {
+                this.data = 'err1';
+                this.$emit('error', e);
+                return;
+            }
+
+            try {
+                this.data = JSON.parse(jsonString);
+                this.$emit('load');
+            } catch (e) {
+                this.data = jsonString;
+                this.$emit('error', this.invalidJsonMessage);
+            }
         },
     },
 

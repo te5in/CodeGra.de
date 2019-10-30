@@ -24,6 +24,7 @@ describe('PlagiarismRunner.vue', () => {
     let runs;
     let providers;
     let remount;
+    let mockLoadCourses;
 
     beforeEach(() => {
         jest.useFakeTimers();
@@ -64,7 +65,20 @@ describe('PlagiarismRunner.vue', () => {
             return Promise.resolve(res);
         });
 
+        mockLoadCourses = jest.fn();
         store = new Vuex.Store({
+            modules: {
+                courses: {
+                    namespaced: true,
+                    getters: {
+                        courses: state => ({}),
+                        assignments: state => ({}),
+                    },
+                    actions: {
+                        loadCourses: mockLoadCourses,
+                    },
+                },
+            },
         });
 
         remount = () => {

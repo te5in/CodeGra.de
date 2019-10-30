@@ -2,7 +2,7 @@
 <template>
 <div class="categories">
     <div class="category align-self-stretch"
-         :class="{selected: cat.id === value}"
+         :class="{selected: !disabled && cat.id === value}"
          v-for="cat in categories"
          v-if="cat.enabled"
          @click="processInput(cat.id, false)"
@@ -30,6 +30,10 @@ export default {
             type: String,
             required: true,
         },
+        disabled: {
+            type: Boolean,
+            default: false,
+        },
     },
 
     computed: {
@@ -39,6 +43,12 @@ export default {
     },
 
     watch: {
+        disabled() {
+            if (!this.disabled) {
+                this.$emit('input', this.getInitialValue());
+            }
+        },
+
         enabledCats: {
             immediate: true,
             handler() {
@@ -47,6 +57,9 @@ export default {
         },
 
         $route(newVal) {
+            if (this.disabled) {
+                return;
+            }
             let val = decodeURI(newVal.hash && newVal.hash.slice(1)) || this.default;
             if (val !== this.value) {
                 // Selected value is not available
@@ -83,6 +96,9 @@ export default {
         },
 
         processInput(catId, forceEmit) {
+            if (this.disabled) {
+                return;
+            }
             if (forceEmit || catId !== this.value) {
                 this.$router.replace(
                     Object.assign({}, this.$route, {
@@ -136,6 +152,7 @@ export default {
         left: 12.5%;
         width: 75%;
         margin: 0 auto;
+        transition: border-bottom-color 150ms;
     }
 
     &.selected .indicator {
