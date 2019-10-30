@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
-<div v-if="rubric"
+<div v-if="rubric && originalRubricResult && currentResult"
      class="rubric-viewer"
      :class="{ editable }">
     <b-tabs no-fade v-model="current">
@@ -41,7 +41,7 @@
                             v-for="item in row.items"
                             :key="`rubric-${row.id}-${item.id}`"
                             @click="toggleItem(row, item)"
-                            :class="{ selected: selectedById[item.id] }"
+                            :class="{ selected: currentResult.isSelected(item) }"
                             body-class="rubric-item-body">
                         <div slot="header" class="header">
                             <b class="header-title">{{ item.points }} - {{ item.header }}</b>
@@ -49,7 +49,7 @@
                                  class="rubric-item-icon">
                                 <loader :scale="1"/>
                             </div>
-                            <div v-else-if="selectedById[item.id]"
+                            <div v-else-if="currentResult.isSelected(item)"
                                 class="rubric-item-icon">
                                 <icon name="check"/>
                             </div>
@@ -73,8 +73,8 @@
                     </b-card>
                 </b-card-group>
 
-                <div v-show="autoTestProgress[row.id] != null" class="progress">
-                    <div ref="progressMeter" class="meter" style="width: 0;" />
+                <div v-show="row.id in autoTestProgress" class="progress">
+                    <div class="meter" :style="{ width: `${autoTestProgress[row.id]}%` }" />
                 </div>
             </b-card>
         </b-tab>
@@ -119,20 +119,35 @@ export default {
     data() {
         return {
             id: this.$utils.getUniqueId(),
-            origSelected: [],
             current: 0,
             itemStates: {},
             lockPopoverShown: {},
+            currentResult: null,
+            autoTestProgress: {},
         };
     },
 
     watch: {
+        outOfSync() {
+            this.$emit('outOfSyncUpdated', this.outOfSync);
+        },
+
+        originalRubricResult: {
+            immediate: true,
+            handler() {
+                if (this.originalRubricResult) {
+                    this.currentResult = this.originalRubricResult;
+                } else {
+                    this.currentResult = null;
+                }
+                this.$emit('rubricUpdated', this.currentResult);
+            },
+        },
+
         assignment: {
             immediate: true,
             handler() {
-                this.storeLoadRubric({
-                    assignmentId: this.assignment.id,
-                });
+                this.storeLoadRubric(this.assignment.id);
 
                 if (this.autoTestConfigId) {
                     this.storeLoadAutoTest({
@@ -161,13 +176,6 @@ export default {
             },
         },
 
-        rubricResult: {
-            immediate: true,
-            handler() {
-                this.origSelected = this.$utils.deepCopy(this.selected);
-            },
-        },
-
         currentRow: {
             immediate: true,
             handler() {
@@ -182,19 +190,26 @@ export default {
             },
         },
 
-        autoTestProgress: {
+        autoTestResult: {
             immediate: true,
-            handler() {
-                const cur = this.current;
-                this.current = -1;
-                this.current = cur;
+            handler(newResult, oldResult) {
+                const oldId = this.$utils.getProps(oldResult, null, 'id');
+                const newId = this.$utils.getProps(newResult, null, 'id');
+
+                if (oldId !== newId) {
+                    this.autoTestProgress = {};
+                }
+                this.animateRubricProgress();
             },
+        },
+
+        currentAutoTestSuitePercentage() {
+            this.animateRubricProgress();
         },
     },
 
     computed: {
         ...mapGetters('rubrics', {
-            allRubrics: 'rubrics',
             allRubricResults: 'results',
         }),
 
@@ -203,40 +218,38 @@ export default {
             allAutoTestResults: 'results',
         }),
 
+        currentAutoTestSuitePercentage() {
+            const row = this.currentRow;
+            const suite = Object.values(
+                this.$utils.getProps(this.autoTestResult, {}, 'suiteResults'),
+            ).find(s => s.suite.rubricRow.id === row.id);
+            return this.$utils.getProps(suite, null, 'percentage');
+        },
+
         rubric() {
-            return this.allRubrics[this.assignment.id];
+            return this.assignment.rubricModel;
         },
 
-        rubricResult() {
-            return this.allRubricResults[this.submission.id];
+        submissionId() {
+            return this.submission.id;
         },
 
-        selected() {
-            return this.$utils.getProps(this.rubricResult, [], 'selected');
+        originalRubricResult() {
+            return this.allRubricResults[this.submissionId];
         },
 
-        selectedById() {
-            return this.selected.reduce((acc, item) => {
-                acc[item.id] = item;
-                return acc;
-            }, {});
-        },
-
-        selectedPoints() {
-            return this.rubricResult.points;
+        originalSelectedRubricItems() {
+            return this.$utils.getProps(this.originalRubricResult, [], 'selected');
         },
 
         selectedRows() {
-            return (
-                this.rubric &&
-                this.rubric.rows.reduce((acc, row) => {
-                    acc[row.id] = row.items.reduce(
-                        (cur, item) => cur || this.selectedById[item.id],
-                        false,
-                    );
-                    return acc;
-                }, {})
-            );
+            if (!this.rubric || !this.currentResult) {
+                return {};
+            }
+            return this.rubric.rows.reduce((acc, row) => {
+                acc[row.id] = row.items.find(item => this.currentResult.isSelected(item));
+                return acc;
+            }, {});
         },
 
         lockedItemIds() {
@@ -272,17 +285,13 @@ export default {
             return this.rubric && this.rubric.rows[this.current];
         },
 
-        currentProgress() {
-            return this.currentRow && this.autoTestProgress[this.currentRow.id];
-        },
-
         hasSelectedItems() {
-            return this.selected.length !== 0;
+            return this.$utils.getProps(this.currentResult, 0, 'selected', 'length') !== 0;
         },
 
         outOfSync() {
-            const origSet = new Set(this.origSelected.map(s => s.id));
-            this.selected.forEach(({ id }) => {
+            const origSet = new Set(this.originalSelectedRubricItems.map(i => i.id));
+            this.$utils.getProps(this.currentResult, [], 'selected').forEach(({ id }) => {
                 if (origSet.has(id)) {
                     origSet.delete(id);
                 } else {
@@ -290,28 +299,6 @@ export default {
                 }
             });
             return origSet;
-        },
-
-        autoTestProgress() {
-            const suiteResults = this.$utils.getProps(this, null, 'autoTestResult', 'suiteResults');
-
-            if (!suiteResults) {
-                return {};
-            }
-
-            const prog = {};
-
-            this.autoTestConfig.sets.forEach(set => {
-                set.suites.forEach(suite => {
-                    const result = suiteResults[suite.id];
-                    if (result != null && result.finished) {
-                        const p = result.achieved / result.possible * 100;
-                        prog[suite.rubricRow.id] = p;
-                    }
-                });
-            });
-
-            return prog;
         },
 
         autoTestLockPopover() {
@@ -384,10 +371,13 @@ export default {
 
     methods: {
         ...mapActions('rubrics', {
-            storeLoadRubric: 'loadRubric',
             storeLoadRubricResult: 'loadResult',
             storeUpdateRubricItems: 'updateRubricItems',
             storeToggleRubricItem: 'toggleRubricItem',
+        }),
+
+        ...mapActions('courses', {
+            storeLoadRubric: 'loadRubric',
         }),
 
         ...mapActions('autotest', {
@@ -402,7 +392,9 @@ export default {
                 this.$utils.htmlEscape(`${row.header}`) ||
                 '<span class="unnamed">Unnamed category</span>';
 
-            const getFraction = (upper, lower) => `<sup>${upper}</sup>&frasl;<sub>${lower}</sub>`;
+            const escape = this.$utils.htmlEscape;
+            const getFraction = (upper, lower) =>
+                `<sup>${escape(upper)}</sup>&frasl;<sub>${escape(lower)}</sub>`;
             let res;
 
             if (selected) {
@@ -424,7 +416,7 @@ export default {
             const selected = [];
 
             // Do not clear items of "locked" rows.
-            this.selected.forEach(item => {
+            this.currentResult.selected.forEach(item => {
                 if (this.lockedItemIds.has(item.id)) {
                     selected.push(item);
                 }
@@ -434,7 +426,7 @@ export default {
                 submissionId: this.submission.id,
                 selected,
             }).then(() => {
-                this.origSelected = selected;
+                this.$emit('change', this.currentResult);
             });
         },
 
@@ -445,9 +437,7 @@ export default {
 
             return this.storeUpdateRubricItems({
                 submissionId: this.submission.id,
-                selected: this.selected,
-            }).then(() => {
-                this.origSelected = this.$utils.deepCopy(this.selected);
+                selected: this.currentResult.selected,
             });
         },
 
@@ -456,20 +446,28 @@ export default {
                 return;
             }
 
-            let req = this.storeToggleRubricItem({
-                submissionId: this.submission.id,
-                row,
-                item,
+            let req = new Promise(resolve => {
+                this.currentResult = this.currentResult.toggleItem(row, item);
+                resolve();
             });
 
             if (UserConfig.features.incremental_rubric_submission) {
-                req = this.$utils.waitAtLeast(500, req);
+                req = this.$utils.waitAtLeast(
+                    500,
+                    req.then(() =>
+                        this.storeToggleRubricItem({
+                            submissionId: this.submission.id,
+                            row,
+                            item,
+                        }),
+                    ),
+                );
             }
 
             req.then(
                 () => {
                     delete this.itemStates[item.id];
-                    this.$emit('change');
+                    this.$emit('change', this.currentResult);
                 },
                 err => {
                     this.itemStates[item.id] = this.$utils.getErrorMessage(err);
@@ -481,20 +479,28 @@ export default {
         },
 
         async animateRubricProgress() {
-            if (!this.visible || this.current == null || this.currentProgress == null) {
+            const row = this.currentRow;
+
+            if (row == null) {
                 return;
             }
 
-            const cur = this.current;
-            await this.$nextTick();
-            const ref = this.$refs.progressMeter[cur];
+            const percentage = this.currentAutoTestSuitePercentage;
+            if (percentage == null) {
+                this.$delete(this.autoTestProgress, row.id);
+                return;
+            }
 
-            // Without this the animations don't work.
-            // eslint-disable-next-line
-            getComputedStyle(ref).width;
+            if (this.autoTestProgress[row.id] == null) {
+                // Set to 0 first to make the transition work.
+                this.$set(this.autoTestProgress, row.id, 0);
+                await this.$afterRerender();
+            }
 
-            await this.$nextTick();
-            ref.style.width = `${this.currentProgress}%`;
+            if (this.visible && row.locked === 'auto_test') {
+                await this.$afterRerender();
+                this.$set(this.autoTestProgress, row.id, percentage);
+            }
         },
     },
 

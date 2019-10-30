@@ -15,6 +15,7 @@
 
             <tbody>
                 <tr v-for="run, i in runs"
+                    :key="run.id"
                     :class="{ [`run-${run.state}`]: canView }"
                     @click="goToOverview(run)">
                     <td>

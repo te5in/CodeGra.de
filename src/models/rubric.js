@@ -1,13 +1,11 @@
-import Vue from 'vue';
-
 export class Rubric {
-    constructor(rows) {
-        this.rows = rows.map(row => {
+    constructor(rows, assignment) {
+        this.rows = (rows || []).map(row => {
             row.items.sort((x, y) => x.points - y.points);
             row.maxPoints = Math.max(...row.items.map(item => item.points));
             return row;
         });
-        this.items = rows.reduce(
+        this.items = (rows || []).reduce(
             (acc, row) =>
                 Object.assign(
                     acc,
@@ -18,51 +16,69 @@ export class Rubric {
                 ),
             {},
         );
-        this.maxPoints = rows.reduce((acc, row) => acc + row.maxPoints, 0);
+        this.assignment = assignment;
+        if (assignment.fixed_max_rubric_points != null) {
+            this.maxPoints = this.assignment.fixed_max_rubric_points;
+        } else {
+            this.maxPoints = this.rows.reduce((acc, row) => acc + row.maxPoints, 0);
+        }
     }
 }
 
 export class RubricResult {
     constructor(result) {
-        this.setSelected(result.selected);
-    }
-
-    setSelected(selected) {
+        const { selected } = result;
         this.selected = selected;
+        this.selectedById = RubricResult.getSelectedById(selected);
         this.points =
             selected.length === 0 ? null : selected.reduce((acc, { points }) => acc + points, 0);
     }
 
-    selectItem(row, item) {
-        const selectedIds = this.selected.reduce((acc, s, i) => {
-            acc[s.id] = i;
+    copy() {
+        return new RubricResult(this);
+    }
+
+    // We need to use `this` according to eslint, but this method might copy
+    // more data from this in the future, but at the moment it doesn't.
+    // eslint-disable-next-line
+    setSelected(selected) {
+        return new RubricResult({
+            selected,
+        });
+    }
+
+    static getSelectedById(selected) {
+        return selected.reduce((acc, item) => {
+            acc[item.id] = item;
             return acc;
         }, {});
+    }
 
-        row.items.forEach(({ id, points }) => {
-            if (selectedIds[id] != null) {
-                this.points -= points;
-                this.selected.splice(selectedIds[id], 1);
-            }
-        });
+    isSelected(item) {
+        return item.id in this.selectedById;
+    }
 
-        Vue.set(this, 'points', this.points + item.points);
-        Vue.set(this, 'selected', this.selected.concat([item]));
+    toggleItem(row, item) {
+        if (this.isSelected(item)) {
+            return this.unselectItem(row, item);
+        }
+        return this.selectItem(row, item);
+    }
+
+    selectItem(row, item) {
+        const toRemove = row.items.find(this.isSelected.bind(this));
+        const newSelected = [
+            ...this.selected.filter(({ id }) => (toRemove ? id !== toRemove.id : true)),
+            item,
+        ];
+        return this.setSelected(newSelected);
     }
 
     unselectItem(row, item) {
-        const i = this.selected.findIndex(x => x.id === item.id);
-
-        if (i === -1) {
+        const newSelected = this.selected.filter(({ id }) => id !== item.id);
+        if (newSelected.length === this.selected.length) {
             throw new ReferenceError('Item is not selected.');
         }
-
-        Vue.delete(this.selected, i);
-
-        if (this.selected.length) {
-            Vue.set(this, 'points', this.points - item.points);
-        } else {
-            Vue.set(this, 'points', null);
-        }
+        return this.setSelected(newSelected);
     }
 }

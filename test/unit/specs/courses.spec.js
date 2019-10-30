@@ -1,6 +1,9 @@
 import store from '@/store/modules/courses';
 import * as types from '@/store/mutation-types';
 import * as utils from '@/utils';
+import Vuex from 'vuex';
+import Vue from 'vue';
+import { Rubric } from '@/models/rubric.js';
 import axios from 'axios';
 
 function createState() {
@@ -10,9 +13,11 @@ function createState() {
                 assignments: [{
                     id: 2,
                     name: '2',
+                    fixed_max_rubric_points: null,
                 }, {
                     id: 3,
                     name: '3',
+                    fixed_max_rubric_points: null,
                 }],
                 name: 'hello',
             },
@@ -20,6 +25,7 @@ function createState() {
                 assignments: [{
                     id: 5,
                     name: '5',
+                    fixed_max_rubric_points: null,
                 }],
                 name: 'bye',
             },
@@ -56,14 +62,17 @@ describe('getters', () => {
                 2: {
                     id: 2,
                     name: '2',
+                    fixed_max_rubric_points: null,
                 },
                 3: {
                     id: 3,
                     name: '3',
+                    fixed_max_rubric_points: null,
                 },
                 5: {
                     id: 5,
                     name: '5',
+                    fixed_max_rubric_points: null,
                 },
             });
         });
@@ -146,7 +155,7 @@ describe('mutations', () => {
         });
 
         it('should work for some unknown props', () => {
-            ['rubric', 'graders'].forEach((key) => {
+            ['graders'].forEach((key) => {
                 const obj1 = {};
 
                 store.mutations[types.UPDATE_ASSIGNMENT](
@@ -185,6 +194,7 @@ describe('mutations', () => {
             expect(state.currentCourseLoader).toBe(obj1);
         });
     });
+
 });
 
 describe('actions', () => {
@@ -192,9 +202,21 @@ describe('actions', () => {
     let mockDispatch;
     let mockCommit;
     let context;
+    let mockRubric;
+    let globalStore
 
     beforeEach(() => {
         state = createState();
+        Vue.use(Vuex);
+        globalStore = new Vuex.Store({
+            modules: {
+                courses: Object.assign(
+                    {},
+                    store,
+                    { state },
+                ),
+            },
+        });
         mockDispatch = jest.fn();
         mockCommit = jest.fn();
         context = {
@@ -202,6 +224,24 @@ describe('actions', () => {
             dispatch: mockDispatch,
             commit: mockCommit,
         };
+        mockRubric = [
+            {
+                id: 0,
+                items: [
+                    { id: 0, points: 0 },
+                    { id: 1, points: 1 },
+                    { id: 2, points: 2 },
+                ],
+            },
+            {
+                id: 1,
+                items: [
+                    { id: 3, points: 4 },
+                    { id: 4, points: 8 },
+                    { id: 5, points: 16 },
+                ],
+            },
+        ];
     });
 
     describe('load courses', () => {
@@ -248,9 +288,67 @@ describe('actions', () => {
         });
     });
 
-    describe('set rubric', () => {
-        it('should work', () => {
-            const rubric = {};
+    describe('setRubric', () => {
+        let assignmentId = 5;
+        function getAssig(assignmentId) {
+            return globalStore.getters['courses/assignments'][`${assignmentId}`];
+        }
+
+        it('should store null if null is passed', () => {
+            globalStore.dispatch('courses/setRubric', {
+                assignmentId,
+                rubric: null,
+                maxPoints: null,
+            });
+
+            expect(getAssig(assignmentId).rubric).toBeNull();
+        });
+
+        it('should store a new Rubric model', () => {
+            globalStore.dispatch('courses/setRubric', {
+                assignmentId,
+                rubric: mockRubric,
+            });
+
+            expect(getAssig(assignmentId).rubricModel).toBeInstanceOf(Rubric);
+        });
+
+        it('should calculate the max number of points in the rubric', async () => {
+            await globalStore.dispatch('courses/setRubric', {
+                assignmentId,
+                rubric: [],
+                maxPoints: null,
+            });
+            expect(getAssig(assignmentId).fixed_max_rubric_points).toBeNull();
+            expect(getAssig(assignmentId).rubricModel.maxPoints).toBe(0);
+
+            await globalStore.dispatch('courses/setRubric', {
+                assignmentId,
+                rubric: mockRubric,
+                maxPoints: null,
+            });
+            expect(getAssig(assignmentId).fixed_max_rubric_points).toBeNull();
+            expect(getAssig(assignmentId).rubricModel.maxPoints).toBe(18);
+
+            await globalStore.dispatch('courses/setRubric', {
+                assignmentId,
+                rubric: mockRubric,
+                maxPoints: 5,
+            });
+            expect(getAssig(assignmentId).fixed_max_rubric_points).toBe(5);
+            expect(getAssig(assignmentId).rubricModel.maxPoints).toBe(5);
+
+            await globalStore.dispatch('courses/setRubric', {
+                assignmentId,
+                rubric: mockRubric,
+                maxPoints: 0,
+            });
+            expect(getAssig(assignmentId).fixed_max_rubric_points).toBe(0);
+            expect(getAssig(assignmentId).rubricModel.maxPoints).toBe(0);
+        });
+
+        it('should commit something', () => {
+            const rubric = mockRubric;
             const maxPoints = {};
             const assignmentId = {};
             const data = {

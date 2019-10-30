@@ -524,6 +524,11 @@ const mutations = {
         run.updateResultsByUser(userId, results, autoTest);
         Vue.set(autoTest.runs, runIndex, run);
     },
+
+    [types.CLEAR_AUTO_TESTS](state) {
+        state.tests = {};
+        state.results = {};
+    },
 };
 
 export default {

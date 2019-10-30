@@ -237,10 +237,17 @@ class Work(Base):
 
             if psef.linters.get_linter_by_name(linter.name).RUN_LINTER:
                 db.session.flush()
-                psef.tasks.lint_instances(
-                    linter.name,
-                    linter.config,
-                    [instance.id],
+
+                def _inner(name: str, config: str, lint_id: str) -> None:
+                    lint = psef.tasks.lint_instances
+                    psef.helpers.callback_after_this_request(
+                        lambda: lint(name, config, [lint_id])
+                    )
+
+                _inner(
+                    name=linter.name,
+                    config=linter.config,
+                    lint_id=instance.id,
                 )
             else:
                 instance.state = LinterState.done

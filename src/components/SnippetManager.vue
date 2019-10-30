@@ -26,7 +26,8 @@
             </tr>
         </thead>
         <tbody>
-            <tr v-for="snippet in filteredSnippets">
+            <tr v-for="snippet in filteredSnippets"
+                :key="snippet.id">
                 <td class="snippet-key">{{ snippet.key }}</td>
                 <td class="snippet-value">{{ snippet.value }}</td>
                 <td class="snippet-actions">

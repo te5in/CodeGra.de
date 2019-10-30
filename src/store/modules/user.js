@@ -78,6 +78,9 @@ const actions = {
             commit(`plagiarism/${types.CLEAR_PLAGIARISM_RUNS}`, null, {
                 root: true,
             }),
+            commit(`courses/${types.CLEAR_COURSES}`, null, { root: true }),
+            commit(`rubrics/${types.CLEAR_RUBRIC_RESULTS}`, null, { root: true }),
+            commit(`autotest/${types.CLEAR_AUTO_TESTS}`, null, { root: true }),
             commit(types.LOGOUT),
         ]);
     },

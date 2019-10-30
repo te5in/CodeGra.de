@@ -527,19 +527,21 @@ export default {
             });
         },
 
-        afterLoadOldRubric(response) {
+        async afterLoadOldRubric(response) {
             this.importAssignment = null;
             this.setRubricData(response.data);
-            this.setRubric({
-                assignmentId: this.assignmentId,
-                rubric: response.data,
-                maxPoints: this.calcMaxPoints(response.data),
-            });
-            this.forceLoadSubmissions(this.assignmentId);
+            await Promise.all([
+                this.setRubric({
+                    assignmentId: this.assignmentId,
+                    rubric: response.data,
+                    maxPoints: this.calcMaxPoints(response.data),
+                }),
+                this.forceLoadSubmissions(this.assignmentId),
 
-            // TODO: Improve use of rubric store.
-            // Clear rubric from the rubric store so it will be reloaded.
-            this.storeClearRubric({ assignmentId: this.assignmentId });
+                // TODO: Improve use of rubric store.
+                // Clear rubric from the rubric store so it will be reloaded.
+                this.storeClearRubric({ assignmentId: this.assignmentId }),
+            ]);
         },
 
         loadAssignments() {

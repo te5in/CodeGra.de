@@ -4,12 +4,15 @@
      v-b-popover.top.hover="globalPopover"
      :class="notLatest ? 'cursor-not-allowed' : undefined">
     <b-collapse id="rubric-collapse"
+                v-if="showRubric"
                 v-model="rubricOpen">
         <rubric-viewer :assignment="assignment"
                        :submission="submission"
                        :editable="realEditable"
                        :visible="rubricOpen"
                        @change="rubricGradeChanged"
+                       @rubricUpdated="rubricResult = $event"
+                       @outOfSyncUpdated="outOfSyncItems = $event.size"
                        ref="rubricViewer"
                        class="mb-3"/>
     </b-collapse>
@@ -67,7 +70,8 @@
                 <b-button variant="secondary"
                           v-b-popover.top.hover="'Toggle rubric'"
                           v-b-toggle.rubric-collapse>
-                    <icon name="th"/>
+                    <loader :scale="1" v-if="rubricResult == null" />
+                    <icon name="th" v-else/>
                 </b-button>
             </b-input-group-append>
 
@@ -94,6 +98,7 @@ import 'vue-awesome/icons/times';
 import { formatGrade, isDecimalNumber } from '@/utils';
 import RubricViewer from './RubricViewer';
 import SubmitButton from './SubmitButton';
+import Loader from './Loader';
 
 export default {
     name: 'grade-viewer',
@@ -127,12 +132,13 @@ export default {
             grade: this.submission.grade,
             rubricOpen: this.rubricStartOpen && !this.notLatest,
             rubricOverridden: null,
+            outOfSyncItems: 0,
+            rubricResult: null,
         };
     },
 
     computed: {
         ...mapGetters('rubrics', {
-            allRubrics: 'rubrics',
             allRubricResults: 'results',
         }),
 
@@ -151,11 +157,7 @@ export default {
         },
 
         rubric() {
-            return this.allRubrics[this.assignment.id];
-        },
-
-        rubricResult() {
-            return this.allRubricResults[this.submission.id];
+            return this.assignment.rubricModel;
         },
 
         rubricPoints() {
@@ -181,15 +183,9 @@ export default {
         isRubricChanged() {
             const incremental = UserConfig.features.incremental_rubric_submission;
             const show = this.showRubric;
-            const outOfSync = this.$utils.getProps(
-                this.$refs,
-                0,
-                'rubricViewer',
-                'outOfSync',
-                'size',
-            );
+            const outOfSync = this.outOfSyncItems;
 
-            return !incremental && show && outOfSync;
+            return !incremental && show && outOfSync > 0;
         },
 
         rubricHasSelectedItems() {
@@ -263,9 +259,7 @@ export default {
         assignment: {
             immediate: true,
             handler() {
-                this.storeLoadRubric({
-                    assignmentId: this.assignment.id,
-                });
+                this.storeLoadRubric(this.assignment.id);
             },
         },
 
@@ -308,8 +302,11 @@ export default {
             storeUpdateSubmission: 'updateSubmission',
         }),
 
-        ...mapActions('rubrics', {
+        ...mapActions('courses', {
             storeLoadRubric: 'loadRubric',
+        }),
+
+        ...mapActions('rubrics', {
             storeLoadRubricResult: 'loadResult',
         }),
 
@@ -325,14 +322,15 @@ export default {
             });
         },
 
-        rubricGradeChanged() {
+        rubricGradeChanged(rubricResult) {
+            this.rubricResult = rubricResult;
             this.grade = this.rubricGrade;
             this.rubricOverridden = false;
         },
 
         deleteGrade() {
             if (this.showRubric && !this.rubricOverridden) {
-                return this.$refs.rubricViewer.clearSelected().then(this.rubricGradeChanged);
+                return this.$refs.rubricViewer.clearSelected();
             } else if (this.isRubricChanged) {
                 this.grade = this.rubricGrade;
                 return null;
@@ -397,6 +395,7 @@ export default {
         Icon,
         SubmitButton,
         RubricViewer,
+        Loader,
     },
 };
 </script>

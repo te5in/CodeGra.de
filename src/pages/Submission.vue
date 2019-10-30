@@ -578,12 +578,25 @@ export default {
 
         submissionId: {
             immediate: true,
-            async handler() {
-                await this.loadCurrentSubmission();
-                if (this.error == null) {
-                    this.loadData();
-                }
+            handler() {
+                this.loadData();
             },
+        },
+
+        // We need these watchers (feedback and filetree) as these properties
+        // become `null`/`undefined` when the submissions are reloaded (this can
+        // be done using the sidebar). So in that case we need to load the data
+        // again.
+        feedback() {
+            if (!this.feedback) {
+                this.loadData();
+            }
+        },
+
+        fileTree() {
+            if (!this.fileTree) {
+                this.loadData();
+            }
         },
 
         fileId: {
@@ -700,7 +713,7 @@ export default {
             });
         },
 
-        loadData() {
+        async loadData() {
             this.setRevision('student', 'replace');
             this.currentFile = null;
             this.showWhitespace = true;
@@ -709,7 +722,7 @@ export default {
                 this.categories.filter(c => c.id !== this.selectedCat).map(c => c.id),
             );
 
-            return Promise.all([
+            await Promise.all([
                 this.storeLoadFileTree({
                     assignmentId: this.assignmentId,
                     submissionId: this.submissionId,

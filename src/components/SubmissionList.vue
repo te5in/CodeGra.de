@@ -16,6 +16,7 @@
             <category-selector slot="extra"
                                :default="defaultCat"
                                v-model="selectedCat"
+                               :disabled="showLoader"
                                :categories="categories"/>
         </template>
 

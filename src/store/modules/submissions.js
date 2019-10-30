@@ -189,7 +189,8 @@ const actions = {
                 axios
                     .get(`/api/v1/assignments/${assignmentId}/submissions/?extended&latest_only`)
                     .then(({ data: submissions }) => submissions.map(processSubmission), () => []),
-                context.dispatch('courses/forceLoadRubric', assignmentId, { root: true }),
+                context.dispatch('courses/loadRubric', assignmentId, { root: true }),
+                // TODO: Maybe not force load the graders here?
                 context.dispatch('courses/forceLoadGraders', assignmentId, { root: true }),
             ]).then(([submissions]) => {
                 context.commit(types.UPDATE_SUBMISSIONS, {
@@ -224,16 +225,14 @@ const actions = {
     },
 
     async loadSubmissionFileTree({ commit, dispatch, state }, { assignmentId, submissionId }) {
-        await dispatch('loadSingleSubmission', { assignmentId, submissionId });
-
-        const submission = getSubmission(state, assignmentId, submissionId);
-
-        if (submission.fileTree != null) {
+        const submission = getSubmission(state, assignmentId, submissionId, false);
+        if (submission && submission.fileTree != null) {
             return null;
         }
 
         if (loaders.fileTrees[submissionId] == null) {
-            loaders.fileTrees[submissionId] = Promise.all([
+            const loader = Promise.all([
+                dispatch('loadSingleSubmission', { assignmentId, submissionId }),
                 axios.get(`/api/v1/submissions/${submissionId}/files/`),
                 axios
                     .get(`/api/v1/submissions/${submissionId}/files/`, {
@@ -248,7 +247,7 @@ const actions = {
                         }
                     }),
             ]).then(
-                ([student, teacher]) => {
+                ([, student, teacher]) => {
                     delete loaders.fileTrees[submissionId];
                     commit(types.UPDATE_SUBMISSION, {
                         assignmentId,
@@ -263,45 +262,46 @@ const actions = {
                     throw err;
                 },
             );
+            loaders.fileTrees[submissionId] = loader;
         }
 
         return loaders.fileTrees[submissionId];
     },
 
     async loadSubmissionFeedback({ commit, dispatch, state }, { assignmentId, submissionId }) {
-        await dispatch('loadSingleSubmission', { assignmentId, submissionId });
+        const submission = getSubmission(state, assignmentId, submissionId, false);
 
-        const submission = getSubmission(state, assignmentId, submissionId);
-
-        if (submission.feedback != null) {
+        if (submission && submission.feedback != null) {
             return null;
         }
 
         if (loaders.feedback[submissionId] == null) {
-            loaders.feedback[submissionId] = axios
-                .get(`/api/v1/submissions/${submissionId}/feedbacks/`)
-                .then(
-                    ({ data }) => {
-                        delete loaders.feedback[submissionId];
-                        commit(types.UPDATE_SUBMISSION, {
-                            assignmentId,
-                            submissionId,
-                            submissionProps: {
-                                feedback: new Feedback(data),
-                            },
-                        });
-                    },
-                    err => {
-                        delete loaders.feedback[submissionId];
+            const loader = Promise.all([
+                dispatch('loadSingleSubmission', { assignmentId, submissionId }),
+                axios.get(`/api/v1/submissions/${submissionId}/feedbacks/`).catch(err => {
+                    delete loaders.feedback[submissionId];
 
-                        switch (utils.getProps(err, null, 'response', 'status')) {
-                            case 403:
-                                return;
-                            default:
-                                throw err;
-                        }
-                    },
-                );
+                    switch (utils.getProps(err, null, 'response', 'status')) {
+                        case 403:
+                            return {};
+                        default:
+                            throw err;
+                    }
+                }),
+            ]).then(([, { data }]) => {
+                delete loaders.feedback[submissionId];
+                if (data != null) {
+                    commit(types.UPDATE_SUBMISSION, {
+                        assignmentId,
+                        submissionId,
+                        submissionProps: {
+                            feedback: new Feedback(data),
+                        },
+                    });
+                }
+            });
+
+            loaders.feedback[submissionId] = loader;
         }
 
         return loaders.feedback[submissionId];

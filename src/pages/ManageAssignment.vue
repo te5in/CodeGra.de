@@ -256,7 +256,9 @@
 
         <div class="cat-wrapper" :class="{hidden: selectedCat !== 'rubric'}">
             <b-card header="Rubric" v-if="canUseRubrics">
-                <rubric-editor :assignment="assignment"
+                <!-- TODO: Properfix instead of :key hack -->
+                <rubric-editor :key="assignment.id"
+                               :assignment="assignment"
                                :hidden="selectedCat !== 'rubric'"
                                ref="rubricEditor"
                                editable/>
@@ -264,7 +266,9 @@
         </div>
 
         <div class="cat-wrapper" :class="{hidden: selectedCat !== 'auto-test'}">
-            <auto-test :assignment="assignment"
+            <!-- TODO: Properfix instead of :key hack -->
+            <auto-test :key="assignment.id"
+                       :assignment="assignment"
                        :hidden="selectedCat !== 'auto-test'"
                        editable />
         </div>

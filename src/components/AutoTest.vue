@@ -36,7 +36,7 @@
                     Configuration
                 </span>
 
-                <b-button-toolbar v-if="showCreateButton">
+                <b-button-toolbar v-if="autoTestId == null">
                     <div v-b-popover.hover.top="createAutoTestPopover">
                         <submit-button label="Create AutoTest"
                                        :disabled="canCreateAutoTest"
@@ -566,7 +566,6 @@ export default {
             pollingTimer: null,
             isDestroyed: false,
 
-            showCreateButton: !autoTestId,
             configCollapsed: autoTestId && !singleResult,
             setupCollapsed: singleResult,
 
@@ -632,15 +631,7 @@ export default {
         assignmentId: {
             immediate: true,
             handler() {
-                if (this.autoTestId == null) {
-                    this.loading = false;
-                    return;
-                }
-
-                this.loading = true;
-                this.loadAutoTest().then(() => {
-                    this.loading = false;
-                });
+                this.loadAutoTest();
             },
         },
 
@@ -685,8 +676,11 @@ export default {
             storeDeleteAutoTestResults: 'deleteAutoTestResults',
         }),
 
-        ...mapActions('rubrics', {
+        ...mapActions('courses', {
             storeLoadRubric: 'loadRubric',
+        }),
+
+        ...mapActions('rubrics', {
             storeLoadRubricResult: 'loadResult',
         }),
 
@@ -717,8 +711,12 @@ export default {
 
         loadAutoTest() {
             if (this.autoTestId == null) {
+                this.configCollapsed = false;
+                this.loading = false;
                 return Promise.resolve();
             }
+
+            this.loading = true;
 
             return Promise.all([
                 this.storeLoadSubmissions(this.assignmentId),
@@ -752,7 +750,9 @@ export default {
                         }
                     },
                 ),
-            ]);
+            ]).then(() => {
+                this.loading = false;
+            });
         },
 
         loadAutoTestRun() {
@@ -827,9 +827,7 @@ export default {
 
         loadRubric(force = false) {
             return Promise.all([
-                this.storeLoadRubric({
-                    assignmentId: this.assignmentId,
-                }),
+                this.storeLoadRubric(this.assignmentId),
                 this.storeLoadRubricResult({
                     submissionId: this.submissionId,
                     force,
@@ -954,7 +952,6 @@ export default {
 
         async afterCreateAutoTest() {
             await this.$nextTick();
-            this.showCreateButton = false;
             this.configCollapsed = false;
         },
 
@@ -968,7 +965,6 @@ export default {
 
         async afterDeleteAutoTest() {
             await this.$nextTick();
-            this.showCreateButton = true;
             this.configCollapsed = false;
         },
 

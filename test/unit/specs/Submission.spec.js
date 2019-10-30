@@ -392,12 +392,14 @@ describe('Submission.vue', () => {
             expect(mockLoadTree).toBeCalledTimes(1);
             expect(mockLoadFeedback).toBeCalledTimes(1);
 
+            mockLoadTree.mockClear()
+            mockLoadFeedback.mockClear()
             comp.$set(comp.$route.params, 'submissionId', '4');
             await comp.$nextTick();
             await comp.$nextTick();
 
-            expect(mockLoadTree).toBeCalledTimes(2);
-            expect(mockLoadFeedback).toBeCalledTimes(2);
+            expect(mockLoadTree).toBeCalled();
+            expect(mockLoadFeedback).toBeCalled();
         });
     });
 });
