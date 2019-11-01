@@ -249,7 +249,7 @@
         <tr class="step-summary"
             :class="{ 'with-output': canViewOutput }"
             :key="resultsCollapseId"
-            v-b-toggle="resultsCollapseId">
+            v-cg-toggle="resultsCollapseId">
             <td class="expand shrink">
                 <icon v-if="canViewOutput" name="chevron-down" :scale="0.75" />
                 <icon v-else-if="value.hidden" name="eye-slash" :scale="0.85"
@@ -272,14 +272,12 @@
 
         <tr v-if="canViewOutput" class="results-log-collapse-row">
             <td colspan="5">
-                <b-collapse :id="resultsCollapseId" class="container-fluid">
-                    <div class="row mb-3">
-                        <div class="col-12">
-                            You {{ stepResult.state === 'passed' ? 'scored' : 'did not score' }}
-                            enough points.
-                        </div>
+                <collapse :id="resultsCollapseId" class="container-fluid" lazy-load>
+                    <div class="col-12 mb-3" slot-scope="{}">
+                        You {{ stepResult.state === 'passed' ? 'scored' : 'did not score' }}
+                        enough points.
                     </div>
-                </b-collapse>
+                </collapse>
             </td>
         </tr>
     </template>
@@ -288,7 +286,7 @@
         <tr class="step-summary"
             :class="{ 'with-output': canViewOutput }"
             :key="resultsCollapseId"
-            v-b-toggle="resultsCollapseId">
+            v-cg-toggle="resultsCollapseId">
             <td class="expand shrink">
                 <icon v-if="canViewOutput" name="chevron-down" :scale="0.75" />
                 <icon v-else-if="value.hidden" name="eye-slash" :scale="0.85"
@@ -316,8 +314,8 @@
 
         <tr v-if="canViewOutput" class="results-log-collapse-row">
             <td colspan="5">
-                <b-collapse :id="resultsCollapseId">
-                    <b-card no-body>
+                <collapse :id="resultsCollapseId" lazy-load>
+                    <b-card no-body slot-scope="{}">
                         <b-tabs card no-fade>
                             <b-tab title="Output" class="mb-3 flex-wrap">
                                 <p class="col-12 mb-1">
@@ -354,7 +352,7 @@
                             </b-tab>
                         </b-tabs>
                     </b-card>
-                </b-collapse>
+                </collapse>
             </td>
         </tr>
     </template>
@@ -363,7 +361,7 @@
         <tr class="step-summary"
             :class="{ 'with-output': canViewDetails }"
             :key="resultsCollapseId"
-            v-b-toggle="resultsCollapseId">
+            v-cg-toggle="resultsCollapseId">
             <td class="expand shrink">
                 <icon v-if="canViewDetails" name="chevron-down" :scale="0.75" />
                 <icon v-else-if="value.hidden" name="eye-slash" :scale="0.85"
@@ -390,97 +388,99 @@
 
         <tr v-if="canViewDetails" class="results-log-collapse-row">
             <td colspan="5">
-                <b-collapse :id="resultsCollapseId">
-                    <b-card no-body v-if="canViewOutput">
-                        <b-tabs card no-fade>
-                            <b-tab title="Output" class="mb-3 flex-wrap">
-                                <p class="col-6 mb-1" v-if="canViewDetails">
-                                    <label>
-                                        Match output on
+                <collapse :id="resultsCollapseId" lazy-load>
+                    <template slot-scope="{}">
+                        <b-card no-body v-if="canViewOutput">
+                            <b-tabs card no-fade>
+                                <b-tab title="Output" class="mb-3 flex-wrap">
+                                    <p class="col-6 mb-1" v-if="canViewDetails">
+                                        <label>
+                                            Match output on
 
-                                        <description-popover hug-text>
-                                            Search the output of the command for this regex. If it
-                                            is found, the matched number of points is used as the
-                                            score for this step.
-                                        </description-popover>
-                                    </label>
+                                            <description-popover hug-text>
+                                                Search the output of the command for this regex. If it
+                                                is found, the matched number of points is used as the
+                                                score for this step.
+                                            </description-popover>
+                                        </label>
 
-                                    <code>{{ value.data.regex }}</code>
-                                </p>
+                                        <code>{{ value.data.regex }}</code>
+                                    </p>
 
-                                <p class="col-6 mb-1" v-if="canViewDetails">
-                                    <label>Exit code</label>
-                                    <code>{{ $utils.getProps(stepResult.log, '(unknown)', 'exit_code') }}</code>
-                                </p>
+                                    <p class="col-6 mb-1" v-if="canViewDetails">
+                                        <label>Exit code</label>
+                                        <code>{{ $utils.getProps(stepResult.log, '(unknown)', 'exit_code') }}</code>
+                                    </p>
 
-                                <div class="col-12">
-                                    <label>Output</label>
-                                    <inner-code-viewer class="rounded border"
-                                                       :assignment="assignment"
-                                                       :code-lines="stepStdout"
-                                                       :file-id="-1"
-                                                       :feedback="{}"
-                                                       :start-line="0"
-                                                       :show-whitespace="true"
-                                                       :warn-no-newline="false"
-                                                       :empty-file-message="'No output.'" />
-                                </div>
-                            </b-tab>
+                                    <div class="col-12">
+                                        <label>Output</label>
+                                        <inner-code-viewer class="rounded border"
+                                                           :assignment="assignment"
+                                                           :code-lines="stepStdout"
+                                                           :file-id="-1"
+                                                           :feedback="{}"
+                                                           :start-line="0"
+                                                           :show-whitespace="true"
+                                                           :warn-no-newline="false"
+                                                           :empty-file-message="'No output.'" />
+                                    </div>
+                                </b-tab>
 
-                            <b-tab title="Output (tail)" class="mb-3" v-if="shouldShowOutputTail">
-                                <div class="col-12">
-                                    <label>
-                                        End of output
+                                <b-tab title="Output (tail)" class="mb-3" v-if="shouldShowOutputTail">
+                                    <div class="col-12">
+                                        <label>
+                                            End of output
 
-                                        <description-popover hug-text>
-                                            This is the part of the output that is searched for the
-                                            achieved score.
-                                        </description-popover>
-                                    </label>
-                                    <inner-code-viewer class="rounded border"
-                                                       :assignment="assignment"
-                                                       :code-lines="stepStdoutEnd"
-                                                       :file-id="-1"
-                                                       :feedback="{}"
-                                                       :start-line="0"
-                                                       :show-whitespace="true"
-                                                       :warn-no-newline="false"
-                                                       :empty-file-message="'No output.'" />
-                                </div>
-                            </b-tab>
+                                            <description-popover hug-text>
+                                                This is the part of the output that is searched for the
+                                                achieved score.
+                                            </description-popover>
+                                        </label>
+                                        <inner-code-viewer class="rounded border"
+                                                           :assignment="assignment"
+                                                           :code-lines="stepStdoutEnd"
+                                                           :file-id="-1"
+                                                           :feedback="{}"
+                                                           :start-line="0"
+                                                           :show-whitespace="true"
+                                                           :warn-no-newline="false"
+                                                           :empty-file-message="'No output.'" />
+                                    </div>
+                                </b-tab>
 
-                            <b-tab title="Errors" class="mb-3" v-if="$utils.getProps(stepResult, null, 'log', 'stderr')">
-                                <div class="col-12">
-                                    <inner-code-viewer class="rounded border"
-                                                       :assignment="assignment"
-                                                       :code-lines="stepStderr"
-                                                       :file-id="-1"
-                                                       :feedback="{}"
-                                                       :start-line="0"
-                                                       :show-whitespace="true"
-                                                       :warn-no-newline="false"
-                                                       :empty-file-message="'No output.'" />
-                                </div>
-                            </b-tab>
-                        </b-tabs>
-                    </b-card>
+                                <b-tab title="Errors" class="mb-3" v-if="$utils.getProps(stepResult, null, 'log', 'stderr')">
+                                    <div class="col-12">
+                                        <inner-code-viewer class="rounded border"
+                                                           :assignment="assignment"
+                                                           :code-lines="stepStderr"
+                                                           :file-id="-1"
+                                                           :feedback="{}"
+                                                           :start-line="0"
+                                                           :show-whitespace="true"
+                                                           :warn-no-newline="false"
+                                                           :empty-file-message="'No output.'" />
+                                    </div>
+                                </b-tab>
+                            </b-tabs>
+                        </b-card>
 
-                    <template v-else>
-                        <p class="col-12 mb-3" v-if="canViewDetails">
-                            <label>
-                                Match output on
+                        <template v-else>
+                            <p class="col-12 mb-3" v-if="canViewDetails">
+                                <label>
+                                    Match output on
 
-                                <description-popover hug-text>
-                                    Search the output of the command for this regex. If it
-                                    is found, the matched number of points is used as the
-                                    score for this step.
-                                </description-popover>
-                            </label>
+                                    <description-popover hug-text>
+                                        Search the output of the command for this regex. If it
+                                        is found, the matched number of points is used as the
+                                        score for this step.
+                                    </description-popover>
+                                </label>
 
-                            <code>{{ value.data.regex }}</code>
-                        </p>
+                                <code>{{ value.data.regex }}</code>
+                            </p>
+                        </template>
                     </template>
-                </b-collapse>
+                </collapse>
             </td>
         </tr>
     </template>
@@ -515,7 +515,7 @@
             <tr class="step-summary"
                 :class="{ 'with-output': canViewDetails }"
                 :key="`${resultsCollapseId}-${i}`"
-                v-b-toggle="`${resultsCollapseId}-${i}`">
+                v-cg-toggle="`${resultsCollapseId}-${i}`">
                 <td class="expand shrink">
                     <icon v-if="canViewDetails" name="chevron-down" :scale="0.75" />
                 </td>
@@ -544,250 +544,252 @@
 
             <tr v-if="canViewDetails" class="results-log-collapse-row">
                 <td colspan="5">
-                    <b-collapse :id="`${resultsCollapseId}-${i}`">
-                        <b-card no-body v-if="canViewSubStepOutput(i)">
-                            <b-tabs v-model="activeIoTab[i]" card no-fade>
-                                <b-tab title="Output" class="mb-3 flex-wrap">
-                                    <p v-if="ioSubStepProps(i, '', 'exit_code')" class="col-12 mb-1">
-                                        <label>Exit code</label>
-                                        <code>{{ ioSubStepProps(i, '', 'exit_code') }}</code>
-                                    </p>
+                    <collapse :id="`${resultsCollapseId}-${i}`" lazy-load>
+                        <template slot-scope="{}">
+                            <b-card no-body v-if="canViewSubStepOutput(i)">
+                                <b-tabs v-model="activeIoTab[i]" card no-fade>
+                                    <b-tab title="Output" class="mb-3 flex-wrap">
+                                        <p v-if="ioSubStepProps(i, '', 'exit_code')" class="col-12 mb-1">
+                                            <label>Exit code</label>
+                                            <code>{{ ioSubStepProps(i, '', 'exit_code') }}</code>
+                                        </p>
 
-                                    <div class="col-6">
-                                        <label>
-                                            Expected output
+                                        <div class="col-6">
+                                            <label>
+                                                Expected output
 
-                                            <description-popover hug-text>
-                                                Expected output. This is interpreted as a regular
-                                                expression when the <code>regex</code> option below is set.
-                                            </description-popover>
-                                        </label>
-
-                                        <inner-code-viewer class="rounded border"
-                                                           :assignment="assignment"
-                                                           :code-lines="prepareOutput(input.output)"
-                                                           :file-id="-1"
-                                                           :feedback="{}"
-                                                           :start-line="0"
-                                                           :warn-no-newline="false"
-                                                           :show-whitespace="true"
-                                                           :empty-file-message="'No output.'" />
-                                    </div>
-
-                                    <div class="col-6">
-                                        <label>
-                                            Actual output
-                                        </label>
-
-                                        <inner-code-viewer class="rounded border"
-                                                           :assignment="assignment"
-                                                           :code-lines="prepareOutput(ioSubStepProps(i, '', 'stdout'))"
-                                                           :file-id="-1"
-                                                           :feedback="{}"
-                                                           :start-line="0"
-                                                           :warn-no-newline="false"
-                                                           :show-whitespace="true"
-                                                           :empty-file-message="'No output.'" />
-                                    </div>
-                                </b-tab>
-
-                                <b-tab title="Difference"
-                                       v-if="input.options.find(o => o == 'regex') == null && ioSubStepProps(i, false, 'state') === 'failed'">
-                                    <div class="col-12 diff">
-                                        <div class="legenda mb-2">
-                                            <span>
-                                                <span class="ignored legenda-item"/>
-                                                Ignored output
-                                                (<toggle :value="hideIgnoredPartOfDiff[i] || false"
-                                                        inline
-                                                        @input="$set(hideIgnoredPartOfDiff, i, $event);"
-                                                        :value-on="false"
-                                                        :value-off="true"
-                                                        label-off="Hide"
-                                                        label-on="Show"/>)
                                                 <description-popover hug-text>
-                                                    Output that differs from the
-                                                    expected output, but which is
-                                                    ignored. I.e. you don't need to
-                                                    fix this to pass this test.
+                                                    Expected output. This is interpreted as a regular
+                                                    expression when the <code>regex</code> option below is set.
                                                 </description-popover>
-                                            </span>
-                                            <span>
-                                                <span class="added legenda-item"/>Missing output
-                                                <description-popover hug-text>
-                                                    Output that is present in the
-                                                    expected output, but not in your
-                                                    output. I.e. missing output.
-                                                </description-popover>
-                                            </span>
-                                            <span>
-                                                <span class="removed legenda-item"/>
-                                                Superfluous output
-                                                <description-popover hug-text>
-                                                Output that is present in your
-                                                output, but not in the expected
-                                                output. I.e. output that shouldn't
-                                                be there.
-                                                </description-popover>
-                                            </span>
-                                            <span>
-                                                <code class="legenda-item">¶</code>
-                                                A newline
-                                            </span>
+                                            </label>
+
+                                            <inner-code-viewer class="rounded border"
+                                                               :assignment="assignment"
+                                                               :code-lines="prepareOutput(input.output)"
+                                                               :file-id="-1"
+                                                               :feedback="{}"
+                                                               :start-line="0"
+                                                               :warn-no-newline="false"
+                                                               :show-whitespace="true"
+                                                               :empty-file-message="'No output.'" />
                                         </div>
-                                        <ul class="diff-list rounded border show-whitespace"
-                                            v-if="activeIoTab[i] === 1"
-                                            :style="{ fontSize: `${fontSize}px` }">
-                                            <li v-for="line in getDiff(input.output, ioSubStepProps(i, '', 'stdout'), input.options, !hideIgnoredPartOfDiff[i])">
-                                                <code v-html="line"/>
-                                            </li>
-                                        </ul>
-                                    </div>
-                                </b-tab>
 
-                                <b-tab title="Input" class="mb-3">
-                                    <div class="col-6">
-                                        <label>
-                                            Command line
+                                        <div class="col-6">
+                                            <label>
+                                                Actual output
+                                            </label>
 
-                                            <description-popover hug-text>
-                                                A bash command line to be executed.
-                                            </description-popover>
-                                        </label>
+                                            <inner-code-viewer class="rounded border"
+                                                               :assignment="assignment"
+                                                               :code-lines="prepareOutput(ioSubStepProps(i, '', 'stdout'))"
+                                                               :file-id="-1"
+                                                               :feedback="{}"
+                                                               :start-line="0"
+                                                               :warn-no-newline="false"
+                                                               :show-whitespace="true"
+                                                               :empty-file-message="'No output.'" />
+                                        </div>
+                                    </b-tab>
 
-                                        <inner-code-viewer class="rounded border"
-                                                           :assignment="assignment"
-                                                           :code-lines="prepareOutput(`${value.data.program} ${input.args}`)"
-                                                           :file-id="-1"
-                                                           :feedback="{}"
-                                                           :start-line="0"
-                                                           :warn-no-newline="false"
-                                                           :show-whitespace="true"
-                                                           :no-line-numbers="true"
-                                                           :empty-file-message="'No arguments.'" />
-                                    </div>
+                                    <b-tab title="Difference"
+                                           v-if="input.options.find(o => o == 'regex') == null && ioSubStepProps(i, false, 'state') === 'failed'">
+                                        <div class="col-12 diff">
+                                            <div class="legenda mb-2">
+                                                <span>
+                                                    <span class="ignored legenda-item"/>
+                                                    Ignored output
+                                                    (<toggle :value="hideIgnoredPartOfDiff[i] || false"
+                                                             inline
+                                                             @input="$set(hideIgnoredPartOfDiff, i, $event);"
+                                                             :value-on="false"
+                                                             :value-off="true"
+                                                             label-off="Hide"
+                                                             label-on="Show"/>)
+                                                    <description-popover hug-text>
+                                                        Output that differs from the
+                                                        expected output, but which is
+                                                        ignored. I.e. you don't need to
+                                                        fix this to pass this test.
+                                                    </description-popover>
+                                                </span>
+                                                <span>
+                                                    <span class="added legenda-item"/>Missing output
+                                                    <description-popover hug-text>
+                                                        Output that is present in the
+                                                        expected output, but not in your
+                                                        output. I.e. missing output.
+                                                    </description-popover>
+                                                </span>
+                                                <span>
+                                                    <span class="removed legenda-item"/>
+                                                    Superfluous output
+                                                    <description-popover hug-text>
+                                                    Output that is present in your
+                                                    output, but not in the expected
+                                                    output. I.e. output that shouldn't
+                                                    be there.
+                                                    </description-popover>
+                                                </span>
+                                                <span>
+                                                    <code class="legenda-item">¶</code>
+                                                    A newline
+                                                </span>
+                                            </div>
+                                            <ul class="diff-list rounded border show-whitespace"
+                                                v-if="activeIoTab[i] === 1"
+                                                :style="{ fontSize: `${fontSize}px` }">
+                                                <li v-for="line in getDiff(input.output, ioSubStepProps(i, '', 'stdout'), input.options, !hideIgnoredPartOfDiff[i])">
+                                                    <code v-html="line"/>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </b-tab>
 
-                                    <div class="col-6">
-                                        <label>
-                                            Input
+                                    <b-tab title="Input" class="mb-3">
+                                        <div class="col-6">
+                                            <label>
+                                                Command line
 
-                                            <description-popover hug-text>
-                                                Input passed to the executed program via
-                                                <code>stdin</code>.
-                                            </description-popover>
-                                        </label>
+                                                <description-popover hug-text>
+                                                    A bash command line to be executed.
+                                                </description-popover>
+                                            </label>
 
-                                        <inner-code-viewer class="rounded border"
-                                                           :assignment="assignment"
-                                                           :code-lines="prepareOutput(input.stdin)"
-                                                           :file-id="-1"
-                                                           :feedback="{}"
-                                                           :start-line="0"
-                                                           :warn-no-newline="false"
-                                                           :show-whitespace="true"
-                                                           :empty-file-message="'No input.'" />
-                                    </div>
-                                </b-tab>
+                                            <inner-code-viewer class="rounded border"
+                                                               :assignment="assignment"
+                                                               :code-lines="prepareOutput(`${value.data.program} ${input.args}`)"
+                                                               :file-id="-1"
+                                                               :feedback="{}"
+                                                               :start-line="0"
+                                                               :warn-no-newline="false"
+                                                               :show-whitespace="true"
+                                                               :no-line-numbers="true"
+                                                               :empty-file-message="'No arguments.'" />
+                                        </div>
 
-                                <b-tab title="Errors" class="mb-3" v-if="ioSubStepProps(i, '', 'stderr')">
-                                    <div class="col-12">
-                                        <inner-code-viewer class="rounded border"
-                                                           :assignment="assignment"
-                                                           :code-lines="prepareOutput(ioSubStepProps(i, '', 'stderr'))"
-                                                           :file-id="-1"
-                                                           :feedback="{}"
-                                                           :start-line="0"
-                                                           :show-whitespace="true"
-                                                           :warn-no-newline="true"
-                                                           :empty-file-message="'No output.'" />
-                                    </div>
-                                </b-tab>
-                            </b-tabs>
-                        </b-card>
+                                        <div class="col-6">
+                                            <label>
+                                                Input
 
-                        <template v-else>
-                            <div class="col-12 mb-3">
-                                <label>
-                                    Command line
+                                                <description-popover hug-text>
+                                                    Input passed to the executed program via
+                                                    <code>stdin</code>.
+                                                </description-popover>
+                                            </label>
 
-                                    <description-popover hug-text>
-                                        A bash command line to be executed.
-                                    </description-popover>
-                                </label>
+                                            <inner-code-viewer class="rounded border"
+                                                               :assignment="assignment"
+                                                               :code-lines="prepareOutput(input.stdin)"
+                                                               :file-id="-1"
+                                                               :feedback="{}"
+                                                               :start-line="0"
+                                                               :warn-no-newline="false"
+                                                               :show-whitespace="true"
+                                                               :empty-file-message="'No input.'" />
+                                        </div>
+                                    </b-tab>
 
-                                <inner-code-viewer class="rounded border"
-                                                   :assignment="assignment"
-                                                   :code-lines="prepareOutput(`${value.data.program} ${input.args}`)"
-                                                   :file-id="-1"
-                                                   :feedback="{}"
-                                                   :start-line="0"
-                                                   :warn-no-newline="false"
-                                                   :show-whitespace="true"
-                                                   :no-line-numbers="true"
-                                                   :empty-file-message="'No arguments.'" />
-                            </div>
+                                    <b-tab title="Errors" class="mb-3" v-if="ioSubStepProps(i, '', 'stderr')">
+                                        <div class="col-12">
+                                            <inner-code-viewer class="rounded border"
+                                                               :assignment="assignment"
+                                                               :code-lines="prepareOutput(ioSubStepProps(i, '', 'stderr'))"
+                                                               :file-id="-1"
+                                                               :feedback="{}"
+                                                               :start-line="0"
+                                                               :show-whitespace="true"
+                                                               :warn-no-newline="true"
+                                                               :empty-file-message="'No output.'" />
+                                        </div>
+                                    </b-tab>
+                                </b-tabs>
+                            </b-card>
 
-                            <div class="col-12 mb-3">
-                                <label>
-                                    Input
+                            <template v-else>
+                                <div class="col-12 mb-3">
+                                    <label>
+                                        Command line
 
-                                    <description-popover hug-text>
-                                        Input passed to the executed program via
-                                        <code>stdin</code>.
-                                    </description-popover>
-                                </label>
+                                        <description-popover hug-text>
+                                            A bash command line to be executed.
+                                        </description-popover>
+                                    </label>
 
-                                <inner-code-viewer class="rounded border"
-                                                   :assignment="assignment"
-                                                   :code-lines="prepareOutput(input.stdin)"
-                                                   :file-id="-1"
-                                                   :feedback="{}"
-                                                   :start-line="0"
-                                                   :warn-no-newline="false"
-                                                   :show-whitespace="true"
-                                                   :empty-file-message="'No input.'" />
-                            </div>
-
-                            <div class="col-12 mb-3">
-                                <label>
-                                    Expected output
-
-                                    <description-popover hug-text>
-                                        Expected output. This is interpreted as a regular
-                                        expression when the <code>regex</code> option below is set.
-                                    </description-popover>
-                                </label>
-
-                                <inner-code-viewer class="rounded border"
-                                                   :assignment="assignment"
-                                                   :code-lines="prepareOutput(input.output)"
-                                                   :file-id="-1"
-                                                   :feedback="{}"
-                                                   :start-line="0"
-                                                   :warn-no-newline="false"
-                                                   :show-whitespace="true"
-                                                   :empty-file-message="'No output.'" />
-                            </div>
-                        </template>
-
-                        <b-input-group class="mr-1 px-3 pb-3" prepend="Options">
-                            <b-form-checkbox-group class="form-control"
-                                                   :checked="input.options">
-                                <div v-for="opt in ioOptions" :key="opt.value">
-                                    <b-form-checkbox :value="opt.value"
-                                                     class="readably-disabled"
-                                                     disabled
-                                                     @click.native.capture.prevent.stop>
-                                        {{ opt.text }}
-                                    </b-form-checkbox>
-
-                                    <description-popover hug-text>
-                                        {{ opt.description }}
-                                    </description-popover>
+                                    <inner-code-viewer class="rounded border"
+                                                       :assignment="assignment"
+                                                       :code-lines="prepareOutput(`${value.data.program} ${input.args}`)"
+                                                       :file-id="-1"
+                                                       :feedback="{}"
+                                                       :start-line="0"
+                                                       :warn-no-newline="false"
+                                                       :show-whitespace="true"
+                                                       :no-line-numbers="true"
+                                                       :empty-file-message="'No arguments.'" />
                                 </div>
-                            </b-form-checkbox-group>
-                        </b-input-group>
-                    </b-collapse>
+
+                                <div class="col-12 mb-3">
+                                    <label>
+                                        Input
+
+                                        <description-popover hug-text>
+                                            Input passed to the executed program via
+                                            <code>stdin</code>.
+                                        </description-popover>
+                                    </label>
+
+                                    <inner-code-viewer class="rounded border"
+                                                       :assignment="assignment"
+                                                       :code-lines="prepareOutput(input.stdin)"
+                                                       :file-id="-1"
+                                                       :feedback="{}"
+                                                       :start-line="0"
+                                                       :warn-no-newline="false"
+                                                       :show-whitespace="true"
+                                                       :empty-file-message="'No input.'" />
+                                </div>
+
+                                <div class="col-12 mb-3">
+                                    <label>
+                                        Expected output
+
+                                        <description-popover hug-text>
+                                            Expected output. This is interpreted as a regular
+                                            expression when the <code>regex</code> option below is set.
+                                        </description-popover>
+                                    </label>
+
+                                    <inner-code-viewer class="rounded border"
+                                                       :assignment="assignment"
+                                                       :code-lines="prepareOutput(input.output)"
+                                                       :file-id="-1"
+                                                       :feedback="{}"
+                                                       :start-line="0"
+                                                       :warn-no-newline="false"
+                                                       :show-whitespace="true"
+                                                       :empty-file-message="'No output.'" />
+                                </div>
+                            </template>
+
+                            <b-input-group class="mr-1 px-3 pb-3" prepend="Options">
+                                <b-form-checkbox-group class="form-control"
+                                                       :checked="input.options">
+                                    <div v-for="opt in ioOptions" :key="opt.value">
+                                        <b-form-checkbox :value="opt.value"
+                                                         class="readably-disabled"
+                                                         disabled
+                                                         @click.native.capture.prevent.stop>
+                                            {{ opt.text }}
+                                        </b-form-checkbox>
+
+                                        <description-popover hug-text>
+                                            {{ opt.description }}
+                                        </description-popover>
+                                    </div>
+                                </b-form-checkbox-group>
+                            </b-input-group>
+                        </template>
+                    </collapse>
                 </td>
             </tr>
         </template>

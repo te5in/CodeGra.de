@@ -59,7 +59,7 @@
                                         <span>{{ assig.name }}</span><br>
 
                                         <small v-if="assig.deadline">
-                                            Due {{ moment(assig.deadline).from(now) }}
+                                            Due {{ moment(assig.deadline).from($root.$now) }}
                                         </small>
                                         <small v-else class="text-muted font-italic">
                                             No deadline
@@ -136,8 +136,6 @@ export default {
             loadingCourses: true,
             UserConfig,
             moment,
-            now: moment(),
-            nowInterval: null,
             searchString: '',
         };
     },
@@ -168,7 +166,7 @@ export default {
         showReleaseNote() {
             return (
                 UserConfig.release.message &&
-                this.now.diff(moment(UserConfig.release.date), 'days') < 7
+                this.$root.$now.diff(moment(UserConfig.release.date), 'days') < 7
             );
         },
     },
@@ -180,16 +178,6 @@ export default {
                 this.$refs.searchInput.focus();
             });
         });
-
-        this.nowInterval = setInterval(() => {
-            this.now = moment();
-        }, 60000);
-    },
-
-    destroyed() {
-        if (this.nowInterval) {
-            clearInterval(this.nowInterval);
-        }
     },
 
     methods: {

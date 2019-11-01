@@ -83,354 +83,357 @@
                 </b-button-toolbar>
             </b-card-header>
 
-            <b-card-body v-if="test == null"
-                         class="text-muted font-italic">
-                This assignment does not have an AutoTest configuration.
-            </b-card-body>
-            <b-card-body v-else class="p-3">
-                <b-alert v-if="singleResult && (result.isFinal === false || !$utils.canSeeGrade(assignment))"
-                         variant="warning"
-                         dismissible
-                         show>
-                    This is a preliminary result. Hidden steps have not been run yet
-                    and the AutoTest configuration may change. Therefore, the final
-                    result may differ.
-                </b-alert>
+            <template slot-scope="{}">
+                <b-card-body v-if="test == null"
+                             class="text-muted font-italic">
+                    This assignment does not have an AutoTest configuration.
+                </b-card-body>
+                <b-card-body v-else class="p-3">
+                    <b-alert v-if="singleResult && (result.isFinal === false || !$utils.canSeeGrade(assignment))"
+                             variant="warning"
+                             dismissible
+                             show>
+                        This is a preliminary result. Hidden steps have not been run yet
+                        and the AutoTest configuration may change. Therefore, the final
+                        result may differ.
+                    </b-alert>
 
-                <b-card no-body class="setup-env-wrapper mb-3">
-                    <collapse v-model="setupCollapsed" :disabled="!singleResult">
-                        <b-card-header slot="handle"
-                                       class="d-flex justify-content-between align-items-center"
-                                       :class="{ 'py-1': singleResult }">
-                            <span class="toggle">
-                                <icon v-if="singleResult" name="chevron-down" :scale="0.75" />
-                                Setup
-                            </span>
+                    <b-card no-body class="setup-env-wrapper mb-3">
+                        <collapse v-model="setupCollapsed" :disabled="!singleResult"
+                                  lazy-load>
+                            <b-card-header slot="handle"
+                                           class="d-flex justify-content-between align-items-center"
+                                           :class="{ 'py-1': singleResult }">
+                                <span class="toggle">
+                                    <icon v-if="singleResult" name="chevron-down" :scale="0.75" />
+                                    Setup
+                                </span>
 
-                            <auto-test-state v-if="singleResult"
-                                             :result="result"
-                                             btn>
-                                <template
-                                    slot="extra"
-                                    v-if="$utils.getProps(result, null, 'approxWaitingBefore') != null"
-                                    >, ~{{ $utils.withOrdinalSuffix(result.approxWaitingBefore + 1) }}
-                                    in the queue
-                                </template>
-                            </auto-test-state>
-                        </b-card-header>
+                                <auto-test-state v-if="singleResult"
+                                                 :result="result"
+                                                 btn>
+                                    <template
+                                        slot="extra"
+                                        v-if="$utils.getProps(result, null, 'approxWaitingBefore') != null"
+                                        >, ~{{ $utils.withOrdinalSuffix(result.approxWaitingBefore + 1) }}
+                                        in the queue
+                                    </template>
+                                </auto-test-state>
+                            </b-card-header>
 
-                        <b-card-body>
-                            <b-form-fieldset>
-                                <label :for="alwaysVisibleId">
-                                    Make results visible to students
+                            <b-card-body slot-scope="{}">
+                                <b-form-fieldset>
+                                    <label :for="alwaysVisibleId">
+                                        Make results visible to students
 
-                                    <description-popover hug-text>
-                                        This determines when AutoTest feedback becomes available to
-                                        students. Either directly after the AutoTest is done running,
-                                        or when other feedback becomes available as well.
-                                    </description-popover>
-                                </label>
+                                        <description-popover hug-text>
+                                            This determines when AutoTest feedback becomes available to
+                                            students. Either directly after the AutoTest is done running,
+                                            or when other feedback becomes available as well.
+                                        </description-popover>
+                                    </label>
 
-                                <b-input-group>
-                                    <b-radio-group stacked
-                                                   class="p-0 form-control"
-                                                   :class="{
-                                                       'rounded-left': configEditable,
-                                                       'readably-disabled': !configEditable,
-                                                   }"
-                                                   v-model="internalTest.results_always_visible"
-                                                   :disabled="!configEditable"
-                                                   :options="alwaysVisibleOptions" />
+                                    <b-input-group>
+                                        <b-radio-group stacked
+                                                       class="p-0 form-control"
+                                                       :class="{
+                                                               'rounded-left': configEditable,
+                                                               'readably-disabled': !configEditable,
+                                                               }"
+                                                       v-model="internalTest.results_always_visible"
+                                                       :disabled="!configEditable"
+                                                       :options="alwaysVisibleOptions" />
 
-                                    <submit-button v-if="configEditable"
-                                                   class="rounded-right"
-                                                   :disabled="internalTest.results_always_visible == null"
-                                                   :submit="() => submitProp('results_always_visible')" />
-                                </b-input-group>
-                            </b-form-fieldset>
+                                        <submit-button v-if="configEditable"
+                                                       class="rounded-right"
+                                                       :disabled="internalTest.results_always_visible == null"
+                                                       :submit="() => submitProp('results_always_visible')" />
+                                    </b-input-group>
+                                </b-form-fieldset>
 
-                            <b-form-fieldset>
-                                <label :for="gradeCalculationId">
-                                    Rubric calculation
+                                <b-form-fieldset>
+                                    <label :for="gradeCalculationId">
+                                        Rubric calculation
 
-                                    <description-popover hug-text>
-                                        Determines how each category in a
-                                        rubric should be filled in by AutoTest.
-                                        If this is <b>minimum</b>, a rubric
-                                        category's item will be chosen when the
-                                        lower bound of this item is reached
-                                        (e.g.  when a category has 4 items and
-                                        75% of the tests succeed, the maximum
-                                        item is filled in). If this is
-                                        <b>maximum</b>, a category's item will
-                                        be chosen when the upper bound of this
-                                        item is reached.
-                                    </description-popover>
-                                </label>
-                                <br>
+                                        <description-popover hug-text>
+                                            Determines how each category in a
+                                            rubric should be filled in by AutoTest.
+                                            If this is <b>minimum</b>, a rubric
+                                            category's item will be chosen when the
+                                            lower bound of this item is reached
+                                            (e.g.  when a category has 4 items and
+                                            75% of the tests succeed, the maximum
+                                            item is filled in). If this is
+                                            <b>maximum</b>, a category's item will
+                                            be chosen when the upper bound of this
+                                            item is reached.
+                                        </description-popover>
+                                    </label>
+                                    <br>
 
-                                <b-input-group>
-                                    <b-radio-group stacked
-                                                   class="p-0 form-control"
-                                                   :class="{
-                                                       'rounded-left': configEditable,
-                                                       'readably-disabled': !configEditable,
-                                                   }"
-                                                   v-model="internalTest.grade_calculation"
-                                                   :disabled="!configEditable"
-                                                   :options="gradeCalculationOptions" />
+                                    <b-input-group>
+                                        <b-radio-group stacked
+                                                       class="p-0 form-control"
+                                                       :class="{
+                                                           'rounded-left': configEditable,
+                                                           'readably-disabled': !configEditable,
+                                                       }"
+                                                       v-model="internalTest.grade_calculation"
+                                                       :disabled="!configEditable"
+                                                       :options="gradeCalculationOptions" />
 
-                                    <submit-button v-if="configEditable"
-                                                   class="rounded-right"
-                                                   :disabled="internalTest.grade_calculation == null"
-                                                   :submit="() => submitProp('grade_calculation')" />
-                                </b-input-group>
-                            </b-form-fieldset>
+                                        <submit-button v-if="configEditable"
+                                                       class="rounded-right"
+                                                       :disabled="internalTest.grade_calculation == null"
+                                                       :submit="() => submitProp('grade_calculation')" />
+                                    </b-input-group>
+                                </b-form-fieldset>
 
-                            <p v-if="!configEditable && !hasEnvironmentSetup"
-                               class="mb-0 text-muted font-italic">
-                                Uploaded fixtures or setup scripts and their output would normally
-                                be shown here. However, none were uploaded, so there is nothing to
-                                show.
-                            </p>
+                                <p v-if="!configEditable && !hasEnvironmentSetup"
+                                   class="mb-0 text-muted font-italic">
+                                    Uploaded fixtures or setup scripts and their output would normally
+                                    be shown here. However, none were uploaded, so there is nothing to
+                                    show.
+                                </p>
 
-                            <!-- Use v-show instead of v-if to make the transition-group work. -->
-                            <b-form-fieldset v-show="canViewFixtures">
-                                <label>
-                                    Uploaded fixtures
-                                </label>
+                                <!-- Use v-show instead of v-if to make the transition-group work. -->
+                                <b-form-fieldset v-show="canViewFixtures">
+                                    <label>
+                                        Uploaded fixtures
+                                    </label>
 
-                                <transition-group name="fixture-list" tag="ul" class="fixture-list form-control p-0 mb-0">
-                                    <li v-for="fixture, index in test.fixtures"
-                                        class="border-bottom"
-                                        :key="fixture.id">
-                                        <div class="px-3 py-1 d-flex align-items-center justify-content-between">
-                                            <a v-if="canViewFixture(fixture)"
-                                                class="flex-grow-1"
-                                                href="#"
-                                                @click.capture.prevent.stop="openFixture(fixture)">
-                                                {{ fixture.name }}
-                                            </a>
-                                            <span v-else>
-                                                {{ fixture.name }}
-                                            </span>
+                                    <transition-group name="fixture-list" tag="ul" class="fixture-list form-control p-0 mb-0">
+                                        <li v-for="fixture, index in test.fixtures"
+                                            class="border-bottom"
+                                            :key="fixture.id">
+                                            <div class="px-3 py-1 d-flex align-items-center justify-content-between">
+                                                <a v-if="canViewFixture(fixture)"
+                                                   class="flex-grow-1"
+                                                   href="#"
+                                                   @click.capture.prevent.stop="openFixture(fixture)">
+                                                    {{ fixture.name }}
+                                                </a>
+                                                <span v-else>
+                                                    {{ fixture.name }}
+                                                </span>
 
-                                            <template v-if="configEditable">
-                                                <b-button-group>
-                                                    <submit-button
-                                                        :variant="fixture.hidden ? 'primary' : 'secondary'"
-                                                        :submit="() => toggleHidden(index)"
-                                                        size="sm">
-                                                        <icon :name="fixture.hidden ? 'eye-slash' : 'eye'" />
-                                                    </submit-button>
-                                                    <submit-button
-                                                        variant="danger"
-                                                        confirm="Are you sure you want to delete this fixture?"
-                                                        size="sm"
-                                                        :submit="() => removeFixture(index)">
-                                                        <icon name="times"/>
-                                                    </submit-button>
-                                                </b-button-group>
+                                                <template v-if="configEditable">
+                                                    <b-button-group>
+                                                        <submit-button
+                                                            :variant="fixture.hidden ? 'primary' : 'secondary'"
+                                                            :submit="() => toggleHidden(index)"
+                                                            size="sm">
+                                                            <icon :name="fixture.hidden ? 'eye-slash' : 'eye'" />
+                                                        </submit-button>
+                                                        <submit-button
+                                                            variant="danger"
+                                                            confirm="Are you sure you want to delete this fixture?"
+                                                            size="sm"
+                                                            :submit="() => removeFixture(index)">
+                                                            <icon name="times"/>
+                                                        </submit-button>
+                                                    </b-button-group>
+                                                </template>
+
+                                                <icon v-else-if="fixture.hidden"
+                                                      name="eye-slash"
+                                                      v-b-popover.window.top.hover="`This fixture is hidden. ${
+                                                            singleResult && !canViewFixture(fixture) ? 'You' : 'Students'
+                                                        } may not view its contents.`"/>
+                                            </div>
+                                        </li>
+                                    </transition-group>
+                                </b-form-fieldset>
+
+                                <b-form-fieldset v-if="configEditable">
+                                    <label :for="fixtureUploadId">
+                                        Upload fixtures
+
+                                        <description-popover hug-text>
+                                            <template slot="description">
+                                                Upload all files you want to be available on the
+                                                AutoTest Virtual Machine. Archives will not be extracted
+                                                automatically. Make sure to upload your setup script
+                                                here as well. These files will be put in the
+                                                <code>$FIXTURES</code> directory.
                                             </template>
+                                        </description-popover>
+                                    </label>
 
-                                            <icon v-else-if="fixture.hidden"
-                                                    name="eye-slash"
-                                                    v-b-popover.window.top.hover="`This fixture is hidden. ${
-                                                        singleResult && !canViewFixture(fixture) ? 'You' : 'Students'
-                                                    } may not view its contents.`"/>
-                                        </div>
-                                    </li>
-                                </transition-group>
-                            </b-form-fieldset>
+                                    <multiple-files-uploader
+                                        v-model="newFixtures"
+                                        :id="fixtureUploadId">
+                                        Click here or drop file(s) add fixtures and test files.
+                                    </multiple-files-uploader>
 
-                            <b-form-fieldset v-if="configEditable">
-                                <label :for="fixtureUploadId">
-                                    Upload fixtures
-
-                                    <description-popover hug-text>
-                                        <template slot="description">
-                                            Upload all files you want to be available on the
-                                            AutoTest Virtual Machine. Archives will not be extracted
-                                            automatically. Make sure to upload your setup script
-                                            here as well. These files will be put in the
-                                            <code>$FIXTURES</code> directory.
-                                        </template>
-                                    </description-popover>
-                                </label>
-
-                                <multiple-files-uploader
-                                    v-model="newFixtures"
-                                    :id="fixtureUploadId">
-                                    Click here or drop file(s) add fixtures and test files.
-                                </multiple-files-uploader>
-
-                                <b-input-group class="upload-fixtures-wrapper justify-content-end border rounded-bottom">
-                                    <submit-button
-                                        :disabled="newFixtures.length === 0"
-                                        @after-success="afterAddFixtures"
-                                        class="rounded-0"
-                                        :submit="addFixtures" />
-                                </b-input-group>
-                            </b-form-fieldset>
-
-                            <b-form-fieldset v-if="configEditable || test.run_setup_script">
-                                <label :for="globalPreStartScriptId">
-                                    Global setup script to run
-
-                                    <description-popover hug-text>
-                                        <template slot="description">
-                                            Input a bash command to run your global setup script.
-                                            This script will be run at the beginning of the AutoTest
-                                            run. Put all your global setup in this script, such as
-                                            installing packages and compiling fixtures. Don't put
-                                            any student-specific setup in this script. The command
-                                            will be executed in the <code>$FIXTURES</code> directory.
-                                        </template>
-                                    </description-popover>
-                                </label>
-
-                                <template v-if="configEditable">
-                                    <b-input-group>
-                                        <input class="form-control"
-                                                @keydown.ctrl.enter="$refs.runSetupScriptBtn.onClick"
-                                                :id="globalPreStartScriptId"
-                                                v-model="internalTest.run_setup_script"/>
-
-                                        <b-input-group-append>
-                                            <submit-button
-                                                :submit="() => submitProp('run_setup_script')"
-                                                ref="runSetupScriptBtn"/>
-                                        </b-input-group-append>
+                                    <b-input-group class="upload-fixtures-wrapper justify-content-end border rounded-bottom">
+                                        <submit-button
+                                            :disabled="newFixtures.length === 0"
+                                            @after-success="afterAddFixtures"
+                                            class="rounded-0"
+                                            :submit="addFixtures" />
                                     </b-input-group>
-                                </template>
+                                </b-form-fieldset>
 
-                                <div v-else>
-                                    <code class="d-block mb-2">{{ test.run_setup_script }}</code>
+                                <b-form-fieldset v-if="configEditable || test.run_setup_script">
+                                    <label :for="globalPreStartScriptId">
+                                        Global setup script to run
 
-                                    <template v-if="result && (currentRun.setupStdout != null || currentRun.setupStderr != null)">
-                                        <b-tabs no-fade>
-                                            <b-tab title="stdout">
-                                                <inner-code-viewer class="rounded border"
-                                                                   :assignment="assignment"
-                                                                   :code-lines="prepareOutput(currentRun.setupStdout)"
-                                                                   :file-id="-1"
-                                                                   :feedback="{}"
-                                                                   :start-line="0"
-                                                                   :show-whitespace="true"
-                                                                   :warn-no-newline="false"
-                                                                   :empty-file-message="'No output.'" />
-                                            </b-tab>
+                                        <description-popover hug-text>
+                                            <template slot="description">
+                                                Input a bash command to run your global setup script.
+                                                This script will be run at the beginning of the AutoTest
+                                                run. Put all your global setup in this script, such as
+                                                installing packages and compiling fixtures. Don't put
+                                                any student-specific setup in this script. The command
+                                                will be executed in the <code>$FIXTURES</code> directory.
+                                            </template>
+                                        </description-popover>
+                                    </label>
 
-                                            <b-tab title="stderr">
-                                                <inner-code-viewer class="rounded border"
-                                                                   :assignment="assignment"
-                                                                   :code-lines="prepareOutput(currentRun.setupStderr)"
-                                                                   :file-id="-1"
-                                                                   :feedback="{}"
-                                                                   :start-line="0"
-                                                                   :show-whitespace="true"
-                                                                   :warn-no-newline="false"
-                                                                   :empty-file-message="'No output.'" />
-                                            </b-tab>
-                                        </b-tabs>
+                                    <template v-if="configEditable">
+                                        <b-input-group>
+                                            <input class="form-control"
+                                                   @keydown.ctrl.enter="$refs.runSetupScriptBtn.onClick"
+                                                   :id="globalPreStartScriptId"
+                                                   v-model="internalTest.run_setup_script"/>
+
+                                            <b-input-group-append>
+                                                <submit-button
+                                                    :submit="() => submitProp('run_setup_script')"
+                                                    ref="runSetupScriptBtn"/>
+                                            </b-input-group-append>
+                                        </b-input-group>
                                     </template>
-                                </div>
-                            </b-form-fieldset>
 
-                            <b-form-fieldset v-if="configEditable || test.setup_script">
-                                <label :for="preStartScriptId">
-                                    Per-student setup script to run
+                                    <div v-else>
+                                        <code class="d-block mb-2">{{ test.run_setup_script }}</code>
 
-                                    <description-popover hug-text>
-                                        <template slot="description">
-                                            Input a bash command to run your setup script that will
-                                            be run for each student specifically. This command will
-                                            be run in the directory
-                                            <code>/home/<wbr>codegrade/<wbr>student/</code>.
-                                            You can access your fixtures through the
-                                            <code>$FIXTURES</code> environment variable.
+                                        <template v-if="result && (currentRun.setupStdout != null || currentRun.setupStderr != null)">
+                                            <b-tabs no-fade>
+                                                <b-tab title="stdout">
+                                                    <inner-code-viewer class="rounded border"
+                                                                       :assignment="assignment"
+                                                                       :code-lines="prepareOutput(currentRun.setupStdout)"
+                                                                       :file-id="-1"
+                                                                       :feedback="{}"
+                                                                       :start-line="0"
+                                                                       :show-whitespace="true"
+                                                                       :warn-no-newline="false"
+                                                                       :empty-file-message="'No output.'" />
+                                                </b-tab>
+
+                                                <b-tab title="stderr">
+                                                    <inner-code-viewer class="rounded border"
+                                                                       :assignment="assignment"
+                                                                       :code-lines="prepareOutput(currentRun.setupStderr)"
+                                                                       :file-id="-1"
+                                                                       :feedback="{}"
+                                                                       :start-line="0"
+                                                                       :show-whitespace="true"
+                                                                       :warn-no-newline="false"
+                                                                       :empty-file-message="'No output.'" />
+                                                </b-tab>
+                                            </b-tabs>
                                         </template>
-                                    </description-popover>
-                                </label>
+                                    </div>
+                                </b-form-fieldset>
 
-                                <template v-if="configEditable">
-                                    <b-input-group>
-                                        <input class="form-control"
-                                               @keydown.ctrl.enter="$refs.setupScriptBtn.onClick"
-                                               :id="preStartScriptId"
-                                               v-model="internalTest.setup_script"/>
+                                <b-form-fieldset v-if="configEditable || test.setup_script">
+                                    <label :for="preStartScriptId">
+                                        Per-student setup script to run
 
-                                        <b-input-group-append>
-                                            <submit-button :submit="() => submitProp('setup_script')"
-                                                            ref="setupScriptBtn"/>
-                                        </b-input-group-append>
-                                    </b-input-group>
-                                </template>
+                                        <description-popover hug-text>
+                                            <template slot="description">
+                                                Input a bash command to run your setup script that will
+                                                be run for each student specifically. This command will
+                                                be run in the directory
+                                                <code>/home/<wbr>codegrade/<wbr>student/</code>.
+                                                You can access your fixtures through the
+                                                <code>$FIXTURES</code> environment variable.
+                                            </template>
+                                        </description-popover>
+                                    </label>
 
-                                <div v-else>
-                                    <code class="d-block mb-2">{{ test.setup_script }}</code>
+                                    <template v-if="configEditable">
+                                        <b-input-group>
+                                            <input class="form-control"
+                                                   @keydown.ctrl.enter="$refs.setupScriptBtn.onClick"
+                                                   :id="preStartScriptId"
+                                                v-model="internalTest.setup_script"/>
 
-                                    <template v-if="result && (result.setupStdout != null || result.setupStderr != null)">
-                                        <b-tabs no-fade>
-                                            <b-tab title="stdout">
-                                                <inner-code-viewer class="rounded border"
-                                                                   :assignment="assignment"
-                                                                   :code-lines="prepareOutput(result.setupStdout)"
-                                                                   :file-id="-1"
-                                                                   :feedback="{}"
-                                                                   :start-line="0"
-                                                                   :show-whitespace="true"
-                                                                   :warn-no-newline="false"
-                                                                   :empty-file-message="'No output.'" />
-                                            </b-tab>
-
-                                            <b-tab title="stderr">
-                                                <inner-code-viewer class="rounded border"
-                                                                   :assignment="assignment"
-                                                                   :code-lines="prepareOutput(result.setupStderr)"
-                                                                   :file-id="-1"
-                                                                   :feedback="{}"
-                                                                   :start-line="0"
-                                                                   :show-whitespace="true"
-                                                                   :warn-no-newline="false"
-                                                                   :empty-file-message="'No output.'" />
-                                            </b-tab>
-                                        </b-tabs>
+                                            <b-input-group-append>
+                                                <submit-button :submit="() => submitProp('setup_script')"
+                                                                ref="setupScriptBtn"/>
+                                            </b-input-group-append>
+                                        </b-input-group>
                                     </template>
-                                </div>
-                            </b-form-fieldset>
-                        </b-card-body>
-                    </collapse>
-                </b-card>
 
-                <h5 v-if="singleResult" class="my-3">
-                    Categories
-                </h5>
+                                    <div v-else>
+                                        <code class="d-block mb-2">{{ test.setup_script }}</code>
 
-                <transition-group name="level-list">
-                    <auto-test-set v-for="set, i in test.sets"
-                                   v-if="!set.deleted"
-                                   :class="{ 'mb-3': !singleResult }"
-                                   :key="set.id"
-                                   :value="set"
-                                   :assignment="assignment"
-                                   :editable="configEditable"
-                                   :result="result"
-                                   :other-suites="allNonDeletedSuites" />
-                    <p class="text-muted font-italic mb-3"
-                       key="no-sets"
-                       v-if="test.sets.filter(s => !s.deleted).length === 0">
-                        You have not created any levels yet. Click the button below to create one.
-                    </p>
+                                        <template v-if="result && (result.setupStdout != null || result.setupStderr != null)">
+                                            <b-tabs no-fade>
+                                                <b-tab title="stdout">
+                                                    <inner-code-viewer class="rounded border"
+                                                                       :assignment="assignment"
+                                                                       :code-lines="prepareOutput(result.setupStdout)"
+                                                                       :file-id="-1"
+                                                                       :feedback="{}"
+                                                                       :start-line="0"
+                                                                       :show-whitespace="true"
+                                                                       :warn-no-newline="false"
+                                                                       :empty-file-message="'No output.'" />
+                                                </b-tab>
 
-                </transition-group>
+                                                <b-tab title="stderr">
+                                                    <inner-code-viewer class="rounded border"
+                                                                       :assignment="assignment"
+                                                                       :code-lines="prepareOutput(result.setupStderr)"
+                                                                       :file-id="-1"
+                                                                       :feedback="{}"
+                                                                       :start-line="0"
+                                                                       :show-whitespace="true"
+                                                                       :warn-no-newline="false"
+                                                                       :empty-file-message="'No output.'" />
+                                                </b-tab>
+                                            </b-tabs>
+                                        </template>
+                                    </div>
+                                </b-form-fieldset>
+                            </b-card-body>
+                        </collapse>
+                    </b-card>
 
-                <b-button-toolbar v-if="configEditable"
-                    class="justify-content-end">
-                    <submit-button :submit="addSet"
-                                label="Add level" />
-                </b-button-toolbar>
-            </b-card-body>
+                    <h5 v-if="singleResult" class="my-3">
+                        Categories
+                    </h5>
+
+                    <transition-group name="level-list">
+                        <auto-test-set v-for="set, i in test.sets"
+                                       v-if="!set.deleted"
+                                       :class="{ 'mb-3': !singleResult }"
+                                       :key="set.id"
+                                       :value="set"
+                                       :assignment="assignment"
+                                       :editable="configEditable"
+                                       :result="result"
+                                       :other-suites="allNonDeletedSuites" />
+                        <p class="text-muted font-italic mb-3"
+                        key="no-sets"
+                        v-if="test.sets.filter(s => !s.deleted).length === 0">
+                            You have not created any levels yet. Click the button below to create one.
+                        </p>
+
+                    </transition-group>
+
+                    <b-button-toolbar v-if="configEditable"
+                                      class="justify-content-end">
+                        <submit-button :submit="addSet"
+                                       label="Add level" />
+                    </b-button-toolbar>
+                </b-card-body>
+            </template>
         </collapse>
     </b-card>
 
