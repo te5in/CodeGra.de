@@ -1320,9 +1320,18 @@ class AutoTest(Base, TimestampMixin, IdMixin):
     def __to_json__(self) -> t.Mapping[str, object]:
         """Covert this AutoTest to json.
         """
+        fixtures = []
+        for fixture in self.fixtures:
+            try:
+                auth.ensure_can_view_fixture(fixture)
+            except auth.PermissionException:
+                pass
+            else:
+                fixtures.append(fixture)
+
         return {
             'id': self.id,
-            'fixtures': self.fixtures,
+            'fixtures': fixtures,
             'setup_script': self.setup_script,
             'run_setup_script': self.run_setup_script,
             'finalize_script': self.finalize_script,

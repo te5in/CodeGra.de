@@ -555,6 +555,34 @@ def test_update_auto_test(
             # Fixture is not hidden anymore so student may see it
             res = test_client.get(f'{url}/fixtures/{fixture["id"]}')
             assert res.status_code == 200
+            test_client.req(
+                'get',
+                url,
+                200,
+                result={
+                    '__allow_extra__': True,
+                    'fixtures': [object],
+                }
+            )
+
+        t._runs = []
+        session.commit()
+        test_client.req('post', f'{url}/fixtures/{fixture["id"]}/hide', 204)
+        with app.test_request_context('/'):
+            t.start_test_run()
+
+        with logged_in(student):
+            # Fixture is hidden so it should not be send
+            assert res.status_code == 200
+            test_client.req(
+                'get',
+                url,
+                200,
+                result={
+                    '__allow_extra__': True,
+                    'fixtures': [],
+                }
+            )
 
         t._runs = []
         session.commit()
