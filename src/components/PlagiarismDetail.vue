@@ -17,7 +17,12 @@
             &quot;<user :user="detail.users[1]"/>&quot; for assignment &quot;{{assignment.name}}&quot;
         </template>
 
-        <b-btn v-b-modal.plagiarism-export style="margin-left: 15px;">Export</b-btn>
+        <div v-b-popover.top.hover="isJupyterRun ? 'Export is not possible yet for Jupyter notebook runs.' : ''">
+            <b-btn v-b-modal.plagiarism-export
+                   style="margin-left: 15px;"
+                   :disabled="isJupyterRun"
+                   >Export</b-btn>
+        </div>
     </local-header>
 
     <b-modal id="plagiarism-export" title="Export to LaTeX" hide-footer>
@@ -40,8 +45,9 @@
                     <td><b-form-checkbox v-model="exportMatches[match.id]"/></td>
                     <td class="col-student-name">
                         {{ getFromFileTree(tree1, match.files[0]) }}
+                    </td>
                     <td class="col-student-range">{{ match.lines[0][0] + 1 }} - {{ match.lines[0][1] + 1 }}</td>
-                    <td :style="`background: rgba(${match.color}, 0.4);`"></td>
+                    <td :style="`background: rgba(${getColorForMatch(match).background}, 0.4);`"></td>
                     <td class="col-student-name">
                         {{ getFromFileTree(tree2, match.files[1]) }}
                     </td>
@@ -93,8 +99,9 @@
                     @click="gotoLines(match.lines, match.files)">
                     <td class="col-student-name">
                         {{ getFromFileTree(tree1, match.files[0]) }}
+                    </td>
                     <td class="col-student-range">{{ match.lines[0][0] + 1 }} - {{ match.lines[0][1] + 1 }}</td>
-                    <td :style="`background: rgba(${match.color}, 0.4);`"></td>
+                    <td :style="`background: rgba(${getColorForMatch(match).background}, 0.4);`"></td>
                     <td class="col-student-name">
                         {{ getFromFileTree(tree2, match.files[1]) }}
                     </td>
@@ -113,7 +120,7 @@
                 :ref="`file-comparison-${key}`">
             <b-card class="student-file"
                     v-for="file in sortedFiles"
-                    v-if="filesPerStudent[key].includes(file.id.toString())"
+                    v-if="filesPerStudent[key].has(file.id)"
                     :key="`file-comparison-${key}-${getFromFileTree(key == 'self' ? tree1 : tree2, file)}`"
                     :header="file.file_name"
                     :ref="`file-comparison-${key}-${getFromFileTree(key == 'self' ? tree1 : tree2, file)}`">
@@ -128,15 +135,32 @@
                      v-b-popover.hover.bottom="'You can\'t view files from other assignments.'">
                     {{ getFromFileTree(key == 'self' ? tree1 : tree2, file) }}
                 </span>
-                <ol class="form-control"
-                    :style="{
-                        paddingLeft: `${3 + Math.log10(file.content.length) * 2/3}em`,
-                        fontSize: `${fontSize}px`,
-                    }">
-                    <li v-for="line in file.content">
-                        <code v-html="line.colored || line"/>
-                    </li>
-                </ol>
+
+                <template v-for="data in [getFileDataToDisplay(file)]">
+                    <b-alert show variant="danger" v-if="data instanceof Error">
+                        Could not render file: {{ data.message }}
+                    </b-alert>
+                    <inner-ipython-viewer
+                        :assignment="{}"
+                        :editable="false"
+                        v-else-if="isJupyterRun"
+                        :submission="{}"
+                        :file-id="-1"
+                        :output-cells="data"
+                        :show-whitespace="false"
+                        :can-use-snippets="false"
+                        without-feedback
+                        />
+                    <inner-code-viewer
+                        v-else
+                        class="border rounded"
+                        :assignment="assignment"
+                        :submission="null"
+                        :code-lines="data"
+                        :feedback="{}"
+                        :file-id="file.id"
+                        :warn-no-newline="false"/>
+                </template>
             </b-card>
         </div>
     </div>
@@ -151,8 +175,16 @@ import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/chevron-down';
 
 import { downloadFile, nameOfUser } from '@/utils';
+import { getOutputCells } from '@/utils/ipython';
 
-import { Loader, LocalHeader, SubmitButton, User } from '@/components';
+import {
+    Loader,
+    LocalHeader,
+    SubmitButton,
+    User,
+    InnerCodeViewer,
+    InnerIpythonViewer,
+} from '@/components';
 
 import Collapse from './Collapse';
 
@@ -165,15 +197,17 @@ export default {
         return {
             detail: null,
             contentLoaded: false,
+            loadingData: true,
             tree1: null,
             tree2: null,
-            sortedFiles: null,
+            fileContents: {},
             exportMatches: {},
-            sortedFilesObject: {},
-            loadingData: true,
+
             error: '',
             exportOptions: { newPageAfterMatch: true },
             advancedOptionsCollapsed: false,
+
+            Error,
         };
     },
 
@@ -195,8 +229,45 @@ export default {
 
     computed: {
         ...mapGetters('pref', ['fontSize', 'darkMode']),
-
         ...mapGetters('courses', ['assignments']),
+        ...mapGetters('plagiarism', ['runs']),
+
+        // This is a mapping between file id and object, containing a `name`
+        // key, `id` key, `match` key, and a lines array. This array contains
+        // arrays of length 2, where the first element is a number containing
+        // the start of the match, end the second element is a number which is
+        // the end of the match.
+        fileMatches() {
+            function makeOrAppend(accum, match, index) {
+                if (accum[match.files[index].id]) {
+                    accum[match.files[index].id].lines.push(match.lines[index]);
+                    accum[match.files[index].id].lines.sort((x1, x2) => x1[0] - x2[0]);
+                } else {
+                    accum[match.files[index].id] = {
+                        name: match.files[index].name,
+                        id: match.files[index].id,
+                        lines: [match.lines[index]],
+                        match,
+                    };
+                }
+            }
+
+            return this.detail.matches.reduce((accum, match) => {
+                makeOrAppend(accum, match, 0);
+                makeOrAppend(accum, match, 1);
+
+                return accum;
+            }, {});
+        },
+
+        // Get the files sorted by longest match first.
+        sortedFiles() {
+            return Object.values(this.fileMatches).sort((a, b) => {
+                const lenA = a.lines.reduce((accum, item) => accum + (item[1] - item[0]), 0);
+                const lenB = b.lines.reduce((accum, item) => accum + (item[1] - item[0]), 0);
+                return lenA - lenB;
+            });
+        },
 
         colorPairs() {
             return ['#00FF00', '#FF0000', '#0000FF', '#FFFB00', '#00FFFF', '#7F00FF'].map(color => {
@@ -226,6 +297,16 @@ export default {
             return this.$route.params.plagiarismRunId;
         },
 
+        plagiarismRun() {
+            return this.runs[this.plagiarismRunId];
+        },
+
+        isJupyterRun() {
+            return !!this.$utils
+                .getProps(this.plagiarismRun, [], 'config')
+                .find(([opt, value]) => opt === 'lang' && value === 'Jupyter');
+        },
+
         plagiarismCaseId() {
             return this.$route.params.plagiarismCaseId;
         },
@@ -235,23 +316,36 @@ export default {
         },
 
         filesPerStudent() {
-            const self = {};
-            const other = {};
+            const self = new Set();
+            const other = new Set();
 
             this.detail.matches.forEach(match => {
-                self[match.files[0].id] = true;
-                other[match.files[1].id] = true;
+                self.add(match.files[0].id);
+                other.add(match.files[1].id);
             });
 
-            return { self: Object.keys(self), other: Object.keys(other) };
+            return { self, other };
         },
 
         matchesSortedByRange() {
-            return this.detail.matches.sort((a, b) => {
+            return this.detail.matches.map(x => x).sort((a, b) => {
                 const lenA = (a.lines[0][1] - a.lines[0][0] + (a.lines[1][1] - a.lines[1][0])) / 2;
                 const lenB = (b.lines[0][1] - b.lines[0][0] + (b.lines[1][1] - b.lines[1][0])) / 2;
                 return lenB - lenA;
             });
+        },
+
+        colorIndicesPerFile() {
+            const colorsAmount = this.colorPairs.length;
+            return this.matchesSortedByRange.reduce((accum, match, index) => {
+                match.files.forEach((f, fIndex) => {
+                    if (!accum[f.id]) {
+                        accum[f.id] = {};
+                    }
+                    accum[f.id][match.lines[fIndex][0]] = index % colorsAmount;
+                });
+                return accum;
+            }, {});
         },
     },
 
@@ -260,6 +354,13 @@ export default {
         ...mapActions('code', {
             storeLoadCode: 'loadCode',
         }),
+        ...mapActions('plagiarism', {
+            loadPlagiarismRun: 'loadRun',
+        }),
+
+        getColorForMatch(match) {
+            return this.colorPairs[this.colorIndicesPerFile[match.files[0].id][match.lines[0][0]]];
+        },
 
         async getTexFile(matches) {
             const header = `\\documentclass{article}
@@ -355,87 +456,77 @@ ${right.join('\n')}
             return `${header}\n${middle}\n${footer}`;
         },
 
-        updateSortedFiles() {
-            const filesObj = this.detail.matches.reduce((accum, match) => {
-                if (accum[match.files[0].id]) {
-                    accum[match.files[0].id].lines.push(match.lines[0]);
-                } else {
-                    accum[match.files[0].id] = {
-                        name: match.files[0].name,
-                        id: match.files[0].id,
-                        lines: [match.lines[0]],
-                    };
-                }
-                if (accum[match.files[1].id]) {
-                    accum[match.files[1].id].lines.push(match.lines[1]);
-                } else {
-                    accum[match.files[1].id] = {
-                        name: match.files[1].name,
-                        id: match.files[1].id,
-                        lines: [match.lines[1]],
-                    };
+        getExtension(file) {
+            return this.$utils.last(file.name.split('.'));
+        },
+
+        getFileDataToDisplay(file) {
+            const ranges = this.fileMatches[file.id].lines;
+            const colors = this.colorIndicesPerFile[file.id];
+            const fileSource = this.fileContents[file.id];
+            const colorPairs = this.colorPairs;
+            let rangeIndex = 0;
+            let curColor = null;
+
+            function setColor(index, cb) {
+                const range = ranges[rangeIndex];
+                if (!range) {
+                    return cb();
                 }
 
-                return accum;
-            }, {});
-            this.sortedFiles = Object.values(filesObj).sort((a, b) => {
-                const lenA = a.lines.reduce((accum, item) => accum + (item[1] - item[0]), 0);
-                const lenB = b.lines.reduce((accum, item) => accum + (item[1] - item[0]), 0);
-                return lenA - lenB;
-            });
-            this.sortedFilesObject = filesObj;
+                if (range[0] === index) {
+                    curColor = colorPairs[colors[index]];
+                }
+
+                const res = cb();
+
+                if (range[1] === index) {
+                    curColor = null;
+                    rangeIndex++;
+                }
+
+                return res;
+            }
+
+            const highlightCode = (content, lang, offset) => {
+                const res = this.$utils.highlightCode(content, lang).map((line, lineIndex) => {
+                    const index = lineIndex + offset;
+                    return setColor(index, () => {
+                        if (curColor) {
+                            return `<span style="color: rgb(${
+                                curColor.textColor
+                            }); background: rgba(${
+                                curColor.background
+                            }, .1);">${this.$utils.htmlEscape(content[lineIndex])}</span>`;
+                        }
+                        return line;
+                    });
+                });
+                return res;
+            };
+
+            if (this.isJupyterRun) {
+                return getOutputCells(JSON.parse(fileSource), highlightCode, cell =>
+                    setColor(cell.feedback_offset, () => cell),
+                );
+            } else {
+                return highlightCode(fileSource.split('\n'), this.getExtension(file), 0);
+            }
         },
 
         async getFileContents() {
             this.contentLoaded = false;
 
-            this.updateSortedFiles();
-
             await Promise.all(
-                this.sortedFiles.map(async file => {
+                Object.values(this.fileMatches).map(async file => {
                     const data = await this.storeLoadCode(file.id);
                     const content = decodeBuffer(data, true);
-                    file.content = content.split('\n').map(this.$utils.htmlEscape);
+
+                    this.$set(this.fileContents, file.id, content);
                 }),
             );
 
-            this.highlightAllLines();
             this.contentLoaded = true;
-        },
-
-        highlightAllLines() {
-            let colorIndex = 0;
-            this.detail.matches.forEach(match => {
-                this.sortedFilesObject[match.files[0].id].content = this.highlightLines(
-                    this.sortedFilesObject[match.files[0].id].content,
-                    match,
-                    match.lines[0],
-                    colorIndex,
-                );
-                this.sortedFilesObject[match.files[1].id].content = this.highlightLines(
-                    this.sortedFilesObject[match.files[1].id].content,
-                    match,
-                    match.lines[1],
-                    colorIndex,
-                );
-                colorIndex += 1;
-            });
-        },
-
-        highlightLines(lines, match, range, totalColorIndex) {
-            const colorPair = this.colorPairs[totalColorIndex % this.colorPairs.length];
-
-            for (let i = range[0]; i <= range[1]; i++) {
-                lines[i] = {
-                    old: lines[i].old == null ? lines[i] : lines[i].old,
-                };
-                lines[i].colored = `<span style="color: rgb(${
-                    colorPair.textColor
-                }); background: rgba(${colorPair.background}, .1);">${lines[i].old}</span>`;
-            }
-            match.color = colorPair.background;
-
-            return lines;
         },
 
         fileRoute(file, index) {
@@ -458,20 +549,35 @@ ${right.join('\n')}
         // target must be 'self' or 'other'.
         gotoLineInTarget(lines, file, target) {
             const ref = `file-comparison-${target}`;
-            const codeViewer = this.$refs[
-                `${ref}-${this.getFromFileTree(target === 'self' ? this.tree1 : this.tree2, file)}`
-            ][0];
+            const name = this.getFromFileTree(target === 'self' ? this.tree1 : this.tree2, file);
+            const codeViewer = this.$refs[`${ref}-${name}`][0];
 
             const line = lines[0];
+            const item = codeViewer.querySelectorAll('li.line, .markdown-wrapper, .result-cell')[
+                line
+            ];
 
-            codeViewer.querySelectorAll('li')[Math.max(line - 1, 0)].scrollIntoView();
-            codeViewer.parentNode.scrollTop -= codeViewer.querySelector(
-                '.card-header',
-            ).clientHeight;
+            if (item == null) {
+                // Line not yet rendered, e.g. because the file has more than MAX_LINES lines.
+                codeViewer.scrollIntoView();
+                return;
+            }
+
+            item.scrollIntoView();
+
+            // Because the file headers are sticky, they can overlap with the code when it is
+            // scrolled into view, so correct for that. Add some more pixels to get some space
+            // between the file header and the first plagiarized line.
+            const { lineHeight } = getComputedStyle(item);
+            const headerHeight = codeViewer.querySelector('.card-header').clientHeight;
+
+            codeViewer.parentNode.scrollTop -= headerHeight + parseInt(lineHeight, 10);
         },
 
-        loadDetail() {
+        async loadDetail() {
             this.loadingData = true;
+
+            await this.loadPlagiarismRun(this.plagiarismRunId);
 
             this.$http
                 .get(`/api/v1/plagiarism/${this.plagiarismRunId}/cases/${this.plagiarismCaseId}`)
@@ -569,6 +675,8 @@ ${right.join('\n')}
         User,
         Collapse,
         Icon,
+        InnerCodeViewer,
+        InnerIpythonViewer,
     },
 };
 </script>
@@ -692,57 +800,10 @@ ${right.join('\n')}
     }
 }
 
-ol {
+.inner-code-viewer {
     min-height: 5em;
     margin: 0;
-    padding-top: 0 !important;
-    padding-right: 0 !important;
-    padding-bottom: 0 !important;
-    background: @linum-bg;
-    font-family: monospace;
-    font-size: small;
-
-    #app.dark & {
-        background: @color-primary-darkest;
-        color: @color-secondary-text-lighter;
-    }
-
-    &:not(:last-child) {
-        border-right: 1px solid @color-light-gray;
-    }
-}
-
-li {
-    position: relative;
-    padding-left: 0.75em;
-    padding-right: 0.75em;
-
-    background-color: lighten(@linum-bg, 1%);
-    border-left: 1px solid darken(@linum-bg, 5%);
-
-    #app.dark & {
-        background: @color-primary-darker;
-        border-left: 1px solid darken(@color-primary-darkest, 5%);
-    }
-}
-
-code {
-    border-bottom: 1px solid transparent;
-    color: @color-secondary-text;
-    white-space: pre-wrap;
-
-    word-wrap: break-word;
-    word-break: break-word;
-    -ms-word-break: break-all;
-
-    -webkit-hyphens: auto;
-    -moz-hyphens: auto;
-    -ms-hyphens: auto;
-    hyphens: auto;
-
-    #app.dark & {
-        color: #839496;
-    }
+    overflow: hidden;
 }
 
 .plagiarism-detail .input-group-prepend {

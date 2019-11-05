@@ -24,8 +24,10 @@
 <span v-else class="user" :title="props.showTitle ? props.getNameOfUser(props.user) : undefined">
     {{ props.user.name }}
     <span v-if="props.user.is_test_student">
-        <icon name="warning"
-              v-b-popover.top.hover="'This student is a test student.'"/>
+        <component
+            :is="injections.components.Icon"
+            name="warning"
+            v-b-popover.top.hover="'This student is a test student.'"/>
     </span>
 </span>
 </template>
@@ -33,6 +35,7 @@
 <script>
 import 'vue-awesome/icons/user-plus';
 import 'vue-awesome/icons/warning';
+import Icon from 'vue-awesome/components/Icon';
 import { nameOfUser } from '@/utils';
 
 import DescriptionPopover from './DescriptionPopover';
@@ -44,6 +47,7 @@ export default {
         components: {
             default: {
                 DescriptionPopover,
+                Icon,
             },
         },
     },

@@ -1283,7 +1283,7 @@ export default {
         }
     }
 
-    .inner-code-viewer {
+    .inner-code-viewer ol.lines {
         border-top-width: 0 !important;
         border-top-left-radius: 0 !important;
         border-top-right-radius: 0 !important;

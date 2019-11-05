@@ -105,7 +105,7 @@ export default {
 
         async embedPdf() {
             this.pdfURL = '';
-            await this.$afterRerender;
+            await this.$afterRerender();
 
             if (this.revision === 'diff') {
                 this.$emit('error', 'The pdf viewer is not available in diff mode');

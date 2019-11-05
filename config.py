@@ -542,6 +542,10 @@ else:
         "Text": "text",
         "Scheme": "scheme",
         "Scala": "scala",
+        "JSON": "json",
+        "PHP": "php",
+        "JavaScript": "javascript",
+        "Jupyter": "jupyter",
     }
 
 

@@ -299,6 +299,10 @@
 # Text = text
 # Scheme = scheme
 # Scala = scala
+# JSON = json
+# PHP = php
+# JavaScript = javascript
+# Jupyter = jupyter
 
 
 # This are the settings for celery. You need to be running a celery process to

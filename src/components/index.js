@@ -44,6 +44,8 @@ export { default as FileUploader } from './FileUploader';
 export { default as SubmissionUploader } from './SubmissionUploader';
 export { default as MaximumGrade } from './MaximumGrade';
 export { default as User } from './User';
+export { default as InnerCodeViewer } from './InnerCodeViewer';
+export { default as InnerIpythonViewer } from './InnerIPythonViewer.vue';
 export { default as InfinitePlagiarismCaseList } from './InfinitePlagiarismCaseList';
 export { default as PlagiarismOverview } from './PlagiarismOverview';
 export { default as PlagiarismDetail } from './PlagiarismDetail';

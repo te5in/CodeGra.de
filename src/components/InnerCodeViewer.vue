@@ -22,7 +22,7 @@
     </b-button-toolbar>
 </b-alert>
 
-<div v-else>
+<div v-else class="inner-code-viewer">
     <ol :class="{
             editable: editable,
             'lint-whitespace': lintWhitespace,
@@ -35,7 +35,7 @@
             fontSize: `${fontSize}px`,
             cursor: editable ? cursorType : 'text',
         }"
-        class="hljs inner-code-viewer"
+        class="hljs lines"
         @mousedown="dragStart"
         @mouseup="dragStop">
 
@@ -427,8 +427,8 @@ li {
         border-left: 1px solid darken(@color-primary-darkest, 5%);
     }
 
-    .inner-code-viewer.editable &,
-    #app.dark .inner-code-viewer.editable & {
+    ol.lines.editable &,
+    #app.dark ol.lines.editable & {
         &.line:hover {
             background-color: rgba(0, 0, 0, 0.025);
         }
@@ -489,7 +489,7 @@ code {
 <style lang="less">
 @import '~mixins.less';
 
-#app.dark ol.inner-code-viewer .btn:not(.btn-success):not(.btn-danger):not(.btn-warning) {
+#app.dark ol.lines .btn:not(.btn-success):not(.btn-danger):not(.btn-warning) {
     background: @color-secondary;
 
     &.btn-secondary {
