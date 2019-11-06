@@ -21,6 +21,7 @@
         <b-input-group>
             <b-input-group-prepend>
                 <submit-button ref="submitButton"
+                               class="submit-grade-btn"
                                v-if="realEditable"
                                :submit="putGrade"
                                @success="gradeUpdated"/>
@@ -30,6 +31,7 @@
             <input type="number"
                    class="form-control"
                    :disabled="notLatest"
+                   name="grade-input"
                    step="any"
                    min="0"
                    :max="maxAllowedGrade"

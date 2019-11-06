@@ -3,11 +3,12 @@
 <div class="forgot-password">
     <b-form-fieldset>
         <input type="text"
-                class="form-control"
-                placeholder="Username"
-                v-model="username"
-                ref="username"
-                @keyup.enter="$refs.btn.onClick"/>
+               class="form-control"
+               name="username"
+               placeholder="Username"
+               v-model="username"
+               ref="username"
+               @keyup.enter="$refs.btn.onClick"/>
     </b-form-fieldset>
 
     <p>

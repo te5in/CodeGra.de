@@ -29,9 +29,9 @@
     </div>
     <masonry :cols="{default: 3, [$root.largeWidth]: 2, [$root.mediumWidth]: 1 }"
              :gutter="30"
-             class="outer-block"
+             class="outer-block outer-course-wrapper"
              v-else>
-        <div class="card-wrapper" v-for="course in filteredCourses" :key="course.id">
+        <div class="course-wrapper" v-for="course in filteredCourses" :key="course.id">
             <b-card no-body>
                 <b-card-header :class="`text-${getColorPair(course.name).color}`"
                                :style="{ backgroundColor: getColorPair(course.name).background }">
@@ -333,7 +333,7 @@ export default {
         }
     }
 
-    .card-wrapper {
+    .course-wrapper {
         padding-bottom: 1em;
 
         .card-body {

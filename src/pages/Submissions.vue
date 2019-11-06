@@ -15,7 +15,7 @@
 
     <div v-if="!loadingInner && (canUpload || !assignment.deadline)">
         <b-alert show variant="warning"
-                 class="disabled-warning"
+                 class="no-deadline-alert disabled-warning"
                  v-if="uploaderDisabled">
             <p v-if="!assignment.deadline">
                 The deadline for this assignment has not yet been set.
@@ -41,7 +41,9 @@
         </b-alert>
 
         <span v-else>
-            <b-alert show variant="info" class="assignment-alert"
+            <b-alert show
+                     variant="info"
+                     class="group-assignment-alert assignment-alert"
                      v-if="assignment.group_set">
                 This assignment is a group assignment.
                 <template v-if="assignment.group_set.minimum_size > 1">

@@ -48,10 +48,12 @@
                            class="search-wrapper">
                 <input v-model="filter"
                        class="form-control"
+                       name="submissions-filter"
                        placeholder="Type to Search"
                        @keyup.enter="submit"
                        @keyup="submitDelayed"/>
                 <b-input-group-append is-text
+                                      class="assigned-to-me-option"
                                       v-if="canSeeOthersWork && !assigneeCheckboxDisabled"
                                       v-b-popover.bottom.hover="'Show only subbmissions assigned to me.'">
                     <b-form-checkbox v-model="mineOnly"
@@ -107,16 +109,16 @@
                 <user :user="item.value"/>
             </a>
 
-            <template slot="grade" slot-scope="item">
+            <span slot="grade" slot-scope="item" class="submission-grade">
                 {{ formatGrade(item.value) || '-' }}
-            </template>
+            </span>
 
             <template slot="formatted_created_at" slot-scope="item">
                 {{item.value ? item.value : '-'}}
                 <late-submission-icon :submission="item.item" :assignment="assignment" />
             </template>
 
-            <template slot="assignee" slot-scope="item">
+            <span slot="assignee" slot-scope="item" class="assigned-to-grader">
                 <span v-if="!canAssignGrader || graders == null">
                     <user :user="item.value" v-if="item.value"/>
                     <span v-else>-</span>
@@ -131,7 +133,7 @@
                                    @click.native.stop
                                    class="user-form-select"/>
                 </div>
-            </template>
+            </span>
         </b-table>
         <div class="no-submissions-found"
              v-if="!canSeeOthersWork && this.submissions.length === 0">

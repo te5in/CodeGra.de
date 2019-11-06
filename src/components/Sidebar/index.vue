@@ -21,7 +21,7 @@
                         :leave-active-class="entry.animate || entry.animateRemove ? 'pop-in-leave-active' : ''">
                 <a @click="openUpperSubMenu(entry, true)"
                    class="sidebar-top-item sidebar-entry"
-                   :class="{ selected: currentEntry && entry.name === currentEntry.name }">
+                   :class="{ selected: currentEntry && entry.name === currentEntry.name, [`sidebar-entry-${entry.name}`]: true }">
                     <icon :name="entry.icon"
                           :scale="mobileVisible ? 1.5 : 2.25"
                           :label="maybeCall(entry.title || entry.header)"/>

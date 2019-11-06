@@ -160,7 +160,8 @@
                                triggers="hover">
                         Not available for LTI assignments
                     </b-popover>
-                    <file-uploader :url="`/api/v1/assignments/${assignment.id}/submissions/`"
+                    <file-uploader class="blackboard-zip-uploader"
+                                   :url="`/api/v1/assignments/${assignment.id}/submissions/`"
                                    :disabled="assignment.is_lti"
                                    @response="forceLoadSubmissions(assignment.id)"
                                    :id="`file-uploader-assignment-${assignment.id}`"/>

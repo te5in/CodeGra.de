@@ -25,3 +25,5 @@ PRIVACY_STATEMENT.md
 /coverage/
 /pmd/
 /celerybeat-schedule.db
+/celerybeat-schedule
+/cypress/screenshots

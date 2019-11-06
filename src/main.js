@@ -310,6 +310,9 @@ localforage.defineDriver(memoryStorageDriver).then(() => {
         },
     });
 
+    // eslint-disable-next-line
+    window.__app__ = app;
+
     // Clear some items in vuex store on CTRL-F5
     document.addEventListener(
         'keydown',

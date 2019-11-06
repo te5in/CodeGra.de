@@ -2,7 +2,7 @@
 <template>
 <div class="register">
     <b-form-fieldset>
-        <b-input-group prepend="Username">
+        <b-input-group :prepend="fieldLabels.username">
             <input type="text"
                    class="form-control"
                    v-model="username"
@@ -18,7 +18,7 @@
     </b-form-fieldset>
 
     <b-form-fieldset>
-        <b-input-group prepend="Full name">
+        <b-input-group :prepend="fieldLabels.name">
             <input type="text"
                    class="form-control"
                    v-model="name"
@@ -28,7 +28,7 @@
     </b-form-fieldset>
 
     <b-form-fieldset>
-        <b-input-group prepend="Email">
+        <b-input-group :prepend="fieldLabels.firstEmail">
             <input type="email"
                    class="form-control"
                    v-model="firstEmail"
@@ -38,7 +38,7 @@
     </b-form-fieldset>
 
     <b-form-fieldset>
-        <b-input-group prepend="Repeat email">
+        <b-input-group :prepend="fieldLabels.secondEmail">
             <input type="email"
                    class="form-control"
                    v-model="secondEmail"
@@ -48,10 +48,12 @@
     </b-form-fieldset>
 
     <password-input v-model="firstPw"
-                    label="Password"
+                    :label="fieldLabels.firstPw"
+                    name="password"
                     tabindex="4"/>
     <password-input v-model="secondPw"
-                    label="Repeat password"
+                    :label="fieldLabels.secondPw"
+                    name="repeat-password"
                     tabindex="5"/>
 
     <div class="text-center">
@@ -59,10 +61,24 @@
                        label="Register"
                        :submit="submit"
                        @after-success="afterSubmit"
-                       :confirm="PASSWORD_UNIQUE_MESSAGE"/>
+                       :confirm="PASSWORD_UNIQUE_MESSAGE">
+            <template slot="error"
+                      slot-scope="error"
+                      v-if="error.error">
+                <password-suggestions
+                    v-if="$utils.getProps(error.error, null, 'response', 'data', 'feedback')"
+                    :error="error.error"/>
 
-            <template slot="error" slot-scope="error" v-if="error.error">
-                <password-suggestions :error="error.error"/>
+                <template v-else>
+                    <p class="mb-0">{{ $utils.getErrorMessage(error.error) }}</p>
+
+                    <ul v-if="$utils.getProps(error.error, 0, 'messages', 'length') > 0"
+                        class="mb-0 pl-3 text-left">
+                        <li v-for="msg in error.error.messages">
+                            {{ msg }}
+                        </li>
+                    </ul>
+                </template>
             </template>
         </submit-button>
     </div>
@@ -91,6 +107,16 @@ export default {
             showHelp: false,
             firstPw: '',
             secondPw: '',
+
+            fieldLabels: {
+                username: 'Username',
+                name: 'Full name',
+                firstEmail: 'Email',
+                secondEmail: 'Repeat email',
+                firstPw: 'Password',
+                secondPw: 'Repeat password',
+            },
+
             PASSWORD_UNIQUE_MESSAGE,
         };
     },
@@ -99,10 +125,26 @@ export default {
         ...mapActions('user', ['updateAccessToken']),
 
         submit() {
+            const errors = [];
+
+            Object.entries(this.fieldLabels).forEach(([key, label]) => {
+                if (this[key].length === 0) {
+                    errors.push(`Field "${label}" is empty.`);
+                }
+            });
+
             if (this.firstPw !== this.secondPw) {
-                throw new Error('The two passwords do not match!');
-            } else if (this.firstEmail !== this.secondEmail) {
-                throw new Error('The two emails do not match!');
+                errors.push('The passwords do not match.');
+            }
+
+            if (this.firstEmail !== this.secondEmail) {
+                errors.push('The emails do not match.');
+            }
+
+            if (errors.length > 0) {
+                const err = new Error();
+                err.messages = errors;
+                throw err;
             }
 
             return this.$http.post('/api/v1/user', {

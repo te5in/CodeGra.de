@@ -5,7 +5,8 @@
         <b-button v-if="showUserButtons || filteredSubmissions.length > 1"
                   :disabled="prevSub == null"
                   v-b-popover.hover.bottom="generatePopoverTitle(prevSub)"
-                  @click="selectSub(prevSub)">
+                  @click="selectSub(prevSub)"
+                  class="prev">
             <icon name="angle-left"/>
         </b-button>
 
@@ -64,7 +65,8 @@
         <b-button v-if="showUserButtons || filteredSubmissions.length > 1"
                   :disabled="nextSub == null"
                   v-b-popover.hover.bottom="generatePopoverTitle(nextSub)"
-                  @click="selectSub(nextSub)">
+                  @click="selectSub(nextSub)"
+                  class="next">
             <icon name="angle-right"/>
         </b-button>
     </b-button-group>

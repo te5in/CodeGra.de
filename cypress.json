@@ -1,0 +1,7 @@
+{
+  "baseUrl": "http://localhost:8080",
+  "fixturesFolder": "test_data/",
+  "projectId": "xaj67z",
+  "video": false,
+  "videoUploadOnPasses": false
+}

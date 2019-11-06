@@ -18,7 +18,7 @@
                     :key="run.id"
                     :class="{ [`run-${run.state}`]: canView }"
                     @click="goToOverview(run)">
-                    <td>
+                    <td class="provider">
                         <a v-if="canGoToOverview(run)"
                            class="invisible-link"
                            href="#"
@@ -39,10 +39,10 @@
                             </div>
                         </description-popover>
                     </td>
-                    <td>
+                    <td class="started">
                         {{ run.formatted_created_at }}
                     </td>
-                    <td>
+                    <td class="state">
                         <div v-if="showProgress(run)">
                             <b-progress v-model="run.submissions_done"
                                         :max="run.submissions_total"
@@ -522,6 +522,10 @@ export default {
 
         pollRuns() {
             this.runsPollingInterval = setInterval(() => {
+                if (this.runs == null) {
+                    return;
+                }
+
                 const running = this.runs.filter(run => !this.runIsFinished(run));
 
                 if (!running.length) {
