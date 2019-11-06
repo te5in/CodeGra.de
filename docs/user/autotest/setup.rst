@@ -120,6 +120,40 @@ here too.
     with the permissions, we recommend running ``chown -R codegrade:codegrade
     $FIXTURES/dir`` and ``chmod -R 750 $FIXTURES/dir`` after extracting.
 
+Limiting student access
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+It is sometimes desirable to limit student access to fixtures or to limit the
+visibility of your uploaded fixtures. For instance if one of your fixtures is a
+solution to the assignment you use to test student submissions against.
+
+We offer multiple means of limiting undesirable student access to fixtures.
+Firstly, the path to the fixtures is randomly generated for each category and
+thus only accessible using the ``$FIXTURES`` environment variable. This makes it
+harder for students to access the path, but not impossible.
+
+A way to further limit student permissions in the ``$FIXTURES`` folder is to
+execute student code with the ``become_nobody`` command. When executed in this
+mode, students will have no permissions to read from the ``$FIXTURES`` folder.
+They will have permissions in the ``$STUDENT`` folder, which is the current
+directory in which student submission files are accessible, to read and
+execute.
+
+.. note::
+    Copying files from the ``$FIXTURES`` directory to the ``$STUDENT`` directory
+    with the ``cp`` or ``mv`` commands will **not** change permissions on these
+    files, and the ``nobody`` user will **not** be able to read them. Use
+    ``chmod 755 <FILE>`` to properly set these or use the ``install`` command
+    to set these right away: ``install -m 755 $FIXTURES/<fixture> $STUDENT``.
+
+.. note::
+    By default, scripts ran with the ``become_nobody`` command cannot write
+    new files to the ``$STUDENT`` directory. Setting the write permission on
+    the entire ``$STUDENT`` directory may be undesirable, as students may be
+    able to overwrite their own code during the tests. Therefore, we recommend
+    you create a new subdirectory where the output should be written with
+    ``install -Dm 777 $STUDENT/<SUBDIR>``. If this subdirectory contains files
+    that should not be read by students, use permission ``733``.
+
 Global setup script
 ---------------------
 
