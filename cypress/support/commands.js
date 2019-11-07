@@ -11,10 +11,24 @@
 //
 // -- This is a parent command --
 import 'cypress-file-upload';
+import moment from 'moment';
 
-// Get the text in an element, with all consecutive whitespace replaced with a
-// single space. Returns a cy wrapper so it can be used in an async context.
+Cypress.Commands.add('getAll', (aliases) => {
+    // Get the value for multiple aliases at once.
+
+    const values = [];
+
+    cy.wrap(aliases).each(alias => {
+        return cy.get(alias).then(value => values.push(value));
+    }).then(() => {
+        return values;
+    });
+});
+
 Cypress.Commands.add('text', { prevSubject: true }, subject => {
+    // Get the text in an element, with all consecutive whitespace replaced
+    // with a single space. Returns a cy wrapper so it can be used in an async
+    // context.
     return subject.text().replace(/\s+/g, ' ');
 });
 
@@ -43,6 +57,65 @@ Cypress.Commands.add('logout', () => {
     cy.window().its('__app__').then(app => {
         app.$store.dispatch('user/logout');
         cy.visit('/');
+    });
+});
+
+function getAuthHeaders() {
+    return cy.window().its('__app__').then(app => {
+        const { jwtToken } = app.$store.state.user;
+        return { Authorization: `Bearer ${jwtToken}` };
+    });
+}
+
+Cypress.Commands.add('authRequest', (options) => {
+    // Do a request as the logged in user.
+
+    return getAuthHeaders().then(headers => {
+        options.headers = Object.assign(options.headers || {}, headers);
+        return cy.request(options);
+    });
+});
+
+Cypress.Commands.add('formRequest', (options) => {
+    // Send a request with a FormData object as body.  This is impossible with
+    // cy.request, and must be used to send requests to the server containing
+    // files. Use cy.fixtureAsFile to load a fixture as a File object suitable
+    // to be used in FormData. The request is sent as the logged in user.
+
+    let { url, method, headers, data } = options;
+
+    return getAuthHeaders().then(authHeaders => {
+        headers = Object.assign(headers || {}, authHeaders)
+        return cy
+            .server()
+            .route(method, url)
+            .as('formRequest')
+            .window()
+            .then(win => {
+                var xhr = new win.XMLHttpRequest();
+                xhr.open(method, url);
+                Object.entries(headers).forEach(([name, value]) => {
+                    xhr.setRequestHeader(name, value);
+                });
+                xhr.send(data);
+            })
+            .wait('@formRequest');
+    });
+});
+
+Cypress.Commands.add('fixtureAsFile', (path, filename, mimeType) => {
+    // Load a fixture and return it as a File object.
+
+    return cy.fixture(path, 'base64').then(fixture => {
+        const decoded = atob(fixture);
+        const len = decoded.length;
+        const u8arr = new Uint8Array(len);
+
+        for (let i = 0; i < len; i++) {
+            u8arr[i] = decoded.charCodeAt(i);
+        }
+
+        return cy.wrap(new File([u8arr], filename, { type: mimeType }));
     });
 });
 
@@ -90,64 +163,93 @@ Cypress.Commands.add('createUser', (username, password, email = `${username}@exa
     });
 });
 
-Cypress.Commands.add('createCourse', (name, users) => {
+Cypress.Commands.add('createCourse', (name, users=[]) => {
     cy.login('admin', 'admin');
-    cy.visit('/admin');
 
-    // Make sure we have the "Create course" permission.
-    cy.setSitePermission('Create course', 'Admin', true);
-
-    cy.get('.sidebar .add-course-button').click();
-    cy.get('.popover .submit-input input').type(name);
-    cy.get('.popover .submit-input .btn').click();
-
-    // Wait for manage-course page to be loaded.
-    cy.get('.page.manage-course').should('exist');
-
-    cy.get('.users-manager').within(() => {
-        users.forEach(user => {
-            cy.get('.user-selector input').type(user.name);
-            // Input is emptied when the multiselect is unfocused, so click
-            // the entry.
-            cy.get('.user-selector .multiselect__element').click();
-            cy.get('.add-student .dropdown .btn').click();
-            cy.get('.add-student .dropdown-item').contains(user.role).click();
-
-            // Wait for submit button to go back to default.
-            cy.get('.add-student .submit-button').submit('success');
+    return cy.authRequest({
+        url: '/api/v1/courses/',
+        method: 'POST',
+        body: { name },
+    }).its('body').then(course => {
+        // Get the course roles so we can map a role name
+        // to a role id.
+        return cy.authRequest({
+            url: `/api/v1/courses/${course.id}/roles/`,
+            method: 'GET',
+        }).its('body').then(roles => {
+            return [course, roles];
         });
+    }).then(([course, roles]) => {
+        // Register each user for the course.
+        cy.wrap(users).each(user => {
+            const role = roles.find(r => r.name == user.role);
+            cy.authRequest({
+                url: `/api/v1/courses/${course.id}/users/`,
+                method: 'PUT',
+                body: {
+                    username: user.name,
+                    role_id: role.id,
+                },
+            });
+        })
+        cy.log('created course', course);
+        return cy.wrap(course);
     });
 });
 
-Cypress.Commands.add('createAssignment', (name, { state, bbZip } = {}) => {
-    // Assumes the assignment list of the course that the assignment should be
-    // added to is visible in the sidebar.
+Cypress.Commands.add('createAssignment', (courseId, name, { state, bbZip, deadline } = {}) => {
+    cy.login('admin', 'admin');
 
-    cy.get('.sidebar .add-assignment-button').click();
-    cy.get('.popover .submit-input input').type(name);
-    cy.get('.popover .submit-input .btn').click();
+    cy.authRequest({
+        url: `/api/v1/courses/${courseId}/assignments/`,
+        method: 'POST',
+        body: { name },
+    }).its('body').then(assignment => {
+        const body = {};
 
-    // Wait for manage-assignment page to be loaded.
-    cy.get('.page.manage-assignment .local-header').should('contain', name);
+        if (state !== undefined) {
+            body.state = state;
+        }
 
-    if (state) {
-        cy.get(`.assignment-state .state-button.state-${state}`)
-            .submit('success', {
-                hasConfirm: true,
-                waitForState: false,
-            })
-            .should('have.class', 'state-default');
-    }
+        if (deadline !== undefined) {
+            if (deadline === 'tomorrow') {
+                deadline = moment().add(1, 'day').endOf('day');
+                deadline = deadline.toISOString();
+            }
+            body.deadline = deadline;
+        }
 
-    if (bbZip) {
-        cy.get('.blackboard-zip-uploader').within(() => {
-            cy.get('input[type=file]').uploadFixture('test_blackboard/bb.zip', 'application/zip');
-            // Wait for submit button to go back to default.
-            cy.get('.submit-button').submit('success');
-        });
-    }
+        if (Object.keys(body).length > 0) {
+            cy.authRequest({
+                url: `/api/v1/assignments/${assignment.id}`,
+                method: 'PATCH',
+                body,
+            });
+        }
+
+        if (bbZip) {
+            cy.fixtureAsFile('test_blackboard/bb.zip', 'bb.zip', 'application/zip').then(bbZipFile => {
+                const data = new FormData();
+                data.append('file', bbZipFile);
+
+                return cy.formRequest({
+                    url: `/api/v1/assignments/${assignment.id}/submissions/`,
+                    method: 'POST',
+                    data,
+                });
+            });
+        }
+
+        cy.log('created assignment', assignment);
+        return cy.wrap(assignment);
+    });
 });
 
+Cypress.Commands.add('openCategory', (name) => {
+    cy.get('.local-header').contains('.category', name).click();
+});
+
+// Upload a fixture to a file input.
 Cypress.Commands.add('uploadFixture', { prevSubject: true }, (subject, fileName, mimeType = 'application/octet-stream') => {
     // Ensure this is a file input.
     cy.wrap(subject).should('have.prop', 'tagName').should('eq', 'INPUT');
@@ -158,6 +260,8 @@ Cypress.Commands.add('uploadFixture', { prevSubject: true }, (subject, fileName,
     });
 });
 
+// Click a submit button, and optionally wait for its state to return back to
+// default.
 Cypress.Commands.add('submit', { prevSubject: true }, (subject, state, optsArg = {}) => {
     const opts = Object.assign({
         popoverMsg: '',

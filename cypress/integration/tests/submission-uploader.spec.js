@@ -1,37 +1,34 @@
 context('Submission uploader', () => {
-    let courseUrl;
-    let assigUrl;
-    let subsUrl;
+    let course;
 
     before(() => {
         cy.visit('/');
         cy.createCourse('SubmissionUploader', [
             { name: 'student1', role: 'Student' },
             { name: 'robin', role: 'Teacher' },
-        ]);
-        cy.url().then($url => {
-            courseUrl = $url;
+        ]).then(res => {
+            course = res;
         });
     });
 
-    function createAssignment(name, state='open') {
+    beforeEach(() => {
         cy.login('admin', 'admin');
-        cy.visit(courseUrl);
-        cy.createAssignment(name, { state });
-
-        return cy.url().then($url => {
-            assigUrl = $url;
-            subsUrl = $url.replace(/([?#].*)?$/, '/submissions');
-        });
-    }
+    });
 
     context('No deadline set', () => {
+        let assignment;
+
         before(() => {
-            createAssignment('NoDeadline');
+            cy.createAssignment(course.id, 'NoDeadline', {
+                state: 'open',
+            }).then(res => {
+                assignment = res;
+            });
         });
 
         beforeEach(() => {
-            cy.visit(subsUrl);
+            cy.visit(`/courses/${course.id}/assignments/${assignment.id}/submissions`);
+            cy.get('.page.submission-list').should('be.visible');
         });
 
         it('should not be visible to teachers when the assignment has no deadline', () => {
@@ -68,11 +65,13 @@ context('Submission uploader', () => {
 
     context.skip('Test student checkbox', () => {
         before(() => {
-            createAssignment('TestStudentCheckbox');
+            cy.createAssignment(course.id, 'TestStudentCheckbox', {
+                state: 'open',
+            });
         });
 
         beforeEach(() => {
-            cy.visit(subsUrl);
+            cy.visit(`/courses/${course.id}/assignments/${assignment.id}/submissions`);
             cy.get('.page.submission-list').should('be.visible');
         });
 
@@ -88,11 +87,13 @@ context('Submission uploader', () => {
 
     context.skip('Other author', () => {
         before(() => {
-            createAssignment('OtherAuthorCheckbox');
+            cy.createAssignment(course.id, 'OtherAuthorCheckbox', {
+                state: 'open',
+            });
         });
 
         beforeEach(() => {
-            cy.visit(subsUrl);
+            cy.visit(`/courses/${course.id}/assignments/${assignment.id}/submissions`);
             cy.get('.page.submission-list').should('be.visible');
         });
 

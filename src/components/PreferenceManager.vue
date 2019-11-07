@@ -42,6 +42,14 @@
                     </b-input-group>
                 </td>
             </tr>
+            <tr v-if="showInlineFeedback">
+                <td>Inline feedback</td>
+                <td>
+                    <toggle v-model="inlineFeedback"
+                            label-on="Show"
+                            label-off="Hide"/>
+                </td>
+            </tr>
             <tr v-if="showContextAmount">
                 <td style="text-align: left;">
                     Amount of context
@@ -104,6 +112,10 @@ export default {
             type: Boolean,
             default: true,
         },
+        showInlineFeedback: {
+            type: Boolean,
+            default: true,
+        },
         showTheme: {
             type: Boolean,
             default: true,
@@ -132,6 +144,7 @@ export default {
             langLoading: false,
             whiteLoading: false,
             selectedLanguage: -1,
+            inlineFeedback: true,
         };
     },
 
@@ -162,6 +175,11 @@ export default {
 
         loadValues() {
             this.loading = true;
+
+            // Reset the inline feedback option each time the current file changes,
+            // so users can't hide feedback, forget about it, and wonder where all
+            // their feedback has gone.
+            this.inlineFeedback = true;
 
             return Promise.all([this.loadWhitespace(), this.loadLanguage()]).then(() => {
                 this.loading = false;
@@ -210,6 +228,10 @@ export default {
             if (newVal != null && newVal !== oldVal) {
                 this.loadValues();
             }
+        },
+
+        inlineFeedback(show) {
+            this.$emit('inline-feedback', show);
         },
 
         selectedLanguage(lang, old) {

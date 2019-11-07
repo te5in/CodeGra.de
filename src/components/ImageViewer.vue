@@ -1,6 +1,7 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <floating-feedback-button
+    :disabled="!showInlineFeedback"
     v-if="imgURL"
     class="image-viewer"
     :fileId="id"
@@ -52,6 +53,10 @@ export default {
         revision: {
             type: String,
             required: true,
+        },
+        showInlineFeedback: {
+            type: Boolean,
+            default: true,
         },
     },
 

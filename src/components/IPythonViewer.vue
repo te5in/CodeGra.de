@@ -8,6 +8,7 @@
         :file-id="fileId"
         :output-cells="outputCells"
         :show-whitespace="showWhitespace"
+        :without-feedback="!showInlineFeedback"
         :can-use-snippets="canUseSnippets"
         />
 </div>
@@ -48,6 +49,10 @@ export default {
         showWhitespace: {
             type: Boolean,
             required: true,
+        },
+        showInlineFeedback: {
+            type: Boolean,
+            default: true,
         },
         canUseSnippets: {
             type: Boolean,

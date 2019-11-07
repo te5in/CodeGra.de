@@ -8,6 +8,7 @@
         :feedback="feedback"
         :linter-feedback="linterFeedback"
         :show-whitespace="showWhitespace"
+        :show-inline-feedback="showInlineFeedback"
         :editable="feedbackEditable"
         :can-use-snippets="canUseSnippets"
         :file-id="fileId"/>
@@ -64,6 +65,10 @@ export default {
         showWhitespace: {
             type: Boolean,
             required: true,
+        },
+        showInlineFeedback: {
+            type: Boolean,
+            default: true,
         },
     },
 

@@ -1,6 +1,7 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <floating-feedback-button
+    :disabled="!showInlineFeedback"
     v-if="pdfURL"
     class="pdf-viewer"
     :fileId="id"
@@ -59,6 +60,10 @@ export default {
         canUseSnippets: {
             type: Boolean,
             required: true,
+        },
+        showInlineFeedback: {
+            type: Boolean,
+            default: true,
         },
     },
 

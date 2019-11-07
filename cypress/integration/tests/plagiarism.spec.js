@@ -1,15 +1,8 @@
 context('Plagiarsm', () => {
     let id = Math.floor(Math.random() * 100000);
-    let user = `User ${id}`;
-    let course = `Plagiarism ${id}`;
-    let assignment = `Assignment ${id}`;
-    let urls = {};
-
-    function createAssig(i) {
-        const name = `${assignment} ${i}`;
-        cy.createAssignment(name, { bbZip: true });
-        cy.url().then($url => { urls[name] = $url });
-    }
+    let user;
+    let course;
+    let assignment;
 
     function getOptionInput(option) {
         return cy.get('.plagiarism-runner .options-table tr')
@@ -32,7 +25,7 @@ context('Plagiarsm', () => {
 
     function setOldAssignments() {
         getOptionInput('Old assignments')
-            .type(`${course} - ${assignment} 2`)
+            .type(`${course.name} - Assignment B`)
             .parentsUntil('.multiselect')
             .parent()
             .find('.multiselect__element')
@@ -57,24 +50,34 @@ context('Plagiarsm', () => {
 
     before(() => {
         cy.visit('/');
-        // cy.createUser(user, user, 'Staff');
-        cy.createCourse(course, [
+
+        cy.createCourse(`Plagiarism ${id}`, [
             { name: 'robin', role: 'Teacher' },
-        ]);
-        createAssig(1);
-        createAssig(2);
+        ]).then(res => {
+            course = res;
+
+            // Assignment A is the assignment we will run all tests on.
+            cy.createAssignment(course.id, `Assignment A`, {
+                bbZip: true,
+            }).then(res => {
+                assignment = res;
+            });
+
+            // Assignment B is the "old assignment"
+            cy.createAssignment(course.id, `Assignment B`, {
+                bbZip: true,
+            });
+        });
     });
 
     beforeEach(() => {
         cy.visit('/');
         cy.login('robin', 'Robin')
+        cy.visit(`/courses/${course.id}/assignments/${assignment.id}`);
 
-        const assig = `${assignment} 1`;
-        cy.visit(urls[assig]);
         cy.get('.page.manage-assignment .local-header')
-            .should('contain', assig);
-        cy.get('.categories .category')
-            .contains('Plagiarism').click();
+            .should('contain', assignment.name);
+        cy.openCategory('Plagiarism');
     });
 
     it('should run without options', () => {

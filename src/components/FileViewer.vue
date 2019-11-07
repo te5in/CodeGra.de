@@ -18,6 +18,7 @@
                    :file="file"
                    :revision="revision"
                    :show-whitespace="showWhitespace"
+                   :show-inline-feedback="showInlineFeedback"
                    :editable="editable"
                    @language="$emit('language', $event)"
                    :language="language"
@@ -67,6 +68,10 @@ export default {
         showWhitespace: {
             type: Boolean,
             required: true,
+        },
+        showInlineFeedback: {
+            type: Boolean,
+            default: true,
         },
         language: {
             type: String,

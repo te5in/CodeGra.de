@@ -83,6 +83,8 @@ def seed_force(db=None):
                     )
                 )
 
+    db.session.flush()
+
     with open(
         f'{os.path.dirname(os.path.abspath(__file__))}/seed_data/roles.json',
         'r'

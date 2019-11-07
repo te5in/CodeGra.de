@@ -51,8 +51,6 @@ context('Submissions page', () => {
         cy.fixture(fileName, 'utf8').then(fileContent => {
             const lines = fileContent.split('\n');
 
-            cy.log([typeof fileContent, fileContent, lines]);
-
             cy.get('.dropzone').upload(
                 {
                     fileContent,
@@ -66,7 +64,7 @@ context('Submissions page', () => {
             cy.get('.submission-uploader .submit-button').click();
             cy.url().should('contain', '/files/');
 
-            cy.get('.local-header').contains('.category', 'Code').click();
+            cy.openCategory('Code');
             cy.get('.file-tree').contains('li', 'hello.py').click();
 
             cy.get('.inner-code-viewer .line').each(($line, i) => {

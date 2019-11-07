@@ -15,8 +15,8 @@
         <div class="inner-output-cell">
             <span v-if="cell.cell_type === 'markdown'"
                   class="markdown-wrapper">
-                <component
-                    :is="withoutFeedback ? 'div' : 'floating-feedback-button'"
+                <floating-feedback-button
+                    :disabled="withoutFeedback"
                     :fileId="fileId"
                     :line="cell.feedback_offset"
                     :feedback="feedback[cell.feedback_offset]"
@@ -27,7 +27,7 @@
                     <inner-markdown-viewer
                         :markdown="cell.source"
                         :show-code-whitespace="showWhitespace"/>
-                </component>
+                </floating-feedback-button>
             </span>
             <div v-else-if="cell.cell_type === 'code'">
                 <inner-code-viewer
@@ -38,6 +38,7 @@
                     :feedback="feedback"
                     :linter-feedback="{}"
                     :show-whitespace="showWhitespace"
+                    :show-inline-feedback="!withoutFeedback"
                     :can-use-snippets="canUseSnippets"
                     :line-feedback-offset="cell.feedback_offset"
                     :file-id="fileId"
@@ -50,8 +51,8 @@
                     <span class="output-data-prompt">
                         Out [{{ cell.execution_count || 1}}]:
                     </span>
-                    <component
-                        :is="withoutFeedback ? 'div' : 'floating-feedback-button'"
+                    <floating-feedback-button
+                        :disabled="withoutFeedback"
                         :class="{'feedback-editable-output': editable}"
                         :assignment="assignment"
                         :submission="submission"
@@ -82,7 +83,7 @@
                                 <b>Unknown output type:</b> {{ out.output_type }}
                             </span>
                         </div>
-                    </component>
+                    </floating-feedback-button>
                 </div>
             </div>
         </div>

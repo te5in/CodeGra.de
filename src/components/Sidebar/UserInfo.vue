@@ -4,7 +4,8 @@
     <b-card header="Preferences">
         <preference-manager :show-language="false"
                             :show-whitespace="false"
-                            :show-revision="false"/>
+                            :show-revision="false"
+                            :show-inline-feedback="false"/>
     </b-card>
 
     <b-card header="User info">

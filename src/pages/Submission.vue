@@ -56,7 +56,8 @@
                                             :show-context-amount="selectedCat === 'feedback-overview' || selectedCat === 'teacher-diff'"
                                             :show-language="selectedCat === 'code'"
                                             @whitespace="whitespaceChanged"
-                                            @language="languageChanged"/>
+                                            @language="languageChanged"
+                                            @inline-feedback="inlineFeedbackChanged"/>
                     </div>
                 </b-popover>
             </b-button>
@@ -169,6 +170,7 @@
                              :editable="canGiveLineFeedback"
                              :can-use-snippets="canUseSnippets"
                              :show-whitespace="showWhitespace"
+                             :show-inline-feedback="showInlineFeedback"
                              :language="selectedLanguage"
                              @language="languageChanged" />
 
@@ -277,6 +279,7 @@ export default {
 
             showWhitespace: true,
             selectedLanguage: 'Default',
+            showInlineFeedback: true,
             currentFile: null,
 
             error: null,
@@ -831,6 +834,10 @@ export default {
 
         whitespaceChanged(val) {
             this.showWhitespace = val;
+        },
+
+        inlineFeedbackChanged(val) {
+            this.showInlineFeedback = val;
         },
     },
 

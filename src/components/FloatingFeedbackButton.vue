@@ -7,7 +7,7 @@
                   @click="startEditingFeedback"
                   :class="{ hide: hasFeedback && !alwaysShowButton }"
                   v-b-popover.window.top.hover="`Edit feedback for this ${slotDescription}`"
-                  v-if="editable">
+                  v-if="editable && !disabled">
             <icon name="edit"/>
         </b-button>
     </div>
@@ -27,7 +27,7 @@
         :submission="submission"
         @editFeedback="editingFeedback = true"
         @feedbackChange="feedbackChange"
-        v-if="hasFeedback"/>
+        v-if="hasFeedback && !disabled"/>
 </div>
 </template>
 
@@ -74,6 +74,10 @@ export default {
             default: 'cell',
         },
         alwaysShowButton: {
+            type: Boolean,
+            default: false,
+        },
+        disabled: {
             type: Boolean,
             default: false,
         },
