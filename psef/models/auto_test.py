@@ -388,21 +388,27 @@ class AutoTestResult(Base, TimestampMixin, IdMixin, NotEqualMixin):
         if self.final_result:
             self.clear_rubric()
 
+    def get_locked_work(self) -> 'work_models.Work':
+        return work_models.Work.query.filter_by(
+            id=self.work_id,
+        ).with_for_update(of=work_models.Work).one()
+
     def clear_rubric(self) -> None:
         """Clear all the rubric categories connected to this AutoTest for this
         result.
 
         :returns: Nothing
         """
+        work = self.get_locked_work()
         own_rubric_rows = set(
             suite.rubric_row_id for suite in self.run.auto_test.all_suites
         )
 
-        self.work.selected_items = [
-            i for i in self.work.selected_items
+        work.selected_items = [
+            i for i in work.selected_items
             if i.rubricrow_id not in own_rubric_rows
         ]
-        self.work.set_grade(grade_origin=work_models.GradeOrigin.auto_test)
+        work.set_grade(grade_origin=work_models.GradeOrigin.auto_test)
 
     def update_rubric(self) -> None:
         """Update the rubric of the connected submission according to this
@@ -410,8 +416,10 @@ class AutoTestResult(Base, TimestampMixin, IdMixin, NotEqualMixin):
 
         .. note:: This might pass back the grade to the LMS if required.
         """
-        old_selected_items = set(self.work.selected_items)
-        new_items = {i.rubricrow_id: i for i in self.work.selected_items}
+        # Lock the work we want to update,
+        work = self.get_locked_work()
+        old_selected_items = set(work.selected_items)
+        new_items = {i.rubricrow_id: i for i in work.selected_items}
         changed_item = False
 
         for suite in self.run.auto_test.all_suites:
@@ -428,8 +436,8 @@ class AutoTestResult(Base, TimestampMixin, IdMixin, NotEqualMixin):
         if not changed_item:
             return
 
-        self.work.selected_items = list(new_items.values())
-        self.work.set_grade(grade_origin=work_models.GradeOrigin.auto_test)
+        work.selected_items = list(new_items.values())
+        work.set_grade(grade_origin=work_models.GradeOrigin.auto_test)
 
     def get_amount_points_in_suites(self, *suites: 'AutoTestSuite'
                                     ) -> t.Tuple[float, float]:

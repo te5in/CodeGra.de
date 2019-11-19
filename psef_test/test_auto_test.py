@@ -1208,6 +1208,14 @@ def test_update_locked_rubric(
                 data={'items': items}
             )
 
+            # We cannot unselect the items either.
+            test_client.req(
+                'patch',
+                f'/api/v1/submissions/{work["id"]}/rubricitems/',
+                400,
+                data={'items': []}
+            )
+
     with describe('cannot delete locked rubric rows'), logged_in(teacher):
         res = test_client.req(
             'put',

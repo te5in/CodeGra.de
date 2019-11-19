@@ -435,12 +435,15 @@ def _filter_or_404(
     also_error: t.Optional[t.Callable[[Y], bool]],
     with_for_update: t.Union[bool, LockType],
     options: t.Optional[t.List[t.Any]] = None,
+    with_for_update_of: t.Optional[t.Type['Base']] = None,
 ) -> t.Union[Y, t.Sequence[Y]]:
     """Get the specified object by filtering or raise an exception.
 
     :param get_all: Get all objects if ``True`` else get a single one.
     :param model: The object to get.
     :param criteria: The criteria to filter with.
+    :param with_for_update_of: Which tables should be locked, only useful when
+        ``with_for_update`` is not ``None``.
     :returns: The requested object.
 
     :raises APIException: If no object with the given id could be found.
@@ -448,7 +451,9 @@ def _filter_or_404(
     """
     query = model.query.filter(*criteria)
     if with_for_update:
-        query = query.with_for_update(read=with_for_update == LockType.read)
+        query = query.with_for_update(
+            read=with_for_update == LockType.read, of=with_for_update_of
+        )
     if options is not None:
         query = query.options(*options)
 
@@ -495,6 +500,7 @@ def filter_single_or_404(
     also_error: t.Optional[t.Callable[[Y], bool]] = None,
     with_for_update: t.Union[bool, LockType] = False,
     options: t.Optional[t.List[t.Any]] = None,
+    with_for_update_of: t.Optional[t.Type['Base']] = None,
 ) -> Y:
     """Get a single object of the specified model by filtering or raise an
     exception.
@@ -505,6 +511,8 @@ def filter_single_or_404(
 
     :param model: The object to get.
     :param criteria: The criteria to filter with.
+    :param with_for_update_of: Which tables should be locked, only useful when
+        ``with_for_update`` is not ``None``.
     :returns: The requested object.
 
     :raises APIException: If no object with the given id could be found.
@@ -513,7 +521,13 @@ def filter_single_or_404(
     return t.cast(
         Y,
         _filter_or_404(
-            model, False, criteria, also_error, with_for_update, options
+            model,
+            False,
+            criteria,
+            also_error,
+            with_for_update,
+            options,
+            with_for_update_of=with_for_update_of,
         )
     )
 
