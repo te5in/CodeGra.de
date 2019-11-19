@@ -96,7 +96,7 @@ class AutoTestSuite(Base, TimestampMixin, IdMixin):
         order_by='AutoTestStepBase.order'
     )  # type: t.MutableSequence[auto_test_step_models.AutoTestStepBase]
 
-    command_time_limit = db.Column(
+    command_time_limit: t.Optional[float] = db.Column(
         'command_time_limit', db.Float, nullable=True, default=None
     )
 
