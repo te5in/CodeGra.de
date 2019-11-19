@@ -33,12 +33,25 @@ const getters = {
         getSubmission(state, assignmentId, submissionId, false),
     allSubmissions: state => state.submissions,
     latestSubmissions: state => state.latestSubmissions,
+    usersWithGroupSubmission: state => state.groupSubmissionUsers,
 };
 
 const loaders = {
     feedback: {},
     fileTrees: {},
 };
+
+function getUsersInGroup(subs) {
+    const userIds = {};
+    subs.forEach(sub => {
+        if (sub.user.group) {
+            sub.user.group.members.forEach(member => {
+                userIds[member.id] = sub.user;
+            });
+        }
+    });
+    return userIds;
+}
 
 function addToLatest(latestSubs, newSub) {
     const len = latestSubs.length;
@@ -381,8 +394,10 @@ const actions = {
 
 const mutations = {
     [types.UPDATE_SUBMISSIONS](state, { assignmentId, submissions }) {
+        const newLatest = getLatestSubmissions(submissions);
         Vue.set(state.submissions, assignmentId, submissions);
-        Vue.set(state.latestSubmissions, assignmentId, getLatestSubmissions(submissions));
+        Vue.set(state.latestSubmissions, assignmentId, newLatest);
+        Vue.set(state.groupSubmissionUsers, assignmentId, getUsersInGroup(newLatest));
         Vue.set(
             state.submissionsByUser,
             assignmentId,
@@ -460,9 +475,11 @@ const mutations = {
             submission,
         );
         const oldLatest = state.latestSubmissions[assignmentId] || [];
+        const newLatest = addToLatest(oldLatest, submission);
 
         Vue.set(state.submissions, assignmentId, submissions);
-        Vue.set(state.latestSubmissions, assignmentId, addToLatest(oldLatest, submission));
+        Vue.set(state.latestSubmissions, assignmentId, newLatest);
+        Vue.set(state.groupSubmissionUsers, assignmentId, getUsersInGroup(newLatest));
         if (state.submissionsByUser[assignmentId] == null) {
             Vue.set(state.submissionsByUser, assignmentId, { userId: userSubmissions });
         } else {
@@ -477,6 +494,7 @@ const mutations = {
         Vue.set(state, 'submissionsByUserPromises', {});
         Vue.set(state, 'submissionsLoaders', {});
         Vue.set(state, 'singleSubmissionLoaders', {});
+        Vue.set(state, 'groupSubmissionUsers', {});
         loaders.feedback = {};
         loaders.fileTrees = {};
     },
@@ -491,6 +509,7 @@ export default {
         submissionsByUserPromises: {},
         submissionsLoaders: {},
         singleSubmissionLoaders: {},
+        groupSubmissionUsers: {},
     },
 
     getters,

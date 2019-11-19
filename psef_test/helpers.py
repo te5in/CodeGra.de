@@ -129,7 +129,7 @@ def create_group_set(
         assig_ids = []
     g_set = test_client.req(
         'put',
-        f'/api/v1/courses/{course_id}/group_sets/',
+        f'/api/v1/courses/{get_id(course_id)}/group_sets/',
         data={'minimum_size': min_size, 'maximum_size': max_size},
         status_code=200,
         result={
@@ -142,7 +142,7 @@ def create_group_set(
     for assig_id in assig_ids:
         test_client.req(
             'patch',
-            f'/api/v1/assignments/{assig_id}',
+            f'/api/v1/assignments/{get_id(assig_id)}',
             200,
             data={'group_set_id': g_set['id']},
         )
@@ -197,8 +197,8 @@ def create_user_with_perms(session, perms, courses, gperms=None, name=None):
 def create_group(test_client, group_set_id, member_ids):
     return test_client.req(
         'post',
-        f'/api/v1/group_sets/{group_set_id}/group',
-        data={'member_ids': member_ids},
+        f'/api/v1/group_sets/{get_id(group_set_id)}/group',
+        data={'member_ids': list(map(get_id, member_ids))},
         status_code=200,
         result={'id': int, 'name': str, 'members': list},
     )

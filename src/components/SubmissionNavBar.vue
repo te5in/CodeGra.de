@@ -26,6 +26,11 @@
                           style="margin-bottom: -1px;"
                           v-b-popover.top.hover="'You are currently not viewing the latest submission.'"
                           v-if="notLatest"/>
+                    <icon name="exclamation-triangle"
+                          class="text-warning ml-1"
+                          style="margin-bottom: -1px;"
+                          v-b-popover.top.hover="`This user is member of the group ${quote}${groupOfUser.group.name}${quote}, which also created a submission.`"
+                          v-else-if="groupOfUser"/>
                 </span>
             </template>
             <template v-if="!loadingOldSubs && oldSubmissions != null">
@@ -95,6 +100,11 @@ export default {
             required: true,
         },
 
+        groupOfUser: {
+            type: Object,
+            default: null,
+        },
+
         currentSubmission: {
             type: Object,
             required: true,
@@ -120,6 +130,8 @@ export default {
         return {
             oldSubmissions: null,
             loadingOldSubs: false,
+            // For use in v-b-popover directives.
+            quote: '"',
         };
     },
 

@@ -34,6 +34,7 @@
             :current-submission="submission"
             :latest-submissions="latestSubmissions"
             :not-latest="!currentSubmissionIsLatest"
+            :group-of-user="groupOfCurrentUser"
             :show-user-buttons="canGrade"
             :assignment="assignment"/>
 
@@ -214,6 +215,7 @@
     <grade-viewer :assignment="assignment"
                   :submission="submission"
                   :not-latest="!currentSubmissionIsLatest"
+                  :group-of-user="groupOfCurrentUser"
                   :editable="editable"
                   :rubric-start-open="rubricStartOpen"
                   v-if="!loadingInner"
@@ -292,6 +294,7 @@ export default {
         ...mapGetters('submissions', {
             storeLatestSubmissions: 'latestSubmissions',
             storeGetSingleSubmission: 'getSingleSubmission',
+            storeUsersWithGroupSubmissions: 'usersWithGroupSubmission',
         }),
         ...mapGetters('courses', ['assignments']),
         ...mapGetters('autotest', {
@@ -320,7 +323,11 @@ export default {
         },
 
         editable() {
-            return !!(this.canGrade && this.currentSubmissionIsLatest);
+            return !!(
+                this.canGrade &&
+                this.currentSubmissionIsLatest &&
+                this.groupOfCurrentUser == null
+            );
         },
 
         prefFileId() {
@@ -352,6 +359,12 @@ export default {
 
         currentSubmissionIsLatest() {
             return !!this.latestSubmissions.find(sub => sub.id === this.submissionId);
+        },
+
+        groupOfCurrentUser() {
+            const usersWithGroup = this.storeUsersWithGroupSubmissions[this.assignmentId] || {};
+            const userId = this.$utils.getProps(this.submission, null, 'user', 'id');
+            return usersWithGroup[userId];
         },
 
         fileTree() {

@@ -185,11 +185,13 @@ describe('Submission.vue', () => {
                     state: {
                         submissions: { 2: submissions },
                         latestSubmissions: { 2: submissions },
+                        groupSubmissionUsers: {},
                     },
                     getters: {
                         latestSubmissions: state => state.latestSubmissions,
                         getSingleSubmission: state =>
                             (assigId, id) => (state.submissions[assigId] || []).find(s => s.id === id) || null,
+                        usersWithGroupSubmission: state => state.groupSubmissionUsers,
                     },
                     actions: {
                         loadSubmissions: mockLoadSubs,

@@ -3,7 +3,6 @@
 <loader center v-if="loading"/>
 <div class="submission-list d-flex flex-column" v-else>
     <submission-list :assignment="assignment"
-                     :submissions="submissions"
                      :canDownload="canDownload"
                      :rubric="rubric"
                      :graders="graders"

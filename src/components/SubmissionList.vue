@@ -107,6 +107,11 @@
                slot-scope="item"
                @click.prevent>
                 <user :user="item.value"/>
+                <icon name="exclamation-triangle"
+                      class="text-warning ml-1"
+                      style="margin-bottom: -1px;"
+                      v-b-popover.top.hover="`This user is member of the group ${quote}${usersInGroup[item.value.id].group.name}${quote}, which also created a submission.`"
+                      v-if="usersInGroup[item.value.id]"/>
             </a>
 
             <span slot="grade" slot-scope="item" class="submission-grade">
@@ -127,7 +132,7 @@
                 <div v-else
                     v-b-popover.top.hover="item.item.user.is_test_student ? 'You cannot assign test students to graders.' : ''">
                     <b-form-select :options="assignees"
-                                   :disabled="item.item.user.is_test_student"
+                                   :disabled="item.item.user.is_test_student || usersInGroup[item.item.user.id]"
                                    :value="item.value ? item.value.id : null"
                                    @input="updateAssignee($event, item)"
                                    @click.native.stop
@@ -161,6 +166,7 @@ import { mapGetters, mapActions } from 'vuex';
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/gear';
 import 'vue-awesome/icons/refresh';
+import 'vue-awesome/icons/exclamation-triangle';
 import 'vue-awesome/icons/clock-o';
 
 import { waitAtLeast, formatGrade, parseBool, nameOfUser } from '@/utils';
@@ -183,10 +189,6 @@ export default {
         assignment: {
             type: Object,
             default: null,
-        },
-        submissions: {
-            type: Array,
-            default: [],
         },
         canDownload: {
             type: Boolean,
@@ -226,6 +228,8 @@ export default {
             assignees: [],
             assigneeUpdating: [],
             selectedCat: '',
+            // For use in v-b-popover directives.
+            quote: '"',
         };
     },
 
@@ -234,6 +238,16 @@ export default {
             userId: 'id',
             userName: 'name',
         }),
+
+        ...mapGetters('submissions', ['latestSubmissions', 'usersWithGroupSubmission']),
+
+        submissions() {
+            return this.latestSubmissions[this.assignment.id] || [];
+        },
+
+        usersInGroup() {
+            return this.usersWithGroupSubmission[this.assignment.id] || {};
+        },
 
         fields() {
             const fields = [
@@ -315,9 +329,16 @@ export default {
 
             return filterSubmissions(this.submissions, this.mineOnly, this.userId, this.filter).map(
                 sub => {
+                    let variant = null;
                     if (sub.formatted_created_at > this.assignment.formatted_deadline) {
+                        variant = 'danger';
+                    } else if (this.usersInGroup[sub.user.id]) {
+                        variant = 'warning';
+                    }
+
+                    if (variant) {
                         return Object.assign({}, sub, {
-                            _rowVariant: 'danger',
+                            _rowVariant: variant,
                         });
                     }
                     return sub;

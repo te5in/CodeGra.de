@@ -31,7 +31,9 @@ from .. import auth, ignore, helpers
 from .role import CourseRole
 from .permission import Permission
 from ..exceptions import PermissionException, InvalidAssignmentState
-from .link_tables import user_course, work_rubric_item, course_permissions
+from .link_tables import (
+    user_course, users_groups, work_rubric_item, course_permissions
+)
 from ..permissions import CoursePermission as CPerm
 
 if t.TYPE_CHECKING:  # pragma: no cover
@@ -959,6 +961,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         __to_query: T,
         *,
         include_deleted: bool = False,
+        include_old_user_submissions: bool = False,
     ) -> MyQuery[t.Tuple[T]]:
         ...
 
@@ -969,6 +972,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         __second: Y,
         *,
         include_deleted: bool = False,
+        include_old_user_submissions: bool = False,
     ) -> MyQuery[t.Tuple[T, Y]]:
         ...
 
@@ -976,6 +980,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         self,
         *to_query: t.Any,
         include_deleted: bool = False,
+        include_old_user_submissions: bool = False,
     ) -> MyQuery[t.Any]:
         """Get the given fields from all last submitted submissions.
 
@@ -989,7 +994,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         # subquery makes the query, as postgres could optimize it out.
 
         sql = db.session.query(
-            t.cast(DbColumn[int], work_models.Work.id)
+            t.cast(DbColumn[int], work_models.Work.id),
         ).filter(
             work_models.Work.assignment_id == self.id,
         ).order_by(
@@ -1001,12 +1006,35 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
 
         sub = sql.distinct(work_models.Work.user_id).subquery('ids')
 
-        return db.session.query(*to_query).select_from(
-            work_models.Work
-        ).filter(t.cast(DbColumn[int], work_models.Work.id).in_(sub))
+        res = db.session.query(*to_query).select_from(work_models.Work).filter(
+            t.cast(DbColumn[int], work_models.Work.id).in_(sub),
+        )
+        if self.group_set is not None and not include_old_user_submissions:
+            groups_with_submission = db.session.query(
+                t.cast(DbColumn[int], group_models.Group.id)
+            ).filter(
+                group_models.Group.group_set_id == self.group_set_id,
+                db.session.query(work_models.Work).filter(
+                    work_models.Work.assignment_id == self.id,
+                    work_models.Work.user_id ==
+                    group_models.Group.virtual_user_id,
+                ).exists()
+            )
+            res = res.filter(
+                ~t.cast(DbColumn[int], work_models.Work.user_id).in_(
+                    db.session.query(users_groups.c.user_id).filter(
+                        users_groups.c.group_id.in_(groups_with_submission)
+                    )
+                )
+            )
+        return res
 
-    def get_all_latest_submissions(self, *, include_deleted: bool = False
-                                   ) -> MyQuery['work_models.Work']:
+    def get_all_latest_submissions(
+        self,
+        *,
+        include_deleted: bool = False,
+        include_old_user_submissions: bool = False,
+    ) -> MyQuery['work_models.Work']:
         """Get a list of all the latest submissions
         (:class:`.work_models.Work`) by each :class:`.user_models.User` who has
         submitted at least one work for this assignment.
@@ -1020,6 +1048,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
             self.get_from_latest_submissions(
                 t.cast(work_models.Work, work_models.Work),
                 include_deleted=include_deleted,
+                include_old_user_submissions=include_old_user_submissions,
             )
         )
 
@@ -1406,7 +1435,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         return db.session.query(
             db.session.query(
                 work_models.Work
-            ).filter_by(assignment_id=self.id).join(
+            ).filter_by(assignment_id=self.id, deleted=False).join(
                 user_models.User,
                 user_models.User.id == work_models.Work.user_id
             ).join(group_models.Group).exists()

@@ -92,24 +92,9 @@ def _passback_grades_1(
             t.cast(DbColumn[object], p.models.Work.created_at).desc()
         ).all()
     else:
-        newest_subs = assignment.get_all_latest_submissions().order_by(
-            t.cast(DbColumn[object], p.models.Work.created_at).desc()
-        )
-
-        seen_authors: t.Set[p.models.User] = set()
-        submission_ids_set = set(submission_ids)
-        subs = []
-
-        for sub in newest_subs:
-            if sub.user in seen_authors:
-                continue
-
-            if sub.id in submission_ids_set:
-                # We still need the submissions that do not pass this condition
-                # to add them to the `seen_authors` variable
-                subs.append(sub)
-
-            seen_authors.update(sub.get_all_authors())
+        subs = assignment.get_all_latest_submissions().filter(
+            t.cast(DbColumn[int], p.models.Work.id).in_(submission_ids)
+        ).all()
 
     found_ids = [s.id for s in subs]
     logger.info(
