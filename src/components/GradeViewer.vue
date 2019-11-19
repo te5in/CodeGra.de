@@ -155,7 +155,9 @@ export default {
                     this.submission.user,
                 )} so you cannot edit the grade. This grade will not be passed back to your LMS`;
             } else if (this.groupOfUser) {
-                return `This user is member of the group ${this.groupOfUser.group.name}, which also created a submission. Therefore, this submission is not the latest of this user.`;
+                return `This user is member of the group ${
+                    this.groupOfUser.group.name
+                }, which also created a submission. Therefore, this submission is not the latest of this user.`;
             } else {
                 return '';
             }

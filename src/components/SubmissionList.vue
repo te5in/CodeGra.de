@@ -320,7 +320,7 @@ export default {
             // WARNING: We need to access all, do not change!
             if (
                 [this.submissions, this.mineOnly, this.userId, this.filter].indexOf(undefined) !==
-                    -1
+                -1
             ) {
                 return [];
             }

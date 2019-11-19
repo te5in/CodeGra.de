@@ -323,9 +323,11 @@ export default {
         },
 
         editable() {
-            return !!(this.canGrade &&
-                      this.currentSubmissionIsLatest &&
-                      this.groupOfCurrentUser == null);
+            return !!(
+                this.canGrade &&
+                this.currentSubmissionIsLatest &&
+                this.groupOfCurrentUser == null
+            );
         },
 
         prefFileId() {
