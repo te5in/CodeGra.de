@@ -2,7 +2,7 @@
 <template>
 <div class="grade-viewer"
      v-b-popover.top.hover="globalPopover"
-     :class="notLatest ? 'cursor-not-allowed' : undefined">
+     :class="globalPopover ? 'cursor-not-allowed' : undefined">
     <b-collapse id="rubric-collapse"
                 v-if="showRubric"
                 v-model="rubricOpen">
@@ -30,7 +30,7 @@
 
             <input type="number"
                    class="form-control"
-                   :disabled="notLatest"
+                   :disabled="!!globalPopover"
                    name="grade-input"
                    step="any"
                    min="0"
@@ -127,6 +127,11 @@ export default {
             type: Boolean,
             default: false,
         },
+
+        groupOfUser: {
+            type: Object,
+            default: null,
+        },
     },
 
     data() {
@@ -149,6 +154,8 @@ export default {
                 return `This is not the latest submission by ${this.$utils.nameOfUser(
                     this.submission.user,
                 )} so you cannot edit the grade. This grade will not be passed back to your LMS`;
+            } else if (this.groupOfUser) {
+                return `This user is member of the group ${this.groupOfUser.group.name}, which also created a submission. Therefore, this submission is not the latest of this user.`;
             } else {
                 return '';
             }

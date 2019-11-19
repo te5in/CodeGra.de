@@ -4416,37 +4416,60 @@ def test_upload_files_with_duplicate_filenames(
 
 
 def test_get_latest_submissions_only(
-    logged_in, session, test_client, admin_user, tomorrow
+    logged_in, session, test_client, admin_user, tomorrow, describe
 ):
-    with logged_in(admin_user):
-        course = helpers.create_course(test_client)
+    with describe('setup'):
+        with logged_in(admin_user):
+            course = helpers.create_course(test_client)
 
-    student1 = helpers.create_user_with_role(session, 'Student', course)
-    student2 = helpers.create_user_with_role(session, 'Student', course)
-    teacher = helpers.create_user_with_role(session, 'Teacher', course)
+        student1 = helpers.create_user_with_role(session, 'Student', course)
+        student2 = helpers.create_user_with_role(session, 'Student', course)
+        teacher = helpers.create_user_with_role(session, 'Teacher', course)
 
-    with logged_in(teacher):
-        assig_id = helpers.create_assignment(
-            test_client, course, 'open', deadline=tomorrow
-        )['id']
+        with logged_in(teacher):
+            assig_id = helpers.create_assignment(
+                test_client, course, 'open', deadline=tomorrow
+            )['id']
 
-    with logged_in(student1):
-        sub1 = helpers.create_submission(test_client, assig_id)
-        sub2 = helpers.create_submission(test_client, assig_id)
-    with logged_in(student2):
-        sub3 = helpers.create_submission(test_client, assig_id)
+        with logged_in(student1):
+            sub1 = helpers.create_submission(test_client, assig_id)
+            sub2 = helpers.create_submission(test_client, assig_id)
+        with logged_in(student2):
+            sub3 = helpers.create_submission(test_client, assig_id)
 
-    base_url = f'/api/v1/assignments/{assig_id}/submissions/?extended'
+        base_url = f'/api/v1/assignments/{assig_id}/submissions/?extended'
 
-    with logged_in(teacher):
+    with describe('Getting all submissions'), logged_in(teacher):
         # By default you get all the submissions
         test_client.req('get', base_url, 200, result=[sub3, sub2, sub1])
 
+    with describe('Getting latest only'), logged_in(teacher):
         # With latest_only you get all the latest submissions by each user, so
         # in this case sub2 is the latest by student1, while sub1 is not.
         test_client.req(
             'get', f'{base_url}&latest_only', 200, result=[sub3, sub2]
         )
+
+    with describe('Setting up group assignment'), logged_in(teacher):
+        g_set = helpers.create_group_set(test_client, course, 1, 2, [assig_id])
+        helpers.create_group(test_client, g_set, [student1, student2])
+
+        with logged_in(student1):
+            group_sub = helpers.create_submission(test_client, assig_id)
+
+    with describe('API still gives student submissions'), logged_in(teacher):
+        test_client.req(
+            'get',
+            f'{base_url}&latest_only',
+            200,
+            result=[group_sub, sub3, sub2]
+        )
+
+    with describe('But method only gives group submission by default'):
+        subs = m.Assignment.query.get(assig_id
+                                      ).get_all_latest_submissions().all()
+        assert len(subs) == 1
+        assert subs[0].id == group_sub['id']
 
 
 def test_all_submissions_by_a_user(

@@ -1247,7 +1247,9 @@ def get_all_works_for_assignment(
         )
 
     if helpers.request_arg_true('latest_only'):
-        obj = assignment.get_all_latest_submissions()
+        obj = assignment.get_all_latest_submissions(
+            include_old_user_submissions=True
+        )
     else:
         obj = models.Work.query.filter_by(
             assignment_id=assignment_id, deleted=False
