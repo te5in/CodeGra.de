@@ -1435,7 +1435,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         return db.session.query(
             db.session.query(
                 work_models.Work
-            ).filter_by(assignment_id=self.id).join(
+            ).filter_by(assignment_id=self.id, deleted=False).join(
                 user_models.User,
                 user_models.User.id == work_models.Work.user_id
             ).join(group_models.Group).exists()
