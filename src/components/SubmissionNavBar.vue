@@ -53,7 +53,7 @@
                     </template>
                     <late-submission-icon
                         hide-popover
-                        :submission="curSub"
+                        :submission="sub"
                         :assignment="assignment"/>
                 </b-dropdown-item>
             </template>
