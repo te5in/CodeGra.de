@@ -9,8 +9,7 @@
         :output-cells="outputCells"
         :show-whitespace="showWhitespace"
         :without-feedback="!showInlineFeedback"
-        :can-use-snippets="canUseSnippets"
-        />
+        :can-use-snippets="canUseSnippets" />
 </div>
 </template>
 
@@ -37,6 +36,10 @@ export default {
         file: {
             type: Object,
             default: null,
+        },
+        fileId: {
+            type: String,
+            required: true,
         },
         cells: {
             type: Array,
@@ -72,10 +75,6 @@ export default {
 
     computed: {
         ...mapGetters('pref', ['fontSize']),
-
-        fileId() {
-            return (this.file && this.file.id) || this.file.ids[0] || this.file.ids[1];
-        },
 
         feedback() {
             return this.$utils.getProps(this.submission, {}, 'feedback', 'user', this.fileId);

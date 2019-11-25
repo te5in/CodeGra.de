@@ -15,10 +15,10 @@ import typing as t
 import tarfile
 import zipfile
 import tempfile
+import dataclasses
 from collections import defaultdict
 
 import structlog
-import mypy_extensions
 from werkzeug.utils import secure_filename
 from typing_extensions import Protocol
 from werkzeug.datastructures import FileStorage
@@ -42,13 +42,6 @@ logger = structlog.get_logger()
 _BB_TXT_FORMAT = re.compile(
     r"(?P<assignment_name>.+)_(?P<student_id>.+?)_attempt_"
     r"(?P<datetime>\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}).txt"
-)
-FileTreeBase = mypy_extensions.TypedDict(  # pylint: disable=invalid-name
-    'FileTreeBase',
-    {
-        'name': str,
-        'id': int,
-    }
 )
 
 SPECIAL_FILES = {
@@ -209,43 +202,34 @@ def escape_logical_filename(name: str) -> str:
     return name
 
 
-# This is valid, see https://github.com/PyCQA/pylint/issues/1927
-class FileTree(  # pylint: disable=inherit-non-class,missing-docstring
-    FileTreeBase,
-    total=False,
-):
-    """A file tree with.
+T = t.TypeVar('T')
 
-    This file tree has structure like this:
 
-    .. code-block:: python
+@dataclasses.dataclass
+class FileTree(t.Generic[T]):
+    """A class representing a file tree as stored in the database.
 
-        {
-            "id": 1,
-            "name": "rootdir",
-            "entries": [
-                {
-                    "id": 2,
-                    "name": "file1.txt"
-                },
-                {
-                    "id": 3,
-                    "name": "subdir",
-                    "entries": [
-                        {
-                            "id": 4,
-                            "name": "file2.txt"
-                        },
-                        {
-                            "id": 5,
-                            "name": "file3.txt"
-                        }
-                    ],
-                },
-            ],
-        }
+    :param name: The logicial name of the file, this is not the name of the
+        file on disk.
+    :param id: The id of the file in the database.
+    :param entries: If not ``None`` this file is a directory, and contains
+        these files as direct children.
     """
-    entries: t.MutableSequence[t.Any]
+    __slots__ = ('name', 'id', 'entries')
+    name: str
+    id: T
+    entries: t.Optional[t.Sequence['FileTree[T]']]
+
+    def __to_json__(
+        self
+    ) -> t.Mapping[str, t.Union[str, t.Sequence['FileTree[T]']]]:
+        res: t.Dict[str, t.Union[str, t.Sequence['FileTree[T]']]] = {
+            'name': self.name,
+            'id': str(self.id)
+        }
+        if self.entries is not None:
+            res['entries'] = self.entries
+        return res
 
 
 class IgnoredFilesException(APIException):
@@ -280,7 +264,8 @@ class IgnoredFilesException(APIException):
         )
 
 
-def get_stat_information(file: models.File) -> t.Mapping[str, t.Any]:
+def get_stat_information(file: models.NestedFileMixin[T]
+                         ) -> t.Mapping[str, t.Union[bool, str, int]]:
     """Get stat information for a given :class:`.models.File`
 
     The resulting object will look like this:
@@ -293,7 +278,7 @@ def get_stat_information(file: models.File) -> t.Mapping[str, t.Any]:
                                        # unix timestamp in utc time.
             'size': int, # The size on disk of the file or 0 if the file is a
                          # directory.
-            'id': int, # The id of the given file.
+            'id': str, # The id of the given file.
         }
 
     :param file: The file to get the stat information for.
@@ -311,7 +296,7 @@ def get_stat_information(file: models.File) -> t.Mapping[str, t.Any]:
         'is_directory': file.is_directory,
         'modification_date': round(mod_date.timestamp()),
         'size': size,
-        'id': file.id,
+        'id': str(file.id),
     }
 
 
@@ -345,9 +330,14 @@ def get_file_contents(code: models.FileMixin) -> bytes:
         return codefile.read()
 
 
-def search_path_in_filetree(filetree: FileTree, path: str) -> int:
+def search_path_in_filetree(filetree: FileTree[T], path: str) -> T:
     """Search for a path in a filetree.
 
+    >>> def to_ftree(dct):
+    ...    entries = None
+    ...    if 'entries' in dct:
+    ...        entries = [to_ftree(entry) for entry in dct['entries']]
+    ...    return FileTree(**{**dct, 'entries': entries})
     >>> filetree = {
     ...    "id": 1,
     ...    "name": "rootdir",
@@ -373,6 +363,7 @@ def search_path_in_filetree(filetree: FileTree, path: str) -> int:
     ...    ],
     ... }
     ...
+    >>> filetree = to_ftree(filetree)
     >>> search_path_in_filetree(filetree, "file1.txt")
     2
     >>> search_path_in_filetree(filetree, "/subdir/")
@@ -392,20 +383,20 @@ def search_path_in_filetree(filetree: FileTree, path: str) -> int:
     for part in path.split('/'):
         if not part:
             continue
-        for entry in cur['entries']:
-            if entry['name'] == part:
+        for entry in (cur.entries or []):
+            if entry.name == part:
                 cur = entry
                 break
         else:
             raise KeyError(f'Path ({path}) not in tree')
-    return cur['id']
+    return cur.id
 
 
 def restore_directory_structure(
     work: models.Work,
     parent: str,
     exclude: models.FileOwner = models.FileOwner.teacher
-) -> FileTree:
+) -> FileTree[int]:
     """Restores the directory structure recursively for a submission
     (a :class:`.models.Work`).
 
@@ -454,10 +445,10 @@ def restore_directory_structure(
 
 
 def _restore_directory_structure(
-    code: models.File,
+    code: models.FileMixin[T],
     parent: str,
-    cache: t.Mapping[int, t.Sequence[models.File]],
-) -> FileTree:
+    cache: t.Mapping[T, t.Sequence[models.FileMixin[T]]],
+) -> FileTree[T]:
     """Worker function for :py:func:`.restore_directory_structure`
 
     :param code: A file
@@ -472,14 +463,10 @@ def _restore_directory_structure(
             _restore_directory_structure(child, out, cache)
             for child in cache[code.id]
         ]
-        return {
-            "name": code.name,
-            "id": code.id,
-            "entries": subtree,
-        }
+        return FileTree(name=code.name, id=code.id, entries=subtree)
     else:  # this is a file
         shutil.copyfile(code.get_diskname(), out, follow_symlinks=False)
-        return {"name": code.name, "id": code.id}
+        return FileTree(name=code.name, id=code.id, entries=None)
 
 
 def rename_directory_structure(

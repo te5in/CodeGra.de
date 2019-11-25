@@ -10,7 +10,7 @@ import typing as t
 import requests
 import werkzeug
 import structlog
-from flask import g, request, make_response, send_from_directory
+from flask import request, make_response, send_from_directory
 
 from . import api
 from .. import app, files, tasks, models, helpers, auto_test
@@ -94,7 +94,7 @@ def _verify_global_header_password() -> LocalRunner:
 @feature_required(Feature.AUTO_TEST)
 def get_auto_test_status(
 ) -> t.Union[JSONResponse[auto_test.RunnerInstructions], EmptyResponse]:
-    """Request a AutoTest to run.
+    """Request an AutoTest to run.
 
     .. warning:: This route has side effects!
 
@@ -240,7 +240,7 @@ def post_heartbeat(auto_test_id: int, run_id: int) -> EmptyResponse:
         runner_id=runner.id.hex,
     )
 
-    runner.last_heartbeat = g.request_start_time
+    runner.last_heartbeat = helpers.get_request_start_time()
     db.session.commit()
     return make_empty_response()
 
@@ -460,3 +460,55 @@ def get_extra_results_to_process(
             } for res in results
         ]
     )
+
+
+@api.route(
+    (
+        '/auto_tests/<int:auto_test_id>/results/<int:result_id>'
+        '/suites/<int:suite_id>/files/'
+    ),
+    methods=['POST']
+)
+@feature_required(Feature.AUTO_TEST)
+def upload_output_files(
+    auto_test_id: int, result_id: int, suite_id: int
+) -> EmptyResponse:
+    """Upload output files for the given AutoTest in the given suite.
+
+    The uploaded file may be any file that can normally be used as a
+    submission, but a compressed archive is preferred.
+    """
+    password = _verify_global_header_password()
+    result = filter_single_or_404(
+        models.AutoTestResult,
+        models.AutoTestResult.id == result_id,
+        also_error=lambda result: result.run.auto_test_id != auto_test_id,
+        with_for_update=True,
+    )
+    _ensure_from_latest_work(result)
+    _verify_and_get_runner(result.run, password)
+
+    suite = get_or_404(
+        models.AutoTestSuite,
+        suite_id,
+        also_error=(
+            lambda suite: suite.auto_test_set.auto_test_id != auto_test_id
+        ),
+    )
+
+    file_objects = helpers.get_files_from_request(
+        max_size=app.max_file_size, keys=['file']
+    )
+    extracted = files.process_files(file_objects, app.max_file_size)
+
+    models.AutoTestOutputFile.create_from_extract_directory(
+        extracted,
+        None,
+        {
+            'result': result,
+            'suite': suite,
+        },
+    )
+    db.session.commit()
+
+    return make_empty_response()

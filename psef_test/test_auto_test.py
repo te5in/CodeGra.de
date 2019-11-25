@@ -37,6 +37,7 @@ def monkeypatch_for_run(monkeypatch, lxc_stub, stub_function_class):
     )
 
     monkeypatch.setattr(psef.auto_test, 'FIXTURES_ROOT', '/tmp')
+    monkeypatch.setattr(psef.auto_test, 'OUTPUT_DIR', f'/tmp/{uuid.uuid4()}')
 
     def new_run_command(self, cmd_user):
         signal_start = psef.auto_test.StartedContainer._signal_start
@@ -87,6 +88,44 @@ def monkeypatch_for_run(monkeypatch, lxc_stub, stub_function_class):
         psef.tasks, 'check_heartbeat_auto_test_run', stub_function_class()
     )
     monkeypatch.setattr(psef.auto_test, '_REQUEST_TIMEOUT', 0.1)
+
+    _old_upload = psef.auto_test.AutoTestRunner._upload_output_folder
+
+    def upload(*args, **kwargs):
+        try:
+            _old_upload(*args, **kwargs)
+        finally:
+            for f in os.listdir(psef.auto_test.OUTPUT_DIR):
+                path = os.path.join(psef.auto_test.OUTPUT_DIR, f)
+                if os.path.isdir(path):
+                    shutil.rmtree(path)
+                else:
+                    os.unlink(path)
+
+    monkeypatch.setattr(
+        psef.auto_test.AutoTestRunner, '_upload_output_folder', upload
+    )
+
+    with tempfile.TemporaryDirectory() as upper_tmpdir:
+        tmpdir = upper_tmpdir
+        _run_student = psef.auto_test._run_student
+
+        monkeypatch.setattr(
+            psef.auto_test, '_get_home_dir',
+            stub_function_class(lambda: tmpdir)
+        )
+
+        def next_student(*args, **kwargs):
+            nonlocal tmpdir
+
+            with tempfile.TemporaryDirectory() as tdir:
+                tmpdir = tdir
+                for inner in ['/student']:
+                    shutil.copytree(upper_tmpdir + inner, tdir + inner)
+                return _run_student(*args, **kwargs)
+
+        monkeypatch.setattr(psef.auto_test, '_run_student', next_student)
+        yield
 
 
 @pytest.fixture
@@ -526,7 +565,7 @@ def test_update_auto_test(
     with describe('add fixtures'), logged_in(teacher):
         update_test(fixture1=(io.BytesIO(b'hello'), 'file1'))
         fixture, = test['fixtures']
-        assert_similar(fixture, {'hidden': True, 'id': int, 'name': 'file1'})
+        assert_similar(fixture, {'hidden': True, 'id': str, 'name': 'file1'})
 
         res = test_client.get(f'{url}/fixtures/{fixture["id"]}')
         assert res.status_code == 200
@@ -560,7 +599,7 @@ def test_update_auto_test(
                 200,
                 result={
                     '__allow_extra__': True,
-                    'fixtures': [object],
+                    'fixtures': [dict],
                 }
             )
 
@@ -598,8 +637,8 @@ def test_update_auto_test(
         fixture1, fixture2 = test['fixtures']
         assert_similar(
             test['fixtures'],
-            [{'hidden': True, 'id': int, 'name': 'file2'},
-             {'hidden': True, 'id': int, 'name': 'file2 (1)'}]
+            [{'hidden': True, 'id': str, 'name': 'file2'},
+             {'hidden': True, 'id': str, 'name': 'file2 (1)'}]
         )
 
         res = test_client.get(f'{url}/fixtures/{fixture1["id"]}')
@@ -622,8 +661,6 @@ def test_run_auto_test(
     describe, live_server, lxc_stub, monkeypatch, app, session,
     stub_function_class, assert_similar, monkeypatch_for_run
 ):
-    tmpdir = None
-
     with describe('setup'):
         course, assig_id, teacher, student1 = basic
         student2 = helpers.create_user_with_role(session, 'Student', [course])
@@ -646,24 +683,6 @@ def test_run_auto_test(
             )
         url = f'/api/v1/auto_tests/{test["id"]}'
 
-        _run_student = psef.auto_test._run_student
-
-        monkeypatch.setattr(
-            psef.auto_test, '_get_home_dir',
-            stub_function_class(lambda: tmpdir)
-        )
-
-        def next_student(*args, **kwargs):
-            nonlocal tmpdir
-
-            with tempfile.TemporaryDirectory() as tdir:
-                tmpdir = tdir
-                for inner in ['/student']:
-                    shutil.copytree(upper_tmpdir + inner, tdir + inner)
-                return _run_student(*args, **kwargs)
-
-        monkeypatch.setattr(psef.auto_test, '_run_student', next_student)
-
         with logged_in(student1):
             work1_old = helpers.create_submission(test_client, assig_id)
 
@@ -681,10 +700,7 @@ def test_run_auto_test(
                 submission_data=(io.BytesIO(dedent(prog).encode()), 'test.py')
             )
 
-    with describe('start_auto_test'
-                  ), tempfile.TemporaryDirectory() as upper_tmpdir:
-        tmpdir = upper_tmpdir
-
+    with describe('start_auto_test'):
         t = m.AutoTest.query.get(test['id'])
         with logged_in(teacher):
             test_client.req(
@@ -1640,5 +1656,152 @@ def test_update_result_dates_in_broker(
 
     broker_ses.reset()
     with describe('try task without existing run'):
+
         psef.tasks.update_latest_results_in_broker(-1)
         assert not broker_ses.calls
+
+
+@pytest.mark.parametrize('use_transaction', [False], indirect=True)
+def test_output_dir(
+    monkeypatch_celery, monkeypatch_broker, basic, test_client, logged_in,
+    describe, live_server, lxc_stub, monkeypatch, app, session,
+    stub_function_class, assert_similar, monkeypatch_for_run
+):
+    with describe('setup'):
+        course, assig_id, teacher, student = basic
+
+        with logged_in(teacher):
+            # yapf: disable
+            test = helpers.create_auto_test_from_dict(
+                test_client, assig_id, {
+                    'sets': [{
+                        'suites': [{
+                            'steps': [{
+                                'run_p': 'cp -r $STUDENT $AT_OUTPUT',
+                                'name': 'Copy all files',
+                            }]
+                        }, {
+                            'steps': [{
+                                'run_p': 'echo HELLO > $AT_OUTPUT/hello',
+                                'name': 'Create hello file',
+                            }, {
+                                'run_p': 'echo BYE > $AT_OUTPUT/bye',
+                                'name': 'Create bye file',
+                            }, {
+                                'run_p': 'ln -s /etc/passwd $AT_OUTPUT/passwd',
+                                'name': 'Create link',
+                            }, {
+                                'run_p': 'exit 1',
+                                'name': 'Fail',
+                            }]
+                        }],
+                    }, {
+                        'suites': [{
+                            'steps': [{
+                                'run_p': 'sleep 0',
+                                'name': 'Do not create a file'
+                            }],
+                        }],
+                    }]
+                }
+            )
+            # yapf: enable
+        url = f'/api/v1/auto_tests/{test["id"]}'
+
+    with describe('start_auto_test'):
+        t = m.AutoTest.query.get(test['id'])
+        with logged_in(teacher):
+            work = helpers.create_submission(
+                test_client, assig_id, for_user=student.username
+            )
+            work_tree = test_client.req(
+                'get', f'/api/v1/submissions/{work["id"]}/files/', 200
+            )
+
+            def remove_ids(tree):
+                tree['id'] = str
+                for entry in tree.get('entries', []):
+                    remove_ids(entry)
+
+            remove_ids(work_tree)
+            session.commit()
+
+        with logged_in(teacher):
+            run_id = test_client.req('post', f'{url}/runs/', 200)['id']
+            session.commit()
+
+        live_server_url, stop_server = live_server(get_stop=True)
+        monkeypatch_broker()
+        thread = threading.Thread(
+            target=psef.auto_test.start_polling, args=(app.config, False)
+        )
+        thread.start()
+        thread.join()
+
+        res = session.query(m.AutoTestResult).filter_by(work_id=work['id']
+                                                        ).one().id
+
+    with describe('Files should be uploaded'):
+        with logged_in(teacher):
+            suite1 = str(test['sets'][0]['suites'][0]['id'])
+            suite2 = str(test['sets'][0]['suites'][1]['id'])
+            files = test_client.req(
+                'get',
+                f'{url}/runs/{run_id}/results/{res}',
+                200,
+                result={
+                    '__allow_extra__': True,
+                    'suite_files': {
+                        suite1: work_tree['entries'],
+                        suite2: [{
+                            'name': 'bye',
+                            'id': str,
+                        }, {
+                            'name': 'hello',
+                            'id': str,
+                        }, {
+                            'name': 'passwd',
+                            'id': str,
+                        }],
+                    },
+                    'points_achieved': 5,
+                }
+            )['suite_files']
+            sym_link_id = files[suite2][-1]['id']
+
+            response = test_client.get(
+                '/api/v1/code/{file_id}'.format(file_id=sym_link_id)
+            )
+            assert response.status_code == 200
+            assert 'symbolic link' in response.get_data(as_text=True)
+
+    with describe('Students do not see the files by default'):
+        with logged_in(student):
+            # Students do not have permission to see suite files by default by
+            # default.
+            test_client.req(
+                'get',
+                f'{url}/runs/{run_id}/results/{res}',
+                200,
+                result={
+                    '__allow_extra__': True,
+                    'suite_files': {},
+                    'points_achieved': 5,
+                }
+            )
+
+            assert test_client.get(
+                '/api/v1/code/{file_id}'.format(file_id=sym_link_id)
+            ).status_code == 403
+
+    with describe('After deleting run results are removed from disk'):
+        file = m.AutoTestOutputFile.query.get(sym_link_id)
+        assert file is not None
+        path = file.get_diskname()
+        assert os.path.isfile(path)
+        del file
+
+        with logged_in(teacher):
+            test_client.req('delete', f'{url}/runs/{run_id}', 204)
+
+        assert not os.path.isfile(path)

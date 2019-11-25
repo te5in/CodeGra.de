@@ -845,7 +845,7 @@ def test_get_dir_contents(
             f'/api/v1/submissions/{work_id}/files/',
             error or 200,
             result=error_template if error else {
-                'entries': [{'id': int, 'name': 'test.py'}], 'id': int, 'name':
+                'entries': [{'id': str, 'name': 'test.py'}], 'id': str, 'name':
                     'test_flake8.tar.gz'
             }
         )
@@ -1069,7 +1069,7 @@ def test_search_file(
             query={'path': to_search},
             result=error_template if error else {
                 'is_directory': is_dir, 'modification_date': int, 'size': int,
-                'id': int
+                'id': str
             },
         )
 
@@ -1095,9 +1095,9 @@ def test_add_file(
             f'/api/v1/submissions/{work_id}/files/',
             200,
             result={
-                'entries': [{'id': int, 'name': 'single_file_work'},
-                            {'id': int, 'name': 'single_file_work_copy'}],
-                'id': int, 'name': 'single_dir_archive.zip'
+                'entries': [{'id': str, 'name': 'single_file_work'},
+                            {'id': str, 'name': 'single_file_work_copy'}],
+                'id': str, 'name': 'single_dir_archive.zip'
             }
         )
 
@@ -1264,42 +1264,42 @@ def test_add_file(
             f'/api/v1/submissions/{work_id}/files/',
             200,
             result={
-                'name': 'single_dir_archive.zip', 'id': int, 'entries': [{
+                'name': 'single_dir_archive.zip', 'id': str, 'entries': [{
                     'name': 'dir',
-                    'id': int,
+                    'id': str,
                     'entries': [{
                         'name': 'dir2',
-                        'id': int,
+                        'id': str,
                         'entries': [{
                             'name': 'dir3',
-                            'id': int,
+                            'id': str,
                             'entries': [{
                                 'name': 'file',
-                                'id': int,
+                                'id': str,
                             }],
                         }, {
                             'name': 'file',
-                            'id': int,
+                            'id': str,
                         }, {
                             'name': 'file2',
-                            'id': int,
+                            'id': str,
                         },
                                     {
                                         'name': 'wow',
-                                        'id': int,
+                                        'id': str,
                                         'entries': [{
                                             'name': 'dit',
-                                            'id': int,
+                                            'id': str,
                                             'entries': [],
                                         }],
                                     }],
                     }],
                 }, {
                     'name': 'single_file_work',
-                    'id': int,
+                    'id': str,
                 }, {
                     'name': 'single_file_work_copy',
-                    'id': int,
+                    'id': str,
                 }]
             }
         )
@@ -1310,42 +1310,42 @@ def test_add_file(
             f'/api/v1/submissions/{work_id}/files/',
             200,
             result={
-                'name': 'single_dir_archive.zip', 'id': int, 'entries': [{
+                'name': 'single_dir_archive.zip', 'id': str, 'entries': [{
                     'name': 'dir',
-                    'id': int,
+                    'id': str,
                     'entries': [{
                         'name': 'dir2',
-                        'id': int,
+                        'id': str,
                         'entries': [{
                             'name': 'dir3',
-                            'id': int,
+                            'id': str,
                             'entries': [{
                                 'name': 'file',
-                                'id': int,
+                                'id': str,
                             }],
                         }, {
                             'name': 'file',
-                            'id': int,
+                            'id': str,
                         }, {
                             'name': 'file2',
-                            'id': int,
+                            'id': str,
                         },
                                     {
                                         'name': 'wow',
-                                        'id': int,
+                                        'id': str,
                                         'entries': [{
                                             'name': 'dit',
-                                            'id': int,
+                                            'id': str,
                                             'entries': [],
                                         }],
                                     }],
                     }],
                 }, {
                     'name': 'single_file_work',
-                    'id': int,
+                    'id': str,
                 }, {
                     'name': 'single_file_work_copy',
-                    'id': int,
+                    'id': str,
                 }]
             }
         )

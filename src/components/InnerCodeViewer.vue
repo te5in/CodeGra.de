@@ -152,7 +152,7 @@ export default {
             default: true,
         },
         fileId: {
-            type: Number,
+            type: String,
             required: true,
         },
         canUseSnippets: {

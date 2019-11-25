@@ -611,42 +611,9 @@ class Work(Base):
             :py:func:`psef.files.rename_directory_structure`
         :returns: Nothing
         """
-        self._add_file_tree(tree, None)
-
-    def _add_file_tree(
-        self,
-        tree: 'psef.files.ExtractFileTreeDirectory',
-        top: t.Optional['file_models.File'],
-    ) -> 'file_models.File':
-        """Add the given tree to the session with top as parent.
-
-        :param tree: The file tree as described by
-                          :py:func:`psef.files.rename_directory_structure`
-        :param top: The parent file
-        :returns: Nothing
-        """
-        new_top = file_models.File(
-            work=self,
-            is_directory=True,
-            name=tree.name,
-            parent=top,
+        file_models.File.create_from_extract_directory(
+            tree, None, {'work': self}
         )
-
-        for child in tree.values:
-            if isinstance(child, psef.files.ExtractFileTreeDirectory):
-                self._add_file_tree(child, new_top)
-            elif isinstance(child, psef.files.ExtractFileTreeFile):
-                file_models.File(
-                    work=self,
-                    name=child.name,
-                    filename=child.disk_name,
-                    is_directory=False,
-                    parent=new_top,
-                )
-            else:
-                # The above checks are exhaustive, so this cannot happen
-                assert False
-        return new_top
 
     def get_all_feedback(self) -> t.Tuple[t.Iterable[str], t.Iterable[str], ]:
         """Get all feedback for this work.
@@ -877,10 +844,10 @@ class Work(Base):
             )
 
             if create_leading_directory:
-                zipf.write(tmpdir, tree_root['name'])
+                zipf.write(tmpdir, tree_root.name)
                 leading_len = len(tmpdir)
             else:
-                leading_len = len(tmpdir) + len('/') + len(tree_root['name'])
+                leading_len = len(tmpdir) + len('/') + len(tree_root.name)
 
             for root, _dirs, files in os.walk(tmpdir):
                 for file in files:

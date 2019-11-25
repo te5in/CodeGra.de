@@ -253,6 +253,9 @@ export default {
                         submissionId: sub.id,
                         fileId: undefined,
                     },
+                    query: {
+                        revision: undefined,
+                    },
                     hash: undefined,
                 }),
             );

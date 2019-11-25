@@ -286,9 +286,9 @@ describe('Submission.vue', () => {
         describe('prefFileId', () => {
             it('should equal fileId if the selected category is "Code"', () => {
                 comp.selectedCat = 'code';
-                expect(comp.prefFileId).toBeNull();
+                expect(comp.prefFileId).toBeUndefined();
 
-                $route.params.fileId = 4;
+                $route.params.fileId = '4';
                 expect(comp.prefFileId).toBe(comp.fileId);
             });
 

@@ -126,6 +126,7 @@ def create_submission(
         'f.zip',
     ),
     is_test_submission=False,
+    for_user=None,
 ):
     status = err or 201
     err_t = create_error_template()
@@ -149,6 +150,8 @@ def create_submission(
     path = f'/api/v1/assignments/{get_id(assignment_id)}/submission'
     if is_test_submission:
         path += '?is_test_submission'
+    elif for_user is not None:
+        path += f'?author={for_user}'
 
     return test_client.req(
         'post',
@@ -461,3 +464,101 @@ def create_auto_test(
         )
 
     return get_test()
+
+
+def create_auto_test_from_dict(test_client, assig, at_dict):
+    a_id = get_id(assig)
+
+    test = test_client.req(
+        'post',
+        '/api/v1/auto_tests/',
+        data={
+            'assignment_id': a_id,
+            'setup_script': at_dict.get('setup_script', ''),
+            'run_setup_script': at_dict.get('run_setup_script', ''),
+            'grade_calculation': at_dict.get('grade_calculation', 'full'),
+            'results_always_visible':
+                at_dict.get('results_always_visible', True),
+        },
+        status_code=200,
+    )
+
+    rubric_data = []
+    for at_set in at_dict['sets']:
+        for at_suite in at_set['suites']:
+            rubric_data.append({
+                'header': at_suite.get('rubric_header', 'My header'),
+                'description': at_suite.get('rubric_desc', 'My description'),
+                'items': [{
+                    'description': 'item description',
+                    'header': item['name'],
+                    'points': idx + 1,
+                } for idx, item in enumerate(at_suite['steps'])],
+            })
+
+    assert rubric_data, 'You need at least one suite'
+    rubric = test_client.req(
+        'put',
+        f'/api/v1/assignments/{a_id}/rubrics/',
+        200,
+        data={'rows': rubric_data}
+    )
+
+    def prepare_steps(steps):
+        res = []
+        for step in steps:
+            if 'type' not in step:
+                step = {
+                    'type': 'run_program',
+                    'data': {'program': step['run_p']},
+                    'name': step['name'],
+                }
+            res.append({'weight': 1, 'hidden': False, **step})
+        return res
+
+    rubric_index = 0
+    for at_set in at_dict['sets']:
+        s = test_client.req(
+            'post', f'/api/v1/auto_tests/{get_id(test)}/sets/', 200
+        )
+
+        stop_points = at_set.get('stop_points', None)
+        if stop_points is not None:
+            test_client.req(
+                'patch',
+                f'/api/v1/auto_tests/{get_id(test)}/sets/{get_id(s)}',
+                200,
+                data={'stop_points': stop_points}
+            )
+
+        for at_suite in at_set['suites']:
+            test_client.req(
+                'patch',
+                f'/api/v1/auto_tests/{get_id(test)}/sets/{get_id(s)}/suites/',
+                200,
+                data={
+                    'steps': prepare_steps(at_suite['steps']),
+                    'rubric_row_id': get_id(rubric[rubric_index]),
+                    'network_disabled': at_suite.get('network_disabled', True),
+                },
+            )
+            rubric_index += 1
+
+    for fixture in at_dict.get('fixtures', []):
+        test_client.req(
+            'patch',
+            f'/api/v1/auto_tests/{get_id(test)}',
+            200,
+            real_data={
+                'json': (
+                    io.BytesIO(
+                        json.dumps({
+                            'has_new_fixtures': True,
+                        }).encode()
+                    ), 'json'
+                ),
+                'fixture': (fixture, 'fixture1'),
+            }
+        )
+
+    return test_client.req('get', f'/api/v1/auto_tests/{get_id(test)}', 200)

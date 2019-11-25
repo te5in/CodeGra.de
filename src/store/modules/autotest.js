@@ -332,6 +332,21 @@ const actions = {
                     ({ data }) => {
                         delete loaders.results[resultId];
                         commit(types.UPDATE_AUTO_TEST_RESULT, { autoTest, result: data });
+
+                        if (Object.keys(data.suite_files).length > 0) {
+                            return dispatch(
+                                'submissions/updateAutoTestTree',
+                                {
+                                    assignmentId: autoTest.assignment_id,
+                                    submissionId,
+                                    autoTest,
+                                    autoTestTree: data.suite_files,
+                                },
+                                { root: true },
+                            );
+                        } else {
+                            return Promise.resolve();
+                        }
                     },
                     err => {
                         delete loaders.results[resultId];

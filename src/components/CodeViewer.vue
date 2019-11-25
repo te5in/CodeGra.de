@@ -46,6 +46,10 @@ export default {
             type: Object,
             required: true,
         },
+        fileId: {
+            type: String,
+            required: true,
+        },
         editable: {
             type: Boolean,
             default: false,
@@ -77,10 +81,6 @@ export default {
 
         feedbackEditable() {
             return this.editable && this.studentMode;
-        },
-
-        fileId() {
-            return this.file.id || this.file.ids[0] || this.file.ids[1];
         },
 
         extension() {

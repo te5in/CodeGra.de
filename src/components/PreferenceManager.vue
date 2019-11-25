@@ -121,7 +121,7 @@ export default {
             default: true,
         },
         fileId: {
-            type: [Number, String],
+            type: String,
             default: null,
         },
 

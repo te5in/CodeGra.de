@@ -348,7 +348,7 @@
 # The interval in seconds a running AutoTest runner should send a heartbeat.
 # auto_test_heartbeat_interval = 10
 
-# The amount of heartbeats missed before a AutoTest runner should be killed.
+# The amount of heartbeats missed before an AutoTest runner should be killed.
 # auto_test_heartbeat_max_missed = 6
 
 # The amount of seconds between each query for extra work

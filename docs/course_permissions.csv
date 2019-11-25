@@ -44,3 +44,4 @@ Name,Description
 **View AutoTest details before done**,"Users with this permission can view AutoTest, such as sets, before the state of the assignment is ""Open"""
 **View the details of AutoTest steps** \*,Users with this permission are allowed to see the details of non hidden AutoTest steps
 **View non hidden AutoTest fixtures** \*,Users with this permission are allowed to see non hidden AutoTest fixtures
+**View AutoTest output files before done**,"Users with this permission can view output files created during an AutoTest before the assignment state is ""done"""

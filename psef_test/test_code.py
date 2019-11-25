@@ -44,7 +44,7 @@ def test_get_code_metadata(
             f'/api/v1/submissions/{work_id}/files/',
             200,
             result={
-                'entries': [{'id': int, 'name': 'test.py'}], 'id': int, 'name':
+                'entries': [{'id': str, 'name': 'test.py'}], 'id': str, 'name':
                     'test_flake8.tar.gz'
             }
         )
@@ -57,7 +57,7 @@ def test_get_code_metadata(
             result=error_template if error else {
                 'name': 'test_flake8.tar.gz',
                 'is_directory': True,
-                'id': int,
+                'id': str,
             },
             query={'type': 'metadata'}
         )
@@ -69,7 +69,7 @@ def test_get_code_metadata(
             result=error_template if error else {
                 'name': 'test.py',
                 'is_directory': False,
-                'id': int,
+                'id': str,
             },
             query={'type': 'metadata'}
         )
@@ -118,7 +118,7 @@ def test_get_code_plaintext(
             200,
             result={
                 'entries': list,
-                'id': int,
+                'id': str,
                 'name': str,
             }
         )
@@ -239,7 +239,7 @@ def test_get_file_url(
             200,
             result={
                 'entries': list,
-                'id': int,
+                'id': str,
                 'name': str,
             }
         )
@@ -288,7 +288,7 @@ def test_delete_code_as_ta(
             200,
             result={
                 'entries': list,
-                'id': int,
+                'id': str,
                 'name': str,
             }
         )
@@ -387,7 +387,7 @@ def test_delete_code_as_student(
             200,
             result={
                 'entries': list,
-                'id': int,
+                'id': str,
                 'name': str,
             }
         )
@@ -461,7 +461,7 @@ def test_delete_code_twice(
             200,
             result={
                 'entries': list,
-                'id': int,
+                'id': str,
                 'name': str,
             }
         )
@@ -528,7 +528,7 @@ def test_invalid_delete_code(
             200,
             result={
                 'entries': list,
-                'id': int,
+                'id': str,
                 'name': str,
             }
         )
@@ -543,7 +543,7 @@ def test_invalid_delete_code(
             f'/api/v1/code/{f["id"]}',
             200,
             query={'operation': 'content'},
-            result={'name': f['name'], 'id': int, 'is_directory': False},
+            result={'name': f['name'], 'id': str, 'is_directory': False},
             real_data='WOWSERS123',
         )
 
@@ -665,7 +665,7 @@ def test_update_code(
             200,
             result={
                 'entries': list,
-                'id': int,
+                'id': str,
                 'name': str,
             }
         )['entries'][0]['id']
@@ -812,7 +812,7 @@ def test_rename_code(
             200,
             result={
                 'entries': list,
-                'id': int,
+                'id': str,
                 'name': str,
             }
         )

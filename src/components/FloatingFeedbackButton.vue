@@ -50,7 +50,7 @@ export default {
 
     props: {
         fileId: {
-            type: Number,
+            type: String,
             required: true,
         },
         line: {

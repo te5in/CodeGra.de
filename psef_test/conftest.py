@@ -509,6 +509,7 @@ def describe():
         print('|', name, '|')
         print(sep)
         print()
+        sys.stdout.flush()
         yield
         for i, h in enumerate(DESCRIBE_HOOKS):
             h()

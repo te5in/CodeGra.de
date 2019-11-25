@@ -2,19 +2,22 @@
 
 SPDX-License-Identifier: AGPL-3.0-only
 """
-
 import os
 import enum
+import uuid
 import typing as t
 import datetime
+from collections import defaultdict
 
 from flask import current_app
+from sqlalchemy import event
+from sqlalchemy_utils import UUIDType
 
 import psef
 from cg_sqlalchemy_helpers.mixins import TimestampMixin
 
 from . import Base, db, _MyQuery
-from .. import auth
+from .. import auth, helpers
 from ..exceptions import APICodes, APIException
 from ..permissions import CoursePermission
 
@@ -22,6 +25,8 @@ if t.TYPE_CHECKING and getattr(t, 'SPHINX', False):  # pragma: no cover
     # pylint: disable=unused-import
     from . import auto_test as auto_test_models
     from . import work as work_models
+
+T = t.TypeVar('T')
 
 
 @enum.unique
@@ -44,7 +49,7 @@ class FileOwner(enum.IntEnum):
     both: int = 3
 
 
-class FileMixin:
+class FileMixin(t.Generic[T]):
     """A mixin for representing a file in the database.
     """
 
@@ -57,7 +62,7 @@ class FileMixin:
     filename = db.Column('filename', db.Unicode, nullable=True)
 
     @property
-    def id(self) -> int:
+    def id(self) -> T:
         """Get the id in the database of this file.
         """
         raise NotImplementedError
@@ -104,14 +109,107 @@ class FileMixin:
             current_app.config['UPLOAD_DIR'], self.filename
         )
 
-    def __to_json__(self) -> t.Mapping[str, t.Union[str, int]]:
+    def __to_json__(self) -> t.Mapping[str, object]:
         return {
-            'id': self.id,
+            'id': str(self.id),
             'name': self.name,
         }
 
+    def _inner_list_contents(
+        self,
+        cache: t.Mapping[T, t.Sequence['FileMixin[T]']],
+    ) -> 'psef.files.FileTree[T]':
+        entries = None
+        if self.is_directory:
+            entries = [
+                c._inner_list_contents(cache)  # pylint: disable=protected-access
+                for c in cache[self.id]
+            ]
+        return psef.files.FileTree(name=self.name, id=self.id, entries=entries)
 
-class File(FileMixin, Base):
+
+NFM_T = t.TypeVar('NFM_T', bound='NestedFileMixin')  # pylint: disable=invalid-name
+
+
+class NestedFileMixin(FileMixin[T]):
+    """A mixin representing nested files, i.e. a structure of directories where
+    the children can be either normal files or directories again.
+
+    This mixin should be used by database tables, not for intermediate
+    representation of a directory.
+    """
+    modification_date = db.Column(
+        'modification_date', db.DateTime, default=datetime.datetime.utcnow
+    )
+
+    if t.TYPE_CHECKING:  # pragma: no cover
+        # pylint: disable=unused-argument
+        def __init__(
+            self,
+            name: str,
+            parent: t.Optional['NestedFileMixin[T]'],
+            is_directory: bool,
+            filename: t.Optional[str] = None,
+            **extra_opts: object,
+        ) -> None:
+            ...
+
+    @property
+    def parent_id(self) -> T:
+        """The id of the parent.
+        """
+        raise NotImplementedError
+
+    @property
+    def parent(self) -> t.Optional['NestedFileMixin[T]']:
+        """The parent of this file.
+
+        If ``None`` this file has no parent, i.e. it is a toplevel
+        directory/file.
+        """
+        raise NotImplementedError
+
+    @classmethod
+    def create_from_extract_directory(
+        cls: 't.Type[NFM_T]',
+        tree: 'psef.files.ExtractFileTreeDirectory',
+        top: t.Optional['NFM_T'],
+        creation_opts: t.Dict[str, t.Any],
+    ) -> 'NFM_T':
+        """Add the given tree to the session with top as parent.
+
+        :param tree: The file tree as described by
+                          :py:func:`psef.files.rename_directory_structure`
+        :param top: The parent file
+        :returns: Nothing
+        """
+        new_top = cls(
+            is_directory=True,
+            name=tree.name,
+            parent=top,
+            **creation_opts,
+        )
+
+        for child in tree.values:
+            if isinstance(child, psef.files.ExtractFileTreeDirectory):
+                cls.create_from_extract_directory(
+                    child, new_top, creation_opts
+                )
+            elif isinstance(child, psef.files.ExtractFileTreeFile):
+                cls(
+                    name=child.name,
+                    filename=child.disk_name,
+                    is_directory=False,
+                    parent=new_top,
+                    **creation_opts,
+                )
+            else:
+                # The above checks are exhaustive, so this cannot happen
+                assert False
+        return new_top
+
+
+class File(NestedFileMixin[int], Base):
     """
     This object describes a file or directory that stored is stored on the
     server.
@@ -132,10 +230,6 @@ class File(FileMixin, Base):
         db.Integer,
         db.ForeignKey('Work.id', ondelete='CASCADE'),
         nullable=False,
-    )
-
-    modification_date = db.Column(
-        'modification_date', db.DateTime, default=datetime.datetime.utcnow
     )
 
     fileowner: FileOwner = db.Column(
@@ -216,60 +310,16 @@ class File(FileMixin, Base):
     def list_contents(
         self,
         exclude: FileOwner,
-    ) -> 'psef.files.FileTree':
+    ) -> 'psef.files.FileTree[int]':
         """List the basic file info and the info of its children.
-
-        If the file is a directory it will return a tree like this:
-
-        .. code:: python
-
-            {
-                'name': 'dir_1',
-                'id': 1,
-                'entries': [
-                    {
-                        'name': 'file_1',
-                        'id': 2
-                    },
-                    {
-                        'name': 'file_2',
-                        'id': 3
-                    },
-                    {
-                        'name': 'dir_2',
-                        'id': 4,
-                        'entries': []
-                    }
-                ]
-            }
-
-        Otherwise it will formatted like one of the file children of the above
-        tree.
 
         :param exclude: The file owner to exclude from the tree.
 
-        :returns: A tree as described above.
+        :returns: A :class:`psef.files.FileTree` object where the given file is
+            the root object.
         """
         cache = self.work.get_file_children_mapping(exclude)
-        return self._list_contents(exclude, cache)
-
-    def _list_contents(
-        self,
-        exclude: FileOwner,
-        cache: t.Mapping[int, t.Sequence['File']],
-    ) -> 'psef.files.FileTree':
-        if not self.is_directory:
-            return {"name": self.name, "id": self.id}
-        else:
-            children = [
-                c._list_contents(exclude, cache)  # pylint: disable=protected-access
-                for c in cache[self.id]
-            ]
-            return {
-                "name": self.name,
-                "id": self.id,
-                "entries": children,
-            }
+        return self._inner_list_contents(cache)
 
     def rename_code(
         self,
@@ -300,7 +350,7 @@ class File(FileMixin, Base):
 
         self.name = new_name
 
-    def __to_json__(self) -> t.Mapping[str, t.Union[str, bool, int]]:
+    def __to_json__(self) -> t.Mapping[str, object]:
         """Creates a JSON serializable representation of this object.
 
 
@@ -310,7 +360,7 @@ class File(FileMixin, Base):
 
             {
                 'name': str, # The name of the file or directory.
-                'id': int, # The id of this file.
+                'id': str, # The id of this file.
                 'is_directory': bool, # Is this file a directory.
             }
 
@@ -322,7 +372,7 @@ class File(FileMixin, Base):
         }
 
 
-class AutoTestFixture(Base, FileMixin, TimestampMixin):
+class AutoTestFixture(Base, FileMixin[int], TimestampMixin):
     """This class represents a single fixture for an AutoTest configuration.
     """
     if t.TYPE_CHECKING:  # pragma: no cover
@@ -362,8 +412,83 @@ class AutoTestFixture(Base, FileMixin, TimestampMixin):
         innerjoin=True,
     )
 
-    def __to_json__(self) -> t.Mapping[str, t.Union[str, bool, int]]:
+    def __to_json__(self) -> t.Mapping[str, object]:
         return {
             **super().__to_json__(),
             'hidden': self.hidden,
         }
+
+
+class AutoTestOutputFile(Base, NestedFileMixin[uuid.UUID], TimestampMixin):
+    """This class represents an output file from an AutoTest run.
+
+    The output files are connected to both a
+    :class:`.auto_test_models.AutoTestResult` and a
+    :class:`.auto_test_models.AutoTestSuite`.
+    """
+    if t.TYPE_CHECKING:  # pragma: no cover
+        query: t.ClassVar[_MyQuery['AutoTestOutputFile']]
+
+    id: uuid.UUID = db.Column(UUIDType, primary_key=True, default=uuid.uuid4)
+
+    is_directory: bool = db.Column('is_directory', db.Boolean, nullable=False)
+    parent_id: uuid.UUID = db.Column(
+        'parent_id', UUIDType, db.ForeignKey('auto_test_output_file.id')
+    )
+
+    auto_test_result_id = db.Column(
+        'auto_test_result_id',
+        db.Integer,
+        db.ForeignKey('AutoTestResult.id'),
+    )
+
+    result: 'auto_test_models.AutoTestResult' = db.relationship(
+        'AutoTestResult',
+        foreign_keys=auto_test_result_id,
+        innerjoin=True,
+        backref=db.backref('files', lazy='dynamic', cascade='all,delete')
+    )
+
+    auto_test_suite_id: int = db.Column(
+        'auto_test_suite_id',
+        db.Integer,
+        db.ForeignKey('AutoTestSuite.id'),
+        nullable=False
+    )
+
+    suite: 'auto_test_models.AutoTestSuite' = db.relationship(
+        'AutoTestSuite',
+        foreign_keys=auto_test_suite_id,
+        innerjoin=True,
+    )
+
+    # This variable is generated from the backref from the parent
+    children: '_MyQuery["AutoTestOutputFile"]'
+
+    parent = db.relationship(
+        'AutoTestOutputFile',
+        remote_side=[id],
+        backref=db.backref('children', lazy='dynamic')
+    )  # type: 'AutoTestOutputFile'
+
+    def list_contents(self) -> 'psef.files.FileTree[uuid.UUID]':
+        """List the basic file info and the info of its children.
+        """
+        cache: t.Mapping[uuid.UUID, t.
+                         List[AutoTestOutputFile]] = defaultdict(list)
+
+        for f in AutoTestOutputFile.query.filter_by(
+            auto_test_result_id=self.auto_test_result_id,
+            auto_test_suite_id=self.auto_test_suite_id
+        ).order_by(AutoTestOutputFile.name):
+            cache[f.parent_id].append(f)
+
+        return self._inner_list_contents(cache)
+
+
+@event.listens_for(AutoTestOutputFile, 'after_delete')
+def _receive_after_delete(
+    _: object, __: object, target: AutoTestOutputFile
+) -> None:
+    """Listen for the 'after_delete' event"""
+    helpers.callback_after_this_request(target.delete_from_disk)

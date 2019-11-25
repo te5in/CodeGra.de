@@ -239,7 +239,7 @@ def _run_plagiarism_control_1(  # pylint: disable=too-many-branches,too-many-sta
         if supports_progress:
             call_args[call_args.index('{ progress_prefix }')] = progress_prefix
 
-        file_lookup_tree: t.Dict[int, p.files.FileTree] = {}
+        file_lookup_tree: t.Dict[int, p.files.FileTree[int]] = {}
         submission_lookup: t.Dict[str, int] = {}
         old_subs: t.Set[int] = set()
 
@@ -274,11 +274,11 @@ def _run_plagiarism_control_1(  # pylint: disable=too-many-branches,too-many-sta
 
             os.mkdir(parent)
             part_tree = p.files.restore_directory_structure(sub, parent)
-            file_lookup_tree[sub.id] = {
-                'name': dir_name,
-                'id': -1,
-                'entries': [part_tree],
-            }
+            file_lookup_tree[sub.id] = p.files.FileTree(
+                name=dir_name,
+                id=-1,
+                entries=[part_tree],
+            )
 
         if supports_progress:
             set_state(p.models.PlagiarismState.parsing)

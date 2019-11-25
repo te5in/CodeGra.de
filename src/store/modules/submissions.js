@@ -390,6 +390,42 @@ const actions = {
             submissionProps,
         });
     },
+
+    async updateAutoTestTree(
+        { commit, dispatch },
+        {
+            assignmentId, submissionId, autoTest, autoTestTree,
+        },
+    ) {
+        await dispatch('loadSubmissionFileTree', { assignmentId, submissionId });
+
+        const entries = [];
+        autoTest.sets.forEach(set => {
+            set.suites.forEach(suite => {
+                if (autoTestTree[suite.id] == null) {
+                    return;
+                }
+
+                entries.push({
+                    id: null,
+                    name: suite.rubricRow.header,
+                    entries: autoTestTree[suite.id],
+                });
+            });
+        });
+
+        commit(types.UPDATE_SUBMISSION, {
+            assignmentId,
+            submissionId,
+            submissionProps: {
+                autoTestTree: {
+                    id: null,
+                    name: 'AutoTest generated files',
+                    entries,
+                },
+            },
+        });
+    },
 };
 
 const mutations = {
@@ -448,9 +484,13 @@ const mutations = {
         Object.entries(submissionProps).forEach(([key, val]) => {
             if (key === 'id') {
                 throw TypeError(`Cannot set submission property: ${key}`);
+            } else if (key === 'autoTestTree') {
+                Vue.set(submission.fileTree, 'autotest', val);
+            } else if (key === 'grade') {
+                Vue.set(submission, key, utils.formatGrade(val));
+            } else {
+                Vue.set(submission, key, val);
             }
-
-            Vue.set(submission, key, key === 'grade' ? utils.formatGrade(val) : val);
         });
     },
 

@@ -111,7 +111,7 @@ export default {
             required: true,
         },
         fileId: {
-            type: Number,
+            type: String,
             required: true,
         },
         editable: {
