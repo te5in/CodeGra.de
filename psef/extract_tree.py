@@ -114,6 +114,21 @@ class ExtractFileTreeFile(ExtractFileTreeBase):
 
 
 @dataclasses.dataclass
+class ExtractFileTreeSpecialFile(ExtractFileTreeFile):
+    """Type used to represent a special file.
+
+    This is exactly the same as a normal file, only we allow these files to
+    have __reserved__ filenames. Only construct these with hard-coded
+    filenames.
+    """
+
+    def __post_init__(self) -> None:
+        # These files DO NOT need to be escaped, as their names are hard-coded
+        # and trusted.
+        pass
+
+
+@dataclasses.dataclass
 class ExtractFileTreeDirectory(ExtractFileTreeBase):
     """Type used to represent a directory of an extracted file tree.
 

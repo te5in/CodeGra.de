@@ -3,6 +3,7 @@ This module implements generic helpers and convenience functions.
 
 SPDX-License-Identifier: AGPL-3.0-only
 """
+import io
 import os
 import re
 import abc
@@ -11,6 +12,7 @@ import enum
 import time
 import typing as t
 import datetime
+import tempfile
 import threading
 import contextlib
 import subprocess
@@ -90,6 +92,21 @@ def init_app(app: 'psef.Flask') -> None:
 
 
 def add_warning(warning: str, code: psef.exceptions.APIWarnings) -> None:
+    """Add a warning to the current request.
+
+    It is also safe to call this function from a celery task, but as expected
+    the warning will not be displayed.
+
+    >>> import flask
+    >>> import psef
+    >>> app = flask.Flask(__name__)
+    >>> with app.app_context():
+    ...     add_warning('Hello', psef.exceptions.APIWarnings.DEPRECATED)
+    ...     print(len(flask.g.request_warnings))
+    1
+    """
+    if not hasattr(g, 'request_warnings'):
+        g.request_warnings = []
     g.request_warnings.append(psef.errors.make_warning(warning, code))
 
 
@@ -907,7 +924,9 @@ def get_class_by_name(superclass: T_Type, name: str) -> T_Type:
     raise ValueError('No class with name {} found.'.format(name))
 
 
-def request_arg_true(arg_name: str) -> bool:
+def request_arg_true(
+    arg_name: str, request_args: t.Mapping[str, str] = None
+) -> bool:
     """Check if a request arg was set to a 'truthy' value.
 
     :param arg_name: The name of the argument to check.
@@ -915,8 +934,9 @@ def request_arg_true(arg_name: str) -> bool:
         is present and it value equals (case insensitive) ``'true'``, ``'1'``,
         or ``''`` (empty string).
     """
-    return flask.request.args.get(arg_name,
-                                  'false').lower() in {'true', '1', ''}
+    if request_args is None:
+        request_args = flask.request.args
+    return request_args.get(arg_name, 'false').lower() in {'true', '1', ''}
 
 
 def extended_requested() -> bool:
@@ -1082,6 +1102,7 @@ def call_external(
                 pass
 
     try:
+        child_env = {'PATH': os.environ['PATH']}
         # The preexec_fn is not really safe when combined with
         # threads. However, we don't combine it with threads as celery doesn't
         # run threaded. Even if it would run threaded, the function is really
@@ -1090,19 +1111,23 @@ def call_external(
             call_args,
             stderr=subprocess.STDOUT,
             stdout=subprocess.PIPE,
+            stdin=subprocess.DEVNULL,
             shell=False,
-            universal_newlines=True,
+            universal_newlines=False,
             bufsize=1,
             preexec_fn=preexec_fn,
+            env=child_env,
         ) as proc:
             while proc.poll() is None:
-                process_line(proc.stdout.readline())
+                process_line(
+                    proc.stdout.readline().decode('utf8', 'backslashreplace')
+                )
 
             ok = proc.returncode == 0
 
             # There still might be some output left
             for line in proc.stdout.readlines():
-                process_line(line)
+                process_line(line.decode('utf8', 'backslashreplace'))
     # pylint: disable=broad-except
     except Exception:  # pragma: no cover
         logger.warning(
@@ -1367,3 +1392,43 @@ def retry_loop(
     if make_exception is not None:
         raise make_exception()
     assert False
+
+
+def format_list(lst: t.List[str], **formatting: str) -> t.List[str]:
+    """Format a given list by formatting each item.
+
+    >>> lst = ['{a}', 'b', '{ce} {a}']
+    >>> format_list(lst, a='b', ce='wee')
+    ['b', 'b', 'wee b']
+    >>> res1 = format_list(lst, a='b', ce='wee')
+    >>> res2 = format_list(lst, a='b', ce='wee')
+    >>> res1 is not res2
+    True
+    >>> format_list(['{c}'])
+    Traceback (most recent call last):
+    ...
+    KeyError: 'c'
+
+    :param lst: A list of strings to format.
+    :param formatting: The formatting arguments.
+    :returns: A new fresh formatted list.
+    """
+    return [part.format(**formatting) for part in lst]
+
+
+def readable_join(lst: t.Sequence[str]) -> str:
+    """Join a list using comma's and the word "and"
+
+    >>> readable_join(['a', 'b', 'c'])
+    'a, b, and c'
+    >>> readable_join(['a'])
+    'a'
+    >>> readable_join(['a', 'b'])
+    'a and b'
+
+    :param lst: The list to join.
+    :returns: The list joined as described above.
+    """
+    if len(lst) < 3:
+        return ' and '.join(lst)
+    return ', '.join(lst[:-1]) + ', and ' + lst[-1]

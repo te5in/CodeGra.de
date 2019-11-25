@@ -60,3 +60,4 @@ export { default as DatetimePicker } from './DatetimePicker';
 export { default as AutoTest } from './AutoTest';
 export { default as Collapse } from './Collapse';
 export { default as ImpersonateUser } from './ImpersonateUser';
+export { default as AssignmentSubmitTypes } from './AssignmentSubmitTypes';

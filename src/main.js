@@ -14,6 +14,7 @@ import Toasted from 'vue-toasted';
 import localforage from 'localforage';
 import memoryStorageDriver from 'localforage-memoryStorageDriver';
 import VueMasonry from 'vue-masonry-css';
+import VueClipboard from 'vue-clipboard2';
 import moment from 'moment';
 
 import '@/polyfills';
@@ -26,6 +27,7 @@ import * as mutationTypes from './store/mutation-types';
 Vue.use(BootstrapVue);
 Vue.use(Toasted);
 Vue.use(VueMasonry);
+Vue.use(VueClipboard);
 
 Vue.config.productionTip = false;
 

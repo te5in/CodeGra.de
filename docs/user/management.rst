@@ -72,6 +72,66 @@ General
 In this tab you can edit basic settings, as the assignment name and
 deadline, but also some more advanced settings.
 
+Upload types
++++++++++++++
+CodeGrade offers two means of handing in for students: via the file uploader
+in CodeGrade or using Git (GitHub or GitLab).
+
+- **File Uploader**: this option allows students to hand in their submission through CodeGrade's file uploader. Students can hand in one or multiple files and can even hand in archives (e.g. ``.zip`` or ``.tar.gz``) which will be extracted automatically.
+- **Git**: this option allows students to configure their GitHub or GitLab repository to upload to CodeGrade with every ``push``. Configuration instructions can be found on the hand-in page, the unique deploy key and webhook have to be configured for each separate assignment once per student.
+
+.. note::
+
+    It is possible to use both the File Uploader and Git upload type together for the same assignment. Students can then choose which means of handing in they prefer.
+
+Git uploading
+##############
+CodeGrade allows students to hand in directly via GitHub or GitLab if the
+**Git upload type** is turned on for an assignment. Students can find
+instructions to configure their repository on the hand in page.
+
+Setting up your repository to work together with CodeGrade is done with a
+*deploy key* and *webhook*. The deploy key is used to grant CodeGrade access
+to read your repository. The webhook is used to notify CodeGrade for each push
+event that takes place. With this setup, students will automatically upload
+their work to CodeGrade every time they ``push``.
+
+.. warning::
+
+    CodeGrade has a size limit on student submissions. Exceeding this size limit
+    will result in a warning message when regularly handing in, but not when
+    using git to upload. If a student exceeds this limit, files exceeding the
+    limit are silently deleted. This very rare case does result in a
+    ``cg-size-limit-exceeded`` file to show up in the Code Viewer.
+
+Uploading via Git works together with CodeGrade's tools, use it in
+combination with Continuous Feedback and AutoTest to provide immediate and
+automatic feedback to students every time they submit. It is also possible to
+combine Git uploading with group assignments. All students in a group will share
+the deploy key and webhook, anyone in the group can hand in for the whole group
+with a ``git push``. Just like with regular handing in, all group members will
+have to open the CodeGrade assignment in their LMS (Canvas, Blackboard,
+Brightspace or Moodle).
+
+.. warning::
+
+    Hand-In Requirements are **disabled** when using the Git upload type.
+
+In addition to further streamlining the workflow for students, Git uploading
+allows teachers to also assess git usage within CodeGrade. This can be done
+manually, by looking at the ``.git`` folder in the Code Viewer or directly
+opening the student repository by clicking the GitLab or GitHub link in the
+submission. In AutoTest, the student submission is a normal Git
+directory and can be handled and assessed that way automatically.
+
+.. note::
+
+    Using git in AutoTest? Run ``git fetch --unshallow`` to make sure the
+    information in the ``.git`` folder is complete and shows all history.
+
+More information on setting up Git uploading can be found in the
+:ref:`step-by-step guide <guide_git_uploads>`.
+
 Hand-in Requirements
 ++++++++++++++++++++++
 The hand-in requirements make it possible to set up strict rules to the

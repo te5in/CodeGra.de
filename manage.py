@@ -83,6 +83,7 @@ def seed_force(db=None):
                     )
                 )
 
+    # Flush to make sure all new perms are in the db.
     db.session.flush()
 
     with open(

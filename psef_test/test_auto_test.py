@@ -132,7 +132,6 @@ def monkeypatch_os_exec(monkeypatch):
 
 @pytest.fixture
 def basic(logged_in, admin_user, test_client, session):
-    print(m.User.query.all())
     with logged_in(admin_user):
         course = helpers.create_course(test_client)
         assig_id = helpers.create_assignment(

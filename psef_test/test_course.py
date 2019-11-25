@@ -861,6 +861,8 @@ def test_add_assignment(
                 'group_set': None,
                 'division_parent_id': None,
                 'auto_test_id': None,
+                'files_upload_enabled': True,
+                'webhook_upload_enabled': False,
             }
         )
 

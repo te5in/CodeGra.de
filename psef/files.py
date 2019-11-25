@@ -7,6 +7,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 import io
 import os
 import re
+import sys
 import copy
 import uuid
 import shutil
@@ -32,7 +33,7 @@ from .ignore import (
 from .exceptions import APICodes, APIWarnings, APIException
 from .extract_tree import (
     ExtractFileTree, ExtractFileTreeBase, ExtractFileTreeFile,
-    ExtractFileTreeDirectory
+    ExtractFileTreeDirectory, ExtractFileTreeSpecialFile
 )
 
 logger = structlog.get_logger()
@@ -75,6 +76,7 @@ SPECIAL_FILES = {
     '.cg-review',
     '.cg-peer-review',
     '.cg-allesreiniger',
+    'cg-size-limit-exceeded',
 }
 
 SPECIAL_FILENAMES = {
@@ -480,7 +482,9 @@ def _restore_directory_structure(
         return {"name": code.name, "id": code.id}
 
 
-def rename_directory_structure(rootdir: str) -> ExtractFileTreeDirectory:
+def rename_directory_structure(
+    rootdir: str, disk_limit: t.Optional[archive.FileSize] = None
+) -> ExtractFileTreeDirectory:
     """Creates a nested dictionary that represents the folder structure of
     rootdir.
 
@@ -519,6 +523,7 @@ def rename_directory_structure(rootdir: str) -> ExtractFileTreeDirectory:
 
     rootdir = rootdir.rstrip(os.sep)
     start = rootdir.rfind(os.sep) + 1
+    size_left: int = sys.maxsize if disk_limit is None else disk_limit
 
     for path, _, files in os.walk(rootdir):
         folders = path[start:].split(os.sep)
@@ -533,18 +538,33 @@ def rename_directory_structure(rootdir: str) -> ExtractFileTreeDirectory:
         name: str,
         dirs: t.Mapping[str, t.Any],
     ) -> t.List[ExtractFileTreeBase]:
+        nonlocal size_left
         res: t.List[ExtractFileTreeBase] = []
 
-        for key, value in dirs.items():
+        # Sort to make sure we always process items in the same order, so we
+        # always error at the same file.
+        for key, value in sorted(dirs.items()):
             if value is None:
+                path = safe_join(name, key)
+                size = get_file_size(path)
+                size_left -= size
+                if size_left < 0:
+                    logger.warning(
+                        'File size exceeded',
+                        size_left=size_left,
+                        exceeding_path=path,
+                        size_current_file=size,
+                    )
+                    break
+
                 new_name, filename = random_file_path()
-                shutil.move(safe_join(name, key), new_name)
+                shutil.move(path, new_name)
                 res.append(
                     ExtractFileTreeFile(
                         name=key,
                         disk_name=filename,
                         parent=None,
-                        size=get_file_size(new_name),
+                        size=size,
                     )
                 )
             else:
@@ -554,11 +574,26 @@ def rename_directory_structure(rootdir: str) -> ExtractFileTreeDirectory:
                 for child in __to_lists(safe_join(name, key), value):
                     new_dir.add_child(child)
                 res.append(new_dir)
+
+                if size_left < 0:
+                    break
         return res
 
     result_lists = __to_lists(rootdir[:start], directory)
     assert len(result_lists) == 1
     assert isinstance(result_lists[0], ExtractFileTreeDirectory)
+    if size_left < 0:
+        new_name, filename = random_file_path()
+        with open(new_name, 'w') as f:
+            f.write('Size limit was exceeded, so some files were not copied\n')
+        result_lists[0].add_child(
+            ExtractFileTreeSpecialFile(
+                name='cg-size-limit-exceeded',
+                disk_name=filename,
+                parent=None,
+                size=get_file_size(new_name),
+            )
+        )
     return result_lists[0]
 
 

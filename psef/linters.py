@@ -22,7 +22,7 @@ from defusedxml.ElementTree import fromstring as defused_xml_fromstring
 
 from . import app, files, models
 from .models import db
-from .helpers import register
+from .helpers import register, format_list
 from .exceptions import ValidationException
 
 logger = structlog.get_logger()
@@ -381,10 +381,11 @@ class Checkstyle(Linter):
             cfg.flush()
 
             out = _run_command(
-                [
-                    part.format(config=cfg.name, files=tempdir)
-                    for part in app.config['CHECKSTYLE_PROGRAM']
-                ]
+                format_list(
+                    app.config['CHECKSTYLE_PROGRAM'],
+                    config=cfg.name,
+                    files=tempdir,
+                )
             )
             process_completed(out)
             if out.returncode == 254:

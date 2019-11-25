@@ -26,7 +26,7 @@ from psef.models import db
 from psef.helpers import (
     JSONType, JSONResponse, EmptyResponse, ExtendedJSONResponse, jsonify,
     add_warning, ensure_json_dict, extended_jsonify, ensure_keys_in_dict,
-    make_empty_response
+    make_empty_response, get_from_map_transaction
 )
 from psef.exceptions import (
     APICodes, APIWarnings, APIException, InvalidAssignmentState
@@ -35,7 +35,7 @@ from psef.exceptions import (
 from . import api
 from .. import (
     auth, tasks, ignore, models, archive, helpers, linters, parsers, features,
-    plagiarism
+    registry, plagiarism
 )
 from ..permissions import CoursePermission as CPerm
 
@@ -247,6 +247,12 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
         0. (OPTIONAL)
     :<json int group_set_id: The group set id for this assignment. Set
         to ``null`` to make this assignment not a group assignment.
+    :<json bool webhook_upload_enabled: Should users be allowed to upload work
+        through webhooks. Disabling this setting has no effect on existing
+        webhooks.
+    :<json bool files_upload_enabled: Should students be allowed to upload work
+        directly using files and/or archives. This is always possible for users
+        with the ``can_submit_others_work``.
 
     If any of ``done_type``, ``done_email`` or ``reminder_time`` is given all
     the other values should be given too.
@@ -335,6 +341,7 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
                 ), APICodes.OBJECT_NOT_FOUND, 404
             )
         assig.cgignore = filter_type.parse(t.cast(JSONType, content['ignore']))
+        assig.maybe_add_webhook_ignore_combination_warning()
 
     if 'max_grade' in content:
         if lti_class is not None and not lti_class.supports_max_points():
@@ -385,6 +392,32 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
             )
 
         assig.group_set = group_set
+
+    if 'files_upload_enabled' in content:
+        auth.ensure_permission(CPerm.can_edit_assignment_info, assig.course_id)
+        with get_from_map_transaction(content) as [get, _]:
+            assig.files_upload_enabled = get('files_upload_enabled', bool)
+
+    if 'webhook_upload_enabled' in content:
+        auth.ensure_permission(CPerm.can_edit_assignment_info, assig.course_id)
+        with get_from_map_transaction(content) as [get, _]:
+            assig.webhook_upload_enabled = get('webhook_upload_enabled', bool)
+        if not assig.webhook_upload_enabled and assig.has_webhooks():
+            helpers.add_warning(
+                (
+                    'This assignment already has existing webhooks, these will'
+                    ' continue to work'
+                ), APIWarnings.EXISTING_WEBHOOKS_EXIST
+            )
+
+        assig.maybe_add_webhook_ignore_combination_warning()
+
+    if not any([assig.webhook_upload_enabled, assig.files_upload_enabled]):
+        raise APIException(
+            'At least one way of uploading needs to be enabled',
+            'It is not possible to disable both webhook and files uploads',
+            APICodes.INVALID_STATE, 400
+        )
 
     db.session.commit()
 
@@ -699,76 +732,15 @@ def upload_work(assignment_id: int) -> ExtendedJSONResponse[models.Work]:
         models.Assignment.id == assignment_id,
         with_for_update=helpers.LockType.read,
     )
-    given_author = request.args.get('author', None)
-    is_test_submission = helpers.request_arg_true('is_test_submission')
-    logger.info(
-        'Uploading submission',
-        is_test_submission=is_test_submission,
-        given_author=given_author,
-        assignment_id=assig.id,
-    )
-
-    if given_author is not None and is_test_submission:
+    if not current_user.has_permission(
+        CPerm.can_submit_others_work, course_id=assig.course_id
+    ) and not assig.files_upload_enabled:
         raise APIException(
-            'You cannot provide an author for a test submission', (
-                'The options `given_author` and `is_test_submission` cannot be'
-                ' combined'
-            ), APICodes.INVALID_PARAM, 400
+            'Directly handing in files is disabled for this assignment',
+            f'Assignment {assig.id} does not allow files uploads',
+            APICodes.UPLOAD_TYPE_DISABLED, 400
         )
-
-    if assig.deadline is None and not is_test_submission:
-        msg = (
-            'The deadline for this assignment has not yet been set. '
-            'Please ask your teacher to set a deadline before you can '
-            'submit your work.'
-        )
-        if current_user.has_permission(
-            CPerm.can_submit_others_work, assig.course_id
-        ):
-            msg += ' You can still upload a test submission.'
-        raise APIException(
-            msg,
-            f'The deadline for assignment {assig.name} is unset.',
-            APICodes.ASSIGNMENT_DEADLINE_UNSET,
-            400,
-        )
-
-    if is_test_submission:
-        author = assig.course.get_test_student()
-        db.session.flush()
-    elif given_author is None:
-        author = current_user
-    else:
-        author = helpers.filter_single_or_404(
-            models.User,
-            models.User.username == given_author,
-            also_error=lambda user: user.is_test_student,
-        )
-
-    auth.ensure_can_submit_work(assig, author)
-
-    group = None
-    if assig.group_set and not author.is_test_student:
-        group = assig.group_set.get_valid_group_for_user(author)
-
-    if group is not None:
-        author = group.virtual_user
-        if assig.is_lti and any(
-            assig.id not in member.assignment_results
-            for member in group.members
-        ):
-            lms = assig.course.lti_provider.lms_name
-            raise APIException(
-                f"Some authors haven't opened the assignment in {lms} yet",
-                'No assignment_results found for some authors in the group',
-                APICodes.ASSIGNMENT_RESULT_GROUP_NOT_READY,
-                400,
-                group=group,
-            )
-
-    # TODO: Check why we need to pass both user_id and user.
-    work = models.Work(assignment=assig, user_id=author.id, user=author)
-    work.divide_new_work()
+    author = assig.get_author_handing_in(request.args)
 
     try:
         raise_or_delete = psef.ignore.IgnoreHandling[request.args.get(
@@ -793,27 +765,7 @@ def upload_work(assignment_id: int) -> ExtendedJSONResponse[models.Work]:
         ignore_filter=assig.cgignore,
         handle_ignore=raise_or_delete,
     )
-    work.add_file_tree(tree)
-    db.session.add(work)
-    db.session.flush()
-
-    if work.assignment.is_lti:
-        # TODO: Doing this for a LMS other than Canvas is probably not a good
-        # idea as it will result in a wrong submission date.
-        helpers.callback_after_this_request(
-            lambda: tasks.passback_grades(
-                [work.id],
-                assignment_id=assig.id,
-                initial=True,
-            )
-        )
-    db.session.flush()
-
-    work.run_linter()
-
-    if work.assignment.auto_test is not None:
-        work.assignment.auto_test.add_to_run(work)
-
+    work = models.Work.create_from_tree(assig, author, tree)
     db.session.commit()
 
     return extended_jsonify(work, status_code=201, use_extended=models.Work)
@@ -1811,3 +1763,53 @@ def get_group_member_states(assignment_id: int, group_id: int
     auth.ensure_can_view_group(group)
 
     return jsonify(group.get_member_lti_states(assig))
+
+
+@api.route(
+    '/assignments/<int:assignment_id>/webhook_settings', methods=['POST']
+)
+def get_git_settings(assignment_id: int) -> JSONResponse[models.WebhookBase]:
+    """Create or get the webhook settings to hand-in submissions.
+
+    .. :quickref: Assignment; Get webhook settings to hand-in submissions.
+
+    :param assignment_id: The assignment for which the webhook should hand-in
+        submissions.
+    :query webhook_type: The webhook type, currently only ``git`` is supported,
+        which works for both GitLab and GitHub.
+
+    You can select the user for which the webhook should hand-in using the
+    exact same query parameters as the route to upload a submission.
+
+    :returns: A serialized form of a webhook, which contains all data needed to
+        add the webhook to your provider.
+    """
+    assig = helpers.get_or_404(models.Assignment, assignment_id)
+    if not assig.webhook_upload_enabled:
+        raise APIException(
+            'Handing in through webhooks is disabled for this assignment',
+            f'Assignment {assig.id} does not allow webhook uploads',
+            APICodes.UPLOAD_TYPE_DISABLED, 400
+        )
+
+    author = assig.get_author_handing_in(request.args)
+    webhook_type_name = request.args.get('webhook_type', '')
+    webhook_type = registry.webhook_handlers.get(webhook_type_name)
+    if webhook_type is None:
+        raise APIException(
+            'The requested webhook type does not exist',
+            f'The requested webhook type {webhook_type} is unknown',
+            APICodes.OBJECT_NOT_FOUND, 404
+        )
+
+    webhook = webhook_type.query.filter_by(
+        user_id=author.id, assignment_id=assig.id
+    ).one_or_none()
+
+    if webhook is None:
+        webhook = webhook_type(assignment_id=assig.id, user_id=author.id)
+        db.session.add(webhook)
+
+    db.session.commit()
+
+    return jsonify(webhook)

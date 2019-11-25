@@ -38,6 +38,41 @@ def create_marker(marker):
     return outer
 
 
+def create_lti_assignment(
+    session, course, state='hidden', deadline='tomorrow'
+):
+    name = f'__NEW_LTI_ASSIGNMENT__-{uuid.uuid4()}'
+
+    if deadline == 'tomorrow':
+        deadline = datetime.datetime.utcnow() + datetime.timedelta(days=1)
+
+    res = m.Assignment(
+        name=name,
+        course=course,
+        deadline=deadline,
+        lti_assignment_id=str(uuid.uuid4()),
+        lti_outcome_service_url=str(uuid.uuid4()),
+    )
+    res.set_state(state)
+    session.add(res)
+    session.commit()
+    return res
+
+
+def create_lti_course(session, app):
+    name = f'__NEW_LTI_COURSE__-{uuid.uuid4()}'
+    key = list(app.config['LTI_CONSUMER_KEY_SECRETS'].keys())[0]
+    provider = m.LTIProvider(key=key)
+    assert provider is not None
+    c = m.Course.create_and_add(
+        name=name,
+        lti_provider=provider,
+        lti_course_id=str(uuid.uuid4()),
+    )
+    session.commit()
+    return c
+
+
 def create_course(test_client):
     name = f'__NEW_COURSE__-{uuid.uuid4()}'
     return test_client.req(
@@ -107,6 +142,8 @@ def create_submission(
         'comment_author': None,
         'grade_overridden': False,
         'assignment_id': get_id(assignment_id),
+        'extra_info': None,
+        'origin': 'uploaded_files',
     } if err is None else err_t)
 
     path = f'/api/v1/assignments/{get_id(assignment_id)}/submission'
@@ -139,12 +176,13 @@ def create_group_set(
             'assignment_ids': [],
         },
     )
-    for assig_id in assig_ids:
+    for assig in assig_ids:
+        assig_id = get_id(assig)
         test_client.req(
             'patch',
             f'/api/v1/assignments/{get_id(assig_id)}',
             200,
-            data={'group_set_id': g_set['id']},
+            data={'group_set_id': get_id(g_set)},
         )
     return g_set
 

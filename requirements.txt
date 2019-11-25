@@ -48,3 +48,4 @@ alembic-autogenerate-enums==0.0.2
 regex==2019.06.08
 fastpbkdf2==0.2
 pytest-describe==0.12.0
+cryptography==2.7

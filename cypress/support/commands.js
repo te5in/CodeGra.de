@@ -302,6 +302,23 @@ Cypress.Commands.add('submit', { prevSubject: true }, (subject, state, optsArg =
 
     return cy.wrap(subject);
 });
+
+Cypress.Commands.add('multiselect', { prevSubject: true }, (subject, items) => {
+    // Select items in a <multiselect>. Each item is typed in the multiselect
+    // and then the first matching item is selected. Fails if no matching items
+    // could be found.
+
+    cy.wrap(items).each(item => {
+        cy.wrap(subject)
+            .should('have.class', 'multiselect')
+            .find('input')
+            .type(item);
+        cy.wrap(subject)
+            .find('.multiselect__element')
+            .first()
+            .click();
+    });
+});
 //
 //
 // -- This is a child command --

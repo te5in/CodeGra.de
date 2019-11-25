@@ -142,6 +142,7 @@ class MyDb:  # pragma: no cover
     Boolean: DbType[bool]
     ForeignKey: t.Callable
     String: t.Callable[[DbSelf, int], DbType[str]]
+    LargeBinary: DbType[bytes]
     init_app: t.Callable
     engine: t.Any
 
@@ -180,7 +181,9 @@ class MyDb:  # pragma: no cover
     ) -> t.Any:
         ...
 
-    def UniqueConstraint(self, *args: t.Any) -> t.Any:
+    def UniqueConstraint(
+        self, *args: t.Any, name: t.Optional[str] = None
+    ) -> t.Any:
         ...
 
     @t.overload

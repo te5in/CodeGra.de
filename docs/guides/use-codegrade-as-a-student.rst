@@ -29,6 +29,28 @@ Handing in
 
     Always test your code first on your own system to make sure it works, before uploading to CodeGrade.
 
+Handing in with Git
+~~~~~~~~~~~~~~~~~~~~~
+Some CodeGrade assignments allow you to hand in code via Git (GitLab or Github).
+If this is possible, it should show up on the hand-in page. Follow the
+instructions on this page to set up the deploy key and webhook for your
+repository. If this is set up correctly, every ``git push`` you make will
+automatically hand in on CodeGrade too.
+
+.. note::
+
+    Working in a group **and** handing in using Git? Make sure all members of
+    the group have opened the CodeGrade assignment in Canvas, Moodle,
+    Blackboard or Brightspace before handing in. *This does not apply to stand-
+    alone usage of CodeGrade!*
+
+.. warning::
+
+    CodeGrade has a size limit for uploading submissions. Handing in via git
+    can result in files exceeding this size limit to be silently deleted. Always
+    check your submission in CodeGrade when working with large repositories.
+    *If the size limit is exceeded, the ``cg-size-limit-exceeded`` will show up
+    in your submission.*
 
 Viewing feedback
 -----------------

@@ -94,6 +94,10 @@ class GroupSet(NotEqualMixin, Base):
         :raises APIException: If the amount of members of the found group is
             less than the minimum size of this group set.
         """
+        assert (
+            user.group is None and not user.is_test_student
+        ), "Only use this method for normal users"
+
         group = db.session.query(Group).filter_by(group_set_id=self.id).filter(
             t.cast(
                 DbColumn[t.List['user_models.User']],

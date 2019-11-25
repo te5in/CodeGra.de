@@ -206,6 +206,8 @@ def test_patch_submission(
                     (None if error or 'feedback' not in data else dict),
                 'grade_overridden': False,
                 'assignment_id': int,
+                'extra_info': None,
+                'origin': 'uploaded_files',
             }
         )
         assert 'email' not in res['user']
@@ -249,6 +251,8 @@ def test_delete_grade_submission(
                 'comment_author': dict,
                 'grade_overridden': False,
                 'assignment_id': int,
+                'extra_info': None,
+                'origin': 'uploaded_files',
             }
         )
         assert res['comment_author']['id'] == ta_user.id

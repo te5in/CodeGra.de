@@ -1,0 +1,117 @@
+{
+  "object_kind": "push",
+  "event_name": "push",
+  "before": "0a2a8a99a9c2ee897808989fa1d3f0daf842f191",
+  "after": "0a7018d3a999ca950c8c2a3c98f6f7f16c2f94d5",
+  "ref": "refs/heads/master",
+  "checkout_sha": "0a7018d3a999ca950c8c2a3c98f6f7f16c2f94d5",
+  "message": null,
+  "user_id": 627,
+  "user_name": "Olmo Kramer",
+  "user_username": "10175490",
+  "user_email": "",
+  "user_avatar": "https://secure.gravatar.com/avatar/fb646a351a5c3211fc84eb469e778585?s=80&d=identicon",
+  "project_id": 4045,
+  "project": {
+    "id": 4045,
+    "name": "COSMPC",
+    "description": "Principle Of Most Surprise Compiler",
+    "web_url": "https://gitlab-fnwi.uva.nl/10812350/COSMPC",
+    "avatar_url": null,
+    "git_ssh_url": "ssh://git@gitlab-fnwi.uva.nl:1337/10812350/COSMPC.git",
+    "git_http_url": "https://gitlab-fnwi.uva.nl/10812350/COSMPC.git",
+    "namespace": "10812350",
+    "visibility_level": 0,
+    "path_with_namespace": "10812350/COSMPC",
+    "default_branch": "master",
+    "ci_config_path": null,
+    "homepage": "https://gitlab-fnwi.uva.nl/10812350/COSMPC",
+    "url": "ssh://git@gitlab-fnwi.uva.nl:1337/10812350/COSMPC.git",
+    "ssh_url": "ssh://git@gitlab-fnwi.uva.nl:1337/10812350/COSMPC.git",
+    "http_url": "https://gitlab-fnwi.uva.nl/10812350/COSMPC.git"
+  },
+  "commits": [
+    {
+      "id": "0a7018d3a999ca950c8c2a3c98f6f7f16c2f94d5",
+      "message": "Fix issue with casting\n",
+      "timestamp": "2018-04-06T14:19:43Z",
+      "url": "https://gitlab-fnwi.uva.nl/10812350/COSMPC/commit/0a7018d3a999ca950c8c2a3c98f6f7f16c2f94d5",
+      "author": {
+        "name": "Thomas Schaper",
+        "email": "thomas@libremail.nl"
+      },
+      "added": [
+
+      ],
+      "modified": [
+        "ISSUES",
+        "src/simplify/simplify_casts.c",
+        "test/casts.cvc"
+      ],
+      "removed": [
+
+      ]
+    },
+    {
+      "id": "d90170d3eb58ef33f68e9e48449e5ced80f60862",
+      "message": "Make sure function cannot have more than 255 vars\n",
+      "timestamp": "2018-04-06T13:48:08Z",
+      "url": "https://gitlab-fnwi.uva.nl/10812350/COSMPC/commit/d90170d3eb58ef33f68e9e48449e5ced80f60862",
+      "author": {
+        "name": "Thomas Schaper",
+        "email": "thomas@libremail.nl"
+      },
+      "added": [
+
+      ],
+      "modified": [
+        "src/global/ast.xml",
+        "src/print/print.c",
+        "src/simplify/add_load_store.c"
+      ],
+      "removed": [
+
+      ]
+    },
+    {
+      "id": "0a2a8a99a9c2ee897808989fa1d3f0daf842f191",
+      "message": "Add load and store instructions\n",
+      "timestamp": "2018-04-06T13:32:48Z",
+      "url": "https://gitlab-fnwi.uva.nl/10812350/COSMPC/commit/0a2a8a99a9c2ee897808989fa1d3f0daf842f191",
+      "author": {
+        "name": "Thomas Schaper",
+        "email": "thomas@libremail.nl"
+      },
+      "added": [
+        "src/simplify/add_load_store.c",
+        "src/simplify/add_load_store.h"
+      ],
+      "modified": [
+        "Makefile.Targets",
+        "src/global/ast.xml",
+        "src/global/phase.mac",
+        "src/print/print.c",
+        "src/print/print.h",
+        "src/simplify/init_arrs.c",
+        "src/simplify/remove_for_loops.c",
+        "src/simplify/simplify_exprs.c",
+        "src/types/undeclared_variables.c"
+      ],
+      "removed": [
+
+      ]
+    }
+  ],
+  "total_commits_count": 3,
+  "push_options": {
+  },
+  "repository": {
+    "name": "COSMPC",
+    "url": "ssh://git@gitlab-fnwi.uva.nl:1337/10812350/COSMPC.git",
+    "description": "Principle Of Most Surprise Compiler",
+    "homepage": "https://gitlab-fnwi.uva.nl/10812350/COSMPC",
+    "git_http_url": "https://gitlab-fnwi.uva.nl/10812350/COSMPC.git",
+    "git_ssh_url": "ssh://git@gitlab-fnwi.uva.nl:1337/10812350/COSMPC.git",
+    "visibility_level": 0
+  }
+}

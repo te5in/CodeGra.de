@@ -26,20 +26,21 @@ details on `the CodeGrade website <https://codegrade.com>`_.
    guides/use-codegrade-as-a-student
    guides/getting-started-with-codegrade
    guides/creating-an-assignment
+   guides/set-up-a-rubric-for-an-assignment
    guides/setting-up-autotest
    guides/enabling-continuous-feedback-for-an-assignment
+   guides/set-up-group-assignment
+   guides/setting-up-hand-in-requirements.rst
+   guides/setting-up-git-uploads.rst
+   guides/checking-for-plagiarism
+   guides/dividing-submissions
+   guides/pass-back-grades-to-canvas-blackboard-moodle-brightspace
+   guides/creating-managing-and-using-snippets
+   guides/setup-password-for-codegrade-account
+   guides/using-shortcuts
+   guides/cannot-find-feature-in-codegrade
    guides/installing-codegrade-filesystem
    guides/use-codegrade-filesystem
-   guides/creating-managing-and-using-snippets
-   guides/checking-for-plagiarism
-   guides/set-up-group-assignment
-   guides/pass-back-grades-to-canvas-blackboard-moodle-brightspace
-   guides/setup-password-for-codegrade-account
-   guides/set-up-a-rubric-for-an-assignment
-   guides/using-shortcuts
-   guides/dividing-submissions
-   guides/cannot-find-feature-in-codegrade
-   guides/setting-up-hand-in-requirements.rst
 
 .. _user-docs:
 

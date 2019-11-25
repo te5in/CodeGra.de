@@ -107,6 +107,7 @@
                slot-scope="item"
                @click.prevent>
                 <user :user="item.value"/>
+                <webhook-name :submission="item.item" />
                 <icon name="exclamation-triangle"
                       class="text-warning ml-1"
                       style="margin-bottom: -1px;"
@@ -181,6 +182,7 @@ import User from './User';
 import CategorySelector from './CategorySelector';
 import CGIgnoreFile from './CGIgnoreFile';
 import LateSubmissionIcon from './LateSubmissionIcon';
+import WebhookName from './WebhookName';
 
 export default {
     name: 'submission-list',
@@ -549,6 +551,7 @@ export default {
         CategorySelector,
         CGIgnoreFile,
         LateSubmissionIcon,
+        WebhookName,
     },
 };
 </script>

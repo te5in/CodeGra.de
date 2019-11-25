@@ -4,9 +4,7 @@ context('Submissions page', () => {
     before(() => {
         cy.visit('/')
         cy.login('student1', 'Student1')
-        cy.get('.assignment-state.assignment-state-Submitting').first()
-            .parentsUntil('.assig-list-item').first()
-            .click()
+        cy.get('.assig-list').contains('.assig-list-item', 'Python').click()
         cy.url().then($url => {
             url = $url;
         });

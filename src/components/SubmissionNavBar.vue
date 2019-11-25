@@ -16,6 +16,7 @@
             <template slot="button-content">
                 <span class="button-content">
                     <user :user="curSub.user"/> at {{ curSub.formatted_created_at }}
+                    <webhook-name :submission="curSub" />
                     <span class="d-inline-block" style="transform: translateY(-2px)">
                         <late-submission-icon
                             :submission="curSub"
@@ -45,6 +46,7 @@
                                  :class="{currentSub: sub.id === curSub.id, 'sub-late': subLate(sub)}"
                                  class="old-sub">
                     {{ sub.formatted_created_at }}
+                    <webhook-name :submission="sub" />
                     <template v-if="sub.grade != null">
                         graded with a {{ sub.grade }}
                     </template>
@@ -90,6 +92,7 @@ import 'vue-awesome/icons/angle-right';
 import User from './User';
 import Loader from './Loader';
 import LateSubmissionIcon from './LateSubmissionIcon';
+import WebhookName from './WebhookName';
 
 export default {
     name: 'submission-nav-bar',
@@ -282,6 +285,7 @@ export default {
         User,
         Loader,
         LateSubmissionIcon,
+        WebhookName,
     },
 };
 </script>

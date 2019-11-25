@@ -136,6 +136,8 @@ def test_get_assignment(
                 'group_set': None,
                 'division_parent_id': None,
                 'auto_test_id': None,
+                'webhook_upload_enabled': False,
+                'files_upload_enabled': True,
             }
         else:
             res = error_template
@@ -1040,6 +1042,8 @@ def test_upload_files(
                         'comment_author': None,
                         'grade_overridden': False,
                         'assignment_id': assignment.id,
+                        'origin': 'uploaded_files',
+                        'extra_info': None,
                     }
                 )
 
@@ -1125,7 +1129,7 @@ def test_archive_with_symlinks(
     'author',
     ['student1',
      http_err(error=404)(-1),
-     http_err(error=400)('admin')]
+     http_err(error=403)('admin')]
 )
 def test_upload_for_other(
     named_user, test_client, logged_in, assignment, name, error_template,
@@ -1825,6 +1829,8 @@ def test_get_all_submissions(
                     'user': dict,
                     'created_at': work.created_at.isoformat(),
                     'grade_overridden': False,
+                    'origin': 'uploaded_files',
+                    'extra_info': None,
                 })
                 if extended:
                     res[-1]['comment'] = None if no_grade else work.comment
@@ -4596,6 +4602,8 @@ def test_upload_test_submission(
                     'comment_author': None,
                     'grade_overridden': False,
                     'assignment_id': assig_id,
+                    'extra_info': None,
+                    'origin': 'uploaded_files',
                 }
             )
 

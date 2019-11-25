@@ -10,10 +10,13 @@ from flask import request
 from . import api
 from .. import auth, models, features, current_user
 from ..helpers import (
-    JSONResponse, EmptyResponse, jsonify, get_or_404, ensure_json_dict,
-    ensure_keys_in_dict, make_empty_response, filter_single_or_404
+    JSONResponse, EmptyResponse, jsonify, get_or_404, add_warning,
+    readable_join, ensure_json_dict, ensure_keys_in_dict, make_empty_response,
+    filter_single_or_404
 )
-from ..exceptions import APICodes, APIException, ValidationException
+from ..exceptions import (
+    APICodes, APIWarnings, APIException, ValidationException
+)
 from ..permissions import CoursePermission as CPerm
 
 
@@ -112,6 +115,48 @@ def add_member_to_group(group_id: int) -> JSONResponse[models.Group]:
             'One of the members is already in a group for this group set',
             APICodes.INVALID_PARAM, 400
         )
+
+    old_hooks = models.WebhookBase.query.filter(
+        models.WebhookBase.user_id == new_user.id,
+        t.cast(models.DbColumn[int], models.WebhookBase.assignment_id).in_(
+            [a.id for a in group.group_set.assignments]
+        ),
+    ).all()
+    if old_hooks:
+        add_warning(
+            (
+                'The existing webhook{plural_s} for {assigs} will be disabled'
+                ' after joining the group.'
+            ).format(
+                assigs=readable_join([h.assignment.name for h in old_hooks]),
+                plural_s='s' if len(old_hooks) > 1 else '',
+            ),
+            APIWarnings.WEBHOOKS_DISABLED,
+        )
+
+    if group.group_set.course.lti_provider is not None:
+        existing_hooks = models.WebhookBase.query.filter_by(
+            user=group.virtual_user,
+        )
+        missing_sourcedids = [
+            h.assignment for h in existing_hooks if (
+                h.assignment_id not in new_user.assignment_results and
+                h.assignment.is_lti
+            )
+        ]
+        if missing_sourcedids:
+            raise APIException(
+                (
+                    'You first have to open the assignments: {assigs} from'
+                    ' {LMS} before you can join this group'
+                ).format(
+                    assigs=readable_join([a.name for a in missing_sourcedids]),
+                    LMS=group.group_set.course.lti_provider.lms_name,
+                ), (
+                    "This group has webhooks for these assignments, but you"
+                    " didn't open them yet"
+                ), APICodes.INVALID_STATE, 400
+            )
 
     group.members.append(new_user)
     models.db.session.commit()

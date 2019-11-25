@@ -93,8 +93,12 @@
                     </b-input-group>
                 </b-form-fieldset>
 
-                <b-form-fieldset v-if="canEditMaxGrade">
+                <b-form-fieldset v-if="canEditMaxGrade" class="flex-grow-1">
                     <maximum-grade :assignment-id="assignmentId"/>
+                </b-form-fieldset>
+
+                <b-form-fieldset v-if="canEditInfo">
+                    <assignment-submit-types :assignment-id="assignmentId"/>
                 </b-form-fieldset>
             </div>
 
@@ -303,6 +307,7 @@ import {
     CategorySelector,
     DatetimePicker,
     AutoTest,
+    AssignmentSubmitTypes,
 } from '@/components';
 
 export default {
@@ -589,6 +594,7 @@ export default {
         CategorySelector,
         DatetimePicker,
         AutoTest,
+        AssignmentSubmitTypes,
     },
 };
 </script>

@@ -422,9 +422,7 @@ export default {
                 ignore,
                 ignore_version: ignoreVersion,
             };
-            return this.$http
-                .patch(`/api/v1/assignments/${this.assignment.id}`, data)
-                .then(() => data);
+            return this.$http.patch(`/api/v1/assignments/${this.assignment.id}`, data);
         },
 
         addNewRule(name) {
@@ -438,19 +436,21 @@ export default {
             this.rules = this.rules;
         },
 
-        async afterUpdateIgnore({ ignore, ignore_version: version }) {
+        async afterUpdateIgnore(response) {
+            // eslint-disable-next-line
+            const { cgignore, cgignore_version } = response.data;
             this.updateAssignment({
                 assignmentId: this.assignmentId,
                 assignmentProps: {
-                    cgignore: ignore,
-                    cgignore_version: version,
+                    cgignore,
+                    cgignore_version,
                 },
             });
             // We need to set `loadingRules` to `true` so that we can update the
             // rules without having any issue with animations.
             this.loadingRules = true;
             await this.$nextTick();
-            this.copyRemoteValues(ignore, version);
+            this.copyRemoteValues(cgignore, cgignore_version);
             this.loadingRules = false;
         },
 
