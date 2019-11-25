@@ -25,6 +25,7 @@ details on `the CodeGrade website <https://codegrade.com>`_.
 
    guides/use-codegrade-as-a-student
    guides/getting-started-with-codegrade
+   guides/autotest-best-practices
    guides/creating-an-assignment
    guides/set-up-a-rubric-for-an-assignment
    guides/setting-up-autotest

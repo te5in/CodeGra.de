@@ -9,4 +9,7 @@ programming assignments. And as teaching assistants the amount of overhead
 required to actually grade programming assignments in the traditional way, in
 addition to the lack of providing useful feedback in a counter-intuitive
 environment made the work very frustrating at times. This still drives us to
-create a product that can revolutionise programming education to this date.
+create a product that can revolutionize programming education to this date.
+
+CodeGrade is now a complete feedback platform for programming education used
+by over 10 institutions worldwide.

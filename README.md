@@ -79,18 +79,22 @@
 </p>
 
 # CodeGrade
-CodeGrade is a blended learning application designed especially for programming
+CodeGrade is a feedback and grading platform designed for programming
 education. It makes grading and handing in programming exercises more insightful
-and effective for students and more efficient for teachers.  Where programming
+and effective for students and more efficient for teachers. Where programming
 exercises are currently reviewed in a classical and counter-intuitive way,
 resulting in only little and vague feedback, CodeGrade creates the missing
 intuitive environment for reviewing programming exercises.
 
 This is achieved using some of the key-features CodeGrade provides:
-- Line by line feedback making it possible to specifically write feedback for a
+- Inline feedback making it possible to write feedback for a
   specific part of the code.
-- Rubrics per assignment to aid with grading.
+- Rubrics per assignment to make grading more consistent and help students with
+  understanding their grade.
 - Built-in code plagiarism detection system using JPlag.
+- CodeGrade AutoTest, our highly flexible and scalable feedback focused
+  automatic grading system, allowing students to get feedback immediately and
+  continuously.
 - [CodeGrade Filesystem](#codegrade-filesystem) enabling both students and
   teachers to access and hand in files on the CodeGrade system locally without
   any overhead.
@@ -99,6 +103,9 @@ This is achieved using some of the key-features CodeGrade provides:
   choice.
 
 ## Getting Started
+CodeGrade is offered as Software as a Service, please consult our
+[website](https://codegra.de) to learn how to get started.
+
 A local installation of CodeGrade can be created using the running instructions
 in the [CodeGrade
 documentation](https://docs.codegra.de/running.html). CodeGrade can be run in
@@ -147,12 +154,13 @@ Please consult `CONTRIBUTING.md` for further details on contributing to
 CodeGrade.
 
 ## Authors
-CodeGrade is currently maintained and actively developed by __Devin Hillenius__
-(@DevinHillenius), __Olmo Kramer__ (@olmokramer), __Thomas Schaper__
-(@libre-man) and __Youri Voet__ (@yourivoet).
+CodeGrade is currently maintained and actively developed by
+[CodeGrade BV](https://codegra.de), founded by
+__Devin Hillenius__ (@DevinHillenius), __Olmo Kramer__ (@olmokramer),
+__Thomas Schaper__ (@libre-man) and __Youri Voet__ (@yourivoet).
 
 Please feel free to contact us at <info@codegra.de> for more information on
-innovating your programming education by using CodeGrade at your institute.
+innovating your programming education by using CodeGrade at your institution.
 
 ### History
 CodeGrade originated as project, called _CodeGra.de_, in the Project Software

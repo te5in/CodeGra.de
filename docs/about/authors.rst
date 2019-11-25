@@ -1,7 +1,7 @@
 CodeGrade Team
 ================
 
-CodeGrade is currently maintained and actively developed by:
+CodeGrade is currently maintained and actively developed by `CodeGrade BV <https://codegra.de>`_, founded by:
 
 * **Devin Hillenius**
 * **Olmo Kramer**

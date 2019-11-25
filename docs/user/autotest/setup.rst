@@ -120,6 +120,8 @@ here too.
     with the permissions, we recommend running ``chown -R codegrade:codegrade
     $FIXTURES/dir`` and ``chmod -R 750 $FIXTURES/dir`` after extracting.
 
+.. _autotest-limit-student-access:
+
 Limiting student access
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 It is sometimes desirable to limit student access to fixtures or to limit the
