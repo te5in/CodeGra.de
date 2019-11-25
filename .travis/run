@@ -59,7 +59,10 @@ case "$TO_RUN" in
         travis-sphinx build --source=docs/
         res7="$?"
 
-        res=$(( res1 + res2 + res3 + res4 + res5 + res6 + res7 ))
+        npm run build
+        res8="$?"
+
+        res=$(( res1 + res2 + res3 + res4 + res5 + res6 + res7 + res8))
         set +x xtrace
         ;;
     "js_unit")
