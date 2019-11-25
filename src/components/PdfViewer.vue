@@ -14,6 +14,7 @@
     slot-description="pdf"
     snippet-field-above
     always-show-button
+    :visible-without-hover="$root.isEdge"
     add-space>
     <object :data="pdfURL"
             type="application/pdf"

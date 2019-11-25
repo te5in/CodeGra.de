@@ -1,6 +1,6 @@
 <template>
 <div class="floating-feedback-button"
-     :class="{ 'add-space': addSpace }">
+     :class="{ 'add-space': addSpace, 'without-hover': visibleWithoutHover }">
     <div class="content">
         <slot/>
         <b-button class="feedback-button"
@@ -94,6 +94,10 @@ export default {
             required: true,
         },
         addSpace: {
+            type: Boolean,
+            default: false,
+        },
+        visibleWithoutHover: {
             type: Boolean,
             default: false,
         },
@@ -191,7 +195,8 @@ export default {
         margin: 1rem;
     }
 
-    .floating-feedback-button:hover &:not(.hide) {
+    .floating-feedback-button:hover &:not(.hide),
+    .floating-feedback-button.without-hover &:not(.hide) {
         transform: scale(1);
         opacity: 1;
     }
