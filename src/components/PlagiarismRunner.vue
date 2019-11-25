@@ -211,6 +211,7 @@
 
 <script>
 import { mapGetters, mapActions } from 'vuex';
+import moment from 'moment';
 
 import Multiselect from 'vue-multiselect';
 import Icon from 'vue-awesome/components/Icon';
@@ -266,7 +267,7 @@ export default {
     },
 
     computed: {
-        ...mapGetters('courses', { allAssignments: 'assignments' }),
+        ...mapGetters('courses', { allAssignments: 'assignments', allCourses: 'courses' }),
 
         course() {
             return this.assignment.course;
@@ -277,11 +278,28 @@ export default {
         },
 
         allOldAssignments() {
+            const courseNameOccurrences = Object.values(this.allCourses).reduce((res, course) => {
+                if (!res[course.name]) {
+                    res[course.name] = 0;
+                }
+                res[course.name] += 1;
+                return res;
+            }, {});
+
             return Object.values(this.allAssignments)
                 .filter(a => a.course.permissions.can_view_plagiarism)
                 .map(assig => {
-                    const courseName = this.$utils.htmlEscape(assig.course.name);
+                    let courseName = assig.course.name;
                     const assigName = this.$utils.htmlEscape(assig.name);
+                    if (courseNameOccurrences[courseName] > 1) {
+                        const year = moment
+                            .utc(assig.course.created_at, moment.ISO_8601)
+                            .local()
+                            .format('YYYY');
+                        courseName = `${courseName} (${year})`;
+                    }
+
+                    courseName = this.$utils.htmlEscape(courseName);
                     return {
                         id: assig.id,
                         label: `${courseName} - ${assigName}`,
