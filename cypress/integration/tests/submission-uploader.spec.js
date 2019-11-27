@@ -156,7 +156,7 @@ context('Submission uploader', () => {
         });
     });
 
-    context.only('File submissions', () => {
+    context('File submissions', () => {
         before(() => {
             cy.createAssignment(course.id, 'FileSubmissions', {
                 state: 'open',

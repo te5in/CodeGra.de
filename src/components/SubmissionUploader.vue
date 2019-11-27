@@ -406,7 +406,7 @@ export default {
         uploadUrl() {
             return `/api/v1/assignments/${this.assignment.id}/submission?ignored_files=${
                 this.ignored
-            }&{this.uploadUrlQueryArgs}`;
+            }&${this.uploadUrlQueryArgs}`;
         },
 
         readableDeadline() {

@@ -127,7 +127,7 @@
         </b-tab>
 
         <div slot="empty" class="text-center text-muted empty" v-if="editable">
-            <p>This assignment does not have rubric yet. Click the '+' to add a category.</p>
+            <p>This assignment does not have a rubric yet. Click the '+' to add a category.</p>
             <hr>
 
             <p>You can also import a rubric from a different assignment:</p>

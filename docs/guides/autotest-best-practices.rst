@@ -230,3 +230,18 @@ IO tests fail by default if the exit code of the program is not 0. Sometimes,
 however, you want IO tests to also pass with another exit code than 0. You
 can simply fix this by appending ``|| true`` to your command, this will make
 sure the exit code is always 0.
+
+.. note::
+    The "Input arguments" field of an IO step is appended to the command. This
+    means that if it is not empty, this technique will likely not produce the
+    expected results. To work around this case, add the ``|| true`` to the
+    input arguments instead.
+
+How to view AutoTest generated files
+---------------------------------------
+
+It may be desirable to inspect files that are generated during the run of an
+AutoTest, such as compiled objects or IPython notebooks. By default generated
+files are not saved, but they will be when you write them to the ``$AT_OUTPUT``
+directory. The files will then be accessible through the "Autotest output"
+section of the file browser in the Code Viewer.

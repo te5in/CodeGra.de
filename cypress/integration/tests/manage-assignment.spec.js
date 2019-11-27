@@ -24,6 +24,22 @@ context('Manage Assignment', () => {
             cy.openCategory('General');
         });
 
+        it('should only change then name in the header after submit was clicked', () => {
+            cy.get('.page.manage-assignment')
+                .find('.local-header h4.title span')
+                .as('header');
+            cy.get('.page.manage-assignment')
+                .contains('.input-group', 'Name')
+                .as('group');
+
+            cy.get('@header').text().then((headerText) => {
+                cy.get('@group').find('input').type('abc');
+                cy.get('@header').text().should('not.contain', headerText + 'abc');
+                cy.get('@group').find('.submit-button').submit('success');
+                cy.get('@header').text().should('contain', headerText + 'abc');
+            });
+        });
+
         it('should be possible to change the state', () => {
             cy.wrap(['hidden', 'open', 'done']).each(state => {
                 cy.get(`.assignment-state .state-button.state-${state}`)

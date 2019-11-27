@@ -47,3 +47,10 @@ removing the permission "View the details of AutoTest steps".
 .. note::
     Showing all test attributes to students is recommended for feedback
     purposes.
+
+Automatically generated output
+------------------------------
+
+By default, automatically generated output is not visible to students until the
+assignment state is set to "Done". This behavior can be changed with the "View
+AutoTest output files before done" permission.

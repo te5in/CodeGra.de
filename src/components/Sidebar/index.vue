@@ -25,9 +25,7 @@
                     <icon :name="entry.icon"
                           :scale="mobileVisible ? 1.5 : 2.25"
                           :label="maybeCall(entry.title || entry.header)"/>
-                    <small class="name">
-                        {{ maybeCall(entry.title || entry.header) }}
-                    </small>
+                    <small class="name">{{ maybeCall(entry.title || entry.header) }}</small>
                 </a>
             </transition>
         </div>

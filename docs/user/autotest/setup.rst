@@ -187,3 +187,25 @@ Use the per student setup script to compile, for example, each submission's code
 .. note::
     If you want compiling to be part of a test, use the *Run program* test for
     this.
+
+.. _autotest-automatically-generated-output:
+
+Automatically generated output
+------------------------------
+
+It may be desirable have files generated automatically after students submit
+their work. This is also possible on the AutoTest infrastructure. While most
+generated files (think compilation artifacts) are deleted when the test has
+finished, files written to the ``$AT_OUTPUT`` directory are sent back to
+CodeGrade so the student and/or teacher can review them later on.
+
+This directory is cleared between each AutoTest category. The generated files
+can be viewed in the Code Viewer in the "AutoTest output" category in the file
+tree.
+
+.. note::
+    By default the ``$AT_OUTPUT`` directory is writable by the user running the
+    AutoTest steps. This means that students will also be able to write to this
+    directory, or even overwrite files that were generated earlier. To prevent
+    this from happening, see also the notes in :ref:`Limiting student access
+    <autotest-limit-student-access>`

@@ -303,6 +303,7 @@
 # PHP = php
 # JavaScript = javascript
 # Jupyter = jupyter
+# R = r
 
 
 # This are the settings for celery. You need to be running a celery process to

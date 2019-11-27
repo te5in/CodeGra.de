@@ -245,6 +245,17 @@ Cypress.Commands.add('createAssignment', (courseId, name, { state, bbZip, deadli
     });
 });
 
+Cypress.Commands.add('createRubric', (assignmentId, rubricData, maxPoints = null) => {
+    return cy.authRequest({
+        url: `/api/v1/assignments/${assignmentId}/rubrics/`,
+        method: 'PUT',
+        body: {
+            rows: rubricData,
+            max_points: maxPoints,
+        },
+    });
+});
+
 Cypress.Commands.add('openCategory', (name) => {
     cy.get('.local-header').contains('.category', name).click();
 });

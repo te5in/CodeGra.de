@@ -71,6 +71,34 @@ context('Submissions page', () => {
         });
     });
 
+    it('should be possible to hand something in as somebody else', () => {
+        cy.login('robin', 'Robin', false);
+
+        cy.get('.multiple-files-uploader .dropzone').should('be.visible');
+        const fileName = 'test_submissions/hello.py';
+
+        cy.fixture(fileName, 'utf8').then(fileContent => {
+            const lines = fileContent.split('\n');
+
+            cy.get('.dropzone').upload(
+                {
+                    fileContent,
+                    fileName,
+                    mimeType: 'text/x-python',
+                    encoding: 'utf8'
+                },
+                { subjectType: 'drag-n-drop' },
+            );
+
+            cy.get('.user-selector').multiselect(['student2']);
+
+            cy.get('.submission-uploader .submit-button').click();
+            cy.url().should('contain', '/files/');
+
+            cy.get('.submission-nav-bar .user').contains('Student2');
+        });
+    });
+
     it('should not show a grade by default', () => {
         cy.login('robin', 'Robin', false)
 

@@ -30,6 +30,7 @@
             <b-input-group prepend="Email">
                 <input :disabled="!canEditInfo"
                        type="text"
+                       name="email"
                        class="form-control"
                        v-model="email"/>
             </b-input-group>
@@ -87,6 +88,7 @@
             <b-button variant="danger" @click="reset">Reset</b-button>
 
             <submit-button ref="submitButton"
+                           name="submit-user-info"
                            :submit="submit"
                            @success="afterSubmit"
                            :confirm="confirmMessage">

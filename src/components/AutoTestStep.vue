@@ -48,7 +48,8 @@
                                v-b-popover.top.hover="'Delete this step'"
                                @after-success="$emit('delete')"
                                confirm="Are you sure you want to delete this step?"
-                               variant="danger">
+                               variant="danger"
+                               class="delete-step">
                     <icon name="times"/>
                 </submit-button>
             </b-button-group>
@@ -69,7 +70,7 @@
                     </description-popover>
                 </label>
 
-                <input class="form-control"
+                <input class="form-control step-program"
                        :value="value.data.program"
                        :id="programNameId"
                        @input="updateValue('program', $event.target.value)"/>

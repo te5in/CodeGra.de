@@ -3,7 +3,7 @@
 <div class="manage-assignment loading" v-if="loading">
     <local-header>
         <template slot="title" v-if="assignment && Object.keys(assignment).length">
-            {{ assignment.name }}
+            <span>{{ assignment.name }}</span>
             <small v-if="formattedDeadline">- {{ formattedDeadline }}</small>
             <small v-else class="text-muted"><i>- No deadline</i></small>
         </template>
@@ -15,7 +15,7 @@
     <local-header always-show-extra-slot
                   class="header">
         <template slot="title">
-            {{ assignment.name }}
+            <span>{{ assignment.name }}</span>
             <small v-if="formattedDeadline">- {{ formattedDeadline  }}</small>
             <small v-else class="text-muted"><i>- No deadline</i></small>
         </template>
@@ -36,15 +36,8 @@
     <div class="page-content" v-if="loadingInner">
         <loader page-loader />
     </div>
-    <div class="page-content" v-show="!loadingInner">
-        <b-alert v-if="$route.query.created"
-                 variant="success"
-                 class="text-center"
-                 show
-                 dismissible>
-            Succesfully created assignment!
-        </b-alert>
-
+    <div class="page-content" v-show="!loadingInner"
+         :key="assignmentId">
         <div :class="{hidden: selectedCat !== 'general'}"
              class="row cat-wrapper">
             <div v-if="canEditInfo"
