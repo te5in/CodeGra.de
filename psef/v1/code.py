@@ -5,6 +5,7 @@ APIs are used to manipulate student submitted code and the related feedback.
 SPDX-License-Identifier: AGPL-3.0-only
 """
 
+import uuid
 import shutil
 import typing as t
 
@@ -117,6 +118,33 @@ def remove_comment(code_id: int, line: int) -> EmptyResponse:
     db.session.commit()
 
     return make_empty_response()
+
+
+@api.route('/code/<uuid:file_id>', methods=['GET'])
+def get_auto_test_output_file(
+    file_id: uuid.UUID
+) -> werkzeug.wrappers.Response:
+    """Get data from the :class:`.models.AutoTestOutputFile` with a given id.
+
+    This function is very similar to ``/api/v1/code/<int:file_id>``, however it
+    only supports getting the code (i.e. none of the get parameters).
+
+    :param uuid: The file id of the AutoTest output file.
+    :returns: The content of the file.
+    """
+    f = helpers.get_or_404(models.AutoTestOutputFile, file_id)
+    auth.ensure_can_view_autotest_result(f.result)
+
+    assig = f.suite.auto_test_set.auto_test.assignment
+    if not assig.is_done:
+        auth.ensure_permission(
+            CPerm.can_view_autotest_output_files_before_done, assig.course_id
+        )
+
+    contents = files.get_file_contents(f)
+    res: 'werkzeug.wrappers.Response' = make_response(contents)
+    res.headers['Content-Type'] = 'application/octet-stream'
+    return res
 
 
 @api.route("/code/<int:file_id>", methods=['GET'])

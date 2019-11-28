@@ -26,8 +26,11 @@ if 'Features' not in parser:
     parser['Features'] = {}
 if 'AutoTest' not in parser:
     parser['AutoTest'] = {}
+if 'Front-end' not in parser:
+    parser['Front-end'] = {}
 
 backend_ops = parser['Back-end']
+frontend_ops = parser['Front-end']
 feature_ops = parser['Features']
 auto_test_ops = parser['AutoTest']
 
@@ -96,6 +99,7 @@ FlaskConfig = TypedDict(
         'JAVA_PATH': str,
         'JPLAG_JAR': str,
         'JPLAG_SUPPORTED_LANGUAGES': t.Mapping[str, str],
+        'SITE_EMAIL': str,
         'MAIL_SERVER': str,
         'MAIL_PORT': int,
         'MAIL_USE_TLS': bool,
@@ -118,6 +122,7 @@ FlaskConfig = TypedDict(
         '_TRANSIP_PRIVATE_KEY_FILE': str,
         '_TRANSIP_USERNAME': str,
         'ADMIN_USER': t.Optional[str],
+        'GIT_CLONE_PROGRAM': t.List[str],
     },
     total=True
 )
@@ -338,6 +343,9 @@ except subprocess.CalledProcessError as e:
     _set_version()
 del _set_version
 
+CONFIG['SITE_EMAIL'] = frontend_ops.get('EMAIL', 'info@codegra.de')
+assert isinstance(CONFIG['SITE_EMAIL'], str)
+
 # Set email settings
 set_str(CONFIG, backend_ops, 'MAIL_SERVER', 'localhost')
 set_int(CONFIG, backend_ops, 'MAIL_PORT', 25)
@@ -464,6 +472,14 @@ set_list(
         '{files}',
     ]
 )
+set_list(CONFIG, backend_ops, 'GIT_CLONE_PROGRAM', [
+    f'{os.path.dirname(os.path.abspath(__file__))}/.scripts/clone.sh',
+    '{ssh_key}',
+    '{clone_url}',
+    '{commit}',
+    '{out_dir}',
+    '{git_branch}',
+])
 
 set_str(CONFIG, backend_ops, '_TRANSIP_PRIVATE_KEY_FILE', '')
 set_str(CONFIG, backend_ops, '_TRANSIP_USERNAME', '')
@@ -542,6 +558,10 @@ else:
         "Text": "text",
         "Scheme": "scheme",
         "Scala": "scala",
+        "JSON": "json",
+        "PHP": "php",
+        "JavaScript": "javascript",
+        "Jupyter": "jupyter",
     }
 
 

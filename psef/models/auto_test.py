@@ -30,6 +30,7 @@ from ..registry import auto_test_handlers, auto_test_grade_calculators
 from ..exceptions import (
     APICodes, APIException, PermissionException, InvalidStateException
 )
+from ..permissions import CoursePermission as CPerm
 
 if t.TYPE_CHECKING:  # pragma: no cover
     # pylint: disable=unused-import
@@ -47,7 +48,7 @@ GradeCalculator = t.Callable[[t.Sequence['rubric_models.RubricItem'], float],
 
 
 class AutoTestSuite(Base, TimestampMixin, IdMixin):
-    """This class represents a Suite (also known as category) in a AutoTest.
+    """This class represents a Suite (also known as category) in an AutoTest.
     """
     if t.TYPE_CHECKING:  # pragma: no cover
         query: t.ClassVar[MyQuery['AutoTestSuite']]
@@ -96,7 +97,7 @@ class AutoTestSuite(Base, TimestampMixin, IdMixin):
         order_by='AutoTestStepBase.order'
     )  # type: t.MutableSequence[auto_test_step_models.AutoTestStepBase]
 
-    command_time_limit = db.Column(
+    command_time_limit: t.Optional[float] = db.Column(
         'command_time_limit', db.Float, nullable=True, default=None
     )
 
@@ -311,6 +312,9 @@ class AutoTestResult(Base, TimestampMixin, IdMixin, NotEqualMixin):
 
     final_result: bool = db.Column('final_result', db.Boolean, nullable=False)
 
+    # This variable is generated from the backref from all files
+    files: MyQuery["file_models.AutoTestOutputFile"]
+
     def __eq__(self, other: object) -> bool:
         if isinstance(other, AutoTestResult):
             return other.id == self.id
@@ -385,8 +389,16 @@ class AutoTestResult(Base, TimestampMixin, IdMixin, NotEqualMixin):
         self.setup_stderr = None
         self.setup_stdout = None
         self.runner = None
+
         if self.final_result:
             self.clear_rubric()
+
+        self.files.delete()
+
+    def get_locked_work(self) -> 'work_models.Work':
+        return work_models.Work.query.filter_by(
+            id=self.work_id,
+        ).with_for_update(of=work_models.Work).one()
 
     def clear_rubric(self) -> None:
         """Clear all the rubric categories connected to this AutoTest for this
@@ -394,15 +406,16 @@ class AutoTestResult(Base, TimestampMixin, IdMixin, NotEqualMixin):
 
         :returns: Nothing
         """
+        work = self.get_locked_work()
         own_rubric_rows = set(
             suite.rubric_row_id for suite in self.run.auto_test.all_suites
         )
 
-        self.work.selected_items = [
-            i for i in self.work.selected_items
+        work.selected_items = [
+            i for i in work.selected_items
             if i.rubricrow_id not in own_rubric_rows
         ]
-        self.work.set_grade(grade_origin=work_models.GradeOrigin.auto_test)
+        work.set_grade(grade_origin=work_models.GradeOrigin.auto_test)
 
     def update_rubric(self) -> None:
         """Update the rubric of the connected submission according to this
@@ -410,8 +423,10 @@ class AutoTestResult(Base, TimestampMixin, IdMixin, NotEqualMixin):
 
         .. note:: This might pass back the grade to the LMS if required.
         """
-        old_selected_items = set(self.work.selected_items)
-        new_items = {i.rubricrow_id: i for i in self.work.selected_items}
+        # Lock the work we want to update,
+        work = self.get_locked_work()
+        old_selected_items = set(work.selected_items)
+        new_items = {i.rubricrow_id: i for i in work.selected_items}
         changed_item = False
 
         for suite in self.run.auto_test.all_suites:
@@ -428,8 +443,8 @@ class AutoTestResult(Base, TimestampMixin, IdMixin, NotEqualMixin):
         if not changed_item:
             return
 
-        self.work.selected_items = list(new_items.values())
-        self.work.set_grade(grade_origin=work_models.GradeOrigin.auto_test)
+        work.selected_items = list(new_items.values())
+        work.set_grade(grade_origin=work_models.GradeOrigin.auto_test)
 
     def get_amount_points_in_suites(self, *suites: 'AutoTestSuite'
                                     ) -> t.Tuple[float, float]:
@@ -489,6 +504,16 @@ class AutoTestResult(Base, TimestampMixin, IdMixin, NotEqualMixin):
         else:
             final_result = self.final_result
 
+        suite_files = {}
+        assig = self.run.auto_test.assignment
+        if assig.is_done or psef.current_user.has_permission(
+            CPerm.can_view_autotest_output_files_before_done, assig.course_id
+        ):
+            for f in self.files.filter_by(parent_id=None):
+                entries = f.list_contents().entries
+                if entries:
+                    suite_files[f.auto_test_suite_id] = entries
+
         return {
             **self.__to_json__(),
             'setup_stdout': self.setup_stdout,
@@ -496,6 +521,7 @@ class AutoTestResult(Base, TimestampMixin, IdMixin, NotEqualMixin):
             'step_results': step_results,
             'approx_waiting_before': approx_before,
             'final_result': final_result,
+            'suite_files': suite_files,
         }
 
     @classmethod
@@ -1320,9 +1346,18 @@ class AutoTest(Base, TimestampMixin, IdMixin):
     def __to_json__(self) -> t.Mapping[str, object]:
         """Covert this AutoTest to json.
         """
+        fixtures = []
+        for fixture in self.fixtures:
+            try:
+                auth.ensure_can_view_fixture(fixture)
+            except auth.PermissionException:
+                pass
+            else:
+                fixtures.append(fixture)
+
         return {
             'id': self.id,
-            'fixtures': self.fixtures,
+            'fixtures': fixtures,
             'setup_script': self.setup_script,
             'run_setup_script': self.run_setup_script,
             'finalize_script': self.finalize_script,

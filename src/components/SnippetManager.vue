@@ -33,6 +33,7 @@
                 <td class="snippet-actions">
                     <b-button-group v-b-popover.top.hover="editable ? '' : 'You are not allowed to edit snippets.'">
                         <submit-button variant="danger"
+                                       class="delete-snippet-button"
                                        confirm="Are you sure you want to delete this snippet?"
                                        :disabled="!editable"
                                        :submit="() => deleteSnippet(snippet)"
@@ -42,6 +43,7 @@
                         </submit-button>
 
                         <b-button variant="primary"
+                                  class="edit-snippet-button"
                                   :disabled="!editable"
                                   @click="editSnippet(snippet)"
                                   v-b-popover.hover.top="'Edit snippet'">
@@ -66,12 +68,14 @@
 
     <b-modal :title="modalTitle"
              ref="modal"
+             class="edit-snippet-modal"
              @shown="focusInput">
         <b-form-group v-if="!!editingSnippet">
             <b-input-group>
                 <input type="text"
                        class="form-control"
                        placeholder="Name"
+                       name="snippet-key"
                        @input="setSaveConfirmMessage"
                        @keydown.ctrl.enter="clickSave"
                        v-model="editingSnippet.key"
@@ -82,6 +86,7 @@
         <b-form-group v-if="!!editingSnippet">
             <b-input-group>
                 <textarea rows="10"
+                          name="snippet-value"
                           class="form-control"
                           placeholder="Replacement text"
                           @keydown.ctrl.enter.prevent="clickSave"

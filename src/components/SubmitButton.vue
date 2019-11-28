@@ -40,15 +40,17 @@
                :target="btnId"
                triggers=""
                @hide="onHideError">
-        <icon name="times"
-              class="hide-button"
-              @click.native="hideError"/>
+        <div class="submit-button-error">
+            <icon name="times"
+                class="hide-button"
+                @click.native="hideError"/>
 
-        <span v-if="error">
-            <slot name="error" :error="error">
-                {{ stringifiedError }}
-            </slot>
-        </span>
+            <span v-if="error">
+                <slot name="error" :error="error">
+                    {{ stringifiedError }}
+                </slot>
+            </span>
+        </div>
     </b-popover>
 
     <b-popover :placement="popoverPlacement"
@@ -56,15 +58,17 @@
                :target="btnId"
                triggers=""
                @hide="onHideWarning">
-        <icon name="times"
-              class="hide-button"
-              @click.native="hideWarning"/>
+        <div class="submit-button-warning">
+            <icon name="times"
+                class="hide-button"
+                @click.native="hideWarning"/>
 
-        <span v-if="warning">
-            <slot name="warning" :warning="warning">
-                {{ warning }}
-            </slot>
-        </span>
+            <span v-if="warning">
+                <slot name="warning" :warning="warning">
+                    {{ warning }}
+                </slot>
+            </span>
+        </div>
     </b-popover>
 
     <b-popover v-if="confirm.length > 0"
@@ -74,27 +78,29 @@
                :target="btnId"
                triggers=""
                @hide="resetConfirm">
-        <slot name="confirm">
-            <p class="confirm-message">
-                {{ confirm }}
-            </p>
-        </slot>
+        <div class="submit-button-confirm">
+            <slot name="confirm">
+                <p class="confirm-message">
+                    {{ confirm }}
+                </p>
+            </slot>
 
-        <b-button-toolbar justify>
-            <b-button size="sm"
-                      variant="outline-primary"
-                      class="confirm-button"
-                      @click="acceptConfirm">
-                Yes
-            </b-button>
-            <div class="sep"/>
-            <b-button size="sm"
-                      variant="primary"
-                      class="confirm-button"
-                      @click="resetConfirm">
-                No
-            </b-button>
-        </b-button-toolbar>
+            <b-button-toolbar justify>
+                <b-button size="sm"
+                        variant="outline-primary"
+                        class="confirm-button confirm-button-accept"
+                        @click="acceptConfirm">
+                    Yes
+                </b-button>
+                <div class="sep"/>
+                <b-button size="sm"
+                        variant="primary"
+                        class="confirm-button"
+                        @click="resetConfirm">
+                    No
+                </b-button>
+            </b-button-toolbar>
+        </div>
     </b-popover>
 </b-button>
 </template>

@@ -38,6 +38,41 @@ def create_marker(marker):
     return outer
 
 
+def create_lti_assignment(
+    session, course, state='hidden', deadline='tomorrow'
+):
+    name = f'__NEW_LTI_ASSIGNMENT__-{uuid.uuid4()}'
+
+    if deadline == 'tomorrow':
+        deadline = datetime.datetime.utcnow() + datetime.timedelta(days=1)
+
+    res = m.Assignment(
+        name=name,
+        course=course,
+        deadline=deadline,
+        lti_assignment_id=str(uuid.uuid4()),
+        lti_outcome_service_url=str(uuid.uuid4()),
+    )
+    res.set_state(state)
+    session.add(res)
+    session.commit()
+    return res
+
+
+def create_lti_course(session, app):
+    name = f'__NEW_LTI_COURSE__-{uuid.uuid4()}'
+    key = list(app.config['LTI_CONSUMER_KEY_SECRETS'].keys())[0]
+    provider = m.LTIProvider(key=key)
+    assert provider is not None
+    c = m.Course.create_and_add(
+        name=name,
+        lti_provider=provider,
+        lti_course_id=str(uuid.uuid4()),
+    )
+    session.commit()
+    return c
+
+
 def create_course(test_client):
     name = f'__NEW_COURSE__-{uuid.uuid4()}'
     return test_client.req(
@@ -91,6 +126,7 @@ def create_submission(
         'f.zip',
     ),
     is_test_submission=False,
+    for_user=None,
 ):
     status = err or 201
     err_t = create_error_template()
@@ -107,11 +143,15 @@ def create_submission(
         'comment_author': None,
         'grade_overridden': False,
         'assignment_id': get_id(assignment_id),
+        'extra_info': None,
+        'origin': 'uploaded_files',
     } if err is None else err_t)
 
     path = f'/api/v1/assignments/{get_id(assignment_id)}/submission'
     if is_test_submission:
         path += '?is_test_submission'
+    elif for_user is not None:
+        path += f'?author={for_user}'
 
     return test_client.req(
         'post',
@@ -129,7 +169,7 @@ def create_group_set(
         assig_ids = []
     g_set = test_client.req(
         'put',
-        f'/api/v1/courses/{course_id}/group_sets/',
+        f'/api/v1/courses/{get_id(course_id)}/group_sets/',
         data={'minimum_size': min_size, 'maximum_size': max_size},
         status_code=200,
         result={
@@ -139,12 +179,13 @@ def create_group_set(
             'assignment_ids': [],
         },
     )
-    for assig_id in assig_ids:
+    for assig in assig_ids:
+        assig_id = get_id(assig)
         test_client.req(
             'patch',
-            f'/api/v1/assignments/{assig_id}',
+            f'/api/v1/assignments/{get_id(assig_id)}',
             200,
-            data={'group_set_id': g_set['id']},
+            data={'group_set_id': get_id(g_set)},
         )
     return g_set
 
@@ -197,8 +238,8 @@ def create_user_with_perms(session, perms, courses, gperms=None, name=None):
 def create_group(test_client, group_set_id, member_ids):
     return test_client.req(
         'post',
-        f'/api/v1/group_sets/{group_set_id}/group',
-        data={'member_ids': member_ids},
+        f'/api/v1/group_sets/{get_id(group_set_id)}/group',
+        data={'member_ids': list(map(get_id, member_ids))},
         status_code=200,
         result={'id': int, 'name': str, 'members': list},
     )
@@ -423,3 +464,101 @@ def create_auto_test(
         )
 
     return get_test()
+
+
+def create_auto_test_from_dict(test_client, assig, at_dict):
+    a_id = get_id(assig)
+
+    test = test_client.req(
+        'post',
+        '/api/v1/auto_tests/',
+        data={
+            'assignment_id': a_id,
+            'setup_script': at_dict.get('setup_script', ''),
+            'run_setup_script': at_dict.get('run_setup_script', ''),
+            'grade_calculation': at_dict.get('grade_calculation', 'full'),
+            'results_always_visible':
+                at_dict.get('results_always_visible', True),
+        },
+        status_code=200,
+    )
+
+    rubric_data = []
+    for at_set in at_dict['sets']:
+        for at_suite in at_set['suites']:
+            rubric_data.append({
+                'header': at_suite.get('rubric_header', 'My header'),
+                'description': at_suite.get('rubric_desc', 'My description'),
+                'items': [{
+                    'description': 'item description',
+                    'header': item['name'],
+                    'points': idx + 1,
+                } for idx, item in enumerate(at_suite['steps'])],
+            })
+
+    assert rubric_data, 'You need at least one suite'
+    rubric = test_client.req(
+        'put',
+        f'/api/v1/assignments/{a_id}/rubrics/',
+        200,
+        data={'rows': rubric_data}
+    )
+
+    def prepare_steps(steps):
+        res = []
+        for step in steps:
+            if 'type' not in step:
+                step = {
+                    'type': 'run_program',
+                    'data': {'program': step['run_p']},
+                    'name': step['name'],
+                }
+            res.append({'weight': 1, 'hidden': False, **step})
+        return res
+
+    rubric_index = 0
+    for at_set in at_dict['sets']:
+        s = test_client.req(
+            'post', f'/api/v1/auto_tests/{get_id(test)}/sets/', 200
+        )
+
+        stop_points = at_set.get('stop_points', None)
+        if stop_points is not None:
+            test_client.req(
+                'patch',
+                f'/api/v1/auto_tests/{get_id(test)}/sets/{get_id(s)}',
+                200,
+                data={'stop_points': stop_points}
+            )
+
+        for at_suite in at_set['suites']:
+            test_client.req(
+                'patch',
+                f'/api/v1/auto_tests/{get_id(test)}/sets/{get_id(s)}/suites/',
+                200,
+                data={
+                    'steps': prepare_steps(at_suite['steps']),
+                    'rubric_row_id': get_id(rubric[rubric_index]),
+                    'network_disabled': at_suite.get('network_disabled', True),
+                },
+            )
+            rubric_index += 1
+
+    for fixture in at_dict.get('fixtures', []):
+        test_client.req(
+            'patch',
+            f'/api/v1/auto_tests/{get_id(test)}',
+            200,
+            real_data={
+                'json': (
+                    io.BytesIO(
+                        json.dumps({
+                            'has_new_fixtures': True,
+                        }).encode()
+                    ), 'json'
+                ),
+                'fixture': (fixture, 'fixture1'),
+            }
+        )
+
+    return test_client.req('get', f'/api/v1/auto_tests/{get_id(test)}', 200)

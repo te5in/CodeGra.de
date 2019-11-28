@@ -8,6 +8,7 @@
         <input :tabindex="tabindex"
                type="password"
                v-model="password"
+               :name="name"
                class="form-control"
                :placeholder="placeholder"/>
     </b-input-group>
@@ -21,6 +22,11 @@ export default {
     props: {
         value: {
             default: '',
+        },
+
+        name: {
+            required: true,
+            type: String,
         },
 
         label: {

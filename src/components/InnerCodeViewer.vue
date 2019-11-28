@@ -22,9 +22,9 @@
     </b-button-toolbar>
 </b-alert>
 
-<div v-else>
+<div v-else class="inner-code-viewer">
     <ol :class="{
-            editable: editable,
+            editable: canGiveFeedback,
             'lint-whitespace': lintWhitespace,
             'show-whitespace': showWhitespace,
          }"
@@ -33,9 +33,9 @@
             paddingLeft: lineNumberWidth,
             listStyle: noLineNumbers ? 'none' : null,
             fontSize: `${fontSize}px`,
-            cursor: editable ? cursorType : 'text',
+            cursor: canGiveFeedback ? cursorType : 'text',
         }"
-        class="hljs inner-code-viewer"
+        class="hljs lines"
         @mousedown="dragStart"
         @mouseup="dragStop">
 
@@ -45,7 +45,7 @@
             class="line"
             :class="{
                 'linter-feedback-outer': $userConfig.features.linters && linterFeedback[i - 1 + lineFeedbackOffset],
-                'feedback-outer': $utils.getProps(feedback, null, i - 1 + lineFeedbackOffset, 'msg') != null
+                'feedback-outer': showFeedback && $utils.getProps(feedback, null, i - 1 + lineFeedbackOffset, 'msg') != null
             }"
             :data-line="i">
 
@@ -80,7 +80,7 @@
     </ol>
 
     <div class="render-next-lines"
-        v-if="confirmedLines && !atEndOfFile">
+         v-if="confirmedLines && !atEndOfFile">
         <div class="left"
              :style="{ flex: `0 0 ${lineNumberWidth}`, fontSize: `${fontSize}px` }">
             <loader class="float-right" :scale="1" v-if="showLinesLoader" />
@@ -147,8 +147,12 @@ export default {
             type: Boolean,
             default: true,
         },
+        showInlineFeedback: {
+            type: Boolean,
+            default: true,
+        },
         fileId: {
-            type: Number,
+            type: String,
             required: true,
         },
         canUseSnippets: {
@@ -210,8 +214,8 @@ export default {
             },
         },
 
-        editable() {
-            if (this.editable) {
+        canGiveFeedback() {
+            if (this.canGiveFeedback) {
                 this.cursorType = 'pointer';
             }
         },
@@ -246,8 +250,12 @@ export default {
             return this.assignment && this.assignment.whitespace_linter;
         },
 
+        canGiveFeedback() {
+            return this.editable && this.showInlineFeedback;
+        },
+
         showFeedback() {
-            return this.assignment != null && this.submission != null;
+            return this.assignment != null && this.submission != null && this.showInlineFeedback;
         },
 
         atEndOfFile() {
@@ -304,7 +312,7 @@ export default {
         },
 
         async addFeedback(event) {
-            if (!this.editable) {
+            if (!this.canGiveFeedback) {
                 return;
             }
 
@@ -346,7 +354,7 @@ export default {
         },
 
         dragStart(event) {
-            if (event.button === 0 && this.editable) {
+            if (event.button === 0 && this.canGiveFeedback) {
                 this.dragEvent = event;
                 this.$el.addEventListener('mousemove', this.dragMove);
             }
@@ -427,8 +435,8 @@ li {
         border-left: 1px solid darken(@color-primary-darkest, 5%);
     }
 
-    .inner-code-viewer.editable &,
-    #app.dark .inner-code-viewer.editable & {
+    ol.lines.editable &,
+    #app.dark ol.lines.editable & {
         &.line:hover {
             background-color: rgba(0, 0, 0, 0.025);
         }
@@ -489,7 +497,7 @@ code {
 <style lang="less">
 @import '~mixins.less';
 
-#app.dark ol.inner-code-viewer .btn:not(.btn-success):not(.btn-danger):not(.btn-warning) {
+#app.dark ol.lines .btn:not(.btn-success):not(.btn-danger):not(.btn-warning) {
     background: @color-secondary;
 
     &.btn-secondary {

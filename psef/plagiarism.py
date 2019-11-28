@@ -87,7 +87,7 @@ class Option:
 def process_output_csv(
     lookup_map: t.Dict[str, int],
     old_submissions: t.Container[int],
-    file_tree_lookup: t.Dict[int, files.FileTree],
+    file_tree_lookup: t.Dict[int, files.FileTree[int]],
     csvfile: str,
     delimiter: str = ';',
 ) -> t.List[models.PlagiarismCase]:

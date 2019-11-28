@@ -136,6 +136,8 @@ def test_get_assignment(
                 'group_set': None,
                 'division_parent_id': None,
                 'auto_test_id': None,
+                'webhook_upload_enabled': False,
+                'files_upload_enabled': True,
             }
         else:
             res = error_template
@@ -892,26 +894,26 @@ def test_set_fixed_max_points(
     'name,entries,dirname,exts', [
         (
             'single_file_archive', [{
-                'id': int,
+                'id': str,
                 'name': 'single_file_work'
             }], 'single_file_archive', ['.tar.gz', '.tar.xz', '.zip']
         ), (
             'multiple_file_archive', [
                 {
-                    'id': int,
+                    'id': str,
                     'name': 'single_file_work'
                 }, {
-                    'id': int,
+                    'id': str,
                     'name': 'single_file_work_copy'
                 }
             ], 'multiple_file_archive', ['.tar.gz', '.zip', '.7z']
         ), (
             'deheading_dir_archive', [
                 {
-                    'id': int,
+                    'id': str,
                     'name': 'single_file_work'
                 }, {
-                    'id': int,
+                    'id': str,
                     'name': 'single_file_work_copy'
                 }
             ], 'dir', ['.tar.gz', '.zip', '.7z']
@@ -919,10 +921,10 @@ def test_set_fixed_max_points(
         (
             'single_dir_archive', [
                 {
-                    'id': int,
+                    'id': str,
                     'name': 'single_file_work'
                 }, {
-                    'id': int,
+                    'id': str,
                     'name': 'single_file_work_copy'
                 }
             ], 'dir', ['.tar.gz', '.zip']
@@ -930,13 +932,13 @@ def test_set_fixed_max_points(
         (
             'rename_file_archive', [
                 {
-                    'id': int,
+                    'id': str,
                     'name': '.cg-assignment-id-USER_PROVIDED'
                 }, {
-                    'id': int,
+                    'id': str,
                     'name': 'single_file_work'
                 }, {
-                    'id': int,
+                    'id': str,
                     'name': 'single_file_work_copy'
                 }
             ], 'dir', ['.tar.gz']
@@ -944,23 +946,23 @@ def test_set_fixed_max_points(
         (
             'multiple_dir_archive', [
                 {
-                    'id': int,
+                    'id': str,
                     'name': 'dir',
                     'entries': [{
-                        'id': int,
+                        'id': str,
                         'name': 'single_file_work'
                     }, {
-                        'id': int,
+                        'id': str,
                         'name': 'single_file_work_copy'
                     }]
                 }, {
-                    'id': int,
+                    'id': str,
                     'name': 'dir2',
                     'entries': [{
-                        'id': int,
+                        'id': str,
                         'name': 'single_file_work'
                     }, {
-                        'id': int,
+                        'id': str,
                         'name': 'single_file_work_copy'
                     }]
                 }
@@ -970,7 +972,7 @@ def test_set_fixed_max_points(
             'single_file_work', [
                 {
                     'name': 'single_file_work',
-                    'id': int,
+                    'id': str,
                 }
             ],
             'top', ['']
@@ -1040,6 +1042,8 @@ def test_upload_files(
                         'comment_author': None,
                         'grade_overridden': False,
                         'assignment_id': assignment.id,
+                        'origin': 'uploaded_files',
+                        'extra_info': None,
                     }
                 )
 
@@ -1049,7 +1053,7 @@ def test_upload_files(
                     200,
                     result={
                         'entries': entries,
-                        'id': int,
+                        'id': str,
                         'name': f'{name}{ext}' if ext else 'top',
                     }
                 )
@@ -1125,7 +1129,7 @@ def test_archive_with_symlinks(
     'author',
     ['student1',
      http_err(error=404)(-1),
-     http_err(error=400)('admin')]
+     http_err(error=403)('admin')]
 )
 def test_upload_for_other(
     named_user, test_client, logged_in, assignment, name, error_template,
@@ -1825,6 +1829,8 @@ def test_get_all_submissions(
                     'user': dict,
                     'created_at': work.created_at.isoformat(),
                     'grade_overridden': False,
+                    'origin': 'uploaded_files',
+                    'extra_info': None,
                 })
                 if extended:
                     res[-1]['comment'] = None if no_grade else work.comment
@@ -1857,37 +1863,37 @@ def test_get_all_submissions(
                 'Student1': {
                         'entries': [{
                                     'name': 'Single file',
-                                    'id': int
+                                    'id': str
                                 }, {
                                     'name': 'Tuple_file_1',
-                                    'id': int
+                                    'id': str
                                 }],
                         'name': 'top',
-                        'id': int,
+                        'id': str,
                         'username': '0000001',
                 },
                 'New User': {
                         'entries': [{
                                     'name': 'Single file',
-                                    'id': int
+                                    'id': str
                                 }, {
                                     'name': 'Tuple_file_3',
-                                    'id': int
+                                    'id': str
                                 }],
                         'name': 'top',
-                        'id': int,
+                        'id': str,
                         'username': '0000003',
                 },
                 'Student2': {
                         'entries': [{
                                     'name': 'Single file',
-                                    'id': int
+                                    'id': str
                                 }, {
                                     'name': 'Tuple_file_2',
-                                    'id': int
+                                    'id': str
                                 }],
                         'name': 'top',
-                        'id': int,
+                        'id': str,
                         'username': '0000002',
                 },
             }
@@ -1897,59 +1903,59 @@ def test_get_all_submissions(
                 'Student1': {
                         'entries': [{
                                     'name': '__WARNING__',
-                                    'id': int,
+                                    'id': str,
                                 }, {
                                     'name': '__WARNING__ (User)',
-                                    'id': int,
+                                    'id': str,
                                 }, {
                                     'name': 'Single file',
-                                    'id': int
+                                    'id': str
                                 }, {
                                     'name': 'Tuple_file_1',
-                                    'id': int
+                                    'id': str
                                 }, {
                                     'name': 'wrong_archive.tar.gz',
-                                    'id': int
+                                    'id': str
                                 }],
                         'name': 'top',
-                        'id': int,
+                        'id': str,
                         'username': '0000001',
                 },
                 'New User': {
                         'entries': [{
                                     'name': 'Single file',
-                                    'id': int
+                                    'id': str
                                 }, {
                                     'name': 'Tuple_file_3',
-                                    'id': int
+                                    'id': str
                                 }],
                         'name': 'top',
-                        'id': int,
+                        'id': str,
                         'username': 'GEEN_INT',
                 },
                 'Student2': {
                         'entries': [{
                                     'name': 'Single file',
-                                    'id': int
+                                    'id': str
                                 }, {
                                     'name': 'tar_file.tar.gz',
-                                    'id': int,
+                                    'id': str,
                                     'entries': list,
                                 }, {
                                     'name': 'Tuple_file_2',
-                                    'id': int
+                                    'id': str
                                 }],
                         'name': 'top',
-                        'id': int,
+                        'id': str,
                         'username': '0000002',
                 },
                 'Student3': {
                         'entries': [{
                                     'name': 'Comment',
-                                    'id': int
+                                    'id': str
                                 }],
                         'name': 'top',
-                        'id': int,
+                        'id': str,
                         'username': '0000004',
                 },
             }
@@ -2336,23 +2342,23 @@ def test_assign_after_blackboard_zip(
         (
             'multiple_dir_archive', [
                 {
-                    'id': int,
+                    'id': str,
                     'name': 'dir',
                     'entries': [{
-                        'id': int,
+                        'id': str,
                         'name': 'single_file_work'
                     }, {
-                        'id': int,
+                        'id': str,
                         'name': 'single_file_work_copy'
                     }]
                 }, {
-                    'id': int,
+                    'id': str,
                     'name': 'dir2',
                     'entries': [{
-                        'id': int,
+                        'id': str,
                         'name': 'single_file_work'
                     }, {
-                        'id': int,
+                        'id': str,
                         'name': 'single_file_work_copy'
                     }]
                 }
@@ -2366,93 +2372,93 @@ def test_assign_after_blackboard_zip(
             ],
             {
                 'name': 'dir',
-                'id': int,
-                'entries': [{'name': 'single_file_work_copy', 'id': int}]
+                'id': str,
+                'entries': [{'name': 'single_file_work_copy', 'id': str}]
             }
         ),
         (
             'gitignore_archive', [
                 {
-                    'id': int,
+                    'id': str,
                     'name': 'bb[]',
                     'entries': [{
-                        'id': int,
+                        'id': str,
                         'name': 'single_file_work'
                     }, {
-                        'id': int,
+                        'id': str,
                         'name': 'single_file_work_copy'
                     }]
                 }, {
-                    'id': int,
+                    'id': str,
                     'name': 'dir',
                     'entries': [{
-                        'id': int,
+                        'id': str,
                         'name': '\\wow'
                     }, {
-                        'id': int,
+                        'id': str,
                         'name': 'single_file_work'
                     }, {
-                        'id': int,
+                        'id': str,
                         'name': 'single_file_work_copy'
                     }, {
-                        'id': int,
+                        'id': str,
                         'name': 'something'
                     }, {
-                        'id': int,
+                        'id': str,
                         'name': 'wow\\wowsers'
                     }]
                 }, {
-                    'id': int,
+                    'id': str,
                     'name': 'sub',
                     'entries': [{
-                        'id': int,
+                        'id': str,
                         'name': 'dir',
                         'entries': [{
-                            'id': int,
+                            'id': str,
                             'name': 'file'
                         }, {
-                            'id': int,
+                            'id': str,
                             'name': 'file2'
                         }]
                     }]
                 }, {
-                    'id': int,
+                    'id': str,
                     'name': 'dir2',
                     'entries': [{
-                        'id': int,
+                        'id': str,
                         'name': 'single_file_work'
                     }, {
-                        'id': int,
+                        'id': str,
                         'name': 'single_file_work_copy'
                     }]
                 }, {
-                    'id': int,
+                    'id': str,
                     'name': 'dirl',
                     'entries': [{
-                        'id': int,
+                        'id': str,
                         'name': 'single_file_work'
                     }, {
-                        'id': int,
+                        'id': str,
                         'name': 'single_file_work_copy'
                     }]
                 }, {
-                    'id': int,
+                    'id': str,
                     'name': 'la',
                     'entries': [{
-                        'id': int,
+                        'id': str,
                         'name': 'single_file_work'
                     }, {
-                        'id': int,
+                        'id': str,
                         'name': 'single_file_work_copy'
                     }]
                 }, {
-                    'id': int,
+                    'id': str,
                     'name': 'za',
                     'entries': [{
-                        'id': int,
+                        'id': str,
                         'name': 'single_file_work'
                     }, {
-                        'id': int,
+                        'id': str,
                         'name': 'single_file_work_copy'
                     }]
                 }
@@ -2482,15 +2488,15 @@ def test_assign_after_blackboard_zip(
                 'bb[]/single_file_work_copy',
             ],
             {'name': 'gitignore_archive',
-             'id': int,
+             'id': str,
              'entries': [{
                  'name': 'dir',
-                 'id': int,
-                 'entries': [{'name': 'single_file_work_copy', 'id': int}]
+                 'id': str,
+                 'entries': [{'name': 'single_file_work_copy', 'id': str}]
              }, {
                  'name': 'sub',
-                 'id': int,
-                 'entries': [{'name': 'dir', 'id': int, 'entries': []}]
+                 'id': str,
+                 'entries': [{'name': 'dir', 'id': str, 'entries': []}]
              }]}
         )
     ]
@@ -2572,7 +2578,7 @@ def test_ignored_upload_files(
                 f'/api/v1/submissions/{res["id"]}/files/',
                 200,
                 result={
-                    'entries': entries, 'id': int, 'name': f'{dirname}{ext}'
+                    'entries': entries, 'id': str, 'name': f'{dirname}{ext}'
                 }
             )
 
@@ -2640,7 +2646,7 @@ def test_ignored_upload_files(
             'get',
             f'/api/v1/submissions/{res["id"]}/files/',
             200,
-            result={'name': f'{name}{ext}', 'id': int, 'entries': list},
+            result={'name': f'{name}{ext}', 'id': str, 'entries': list},
         )
 
     with logged_in(teacher_user):
@@ -2736,8 +2742,8 @@ def test_ignored_upload_files(
             f'/api/v1/submissions/{res["id"]}/files/',
             200,
             result={
-                'entries': [{'name': name, 'id': int}],
-                'id': int,
+                'entries': [{'name': name, 'id': str}],
+                'id': str,
                 'name': 'top',
             }
         )
@@ -2759,7 +2765,7 @@ def test_ignored_upload_files(
             'get',
             f'/api/v1/submissions/{res["id"]}/files/',
             200,
-            result={'entries': entries, 'id': int, 'name': f'{name}{ext}'}
+            result={'entries': entries, 'id': str, 'name': f'{name}{ext}'}
         )
 
 
@@ -2858,7 +2864,7 @@ def test_ignoring_dirs_tar_archives(
             'get',
             f'/api/v1/submissions/{res["id"]}/files/',
             200,
-            result={'entries': list, 'id': int, 'name': str}
+            result={'entries': list, 'id': str, 'name': str}
         )
         for entry in res['entries']:
             assert entry['name'] != 'dir'
@@ -4118,7 +4124,7 @@ def parse_ignore_v2_test_files():
                 else:
                     entry = {
                         'name': splitted[0],
-                        'id': int,
+                        'id': str,
                     }
                     if path[-1] == '/' or len(splitted) > 1:
                         entry['entries'] = []
@@ -4133,7 +4139,7 @@ def parse_ignore_v2_test_files():
 
             res = {
                 'name': root_name,
-                'id': int,
+                'id': str,
                 'entries': [],
             }
             for path in sorted(self.out_format, key=lambda el: el.lower()):
@@ -4382,71 +4388,94 @@ def test_upload_files_with_duplicate_filenames(
                 'entries': [
                     {
                         'name': 'duplicate_name.zip',
-                        'entries': [{'id': int, 'name': 'single_file_work'}],
-                        'id': int,
+                        'entries': [{'id': str, 'name': 'single_file_work'}],
+                        'id': str,
                     },
                     {
                         'name': 'duplicate_name.zip (1)',
                         'entries':
-                            [{'id': int, 'name': 'single_file_work'},
-                             {'id': int, 'name': 'single_file_work_copy'}],
-                        'id': int,
+                            [{'id': str, 'name': 'single_file_work'},
+                             {'id': str, 'name': 'single_file_work_copy'}],
+                        'id': str,
                     },
                     {
                         'name': 'duplicate_name.zip (2)',
                         # This has no entries as its original name was
                         # `duplicate_name.zip (2)` so it is not detected as
                         # .zip file.
-                        'id': int,
+                        'id': str,
                     },
                     {
                         'name': 'duplicate_name.zip (3)',
-                        'entries': [{'id': int, 'name': 'single_file_work'}],
-                        'id': int,
+                        'entries': [{'id': str, 'name': 'single_file_work'}],
+                        'id': str,
                     },
                     {
                         'name': 'other_name',
-                        'id': int,
+                        'id': str,
                     }
                 ],
-                'id': int,
+                'id': str,
                 'name': 'top',
             }
         )
 
 
 def test_get_latest_submissions_only(
-    logged_in, session, test_client, admin_user, tomorrow
+    logged_in, session, test_client, admin_user, tomorrow, describe
 ):
-    with logged_in(admin_user):
-        course = helpers.create_course(test_client)
+    with describe('setup'):
+        with logged_in(admin_user):
+            course = helpers.create_course(test_client)
 
-    student1 = helpers.create_user_with_role(session, 'Student', course)
-    student2 = helpers.create_user_with_role(session, 'Student', course)
-    teacher = helpers.create_user_with_role(session, 'Teacher', course)
+        student1 = helpers.create_user_with_role(session, 'Student', course)
+        student2 = helpers.create_user_with_role(session, 'Student', course)
+        teacher = helpers.create_user_with_role(session, 'Teacher', course)
 
-    with logged_in(teacher):
-        assig_id = helpers.create_assignment(
-            test_client, course, 'open', deadline=tomorrow
-        )['id']
+        with logged_in(teacher):
+            assig_id = helpers.create_assignment(
+                test_client, course, 'open', deadline=tomorrow
+            )['id']
 
-    with logged_in(student1):
-        sub1 = helpers.create_submission(test_client, assig_id)
-        sub2 = helpers.create_submission(test_client, assig_id)
-    with logged_in(student2):
-        sub3 = helpers.create_submission(test_client, assig_id)
+        with logged_in(student1):
+            sub1 = helpers.create_submission(test_client, assig_id)
+            sub2 = helpers.create_submission(test_client, assig_id)
+        with logged_in(student2):
+            sub3 = helpers.create_submission(test_client, assig_id)
 
-    base_url = f'/api/v1/assignments/{assig_id}/submissions/?extended'
+        base_url = f'/api/v1/assignments/{assig_id}/submissions/?extended'
 
-    with logged_in(teacher):
+    with describe('Getting all submissions'), logged_in(teacher):
         # By default you get all the submissions
         test_client.req('get', base_url, 200, result=[sub3, sub2, sub1])
 
+    with describe('Getting latest only'), logged_in(teacher):
         # With latest_only you get all the latest submissions by each user, so
         # in this case sub2 is the latest by student1, while sub1 is not.
         test_client.req(
             'get', f'{base_url}&latest_only', 200, result=[sub3, sub2]
         )
+
+    with describe('Setting up group assignment'), logged_in(teacher):
+        g_set = helpers.create_group_set(test_client, course, 1, 2, [assig_id])
+        helpers.create_group(test_client, g_set, [student1, student2])
+
+        with logged_in(student1):
+            group_sub = helpers.create_submission(test_client, assig_id)
+
+    with describe('API still gives student submissions'), logged_in(teacher):
+        test_client.req(
+            'get',
+            f'{base_url}&latest_only',
+            200,
+            result=[group_sub, sub3, sub2]
+        )
+
+    with describe('But method only gives group submission by default'):
+        subs = m.Assignment.query.get(assig_id
+                                      ).get_all_latest_submissions().all()
+        assert len(subs) == 1
+        assert subs[0].id == group_sub['id']
 
 
 def test_all_submissions_by_a_user(
@@ -4573,6 +4602,8 @@ def test_upload_test_submission(
                     'comment_author': None,
                     'grade_overridden': False,
                     'assignment_id': assig_id,
+                    'extra_info': None,
+                    'origin': 'uploaded_files',
                 }
             )
 

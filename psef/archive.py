@@ -238,7 +238,7 @@ class Archive(t.Generic[TT]):  # pylint: disable=unsubscriptable-object
 
         self.check_files(to_path)
         res = self.__extract_archive(to_path, max_size)
-        self._replace_symlinks(to_path)
+        self.replace_symlinks(to_path)
         return res
 
     def __extract_archive(
@@ -297,7 +297,8 @@ class Archive(t.Generic[TT]):  # pylint: disable=unsubscriptable-object
 
         return total_size
 
-    def _replace_symlinks(self, to_path: str) -> None:
+    @staticmethod
+    def replace_symlinks(to_path: str) -> None:
         """Replace symlinks in the given directory with regular files
         containing a notice that the symlink was replaced.
 
@@ -332,7 +333,6 @@ class Archive(t.Generic[TT]):  # pylint: disable=unsubscriptable-object
 
                 logger.warning(
                     'Symlink detected in archive',
-                    archive=self.__archive.filename,
                     filename=rel_path,
                     link_target=link_target,
                 )

@@ -1,6 +1,56 @@
 Changelog
 ==========
 
+Version 1.16.2 (Knoet)
+--------------------------
+
+**Released**: November 27th, 2019
+
+It is now possible to hand in via GitHub or GitLab. You can now also write
+files back from AutoTest to the Code Viewer to ease manual grading.
+
+**Features**
+
+- Make it possible to hand in submission through GitHub+GitLab `(#1182) <https://github.com/CodeGra-de/CodeGra.de/pull/1182>`__:
+  this makes it possible for students to automatically hand in submissions by pushing to
+  GitHub or GitLab. Each student gets a unique URL, SSH public key and secret which
+  can be used to configure a deploy key and webhook.
+- Add AutoTest output directory `(#1188) <https://github.com/CodeGra-de/CodeGra.de/pull/1188>`__:
+  AutoTest scripts can now write files to the ``$AT_OUTPUT`` directory. Files written
+  to this directory are synced with CodeGrade and can be viewed in the Code Viewer.
+- Make it possible to check plagiarism in Jupyter Notebooks `(#1163) <https://github.com/CodeGra-de/CodeGra.de/pull/1163>`__:
+  You can now check for plagiarism in Jupyter Notebooks.
+- AutoTest Best Practices in docs `(#1186) <https://github.com/CodeGra-de/CodeGra.de/pull/1186>`__:
+  there is now a Best Practices for AutoTest guide in the documentation.
+
+**Minor updates**
+
+- Add year to old assignments dropdown `(#1196) <https://github.com/CodeGra-de/CodeGra.de/pull/1196>`__:
+  this makes it easier to distinguish between courses with the same name.
+- Add option to hide inline feedback `(#1183) <https://github.com/CodeGra-de/CodeGra.de/pull/1183>`__:
+  in the code viewer settings you can now optionally hide inline feedback.
+- Hide hidden fixtures from students `(#1179) <https://github.com/CodeGra-de/CodeGra.de/pull/1179>`__:
+  the name of hidden fixtures are now also hidden for students making it harder for them to know they exist.
+- Improve the first render speed for AutoTest `(#1162) <https://github.com/CodeGra-de/CodeGra.de/pull/1162>`__:
+  AutoTest now loads much faster.
+
+**Fixes**
+
+- Fix giving feedback on PDF files in edge `(#1195) <https://github.com/CodeGra-de/CodeGra.de/pull/1195>`__.
+- Fix incorrect late submission clock `(#1192) <https://github.com/CodeGra-de/CodeGra.de/pull/1192>`__.
+- Fix race condition filling in rubric with AutoTest `(#1191) <https://github.com/CodeGra-de/CodeGra.de/pull/1191>`__.
+- Fix getting latest submissions in combination with groups `(#1190) <https://github.com/CodeGra-de/CodeGra.de/pull/1190>`__.
+- Fix typo for max time command in front-end `(#1187) <https://github.com/CodeGra-de/CodeGra.de/pull/1187>`__.
+- Fix permissions fixtures directory `(#1171) <https://github.com/CodeGra-de/CodeGra.de/pull/1171>`__.
+- Fix IO substep timers `(#1151) <https://github.com/CodeGra-de/CodeGra.de/pull/1151>`__.
+- Fix feedback area author width `(#1154) <https://github.com/CodeGra-de/CodeGra.de/pull/1154>`__.
+- Reduce amount of requests when loading plagiarism runner `(#1166) <https://github.com/CodeGra-de/CodeGra.de/pull/1166>`__.
+- Only open the feedback area on a left click in the code viewer `(#1155) <https://github.com/CodeGra-de/CodeGra.de/pull/1155>`__.
+- Cache code in the frontend `(#1138) <https://github.com/CodeGra-de/CodeGra.de/pull/1138>`__.
+- Don't show AutoTest popover on page load `(#1157) <https://github.com/CodeGra-de/CodeGra.de/pull/1157>`__.
+- Stop loading the rubric and graders twice on the management page `(#1152) <https://github.com/CodeGra-de/CodeGra.de/pull/1152>`__.
+
+
 Version 1.13.0 (JungleJoy.4)
 --------------------------------
 

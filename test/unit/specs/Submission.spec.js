@@ -185,11 +185,13 @@ describe('Submission.vue', () => {
                     state: {
                         submissions: { 2: submissions },
                         latestSubmissions: { 2: submissions },
+                        groupSubmissionUsers: {},
                     },
                     getters: {
                         latestSubmissions: state => state.latestSubmissions,
                         getSingleSubmission: state =>
                             (assigId, id) => (state.submissions[assigId] || []).find(s => s.id === id) || null,
+                        usersWithGroupSubmission: state => state.groupSubmissionUsers,
                     },
                     actions: {
                         loadSubmissions: mockLoadSubs,
@@ -284,9 +286,9 @@ describe('Submission.vue', () => {
         describe('prefFileId', () => {
             it('should equal fileId if the selected category is "Code"', () => {
                 comp.selectedCat = 'code';
-                expect(comp.prefFileId).toBeNull();
+                expect(comp.prefFileId).toBeUndefined();
 
-                $route.params.fileId = 4;
+                $route.params.fileId = '4';
                 expect(comp.prefFileId).toBe(comp.fileId);
             });
 

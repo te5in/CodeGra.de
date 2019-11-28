@@ -22,7 +22,7 @@ runs. Disable and hide an individual test for Continuous Feedback by toggling
 the :fa:`eye` button next to this test. This results in the test not being
 executed in the Continuous Feedback runs and hides details from students in the
 AutoTest results. AutoTest is automatically run again within 30 minutes after the
-deadline to exectue the hidden steps.
+deadline to execute the hidden steps.
 
 .. note::
     It is good practice to disable heavy / long tests in the Continuous Feedback

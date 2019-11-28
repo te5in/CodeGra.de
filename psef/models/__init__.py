@@ -155,8 +155,11 @@ if True:  # pylint: disable=using-constant-test
     from .permission import Permission
     from .user import User
     from .lti_provider import LTIProvider
-    from .file import File, FileOwner, AutoTestFixture, FileMixin
-    from .work import Work, GradeHistory, GradeOrigin
+    from .file import (
+        File, FileOwner, AutoTestFixture, FileMixin, NestedFileMixin,
+        AutoTestOutputFile
+    )
+    from .work import Work, GradeHistory, GradeOrigin, WorkOrigin
     from .linter import LinterState, LinterComment, LinterInstance
     from .plagiarism import (
         PlagiarismState, PlagiarismRun, PlagiarismCase, PlagiarismMatch
@@ -174,3 +177,4 @@ if True:  # pylint: disable=using-constant-test
     from .auto_test_step import (
         AutoTestStepResultState, AutoTestStepResult, AutoTestStepBase
     )
+    from .webhook import WebhookBase, GitCloneData

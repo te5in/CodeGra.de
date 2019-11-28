@@ -5,7 +5,8 @@
         <b-button v-if="showUserButtons || filteredSubmissions.length > 1"
                   :disabled="prevSub == null"
                   v-b-popover.hover.bottom="generatePopoverTitle(prevSub)"
-                  @click="selectSub(prevSub)">
+                  @click="selectSub(prevSub)"
+                  class="prev">
             <icon name="angle-left"/>
         </b-button>
 
@@ -15,6 +16,7 @@
             <template slot="button-content">
                 <span class="button-content">
                     <user :user="curSub.user"/> at {{ curSub.formatted_created_at }}
+                    <webhook-name :submission="curSub" />
                     <span class="d-inline-block" style="transform: translateY(-2px)">
                         <late-submission-icon
                             :submission="curSub"
@@ -25,6 +27,11 @@
                           style="margin-bottom: -1px;"
                           v-b-popover.top.hover="'You are currently not viewing the latest submission.'"
                           v-if="notLatest"/>
+                    <icon name="exclamation-triangle"
+                          class="text-warning ml-1"
+                          style="margin-bottom: -1px;"
+                          v-b-popover.top.hover="`This user is member of the group ${quote}${groupOfUser.group.name}${quote}, which also created a submission.`"
+                          v-else-if="groupOfUser"/>
                 </span>
             </template>
             <template v-if="!loadingOldSubs && oldSubmissions != null">
@@ -39,6 +46,7 @@
                                  :class="{currentSub: sub.id === curSub.id, 'sub-late': subLate(sub)}"
                                  class="old-sub">
                     {{ sub.formatted_created_at }}
+                    <webhook-name :submission="sub" />
                     <template v-if="sub.grade != null">
                         graded with a {{ sub.grade }}
                     </template>
@@ -47,7 +55,7 @@
                     </template>
                     <late-submission-icon
                         hide-popover
-                        :submission="curSub"
+                        :submission="sub"
                         :assignment="assignment"/>
                 </b-dropdown-item>
             </template>
@@ -64,7 +72,8 @@
         <b-button v-if="showUserButtons || filteredSubmissions.length > 1"
                   :disabled="nextSub == null"
                   v-b-popover.hover.bottom="generatePopoverTitle(nextSub)"
-                  @click="selectSub(nextSub)">
+                  @click="selectSub(nextSub)"
+                  class="next">
             <icon name="angle-right"/>
         </b-button>
     </b-button-group>
@@ -83,6 +92,7 @@ import 'vue-awesome/icons/angle-right';
 import User from './User';
 import Loader from './Loader';
 import LateSubmissionIcon from './LateSubmissionIcon';
+import WebhookName from './WebhookName';
 
 export default {
     name: 'submission-nav-bar',
@@ -91,6 +101,11 @@ export default {
         latestSubmissions: {
             type: Array,
             required: true,
+        },
+
+        groupOfUser: {
+            type: Object,
+            default: null,
         },
 
         currentSubmission: {
@@ -118,6 +133,8 @@ export default {
         return {
             oldSubmissions: null,
             loadingOldSubs: false,
+            // For use in v-b-popover directives.
+            quote: '"',
         };
     },
 
@@ -236,6 +253,9 @@ export default {
                         submissionId: sub.id,
                         fileId: undefined,
                     },
+                    query: {
+                        revision: undefined,
+                    },
                     hash: undefined,
                 }),
             );
@@ -268,6 +288,7 @@ export default {
         User,
         Loader,
         LateSubmissionIcon,
+        WebhookName,
     },
 };
 </script>

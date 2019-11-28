@@ -2,6 +2,13 @@
 <template>
 <div class="submission-uploader"
      :class="noBorder ? 'no-border' : ''">
+    <b-modal id="git-instructions-modal"
+             v-if="gitData != null"
+             title="Git instructions"
+             hide-footer>
+        <webhook-instructions :data="gitData" />
+    </b-modal>
+
     <b-modal id="wrong-files-modal"
              v-if="showWrongFileModal"
              hide-footer
@@ -169,21 +176,65 @@
         </b-button-toolbar>
     </b-modal>
 
+    <div v-if="assignment.webhook_upload_enabled" class="p-1 text-center pb-3"
+         :class="{ 'p-3': noBorder }">
+        <span class="position-relative">
+            <a href="#" @click.prevent="doGitSubmission" class="inline-link git-link"><u><b>
+                Click here for instructions on setting up Git
+                submissions<template v-if="isTestSubmission">
+                    as the test student.
+                </template><template v-else-if="author != null">
+                    as {{ author.name || author.username }}.
+                </template>
+                <template v-else>.</template>
+            </b></u></a>
+
+            <span class="position-absolute pl-2" style="left: 100%;">
+                <loader :scale="1" :center="false" v-if="loadingWebhookData"/>
+                <icon v-show="loadingWebhookError != null"
+                      name="times"
+                      class="text-danger"
+                      id="git-error-icon">
+                </icon>
+                <b-popover :show="loadingWebhookError != null"
+                           target="git-error-icon"
+                           triggers=""
+                           placement="top"
+                           @hide="loadingWebhookError = null">
+                    <icon name="times"
+                          class="hide-button"
+                          @click.native="loadingWebhookError = null"/>
+                    <span>
+                        {{ $utils.getErrorMessage(loadingWebhookError) }}
+                    </span>
+                </b-popover>
+            </span>
+        </span>
+    </div>
+
     <multiple-files-uploader
         :no-border="noBorder"
+        :class="noBorder && assignment.webhook_upload_enabled ? 'border-top' : ''"
+        v-if="assignment.files_upload_enabled"
         v-model="files" />
+    <div v-else :class="noBorder ? 'border-top' : 'border border-bottom-0 rounded-top'" class="bg-light p-3">
+        Uploading submissions through files is disabled for this assignment. You
+        can only hand-in submissions using git. <a href="#"
+        @click.prevent="doGitSubmission" class="inline-link underline">Click
+        here</a> for instructions on setting up Git submissions.
+    </div>
 
-    <b-input-group>
+    <b-input-group class="submit-options">
         <template v-if="forOthers">
             <div class="author-wrapper"
                  v-b-popover.hover.top="authorDisabledPopover">
-                    <user-selector v-if="forOthers"
-                                   v-model="author"
-                                   select-label=""
-                                   :disabled="disabled || isTestSubmission"
-                                   :base-url="`/api/v1/courses/${assignment.course.id}/users/`"
-                                   :use-selector="canListUsers"
-                                   :placeholder="`${defaultAuthor.name} (${defaultAuthor.username})`" />
+                <user-selector v-if="forOthers"
+                               v-model="author"
+                               select-label=""
+                               :disabled="disabled || isTestSubmission"
+                               :base-url="`/api/v1/courses/${assignment.course.id}/users/`"
+                               :use-selector="canListUsers"
+                               :placeholder="`${defaultAuthor.name} (${defaultAuthor.username})`" />
             </div>
 
             <b-input-group-prepend is-text
@@ -209,6 +260,7 @@
 
         <submit-button class="submit-file-button"
                        :disabled="disabled || files.length === 0"
+                       v-if="assignment.files_upload_enabled"
                        :confirm="confirmationMessage"
                        :submit="uploadFiles"
                        :filter-error="handleUploadError"
@@ -234,6 +286,7 @@ import CGIgnoreFile from './CGIgnoreFile';
 import FileTreeInner from './FileTreeInner';
 import MultipleFilesUploader from './MultipleFilesUploader';
 import DescriptionPopover from './DescriptionPopover';
+import WebhookInstructions from './WebhookInstructions';
 
 export default {
     name: 'submission-uploader',
@@ -341,16 +394,19 @@ export default {
             }
         },
 
-        uploadUrl() {
-            let res = `/api/v1/assignments/${this.assignment.id}/submission?ignored_files=${
-                this.ignored
-            }`;
+        uploadUrlQueryArgs() {
             if (this.isTestSubmission) {
-                res += '&is_test_submission';
+                return 'is_test_submission';
             } else if (this.differentAuthor) {
-                res += `&author=${this.author.username}`;
+                return `author=${this.author.username}`;
             }
-            return res;
+            return '';
+        },
+
+        uploadUrl() {
+            return `/api/v1/assignments/${this.assignment.id}/submission?ignored_files=${
+                this.ignored
+            }&${this.uploadUrlQueryArgs}`;
         },
 
         readableDeadline() {
@@ -390,6 +446,10 @@ export default {
             ruleCache: {},
             files: [],
             isTestSubmission: false,
+
+            gitData: null,
+            loadingWebhookData: false,
+            loadingWebhookError: null,
         };
     },
 
@@ -536,6 +596,29 @@ export default {
                 this.uploadError(response);
             }
         },
+
+        doGitSubmission() {
+            this.loadingWebhookData = true;
+            this.loadingWebhookError = null;
+            const req = this.$http.post(
+                `/api/v1/assignments/${this.assignment.id}/webhook_settings?webhook_type=git&${
+                    this.uploadUrlQueryArgs
+                }`,
+            );
+
+            return this.$utils.waitAtLeast(250, req).then(
+                async ({ data }) => {
+                    this.gitData = data;
+                    this.loadingWebhookData = false;
+                    await this.$afterRerender();
+                    this.$root.$emit('bv::show::modal', 'git-instructions-modal');
+                },
+                err => {
+                    this.loadingWebhookData = false;
+                    this.loadingWebhookError = err;
+                },
+            );
+        },
     },
 
     components: {
@@ -550,6 +633,7 @@ export default {
         Icon,
         MultipleFilesUploader,
         DescriptionPopover,
+        WebhookInstructions,
     },
 };
 </script>
@@ -634,10 +718,20 @@ export default {
     opacity: 0.6;
 }
 
-.submit-file-button {
+.submit-options div:last-child {
+    border-top-right-radius: 0;
+    .input-group-text {
+        border-top-right-radius: 0;
+    }
+}
+
+.submit-button.submit-file-button {
     border-top-left-radius: 0;
     border-top-right-radius: 0;
     border-bottom-left-radius: 0;
+    &:not(:last-child) {
+        border-bottom-right-radius: 0;
+    }
 }
 
 .author-wrapper {
@@ -678,17 +772,16 @@ export default {
         max-width: 768px;
     }
 
+    #git-instructions-modal .modal-dialog,
     #wrong-files-modal .modal-dialog {
         display: flex;
         flex-direction: column;
         height: auto;
-        max-height: 75vh;
         min-width: 75vw;
         margin: 12.5vh auto;
         max-width: 768px;
 
         @media @media-small {
-            max-height: ~'calc(100vh - 2rem)';
             margin: 1rem auto;
         }
 
@@ -696,6 +789,14 @@ export default {
             min-height: 0;
             display: flex;
             flex-direction: column;
+        }
+    }
+
+    #wrong-files-modal .modal-dialog {
+        max-height: 75vh;
+
+        @media @media-small {
+            max-height: ~'calc(100vh - 2rem)';
         }
     }
 
@@ -707,6 +808,17 @@ export default {
         display: flex;
         flex-direction: column;
         min-height: 0;
+    }
+}
+
+.hide-button {
+    float: right;
+    cursor: pointer;
+    opacity: 0.75;
+    margin: 0 0 0.25rem 0.5rem;
+
+    &:hover {
+        opacity: 1;
     }
 }
 </style>

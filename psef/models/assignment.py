@@ -13,6 +13,7 @@ from operator import itemgetter
 from itertools import cycle
 from collections import Counter, defaultdict
 
+import structlog
 from sqlalchemy.orm import validates
 from mypy_extensions import DefaultArg
 from sqlalchemy.sql.expression import and_, func
@@ -30,8 +31,13 @@ from . import rubric as rubric_models
 from .. import auth, ignore, helpers
 from .role import CourseRole
 from .permission import Permission
-from ..exceptions import PermissionException, InvalidAssignmentState
-from .link_tables import user_course, work_rubric_item, course_permissions
+from ..exceptions import (
+    APICodes, APIWarnings, APIException, PermissionException,
+    InvalidAssignmentState
+)
+from .link_tables import (
+    user_course, users_groups, work_rubric_item, course_permissions
+)
 from ..permissions import CoursePermission as CPerm
 
 if t.TYPE_CHECKING:  # pragma: no cover
@@ -47,6 +53,8 @@ else:
 T = t.TypeVar('T')
 Y = t.TypeVar('Y')
 Z = t.TypeVar('Z')
+
+logger = structlog.get_logger()
 
 
 @enum.unique
@@ -465,6 +473,28 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         'AutoTest',
         back_populates="assignment",
         cascade='all',
+    )
+
+    files_upload_enabled: bool = db.Column(
+        'files_upload_enabled',
+        db.Boolean,
+        default=True,
+        server_default='true',
+        nullable=False,
+    )
+    webhook_upload_enabled: bool = db.Column(
+        'webhook_upload_enabled',
+        db.Boolean,
+        default=False,
+        server_default='false',
+        nullable=False,
+    )
+
+    __table_args__ = (
+        db.CheckConstraint(
+            "files_upload_enabled or webhook_upload_enabled",
+            name='upload_methods_check',
+        ),
     )
 
     def __eq__(self, other: object) -> bool:
@@ -907,6 +937,8 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
             'group_set': self.group_set,
             'division_parent_id': None,
             'auto_test_id': self.auto_test_id,
+            'files_upload_enabled': self.files_upload_enabled,
+            'webhook_upload_enabled': self.webhook_upload_enabled,
         }
 
         if self.course.lti_provider is not None:
@@ -959,6 +991,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         __to_query: T,
         *,
         include_deleted: bool = False,
+        include_old_user_submissions: bool = False,
     ) -> MyQuery[t.Tuple[T]]:
         ...
 
@@ -969,6 +1002,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         __second: Y,
         *,
         include_deleted: bool = False,
+        include_old_user_submissions: bool = False,
     ) -> MyQuery[t.Tuple[T, Y]]:
         ...
 
@@ -976,6 +1010,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         self,
         *to_query: t.Any,
         include_deleted: bool = False,
+        include_old_user_submissions: bool = False,
     ) -> MyQuery[t.Any]:
         """Get the given fields from all last submitted submissions.
 
@@ -989,7 +1024,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         # subquery makes the query, as postgres could optimize it out.
 
         sql = db.session.query(
-            t.cast(DbColumn[int], work_models.Work.id)
+            t.cast(DbColumn[int], work_models.Work.id),
         ).filter(
             work_models.Work.assignment_id == self.id,
         ).order_by(
@@ -1001,12 +1036,35 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
 
         sub = sql.distinct(work_models.Work.user_id).subquery('ids')
 
-        return db.session.query(*to_query).select_from(
-            work_models.Work
-        ).filter(t.cast(DbColumn[int], work_models.Work.id).in_(sub))
+        res = db.session.query(*to_query).select_from(work_models.Work).filter(
+            t.cast(DbColumn[int], work_models.Work.id).in_(sub),
+        )
+        if self.group_set is not None and not include_old_user_submissions:
+            groups_with_submission = db.session.query(
+                t.cast(DbColumn[int], group_models.Group.id)
+            ).filter(
+                group_models.Group.group_set_id == self.group_set_id,
+                db.session.query(work_models.Work).filter(
+                    work_models.Work.assignment_id == self.id,
+                    work_models.Work.user_id ==
+                    group_models.Group.virtual_user_id,
+                ).exists()
+            )
+            res = res.filter(
+                ~t.cast(DbColumn[int], work_models.Work.user_id).in_(
+                    db.session.query(users_groups.c.user_id).filter(
+                        users_groups.c.group_id.in_(groups_with_submission)
+                    )
+                )
+            )
+        return res
 
-    def get_all_latest_submissions(self, *, include_deleted: bool = False
-                                   ) -> MyQuery['work_models.Work']:
+    def get_all_latest_submissions(
+        self,
+        *,
+        include_deleted: bool = False,
+        include_old_user_submissions: bool = False,
+    ) -> MyQuery['work_models.Work']:
         """Get a list of all the latest submissions
         (:class:`.work_models.Work`) by each :class:`.user_models.User` who has
         submitted at least one work for this assignment.
@@ -1020,6 +1078,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
             self.get_from_latest_submissions(
                 t.cast(work_models.Work, work_models.Work),
                 include_deleted=include_deleted,
+                include_old_user_submissions=include_old_user_submissions,
             )
         )
 
@@ -1406,8 +1465,115 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         return db.session.query(
             db.session.query(
                 work_models.Work
-            ).filter_by(assignment_id=self.id).join(
+            ).filter_by(assignment_id=self.id, deleted=False).join(
                 user_models.User,
                 user_models.User.id == work_models.Work.user_id
             ).join(group_models.Group).exists()
         ).scalar()
+
+    def get_author_handing_in(
+        self, request_args: t.Mapping[str, str]
+    ) -> 'user_models.User':
+        """Get the author handing in a submission from the request arguments.
+
+        This function also validates that the current user is allowed to
+        hand-in a submission as the given user.
+
+        :param request_args: The GET request arguments of the request.
+        :returns: The :class:`.user_models.User` that should be the author of
+            the submission.
+        """
+        given_author = request_args.get('author', None)
+        is_test_submission = helpers.request_arg_true(
+            'is_test_submission', request_args
+        )
+        logger.info(
+            'Uploading submission',
+            is_test_submission=is_test_submission,
+            given_author=given_author,
+            assignment_id=self.id,
+        )
+
+        if given_author is not None and is_test_submission:
+            raise APIException(
+                'You cannot provide an author for a test submission', (
+                    'The options `given_author` and `is_test_submission`'
+                    ' cannot be combined'
+                ), APICodes.INVALID_PARAM, 400
+            )
+
+        if self.deadline is None and not is_test_submission:
+            msg = (
+                'The deadline for this assignment has not yet been set. '
+                'Please ask your teacher to set a deadline before you can '
+                'submit your work.'
+            )
+            if psef.current_user.has_permission(
+                CPerm.can_submit_others_work, self.course_id
+            ):
+                msg += ' You can still upload a test submission.'
+            raise APIException(
+                msg,
+                f'The deadline for assignment {self.name} is unset.',
+                APICodes.ASSIGNMENT_DEADLINE_UNSET,
+                400,
+            )
+
+        if is_test_submission:
+            author = self.course.get_test_student()
+            db.session.flush()
+        elif given_author is None:
+            author = psef.current_user
+        else:
+            author = helpers.filter_single_or_404(
+                user_models.User,
+                user_models.User.username == given_author,
+                also_error=lambda user: user.is_test_student,
+            )
+
+        auth.ensure_can_submit_work(self, author)
+
+        group = None
+        if self.group_set and not author.is_test_student:
+            group = self.group_set.get_valid_group_for_user(author)
+
+        if group is not None:
+            author = group.virtual_user
+            members = group.members
+        else:
+            members = [author]
+
+        if self.is_lti and not is_test_submission and any(
+            self.id not in member.assignment_results for member in members
+        ):
+            lms = self.course.lti_provider.lms_name
+            raise APIException(
+                f"Some authors haven't opened the assignment in {lms} yet",
+                'No assignment_results found for some authors in the group',
+                APICodes.ASSIGNMENT_RESULT_GROUP_NOT_READY,
+                400,
+                group=group,
+                author=author,
+            )
+
+        return author
+
+    def has_webhooks(self) -> bool:
+        return db.session.query(
+            psef.models.WebhookBase.query.filter_by(assignment=self).exists()
+        ).scalar()
+
+    def maybe_add_webhook_ignore_combination_warning(self) -> None:
+        """Maybe add a warning to this request that warns the user for a
+            ambiguous combination of webhooks and a ignore file.
+        """
+        if not isinstance(
+            self.cgignore, (ignore.EmptySubmissionFilter, type(None))
+        ) and self.webhook_upload_enabled:
+            helpers.add_warning(
+                (
+                    'Hand-in requirements are currently ignored when handing'
+                    ' in using Git'
+                ),
+                APIWarnings.AMBIGUOUS_COMBINATION,
+            )

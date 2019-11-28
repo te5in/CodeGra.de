@@ -10,26 +10,13 @@ for this AutoTest will be shown after the button is pressed, these are accompani
 by a score (ratio of number of points passed to the number of points possible)
 and a state.
 
-After AutoTest is started, all newly handed in submissions will be run immediately
-and automatically.
+After AutoTest is started, all newly handed in submissions will automatically be run
+immediately.
 
 AutoTest States
 -----------------
 The multiple components of an AutoTest run can be in different states. Mouse
 over over the icons in AutoTest to find more information on the specific state.
-
-Entire AutoTest Run
-~~~~~~~~~~~~~~~~~~~~
-The following states can occur for the entire AutoTest run, normal behaviour is
-subsequently waiting for runner, starting, running and done.
-
-- :fa:`clock-o`: Waiting for runner.
-- :fa:`exchange`: Changing runner.
-- :fa:`clock-o`: Starting.
-- :fa:`circle-o-notch`: Running.
-- :fa:`check`: Done.
-- :fa:`exclamation-triangle`: Test crashed, something unknown went wrong.
-- :fa:`exclamation-triangle`: Test is timed out.
 
 Student Runs
 ~~~~~~~~~~~~~
@@ -39,8 +26,7 @@ running or finished with or without any problems.
 - :fa:`clock-o`: Waiting to be started.
 - :fa:`circle-o-notch`: Running.
 - :fa:`check`: Test is finished without problems.
-- :fa:`exclamation-triangle`: Test crashed, something unknown went wrong.
-- :fa:`exclamation-triangle`: Test is timed out.
+- :fa:`exclamation-triangle`: Test crashed, timed out, something unknown went wrong.
 
 .. warning::
 
@@ -59,3 +45,5 @@ whether a single test is passed or failed.
 - :fa:`check`: Test is finished and passed.
 - :fa:`times`: Test is finished and failed.
 - :fa:`exclamation-triangle`: Test is timed out.
+- :fa:`ban`: Test is skipped because it is hidden or a previous checkpoint
+  failed.

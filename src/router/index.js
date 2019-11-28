@@ -120,6 +120,10 @@ export function getPreviousRoute() {
     return previousRoute;
 }
 
+router.getRestoreRoute = function getRestoreRoute() {
+    return restoreRoute;
+};
+
 router.beforeEach((to, from, next) => {
     // Unset page title. Pages will set title,
     // this is mostly to catch pages that don't.

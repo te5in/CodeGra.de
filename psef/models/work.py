@@ -13,6 +13,7 @@ from collections import defaultdict
 
 import sqlalchemy.sql as sql
 from sqlalchemy import orm
+from sqlalchemy.types import JSON
 
 import psef
 
@@ -24,6 +25,7 @@ from .. import auth, helpers, features
 from .linter import LinterState, LinterComment, LinterInstance
 from .rubric import RubricItem
 from .comment import Comment
+from ..helpers import JSONType
 from ..exceptions import PermissionException
 from .link_tables import work_rubric_item
 from ..permissions import CoursePermission
@@ -130,6 +132,14 @@ class GradeHistory(Base):
         }
 
 
+class WorkOrigin(enum.Enum):
+    """What is the way the work was handed in.
+    """
+    uploaded_files = enum.auto()
+    github = enum.auto()
+    gitlab = enum.auto()
+
+
 class Work(Base):
     """This object describes a single work or submission of a
     :class:`user_models.User` for an :class:`.assignment_models.Assignment`.
@@ -194,6 +204,18 @@ class Work(Base):
         default=False,
         server_default='false',
         nullable=False
+    )
+    origin = db.Column(
+        'work_origin',
+        db.Enum(WorkOrigin),
+        nullable=False,
+        server_default=WorkOrigin.uploaded_files.name,
+    )
+    extra_info: JSONType = db.Column(
+        'extra_info',
+        JSON,
+        nullable=True,
+        default=None,
     )
 
     # This variable is generated from the backref from all files
@@ -454,6 +476,8 @@ class Work(Base):
             'id': self.id,
             'user': self.user,
             'created_at': self.created_at.isoformat(),
+            'origin': self.origin.name,
+            'extra_info': self.extra_info,
         }
 
         try:
@@ -587,42 +611,9 @@ class Work(Base):
             :py:func:`psef.files.rename_directory_structure`
         :returns: Nothing
         """
-        self._add_file_tree(tree, None)
-
-    def _add_file_tree(
-        self,
-        tree: 'psef.files.ExtractFileTreeDirectory',
-        top: t.Optional['file_models.File'],
-    ) -> 'file_models.File':
-        """Add the given tree to the session with top as parent.
-
-        :param tree: The file tree as described by
-                          :py:func:`psef.files.rename_directory_structure`
-        :param top: The parent file
-        :returns: Nothing
-        """
-        new_top = file_models.File(
-            work=self,
-            is_directory=True,
-            name=tree.name,
-            parent=top,
+        file_models.File.create_from_extract_directory(
+            tree, None, {'work': self}
         )
-
-        for child in tree.values:
-            if isinstance(child, psef.files.ExtractFileTreeDirectory):
-                self._add_file_tree(child, new_top)
-            elif isinstance(child, psef.files.ExtractFileTreeFile):
-                file_models.File(
-                    work=self,
-                    name=child.name,
-                    filename=child.disk_name,
-                    is_directory=False,
-                    parent=new_top,
-                )
-            else:
-                # The above checks are exhaustive, so this cannot happen
-                assert False
-        return new_top
 
     def get_all_feedback(self) -> t.Tuple[t.Iterable[str], t.Iterable[str], ]:
         """Get all feedback for this work.
@@ -853,10 +844,10 @@ class Work(Base):
             )
 
             if create_leading_directory:
-                zipf.write(tmpdir, tree_root['name'])
+                zipf.write(tmpdir, tree_root.name)
                 leading_len = len(tmpdir)
             else:
-                leading_len = len(tmpdir) + len('/') + len(tree_root['name'])
+                leading_len = len(tmpdir) + len('/') + len(tree_root.name)
 
             for root, _dirs, files in os.walk(tmpdir):
                 for file in files:
@@ -864,3 +855,55 @@ class Work(Base):
                     zipf.write(path, path[leading_len:])
 
         return name
+
+    @classmethod
+    def create_from_tree(
+        cls,
+        assignment: 'assignment_models.Assignment',
+        author: 'user_models.User',
+        tree: psef.extract_tree.ExtractFileTree,
+        *,
+        created_at: t.Optional[datetime.datetime] = None,
+    ) -> 'Work':
+        """Create a submission from a file tree.
+
+        .. warning::
+
+            This function **does not** check if the author has permission to
+            create a submission, so this is the responsibility of the caller!
+
+        :param assignment: The assignment in which the submission should be
+            created.
+        :param author: The author of the submission.
+        :param tree: The tree that are the files of the submission.
+        :param created_at: At what time was this submission created, defaults
+            to the current time.
+        :returns: The created work.
+        """
+        # TODO: Check why we need to pass both user_id and user.
+        self = cls(assignment=assignment, user_id=author.id, user=author)
+        if created_at is not None:
+            self.created_at = created_at
+        self.divide_new_work()
+
+        self.add_file_tree(tree)
+        db.session.add(self)
+        db.session.flush()
+
+        if self.assignment.is_lti:
+            # TODO: Doing this for a LMS other than Canvas is probably not a
+            # good idea as it will result in a wrong submission date.
+            helpers.callback_after_this_request(
+                lambda: psef.tasks.passback_grades(
+                    [self.id],
+                    assignment_id=assignment.id,
+                    initial=True,
+                )
+            )
+
+        self.run_linter()
+
+        if self.assignment.auto_test is not None:
+            self.assignment.auto_test.add_to_run(self)
+
+        return self

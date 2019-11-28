@@ -1,6 +1,7 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <floating-feedback-button
+    :disabled="!showInlineFeedback"
     class="markdown-viewer"
     :style="{ fontSize: `${fontSize}px`}"
     :fileId="fileId"
@@ -52,6 +53,10 @@ export default {
         showWhitespace: {
             type: Boolean,
             default: true,
+        },
+        showInlineFeedback: {
+            type: Boolean,
+            defualt: true,
         },
         canUseSnippets: {
             type: Boolean,

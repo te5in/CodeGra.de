@@ -318,5 +318,11 @@
     "course_permission": false,
     "short_description": "Impersonate users",
     "long_description": "Users with this permission can impersonate users, i.e. they can login as other users."
+  },
+  "can_view_autotest_output_files_before_done": {
+    "default_value": false,
+    "course_permission": true,
+    "short_description": "View AutoTest output files before done",
+    "long_description": "Users with this permission can view output files created during an AutoTest before the assignment state is \"done\""
   }
 }

@@ -46,7 +46,7 @@ describe('FeedbackArea.vue', () => {
             propsData: Object.assign({
                 line: 0,
                 feedback: '',
-                fileId: 0,
+                fileId: '0',
                 editing: true,
                 totalAmountLines: 100,
                 assignment: {

@@ -137,7 +137,7 @@ export default {
             default: undefined,
         },
         fileId: {
-            type: Number,
+            type: String,
             default: null,
         },
         editable: {

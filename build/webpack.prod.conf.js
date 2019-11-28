@@ -101,7 +101,7 @@ var webpackConfig = merge(baseWebpackConfig, {
         to: path.join('vendor', 'mathjax'),
         ignore: ['.*']
       }
-    ])
+    ]),
   ]
 })
 

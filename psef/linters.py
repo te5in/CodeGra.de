@@ -22,7 +22,7 @@ from defusedxml.ElementTree import fromstring as defused_xml_fromstring
 
 from . import app, files, models
 from .models import db
-from .helpers import register
+from .helpers import register, format_list
 from .exceptions import ValidationException
 
 logger = structlog.get_logger()
@@ -381,10 +381,11 @@ class Checkstyle(Linter):
             cfg.flush()
 
             out = _run_command(
-                [
-                    part.format(config=cfg.name, files=tempdir)
-                    for part in app.config['CHECKSTYLE_PROGRAM']
-                ]
+                format_list(
+                    app.config['CHECKSTYLE_PROGRAM'],
+                    config=cfg.name,
+                    files=tempdir,
+                )
             )
             process_completed(out)
             if out.returncode == 254:
@@ -602,21 +603,21 @@ class LinterRunner:
             )
 
             self.linter.run(
-                files.safe_join(tmpdir, tree_root['name']), __emit,
+                files.safe_join(tmpdir, tree_root.name), __emit,
                 process_completed
             )
 
         del tmpdir
 
-        def __do(tree: files.FileTree, parent: str) -> None:
+        def __do(tree: files.FileTree[int], parent: str) -> None:
             # We can safely use os.path.join here as the contents of this path
             # will never be read.
-            parent = os.path.join(parent, tree['name'])
-            if 'entries' in tree:  # this is dir:
-                for entry in tree['entries']:
+            parent = os.path.join(parent, tree.name)
+            if tree.entries is not None:  # this is dir:
+                for entry in tree.entries:
                     __do(entry, parent)
             elif parent in temp_res:
-                res[tree['id']] = temp_res[parent]
+                res[tree.id] = temp_res[parent]
                 del temp_res[parent]
 
         __do(tree_root, '')

@@ -8,19 +8,15 @@
             <icon name="caret-down"
                   class="caret-icon"
                   :class="isCollapsed ? 'collapsed' : 'expanded'"
-            /><icon name="folder"
+            /><icon :name="dirIcon"
                     class="dir-icon"
-                    v-if="isCollapsed"
-            /><icon name="folder-open"
-                    class="dir-icon"
-                    v-else
             /><slot name="dir-slot"
                     :depth="depth + 1"
                     :filename="tree.name"
                     :full-filename="`${fullName}/`"
             ><span>{{ tree.name }}</span></slot>
-            <sup v-if="depth > 0 && revision && fileTree.hasRevision(tree)"
-                 v-b-popover.hover.top.window="'This directory has a file with a teacher\'s revision'"
+            <sup v-if="depth > 0 && revision && fileTree && fileTree.hasRevision(tree)"
+                 v-b-popover.hover.top.window="'This directory contains a file with a teacher\'s revision'"
                  class="rev-popover">
                 modified
             </sup>
@@ -39,7 +35,8 @@
                              :collapse-function="collapseFunction"
                              :no-links="noLinks"
                              :depth="depth + 1"
-                             :parent-dir="fullName">
+                             :parent-dir="fullName"
+                             :fade-unchanged="fadeUnchanged">
                 <template v-for="slot in Object.keys($scopedSlots)"
                           :slot="slot"
                           slot-scope="scope">
@@ -60,15 +57,14 @@
                 </template>
                 <router-link v-else
                              :to="getFileRoute(f)"
-                             :title="f.name">
-                    <icon name="file" class="file-icon"/>{{ f.name }}
+                             :title="f.name"
+                ><icon name="file" class="file-icon"/>{{ f.name }}
                 </router-link>
-                <sup v-if="revision && fileTree.fileHasRevision(f)"
-                    v-b-popover.hover.top.window="revisionPopover(f)"
-                    class="rev-popover">
+                <sup v-if="revision && fileTree && fileTree.fileHasRevision(f)"
+                     v-b-popover.hover.top.window="revisionPopover(f)"
+                     class="rev-popover">
                     <router-link :to="revisedFileRoute(f)"
-                                 :title="f.name"
-                                 @click="$emit('revision', 'diff')">
+                                 :title="f.name">
                         diff <code><small>(</small>{{ diffLabels[diffAction(f)] }}<small>)</small></code>
                     </router-link>
                 </sup>
@@ -94,40 +90,41 @@ export default {
             type: Object,
             required: true,
         },
-
         fileTree: {
             type: Object,
             default: null,
         },
-
         revision: {
             type: String,
             default: null,
         },
-
         collapsed: {
             type: Boolean,
             default: false,
         },
-
         parentDir: {
             type: String,
             default: '',
         },
-
         depth: {
             type: Number,
             default: 0,
         },
-
         noLinks: {
             type: Boolean,
             default: false,
         },
-
         collapseFunction: {
             type: Function,
             required: true,
+        },
+        fadeUnchanged: {
+            type: Boolean,
+            default: false,
+        },
+        icon: {
+            type: String,
+            default: '',
         },
     },
 
@@ -148,21 +145,57 @@ export default {
         },
 
         fadeDirectory() {
-            return this.depth > 0 && this.diffMode && !this.fileTree.hasRevision(this.tree);
+            return this.fadeUnchanged && this.depth > 0 && !this.fileTree.hasRevision(this.tree);
         },
 
-        diffMode() {
-            return this.revision === 'diff';
+        currentFileId() {
+            return this.$route.params.fileId;
+        },
+
+        currentRevision() {
+            return this.$route.query.revision;
+        },
+
+        dirIcon() {
+            if (this.icon !== '') {
+                return this.icon;
+            } else {
+                return this.isCollapsed ? 'folder' : 'folder-open';
+            }
+        },
+    },
+
+    watch: {
+        currentRevision: {
+            immediate: true,
+            handler() {
+                // Expand this directory if it was collapsed and the current file is in this
+                // directory.
+                if (
+                    this.revision === this.currentRevision &&
+                    this.fileTree.findFileInDir(this.tree, this.currentFileId)
+                ) {
+                    this.isCollapsed = false;
+                }
+            },
         },
     },
 
     methods: {
         getFileRoute(file) {
-            const fileId = file.id || file.ids[0] || file.ids[1];
+            const params = {
+                fileId: file.id || file.ids[0] || file.ids[1],
+            };
+
+            const query = {};
+            if (this.revision) {
+                query.revision = this.revision;
+            }
 
             return this.$utils.deepExtend({}, this.$route, {
                 name: 'submission_file',
-                params: { fileId },
+                params,
+                query,
             });
         },
 
@@ -170,13 +203,9 @@ export default {
             let fileId;
 
             if (f.ids != null) {
-                fileId = f.ids[1] == null ? f.ids[0] : f.ids[1];
-            } else if (f.revision != null) {
-                fileId = f.revision.id;
-            } else if (f.revision === null) {
-                fileId = f.id;
+                fileId = f.ids[0] == null ? f.ids[1] : f.ids[0];
             } else {
-                throw ReferenceError(`File '${f.name}' doesn't have a revision.`);
+                fileId = f.id;
             }
 
             return this.$utils.deepExtend({}, this.$route, {
@@ -186,9 +215,19 @@ export default {
         },
 
         fileIsSelected(f) {
-            const selectedId = this.$route.params.fileId;
-            const fileId = f.id || (f.ids && (f.ids[0] || f.ids[1]));
-            return Number(selectedId) === Number(fileId);
+            if (this.revision !== this.currentRevision) {
+                return false;
+            }
+
+            let fileIds;
+
+            if (f.ids) {
+                fileIds = new Set(f.ids);
+            } else {
+                fileIds = new Set([f.id]);
+            }
+
+            return fileIds.has(this.currentFileId);
         },
 
         fileInTree(fileId, tree) {
@@ -205,7 +244,7 @@ export default {
                 const child = todo[i];
                 if (child.entries) {
                     todo.push(...child.entries);
-                } else if (Number(child.id) === Number(fileId)) {
+                } else if (child.id === fileId) {
                     return true;
                 }
             }
@@ -217,7 +256,7 @@ export default {
         },
 
         fadeFile(f) {
-            return this.diffMode && !this.fileTree.fileHasRevision(f);
+            return this.fadeUnchanged && !this.fileTree.fileHasRevision(f);
         },
 
         shouldCollapseTree(dir) {
@@ -323,21 +362,24 @@ export default {
 
     .caret-icon {
         width: 1em;
-        transform: rotate(0);
+        transform: translateY(3px) rotate(0);
         transition: transform @transition-duration;
 
         &.collapsed {
-            transform: rotate(-90deg);
+            transform: translateY(3px) rotate(-90deg);
         }
     }
 
     .dir-icon {
         width: 1.5em;
+        margin-right: 0.2rem;
+        transform: translateY(2px);
     }
 
     .file-icon {
         width: 1em;
         margin-right: 0.5em;
+        transform: translateY(2px);
     }
 
     .rev-popover {

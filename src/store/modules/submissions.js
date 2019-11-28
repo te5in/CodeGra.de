@@ -33,12 +33,25 @@ const getters = {
         getSubmission(state, assignmentId, submissionId, false),
     allSubmissions: state => state.submissions,
     latestSubmissions: state => state.latestSubmissions,
+    usersWithGroupSubmission: state => state.groupSubmissionUsers,
 };
 
 const loaders = {
     feedback: {},
     fileTrees: {},
 };
+
+function getUsersInGroup(subs) {
+    const userIds = {};
+    subs.forEach(sub => {
+        if (sub.user.group) {
+            sub.user.group.members.forEach(member => {
+                userIds[member.id] = sub.user;
+            });
+        }
+    });
+    return userIds;
+}
 
 function addToLatest(latestSubs, newSub) {
     const len = latestSubs.length;
@@ -377,12 +390,50 @@ const actions = {
             submissionProps,
         });
     },
+
+    async updateAutoTestTree(
+        { commit, dispatch },
+        {
+            assignmentId, submissionId, autoTest, autoTestTree,
+        },
+    ) {
+        await dispatch('loadSubmissionFileTree', { assignmentId, submissionId });
+
+        const entries = [];
+        autoTest.sets.forEach(set => {
+            set.suites.forEach(suite => {
+                if (autoTestTree[suite.id] == null) {
+                    return;
+                }
+
+                entries.push({
+                    id: null,
+                    name: suite.rubricRow.header,
+                    entries: autoTestTree[suite.id],
+                });
+            });
+        });
+
+        commit(types.UPDATE_SUBMISSION, {
+            assignmentId,
+            submissionId,
+            submissionProps: {
+                autoTestTree: {
+                    id: null,
+                    name: 'AutoTest generated files',
+                    entries,
+                },
+            },
+        });
+    },
 };
 
 const mutations = {
     [types.UPDATE_SUBMISSIONS](state, { assignmentId, submissions }) {
+        const newLatest = getLatestSubmissions(submissions);
         Vue.set(state.submissions, assignmentId, submissions);
-        Vue.set(state.latestSubmissions, assignmentId, getLatestSubmissions(submissions));
+        Vue.set(state.latestSubmissions, assignmentId, newLatest);
+        Vue.set(state.groupSubmissionUsers, assignmentId, getUsersInGroup(newLatest));
         Vue.set(
             state.submissionsByUser,
             assignmentId,
@@ -433,9 +484,13 @@ const mutations = {
         Object.entries(submissionProps).forEach(([key, val]) => {
             if (key === 'id') {
                 throw TypeError(`Cannot set submission property: ${key}`);
+            } else if (key === 'autoTestTree') {
+                Vue.set(submission.fileTree, 'autotest', val);
+            } else if (key === 'grade') {
+                Vue.set(submission, key, utils.formatGrade(val));
+            } else {
+                Vue.set(submission, key, val);
             }
-
-            Vue.set(submission, key, key === 'grade' ? utils.formatGrade(val) : val);
         });
     },
 
@@ -460,9 +515,11 @@ const mutations = {
             submission,
         );
         const oldLatest = state.latestSubmissions[assignmentId] || [];
+        const newLatest = addToLatest(oldLatest, submission);
 
         Vue.set(state.submissions, assignmentId, submissions);
-        Vue.set(state.latestSubmissions, assignmentId, addToLatest(oldLatest, submission));
+        Vue.set(state.latestSubmissions, assignmentId, newLatest);
+        Vue.set(state.groupSubmissionUsers, assignmentId, getUsersInGroup(newLatest));
         if (state.submissionsByUser[assignmentId] == null) {
             Vue.set(state.submissionsByUser, assignmentId, { userId: userSubmissions });
         } else {
@@ -477,6 +534,7 @@ const mutations = {
         Vue.set(state, 'submissionsByUserPromises', {});
         Vue.set(state, 'submissionsLoaders', {});
         Vue.set(state, 'singleSubmissionLoaders', {});
+        Vue.set(state, 'groupSubmissionUsers', {});
         loaders.feedback = {};
         loaders.fileTrees = {};
     },
@@ -491,6 +549,7 @@ export default {
         submissionsByUserPromises: {},
         submissionsLoaders: {},
         singleSubmissionLoaders: {},
+        groupSubmissionUsers: {},
     },
 
     getters,

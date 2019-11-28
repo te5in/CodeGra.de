@@ -182,6 +182,7 @@ class CoursePermission(BasePermission):
     :ivar can_view_autotest_before_done: Users with this permission can view AutoTest, such as sets, before the state of the assignment is "Open"
     :ivar can_view_autotest_step_details: Users with this permission are allowed to see the details of non hidden AutoTest steps
     :ivar can_view_autotest_fixture: Users with this permission are allowed to see non hidden AutoTest fixtures
+    :ivar can_view_autotest_output_files_before_done: Users with this permission can view output files created during an AutoTest before the assignment state is "done"
     """
 
     @staticmethod
@@ -233,5 +234,6 @@ class CoursePermission(BasePermission):
     can_view_autotest_before_done = _PermissionValue(item=42, default_value=False)
     can_view_autotest_step_details = _PermissionValue(item=43, default_value=True)
     can_view_autotest_fixture = _PermissionValue(item=44, default_value=True)
+    can_view_autotest_output_files_before_done = _PermissionValue(item=45, default_value=False)
 
 # yapf: enable

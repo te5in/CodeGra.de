@@ -1,3 +1,5 @@
+.. _autotest-overview:
+
 AutoTest
 ================================
 

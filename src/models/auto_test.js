@@ -261,7 +261,6 @@ export class AutoTestResult {
         this.setupStdout = result.setup_stdout;
         this.setupStderr = result.setup_stderr;
         this.approxWaitingBefore = result.approx_waiting_before;
-
         this.update(result, autoTest);
     }
 

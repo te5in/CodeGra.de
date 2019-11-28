@@ -83,6 +83,9 @@ def seed_force(db=None):
                     )
                 )
 
+    # Flush to make sure all new perms are in the db.
+    db.session.flush()
+
     with open(
         f'{os.path.dirname(os.path.abspath(__file__))}/seed_data/roles.json',
         'r'

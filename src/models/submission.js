@@ -25,8 +25,9 @@ export class FileTree {
             },
         };
 
+        const doneIds = new Set();
         const lookupTree2 = tree2.entries.reduce((accum, cur) => {
-            accum[cur.name] = Object.assign({}, cur, { done: false });
+            accum[cur.name] = cur;
             return accum;
         }, {});
 
@@ -39,7 +40,7 @@ export class FileTree {
                 return;
             }
 
-            other.done = true;
+            doneIds.add(other.id);
 
             if (self.id !== other.id) {
                 self.revision = other;
@@ -73,7 +74,7 @@ export class FileTree {
         });
 
         Object.values(lookupTree2).forEach(val => {
-            if (val.done) {
+            if (doneIds.has(val.id)) {
                 return;
             }
             if (val.entries) {
@@ -162,7 +163,13 @@ export class FileTree {
     // Returns the first file in the file tree that is not a folder
     // The file tree is searched with BFS
     getFirstFile(revision) {
-        const queue = [this[revision]];
+        const tree = this[revision];
+
+        if (!tree) {
+            return null;
+        }
+
+        const queue = [tree];
         let candidate = null;
         let firstFound = null;
 
@@ -185,8 +192,11 @@ export class FileTree {
 
     // Search the tree for the file with the givven id.
     search(revision, id) {
-        const tree = this[revision];
+        return this.findFileInDir(this[revision], id);
+    }
 
+    // eslint-disable-next-line
+    findFileInDir(tree, id) {
         if (!tree || !tree.entries || id == null) {
             return null;
         }

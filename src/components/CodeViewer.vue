@@ -8,6 +8,7 @@
         :feedback="feedback"
         :linter-feedback="linterFeedback"
         :show-whitespace="showWhitespace"
+        :show-inline-feedback="showInlineFeedback"
         :editable="feedbackEditable"
         :can-use-snippets="canUseSnippets"
         :file-id="fileId"/>
@@ -45,6 +46,10 @@ export default {
             type: Object,
             required: true,
         },
+        fileId: {
+            type: String,
+            required: true,
+        },
         editable: {
             type: Boolean,
             default: false,
@@ -65,6 +70,10 @@ export default {
             type: Boolean,
             required: true,
         },
+        showInlineFeedback: {
+            type: Boolean,
+            default: true,
+        },
     },
 
     computed: {
@@ -72,10 +81,6 @@ export default {
 
         feedbackEditable() {
             return this.editable && this.studentMode;
-        },
-
-        fileId() {
-            return this.file.id || this.file.ids[0] || this.file.ids[1];
         },
 
         extension() {

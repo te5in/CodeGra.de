@@ -34,6 +34,7 @@
             :current-submission="submission"
             :latest-submissions="latestSubmissions"
             :not-latest="!currentSubmissionIsLatest"
+            :group-of-user="groupOfCurrentUser"
             :show-user-buttons="canGrade"
             :assignment="assignment"/>
 
@@ -56,7 +57,8 @@
                                             :show-context-amount="selectedCat === 'feedback-overview' || selectedCat === 'teacher-diff'"
                                             :show-language="selectedCat === 'code'"
                                             @whitespace="whitespaceChanged"
-                                            @language="languageChanged"/>
+                                            @language="languageChanged"
+                                            @inline-feedback="inlineFeedbackChanged"/>
                     </div>
                 </b-popover>
             </b-button>
@@ -134,15 +136,13 @@
             </b-btn>
         </b-button-group>
 
-        <template slot="extra">
-            <template v-if="!loadingInner">
-                <hr class="mt-2 mb-1" />
+        <template slot="extra" v-if="!loadingInner">
+            <hr class="mt-2 mb-1" />
 
-                <category-selector slot="extra"
-                                   :default="defaultCat"
-                                   v-model="selectedCat"
-                                   :categories="categories"/>
-            </template>
+            <category-selector slot="extra"
+                                :default="defaultCat"
+                                v-model="selectedCat"
+                                :categories="categories"/>
         </template>
     </local-header>
 
@@ -169,15 +169,15 @@
                              :editable="canGiveLineFeedback"
                              :can-use-snippets="canUseSnippets"
                              :show-whitespace="showWhitespace"
+                             :show-inline-feedback="showInlineFeedback"
                              :language="selectedLanguage"
                              @language="languageChanged" />
 
                 <div class="file-tree-container form-control p-0 mt-3 mt-lg-0" slot="secondPane">
                     <file-tree :assignment="assignment"
                                :submission="submission"
-                               :can-see-revision="canSeeRevision"
                                :revision="revision"
-                               @revision="setRevision" />
+                               :can-see-revision="canSeeRevision" />
                 </div>
             </component>
         </div>
@@ -200,10 +200,10 @@
         </div>
 
         <div class="cat-wrapper"
-             :class="{ hidden: selectedCat !== 'auto-test' }">
+             :class="{ hidden: selectedCat !== 'auto-test' }"
+             v-if="autoTestId">
             <div class="cat-scroller border rounded">
-                <auto-test v-if="!hiddenCats.has('auto-test')"
-                           :assignment="assignment"
+                <auto-test :assignment="assignment"
                            :submission-id="submissionId" />
             </div>
         </div>
@@ -212,6 +212,7 @@
     <grade-viewer :assignment="assignment"
                   :submission="submission"
                   :not-latest="!currentSubmissionIsLatest"
+                  :group-of-user="groupOfCurrentUser"
                   :editable="editable"
                   :rubric-start-open="rubricStartOpen"
                   v-if="!loadingInner"
@@ -277,6 +278,7 @@ export default {
 
             showWhitespace: true,
             selectedLanguage: 'Default',
+            showInlineFeedback: true,
             currentFile: null,
 
             error: null,
@@ -289,6 +291,7 @@ export default {
         ...mapGetters('submissions', {
             storeLatestSubmissions: 'latestSubmissions',
             storeGetSingleSubmission: 'getSingleSubmission',
+            storeUsersWithGroupSubmissions: 'usersWithGroupSubmission',
         }),
         ...mapGetters('courses', ['assignments']),
         ...mapGetters('autotest', {
@@ -308,8 +311,7 @@ export default {
         },
 
         fileId() {
-            const fileId = Number(this.$route.params.fileId);
-            return Number.isNaN(fileId) ? null : fileId;
+            return this.$route.params.fileId;
         },
 
         submission() {
@@ -317,7 +319,11 @@ export default {
         },
 
         editable() {
-            return !!(this.canGrade && this.currentSubmissionIsLatest);
+            return !!(
+                this.canGrade &&
+                this.currentSubmissionIsLatest &&
+                this.groupOfCurrentUser == null
+            );
         },
 
         prefFileId() {
@@ -349,6 +355,12 @@ export default {
 
         currentSubmissionIsLatest() {
             return !!this.latestSubmissions.find(sub => sub.id === this.submissionId);
+        },
+
+        groupOfCurrentUser() {
+            const usersWithGroup = this.storeUsersWithGroupSubmissions[this.assignmentId] || {};
+            const userId = this.$utils.getProps(this.submission, null, 'user', 'id');
+            return usersWithGroup[userId];
         },
 
         fileTree() {
@@ -609,7 +621,7 @@ export default {
         revision: {
             immediate: true,
             handler() {
-                this.openFirstFile();
+                this.openFile();
             },
         },
 
@@ -640,6 +652,7 @@ export default {
 
         ...mapActions('autotest', {
             storeLoadAutoTest: 'loadAutoTest',
+            storeLoadAutoTestResult: 'loadAutoTestResult',
         }),
 
         loadPermissions(courseId) {
@@ -714,7 +727,14 @@ export default {
         },
 
         async loadData() {
-            this.setRevision('student', 'replace');
+            if (!this.$route.query.revision) {
+                this.$router.replace(
+                    this.$utils.deepExtend({}, this.$route, {
+                        query: { revision: 'student' },
+                    }),
+                );
+            }
+
             this.currentFile = null;
             this.showWhitespace = true;
 
@@ -722,7 +742,7 @@ export default {
                 this.categories.filter(c => c.id !== this.selectedCat).map(c => c.id),
             );
 
-            await Promise.all([
+            const promises = [
                 this.storeLoadFileTree({
                     assignmentId: this.assignmentId,
                     submissionId: this.submissionId,
@@ -731,7 +751,22 @@ export default {
                     assignmentId: this.assignmentId,
                     submissionId: this.submissionId,
                 }),
-            ]).then(this.openFirstFile);
+            ];
+
+            // Load the AutoTest result of this submission. This must happen here because the
+            // AutoTest file tree must be loaded for `loadingInner` to become `false` if the
+            // file id in the URL refers to a file in the AutoTest file tree, because
+            // `loadingInner` waits until `currentFile` is set.
+            if (this.autoTestId != null && this.autoTestResult == null) {
+                promises.push(
+                    this.storeLoadAutoTestResult({
+                        autoTestId: this.autoTestId,
+                        submissionId: this.submissionId,
+                    }).catch(() => {}),
+                );
+            }
+
+            await Promise.all(promises).then(this.openFirstFile);
         },
 
         loadAutoTest() {
@@ -778,16 +813,7 @@ export default {
         },
 
         openFile() {
-            if (this.fileTree) {
-                this.currentFile = this.fileTree.search(this.revision, this.fileId);
-            }
-        },
-
-        setRevision(val, method = 'push') {
-            const route = this.$utils.deepExtend({}, this.$route, {
-                query: { revision: val },
-            });
-            this.$router[method](route);
+            this.currentFile = this.fileTree && this.fileTree.search(this.revision, this.fileId);
         },
 
         beforeShowPopover() {
@@ -831,6 +857,10 @@ export default {
 
         whitespaceChanged(val) {
             this.showWhitespace = val;
+        },
+
+        inlineFeedbackChanged(val) {
+            this.showInlineFeedback = val;
         },
     },
 

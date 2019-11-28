@@ -120,7 +120,7 @@ Student Experience
 =====================
 
 Students hand in an assignment on **Moodle** via the CodeGrade container after
-opening the assignment. After handing in, students can browse through their
+opening the assignment or optionally via Git. After handing in, students can browse through their
 code to check if it is correctly handed in. Before handing in they can
 click on the **“rubric”** (:fa:`th`) button to show the rubric for this assignment.
 This means students **know what is expected** of them.

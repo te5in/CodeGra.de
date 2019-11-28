@@ -7,12 +7,14 @@
                placeholder="Username"
                v-model="username"
                ref="username"
+               name="username"
                @keyup.enter="$refs.submit.onClick"/>
     </b-form-fieldset>
 
     <b-form-fieldset>
         <password-input v-model="password"
                         placeholder="Password"
+                        name="password"
                         @keyup.native.enter="$refs.submit.onClick"/>
     </b-form-fieldset>
 

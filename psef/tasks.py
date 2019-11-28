@@ -92,24 +92,9 @@ def _passback_grades_1(
             t.cast(DbColumn[object], p.models.Work.created_at).desc()
         ).all()
     else:
-        newest_subs = assignment.get_all_latest_submissions().order_by(
-            t.cast(DbColumn[object], p.models.Work.created_at).desc()
-        )
-
-        seen_authors: t.Set[p.models.User] = set()
-        submission_ids_set = set(submission_ids)
-        subs = []
-
-        for sub in newest_subs:
-            if sub.user in seen_authors:
-                continue
-
-            if sub.id in submission_ids_set:
-                # We still need the submissions that do not pass this condition
-                # to add them to the `seen_authors` variable
-                subs.append(sub)
-
-            seen_authors.update(sub.get_all_authors())
+        subs = assignment.get_all_latest_submissions().filter(
+            t.cast(DbColumn[int], p.models.Work.id).in_(submission_ids)
+        ).all()
 
     found_ids = [s.id for s in subs]
     logger.info(
@@ -254,7 +239,7 @@ def _run_plagiarism_control_1(  # pylint: disable=too-many-branches,too-many-sta
         if supports_progress:
             call_args[call_args.index('{ progress_prefix }')] = progress_prefix
 
-        file_lookup_tree: t.Dict[int, p.files.FileTree] = {}
+        file_lookup_tree: t.Dict[int, p.files.FileTree[int]] = {}
         submission_lookup: t.Dict[str, int] = {}
         old_subs: t.Set[int] = set()
 
@@ -289,11 +274,11 @@ def _run_plagiarism_control_1(  # pylint: disable=too-many-branches,too-many-sta
 
             os.mkdir(parent)
             part_tree = p.files.restore_directory_structure(sub, parent)
-            file_lookup_tree[sub.id] = {
-                'name': dir_name,
-                'id': -1,
-                'entries': [part_tree],
-            }
+            file_lookup_tree[sub.id] = p.files.FileTree(
+                name=dir_name,
+                id=-1,
+                entries=[part_tree],
+            )
 
         if supports_progress:
             set_state(p.models.PlagiarismState.parsing)
@@ -332,6 +317,11 @@ def _run_plagiarism_control_1(  # pylint: disable=too-many-branches,too-many-sta
         except Exception:  # pragma: no cover
             set_state(p.models.PlagiarismState.crashed)
             raise
+        logger.info(
+            'Plagiarism call finished',
+            finished_successfully=ok,
+            captured_stdout=stdout
+        )
 
         set_state(p.models.PlagiarismState.finalizing)
 
@@ -595,6 +585,79 @@ def _update_latest_results_in_broker_1(auto_test_run_id: int) -> None:
 
 
 @celery.task
+def _clone_commit_as_submission_1(
+    unix_timestamp: float,
+    clone_data_as_dict: t.Dict[str, t.Any],
+) -> None:
+    """Clone a repository and create a submission from its files.
+
+    .. warning::
+
+        This function **does not** check if the user has permission to create a
+        submission, so this should be done by the caller.
+
+    :param unix_timestamp: The date the submission should be created at. The
+        rationale for passing this is that a user might have permission to
+        create a submission at this time, but not at the time of the commit (or
+        vica versa). And as commit times cannot be trusted this should be
+        given explicitly.
+    :param clone_data_as_dict: A :class:`p.models.GitCloneData` as a
+        dictionary, including private data.
+    :returns: Nothing.
+    """
+    clone_data = p.models.GitCloneData(**clone_data_as_dict)
+
+    webhook = p.models.WebhookBase.query.get(clone_data.webhook_id)
+    if webhook is None:
+        logger.warning('Could not find webhook')
+        return
+
+    assignment = p.models.Assignment.query.filter_by(id=webhook.assignment_id
+                                                     ).with_for_update().one()
+
+    created_at = datetime.datetime.fromtimestamp(unix_timestamp)
+
+    with webhook.written_private_key() as fname, tempfile.TemporaryDirectory(
+    ) as tmpdir:
+        ssh_username = webhook.ssh_username
+        assert ssh_username is not None
+        program = p.helpers.format_list(
+            p.current_app.config['GIT_CLONE_PROGRAM'],
+            clone_url=clone_data.clone_url,
+            commit=clone_data.commit,
+            out_dir=tmpdir,
+            ssh_key=fname,
+            ssh_username=ssh_username,
+            git_branch=clone_data.branch,
+        )
+
+        success, output = p.helpers.call_external(program)
+        logger.info(
+            'Called external clone program',
+            successful=success,
+            command_output=output
+        )
+        if not success:
+            return
+
+        p.archive.Archive.replace_symlinks(tmpdir)
+        tree = p.extract_tree.ExtractFileTree(
+            values=p.files.rename_directory_structure(
+                tmpdir, p.app.max_file_size
+            ).values,
+            name=clone_data.repository_name.replace('/', ' - '),
+            parent=None
+        )
+        logger.info('Creating submission')
+        work = p.models.Work.create_from_tree(
+            assignment, webhook.user, tree, created_at=created_at
+        )
+        work.origin = p.models.WorkOrigin[clone_data.type]
+        work.extra_info = clone_data.get_extra_info()
+        p.models.db.session.commit()
+
+
+@celery.task
 def _add_1(first: int, second: int) -> int:  # pragma: no cover
     """This function is used for testing if celery works. What it actually does
     is completely irrelevant.
@@ -615,6 +678,7 @@ adjust_amount_runners = _adjust_amount_runners_1.delay  # pylint: disable=invali
 kill_runners_and_adjust = _kill_runners_and_adjust_1.delay  # pylint: disable=invalid-name
 delete_submission = _delete_submission_1.delay  # pylint: disable=invalid-name
 update_latest_results_in_broker = _update_latest_results_in_broker_1.delay  # pylint: disable=invalid-name
+clone_commit_as_submission = _clone_commit_as_submission_1.delay  # pylint: disable=invalid-name
 
 send_reminder_mails: t.Callable[[
     t.Tuple[int], NamedArg(t.Optional[datetime.datetime], 'eta')

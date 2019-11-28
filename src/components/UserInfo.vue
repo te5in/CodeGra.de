@@ -20,6 +20,7 @@
             <b-input-group prepend="Full name">
                 <input :disabled="!canEditInfo"
                        class="form-control"
+                       name="full-name"
                        type="text"
                        v-model="name"/>
             </b-input-group>
@@ -29,12 +30,14 @@
             <b-input-group prepend="Email">
                 <input :disabled="!canEditInfo"
                        type="text"
+                       name="email"
                        class="form-control"
                        v-model="email"/>
             </b-input-group>
         </b-form-fieldset>
 
         <password-input v-model="oldPw"
+                        name="old-password"
                         v-if="canEditPw || canEditInfo">
             <b-input-group-prepend is-text slot="prepend">
                 Current Password
@@ -72,13 +75,20 @@
             </b-input-group-prepend>
         </password-input>
 
-        <password-input v-model="newPw" label="New password" v-if="canEditPw"/>
-        <password-input v-model="confirmPw" label="Confirm password" v-if="canEditPw"/>
+        <password-input v-model="newPw"
+                        label="New password"
+                        name="new-password"
+                        v-if="canEditPw"/>
+        <password-input v-model="confirmPw"
+                        label="Confirm password"
+                        name="confirm-password"
+                        v-if="canEditPw"/>
 
         <b-button-toolbar justify v-if="canEditInfo || canEditPw">
             <b-button variant="danger" @click="reset">Reset</b-button>
 
             <submit-button ref="submitButton"
+                           name="submit-user-info"
                            :submit="submit"
                            @success="afterSubmit"
                            :confirm="confirmMessage">

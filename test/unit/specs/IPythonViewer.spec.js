@@ -51,7 +51,7 @@ describe('IPythonViewer.vue', () => {
         }
 
         mockIPython = (new util.TextEncoder()).encode(str);
-        wrapper.setProps({ file: { id: curId++ } });
+        wrapper.setProps({ fileId: String(curId++), file: { id: String(curId) } });
 
         await comp.$nextTick();
         await comp.$nextTick();
@@ -98,6 +98,7 @@ describe('IPythonViewer.vue', () => {
                 assignment,
                 submission,
                 file,
+                fileId: '0',
                 editable: true,
                 fontSize: 12,
                 showWhitespace: true,

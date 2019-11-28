@@ -28,6 +28,69 @@ from ..permissions import CoursePermission as CPerm
 logger = structlog.get_logger()
 
 
+def _update_auto_test(
+    auto_test: models.AutoTest, json_dict: t.Mapping[str, helpers.JSONType]
+) -> None:
+    with get_from_map_transaction(json_dict) as [_, optional_get]:
+        old_fixtures = optional_get('fixtures', list, None)
+        setup_script = optional_get('setup_script', str, None)
+        run_setup_script = optional_get('run_setup_script', str, None)
+        has_new_fixtures = optional_get('has_new_fixtures', bool, False)
+        grade_calculation = optional_get('grade_calculation', str, None)
+        results_always_visible: t.Optional[bool] = optional_get(
+            'results_always_visible', t.cast(t.Any, (bool, type(None))), None
+        )
+
+    if old_fixtures is not None:
+        old_fixture_set = set(int(f['id']) for f in old_fixtures)
+        for f in auto_test.fixtures:
+            if f.id not in old_fixture_set:
+                f.delete_fixture()
+
+    if has_new_fixtures:
+        new_fixtures = get_files_from_request(
+            max_size=app.max_large_file_size,
+            keys=['fixture'],
+            only_start=True,
+        )
+
+        for new_fixture in new_fixtures:
+            new_file_name, filename = files.random_file_path()
+            new_fixture.save(new_file_name)
+            auto_test.fixtures.append(
+                models.AutoTestFixture(
+                    name=files.escape_logical_filename(new_fixture.filename),
+                    filename=filename,
+                )
+            )
+        renames = files.fix_duplicate_filenames(auto_test.fixtures)
+        if renames:
+            logger.info('Fixtures were renamed', renamed_fixtures=renames)
+            add_warning(
+                (
+                    'Some fixtures were renamed as fixtures with the same name'
+                    ' already existed'
+                ), APIWarnings.RENAMED_FIXTURE
+            )
+
+    if setup_script is not None:
+        auto_test.setup_script = setup_script
+    if run_setup_script is not None:
+        auto_test.run_setup_script = run_setup_script
+    if grade_calculation is not None:
+        calc = registry.auto_test_grade_calculators.get(grade_calculation)
+        if calc is None:
+            raise APIException(
+                'The given grade_calculation strategy is not found', (
+                    f'The given grade_calculation strategy {grade_calculation}'
+                    ' is not known'
+                ), APICodes.OBJECT_NOT_FOUND, 404
+            )
+        auto_test.grade_calculator = calc
+    if results_always_visible is not None:
+        auto_test.results_always_visible = results_always_visible
+
+
 @api.route('/auto_tests/', methods=['POST'])
 @feature_required(Feature.AUTO_TEST)
 def create_auto_test() -> JSONResponse[models.AutoTest]:
@@ -41,12 +104,9 @@ def create_auto_test() -> JSONResponse[models.AutoTest]:
     :>json run_setup_script: The setup for the entire run (OPTIONAL).
     :returns: The newly created AutoTest.
     """
-    with get_from_map_transaction(get_json_dict_from_request()) as [
-        get, opt_get
-    ]:
+    json_dict = get_json_dict_from_request()
+    with get_from_map_transaction(json_dict) as [get, _]:
         assignment_id = get('assignment_id', int)
-        setup_script = opt_get('setup_script', str, '')
-        run_setup_script = opt_get('run_setup_script', str, '')
 
     assignment = filter_single_or_404(
         models.Assignment,
@@ -64,11 +124,13 @@ def create_auto_test() -> JSONResponse[models.AutoTest]:
 
     auto_test = models.AutoTest(
         assignment=assignment,
-        setup_script=setup_script,
-        run_setup_script=run_setup_script,
         finalize_script='',
     )
     db.session.add(auto_test)
+
+    db.session.flush()
+    _update_auto_test(auto_test, json_dict)
+
     db.session.commit()
     return jsonify(auto_test)
 
@@ -155,8 +217,8 @@ def hide_or_open_fixture(auto_test_id: int, fixture_id: int) -> EmptyResponse:
     """
     fixture = filter_single_or_404(
         models.AutoTestFixture,
-        models.AutoTest.id == auto_test_id,
         models.AutoTestFixture.id == fixture_id,
+        also_error=lambda fixture: fixture.auto_test_id != auto_test_id
     )
 
     auth.ensure_permission(
@@ -196,69 +258,11 @@ def update_auto_test(auto_test_id: int) -> JSONResponse[models.AutoTest]:
     auto_test.ensure_no_runs()
 
     content = ensure_json_dict(
-        ('json' in request.files and json.loads(request.files['json'].read()))
-        or request.get_json()
+        ('json' in request.files and json.load(request.files['json'])) or
+        request.get_json()
     )
 
-    with get_from_map_transaction(content) as [_, optional_get]:
-        old_fixtures = optional_get('fixtures', list, None)
-        setup_script = optional_get('setup_script', str, None)
-        run_setup_script = optional_get('run_setup_script', str, None)
-        has_new_fixtures = optional_get('has_new_fixtures', bool, False)
-        grade_calculation = optional_get('grade_calculation', str, None)
-        results_always_visible: t.Optional[bool] = optional_get(
-            'results_always_visible', t.cast(t.Any, (bool, type(None))), None
-        )
-
-    if old_fixtures is not None:
-        old_fixture_set = set(f['id'] for f in old_fixtures)
-        for f in auto_test.fixtures:
-            if f.id not in old_fixture_set:
-                f.delete_fixture()
-
-    if has_new_fixtures:
-        new_fixtures = get_files_from_request(
-            max_size=app.max_large_file_size,
-            keys=['fixture'],
-            only_start=True,
-        )
-
-        for new_fixture in new_fixtures:
-            new_file_name, filename = files.random_file_path()
-            new_fixture.save(new_file_name)
-            auto_test.fixtures.append(
-                models.AutoTestFixture(
-                    name=files.escape_logical_filename(new_fixture.filename),
-                    filename=filename,
-                )
-            )
-        renames = files.fix_duplicate_filenames(auto_test.fixtures)
-        if renames:
-            logger.info('Fixtures were renamed', renamed_fixtures=renames)
-            add_warning(
-                (
-                    'Some fixtures were renamed as fixtures with the same name'
-                    ' already existed'
-                ), APIWarnings.RENAMED_FIXTURE
-            )
-
-    if setup_script is not None:
-        auto_test.setup_script = setup_script
-    if run_setup_script is not None:
-        auto_test.run_setup_script = run_setup_script
-    if grade_calculation is not None:
-        calc = registry.auto_test_grade_calculators.get(grade_calculation)
-        if calc is None:
-            raise APIException(
-                'The given grade_calculation strategy is not found', (
-                    f'The given grade_calculation strategy {grade_calculation}'
-                    ' is not known'
-                ), APICodes.OBJECT_NOT_FOUND, 404
-            )
-        auto_test.grade_calculator = calc
-    if results_always_visible is not None:
-        auto_test.results_always_visible = results_always_visible
-
+    _update_auto_test(auto_test, content)
     db.session.commit()
 
     return jsonify(auto_test)
@@ -390,7 +394,7 @@ def update_or_create_auto_test_suite(auto_test_id: int, auto_test_set_id: int
     """Update or create a :class:`.models.AutoTestSuite` (also known as
         category)
 
-    .. :quickref: AutoTest; Update a AutoTest suite/category.
+    .. :quickref: AutoTest; Update an AutoTest suite/category.
 
     :>json steps: The steps of this AutoTest. See the documentation of
         :class:`.models.AutoTestStepBase` and its subclasses to see the exact
@@ -541,7 +545,7 @@ def get_auto_test_run(auto_test_id: int,
                       run_id: int) -> ExtendedJSONResponse[models.AutoTestRun]:
     """Get the extended version of an :class:`.models.AutoTestRun`.
 
-    .. :quickref: AutoTest; Get the extended details of a AutoTest run.
+    .. :quickref: AutoTest; Get the extended details of an AutoTest run.
 
     :param auto_test_id: The id of the AutoTest which is connected to the
         requested run.

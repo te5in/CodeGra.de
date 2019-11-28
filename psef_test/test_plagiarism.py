@@ -5,7 +5,9 @@ import csv
 import json
 import math
 import random
+import tempfile
 import itertools
+import contextlib
 import subprocess
 
 import pytest
@@ -16,53 +18,35 @@ from helpers import create_marker
 
 http_err = create_marker(pytest.mark.http_err)
 
+original_popen = subprocess.Popen
+
 
 def make_popen_stub(callback, crash=False):
     class PopenStub:
-        returncode = 1 if crash else 0
-
+        @contextlib.contextmanager
         def __call__(self, call, **kwargs):
             self.data_dir = call[3]
             self.progress_prefix = call[call.index('-progress') + 1]
+            # assert not kwargs['shell']
             callback(call, **kwargs)
-            return self
-
-        def __init__(self):
-            self.data_dir = None
-            self.progress_prefix = None
-            self._next_poll = None
-
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *args):
-            self.data_dir = None
-            self.progress_prefix = None
-
-        @property
-        def stdout(self):
-            outer_self = self
-
-            class Stdout:
-                def readline(self):
-                    return self.readlines()[0]
-
-                def readlines(self):
-                    amount = len(os.listdir(outer_self.data_dir))
-                    return [
-                        f'{outer_self.progress_prefix} 1 / {amount}',
-                        f'{outer_self.progress_prefix} 2 / {amount}',
-                        f'{outer_self.progress_prefix} {amount} / {amount}',
-                        f'{outer_self.progress_prefix} 1 / {amount}',
-                        f'{outer_self.progress_prefix} 1 / {amount}',
+            amount = len(os.listdir(self.data_dir))
+            with tempfile.NamedTemporaryFile('w+') as f:
+                f.write(
+                    '\n'.join([
+                        f'{self.progress_prefix} 1 / {amount}',
+                        f'{self.progress_prefix} 2 / {amount}',
+                        f'{self.progress_prefix} {amount} / {amount}',
+                        f'{self.progress_prefix} 1 / {amount}',
+                        f'{self.progress_prefix} 1 / {amount}',
                         'My log\0!',
-                    ]
+                    ])
+                )
+                f.flush()
+                cmd = ['cat', f.name]
+                if crash:
+                    cmd.append(f.name + '_NON_EXISTING')
 
-            return Stdout()
-
-        def poll(self):
-            res, self._next_poll = self._next_poll, 'NotNone'
-            return res
+                yield original_popen(cmd, **kwargs)
 
     return PopenStub()
 
@@ -1019,7 +1003,7 @@ def test_chrased_jplag(
             }
         )
         if subprocess_exception:
-            assert plag['log'] == 'My log!'
+            assert plag['log'].startswith('My log!')
 
 
 def test_get_plagiarism_providers(test_client):

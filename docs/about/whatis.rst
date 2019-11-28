@@ -7,7 +7,7 @@ modern a LMS (e.g. `Canvas <https://www.canvaslms.com/>`_) using the LTI standar
 CodeGrade both useful as standalone application and as integration in your
 LMS of choice.
 
-.. note:: As of writing CodeGrade supports Canvas, but planning on extending LMS support.
+.. note:: CodeGrade supports Blackboard, Brightspace, Canvas and Moodle.
 
 CodeGrade Filesystem
 ----------------------

@@ -34,7 +34,7 @@ case "$TO_RUN" in
         res1="$?"
 
         make privacy_statement
-        [[ -z "$NO_INSTALL" ]] && npm install
+        [[ -z "$NO_INSTALL" ]] && npm ci
         npm run lint
         res2="$?"
 
@@ -59,14 +59,49 @@ case "$TO_RUN" in
         travis-sphinx build --source=docs/
         res7="$?"
 
-        res=$(( res1 + res2 + res3 + res4 + res5 + res6 + res7 ))
+        npm run build
+        res8="$?"
+
+        res=$(( res1 + res2 + res3 + res4 + res5 + res6 + res7 + res8))
         set +x xtrace
         ;;
     "js_unit")
         make privacy_statement
-        [[ -z "$NO_INSTALL" ]] && npm install
+        [[ -z "$NO_INSTALL" ]] && npm ci
         npm run unit
         res="$?"
+
+        if [[ $res -eq 0 ]]; then
+            cat >config.ini <<EOF
+[Back-end]
+sqlalchemy_database_uri = postgresql:///travis_ci_test
+DEBUG = true
+
+[Celery]
+broker_url = redis://localhost:6379
+
+[Features]
+register = true
+auto_test = true
+
+EOF
+            mkdir -p uploads
+            mkdir -p mirror_uploads
+            wget https://github.com/CodeGra-de/jplag/releases/download/v2.14.2-SNAPSHOT/jplag-2.14.2-SNAPSHOT-jar-with-dependencies.jar -O jplag.jar
+            export PYTHONPATH="$PYTHONPATH:${PWD}"
+            ./manage.py db upgrade
+            ./manage.py test_data
+            celery worker --app=runcelery:celery -E &
+            make start_dev_server > /dev/null &
+            make start_dev_npm &
+            ./node_modules/wait-on/bin/wait-on http://localhost:8080/api/v1/about -l
+            curl http://localhost:8080
+            sleep 4
+            npm run e2e
+            res="$?"
+            cat server.log
+        fi
+
         set +x xtrace
         ;;
 

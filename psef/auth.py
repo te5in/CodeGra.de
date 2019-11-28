@@ -102,7 +102,6 @@ def ensure_logged_in() -> None:
         _raise_login_exception()
 
 
-@login_required
 def ensure_enrolled(
     course_id: int, user: t.Optional['psef.models.User'] = None
 ) -> None:
@@ -119,6 +118,7 @@ def ensure_enrolled(
     """
     if user is None:
         label = 'You are'
+        ensure_logged_in()
         user = psef.current_user
     else:
         label = f'The user "{user.name}" is'
@@ -151,10 +151,11 @@ def set_current_user(user: 'psef.models.User') -> None:
     _app_ctx_stack.top.jwt_user = user
 
 
-@login_required
 def ensure_can_submit_work(
     assig: 'psef.models.Assignment',
     author: 'psef.models.User',
+    *,
+    current_user: t.Optional['psef.models.User'] = None,
 ) -> None:
     """Check if the current user can submit for the given assignment as the given
     author.
@@ -167,34 +168,42 @@ def ensure_can_submit_work(
     :param assig: The assignment that should be submitted to.
     :param author: The author of the submission.
 
-    :raises PermissionException: If there the current user cannot submit for
-        the given author.
-    :raises APIException: If the author is not enrolled in course of the given
-        assignment or if the LTI state was wrong.
+    :raises PermissionException: If the current user cannot submit for the
+        given author.
+    :raises APIException: If the LTI state if wrong.
     """
-    submit_self = psef.current_user.id == author.id
+    if current_user is None:
+        ensure_logged_in()
+        current_user = psef.current_user
 
-    if assig.course_id not in author.courses:
-        raise APIException(
-            'The given user is not enrolled in this course',
-            (
-                f'The user "{author.id}" is not enrolled '
-                f'in course "{assig.course_id}"'
-            ),
-            APICodes.INVALID_STATE,
-            400,
-        )
+    if author.group is None:
+        # Group users aren't enrolled in a course.
+        ensure_enrolled(assig.course_id, author)
+
+    submit_self = current_user.id == author.id
 
     if submit_self:
-        ensure_permission(CPerm.can_submit_own_work, assig.course_id)
+        ensure_permission(
+            CPerm.can_submit_own_work, assig.course_id, user=current_user
+        )
     else:
-        ensure_permission(CPerm.can_submit_others_work, assig.course_id)
+        ensure_permission(
+            CPerm.can_submit_others_work, assig.course_id, user=current_user
+        )
 
     if assig.is_hidden:
-        ensure_permission(CPerm.can_see_hidden_assignments, assig.course_id)
+        ensure_permission(
+            CPerm.can_see_hidden_assignments,
+            assig.course_id,
+            user=current_user
+        )
 
     if assig.deadline_expired:
-        ensure_permission(CPerm.can_upload_after_deadline, assig.course_id)
+        ensure_permission(
+            CPerm.can_upload_after_deadline,
+            assig.course_id,
+            user=current_user
+        )
 
     if assig.is_lti and not (
         # We do not passback test student grades, so we do not need them to
@@ -622,10 +631,11 @@ def ensure_permission(  # pylint: disable=function-redefined
         ) and course_id is None and user.has_permission(permission):
             return
         else:
-            you_do = (
-                'You do'
-                if user.id == psef.current_user.id else f'{user.name} does'
-            )
+            if psef.current_user and psef.current_user == user:
+                you_do = 'You do'
+            else:
+                you_do = f'{user.name} does'
+
             msg = (
                 '{you_do} not have the permission'
                 ' to do this.{extra_msg}'

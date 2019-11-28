@@ -1,6 +1,7 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <floating-feedback-button
+    :disabled="!showInlineFeedback"
     v-if="pdfURL"
     class="pdf-viewer"
     :fileId="id"
@@ -13,6 +14,7 @@
     slot-description="pdf"
     snippet-field-above
     always-show-button
+    :visible-without-hover="$root.isEdge"
     add-space>
     <object :data="pdfURL"
             type="application/pdf"
@@ -60,6 +62,10 @@ export default {
             type: Boolean,
             required: true,
         },
+        showInlineFeedback: {
+            type: Boolean,
+            default: true,
+        },
     },
 
     data() {
@@ -105,7 +111,7 @@ export default {
 
         async embedPdf() {
             this.pdfURL = '';
-            await this.$afterRerender;
+            await this.$afterRerender();
 
             if (this.revision === 'diff') {
                 this.$emit('error', 'The pdf viewer is not available in diff mode');

@@ -66,6 +66,8 @@ NETWORK_EXCEPTIONS = (
 FIXTURES_ROOT = f'/.{uuid.uuid4().hex}'
 PRE_STUDENT_FIXTURES_DIR = f'{uuid.uuid4().hex}/'
 
+OUTPUT_DIR = f'/.{uuid.uuid4().hex}/{uuid.uuid4().hex}'
+
 
 class UpdateResultFunction(Protocol):
     """A protocol for a function that can update the state of a step.
@@ -196,6 +198,7 @@ def _wait_for_attach(
     :param max_amount_timeouts: The maximal amount of times to check if the
         command exited. If exceeded an :py:class:`.AttachTimeoutError` is
         raised.
+    :returns: The exit code if the program exited before the attach finished.
 
     >>> import doctest
     >>> doctest.ELLIPSIS_MARKER = '-etc-'
@@ -850,6 +853,15 @@ class StartedContainer:
         inner_dir = self._fixtures_dir or PRE_STUDENT_FIXTURES_DIR.strip('/')
         return f'{FIXTURES_ROOT}/{inner_dir}/'
 
+    @property
+    def output_dir(self) -> str:
+        """Get the output dir for this running container.
+
+        For now this is a global variable, but this might change in a future
+        version.
+        """
+        return OUTPUT_DIR
+
     @contextlib.contextmanager
     def stopped_container(self
                           ) -> t.Generator['AutoTestContainer', None, None]:
@@ -1086,6 +1098,7 @@ class StartedContainer:
             'TERM': 'dumb',
             'FIXTURES': self.fixtures_dir,
             'STUDENT': f'{_get_home_dir(username)}/student/',
+            'AT_OUTPUT': self.output_dir,
             'LANG': 'en_US.UTF-8',
             'LC_ALL': 'en_US.UTF-8',
         }
@@ -1288,7 +1301,7 @@ class StartedContainer:
     def run_command(
         self,
         cmd: t.List[str],
-        stdout: t.Optional[OutputCallback] = None,
+        stdout: t.Union[OutputCallback, None, str] = None,
         stderr: t.Optional[OutputCallback] = None,
         stdin: t.Optional[bytes] = None,
         user: t.Optional[str] = None,
@@ -1300,8 +1313,10 @@ class StartedContainer:
         :param cmd: The command argument list that should be run.
         :param stdout: A callback that will be called for when we recieve
             output on stdout. This might not contain full lines, or it might
-            contain multiple lines.
-        :param stdout: Same as ``stdout`` but for output to stderr.
+            contain multiple lines. If passed a string this is interpreted as a
+            filename, where ``stdout`` is redirected to.
+        :param stderr: Same as ``stdout`` but for output to stderr, only the
+            file option is not supported.
         :param stdin: The stdin that should be provided to the container.
         :param user: The user that should run the command. If not provided the
             command will be executed by the root user.
@@ -1338,123 +1353,143 @@ class StartedContainer:
 
         raise RuntimeError  # pragma: no cover
 
+    @contextlib.contextmanager
+    def _prepared_output(
+        self,
+        stdout: t.Union[OutputCallback, None, str],
+        stderr: t.Optional[OutputCallback],
+        stdin: t.Union[None, bytes],
+    ) -> t.Generator[t.Tuple[t.IO[bytes], t.BinaryIO, t.BinaryIO, threading.
+                             Event, t.Callable[[float], None]], None, None]:
+        has_stdin = isinstance(stdin, bytes)
+
+        with tempfile.TemporaryDirectory() as output_dir, (
+            tempfile.NamedTemporaryFile()
+            if has_stdin else open('/dev/null', 'rb')
+        ) as stdin_file:
+            local_logger = structlog.threadlocal.as_immutable(logger)
+            if has_stdin:
+                os.chmod(stdin_file.name, 0o777)
+                stdin_file.write(stdin)
+                stdin_file.flush()
+                stdin_file.seek(0, 0)
+
+            def _make_log_function(log_location: str
+                                   ) -> t.Callable[[bytes], None]:
+                def inner(__data: bytes) -> None:
+                    local_logger.info(
+                        'Got output from command',
+                        location=log_location,
+                        output=__data,
+                    )
+
+                return inner
+
+            def stderr_inceptor(__data: bytes) -> None:
+                if not command_started.is_set():
+                    if __data[0] == 0:
+                        __data = __data[1:]
+                    command_started.set()
+
+                stderr_callback(__data)
+
+            command_started = threading.Event()
+            stop_reader_threads = LockableValue(False)
+            stderr_callback = stderr or _make_log_function('stderr')
+
+            stderr_fifo = os.path.join(output_dir, 'stderr')
+            os.mkfifo(stderr_fifo)
+
+            reader_fifo_files = {stderr_fifo: stderr_inceptor}
+
+            # If `stdout` is a string this is the path to the file where stdout
+            # should be redirected to.
+            if not isinstance(stdout, str):
+                stdout_fifo = os.path.join(output_dir, 'stdout')
+                os.mkfifo(stdout_fifo)
+                stdout_callback = stdout or _make_log_function('stdout')
+                reader_fifo_files[stdout_fifo] = stdout_callback
+
+            reader_thread = threading.Thread(
+                target=self._read_fifo,
+                args=(reader_fifo_files, stop_reader_threads)
+            )
+            reader_thread.start()
+
+            def stop_reader_thread(wait_time: float) -> None:
+                reader_thread.join(wait_time)
+                stop_reader_threads.set(True)
+
+            # The order is really important here! We first need to close the
+            # two fifo files before we join our threads. As otherwise the
+            # threads will hang because they are still reading from these
+            # files.
+            try:
+                with open(
+                    stdout if isinstance(stdout, str) else stdout_fifo, 'wb'
+                ) as out, open(stderr_fifo, 'wb') as err:
+                    yield (
+                        stdin_file,
+                        out,
+                        err,
+                        command_started,
+                        stop_reader_thread,
+                    )
+            finally:
+                reader_thread.join()
+
     def _run(
         self,
         cmd: T,
         callback: t.Callable[[T], int],
-        stdout: t.Optional[OutputCallback],
+        stdout: t.Union[OutputCallback, None, str],
         stderr: t.Optional[OutputCallback],
         stdin: t.Union[None, bytes],
         check: bool,
         timeout: t.Union[None, float, int],
     ) -> int:
         self._dirty = True
+        assert timeout is None or timeout > 0
 
         with cg_logger.bound_to_logger(
             cmd=cmd, timeout=timeout
-        ), tempfile.TemporaryDirectory(
-        ) as output_dir, tempfile.NamedTemporaryFile() as stdin_file, open(
-            '/dev/null', 'r'
-        ) as dev_null:
-            logger.info('Running command')
-            local_logger = structlog.threadlocal.as_immutable(logger)
-
-            if isinstance(stdin, bytes):
-                os.chmod(stdin_file.name, 0o777)
-                stdin_file.write(stdin)
-                stdin_file.flush()
-                stdin_file.seek(0, 0)
-            elif stdin is None:
-                stdin_file = dev_null
-
-            stdout_fifo = os.path.join(output_dir, 'stdout')
-            os.mkfifo(stdout_fifo)
-            stderr_fifo = os.path.join(output_dir, 'stderr')
-            os.mkfifo(stderr_fifo)
-
-            def _make_log_function(log_location: str
-                                   ) -> t.Callable[[bytes], None]:
-                def inner(log_line: bytes) -> None:
-                    local_logger.info(
-                        'Got output from command',
-                        location=log_location,
-                        output=log_line
-                    )
-
-                return inner
-
-            command_started = threading.Event()
-            stop_reader_threads = LockableValue(False)
-            stderr_callback = stderr or _make_log_function('stderr')
-
-            def stderr_inceptor(data: bytes) -> None:
-                if not command_started.is_set():
-                    if data[0] == 0:
-                        data = data[1:]
-                    command_started.set()
-
-                stderr_callback(data)
-
-            reader_thread = threading.Thread(
-                target=self._read_fifo,
-                args=(
-                    {
-                        stderr_fifo: stderr_inceptor,
-                        stdout_fifo: stdout or _make_log_function('stdout')
-                    }, stop_reader_threads
-                )
-            )
-            reader_thread.start()
-
-            # The order is really important here! We first need to close the
-            # two fifo files before we join our threads. As otherwise the
-            # threads will hang because they are still reading from these
-            # files.
-            with defer(reader_thread.join), open(
-                stdout_fifo,
-                'wb',
-            ) as out, open(
-                stderr_fifo,
-                'wb',
-            ) as err:
-                assert timeout is None or timeout > 0
-                _maybe_quit_running()
-
-                pid = self._container.attach(
-                    callback,
-                    cmd,
-                    stdout=out,
-                    stderr=err,
-                    stdin=stdin_file,
-                )
-
-                res = _wait_for_attach(pid, command_started)
-                left = 0.0
-
-                try:
-                    if res is None:
-                        res, left = _wait_for_pid(pid, timeout or sys.maxsize)
-                except CommandTimeoutException:
-                    logger.info(
-                        'Exception occurred when waiting', exc_info=True
-                    )
-                    # Wait for 1 second to clear all remaining output.
-                    left = 1
-                    raise
-                finally:
-                    # Wait for at most a minute to clear all remaining output.
-                    left = min(left, 60)
-                    err.close()
-                    out.close()
-                    reader_thread.join(left)
-                    stop_reader_threads.set(True)
-
+        ), self._prepared_output(stdout, stderr, stdin) as [
+            stdin_file, stdout_file, stderr_file, command_started, stop_reading
+        ]:
             _maybe_quit_running()
 
-            if check and res != 0:
-                raise LXCProcessError(f'Command "{cmd}" crashed: {res}')
+            pid = self._container.attach(
+                callback,
+                cmd,
+                stdout=stdout_file,
+                stderr=stderr_file,
+                stdin=stdin_file,
+            )
 
-            return res
+            res = _wait_for_attach(pid, command_started)
+            left = 0.0
+
+            try:
+                if res is None:
+                    res, left = _wait_for_pid(pid, timeout or sys.maxsize)
+            except CommandTimeoutException:
+                logger.info('Exception occurred when waiting', exc_info=True)
+                # Wait for 1 second to clear all remaining output.
+                left = 1
+                raise
+            finally:
+                # Wait for at most a minute to clear all remaining output.
+                left = min(left, 60)
+                stderr_file.close()
+                stdout_file.close()
+                stop_reading(left)
+
+        _maybe_quit_running()
+
+        if check and res != 0:
+            raise LXCProcessError(f'Command "{cmd}" crashed: {res}')
+
+        return res
 
 
 class AutoTestContainer:
@@ -1778,6 +1813,39 @@ class AutoTestRunner:
         )
 
     @timed_function
+    def _upload_output_folder(
+        self,
+        cont: StartedContainer,
+        result_id: int,
+        test_suite: SuiteInstructions,
+    ) -> None:
+        with tempfile.NamedTemporaryFile() as tfile:
+            cont.run_command(['ls', cont.output_dir])
+
+            os.chmod(tfile.name, 0o777)
+            cont.run_command(
+                ['tar', 'cjf', '/dev/stdout', cont.output_dir],
+                user=CODEGRADE_USER,
+                stdout=tfile.name
+            )
+            tfile.seek(0, 0)
+
+            suite_id = test_suite['id']
+            base = self.base_url
+            url = f'{base}/results/{result_id}/suites/{suite_id}/files/'
+            response = self.req.post(
+                url,
+                files={
+                    'file': ('f.tar.bz2', tfile, 'application/octet-stream'),
+                },
+            )
+            logger.info(
+                'Uploaded files to server',
+                response=response,
+                response_content=response.content
+            )
+
+    @timed_function
     def _run_test_suite(
         self, student_container: StartedContainer, result_id: int,
         test_suite: SuiteInstructions, cpu_core: CpuCores.Core
@@ -1866,6 +1934,8 @@ class AutoTestRunner:
                     finally:
                         possible_points += test_step['weight']
 
+            self._upload_output_folder(snap, result_id, test_suite)
+
         return total_points, possible_points
 
     @staticmethod
@@ -1945,6 +2015,21 @@ class AutoTestRunner:
             assert cont.run_command(
                 ['grep', '-c', CODEGRADE_USER, '/etc/sudoers'], check=False
             ) != 0, 'Sudo was not dropped!'
+
+            cont.run_command(
+                [
+                    '/bin/bash',
+                    '-c',
+                    (
+                        'mkdir -p "{output_dir}" && '
+                        'chown -R {user}:{user} "{output_dir}" && '
+                        'chmod 770 "{output_dir}"'
+                    ).format(
+                        output_dir=OUTPUT_DIR,
+                        user=CODEGRADE_USER,
+                    ),
+                ]
+            )
 
             total_points = 0.0
             possible_points = 0.0

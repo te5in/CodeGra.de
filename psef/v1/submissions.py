@@ -351,7 +351,11 @@ def select_rubric_items(submission_id: int) -> EmptyResponse:
         (INCORRECT_PERMISSION).
     """
     submission = helpers.filter_single_or_404(
-        models.Work, models.Work.id == submission_id, ~models.Work.deleted
+        models.Work,
+        models.Work.id == submission_id,
+        ~models.Work.deleted,
+        with_for_update=True,
+        with_for_update_of=models.Work,
     )
 
     auth.ensure_permission(
@@ -389,7 +393,7 @@ def select_rubric_items(submission_id: int) -> EmptyResponse:
         )
 
     if submission.assignment.auto_test is not None:
-        changed_items = set(items) - set(submission.selected_items)
+        changed_items = set(items) ^ set(submission.selected_items)
         rows = set(submission.assignment.locked_rubric_rows)
         if any(item.rubricrow_id in rows for item in changed_items):
             raise APIException(
@@ -788,8 +792,8 @@ def create_new_file(submission_id: int) -> JSONResponse[t.Mapping[str, t.Any]]:
 @auth.login_required
 def get_dir_contents(
     submission_id: int
-) -> t.Union[JSONResponse[psef.files.FileTree], JSONResponse[t.Mapping[str, t.
-                                                                       Any]]]:
+) -> t.Union[JSONResponse[psef.files.
+                          FileTree[int]], JSONResponse[t.Mapping[str, t.Any]]]:
     """Return the file directory info of a file of the given submission
     (:class:`.models.Work`).
 

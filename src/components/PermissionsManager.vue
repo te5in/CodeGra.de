@@ -37,10 +37,12 @@
                         v-if="item.item[field.key] === 'loading'"/>
                 <span v-else-if="item.item.name === fixedPermission && field.own"
                       v-b-popover.top.hover="'You cannot disable this permission for yourself'">
-                    <b-form-checkbox :checked="item.item[field.key]"
+                    <b-form-checkbox :class="`role-${field.key}`"
+                                     :checked="item.item[field.key]"
                                      disabled/>
                 </span>
-                <b-form-checkbox :checked="item.item[field.key]"
+                <b-form-checkbox :class="`role-${field.key}`"
+                                 :checked="item.item[field.key]"
                                  @change="changeButton(item.item.name, field)"
                                  v-else/>
             </b-input-group>

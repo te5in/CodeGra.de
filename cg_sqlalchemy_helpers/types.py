@@ -142,6 +142,7 @@ class MyDb:  # pragma: no cover
     Boolean: DbType[bool]
     ForeignKey: t.Callable
     String: t.Callable[[DbSelf, int], DbType[str]]
+    LargeBinary: DbType[bytes]
     init_app: t.Callable
     engine: t.Any
 
@@ -180,7 +181,9 @@ class MyDb:  # pragma: no cover
     ) -> t.Any:
         ...
 
-    def UniqueConstraint(self, *args: t.Any) -> t.Any:
+    def UniqueConstraint(
+        self, *args: t.Any, name: t.Optional[str] = None
+    ) -> t.Any:
         ...
 
     @t.overload
@@ -274,7 +277,12 @@ class MyQuery(t.Generic[T], t.Iterable):  # pragma: no cover
     def all(self) -> t.List[T]:
         ...
 
-    def with_for_update(self: QuerySelf, *, read: bool = False) -> 'QuerySelf':
+    def with_for_update(
+        self: QuerySelf,
+        *,
+        read: bool = False,
+        of: t.Optional[t.Type[Base]] = None,
+    ) -> 'QuerySelf':
         ...
 
     def one_or_none(self) -> t.Optional[T]:

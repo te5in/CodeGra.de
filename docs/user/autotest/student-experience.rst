@@ -39,10 +39,18 @@ Students are able to see the following test attributes:
 - *Test input and output*
 - *Fixtures*
 
-The visibility of the last two items is configurable. Toggle the visibility of
+The visibility of the last three items is configurable. Toggle the visibility of
 these attributes for an individual test using the :fa:`eye` icon next to this
-test.
+test. It is also possible to hide the *Executed Command* from students by
+removing the permission "View the details of AutoTest steps".
 
 .. note::
     Showing all test attributes to students is recommended for feedback
     purposes.
+
+Automatically generated output
+------------------------------
+
+By default, automatically generated output is not visible to students until the
+assignment state is set to "Done". This behavior can be changed with the "View
+AutoTest output files before done" permission.

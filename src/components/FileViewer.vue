@@ -16,8 +16,10 @@
                    :assignment="assignment"
                    :submission="submission"
                    :file="file"
+                   :file-id="fileId"
                    :revision="revision"
                    :show-whitespace="showWhitespace"
+                   :show-inline-feedback="showInlineFeedback"
                    :editable="editable"
                    @language="$emit('language', $event)"
                    :language="language"
@@ -68,6 +70,10 @@ export default {
             type: Boolean,
             required: true,
         },
+        showInlineFeedback: {
+            type: Boolean,
+            default: true,
+        },
         language: {
             type: String,
             default: 'Default',
@@ -96,7 +102,7 @@ export default {
                     scroller: false,
                 },
                 {
-                    cond: f => this.revision === 'diff' && f.ids[0] !== f.ids[1],
+                    cond: f => f.ids && f.ids[0] !== f.ids[1],
                     component: DiffViewer,
                     showLanguage: false,
                     scroller: true,
@@ -151,7 +157,11 @@ export default {
         },
 
         fileId() {
-            return this.file && (this.file.id || this.file.ids[0] || this.file.ids[1]);
+            if (!this.file) {
+                return null;
+            } else {
+                return String(this.file.id || this.file.ids[0] || this.file.ids[1]);
+            }
         },
     },
 

@@ -4,46 +4,100 @@
         class="text-center"
         :scale="3" />
 <div v-else
-     class="file-tree px-2 pb-2"
-     :class="{ 'pt-2': !showRevisions, 'pt-0': showRevisions }">
-    <div v-if="showRevisions"
-         class="revision-container">
-
-        <b-tabs small
-                :value="selectedRevision"
-                @input="revisionChanged"
-                nav-class="revision-tabs"
-                nav-wrapper-class="revision-tabs-wrapper">
-            <b-tab v-for="option in revisionOptions"
-                   :key="option.value"
-                   :disabled="option.disabled"
-                   v-b-popover.hover.bottom="'No revision'"
-                   :title="option.title"/>
-        </b-tabs>
-
-        <description-popover placement="top" boundary="window">
-            Choose to view either the student's submitted files, the revised files as edited by a
-            teacher or teaching assistant, or a diff between the two versions.
-
-            <p v-if="!fileTree.hasRevision(currentTree)" style="margin: 1rem 0 0;">
-                This submission has no revisions.
-            </p>
-        </description-popover>
-    </div>
-
+     class="file-tree p-2">
     <file-tree-inner :file-tree="fileTree"
-                     :tree="currentTree"
-                     :revision="revision"
-                     :collapse-function="collapseFunction" />
+                     :tree="fileTree.student"
+                     :collapse-function="collapseFunction"
+                     collapsed
+                     revision="student"
+                     :icon="submission.user.group ? 'user-plus' : 'user'"
+                     class="student-tree">
+        <span slot="dir-slot" :title="$utils.nameOfUser(submission.user)">
+            <description-popover placement="top" boundary="window">
+                This directory contains the files uploaded by the student.
+            </description-popover>{{
+                $utils.nameOfUser(submission.user)
+            }}
+            <!-- The <user> component does not work here, for some reason it is never visible -->
+            <!-- when the user is a group. If this is a group submission it is used in the -->
+            <!-- submission navbar, though, so it is not really needed here. -->
+        </span>
+    </file-tree-inner>
+
+    <template v-if="showRevisions">
+        <hr class="my-2" style="margin: 0 -.5rem">
+
+        <file-tree-inner :file-tree="fileTree"
+                         :tree="fileTree.teacher"
+                         :collapse-function="collapseFunction"
+                         collapsed
+                         fade-unchanged
+                         revision="teacher"
+                         icon="graduation-cap"
+                         class="teacher-tree">
+            <template slot="dir-slot">
+                <description-popover placement="top" boundary="window">
+                    This directory contains files changed by the teacher. Faded files are unchanged.
+                </description-popover
+                >Teacher revision
+            </template>
+        </file-tree-inner>
+
+        <hr class="my-2" style="margin: 0 -.5rem">
+
+        <file-tree-inner :file-tree="fileTree"
+                         :tree="fileTree.diff"
+                         :collapse-function="collapseFunction"
+                         collapsed
+                         fade-unchanged
+                         revision="diff"
+                         icon="diff"
+                         class="diff-tree">
+            <template slot="dir-slot">
+                <description-popover placement="top" boundary="window">
+                    This directory contains the diffs between the student submission and the teacher
+                    revision. Faded files are unchanged.
+                </description-popover
+                >Teacher diff
+            </template>
+        </file-tree-inner>
+    </template>
+
+    <template v-if="fileTree.autotest">
+        <hr class="my-2" style="margin: 0 -.5rem">
+
+        <file-tree-inner :file-tree="fileTree"
+                         :tree="fileTree.autotest"
+                         :collapse-function="collapseFunction"
+                         collapsed
+                         revision="autotest"
+                         icon="rocket"
+                         class="autotest-tree">
+            <template slot="dir-slot">
+                <description-popover placement="top" boundary="window">
+                    This directory contains files generated during the AutoTest. Each subdirectory
+                    represents a single AutoTest category and contains only the files that were
+                    generated in that category.
+                </description-popover
+                >AutoTest output
+            </template>
+        </file-tree-inner>
+    </template>
 </div>
 </template>
 
 <script>
 import { mapActions } from 'vuex';
 
+import 'vue-awesome/icons/user-plus';
+import 'vue-awesome/icons/user';
+import 'vue-awesome/icons/graduation-cap';
+import 'vue-awesome/icons/rocket';
+
 import DescriptionPopover from './DescriptionPopover';
 import FileTreeInner from './FileTreeInner';
 import Loader from './Loader';
+import User from './User';
 
 export default {
     name: 'file-tree',
@@ -71,57 +125,21 @@ export default {
         },
         revision: {
             type: String,
-            default: 'student',
+            default: '',
         },
-    },
-
-    data() {
-        return {
-            revisionOptions: [
-                {
-                    title: 'Student',
-                    value: 'student',
-                },
-                {
-                    title: 'Teacher',
-                    value: 'teacher',
-                },
-                {
-                    title: 'Diff',
-                    value: 'diff',
-                },
-            ],
-        };
     },
 
     computed: {
         fileId() {
-            return Number(this.$route.params.fileId) || null;
+            return this.$route.params.fileId;
         },
 
         fileTree() {
             return this.submission && this.submission.fileTree;
         },
 
-        currentTree() {
-            return this.fileTree && this.fileTree[this.revision];
-        },
-
-        selectedRevision() {
-            let revision = this.revisionOptions.findIndex(opt => opt.value === this.revision);
-
-            if (revision < 0 || this.revisionOptions[revision].disabled) {
-                revision = 0;
-            }
-
-            return revision;
-        },
-
         showRevisions() {
-            return (
-                this.canSeeRevision &&
-                (this.revision !== 'student' || this.fileTree.hasRevision(this.fileTree.student))
-            );
+            return this.canSeeRevision && this.fileTree.hasRevision(this.fileTree.student);
         },
     },
 
@@ -141,82 +159,13 @@ export default {
         ...mapActions('submissions', {
             storeLoadFileTree: 'loadSubmissionFileTree',
         }),
-
-        revisionChanged(index) {
-            this.$emit('revision', this.revisionOptions[index].value);
-        },
     },
 
     components: {
         DescriptionPopover,
         FileTreeInner,
         Loader,
+        User,
     },
 };
 </script>
-
-<style lang="less" scoped>
-@import '~mixins.less';
-
-.revision-container {
-    position: relative;
-    position: sticky;
-    top: 0;
-    margin: 0 -0.5rem 0.875rem;
-    padding: 0.5rem 0.75rem 0;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.15);
-    background-color: @footer-color;
-
-    #app.dark & {
-        background-color: @color-primary-darker;
-    }
-
-    .tabs {
-        flex: 1 1 auto;
-        overflow: auto;
-        margin: 0 -0.75rem -1px -0.75rem;
-        padding: 0 0.75rem 0 0.75rem;
-
-        .revision-tabs-wrapper {
-            width: auto;
-        }
-    }
-
-    .description-popover {
-        position: absolute;
-        top: 0;
-        bottom: 0.75rem;
-        right: 0;
-        width: 1.5rem;
-        padding-top: 0.95rem;
-        background-color: inherit;
-    }
-}
-</style>
-
-<style lang="less">
-.file-tree .revision-container {
-    .revision-tabs-wrapper {
-        width: max-content;
-        padding-right: 1.75rem;
-    }
-
-    .revision-tabs {
-        width: max-content;
-        flex-wrap: nowrap;
-    }
-
-    .revision-tabs,
-    .nav-link:hover,
-    .nav-link.active {
-        &,
-        #app.dark & {
-            border-bottom-color: transparent !important;
-        }
-    }
-
-    .nav-link.disabled {
-        cursor: not-allowed;
-    }
-}
-</style>

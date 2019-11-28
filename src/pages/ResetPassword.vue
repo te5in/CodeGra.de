@@ -9,8 +9,10 @@
         <h4>Reset your password</h4>
 
         <password-input label="New password"
+                        name="new-password"
                         v-model="newPw"/>
         <password-input label="Confirm password"
+                        name="confirm-password"
                         v-model="confirmPw"/>
 
         <submit-button ref="btn"

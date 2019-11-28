@@ -2,7 +2,7 @@
 <template>
 <div class="assignment-state" v-if="editable">
     <b-button-group>
-        <submit-button class="state-button larger"
+        <submit-button class="state-button larger state-hidden state-open"
                        v-if="canManageLTIState"
                        :variant="ltiHiddenOpenVariant"
                        v-b-popover.window.top.hover="`Hidden or open, managed by ${lmsName}`"
@@ -17,7 +17,7 @@
         </submit-button>
 
         <b-button-group v-else>
-            <submit-button class="state-button"
+            <submit-button class="state-button state-hidden"
                            :variant="hiddenVariant"
                            v-b-popover.window.top.hover="labels[states.HIDDEN]"
                            :submit="() => updateState(states.HIDDEN)"
@@ -28,7 +28,7 @@
                 <icon :name="icons[states.HIDDEN]"/>
             </submit-button>
 
-            <submit-button class="state-button"
+            <submit-button class="state-button state-open"
                            :variant="openVariant"
                            v-b-popover.window.top.hover="labels[states.OPEN]"
                            :submit="() => updateState(states.OPEN)"
@@ -42,7 +42,7 @@
             </submit-button>
         </b-button-group>
 
-        <submit-button class="state-button"
+        <submit-button class="state-button state-done"
                        :variant="doneVariant"
                        v-b-popover.window.top.hover="labels[states.DONE]"
                        :submit="() => updateState(states.DONE)"
@@ -56,6 +56,7 @@
 </div>
 <icon :name="icons[assignment.state]"
       class="assignment-state state-icon"
+      :class="`assignment-state-${labels[assignment.state]}`"
       v-b-popover.window.top.hover="labels[assignment.state]"
       v-else/>
 </template>

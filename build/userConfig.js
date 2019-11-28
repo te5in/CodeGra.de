@@ -24,6 +24,7 @@ try {
 
 if (userConfig['Front-end'] === undefined) userConfig['Front-end'] = {};
 if (userConfig.Features === undefined) userConfig.Features = {};
+if (userConfig.AutoTest === undefined) userConfig.AutoTest = {};
 
 const config = Object.assign({}, {
     email: 'info@CodeGra.de',
@@ -70,8 +71,8 @@ config.autoTest = {
     auto_test_max_command_time: 300,
 };
 
-if (Object.hasOwnProperty.call(userConfig, 'auto_test_max_command_time')) {
-    config.autoTest.auto_test_max_command_time = userConfig.auto_test_max_command_time;
+if (Object.hasOwnProperty.call(userConfig.AutoTest, 'auto_test_max_time_command')) {
+    config.autoTest.auto_test_max_command_time = Number(userConfig.AutoTest.auto_test_max_time_command);
 }
 
 module.exports = config;

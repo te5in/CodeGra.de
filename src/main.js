@@ -14,6 +14,7 @@ import Toasted from 'vue-toasted';
 import localforage from 'localforage';
 import memoryStorageDriver from 'localforage-memoryStorageDriver';
 import VueMasonry from 'vue-masonry-css';
+import VueClipboard from 'vue-clipboard2';
 import moment from 'moment';
 
 import '@/polyfills';
@@ -26,6 +27,7 @@ import * as mutationTypes from './store/mutation-types';
 Vue.use(BootstrapVue);
 Vue.use(Toasted);
 Vue.use(VueMasonry);
+Vue.use(VueClipboard);
 
 Vue.config.productionTip = false;
 
@@ -35,6 +37,12 @@ Icon.register({
         height: 24,
         d:
             'M2,15C2,15 2,9 8,9C12,9 12.5,12.5 15.5,12.5C19.5,12.5 19.5,9 19.5,9H22C22,9 22,15 16,15C12,15 10.5,11.5 8.5,11.5C4.5,11.5 4.5,15 4.5,15H2',
+    },
+    diff: {
+        width: 896,
+        height: 1024,
+        d:
+            'M448 256H320v128H192v128h128v128h128V512h128V384H448V256zM192 896h384V768H192V896zM640 0H128v64h480l224 224v608h64V256L640 0zM0 128v896h768V320L576 128H0zM704 960H64V192h480l160 160V960z',
     },
 });
 
@@ -309,6 +317,9 @@ localforage.defineDriver(memoryStorageDriver).then(() => {
             },
         },
     });
+
+    // eslint-disable-next-line
+    window.__app__ = app;
 
     // Clear some items in vuex store on CTRL-F5
     document.addEventListener(
