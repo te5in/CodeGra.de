@@ -45,6 +45,7 @@ export default {
             this.$http
                 .post('/api/v1/lti/launch/2', {
                     jwt_token: this.$route.query.jwt,
+                    blob_id: this.$route.query.blob_id,
                 })
                 .then(
                     async ({ data }) => {

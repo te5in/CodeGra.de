@@ -37,16 +37,23 @@ def launch_lti() -> t.Any:
         'params': LTI.create_from_request(flask.request).launch_params,
         'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=1)
     }
+    blob = models.BlobStorage(
+        data=jwt.encode(
+            data,
+            app.config['LTI_SECRET_KEY'],
+            algorithm='HS512',
+        )
+    )
+    db.session.add(blob)
+    db.session.commit()
+
     return flask.redirect(
-        '{host}/lti_launch/?inLTI=true&jwt={jwt}&redirect={redirect}'.format(
+        (
+            '{host}/lti_launch/?inLTI=true&blob_id={blob_id}'
+            '&redirect={redirect}'
+        ).format(
             host=app.config['EXTERNAL_URL'],
-            jwt=urllib.parse.quote(
-                jwt.encode(
-                    data,
-                    app.config['LTI_SECRET_KEY'],
-                    algorithm='HS512',
-                ).decode('utf8')
-            ),
+            blob_id=blob.id,
             redirect=urllib.parse.quote(
                 flask.request.args.get('codegrade_redirect', ''),
             ),
@@ -95,8 +102,8 @@ def second_phase_lti_launch() -> helpers.JSONResponse[
 
     .. :quickref: LTI; Do the callback of a LTI launch.
 
-    :>json string jwt_token: The JWT token that is the current LTI state. This
-        token can only be acquired using the ``/lti/launch/1`` route.
+    :>json string blob_id: The id of the blob which you got from the lti launch
+        redirect.
 
     :<json assignment: The assignment that the LTI launch was for.
     :<json bool new_role_created: Was a new role created in the LTI launch.
@@ -108,19 +115,30 @@ def second_phase_lti_launch() -> helpers.JSONResponse[
     :raises APIException: If the given Jwt token is not valid. (INVALID_PARAM)
     """
     content = helpers.ensure_json_dict(flask.request.get_json())
-    helpers.ensure_keys_in_dict(content, [('jwt_token', str)])
-    jwt_token = t.cast(str, content['jwt_token'])
+    helpers.ensure_keys_in_dict(content, [('blob_id', str)])
+
+    def also_error(b: models.BlobStorage) -> bool:
+        age = helpers.get_request_start_time() - b.created_at
+        # Older than 5 minutes is too old
+        return age.total_seconds() > (60 * 5)
+
+    blob = helpers.filter_single_or_404(
+        models.BlobStorage,
+        models.BlobStorage.id == content['blob_id'],
+        with_for_update=True,
+        also_error=also_error,
+    )
 
     try:
         launch_params = jwt.decode(
-            jwt_token,
+            blob.data,
             app.config['LTI_SECRET_KEY'],
             algorithms=['HS512'],
         )['params']
     except jwt.DecodeError:
         logger.warning(
             'Invalid JWT token encountered',
-            token=jwt_token,
+            blob_id=str(blob.id),
             exc_info=True,
         )
         raise errors.APIException(
@@ -132,6 +150,9 @@ def second_phase_lti_launch() -> helpers.JSONResponse[
             errors.APICodes.INVALID_PARAM,
             400,
         )
+    else:
+        db.session.delete(blob)
+
     inst = LTI.create_from_launch_params(launch_params)
 
     user, new_token, updated_email = inst.ensure_lti_user()
@@ -141,6 +162,7 @@ def second_phase_lti_launch() -> helpers.JSONResponse[
     assig = inst.get_assignment(user, course)
     inst.set_user_role(user)
     new_role_created = inst.set_user_course_role(user, course)
+
     db.session.commit()
 
     result: t.Mapping[str, t.Union[str, models.Assignment, bool, None]]

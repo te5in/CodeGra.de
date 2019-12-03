@@ -178,3 +178,4 @@ if True:  # pylint: disable=using-constant-test
         AutoTestStepResultState, AutoTestStepResult, AutoTestStepBase
     )
     from .webhook import WebhookBase, GitCloneData
+    from .blob_storage import BlobStorage
