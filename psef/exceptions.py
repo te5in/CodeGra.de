@@ -24,6 +24,8 @@ class APIWarnings(IntEnum):
     AMBIGUOUS_COMBINATION = 10
     EXISTING_WEBHOOKS_EXIST = 11
     WEBHOOKS_DISABLED = 12
+    ALREADY_EXPIRED = 13
+    DANGEROUS_ROLE = 14
 
 
 @unique
@@ -70,6 +72,7 @@ class APICodes(IntEnum):
     WEBHOOK_INVALID_REQUEST = 37
     WEBHOOK_UNKNOWN_REQUEST = 38
     WEBHOOK_DISABLED = 39
+    OBJECT_EXPIRED = 40
 
 
 class InvalidAssignmentState(TypeError):

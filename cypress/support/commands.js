@@ -192,6 +192,7 @@ Cypress.Commands.add('createCourse', (name, users=[]) => {
                 },
             });
         })
+        course.roles = roles;
         cy.log('created course', course);
         return cy.wrap(course);
     });
@@ -280,11 +281,17 @@ Cypress.Commands.add('submit', { prevSubject: true }, (subject, state, optsArg =
         doConfirm: true,
         waitForState: true,
         waitForDefault: true,
+        warningCallback: () => {},
+        confirmCallback: null,
     }, optsArg);
 
     // Ensure this is a submit button.
     cy.wrap(subject).should('have.class', 'submit-button');
     cy.wrap(subject).click();
+
+    if (opts.confirmCallback) {
+        cy.get(`.popover .submit-button-confirm`).then(opts.confirmCallback);
+    }
 
     // Click a button the confirm popover.
     if (opts.hasConfirm) {
@@ -299,8 +306,12 @@ Cypress.Commands.add('submit', { prevSubject: true }, (subject, state, optsArg =
 
     cy.wrap(subject).should('have.class', `state-${state}`);
 
+    if (state === 'warning') {
+        cy.get(`.popover .submit-button-${state}`).then(opts.warningCallback);
+    }
+
     // Close the error/warning popover.
-    if (state === 'error' || state == 'warning') {
+    if (state === 'error' || state === 'warning') {
         cy.get(`.popover .submit-button-${state}`)
             .should('contain', opts.popoverMsg)
             .find('.hide-button')

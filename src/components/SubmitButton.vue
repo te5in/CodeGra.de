@@ -64,8 +64,15 @@
                 @click.native="hideWarning"/>
 
             <span v-if="warning">
-                <slot name="warning" :warning="warning">
-                    {{ warning }}
+                <slot name="warning" :warning="warning[0].text" :warning-array="warning">
+                    <template v-if="warning.length > 1">
+                        <ul class="p-0 text-left pl-3 m-0">
+                            <li v-for="w in warning">{{ w.text }}</li>
+                        </ul>
+                    </template>
+                    <template v-else>
+                        {{ warning[0].text }}
+                    </template>
                 </slot>
             </span>
         </div>
@@ -280,7 +287,7 @@ export default {
         onWarning(data) {
             this.$emit('warning', data);
             this.state = 'warning';
-            this.warning = parseWarningHeader(data.headers.warning).text;
+            this.warning = parseWarningHeader(data.headers.warning);
             this.response = data;
         },
 

@@ -20,7 +20,20 @@ def init_app(_: t.Any) -> None:
     pass
 
 
-def parse_datetime(
+@t.overload
+def parse_datetime(to_parse: object) -> datetime.datetime:  # pylint: disable=missing-docstring,unused-argument
+    ...
+
+
+@t.overload
+def parse_datetime(  # pylint: disable=missing-docstring,unused-argument,function-redefined
+    to_parse: object,
+    allow_none: bool,
+) -> t.Optional[datetime.datetime]:
+    ...
+
+
+def parse_datetime(  # pylint: disable=function-redefined
     to_parse: object,
     allow_none: bool = False,
 ) -> t.Optional[datetime.datetime]:

@@ -61,11 +61,11 @@ context('Plagiarsm', () => {
                 bbZip: true,
             }).then(res => {
                 assignment = res;
-            });
 
-            // Assignment B is the "old assignment"
-            cy.createAssignment(course.id, `Assignment B`, {
-                bbZip: true,
+                // Assignment B is the "old assignment"
+                cy.createAssignment(course.id, `Assignment B`, {
+                    bbZip: true,
+                });
             });
         });
     });

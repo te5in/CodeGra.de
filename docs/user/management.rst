@@ -40,6 +40,32 @@ course snippets can be set up by the teacher and can be used by all graders
 grading in the course. These snippets are always in addition to the graders'
 personal snippets and are indicated with the :fa:`books` icon.
 
+Course registration links
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+With a course registration link, you can let users sign up to your course via
+a URL.
+
+Create a new link under the "Members" tab on the "Course Management" page.
+Then set both "Expiration date" and "Role" and save your link. The link will
+become invalid once the expiration date has passed or when the link is deleted.
+When a link is invalid, it is no longer possible to register for the course with
+that link.
+
+"Role" is the role that is assigned to the users that register via the link.
+You can have multiple links with different roles, e.g. one for students to
+sign up and one for teachers or TAs to sign up.
+
+.. warning::
+    You don't want to add a course registration link to LTI courses
+    (courses that are connected to your Learning Management System), as all
+    course registration should come from the LMS.
+
+.. note::
+    *Everyone* with access to this link will be able to register for your course.
+    Currently, it's not possible to delete users from a course, so be careful
+    when sharing the link. Contact us if you wish to delete users.
+
 Creating a new Course
 ~~~~~~~~~~~~~~~~~~~~~~
 Specific :ref:`site permissions <site-permissions>` are required to create a

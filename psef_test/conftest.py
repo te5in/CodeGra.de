@@ -159,6 +159,9 @@ def app(request):
     app.config['FEATURES'][psef.features.Feature.INCREMENTAL_RUBRIC_SUBMISSION
                            ] = True
 
+    app.config['__S_FEATURES']['COURSE_REGISTER'] = True
+    app.config['FEATURES'][psef.features.Feature.COURSE_REGISTER] = True
+
     psef.tasks.celery.conf.update({
         'task_always_eager': False,
         'task_eager_propagates': False,
@@ -722,3 +725,8 @@ def stubmailer(monkeypatch):
 @pytest.fixture
 def tomorrow():
     yield datetime.datetime.utcnow() + datetime.timedelta(days=1)
+
+
+@pytest.fixture
+def yesterday():
+    yield datetime.datetime.utcnow() - datetime.timedelta(days=1)

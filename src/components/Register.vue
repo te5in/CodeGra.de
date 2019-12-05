@@ -98,6 +98,13 @@ import PasswordSuggestions from './PasswordSuggestions';
 export default {
     name: 'register',
 
+    props: {
+        registrationUrl: {
+            type: String,
+            required: true,
+        },
+    },
+
     data() {
         return {
             username: '',
@@ -147,7 +154,7 @@ export default {
                 throw err;
             }
 
-            return this.$http.post('/api/v1/user', {
+            return this.$http.post(this.registrationUrl, {
                 username: this.username,
                 password: this.firstPw,
                 email: this.firstEmail,

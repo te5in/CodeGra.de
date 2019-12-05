@@ -40,6 +40,7 @@ class Feature(enum.Enum):
     REGISTER = enum.auto()
     GROUPS = enum.auto()
     AUTO_TEST = enum.auto()
+    COURSE_REGISTER = enum.auto()
 
 
 def ensure_feature(feature: Feature) -> None:

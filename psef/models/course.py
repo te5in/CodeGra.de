@@ -10,6 +10,7 @@ import datetime
 import structlog
 
 import psef
+from cg_sqlalchemy_helpers import mixins
 
 from . import UUID_LENGTH, Base, DbColumn, db, _MyQuery
 from .role import CourseRole
@@ -26,6 +27,49 @@ if t.TYPE_CHECKING:  # pragma: no cover
     from .group import GroupSet
 
 logger = structlog.get_logger()
+
+
+class CourseRegistrationLink(Base, mixins.UUIDMixin, mixins.TimestampMixin):
+    """Class that represents links that register users within a course.
+
+    :ivar ~.CourseRegistrationLink.course_id: The id of the course in which the
+        user will be enrolled.
+    :ivar ~.CourseRegistrationLink.course_role_id: The id of the role the user
+        will get in the course.
+    :ivar ~.CourseRegistrationLink.expiration_date: The date after which this
+        link is no longer valid.
+    """
+    course_id: int = db.Column(
+        'course_id', db.Integer, db.ForeignKey('Course.id'), nullable=False
+    )
+    course_role_id = db.Column(
+        'course_role_id',
+        db.Integer,
+        db.ForeignKey('Course_Role.id'),
+        nullable=False
+    )
+    expiration_date: datetime.datetime = db.Column(
+        'expiration_date',
+        db.DateTime,
+        nullable=False,
+    )
+
+    course: 'Course' = db.relationship(
+        'Course',
+        foreign_keys=course_id,
+        back_populates='registration_links',
+        innerjoin=True,
+    )
+    course_role: CourseRole = db.relationship(
+        'CourseRole', foreign_keys=course_role_id, innerjoin=True
+    )
+
+    def __to_json__(self) -> t.Mapping[str, object]:
+        return {
+            'id': str(self.id),
+            'expiration_date': self.expiration_date.isoformat(),
+            'role': self.course_role,
+        }
 
 
 class CourseSnippet(Base):
@@ -114,6 +158,15 @@ class Course(NotEqualMixin, Base):
         lazy='select',
         order_by='CourseSnippet.created_at',
     )
+
+    registration_links: t.MutableSequence[
+        'CourseRegistrationLink'] = db.relationship(
+            'CourseRegistrationLink',
+            back_populates='course',
+            cascade='all,delete',
+            uselist=True,
+            order_by='CourseRegistrationLink.created_at',
+        )
 
     assignments = db.relationship(
         "Assignment", back_populates="course", cascade='all,delete'

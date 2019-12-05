@@ -280,6 +280,10 @@
 # Should auto test be enabled
 # auto_test = false
 
+# Should it be possible for teachers to create links that users can use to
+# register and enroll in a course.
+# course_registration = false
+
 # All LTI consumer keys mapped to secret keys. Please add your own, these ARE
 # case sensitive.
 [LTI Consumer keys]

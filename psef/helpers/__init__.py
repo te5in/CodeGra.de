@@ -25,6 +25,7 @@ import requests
 import structlog
 import mypy_extensions
 from flask import g, request
+from mypy_extensions import Arg
 from typing_extensions import Protocol
 from werkzeug.datastructures import FileStorage
 from sqlalchemy.sql.expression import or_
@@ -690,9 +691,10 @@ def get_from_map_transaction(
     mapping: t.Mapping[T, TT],
     *,
     ensure_empty: bool = False,
-) -> t.Generator[t.Tuple[t.Callable[[T, t.Type[TTT]], TTT], t.
-                         Callable[[T, t.Type[TTT], ZZ], t.
-                                  Union[TTT, ZZ]]], None, None]:
+) -> t.Generator[
+    t.Tuple[t.Callable[[T, t.Type[TTT]], TTT], t.
+            Callable[[T, t.Type[TTT], Arg(ZZ, 'default')], t.
+                     Union[TTT, ZZ]]], None, None]:
     """Get from the given map in a transaction like style.
 
     If all gets and optional gets succeed at the end of the ``with`` block no

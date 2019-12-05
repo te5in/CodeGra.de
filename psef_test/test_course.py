@@ -5,8 +5,8 @@ import pytest
 
 import psef.models as m
 from helpers import (
-    create_marker, create_assignment, create_submission, create_user_with_role,
-    create_user_with_perms
+    create_course, create_marker, create_assignment, create_submission,
+    create_user_with_role, create_user_with_perms
 )
 from psef.permissions import CoursePermission as CPerm
 
@@ -1166,3 +1166,187 @@ def test_create_course(app, monkeypatch, describe, session):
         course = m.Course.create_and_add(str(uuid.uuid4()))
         session.commit()
         assert len(get_users_in_course(course)) == 0
+
+
+def test_register_using_registration_link(
+    describe, logged_in, teacher_user, admin_user, test_client, session,
+    tomorrow, yesterday
+):
+    with describe('setup'), logged_in(admin_user):
+        c1 = create_course(test_client)['id']
+        c2 = create_course(test_client)['id']
+
+        role1 = m.CourseRole(
+            name=str(uuid.uuid4()),
+            course=m.Course.query.get(c1),
+            hidden=False
+        )
+        session.add(role1)
+        role2 = m.CourseRole(
+            name=str(uuid.uuid4()),
+            course=m.Course.query.get(c1),
+            hidden=False,
+        )
+        role2.set_permission(CPerm.can_edit_course_roles, True)
+        session.add(role2)
+
+        session.commit()
+        r1 = role1.id
+        r2 = role2.id
+
+        register_data = {
+            'username': 'NEW_NAME_' + uuid.uuid4().hex,
+            'password': uuid.uuid4().hex,
+            'email': 'cg@example.com',
+            'name': 'NAME123',
+        }
+
+    with describe('can create registration link'), logged_in(admin_user):
+        link, rv = test_client.req(
+            'put',
+            f'/api/v1/courses/{c1}/registration_links/',
+            200,
+            data={'role_id': r1, 'expiration_date': yesterday.isoformat()},
+            result={
+                'id': str,
+                'role': dict,
+                'expiration_date': yesterday.isoformat(),
+            },
+            include_response=True,
+        )
+        assert 'already expired' in rv.headers['Warning']
+        link_id = link['id']
+
+    with describe('cannot register with expired link'):
+        res = test_client.req(
+            'post',
+            f'/api/v1/courses/{c1}/registration_links/{link_id}/user',
+            409,
+            data=register_data,
+        )
+        assert 'has expired' in res['message']
+
+    with describe('can edit registration link'), logged_in(admin_user):
+        link, rv = test_client.req(
+            'put',
+            f'/api/v1/courses/{c1}/registration_links/',
+            200,
+            data={
+                'role_id': r2,
+                'expiration_date': tomorrow.isoformat(),
+                'id': link_id,
+            },
+            result={
+                'id': link_id,
+                'role': dict,
+                'expiration_date': tomorrow.isoformat(),
+            },
+            include_response=True,
+        )
+        assert 'will have the permission' in rv.headers['Warning']
+
+    with describe('can get all registration links'), logged_in(admin_user):
+        test_client.req(
+            'get',
+            f'/api/v1/courses/{c1}/registration_links/',
+            200,
+            result=[link],
+        )
+
+    with describe('cannot register in another course'):
+        test_client.req(
+            'post',
+            f'/api/v1/courses/{c2}/registration_links/{link_id}/user',
+            404,
+            data=register_data,
+        )
+
+    with describe('can register in the correct course'):
+        atoken = test_client.req(
+            'post',
+            f'/api/v1/courses/{c1}/registration_links/{link_id}/user',
+            200,
+            data=register_data,
+        )['access_token']
+        test_client.req(
+            'get',
+            '/api/v1/login',
+            200,
+            headers={'Authorization': f'Bearer {atoken}'},
+            result={
+                '__allow_extra__': True,
+                'username': register_data['username'],
+            }
+        )
+
+        # Make sure the new user is enrolled in the course with the correct
+        # role.
+        test_client.req(
+            'get',
+            '/api/v1/courses/?extended',
+            200,
+            headers={'Authorization': f'Bearer {atoken}'},
+            result=[{
+                '__allow_extra__': True,
+                'id': c1,
+                'role': role2.name,
+            }]
+        )
+
+    with describe('cannot register after link deletion'):
+        with logged_in(admin_user):
+            test_client.req(
+                'delete',
+                f'/api/v1/courses/{c1}/registration_links/{link_id}',
+                204,
+            )
+            test_client.req(
+                'get',
+                f'/api/v1/courses/{c1}/registration_links/',
+                200,
+                result=[],
+            )
+
+        test_client.req(
+            'post',
+            f'/api/v1/courses/{c1}/registration_links/{link_id}/user',
+            404,
+        )
+
+
+def test_delete_role_with_register_link(
+    describe, logged_in, teacher_user, admin_user, test_client, session,
+    tomorrow
+):
+    with describe('setup'), logged_in(admin_user):
+        c = create_course(test_client)['id']
+
+        role = m.CourseRole(
+            name=str(uuid.uuid4()), course=m.Course.query.get(c), hidden=False
+        )
+        session.add(role)
+        session.commit()
+
+        r = role.id
+
+        test_client.req(
+            'put',
+            f'/api/v1/courses/{c}/registration_links/',
+            200,
+            data={'role_id': r, 'expiration_date': tomorrow.isoformat()},
+            result={
+                'id': str,
+                'role': dict,
+                'expiration_date': tomorrow.isoformat(),
+            },
+            include_response=True,
+        )
+
+    with describe('cannot delete role connected to register link'
+                  ), logged_in(admin_user):
+        res = test_client.req(
+            'delete',
+            f'/api/v1/courses/{c}/roles/{r}',
+            400,
+        )
+        assert 'are still registration links' in res['message']

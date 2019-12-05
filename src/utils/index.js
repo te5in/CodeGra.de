@@ -92,17 +92,41 @@ export function convertToUTC(timeStr) {
 }
 
 export function parseWarningHeader(warningStr) {
-    const arr = warningStr.split(' ');
+    let startIndex = 0;
+    const res = [];
+    const len = warningStr.length;
+    function consume(part) {
+        const arr = part.split(' ');
 
-    const code = parseFloat(arr[0]);
-    const agent = arr[1];
-    const text = arr
-        .slice(2)
-        .join(' ')
-        .replace(/\\"/g, '"')
-        .slice(1, -1);
+        const code = parseFloat(arr[0]);
+        const agent = arr[1];
+        const text = arr
+            .slice(2)
+            .join(' ')
+            .replace(/\\(.)/g, '$1')
+            .slice(1, -1);
 
-    return { code, agent, text };
+        return { code, agent, text };
+    }
+
+    for (let i = 0, seenQuote = false; i < len; ++i) {
+        const cur = warningStr.charAt(i);
+        if (cur === '"') {
+            if (seenQuote) {
+                res.push(consume(warningStr.slice(startIndex, i + 1)));
+                // Next char is a comma and then a space
+                startIndex = i + 3;
+                seenQuote = false;
+            } else {
+                seenQuote = true;
+            }
+        } else if (cur === '\\') {
+            // Skip next char
+            i++;
+        }
+    }
+
+    return res;
 }
 
 export function waitAtLeast(time, ...promises) {

@@ -33,10 +33,19 @@ context('Personal snippet manager', () => {
         cy.get('.snippet-manager .add-button').first().click()
         cy.get('.edit-snippet-modal input[name=snippet-key]').type(key)
         cy.get('textarea[name=snippet-value]').type('WOOOOOO!');
-        cy.get('.edit-snippet-modal .submit-button').click()
-        cy.get('.confirm-message:visible')
-            .contains('already exists a snippet')
-            .contains(`"${value}"`)
+        cy.get('.edit-snippet-modal .submit-button').submit(
+            'default',
+            {
+                hasConfirm: true,
+                waitForState: false,
+                doConfirm: false,
+                confirmCallback: $msg => {
+                    cy.wrap($msg)
+                        .contains('already exists a snippet')
+                        .contains(`"${value}"`);
+                }
+            },
+        );
     })
 
     it('should be possible to edit a snippet', () => {

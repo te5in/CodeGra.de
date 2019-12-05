@@ -519,6 +519,8 @@ set_bool(
     CONFIG['__S_FEATURES'], feature_ops, 'INCREMENTAL_RUBRIC_SUBMISSION', True
 )
 
+set_bool(CONFIG['__S_FEATURES'], feature_ops, 'COURSE_REGISTER', False)
+
 # Should it be possible to register
 set_bool(CONFIG['__S_FEATURES'], feature_ops, 'REGISTER', False)
 

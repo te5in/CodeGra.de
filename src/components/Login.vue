@@ -25,7 +25,7 @@
                        @success="success"
                        :wait-at-least="0">
             <template slot="warning" slot-scope="warning">
-                {{ warning.warning }}<br>
+                {{ warning.warningArray.map(x => x.text).join(' ') }}<br>
                 Close this message to continue.
             </template>
         </submit-button>
