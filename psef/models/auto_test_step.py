@@ -32,6 +32,7 @@ from ..exceptions import (
 logger = structlog.get_logger()
 
 T = t.TypeVar('T', bound=t.Type['AutoTestStepBase'])
+TT = t.TypeVar('TT', bound='AutoTestStepBase')
 
 if t.TYPE_CHECKING and not getattr(t, 'SPHINX', False):  # pragma: no cover
     # pylint: disable=unused-import
@@ -286,6 +287,15 @@ class AutoTestStepBase(Base, TimestampMixin, IdMixin):
 
     def remove_data_details(self) -> JSONType:  # pylint: disable=no-self-use
         return t.cast(JSONType, {})
+
+    def copy(self: TT) -> TT:
+        return self.__class__(
+            order=self.order,
+            name=self.name,
+            _weight=self._weight,
+            hidden=self.hidden,
+            _data=copy.deepcopy(self.data),
+        )
 
 
 @_register

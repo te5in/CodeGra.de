@@ -727,3 +727,54 @@ def get_auto_test_result(auto_test_id: int, run_id: int, result_id: int
     auth.ensure_can_view_autotest_result(result)
 
     return extended_jsonify(result, use_extended=models.AutoTestResult)
+
+
+@api.route('/auto_tests/<int:auto_test_id>/copy', methods=['POST'])
+@feature_required(Feature.AUTO_TEST)
+def copy_auto_test(auto_test_id: int) -> JSONResponse[models.AutoTest]:
+    """Copy the given AutoTest configuration.
+
+    .. :quickref: AutoTest; Copy an AutoTest config to another assignment.
+
+    :>json assignment_id: The id of the assignment which should own the copied
+        AutoTest config.
+    :param auto_test_id: The id of the AutoTest config which should be copied.
+    :returns: The copied AutoTest configuration.
+    """
+    test = get_or_404(models.AutoTest, auto_test_id)
+    auth.ensure_can_view_autotest(test)
+    for fixture in test.fixtures:
+        auth.ensure_can_view_fixture(fixture)
+    for suite in test.all_suites:
+        for step in suite.steps:
+            auth.ensure_can_view_autotest_step_details(step)
+
+    with get_from_map_transaction(get_json_dict_from_request()) as [get, _]:
+        assignment_id = get('assignment_id', int)
+
+    assignment = filter_single_or_404(
+        models.Assignment,
+        models.Assignment.id == assignment_id,
+        with_for_update=True
+    )
+    auth.ensure_permission(CPerm.can_edit_autotest, assignment.course_id)
+
+    if assignment.auto_test is not None:
+        raise APIException(
+            'The given assignment already has an AutoTest',
+            f'The assignment "{assignment.id}" already has an auto test',
+            APICodes.INVALID_STATE, 409
+        )
+
+    assignment.rubric_rows = []
+    mapping = {}
+    for old_row in test.assignment.rubric_rows:
+        new_row = old_row.copy()
+        mapping[old_row] = new_row
+        assignment.rubric_rows.append(new_row)
+
+    db.session.flush()
+
+    assignment.auto_test = test.copy(mapping)
+    db.session.commit()
+    return jsonify(assignment.auto_test)

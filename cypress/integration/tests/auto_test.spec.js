@@ -1,6 +1,7 @@
 context('Manage assignment page', () => {
     let course;
     let assignment;
+    let assignmentCopy;
 
     function createRubric() {
         cy.createRubric(assignment.id, [
@@ -48,9 +49,16 @@ context('Manage assignment page', () => {
             return cy.createAssignment(course.id, 'AutoTest', {
                 state: 'open',
                 deadline: 'tomorrow',
-            })
+            });
         }).then(res => {
             assignment = res;
+
+            return cy.createAssignment(course.id, 'Copy - AutoTest', {
+                state: 'open',
+                deadline: 'tomorrow',
+            });
+        }).then(res => {
+            assignmentCopy = res;
         });
     });
 
@@ -79,7 +87,7 @@ context('Manage assignment page', () => {
             cy.get('.auto-test')
                 .contains('.submit-button', 'Create AutoTest')
                 .should('not.be.disabled')
-                .submit('success');
+                .submit('success', { waitForDefault: false });
 
             cy.get('.auto-test')
                 .contains('.submit-button', 'Create AutoTest')
@@ -87,7 +95,7 @@ context('Manage assignment page', () => {
 
             cy.get('.auto-test')
                 .contains('.submit-button', 'Delete')
-                .submit('success', { hasConfirm: true });
+                .submit('success', { hasConfirm: true, waitForDefault: false });
 
             cy.get('.auto-test')
                 .contains('.submit-button', 'Create AutoTest')
@@ -113,7 +121,7 @@ context('Manage assignment page', () => {
             cy.openCategory('AutoTest');
             cy.get('.auto-test')
                 .contains('.submit-button', 'Create AutoTest')
-                .submit('success');
+                .submit('success', { waitForDefault: false });
             cy.get('.auto-test')
                 .contains('.submit-button', 'Create AutoTest')
                 .should('not.exist');
@@ -143,6 +151,37 @@ context('Manage assignment page', () => {
             submit('.modal-dialog', 'Delete');
             submit('.auto-test', 'Delete level');
             submit('.auto-test', 'Delete');
+        });
+
+        it('should be possible to copy an AutoTest', () => {
+            // First make sure that there is an AT to import
+            createRubric();
+            cy.openCategory('AutoTest');
+            cy.get('.auto-test')
+                .contains('.submit-button', 'Create AutoTest')
+                .submit('success', { waitForDefault: false });
+
+            cy.visit(`/courses/${course.id}/assignments/${assignmentCopy.id}`);
+            cy.openCategory('Rubric');
+            cy.get('.rubric-editor')
+                .should('contain', 'This assignment does not have a rubric yet.');
+
+            cy.openCategory('AutoTest');
+            cy.get('.auto-test')
+                .contains('.submit-button', 'Create AutoTest')
+                .should('exist');
+            cy.get('.auto-test .copy-at-wrapper .multiselect')
+                .multiselect([`${course.name} - AutoTest`]);
+            cy.get('.auto-test .copy-at-wrapper .submit-button')
+                .submit('success', { waitForDefault: false });
+            cy.get('.auto-test')
+                .contains('.submit-button', 'Create AutoTest')
+                .should('not.exist');
+
+            cy.openCategory('Rubric');
+            cy.get('.rubric-editor')
+                .contains('This assignment does not have a rubric yet.')
+                .should('not.exist');
         });
     });
 });

@@ -1805,3 +1805,121 @@ def test_output_dir(
             test_client.req('delete', f'{url}/runs/{run_id}', 204)
 
         assert not os.path.isfile(path)
+
+
+def test_copy_auto_test(
+    basic, test_client, logged_in, describe, session, admin_user
+):
+    with describe('setup'):
+        course, assig_id, teacher, student = basic
+        with logged_in(admin_user):
+            new_course = helpers.create_course(test_client)
+            new_assig_id = helpers.create_assignment(
+                test_client,
+                new_course,
+                deadline=datetime.utcnow() + timedelta(days=30)
+            )['id']
+            crole = m.CourseRole.query.filter_by(
+                name='Teacher',
+                course_id=new_course['id'],
+            ).one()
+            session.add(crole)
+            t = teacher._get_current_object()
+            s = student._get_current_object()
+            t.courses[new_course['id']] = crole
+            s.courses[new_course['id']] = crole
+            session.commit()
+
+        with logged_in(teacher):
+            # yapf: disable
+            test = helpers.create_auto_test_from_dict(
+                test_client, assig_id, {
+                    'sets': [{
+                        'suites': [{
+                            'steps': [{
+                                'run_p': 'cp -r $STUDENT $AT_OUTPUT',
+                                'name': 'Copy all files',
+                            }]
+                        }, {
+                            'steps': [{
+                                'run_p': 'echo HELLO > $AT_OUTPUT/hello',
+                                'name': 'Create hello file',
+                            }, {
+                                'run_p': 'echo BYE > $AT_OUTPUT/bye',
+                                'name': 'Create bye file',
+                            }, {
+                                'run_p': 'ln -s /etc/passwd $AT_OUTPUT/passwd',
+                                'name': 'Create link',
+                            }, {
+                                'run_p': 'exit 1',
+                                'name': 'Fail',
+                            }]
+                        }],
+                    }, {
+                        'suites': [{
+                            'steps': [{
+                                'run_p': 'sleep 0',
+                                'name': 'Do not create a file'
+                            }],
+                        }],
+                    }],
+                    'fixtures': [io.BytesIO(b'a FILE!')],
+                }
+            )
+            # yapf: enable
+
+        url = f'/api/v1/auto_tests/{test["id"]}'
+        assert len(test['fixtures']) == 1
+
+    with describe('students cannot view AT so they cannot copy'
+                  ), logged_in(student):
+        test_client.req(
+            'post',
+            f'/api/v1/auto_tests/{test["id"]}/copy',
+            403,
+            data={'assignment_id': new_assig_id}
+        )
+
+    with describe('teachers can copy the AT'), logged_in(teacher):
+
+        def remove_id(dct):
+            if isinstance(dct, dict):
+                return {
+                    key: object if key.endswith('id') else remove_id(value)
+                    for key, value in dct.items()
+                }
+            elif isinstance(dct, list):
+                return [remove_id(item) for item in dct]
+            return dct
+
+        new_test = test_client.req(
+            'post',
+            f'/api/v1/auto_tests/{test["id"]}/copy',
+            200,
+            data={'assignment_id': new_assig_id},
+            result=remove_id(test)
+        )
+        assert new_test['assignment_id'] == new_assig_id
+
+        # Make sure the rubric is also copied
+        test_client.req(
+            'get',
+            f'/api/v1/assignments/{assig_id}/rubrics/',
+            200,
+            result=remove_id(
+                test_client.req(
+                    'get',
+                    f'/api/v1/assignments/{new_assig_id}/rubrics/',
+                    200,
+                )
+            ),
+        )
+
+    with describe('cannot copy to assignment with AT'), logged_in(teacher):
+        err = test_client.req(
+            'post',
+            f'/api/v1/auto_tests/{test["id"]}/copy',
+            409,
+            data={'assignment_id': new_assig_id}
+        )
+        assert 'already has an AutoTest' in err['message']
