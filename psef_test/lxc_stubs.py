@@ -1,8 +1,5 @@
 import os
-import sys
 import multiprocessing
-import multiprocessing.managers
-from copy import deepcopy
 
 import lxc
 import pytest

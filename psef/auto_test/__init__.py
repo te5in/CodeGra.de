@@ -836,7 +836,7 @@ class StartedContainer:
                 '-c',
                 (
                     'mv "{old_path}" "{new_path}" && '
-                    'chown {user}:{user} "{new_path}"'
+                    'chown {user}:"$(id -gn {user})" "{new_path}"'
                 ).format(
                     user=CODEGRADE_USER,
                     old_path=self.fixtures_dir,
@@ -2022,7 +2022,7 @@ class AutoTestRunner:
                     '-c',
                     (
                         'mkdir -p "{output_dir}" && '
-                        'chown -R {user}:{user} "{output_dir}" && '
+                        'chown -R {user}:"$(id -gn {user})" "{output_dir}" && '
                         'chmod 770 "{output_dir}"'
                     ).format(
                         output_dir=OUTPUT_DIR,
@@ -2222,8 +2222,8 @@ class AutoTestRunner:
                         ' "" {user} && '
                         'mkdir -p "{home_dir}/student/" && '
                         'mkdir -p "{fixtures_root}/{fixtures}" && '
-                        'chown -R {user}:{user} {home_dir} && '
-                        'chown -R {user}:{user} "{fixtures_root}" && '
+                        'chown -R {user}:"$(id -gn {user})" "{home_dir}" && '
+                        'chown -R {user}:"$(id -gn {user})" "{fixtures_root}" && '
                         'chmod 110 "{fixtures_root}"'
                     ).format(
                         user=CODEGRADE_USER,

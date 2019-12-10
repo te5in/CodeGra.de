@@ -3,7 +3,6 @@ import io
 import os
 import copy
 import json
-import time
 import uuid
 import shutil
 import getpass
@@ -47,7 +46,7 @@ def monkeypatch_for_run(monkeypatch, lxc_stub, stub_function_class):
             return 0
         elif cmd[0] == '/bin/bash' and cmd[2].startswith('adduser'):
             # Don't make the user, as we cannot do that locally
-            cmd[2] = '&&'.join(cmd[2].split('&&')[1:-2])
+            cmd[2] = '&&'.join(['whoami'] + cmd[2].split('&&')[1:-2])
             cmd_user = (cmd, user)
         elif cmd == ['grep', '-c', getpass.getuser(), '/etc/sudoers']:
             signal_start()
@@ -55,6 +54,7 @@ def monkeypatch_for_run(monkeypatch, lxc_stub, stub_function_class):
         elif '/etc/sudoers' in cmd:
             signal_start()
             return 0
+
         return old_run_command(self, cmd_user)
 
     monkeypatch.setattr(psef.auto_test, 'CODEGRADE_USER', getpass.getuser())
@@ -145,7 +145,7 @@ def monkeypatch_broker(monkeypatch):
         if raised:
             return
         raised = True
-        raise ValueError
+        raise requests.RequestException()
 
     monkeypatch.setattr(ses.Response, 'raise_for_status', raise_once)
     monkeypatch.setattr(psef.helpers, 'BrokerSession', lambda *_: ses)
@@ -757,17 +757,12 @@ def test_run_auto_test(
                 }
             )
 
-        live_server_url, stop_server = live_server(get_stop=True)
         monkeypatch_broker()
+        live_server_url, stop_server = live_server(get_stop=True)
         thread = threading.Thread(
             target=psef.auto_test.start_polling, args=(app.config, False)
         )
         thread.start()
-
-        thread.join(5)
-        stop_server()
-        thread.join(5)
-        live_server()
         thread.join()
 
         with logged_in(teacher, yield_token=True) as token:
@@ -1730,8 +1725,8 @@ def test_output_dir(
             run_id = test_client.req('post', f'{url}/runs/', 200)['id']
             session.commit()
 
-        live_server_url, stop_server = live_server(get_stop=True)
         monkeypatch_broker()
+        live_server_url, stop_server = live_server(get_stop=True)
         thread = threading.Thread(
             target=psef.auto_test.start_polling, args=(app.config, False)
         )
