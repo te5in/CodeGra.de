@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>psef.auto_test &mdash; CodeGrade v1.16.5 documentation</title>
+  <title>psef.auto_test &mdash; CodeGrade v1.16.6 documentation</title>
   
 
   
@@ -65,7 +65,7 @@
             
             
               <div class="version">
-                v1.16.5
+                v1.16.6
               </div>
             
           
@@ -1034,7 +1034,7 @@
                 <span class="s1">&#39;-c&#39;</span><span class="p">,</span>
                 <span class="p">(</span>
                     <span class="s1">&#39;mv &quot;</span><span class="si">{old_path}</span><span class="s1">&quot; &quot;</span><span class="si">{new_path}</span><span class="s1">&quot; &amp;&amp; &#39;</span>
-                    <span class="s1">&#39;chown </span><span class="si">{user}</span><span class="s1">:</span><span class="si">{user}</span><span class="s1"> &quot;</span><span class="si">{new_path}</span><span class="s1">&quot;&#39;</span>
+                    <span class="s1">&#39;chown </span><span class="si">{user}</span><span class="s1">:&quot;$(id -gn </span><span class="si">{user}</span><span class="s1">)&quot; &quot;</span><span class="si">{new_path}</span><span class="s1">&quot;&#39;</span>
                 <span class="p">)</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
                     <span class="n">user</span><span class="o">=</span><span class="n">CODEGRADE_USER</span><span class="p">,</span>
                     <span class="n">old_path</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">fixtures_dir</span><span class="p">,</span>
@@ -2220,7 +2220,7 @@
                     <span class="s1">&#39;-c&#39;</span><span class="p">,</span>
                     <span class="p">(</span>
                         <span class="s1">&#39;mkdir -p &quot;</span><span class="si">{output_dir}</span><span class="s1">&quot; &amp;&amp; &#39;</span>
-                        <span class="s1">&#39;chown -R </span><span class="si">{user}</span><span class="s1">:</span><span class="si">{user}</span><span class="s1"> &quot;</span><span class="si">{output_dir}</span><span class="s1">&quot; &amp;&amp; &#39;</span>
+                        <span class="s1">&#39;chown -R </span><span class="si">{user}</span><span class="s1">:&quot;$(id -gn </span><span class="si">{user}</span><span class="s1">)&quot; &quot;</span><span class="si">{output_dir}</span><span class="s1">&quot; &amp;&amp; &#39;</span>
                         <span class="s1">&#39;chmod 770 &quot;</span><span class="si">{output_dir}</span><span class="s1">&quot;&#39;</span>
                     <span class="p">)</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
                         <span class="n">output_dir</span><span class="o">=</span><span class="n">OUTPUT_DIR</span><span class="p">,</span>
@@ -2420,8 +2420,8 @@
                         <span class="s1">&#39; &quot;&quot; </span><span class="si">{user}</span><span class="s1"> &amp;&amp; &#39;</span>
                         <span class="s1">&#39;mkdir -p &quot;</span><span class="si">{home_dir}</span><span class="s1">/student/&quot; &amp;&amp; &#39;</span>
                         <span class="s1">&#39;mkdir -p &quot;</span><span class="si">{fixtures_root}</span><span class="s1">/</span><span class="si">{fixtures}</span><span class="s1">&quot; &amp;&amp; &#39;</span>
-                        <span class="s1">&#39;chown -R </span><span class="si">{user}</span><span class="s1">:</span><span class="si">{user}</span><span class="s1"> </span><span class="si">{home_dir}</span><span class="s1"> &amp;&amp; &#39;</span>
-                        <span class="s1">&#39;chown -R </span><span class="si">{user}</span><span class="s1">:</span><span class="si">{user}</span><span class="s1"> &quot;</span><span class="si">{fixtures_root}</span><span class="s1">&quot; &amp;&amp; &#39;</span>
+                        <span class="s1">&#39;chown -R </span><span class="si">{user}</span><span class="s1">:&quot;$(id -gn </span><span class="si">{user}</span><span class="s1">)&quot; &quot;</span><span class="si">{home_dir}</span><span class="s1">&quot; &amp;&amp; &#39;</span>
+                        <span class="s1">&#39;chown -R </span><span class="si">{user}</span><span class="s1">:&quot;$(id -gn </span><span class="si">{user}</span><span class="s1">)&quot; &quot;</span><span class="si">{fixtures_root}</span><span class="s1">&quot; &amp;&amp; &#39;</span>
                         <span class="s1">&#39;chmod 110 &quot;</span><span class="si">{fixtures_root}</span><span class="s1">&quot;&#39;</span>
                     <span class="p">)</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
                         <span class="n">user</span><span class="o">=</span><span class="n">CODEGRADE_USER</span><span class="p">,</span>
