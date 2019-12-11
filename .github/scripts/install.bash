@@ -9,7 +9,7 @@ if ! [[ "$skip" = skip_pip ]]; then
 
     (
         python -m pip install --upgrade pip;
-        pip install 'celery[redis]' coveralls pytest-cov codecov travis-sphinx;
+        pip install 'celery[redis]' coveralls pytest-cov codecov;
         pip install -r requirements.txt;
         pip install -r broker_requirements.txt;
     ) &

@@ -5,6 +5,11 @@ name: "Front-end tests"
   pull_request:
     branches:
       - master
+      - stable
+  push:
+    branches:
+      - master
+      - stable
 
 jobs:
   build:

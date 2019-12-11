@@ -29,10 +29,6 @@
       alt="Coverage Status" title="Coverage Status">
   </a>
   <a href="https://github.com/CodeGra-de/CodeGra.de">
-    <img src="https://5ezz6jithh.execute-api.us-east-1.amazonaws.com/prod/lambda-shield-redirect?user=CodeGra-de&repo=CodeGra.de"
-      alt="Source Lines of Code" title="Source Lines of Code">
-  </a>
-  <a href="https://github.com/CodeGra-de/CodeGra.de">
     <img src="https://img.shields.io/badge/pylint-10.0-brightgreen.svg"
       alt="10.0" title="Pylint score">
   </a>
@@ -87,6 +83,12 @@
   <a href="https://github.com/CodeGra-de/CodeGra.de/blob/master/LICENSE">
     <img src="https://img.shields.io/badge/license-AGPL--3.0--only-blue.svg"
       alt="License AGPL-3.0-only" title="License AGPL-3.0-only">
+  </a>
+</p>
+<p align="center">
+  <a href="https://twitter.com/CodeGradeCom">
+    <img alt="Twitter Follow" src="https://img.shields.io/twitter/follow/CodeGradeCom?style=social"
+         title="Follow @CodeGradeCom on twitter">
   </a>
 </p>
 

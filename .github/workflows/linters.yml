@@ -5,6 +5,11 @@ name: "Linters"
   pull_request:
     branches:
       - master
+      - stable
+  push:
+    branches:
+      - master
+      - stable
 
 jobs:
   build:
@@ -48,3 +53,12 @@ jobs:
 
       - name: Run linters
         run: ./.github/scripts/run_linters.bash
+
+      - name: Deploy docs
+        uses: JacksonMaxfield/github-pages-deploy-action-python@master
+        env:
+          ACCESS_TOKEN: ${{ secrets.GH_TOKEN }}
+          BRANCH: gh-pages  # The branch the action should deploy to.
+          FOLDER: docs/_build/html_deploy  # The folder the action should deploy.
+          BUILD_SCRIPT: ( cd docs && rm -rf _build/html_deploy/* && mv _build/html/* _build/html_deploy/ && touch _build/html_deploy/.nojekyll && echo docs.codegra.de > _build/html_deploy/CNAME )
+        if: github.ref == 'refs/heads/master'
