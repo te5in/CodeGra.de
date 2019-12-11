@@ -1,0 +1,322 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Student Experience &mdash; CodeGrade v1.16.6 documentation</title>
+  
+
+  
+  
+    <link rel="shortcut icon" href="../../_static/favicon.ico"/>
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="About CodeGrade" href="../../about/about.html" />
+    <link rel="prev" title="Running AutoTest" href="running-autotest.html" />
+    <link href="../../_static/style.css" rel="stylesheet" type="text/css">
+
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../index.html">
+          
+
+          
+            
+            <img src="../../_static/logo.svg" class="logo" alt="Logo"/>
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                v1.16.6
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">User Guides</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../guides/use-codegrade-as-a-student.html">How to use CodeGrade as a student</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../guides/getting-started-with-codegrade.html">Getting started with CodeGrade</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../guides/autotest-best-practices.html">Best Practices for AutoTest</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../guides/creating-an-assignment.html">Create a CodeGrade assignment</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../guides/set-up-a-rubric-for-an-assignment.html">Set up a rubric for an assignment</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../guides/setting-up-autotest.html">Setting up AutoTest</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../guides/enabling-continuous-feedback-for-an-assignment.html">Enabling Continuous Feedback for an assignment</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../guides/set-up-group-assignment.html">Set up a CodeGrade group assignment</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../guides/setting-up-hand-in-requirements.html">Set up hand-in requirements for a CodeGrade assignment</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../guides/setting-up-git-uploads.html">Set up Git uploads for a CodeGrade assignment</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../guides/checking-for-plagiarism.html">Check for plagiarism in a CodeGrade assignment</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../guides/dividing-submissions.html">Divide submissions over graders</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../guides/pass-back-grades-to-canvas-blackboard-moodle-brightspace.html">Pass back grades to Canvas, Blackboard, Moodle or Brightspace</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../guides/creating-managing-and-using-snippets.html">Create, manage and use snippets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../guides/setup-password-for-codegrade-account.html">Set up a password for my CodeGrade account</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../guides/using-shortcuts.html">Using shortcuts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../guides/cannot-find-feature-in-codegrade.html">I cannot find a feature in CodeGrade</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../guides/installing-codegrade-filesystem.html">Install the CodeGrade Filesystem</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../guides/use-codegrade-filesystem.html">Use the CodeGrade Filesystem to locally mount CodeGrade</a></li>
+</ul>
+<p class="caption"><span class="caption-text">User Documentation</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../overview.html">Overview of CodeGrade</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../codeviewer.html">Code Viewer</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../management.html">Course and Assignment Management</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../plagiarism.html">Plagiarism Detection</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../groups.html">Groups</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../permissions.html">Permissions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../preferences.html">Settings and Site Preferences</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://fs-docs.codegra.de">Filesystem</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../lms.html">LMS Integration</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="overview.html">AutoTest</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="setup.html">Setup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="levels.html">Levels</a></li>
+<li class="toctree-l2"><a class="reference internal" href="categories.html">Categories</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tests.html">Tests</a></li>
+<li class="toctree-l2"><a class="reference internal" href="continuous-feedback.html">Continuous Feedback</a></li>
+<li class="toctree-l2"><a class="reference internal" href="running-autotest.html">Running AutoTest</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Student Experience</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#continuous-feedback">Continuous Feedback</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#visibility-of-attributes">Visibility of attributes</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#automatically-generated-output">Automatically generated output</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p class="caption"><span class="caption-text">About CodeGrade</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../about/about.html">About CodeGrade</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Developer Documentation</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../developerdocs.html">Developer documentation</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">CodeGrade</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="overview.html">AutoTest</a> &raquo;</li>
+        
+      <li>Student Experience</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="../../_sources/user/autotest/student-experience.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="student-experience">
+<h1>Student Experience<a class="headerlink" href="#student-experience" title="Permalink to this headline">¶</a></h1>
+<p>AutoTest is a feedback oriented automatic assessment tool. It makes sure
+that students will still receive insightful feedback. To do this, all test
+are grouped in test categories that are strongly linked to a rubric category,
+so that the tests fill in the rubric category. Together with the possibility to
+add extensive naming to individual tests, this allows the student to get
+insightful automatic feedback.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">It is good practice to be extensive in the naming of the tests. This way,
+students can more easily find out where they have to improve and how.</p>
+</div>
+<p>After an AutoTest has been run, students will find the results of this test
+on the submission page of their assignment. This page is easily found via the
+LMS.</p>
+<div class="section" id="continuous-feedback">
+<h2>Continuous Feedback<a class="headerlink" href="#continuous-feedback" title="Permalink to this headline">¶</a></h2>
+<p>If Continuous Feedback is turned on, students will get near instant automated
+feedback for every submission in CodeGrade. Instead of navigating to the
+uploaded code after handing in, students will now directly go to the AutoTest
+results page with preliminary results.</p>
+</div>
+<div class="section" id="visibility-of-attributes">
+<h2>Visibility of attributes<a class="headerlink" href="#visibility-of-attributes" title="Permalink to this headline">¶</a></h2>
+<p>We believe students should be able to see as much information about the AutoTest
+as possible. Sometimes it is however preferred to hide certain test attributes
+from students, for instance to re-use tests for the same students at a later
+moment.</p>
+<p>Students are able to see the following test attributes:</p>
+<ul class="simple">
+<li>Test Names</li>
+<li>Test Weights</li>
+<li>Test State</li>
+<li>Points gotten + filling of rubric</li>
+<li><em>Executed Command (Program to test and Input Arguments)</em></li>
+<li><em>Test input and output</em></li>
+<li><em>Fixtures</em></li>
+</ul>
+<p>The visibility of the last three items is configurable. Toggle the visibility of
+these attributes for an individual test using the <em class="fa codegrade fa-eye"></em> icon next to this
+test. It is also possible to hide the <em>Executed Command</em> from students by
+removing the permission “View the details of AutoTest steps”.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Showing all test attributes to students is recommended for feedback
+purposes.</p>
+</div>
+</div>
+<div class="section" id="automatically-generated-output">
+<h2>Automatically generated output<a class="headerlink" href="#automatically-generated-output" title="Permalink to this headline">¶</a></h2>
+<p>By default, automatically generated output is not visible to students until the
+assignment state is set to “Done”. This behavior can be changed with the “View
+AutoTest output files before done” permission.</p>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="../../about/about.html" class="btn btn-neutral float-right" title="About CodeGrade" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="running-autotest.html" class="btn btn-neutral float-left" title="Running AutoTest" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019, CodeGrade
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>
