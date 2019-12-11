@@ -4,9 +4,21 @@
   </a>
 </p>
 <p align="center">
-  <a href="https://travis-ci.org/CodeGra-de/CodeGra.de">
-    <img src="https://img.shields.io/travis/CodeGra-de/CodeGra.de.svg"
-      alt="Build Status" title="Build Status">
+  <a href="https://github.com/CodeGra-de/CodeGra.de/actions">
+    <img src="https://github.com/CodeGra-de/CodeGra.de/workflows/Back-end tests/badge.svg?branch=master"
+        alt="Back-end tests status" title="Back-end tests status">
+  </a>
+  <a href="https://github.com/CodeGra-de/CodeGra.de/actions">
+    <img src="https://github.com/CodeGra-de/CodeGra.de/workflows/Front-end tests/badge.svg?branch=master"
+        alt="Front-end tests status" title="Front-end tests status">
+  </a>
+  <a href="https://github.com/CodeGra-de/CodeGra.de/actions">
+    <img src="https://github.com/CodeGra-de/CodeGra.de/workflows/Integration tests/badge.svg?branch=master"
+        alt="Integration tests status" title="Integration tests status">
+  </a>
+  <a href="https://github.com/CodeGra-de/CodeGra.de/actions">
+    <img src="https://github.com/CodeGra-de/CodeGra.de/workflows/Linters/badge.svg?branch=master"
+        alt="Linters status" title="Linters status">
   </a>
   <a href="https://coveralls.io/github/CodeGra-de/CodeGra.de?branch=master">
     <img src="https://img.shields.io/coveralls/CodeGra-de/CodeGra.de.svg"
