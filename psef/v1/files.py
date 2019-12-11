@@ -6,19 +6,21 @@ the database.
 SPDX-License-Identifier: AGPL-3.0-only
 """
 import os
+from datetime import datetime, timedelta
 
 import werkzeug
 from flask import request, safe_join, send_from_directory
 from werkzeug.exceptions import NotFound
 from werkzeug.datastructures import FileStorage
 
-import psef.auth as auth
-import psef.files
-from psef import app
-from psef.auth import APICodes, APIException
-from psef.helpers import JSONResponse, jsonify, callback_after_this_request
-
 from . import api
+from .. import app, auth, files, tasks
+from ..auth import APICodes, APIException
+from ..helpers import (
+    JSONResponse, jsonify, get_request_start_time, callback_after_this_request
+)
+
+_MAX_AGE = timedelta(minutes=2)
 
 
 @api.route("/files/", methods=['POST'])
@@ -32,7 +34,7 @@ def post_file() -> JSONResponse[str]:
         The posted data will be removed after 60 seconds.
 
     :returns: A response with the JSON serialized name of the file as content
-              and return code 201.
+        and return code 201.
 
     :raises APIException: If the request is bigger than the maximum upload
                           size. (REQUEST_TOO_LARGE)
@@ -49,9 +51,14 @@ def post_file() -> JSONResponse[str]:
             ), APICodes.REQUEST_TOO_LARGE, 400
         )
 
-    path, name = psef.files.random_file_path(True)
+    path, name = files.random_file_path(True)
 
     FileStorage(request.stream).save(path)
+    tasks.delete_file_at_time(
+        filename=name,
+        in_mirror_dir=True,
+        deletion_time=(get_request_start_time() + _MAX_AGE).isoformat(),
+    )
 
     return jsonify(name, status_code=201)
 
@@ -86,6 +93,13 @@ def get_file(
             os.unlink(filename)
 
     try:
+        full_path = files.safe_join(directory, file_name)
+        if os.path.isfile(full_path):
+            mtime = os.path.getmtime(full_path)
+            age = get_request_start_time() - datetime.fromtimestamp(mtime)
+            if age > _MAX_AGE:
+                raise NotFound
+
         mimetype = request.args.get('mime', None)
         as_attachment = request.args.get('not_as_attachment', False)
         return send_from_directory(
@@ -93,7 +107,8 @@ def get_file(
             file_name,
             attachment_filename=name,
             as_attachment=as_attachment,
-            mimetype=mimetype
+            mimetype=mimetype,
+            cache_timeout=-1,
         )
     except NotFound:
         error = True

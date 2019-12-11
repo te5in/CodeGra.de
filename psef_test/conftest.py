@@ -413,7 +413,10 @@ def db(app, request):
         if generated:
             try:
                 subprocess.check_output(
-                    'psql -c "create database {}"'.format(db_name), shell=True
+                    'psql -c "create database {}"'.format(
+                        db_name.replace('postgresql:///', '')
+                    ),
+                    shell=True
                 )
             except subprocess.CalledProcessError as e:
                 print(e.stdout, file=sys.stderr)
@@ -436,7 +439,9 @@ def db(app, request):
                 orm.session.close_all_sessions()
                 psef.models.db.engine.dispose()
                 subprocess.check_call(
-                    'dropdb "{}"'.format(db_name),
+                    'dropdb "{}"'.format(
+                        db_name.replace('postgresql:///', '')
+                    ),
                     shell=True,
                     stdout=sys.stdout,
                     stderr=sys.stderr

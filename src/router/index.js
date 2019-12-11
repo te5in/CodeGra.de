@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import Vue from 'vue';
 import Router from 'vue-router';
-import store from '@/store';
+import { store } from '@/store';
 import {
     ResetPassword,
     LTILaunch,
@@ -15,6 +15,7 @@ import {
     Submissions,
     Admin,
     Groups,
+    LoginAndRedirect,
 } from '@/pages';
 
 import { PlagiarismOverview, PlagiarismDetail } from '@/components';
@@ -103,6 +104,11 @@ const router = new Router({
                 '/courses/:courseId/assignments/:assignmentId/plagiarism/:plagiarismRunId/cases/:plagiarismCaseId',
             name: 'plagiarism_detail',
             component: PlagiarismDetail,
+        },
+        {
+            path: '/login_and_redirect/:loginFile',
+            name: 'login_and_redirect',
+            component: LoginAndRedirect,
         },
     ],
 });

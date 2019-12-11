@@ -22,6 +22,9 @@ if t.TYPE_CHECKING:  # pragma: no cover
         ...
 
     class CeleryTask(t.Generic[T]):
+        request: t.Any
+        name: str
+
         @property
         def __call__(self) -> T:
             ...
@@ -103,12 +106,7 @@ class CGCelery(Celery):
         self._after_task_callbacks: t.List[t.Callable[[TaskStatus], None]] = []
 
         if t.TYPE_CHECKING:  # pragma: no cover
-
-            class TaskBase:
-                """Example task base for Mypy annotations
-                """
-                request: t.Any
-                name: str
+            TaskBase = CeleryTask[t.Callable[..., t.Any]]
         else:
             # self.Task is available in the `Celery` object.
             TaskBase = self.Task  # pylint: disable=access-member-before-definition,invalid-name
@@ -116,6 +114,41 @@ class CGCelery(Celery):
         outer_self = self
 
         class _ContextTask(TaskBase):
+            def maybe_delay_task(self, wanted_time: datetime) -> bool:
+                """Maybe delay this task.
+
+                This function reschedules the current task with the same
+                arguments if the current time is before the given wanted time.
+
+                :param wanted_time: The earliest time this task may be
+                    executed.
+                :returns: ``True`` if the task was rescheduled, in this case
+                    you should quit running the current task.
+                """
+                now = datetime.utcnow()
+
+                logger.info(
+                    'Checking if should delay the task',
+                    wanted_time=wanted_time.isoformat(),
+                    current_time=now.isoformat(),
+                    should_delay=now < wanted_time,
+                )
+
+                if now >= wanted_time:
+                    return False
+
+                logger.info(
+                    'Delaying task',
+                    wanted_time=wanted_time.isoformat(),
+                    current_time=now.isoformat(),
+                )
+                self.apply_async(
+                    args=self.request.args,
+                    kwargs=self.request.kwargs,
+                    eta=wanted_time
+                )
+                return True
+
             def __call__(self, *args: t.Any, **kwargs: t.Any) -> t.Any:
                 # This is not written by us but taken from here:
                 # https://web.archive.org/web/20150617151604/http://slides.skien.cc/flask-hacks-and-best-practices/#15
@@ -124,7 +157,7 @@ class CGCelery(Celery):
                 assert outer_self._flask_app
 
                 if has_app_context():
-                    return TaskBase.__call__(self, *args, **kwargs)
+                    return super().__call__(*args, **kwargs)
 
                 log = logger.new(
                     request_id=self.request.id,
@@ -151,7 +184,7 @@ class CGCelery(Celery):
 
                 if outer_self._flask_app.testing:
                     set_g_vars()
-                    result = TaskBase.__call__(self, *args, **kwargs)
+                    result = super().__call__(*args, **kwargs)
                     logger.bind(
                         queries_amount=g.queries_amount,
                         queries_max_duration=g.queries_max_duration,
@@ -160,7 +193,7 @@ class CGCelery(Celery):
                     return result
                 with outer_self._flask_app.app_context():  # pragma: no cover
                     set_g_vars()
-                    result = TaskBase.__call__(self, *args, **kwargs)
+                    result = super().__call__(*args, **kwargs)
                     logger.bind(
                         queries_amount=g.queries_amount,
                         queries_max_duration=g.queries_max_duration,

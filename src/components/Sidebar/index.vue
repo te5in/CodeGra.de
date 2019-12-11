@@ -4,12 +4,13 @@
      :class="{ floating, inLTI: $inLTI }"
      id="global-sidebar">
     <div class="main-menu" :class="{ show: mobileVisible }">
-        <router-link class="sidebar-top-item logo"
-                     :to="{ name: 'home' }"
-                     :target="$inLTI ? '_blank' : undefined"
-                     @click.native="closeSubMenu(true)">
+        <component :is="$inLTI ? 'div' : 'router-link'"
+                   :style="{ cursor: $inLTI ? 'default' : 'pointer'}"
+                   class="sidebar-top-item logo"
+                   :to="$inLTI ? undefined : ({ name: 'home' })"
+                   @click.native="$inLTI && closeSubMenu(true)">
             <img :src="logoSrc"/>
-        </router-link>
+        </component>
         <hr class="separator">
         <div class="sidebar-top">
             <transition v-for="entry in entries"
@@ -34,14 +35,16 @@
 
         <div v-if="canManageCurrentLtiAssignment">
             <div class="sidebar-bottom">
-                <router-link :to="Object.assign({}, $route)" target="_blank"
-                                class="new-tab-link sidebar-bottom-item"
-                                v-b-popover.top.hover="'Open this page in a new tab'">
+                <submit-button :submit="openRouteInTab"
+                               class="new-tab-link sidebar-bottom-item d-inline border-0 rounded-0 shadow-none"
+                               variant="secondary"
+                               @success="afterOpenRouteInTab"
+                               v-b-popover.top.hover="'Open this page in a new tab'">
                     <div class="new-tab-wrapper">
                         <icon name="share-square-o" :scale="1"/>
                         <small class="name new-tab">New tab</small>
                     </div>
-                </router-link>
+                </submit-button>
             </div>
 
             <hr class="separator"/>
@@ -153,6 +156,7 @@ import 'vue-awesome/icons/share-square-o';
 import 'vue-awesome/icons/sign-in';
 
 import { Loader } from '@/components';
+import SubmitButton from '@/components/SubmitButton';
 
 import UserInfo from './UserInfo';
 import CourseList from './CourseList';
@@ -292,7 +296,7 @@ export default {
     computed: {
         ...mapGetters('courses', ['courses', 'assignments']),
 
-        ...mapGetters('user', ['loggedIn', 'name']),
+        ...mapGetters('user', ['loggedIn', 'name', 'dangerousJwtToken']),
         ...mapGetters('user', { globalPermissions: 'permissions' }),
 
         ...mapGetters('pref', ['darkMode']),
@@ -566,6 +570,30 @@ export default {
 
             return style;
         },
+
+        openRouteInTab() {
+            return this.$http.post('/api/v1/files/', this.dangerousJwtToken);
+        },
+
+        afterOpenRouteInTab({ data: loginFile }) {
+            const curRoute = JSON.stringify({
+                name: this.$route.name,
+                params: this.$route.params,
+                query: this.$route.query,
+                hash: this.$route.hash,
+            });
+            const newRoute = this.$router.resolve({
+                name: 'login_and_redirect',
+                params: {
+                    loginFile,
+                },
+                query: {
+                    next: curRoute,
+                },
+            });
+
+            window.open(newRoute.href, '_blank');
+        },
     },
 
     components: {
@@ -576,6 +604,7 @@ export default {
         AssignmentList,
         PlagiarismCaseList,
         SubmissionsSidebarList,
+        SubmitButton,
         GroupList,
     },
 };
@@ -815,6 +844,9 @@ export default {
 
 .main-menu .new-tab-link.sidebar-bottom-item {
     padding: 0.5rem;
+    &.submit-button:not(.state-default) .new-tab-wrapper {
+        opacity: 0;
+    }
 }
 
 .new-tab-wrapper {

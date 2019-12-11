@@ -18,15 +18,28 @@ Vue.use(Vuex);
 const debug = process.env.NODE_ENV !== 'production';
 const plugins = [];
 
+let disabledPersistance = false;
+let toastMessage = null;
+
 try {
     plugins.push(
         createPersistedState({
             paths: ['user', 'pref'],
+            storage: {
+                getItem: key => window.localStorage.getItem(key),
+                setItem: (key, value) => {
+                    if (disabledPersistance) {
+                        return null;
+                    }
+                    return window.localStorage.setItem(key, value);
+                },
+                removeItem: key => window.localStorage.removeItem(key),
+            },
         }),
     );
 } catch (e) {
     Vue.use(Toasted);
-    Vue.toasted.error(
+    toastMessage = Vue.toasted.error(
         'Unable to persistently store user credentials, please check you browser privacy levels. You will not be logged-in in other tabs or when reloading.',
         {
             position: 'bottom-center',
@@ -43,7 +56,7 @@ try {
     );
 }
 
-export default new Vuex.Store({
+export const store = new Vuex.Store({
     modules: {
         user,
         pref,
@@ -57,3 +70,10 @@ export default new Vuex.Store({
     strict: debug,
     plugins,
 });
+
+export function disablePersistance() {
+    disabledPersistance = true;
+    if (toastMessage != null) {
+        toastMessage.goAway(0);
+    }
+}

@@ -52,4 +52,5 @@ export const NO_LOGIN_REQUIRED_ROUTES = new Set([
     'reset-password',
     'register',
     'lti-launch',
+    'login_and_redirect',
 ]);

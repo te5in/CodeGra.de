@@ -37,13 +37,16 @@ pytest --cov psef \
        -vvvv
 res2="$?"
 
+rm "$(pwd)/psef_test/test_auto_test.py"
+
 pytest --cov psef \
        --cov-append \
        --postgresql="$BASE_DATABASE_URI" \
        --cov-report term-missing \
        "$(pwd)/psef_test/" \
-       --deselect="psef_test/test_auto_test.py" \
        -n 4 \
+       --timeout=300 \
+       --timeout-method=thread \
        -vvvv
 res3="$?"
 

@@ -15,6 +15,7 @@
 import 'vue-awesome/icons/times';
 import { Loader } from '@/components';
 import { mapActions } from 'vuex';
+import { disablePersistance } from '@/store';
 import ltiProviders from '@/lti_providers';
 
 import { setPageTitle } from './title';
@@ -50,6 +51,8 @@ export default {
                 .then(
                     async ({ data }) => {
                         if (data.access_token) {
+                            await this.logout();
+                            disablePersistance();
                             await this.updateAccessToken(data.access_token);
                         } else {
                             this.clearPlagiarismCases();
