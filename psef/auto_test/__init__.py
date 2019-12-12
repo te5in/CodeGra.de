@@ -1466,10 +1466,10 @@ class StartedContainer:
                 stdin=stdin_file,
             )
 
-            res = _wait_for_attach(pid, command_started)
             left = 0.0
 
             try:
+                res = _wait_for_attach(pid, command_started)
                 if res is None:
                     res, left = _wait_for_pid(pid, timeout or sys.maxsize)
             except CommandTimeoutException:
@@ -2069,6 +2069,7 @@ class AutoTestRunner:
                 )
             return False
         except StopRunningTestsException:
+            result_state = None
             logger.warning('Stop running steps', exc_info=True)
             raise
         except:

@@ -1,8 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 import io
 import os
+import sys
 import copy
 import json
+import time
 import uuid
 import shutil
 import getpass
@@ -25,8 +27,15 @@ import requests_stubs
 from psef.exceptions import APICodes, APIException
 
 
+@pytest.fixture(params=[False])
+def fail_wget_attach(request):
+    yield request.param
+
+
 @pytest.fixture
-def monkeypatch_for_run(monkeypatch, lxc_stub, stub_function_class):
+def monkeypatch_for_run(
+    monkeypatch, lxc_stub, stub_function_class, fail_wget_attach
+):
     old_run_command = psef.auto_test.StartedContainer._run_command
     psef.auto_test._STOP_CONTAINERS.clear()
 
@@ -54,6 +63,8 @@ def monkeypatch_for_run(monkeypatch, lxc_stub, stub_function_class):
         elif '/etc/sudoers' in cmd:
             signal_start()
             return 0
+        elif 'wget' == cmd[0] and fail_wget_attach:
+            os.execvp('sleep', ['sleep', 'inf'])
 
         return old_run_command(self, cmd_user)
 
@@ -1918,3 +1929,56 @@ def test_copy_auto_test(
             data={'assignment_id': new_assig_id}
         )
         assert 'already has an AutoTest' in err['message']
+
+
+@pytest.mark.parametrize(
+    'use_transaction,fail_wget_attach', [(False, True)], indirect=True
+)
+def test_failing_attach(
+    monkeypatch_celery, basic, test_client, logged_in, describe, live_server,
+    lxc_stub, monkeypatch, app, session, stub_function_class, assert_similar,
+    monkeypatch_for_run
+):
+    with describe('setup'):
+        course, assig_id, teacher, student = basic
+        ses = requests_stubs.Session()
+        monkeypatch.setattr(psef.helpers, 'BrokerSession', lambda *_: ses)
+
+        with logged_in(teacher):
+            # yapf: disable
+            test = helpers.create_auto_test_from_dict(
+                test_client, assig_id, {
+                    'sets': [{
+                        'suites': [{
+                            'steps': [{
+                                'run_p': 'cp -r $STUDENT $AT_OUTPUT',
+                                'name': 'Copy all files',
+                            }]
+                        }],
+                    }]
+                }
+            )
+            # yapf: enable
+        url = f'/api/v1/auto_tests/{test["id"]}'
+
+    with describe('start_auto_test'):
+        with logged_in(teacher):
+            work = helpers.create_submission(
+                test_client, assig_id, for_user=student.username
+            )
+
+            session.commit()
+
+        with logged_in(teacher):
+            test_client.req('post', f'{url}/runs/', 200)['id']
+            session.commit()
+
+        live_server_url, stop_server = live_server(get_stop=True)
+        # It should throw an attach somewhere in the code, which should not
+        # make the tests stuck. So the tests pass when this function returns
+        # and the result is not finished.
+        psef.auto_test.start_polling(app.config, False)
+
+        res = session.query(m.AutoTestResult).filter_by(work_id=work['id']
+                                                        ).one()
+        assert res.state == m.AutoTestStepResultState.not_started
