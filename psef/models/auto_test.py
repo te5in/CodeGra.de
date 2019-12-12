@@ -1266,10 +1266,12 @@ class AutoTest(Base, TimestampMixin, IdMixin):
         )
         results = [run.make_result(work_id) for work_id, in work_ids]
         db.session.bulk_save_objects(results)
-        psef.helpers.callback_after_this_request(
-            lambda: psef.tasks.
-            notify_broker_of_new_job(run.id, run.get_amount_needed_runners())
-        )
+        if results:
+            psef.helpers.callback_after_this_request(
+                lambda: psef.tasks.notify_broker_of_new_job(
+                    run.id, run.get_amount_needed_runners()
+                )
+            )
         return run
 
     @property

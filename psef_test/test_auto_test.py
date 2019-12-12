@@ -1945,7 +1945,6 @@ def test_failing_attach(
         monkeypatch.setattr(psef.helpers, 'BrokerSession', lambda *_: ses)
 
         with logged_in(teacher):
-            # yapf: disable
             test = helpers.create_auto_test_from_dict(
                 test_client, assig_id, {
                     'sets': [{
@@ -1958,7 +1957,7 @@ def test_failing_attach(
                     }]
                 }
             )
-            # yapf: enable
+
         url = f'/api/v1/auto_tests/{test["id"]}'
 
     with describe('start_auto_test'):
@@ -1982,3 +1981,36 @@ def test_failing_attach(
         res = session.query(m.AutoTestResult).filter_by(work_id=work['id']
                                                         ).one()
         assert res.state == m.AutoTestStepResultState.not_started
+
+
+def test_starting_at_run_without_submissions(
+    basic, test_client, logged_in, describe, session, monkeypatch,
+    stub_function_class
+):
+    with describe('setup'):
+        course, assig_id, teacher, student = basic
+
+        stub_notify = stub_function_class()
+        monkeypatch.setattr(
+            psef.tasks, 'notify_broker_of_new_job', stub_notify
+        )
+
+        with logged_in(teacher):
+            test = helpers.create_auto_test_from_dict(
+                test_client, assig_id, {
+                    'sets': [{
+                        'suites': [{
+                            'steps': [{
+                                'run_p': 'cp -r $STUDENT $AT_OUTPUT',
+                                'name': 'Copy all files',
+                            }]
+                        }],
+                    }]
+                }
+            )
+
+        url = f'/api/v1/auto_tests/{test["id"]}'
+
+    with describe("Starting AT run doesn't notify broker"), logged_in(teacher):
+        test_client.req('post', f'{url}/runs/', 200)
+        assert not stub_notify.called
