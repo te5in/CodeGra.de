@@ -1664,10 +1664,10 @@
                 <span class="n">stdin</span><span class="o">=</span><span class="n">stdin_file</span><span class="p">,</span>
             <span class="p">)</span>
 
-            <span class="n">res</span> <span class="o">=</span> <span class="n">_wait_for_attach</span><span class="p">(</span><span class="n">pid</span><span class="p">,</span> <span class="n">command_started</span><span class="p">)</span>
             <span class="n">left</span> <span class="o">=</span> <span class="mf">0.0</span>
 
             <span class="k">try</span><span class="p">:</span>
+                <span class="n">res</span> <span class="o">=</span> <span class="n">_wait_for_attach</span><span class="p">(</span><span class="n">pid</span><span class="p">,</span> <span class="n">command_started</span><span class="p">)</span>
                 <span class="k">if</span> <span class="n">res</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
                     <span class="n">res</span><span class="p">,</span> <span class="n">left</span> <span class="o">=</span> <span class="n">_wait_for_pid</span><span class="p">(</span><span class="n">pid</span><span class="p">,</span> <span class="n">timeout</span> <span class="ow">or</span> <span class="n">sys</span><span class="o">.</span><span class="n">maxsize</span><span class="p">)</span>
             <span class="k">except</span> <span class="n">CommandTimeoutException</span><span class="p">:</span>
@@ -2267,6 +2267,7 @@
                 <span class="p">)</span>
             <span class="k">return</span> <span class="kc">False</span>
         <span class="k">except</span> <span class="n">StopRunningTestsException</span><span class="p">:</span>
+            <span class="n">result_state</span> <span class="o">=</span> <span class="kc">None</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;Stop running steps&#39;</span><span class="p">,</span> <span class="n">exc_info</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
             <span class="k">raise</span>
         <span class="k">except</span><span class="p">:</span>
