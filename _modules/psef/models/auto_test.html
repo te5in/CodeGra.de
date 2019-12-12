@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>psef.models.auto_test &mdash; CodeGrade v1.16.6 documentation</title>
+  <title>psef.models.auto_test &mdash; CodeGrade v1.16.8 documentation</title>
   
 
   
@@ -65,7 +65,7 @@
             
             
               <div class="version">
-                v1.16.6
+                v1.16.8
               </div>
             
           
@@ -1464,10 +1464,12 @@
         <span class="p">)</span>
         <span class="n">results</span> <span class="o">=</span> <span class="p">[</span><span class="n">run</span><span class="o">.</span><span class="n">make_result</span><span class="p">(</span><span class="n">work_id</span><span class="p">)</span> <span class="k">for</span> <span class="n">work_id</span><span class="p">,</span> <span class="ow">in</span> <span class="n">work_ids</span><span class="p">]</span>
         <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">bulk_save_objects</span><span class="p">(</span><span class="n">results</span><span class="p">)</span>
-        <span class="n">psef</span><span class="o">.</span><span class="n">helpers</span><span class="o">.</span><span class="n">callback_after_this_request</span><span class="p">(</span>
-            <span class="k">lambda</span><span class="p">:</span> <span class="n">psef</span><span class="o">.</span><span class="n">tasks</span><span class="o">.</span>
-            <span class="n">notify_broker_of_new_job</span><span class="p">(</span><span class="n">run</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">run</span><span class="o">.</span><span class="n">get_amount_needed_runners</span><span class="p">())</span>
-        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">results</span><span class="p">:</span>
+            <span class="n">psef</span><span class="o">.</span><span class="n">helpers</span><span class="o">.</span><span class="n">callback_after_this_request</span><span class="p">(</span>
+                <span class="k">lambda</span><span class="p">:</span> <span class="n">psef</span><span class="o">.</span><span class="n">tasks</span><span class="o">.</span><span class="n">notify_broker_of_new_job</span><span class="p">(</span>
+                    <span class="n">run</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">run</span><span class="o">.</span><span class="n">get_amount_needed_runners</span><span class="p">()</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
         <span class="k">return</span> <span class="n">run</span></div>
 
     <span class="nd">@property</span>
