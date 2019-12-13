@@ -160,8 +160,8 @@ export default {
 
 <style lang="less" scoped>
 .image-viewer {
-    min-height: 10rem;
     padding: 0;
+    overflow: auto !important;
 
     .img {
         display: block;
@@ -178,5 +178,6 @@ export default {
     display: flex;
     flex-direction: column;
     align-items: center;
+    min-height: 10rem;
 }
 </style>
