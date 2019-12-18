@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>psef.permissions &mdash; CodeGrade v1.16.8 documentation</title>
+  <title>psef.permissions &mdash; CodeGrade v1.16.10 documentation</title>
   
 
   
@@ -65,7 +65,7 @@
             
             
               <div class="version">
-                v1.16.8
+                v1.16.10
               </div>
             
           
@@ -381,6 +381,7 @@
 <span class="sd">    :ivar can_view_autotest_step_details: Users with this permission are allowed to see the details of non hidden AutoTest steps</span>
 <span class="sd">    :ivar can_view_autotest_fixture: Users with this permission are allowed to see non hidden AutoTest fixtures</span>
 <span class="sd">    :ivar can_view_autotest_output_files_before_done: Users with this permission can view output files created during an AutoTest before the assignment state is &quot;done&quot;</span>
+<span class="sd">    :ivar can_delete_assignments: Users with this permission can delete assignments within this course.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="nd">@staticmethod</span>
@@ -432,7 +433,8 @@
     <span class="n">can_view_autotest_before_done</span> <span class="o">=</span> <span class="n">_PermissionValue</span><span class="p">(</span><span class="n">item</span><span class="o">=</span><span class="mi">42</span><span class="p">,</span> <span class="n">default_value</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
     <span class="n">can_view_autotest_step_details</span> <span class="o">=</span> <span class="n">_PermissionValue</span><span class="p">(</span><span class="n">item</span><span class="o">=</span><span class="mi">43</span><span class="p">,</span> <span class="n">default_value</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
     <span class="n">can_view_autotest_fixture</span> <span class="o">=</span> <span class="n">_PermissionValue</span><span class="p">(</span><span class="n">item</span><span class="o">=</span><span class="mi">44</span><span class="p">,</span> <span class="n">default_value</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-    <span class="n">can_view_autotest_output_files_before_done</span> <span class="o">=</span> <span class="n">_PermissionValue</span><span class="p">(</span><span class="n">item</span><span class="o">=</span><span class="mi">45</span><span class="p">,</span> <span class="n">default_value</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></div>
+    <span class="n">can_view_autotest_output_files_before_done</span> <span class="o">=</span> <span class="n">_PermissionValue</span><span class="p">(</span><span class="n">item</span><span class="o">=</span><span class="mi">45</span><span class="p">,</span> <span class="n">default_value</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">can_delete_assignments</span> <span class="o">=</span> <span class="n">_PermissionValue</span><span class="p">(</span><span class="n">item</span><span class="o">=</span><span class="mi">46</span><span class="p">,</span> <span class="n">default_value</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></div>
 
 <span class="c1"># yapf: enable</span>
 </pre></div>

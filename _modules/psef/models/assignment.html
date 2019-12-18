@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>psef.models.assignment &mdash; CodeGrade v1.16.8 documentation</title>
+  <title>psef.models.assignment &mdash; CodeGrade v1.16.10 documentation</title>
   
 
   
@@ -65,7 +65,7 @@
             
             
               <div class="version">
-                v1.16.8
+                v1.16.10
               </div>
             
           
@@ -641,7 +641,7 @@
         <span class="n">order_by</span><span class="o">=</span><span class="s2">&quot;RubricRow.created_at&quot;</span>
     <span class="p">)</span>  <span class="c1"># type: t.MutableSequence[&#39;rubric_models.RubricRow&#39;]</span>
 
-    <span class="n">group_set_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+    <span class="n">group_set_id</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;group_set_id&#39;</span><span class="p">,</span>
         <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span>
         <span class="n">db</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="s1">&#39;GroupSet.id&#39;</span><span class="p">),</span>
@@ -682,6 +682,14 @@
     <span class="p">)</span>
     <span class="n">webhook_upload_enabled</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;webhook_upload_enabled&#39;</span><span class="p">,</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">Boolean</span><span class="p">,</span>
+        <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">server_default</span><span class="o">=</span><span class="s1">&#39;false&#39;</span><span class="p">,</span>
+        <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="n">deleted</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+        <span class="s1">&#39;deleted&#39;</span><span class="p">,</span>
         <span class="n">db</span><span class="o">.</span><span class="n">Boolean</span><span class="p">,</span>
         <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
         <span class="n">server_default</span><span class="o">=</span><span class="s1">&#39;false&#39;</span><span class="p">,</span>

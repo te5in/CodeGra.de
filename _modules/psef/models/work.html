@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>psef.models.work &mdash; CodeGrade v1.16.8 documentation</title>
+  <title>psef.models.work &mdash; CodeGrade v1.16.10 documentation</title>
   
 
   
@@ -65,7 +65,7 @@
             
             
               <div class="version">
-                v1.16.8
+                v1.16.10
               </div>
             
           
@@ -210,7 +210,7 @@
 <span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">defaultdict</span>
 
 <span class="kn">import</span> <span class="nn">sqlalchemy.sql</span> <span class="k">as</span> <span class="nn">sql</span>
-<span class="kn">from</span> <span class="nn">sqlalchemy</span> <span class="kn">import</span> <span class="n">orm</span>
+<span class="kn">from</span> <span class="nn">sqlalchemy</span> <span class="kn">import</span> <span class="n">orm</span><span class="p">,</span> <span class="n">select</span>
 <span class="kn">from</span> <span class="nn">sqlalchemy.types</span> <span class="kn">import</span> <span class="n">JSON</span>
 
 <span class="kn">import</span> <span class="nn">psef</span>
@@ -219,6 +219,7 @@
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">file</span> <span class="k">as</span> <span class="n">file_models</span>
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">group</span> <span class="k">as</span> <span class="n">group_models</span>
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">_MyQuery</span>
+<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">assignment</span> <span class="k">as</span> <span class="n">assignment_models</span>
 <span class="kn">from</span> <span class="nn">..</span> <span class="kn">import</span> <span class="n">auth</span><span class="p">,</span> <span class="n">helpers</span><span class="p">,</span> <span class="n">features</span>
 <span class="kn">from</span> <span class="nn">.linter</span> <span class="kn">import</span> <span class="n">LinterState</span><span class="p">,</span> <span class="n">LinterComment</span><span class="p">,</span> <span class="n">LinterInstance</span>
 <span class="kn">from</span> <span class="nn">.rubric</span> <span class="kn">import</span> <span class="n">RubricItem</span>
@@ -229,9 +230,11 @@
 <span class="kn">from</span> <span class="nn">..permissions</span> <span class="kn">import</span> <span class="n">CoursePermission</span>
 
 <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">TYPE_CHECKING</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
-    <span class="c1"># pylint: disable=unused-import</span>
+    <span class="c1"># pylint: disable=unused-import, invalid-name</span>
     <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">user</span> <span class="k">as</span> <span class="n">user_models</span>
-    <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">assignment</span> <span class="k">as</span> <span class="n">assignment_models</span>
+    <span class="n">hybrid_property</span> <span class="o">=</span> <span class="nb">property</span>
+<span class="k">else</span><span class="p">:</span>
+    <span class="kn">from</span> <span class="nn">sqlalchemy.ext.hybrid</span> <span class="kn">import</span> <span class="n">hybrid_property</span>
 
 
 <div class="viewcode-block" id="GradeOrigin"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.work.GradeOrigin">[docs]</a><span class="k">class</span> <span class="nc">GradeOrigin</span><span class="p">(</span><span class="n">enum</span><span class="o">.</span><span class="n">Enum</span><span class="p">):</span>
@@ -396,7 +399,7 @@
     <span class="p">)</span>  <span class="c1"># type: t.Optional[user_models.User]</span>
 
     <span class="n">grade_histories</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="s1">&#39;GradeHistory&#39;</span><span class="p">]</span>
-    <span class="n">deleted</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+    <span class="n">_deleted</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;deleted&#39;</span><span class="p">,</span>
         <span class="n">db</span><span class="o">.</span><span class="n">Boolean</span><span class="p">,</span>
         <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
@@ -418,6 +421,31 @@
 
     <span class="c1"># This variable is generated from the backref from all files</span>
     <span class="n">files</span><span class="p">:</span> <span class="s1">&#39;t.List[&quot;file_models.File&quot;]&#39;</span>
+
+    <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">TYPE_CHECKING</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
+        <span class="n">deleted</span><span class="p">:</span> <span class="nb">bool</span>
+    <span class="k">else</span><span class="p">:</span>
+
+        <span class="nd">@hybrid_property</span>
+        <span class="k">def</span> <span class="nf">deleted</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+            <span class="sd">&quot;&quot;&quot;Is this submission deleted.</span>
+<span class="sd">            &quot;&quot;&quot;</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_deleted</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">assignment</span><span class="o">.</span><span class="n">deleted</span>
+
+        <span class="nd">@deleted</span><span class="o">.</span><span class="n">expression</span>
+        <span class="k">def</span> <span class="nf">deleted</span><span class="p">(</span><span class="bp">cls</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Type</span><span class="p">[</span><span class="s1">&#39;Work&#39;</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">object</span><span class="p">:</span>
+            <span class="sd">&quot;&quot;&quot;Get a query that checks if this submission is deleted.</span>
+<span class="sd">            &quot;&quot;&quot;</span>
+            <span class="c1"># pylint: disable=no-self-argument</span>
+            <span class="k">return</span> <span class="n">select</span><span class="p">(</span>
+                <span class="p">[</span><span class="n">sql</span><span class="o">.</span><span class="n">or_</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="n">_deleted</span><span class="p">,</span> <span class="n">assignment_models</span><span class="o">.</span><span class="n">Assignment</span><span class="o">.</span><span class="n">deleted</span><span class="p">)]</span>
+            <span class="p">)</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
+                <span class="bp">cls</span><span class="o">.</span><span class="n">assignment_id</span> <span class="o">==</span> <span class="n">assignment_models</span><span class="o">.</span><span class="n">Assignment</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+            <span class="p">)</span><span class="o">.</span><span class="n">label</span><span class="p">(</span><span class="s1">&#39;deleted&#39;</span><span class="p">)</span>
+
+        <span class="nd">@deleted</span><span class="o">.</span><span class="n">setter</span>
+        <span class="k">def</span> <span class="nf">deleted</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">new_value</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_deleted</span> <span class="o">=</span> <span class="n">new_value</span>
 
 <div class="viewcode-block" id="Work.divide_new_work"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.work.Work.divide_new_work">[docs]</a>    <span class="k">def</span> <span class="nf">divide_new_work</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Divide a freshly created work.</span>

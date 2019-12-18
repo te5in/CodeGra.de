@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>CodeGrade API &mdash; CodeGrade v1.16.8 documentation</title>
+  <title>CodeGrade API &mdash; CodeGrade v1.16.10 documentation</title>
   
 
   
@@ -67,7 +67,7 @@
             
             
               <div class="version">
-                v1.16.8
+                v1.16.10
               </div>
             
           
@@ -443,386 +443,390 @@ working.</p>
 <td>Start linting an assignment with a given linter.</td>
 </tr>
 <tr class="row-odd"><td>&#160;</td>
+<td><a class="reference external" href="#delete--api-v1-assignments-(int-assignment_id)">DELETE /api/v1/assignments/(int:assignment_id)</a></td>
+<td>Delete a single assignment by id.</td>
+</tr>
+<tr class="row-even"><td>&#160;</td>
 <td><a class="reference external" href="#get--api-v1-assignments-(int-assignment_id)">GET /api/v1/assignments/(int:assignment_id)</a></td>
 <td>Get a single assignment by id.</td>
 </tr>
-<tr class="row-even"><td>&#160;</td>
+<tr class="row-odd"><td>&#160;</td>
 <td><a class="reference external" href="#patch--api-v1-assignments-(int-assignment_id)">PATCH /api/v1/assignments/(int:assignment_id)</a></td>
 <td>Update assignment information.</td>
 </tr>
-<tr class="row-odd"><td>AutoTest</td>
+<tr class="row-even"><td>AutoTest</td>
 <td><a class="reference external" href="#post--api-v1-auto_tests-">POST /api/v1/auto_tests/</a></td>
 <td>Create a new AutoTest configuration.</td>
 </tr>
-<tr class="row-even"><td>&#160;</td>
+<tr class="row-odd"><td>&#160;</td>
 <td><a class="reference external" href="#get--api-v1-auto_tests-(int-auto_test_id)-runs-(int-run_id)-users-(int-user_id)-results-">GET /api/v1/auto_tests/(int:auto_test_id)/runs/(int:run_id)/users/(int:user_id)/results/</a></td>
 <td>Get all AutoTest results for a given.</td>
 </tr>
-<tr class="row-odd"><td>&#160;</td>
-<td><a class="reference external" href="#delete--api-v1-auto_tests-(int-auto_test_id)-fixtures-(int-fixture_id)-hide">DELETE /api/v1/auto_tests/(int:auto_test_id)/fixtures/(int:fixture_id)/hide</a></td>
+<tr class="row-even"><td>&#160;</td>
+<td><a class="reference external" href="#delete--api-v1-auto_tests-(int-at_id)-fixtures-(int-fixture_id)-hide">DELETE /api/v1/auto_tests/(int:at_id)/fixtures/(int:fixture_id)/hide</a></td>
 <td>Change the hidden state of a fixture.</td>
 </tr>
-<tr class="row-even"><td>&#160;</td>
-<td><a class="reference external" href="#post--api-v1-auto_tests-(int-auto_test_id)-fixtures-(int-fixture_id)-hide">POST /api/v1/auto_tests/(int:auto_test_id)/fixtures/(int:fixture_id)/hide</a></td>
+<tr class="row-odd"><td>&#160;</td>
+<td><a class="reference external" href="#post--api-v1-auto_tests-(int-at_id)-fixtures-(int-fixture_id)-hide">POST /api/v1/auto_tests/(int:at_id)/fixtures/(int:fixture_id)/hide</a></td>
 <td>&#160;</td>
 </tr>
-<tr class="row-odd"><td>&#160;</td>
+<tr class="row-even"><td>&#160;</td>
 <td><a class="reference external" href="#get--api-v1-auto_tests-(int-auto_test_id)-runs-(int-run_id)-results-(int-result_id)">GET /api/v1/auto_tests/(int:auto_test_id)/runs/(int:run_id)/results/(int:result_id)</a></td>
 <td>Get the extended version of a single result.</td>
 </tr>
-<tr class="row-even"><td>&#160;</td>
+<tr class="row-odd"><td>&#160;</td>
 <td><a class="reference external" href="#delete--api-v1-auto_tests-(int-test_id)-sets-(int-set_id)-suites-(int-suite_id)">DELETE /api/v1/auto_tests/(int:test_id)/sets/(int:set_id)/suites/(int:suite_id)</a></td>
 <td>Delete a suite of an AutoTest.</td>
 </tr>
-<tr class="row-odd"><td>&#160;</td>
+<tr class="row-even"><td>&#160;</td>
 <td><a class="reference external" href="#patch--api-v1-auto_tests-(int-auto_test_id)-sets-(int-auto_test_set_id)-suites-">PATCH /api/v1/auto_tests/(int:auto_test_id)/sets/(int:auto_test_set_id)/suites/</a></td>
 <td>Update an AutoTest suite/category.</td>
 </tr>
-<tr class="row-even"><td>&#160;</td>
-<td><a class="reference external" href="#get--api-v1-auto_tests-(int-auto_test_id)-fixtures-(int-fixture_id)">GET /api/v1/auto_tests/(int:auto_test_id)/fixtures/(int:fixture_id)</a></td>
+<tr class="row-odd"><td>&#160;</td>
+<td><a class="reference external" href="#get--api-v1-auto_tests-(int-at_id)-fixtures-(int-fixture_id)">GET /api/v1/auto_tests/(int:at_id)/fixtures/(int:fixture_id)</a></td>
 <td>Get the contents of a fixture.</td>
 </tr>
-<tr class="row-odd"><td>&#160;</td>
+<tr class="row-even"><td>&#160;</td>
 <td><a class="reference external" href="#patch--api-v1-auto_tests-(int-auto_test_id)-sets-(int-auto_test_set_id)">PATCH /api/v1/auto_tests/(int:auto_test_id)/sets/(int:auto_test_set_id)</a></td>
 <td>Update a single AutoTest set.</td>
 </tr>
-<tr class="row-even"><td>&#160;</td>
+<tr class="row-odd"><td>&#160;</td>
 <td><a class="reference external" href="#delete--api-v1-auto_tests-(int-auto_test_id)-sets-(int-auto_test_set_id)">DELETE /api/v1/auto_tests/(int:auto_test_id)/sets/(int:auto_test_set_id)</a></td>
 <td>Delete a single AutoTest set.</td>
 </tr>
-<tr class="row-odd"><td>&#160;</td>
+<tr class="row-even"><td>&#160;</td>
 <td><a class="reference external" href="#get--api-v1-auto_tests-(int-auto_test_id)-runs-(int-run_id)">GET /api/v1/auto_tests/(int:auto_test_id)/runs/(int:run_id)</a></td>
 <td>Get the extended details of an AutoTest run.</td>
 </tr>
-<tr class="row-even"><td>&#160;</td>
+<tr class="row-odd"><td>&#160;</td>
 <td><a class="reference external" href="#delete--api-v1-auto_tests-(int-auto_test_id)-runs-(int-run_id)">DELETE /api/v1/auto_tests/(int:auto_test_id)/runs/(int:run_id)</a></td>
 <td>Delete the the given AutoTest run.</td>
 </tr>
-<tr class="row-odd"><td>&#160;</td>
+<tr class="row-even"><td>&#160;</td>
 <td><a class="reference external" href="#post--api-v1-auto_tests-(int-auto_test_id)-sets-">POST /api/v1/auto_tests/(int:auto_test_id)/sets/</a></td>
 <td>Create a set within an AutoTest.</td>
 </tr>
-<tr class="row-even"><td>&#160;</td>
+<tr class="row-odd"><td>&#160;</td>
 <td><a class="reference external" href="#post--api-v1-auto_tests-(int-auto_test_id)-runs-">POST /api/v1/auto_tests/(int:auto_test_id)/runs/</a></td>
 <td>Start a run for a given AutoTest.</td>
 </tr>
-<tr class="row-odd"><td>&#160;</td>
+<tr class="row-even"><td>&#160;</td>
 <td><a class="reference external" href="#post--api-v1-auto_tests-(int-auto_test_id)-copy">POST /api/v1/auto_tests/(int:auto_test_id)/copy</a></td>
 <td>Copy an AutoTest config to another assignment.</td>
 </tr>
-<tr class="row-even"><td>&#160;</td>
+<tr class="row-odd"><td>&#160;</td>
 <td><a class="reference external" href="#delete--api-v1-auto_tests-(int-auto_test_id)">DELETE /api/v1/auto_tests/(int:auto_test_id)</a></td>
 <td>Delete the given AutoTest.</td>
 </tr>
-<tr class="row-odd"><td>&#160;</td>
+<tr class="row-even"><td>&#160;</td>
 <td><a class="reference external" href="#patch--api-v1-auto_tests-(int-auto_test_id)">PATCH /api/v1/auto_tests/(int:auto_test_id)</a></td>
 <td>Change the settings/upload fixtures to an AutoTest.</td>
 </tr>
-<tr class="row-even"><td>&#160;</td>
+<tr class="row-odd"><td>&#160;</td>
 <td><a class="reference external" href="#get--api-v1-auto_tests-(int-auto_test_id)">GET /api/v1/auto_tests/(int:auto_test_id)</a></td>
 <td>Get the extended version of an AutTest.</td>
 </tr>
-<tr class="row-odd"><td>Code</td>
+<tr class="row-even"><td>Code</td>
 <td><a class="reference external" href="#put--api-v1-code-(int-code_id)-comments-(int-line)">PUT /api/v1/code/(int:code_id)/comments/(int:line)</a></td>
 <td>Add or change a comment.</td>
 </tr>
-<tr class="row-even"><td>&#160;</td>
+<tr class="row-odd"><td>&#160;</td>
 <td><a class="reference external" href="#delete--api-v1-code-(int-code_id)-comments-(int-line)">DELETE /api/v1/code/(int:code_id)/comments/(int:line)</a></td>
 <td>Remove a comment.</td>
 </tr>
-<tr class="row-odd"><td>&#160;</td>
+<tr class="row-even"><td>&#160;</td>
 <td><a class="reference external" href="#get--api-v1-code-(int-file_id)">GET /api/v1/code/(int:file_id)</a></td>
 <td>Get code or its metadata.</td>
 </tr>
-<tr class="row-even"><td>&#160;</td>
+<tr class="row-odd"><td>&#160;</td>
 <td><a class="reference external" href="#delete--api-v1-code-(int-file_id)">DELETE /api/v1/code/(int:file_id)</a></td>
 <td>Delete the given file.</td>
 </tr>
-<tr class="row-odd"><td>&#160;</td>
+<tr class="row-even"><td>&#160;</td>
 <td><a class="reference external" href="#patch--api-v1-code-(int-file_id)">PATCH /api/v1/code/(int:file_id)</a></td>
 <td>Update the content or name of the given file.</td>
 </tr>
-<tr class="row-even"><td>Course</td>
+<tr class="row-odd"><td>Course</td>
 <td><a class="reference external" href="#post--api-v1-courses-">POST /api/v1/courses/</a></td>
 <td>Add a new course.</td>
 </tr>
-<tr class="row-odd"><td>&#160;</td>
+<tr class="row-even"><td>&#160;</td>
 <td><a class="reference external" href="#get--api-v1-courses-">GET /api/v1/courses/</a></td>
 <td>Get all courses the current user is enrolled in.</td>
 </tr>
-<tr class="row-even"><td>&#160;</td>
+<tr class="row-odd"><td>&#160;</td>
 <td><a class="reference external" href="#post--api-v1-courses-(int-course_id)-registration_links-(uuid-link_id)-user">POST /api/v1/courses/(int:course_id)/registration_links/(uuid:link_id)/user</a></td>
 <td>Register as a new user, and enroll in a course.</td>
 </tr>
-<tr class="row-odd"><td>&#160;</td>
+<tr class="row-even"><td>&#160;</td>
 <td><a class="reference external" href="#delete--api-v1-courses-(int-course_id)-registration_links-(uuid-link_id)">DELETE /api/v1/courses/(int:course_id)/registration_links/(uuid:link_id)</a></td>
 <td>The delete a registration link of the given course.</td>
 </tr>
-<tr class="row-even"><td>&#160;</td>
+<tr class="row-odd"><td>&#160;</td>
 <td><a class="reference external" href="#get--api-v1-courses-(int-course_id)-registration_links-">GET /api/v1/courses/(int:course_id)/registration_links/</a></td>
 <td>Get the registration links for this course.</td>
 </tr>
-<tr class="row-odd"><td>&#160;</td>
+<tr class="row-even"><td>&#160;</td>
 <td><a class="reference external" href="#put--api-v1-courses-(int-course_id)-registration_links-">PUT /api/v1/courses/(int:course_id)/registration_links/</a></td>
 <td>Create or edit a registration link for a course.</td>
 </tr>
-<tr class="row-even"><td>&#160;</td>
+<tr class="row-odd"><td>&#160;</td>
 <td><a class="reference external" href="#get--api-v1-courses-(int-course_id)-assignments-">GET /api/v1/courses/(int:course_id)/assignments/</a></td>
 <td>Get all assignments for single course.</td>
 </tr>
-<tr class="row-odd"><td>&#160;</td>
+<tr class="row-even"><td>&#160;</td>
 <td><a class="reference external" href="#post--api-v1-courses-(int-course_id)-assignments-">POST /api/v1/courses/(int:course_id)/assignments/</a></td>
 <td>Create a new assignment in a course.</td>
 </tr>
-<tr class="row-even"><td>&#160;</td>
+<tr class="row-odd"><td>&#160;</td>
 <td><a class="reference external" href="#get--api-v1-courses-(int-course_id)-permissions-">GET /api/v1/courses/(int:course_id)/permissions/</a></td>
 <td>Get all the course permissions for the current user.</td>
 </tr>
-<tr class="row-odd"><td>&#160;</td>
+<tr class="row-even"><td>&#160;</td>
 <td><a class="reference external" href="#get--api-v1-courses-(int-course_id)-group_sets-">GET /api/v1/courses/(int:course_id)/group_sets/</a></td>
 <td>Get all group sets in the course.</td>
 </tr>
-<tr class="row-even"><td>&#160;</td>
+<tr class="row-odd"><td>&#160;</td>
 <td><a class="reference external" href="#put--api-v1-courses-(int-course_id)-group_sets-">PUT /api/v1/courses/(int:course_id)/group_sets/</a></td>
 <td>Create a new group set in the course.</td>
 </tr>
-<tr class="row-odd"><td>&#160;</td>
+<tr class="row-even"><td>&#160;</td>
 <td><a class="reference external" href="#delete--api-v1-courses-(int-course_id)-roles-(int-role_id)">DELETE /api/v1/courses/(int:course_id)/roles/(int:role_id)</a></td>
 <td>Delete a course role from a course.</td>
 </tr>
-<tr class="row-even"><td>&#160;</td>
+<tr class="row-odd"><td>&#160;</td>
 <td><a class="reference external" href="#patch--api-v1-courses-(int-course_id)-roles-(int-role_id)">PATCH /api/v1/courses/(int:course_id)/roles/(int:role_id)</a></td>
 <td>Update a permission for a certain role.</td>
 </tr>
-<tr class="row-odd"><td>&#160;</td>
+<tr class="row-even"><td>&#160;</td>
 <td><a class="reference external" href="#post--api-v1-courses-(int-course_id)-roles-">POST /api/v1/courses/(int:course_id)/roles/</a></td>
 <td>Add a new course role to a course.</td>
 </tr>
-<tr class="row-even"><td>&#160;</td>
+<tr class="row-odd"><td>&#160;</td>
 <td><a class="reference external" href="#get--api-v1-courses-(int-course_id)-roles-">GET /api/v1/courses/(int:course_id)/roles/</a></td>
 <td>Get all course roles for a single course.</td>
 </tr>
-<tr class="row-odd"><td>&#160;</td>
+<tr class="row-even"><td>&#160;</td>
 <td><a class="reference external" href="#put--api-v1-courses-(int-course_id)-users-">PUT /api/v1/courses/(int:course_id)/users/</a></td>
 <td>Change the course role for a user.</td>
 </tr>
-<tr class="row-even"><td>&#160;</td>
+<tr class="row-odd"><td>&#160;</td>
 <td><a class="reference external" href="#get--api-v1-courses-(int-course_id)-users-">GET /api/v1/courses/(int:course_id)/users/</a></td>
 <td>Get all users for a single course.</td>
 </tr>
-<tr class="row-odd"><td>&#160;</td>
+<tr class="row-even"><td>&#160;</td>
 <td><a class="reference external" href="#get--api-v1-courses-(int-course_id)">GET /api/v1/courses/(int:course_id)</a></td>
 <td>Get data for a given course.</td>
 </tr>
-<tr class="row-even"><td>CourseSnippet</td>
+<tr class="row-odd"><td>CourseSnippet</td>
 <td><a class="reference external" href="#patch--api-v1-courses-(int-course_id)-snippets-(int-snippet_id)">PATCH /api/v1/courses/(int:course_id)/snippets/(int:snippet_id)</a></td>
 <td>Change a snippets key and value.</td>
 </tr>
-<tr class="row-odd"><td>&#160;</td>
+<tr class="row-even"><td>&#160;</td>
 <td><a class="reference external" href="#delete--api-v1-courses-(int-course_id)-snippets-(int-snippet_id)">DELETE /api/v1/courses/(int:course_id)/snippets/(int:snippet_id)</a></td>
 <td>Delete a course snippet.</td>
 </tr>
-<tr class="row-even"><td>&#160;</td>
+<tr class="row-odd"><td>&#160;</td>
 <td><a class="reference external" href="#get--api-v1-courses-(int-course_id)-snippets-">GET /api/v1/courses/(int:course_id)/snippets/</a></td>
 <td>Get all snippets for the given course.</td>
 </tr>
-<tr class="row-odd"><td>&#160;</td>
+<tr class="row-even"><td>&#160;</td>
 <td><a class="reference external" href="#put--api-v1-courses-(int-course_id)-snippet">PUT /api/v1/courses/(int:course_id)/snippet</a></td>
 <td>Add or modify a course snippet.</td>
 </tr>
-<tr class="row-even"><td>File</td>
+<tr class="row-odd"><td>File</td>
 <td><a class="reference external" href="#post--api-v1-files-">POST /api/v1/files/</a></td>
 <td>Safe a file temporarily on the server.</td>
 </tr>
-<tr class="row-odd"><td>&#160;</td>
+<tr class="row-even"><td>&#160;</td>
 <td><a class="reference external" href="#get--api-v1-files-(file_name)-(name)">GET /api/v1/files/(file_name)/(name)</a></td>
 <td>Get an uploaded file directory.</td>
 </tr>
-<tr class="row-even"><td>&#160;</td>
+<tr class="row-odd"><td>&#160;</td>
 <td><a class="reference external" href="#get--api-v1-files-(file_name)">GET /api/v1/files/(file_name)</a></td>
 <td>&#160;</td>
 </tr>
-<tr class="row-odd"><td>Group</td>
+<tr class="row-even"><td>Group</td>
 <td><a class="reference external" href="#delete--api-v1-groups-(int-group_id)-members-(int-user_id)">DELETE /api/v1/groups/(int:group_id)/members/(int:user_id)</a></td>
 <td>Remove a member from a group.</td>
 </tr>
-<tr class="row-even"><td>&#160;</td>
+<tr class="row-odd"><td>&#160;</td>
 <td><a class="reference external" href="#post--api-v1-groups-(int-group_id)-member">POST /api/v1/groups/(int:group_id)/member</a></td>
 <td>Add a member to a group.</td>
 </tr>
-<tr class="row-odd"><td>&#160;</td>
+<tr class="row-even"><td>&#160;</td>
 <td><a class="reference external" href="#post--api-v1-groups-(int-group_id)-name">POST /api/v1/groups/(int:group_id)/name</a></td>
 <td>Update the name of a group.</td>
 </tr>
-<tr class="row-even"><td>&#160;</td>
+<tr class="row-odd"><td>&#160;</td>
 <td><a class="reference external" href="#get--api-v1-groups-(int-group_id)">GET /api/v1/groups/(int:group_id)</a></td>
 <td>Get a single group by id.</td>
 </tr>
-<tr class="row-odd"><td>&#160;</td>
+<tr class="row-even"><td>&#160;</td>
 <td><a class="reference external" href="#delete--api-v1-groups-(int-group_id)">DELETE /api/v1/groups/(int:group_id)</a></td>
 <td>Delete a group by id.</td>
 </tr>
-<tr class="row-even"><td>GroupSet</td>
+<tr class="row-odd"><td>GroupSet</td>
 <td><a class="reference external" href="#get--api-v1-group_sets-(int-group_set_id)-groups-">GET /api/v1/group_sets/(int:group_set_id)/groups/</a></td>
 <td>Get the groups of this assignment.</td>
 </tr>
-<tr class="row-odd"><td>&#160;</td>
+<tr class="row-even"><td>&#160;</td>
 <td><a class="reference external" href="#post--api-v1-group_sets-(int-group_set_id)-group">POST /api/v1/group_sets/(int:group_set_id)/group</a></td>
 <td>Create a group in a given group set.</td>
 </tr>
-<tr class="row-even"><td>&#160;</td>
+<tr class="row-odd"><td>&#160;</td>
 <td><a class="reference external" href="#get--api-v1-group_sets-(int-group_set_id)">GET /api/v1/group_sets/(int:group_set_id)</a></td>
 <td>Get a single group set by id.</td>
 </tr>
-<tr class="row-odd"><td>&#160;</td>
+<tr class="row-even"><td>&#160;</td>
 <td><a class="reference external" href="#delete--api-v1-group_sets-(int-group_set_id)">DELETE /api/v1/group_sets/(int:group_set_id)</a></td>
 <td>Delete a single group set by id.</td>
 </tr>
-<tr class="row-even"><td>LTI</td>
+<tr class="row-odd"><td>LTI</td>
 <td><a class="reference external" href="#post--api-v1-lti-launch-1">POST /api/v1/lti/launch/1</a></td>
 <td>Do a LTI Launch.</td>
 </tr>
-<tr class="row-odd"><td>&#160;</td>
+<tr class="row-even"><td>&#160;</td>
 <td><a class="reference external" href="#post--api-v1-lti-launch-2">POST /api/v1/lti/launch/2</a></td>
 <td>Do the callback of a LTI launch.</td>
 </tr>
-<tr class="row-even"><td>&#160;</td>
+<tr class="row-odd"><td>&#160;</td>
 <td><a class="reference external" href="#get--api-v1-lti-">GET /api/v1/lti/</a></td>
 <td>Get the configuration for a LMS.</td>
 </tr>
-<tr class="row-odd"><td>Linter</td>
+<tr class="row-even"><td>Linter</td>
 <td><a class="reference external" href="#get--api-v1-linters-(linter_id)-linter_instances-(linter_instance_id)">GET /api/v1/linters/(linter_id)/linter_instances/(linter_instance_id)</a></td>
 <td>Get the state of a given linter.</td>
 </tr>
-<tr class="row-even"><td>&#160;</td>
+<tr class="row-odd"><td>&#160;</td>
 <td><a class="reference external" href="#delete--api-v1-linters-(linter_id)">DELETE /api/v1/linters/(linter_id)</a></td>
 <td>Delete all linter input for a given linter.</td>
 </tr>
-<tr class="row-odd"><td>&#160;</td>
+<tr class="row-even"><td>&#160;</td>
 <td><a class="reference external" href="#get--api-v1-linters-(linter_id)">GET /api/v1/linters/(linter_id)</a></td>
 <td>Get the state of a given linter.</td>
 </tr>
-<tr class="row-even"><td>Permission</td>
+<tr class="row-odd"><td>Permission</td>
 <td><a class="reference external" href="#get--api-v1-permissions-">GET /api/v1/permissions/</a></td>
 <td>Get global permissions or all the course permissions for the current user.</td>
 </tr>
-<tr class="row-odd"><td>Plagiarism</td>
+<tr class="row-even"><td>Plagiarism</td>
 <td><a class="reference external" href="#get--api-v1-plagiarism-">GET /api/v1/plagiarism/</a></td>
 <td>Get all plagiarism providers.</td>
 </tr>
-<tr class="row-even"><td>&#160;</td>
+<tr class="row-odd"><td>&#160;</td>
 <td><a class="reference external" href="#get--api-v1-plagiarism-(int-plagiarism_id)-cases-(int-case_id)">GET /api/v1/plagiarism/(int:plagiarism_id)/cases/(int:case_id)</a></td>
 <td>Get a single plagiarism case.</td>
 </tr>
-<tr class="row-odd"><td>&#160;</td>
+<tr class="row-even"><td>&#160;</td>
 <td><a class="reference external" href="#get--api-v1-plagiarism-(int-plagiarism_id)-cases-">GET /api/v1/plagiarism/(int:plagiarism_id)/cases/</a></td>
 <td>Get the cases for a plagiarism run.</td>
 </tr>
-<tr class="row-even"><td>&#160;</td>
+<tr class="row-odd"><td>&#160;</td>
 <td><a class="reference external" href="#delete--api-v1-plagiarism-(int-plagiarism_id)">DELETE /api/v1/plagiarism/(int:plagiarism_id)</a></td>
 <td>Delete a plagiarism run and all its cases.</td>
 </tr>
-<tr class="row-odd"><td>&#160;</td>
+<tr class="row-even"><td>&#160;</td>
 <td><a class="reference external" href="#get--api-v1-plagiarism-(int-plagiarism_id)">GET /api/v1/plagiarism/(int:plagiarism_id)</a></td>
 <td>Get a single plagiarism run.</td>
 </tr>
-<tr class="row-even"><td>Role</td>
+<tr class="row-odd"><td>Role</td>
 <td><a class="reference external" href="#get--api-v1-roles-">GET /api/v1/roles/</a></td>
 <td>Get all global roles with their permissions.</td>
 </tr>
-<tr class="row-odd"><td>&#160;</td>
+<tr class="row-even"><td>&#160;</td>
 <td><a class="reference external" href="#patch--api-v1-roles-(int-role_id)">PATCH /api/v1/roles/(int:role_id)</a></td>
 <td>Update a permission for a certain role.</td>
 </tr>
-<tr class="row-even"><td>Snippet</td>
+<tr class="row-odd"><td>Snippet</td>
 <td><a class="reference external" href="#get--api-v1-snippets-">GET /api/v1/snippets/</a></td>
 <td>Get all snippets for the currently logged in user.</td>
 </tr>
-<tr class="row-odd"><td>&#160;</td>
+<tr class="row-even"><td>&#160;</td>
 <td><a class="reference external" href="#put--api-v1-snippet">PUT /api/v1/snippet</a></td>
 <td>Add or modify a snippet.</td>
 </tr>
-<tr class="row-even"><td>&#160;</td>
+<tr class="row-odd"><td>&#160;</td>
 <td><a class="reference external" href="#patch--api-v1-snippets-(int-snippet_id)">PATCH /api/v1/snippets/(int:snippet_id)</a></td>
 <td>Change a snippets key and value.</td>
 </tr>
-<tr class="row-odd"><td>&#160;</td>
+<tr class="row-even"><td>&#160;</td>
 <td><a class="reference external" href="#delete--api-v1-snippets-(int-snippet_id)">DELETE /api/v1/snippets/(int:snippet_id)</a></td>
 <td>Delete a snippet.</td>
 </tr>
-<tr class="row-even"><td>Submission</td>
+<tr class="row-odd"><td>Submission</td>
 <td><a class="reference external" href="#get--api-v1-submissions-(int-submission_id)-grade_history-">GET /api/v1/submissions/(int:submission_id)/grade_history/</a></td>
 <td>Get the grade history for the given submission.</td>
 </tr>
-<tr class="row-odd"><td>&#160;</td>
+<tr class="row-even"><td>&#160;</td>
 <td><a class="reference external" href="#delete--api-v1-submissions-(int-submission_id)-rubricitems-(int-rubric_item_id)">DELETE /api/v1/submissions/(int:submission_id)/rubricitems/(int:rubric_item_id)</a></td>
 <td>Unselect the given rubric item.</td>
 </tr>
-<tr class="row-even"><td>&#160;</td>
+<tr class="row-odd"><td>&#160;</td>
 <td><a class="reference external" href="#patch--api-v1-submissions-(int-submission_id)-rubricitems-(int-rubricitem_id)">PATCH /api/v1/submissions/(int:submission_id)/rubricitems/(int:rubricitem_id)</a></td>
 <td>Select a rubric item.</td>
 </tr>
-<tr class="row-odd"><td>&#160;</td>
+<tr class="row-even"><td>&#160;</td>
 <td><a class="reference external" href="#patch--api-v1-submissions-(int-submission_id)-rubricitems-">PATCH /api/v1/submissions/(int:submission_id)/rubricitems/</a></td>
 <td>Select multiple rubric items.</td>
 </tr>
-<tr class="row-even"><td>&#160;</td>
+<tr class="row-odd"><td>&#160;</td>
 <td><a class="reference external" href="#get--api-v1-submissions-(int-submission_id)-feedbacks-">GET /api/v1/submissions/(int:submission_id)/feedbacks/</a></td>
 <td>Get all (linter, user and general) feedback.</td>
 </tr>
-<tr class="row-odd"><td>&#160;</td>
+<tr class="row-even"><td>&#160;</td>
 <td><a class="reference external" href="#get--api-v1-submissions-(int-submission_id)-rubrics-">GET /api/v1/submissions/(int:submission_id)/rubrics/</a></td>
 <td>Get a rubric and its selected items.</td>
 </tr>
-<tr class="row-even"><td>&#160;</td>
+<tr class="row-odd"><td>&#160;</td>
 <td><a class="reference external" href="#patch--api-v1-submissions-(int-submission_id)-grader">PATCH /api/v1/submissions/(int:submission_id)/grader</a></td>
 <td>Update grader for the submission.</td>
 </tr>
-<tr class="row-odd"><td>&#160;</td>
+<tr class="row-even"><td>&#160;</td>
 <td><a class="reference external" href="#delete--api-v1-submissions-(int-submission_id)-grader">DELETE /api/v1/submissions/(int:submission_id)/grader</a></td>
 <td>Delete grader for the submission.</td>
 </tr>
-<tr class="row-even"><td>&#160;</td>
+<tr class="row-odd"><td>&#160;</td>
 <td><a class="reference external" href="#post--api-v1-submissions-(int-submission_id)-files-">POST /api/v1/submissions/(int:submission_id)/files/</a></td>
 <td>Create a new file or directory for a submission.</td>
 </tr>
-<tr class="row-odd"><td>&#160;</td>
+<tr class="row-even"><td>&#160;</td>
 <td><a class="reference external" href="#get--api-v1-submissions-(int-submission_id)-files-">GET /api/v1/submissions/(int:submission_id)/files/</a></td>
 <td>Get the directory contents for a submission.</td>
 </tr>
-<tr class="row-even"><td>&#160;</td>
+<tr class="row-odd"><td>&#160;</td>
 <td><a class="reference external" href="#get--api-v1-submissions-(int-submission_id)">GET /api/v1/submissions/(int:submission_id)</a></td>
 <td>Get a single submission.</td>
 </tr>
-<tr class="row-odd"><td>&#160;</td>
+<tr class="row-even"><td>&#160;</td>
 <td><a class="reference external" href="#delete--api-v1-submissions-(int-submission_id)">DELETE /api/v1/submissions/(int:submission_id)</a></td>
 <td>Delete a submission and all its files.</td>
 </tr>
-<tr class="row-even"><td>&#160;</td>
+<tr class="row-odd"><td>&#160;</td>
 <td><a class="reference external" href="#patch--api-v1-submissions-(int-submission_id)">PATCH /api/v1/submissions/(int:submission_id)</a></td>
 <td>Update a submissions grade and feedback.</td>
 </tr>
-<tr class="row-odd"><td>User</td>
+<tr class="row-even"><td>User</td>
 <td><a class="reference external" href="#post--api-v1-login">POST /api/v1/login</a></td>
 <td>Login a given user.</td>
 </tr>
-<tr class="row-even"><td>&#160;</td>
+<tr class="row-odd"><td>&#160;</td>
 <td><a class="reference external" href="#get--api-v1-login">GET /api/v1/login</a></td>
 <td>Get information about the currently logged in user.</td>
 </tr>
-<tr class="row-odd"><td>&#160;</td>
+<tr class="row-even"><td>&#160;</td>
 <td><a class="reference external" href="#patch--api-v1-login">PATCH /api/v1/login</a></td>
 <td>Update the currently logged users information or reset a password.</td>
 </tr>
-<tr class="row-even"><td>&#160;</td>
+<tr class="row-odd"><td>&#160;</td>
 <td><a class="reference external" href="#get--api-v1-users-">GET /api/v1/users/</a></td>
 <td>Fuzzy search for a user by name and username.</td>
 </tr>
-<tr class="row-odd"><td>&#160;</td>
+<tr class="row-even"><td>&#160;</td>
 <td><a class="reference external" href="#post--api-v1-user">POST /api/v1/user</a></td>
 <td>Create a new user by registering it.</td>
 </tr>
-<tr class="row-even"><td>Webhook</td>
+<tr class="row-odd"><td>Webhook</td>
 <td><a class="reference external" href="#post--api-v1-webhooks-(uuid-webhook_id)">POST /api/v1/webhooks/(uuid:webhook_id)</a></td>
 <td>Process a webhook request.</td>
 </tr>
@@ -893,6 +897,31 @@ have a rubric will be loaded.</li>
 <col class="field-body" />
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">rtype:</th><td class="field-body"><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Sequence</span></code></a>[<a class="reference internal" href="psef_api/psef.html#psef.models.assignment.Assignment" title="psef.models.assignment.Assignment"><code class="xref py py-class docutils literal notranslate"><span class="pre">Assignment</span></code></a>]]</td>
+</tr>
+</tbody>
+</table>
+<dl class="delete">
+<dt id="delete--api-v1-assignments-(int-assignment_id)">
+<code class="descname">DELETE </code><code class="descname">/api/v1/assignments/</code><span class="sig-paren">(</span><em class="property">int: </em><em>assignment_id</em><span class="sig-paren">)</span><a class="headerlink" href="#delete--api-v1-assignments-(int-assignment_id)" title="Permalink to this definition">¶</a></dt>
+<dd><p>Delete a given <code class="xref py py-class docutils literal notranslate"><span class="pre">models.Assignment</span></code>.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>assignment_id</strong> (<em>int</em>) – The id of the assignment</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">rtype:</th><td class="field-body"><a class="reference internal" href="psef_api/psef.html#psef.helpers.EmptyResponse" title="psef.helpers.EmptyResponse"><code class="xref py py-class docutils literal notranslate"><span class="pre">EmptyResponse</span></code></a></td>
 </tr>
 </tbody>
 </table>
@@ -1939,6 +1968,92 @@ add the webhook to your provider.</td>
 </tr>
 </tbody>
 </table>
+<dl class="get">
+<dt id="get--api-v1-auto_tests-(int-at_id)-fixtures-(int-fixture_id)">
+<code class="descname">GET </code><code class="descname">/api/v1/auto_tests/</code><span class="sig-paren">(</span><em class="property">int: </em><em>at_id</em><span class="sig-paren">)</span><code class="descname">/fixtures/</code><span class="sig-paren">(</span><em class="property">int: </em><em>fixture_id</em><span class="sig-paren">)</span><a class="headerlink" href="#get--api-v1-auto_tests-(int-at_id)-fixtures-(int-fixture_id)" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get the contents of the given <code class="xref py py-class docutils literal notranslate"><span class="pre">models.AutoTestFixture</span></code>.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>auto_test_id</strong> – The AutoTest this fixture is linked to.</li>
+<li><strong>fixture_id</strong> – The id of the fixture which you want the content.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name" colspan="2">Response JSON Object:</th></tr>
+<tr class="field-even field"><td>&#160;</td><td class="field-body"><p class="first last">The content of the given fixture.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">rtype:</th><td class="field-body"><code class="xref py py-class docutils literal notranslate"><span class="pre">Response</span></code></td>
+</tr>
+</tbody>
+</table>
+<dl class="delete">
+<dt id="delete--api-v1-auto_tests-(int-at_id)-fixtures-(int-fixture_id)-hide">
+<code class="descname">DELETE </code><code class="descname">/api/v1/auto_tests/</code><span class="sig-paren">(</span><em class="property">int: </em><em>at_id</em><span class="sig-paren">)</span><code class="descname">/fixtures/</code><span class="sig-paren">(</span><em class="property">int: </em><em>fixture_id</em><span class="sig-paren">)</span><code class="descname">/hide</code><a class="headerlink" href="#delete--api-v1-auto_tests-(int-at_id)-fixtures-(int-fixture_id)-hide" title="Permalink to this definition">¶</a></dt>
+<dd><p>Change the visibility of the given fixture.</p>
+<p>Doing a <code class="docutils literal notranslate"><span class="pre">POST</span></code> request to this route will hide the fixture, doing a
+<code class="docutils literal notranslate"><span class="pre">DELETE</span></code> request to this route will set <code class="docutils literal notranslate"><span class="pre">hidden</span></code> to <code class="docutils literal notranslate"><span class="pre">False</span></code>.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>auto_test_id</strong> – The AutoTest this fixture is linked to.</li>
+<li><strong>fixture_id</strong> – The fixture which you to hide or show.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">rtype:</th><td class="field-body"><a class="reference internal" href="psef_api/psef.html#psef.helpers.EmptyResponse" title="psef.helpers.EmptyResponse"><code class="xref py py-class docutils literal notranslate"><span class="pre">EmptyResponse</span></code></a></td>
+</tr>
+</tbody>
+</table>
+<dl class="post">
+<dt id="post--api-v1-auto_tests-(int-at_id)-fixtures-(int-fixture_id)-hide">
+<code class="descname">POST </code><code class="descname">/api/v1/auto_tests/</code><span class="sig-paren">(</span><em class="property">int: </em><em>at_id</em><span class="sig-paren">)</span><code class="descname">/fixtures/</code><span class="sig-paren">(</span><em class="property">int: </em><em>fixture_id</em><span class="sig-paren">)</span><code class="descname">/hide</code><a class="headerlink" href="#post--api-v1-auto_tests-(int-at_id)-fixtures-(int-fixture_id)-hide" title="Permalink to this definition">¶</a></dt>
+<dd><p>Change the visibility of the given fixture.</p>
+<p>Doing a <code class="docutils literal notranslate"><span class="pre">POST</span></code> request to this route will hide the fixture, doing a
+<code class="docutils literal notranslate"><span class="pre">DELETE</span></code> request to this route will set <code class="docutils literal notranslate"><span class="pre">hidden</span></code> to <code class="docutils literal notranslate"><span class="pre">False</span></code>.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>auto_test_id</strong> – The AutoTest this fixture is linked to.</li>
+<li><strong>fixture_id</strong> – The fixture which you to hide or show.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">rtype:</th><td class="field-body"><a class="reference internal" href="psef_api/psef.html#psef.helpers.EmptyResponse" title="psef.helpers.EmptyResponse"><code class="xref py py-class docutils literal notranslate"><span class="pre">EmptyResponse</span></code></a></td>
+</tr>
+</tbody>
+</table>
 <dl class="delete">
 <dt id="delete--api-v1-auto_tests-(int-auto_test_id)">
 <code class="descname">DELETE </code><code class="descname">/api/v1/auto_tests/</code><span class="sig-paren">(</span><em class="property">int: </em><em>auto_test_id</em><span class="sig-paren">)</span><a class="headerlink" href="#delete--api-v1-auto_tests-(int-auto_test_id)" title="Permalink to this definition">¶</a></dt>
@@ -2075,92 +2190,6 @@ AutoTest config.</li>
 <col class="field-body" />
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">rtype:</th><td class="field-body"><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference internal" href="psef_api/psef.html#psef.models.auto_test.AutoTest" title="psef.models.auto_test.AutoTest"><code class="xref py py-class docutils literal notranslate"><span class="pre">AutoTest</span></code></a>]</td>
-</tr>
-</tbody>
-</table>
-<dl class="get">
-<dt id="get--api-v1-auto_tests-(int-auto_test_id)-fixtures-(int-fixture_id)">
-<code class="descname">GET </code><code class="descname">/api/v1/auto_tests/</code><span class="sig-paren">(</span><em class="property">int: </em><em>auto_test_id</em><span class="sig-paren">)</span><code class="descname">/fixtures/</code><span class="sig-paren">(</span><em class="property">int: </em><em>fixture_id</em><span class="sig-paren">)</span><a class="headerlink" href="#get--api-v1-auto_tests-(int-auto_test_id)-fixtures-(int-fixture_id)" title="Permalink to this definition">¶</a></dt>
-<dd><p>Get the contents of the given <code class="xref py py-class docutils literal notranslate"><span class="pre">models.AutoTestFixture</span></code>.</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
-<li><strong>auto_test_id</strong> – The AutoTest this fixture is linked to.</li>
-<li><strong>fixture_id</strong> – The id of the fixture which you want the content.</li>
-</ul>
-</td>
-</tr>
-<tr class="field-even field"><th class="field-name" colspan="2">Response JSON Object:</th></tr>
-<tr class="field-even field"><td>&#160;</td><td class="field-body"><p class="first last">The content of the given fixture.</p>
-</td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
-
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">rtype:</th><td class="field-body"><code class="xref py py-class docutils literal notranslate"><span class="pre">Response</span></code></td>
-</tr>
-</tbody>
-</table>
-<dl class="delete">
-<dt id="delete--api-v1-auto_tests-(int-auto_test_id)-fixtures-(int-fixture_id)-hide">
-<code class="descname">DELETE </code><code class="descname">/api/v1/auto_tests/</code><span class="sig-paren">(</span><em class="property">int: </em><em>auto_test_id</em><span class="sig-paren">)</span><code class="descname">/fixtures/</code><span class="sig-paren">(</span><em class="property">int: </em><em>fixture_id</em><span class="sig-paren">)</span><code class="descname">/hide</code><a class="headerlink" href="#delete--api-v1-auto_tests-(int-auto_test_id)-fixtures-(int-fixture_id)-hide" title="Permalink to this definition">¶</a></dt>
-<dd><p>Change the visibility of the given fixture.</p>
-<p>Doing a <code class="docutils literal notranslate"><span class="pre">POST</span></code> request to this route will hide the fixture, doing a
-<code class="docutils literal notranslate"><span class="pre">DELETE</span></code> request to this route will set <code class="docutils literal notranslate"><span class="pre">hidden</span></code> to <code class="docutils literal notranslate"><span class="pre">False</span></code>.</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
-<li><strong>auto_test_id</strong> – The AutoTest this fixture is linked to.</li>
-<li><strong>fixture_id</strong> – The fixture which you to hide or show.</li>
-</ul>
-</td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
-
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">rtype:</th><td class="field-body"><a class="reference internal" href="psef_api/psef.html#psef.helpers.EmptyResponse" title="psef.helpers.EmptyResponse"><code class="xref py py-class docutils literal notranslate"><span class="pre">EmptyResponse</span></code></a></td>
-</tr>
-</tbody>
-</table>
-<dl class="post">
-<dt id="post--api-v1-auto_tests-(int-auto_test_id)-fixtures-(int-fixture_id)-hide">
-<code class="descname">POST </code><code class="descname">/api/v1/auto_tests/</code><span class="sig-paren">(</span><em class="property">int: </em><em>auto_test_id</em><span class="sig-paren">)</span><code class="descname">/fixtures/</code><span class="sig-paren">(</span><em class="property">int: </em><em>fixture_id</em><span class="sig-paren">)</span><code class="descname">/hide</code><a class="headerlink" href="#post--api-v1-auto_tests-(int-auto_test_id)-fixtures-(int-fixture_id)-hide" title="Permalink to this definition">¶</a></dt>
-<dd><p>Change the visibility of the given fixture.</p>
-<p>Doing a <code class="docutils literal notranslate"><span class="pre">POST</span></code> request to this route will hide the fixture, doing a
-<code class="docutils literal notranslate"><span class="pre">DELETE</span></code> request to this route will set <code class="docutils literal notranslate"><span class="pre">hidden</span></code> to <code class="docutils literal notranslate"><span class="pre">False</span></code>.</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
-<li><strong>auto_test_id</strong> – The AutoTest this fixture is linked to.</li>
-<li><strong>fixture_id</strong> – The fixture which you to hide or show.</li>
-</ul>
-</td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
-
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">rtype:</th><td class="field-body"><a class="reference internal" href="psef_api/psef.html#psef.helpers.EmptyResponse" title="psef.helpers.EmptyResponse"><code class="xref py py-class docutils literal notranslate"><span class="pre">EmptyResponse</span></code></a></td>
 </tr>
 </tbody>
 </table>

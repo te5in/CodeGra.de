@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>psef.lti &mdash; CodeGrade v1.16.8 documentation</title>
+  <title>psef.lti &mdash; CodeGrade v1.16.10 documentation</title>
   
 
   
@@ -65,7 +65,7 @@
             
             
               <div class="version">
-                v1.16.8
+                v1.16.10
               </div>
             
           
@@ -746,6 +746,13 @@
             <span class="p">)</span>
             <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">assignment</span><span class="p">)</span>
             <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="n">assignment</span><span class="o">.</span><span class="n">deleted</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">APIException</span><span class="p">(</span>
+                <span class="s1">&#39;The launched assignment has been deleted on CodeGrade&#39;</span><span class="p">,</span>
+                <span class="sa">f</span><span class="s1">&#39;The assignment &quot;</span><span class="si">{assignment.id}</span><span class="s1">&quot; has been deleted&#39;</span><span class="p">,</span>
+                <span class="n">APICodes</span><span class="o">.</span><span class="n">OBJECT_NOT_FOUND</span><span class="p">,</span> <span class="mi">404</span>
+            <span class="p">)</span>
 
         <span class="k">if</span> <span class="n">assignment</span><span class="o">.</span><span class="n">course</span> <span class="o">!=</span> <span class="n">course</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
