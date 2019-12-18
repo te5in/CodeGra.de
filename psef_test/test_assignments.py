@@ -4629,3 +4629,44 @@ def test_upload_test_submission(
             )
 
             assert_submitted()
+
+
+def test_delete_assignment(
+    test_client, admin_user, describe, session, logged_in
+):
+    with describe('setup'), logged_in(admin_user):
+        course = helpers.create_course(test_client)
+        assig = helpers.create_assignment(
+            test_client, course, 'open', 'tomorrow'
+        )['id']
+        stud1 = helpers.create_user_with_role(session, 'Student', [course])
+        with logged_in(stud1):
+            sub1 = helpers.create_submission(test_client, assig)
+
+    with describe('Can get submissions when not deleted'), logged_in(stud1):
+        test_client.req(
+            'get',
+            f'/api/v1/assignments/{assig}/submissions/',
+            200,
+            result=[{
+                '__allow_extra__': True,
+                'id': sub1['id'],
+            }]
+        )
+        test_client.req(
+            'get', f'/api/v1/submissions/{sub1["id"]}', 200, result=sub1
+        )
+
+    with describe('Students cannot delete assignment'), logged_in(stud1):
+        test_client.req('delete', f'/api/v1/assignments/{assig}', 403)
+
+    with describe('Teacher can delete assignment'), logged_in(admin_user):
+        test_client.req('delete', f'/api/v1/assignments/{assig}', 204)
+
+    with describe('Cannot get submissions from delete assig'
+                  ), logged_in(stud1):
+        test_client.req('get', f'/api/v1/assignments/{assig}', 404)
+        test_client.req(
+            'get', f'/api/v1/assignments/{assig}/submissions/', 404
+        )
+        test_client.req('get', f'/api/v1/submissions/{sub1["id"]}', 404)

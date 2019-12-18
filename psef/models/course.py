@@ -293,7 +293,9 @@ class Course(NotEqualMixin, Base):
         ):
             return []
 
-        assigs: t.Iterable[Assignment] = self.assignments
+        assigs: t.Iterable[Assignment] = (
+            assig for assig in self.assignments if not assig.deleted
+        )
         if not psef.current_user.has_permission(
             CoursePermission.can_see_hidden_assignments, self.id
         ):

@@ -443,7 +443,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         order_by="RubricRow.created_at"
     )  # type: t.MutableSequence['rubric_models.RubricRow']
 
-    group_set_id: int = db.Column(
+    group_set_id: t.Optional[int] = db.Column(
         'group_set_id',
         db.Integer,
         db.ForeignKey('GroupSet.id'),
@@ -484,6 +484,14 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
     )
     webhook_upload_enabled: bool = db.Column(
         'webhook_upload_enabled',
+        db.Boolean,
+        default=False,
+        server_default='false',
+        nullable=False,
+    )
+
+    deleted: bool = db.Column(
+        'deleted',
         db.Boolean,
         default=False,
         server_default='false',

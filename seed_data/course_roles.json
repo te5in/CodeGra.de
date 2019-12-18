@@ -89,7 +89,8 @@
       "can_view_autotest_before_done",
       "can_view_autotest_step_details",
       "can_view_autotest_fixture",
-      "can_view_autotest_output_files_before_done"
+      "can_view_autotest_output_files_before_done",
+      "can_delete_assignments"
     ],
     "admin_role": true,
     "initial_role": true

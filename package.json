@@ -11,7 +11,7 @@
     "local_unit": "jest --runInBand --verbose",
     "unit": "jest --coverage --verbose test/",
     "clear_jest": "jest --clearCache",
-    "e2e": "cypress run",
+    "e2e": "NO_COLOR=1 cypress run",
     "cypress": "cypress",
     "e2e_travis": "cypress run --record --key f830141a-c50d-45cd-b226-4f32208df449",
     "test": "npm run unit && npm run e2e",

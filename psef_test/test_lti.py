@@ -898,7 +898,7 @@ def test_lti_grade_passback_blackboard(
     assert not patch_request.called
 
 
-def test_lti_assignment_create(
+def test_lti_assignment_create_and_delete(
     test_client, app, logged_in, ta_user, error_template
 ):
     def do_lti_launch(
@@ -908,6 +908,7 @@ def test_lti_assignment_create(
         published='false',
         course_name='NEW_COURSE',
         assig_name='MY_ASSIG_TITLE',
+        error_code=None,
     ):
         with app.app_context():
             data = {
@@ -936,9 +937,11 @@ def test_lti_assignment_create(
             lti_res = test_client.req(
                 'post',
                 '/api/v1/lti/launch/2',
-                200,
+                error_code if error_code else 200,
                 data={'blob_id': blob_id},
             )
+            if error_code:
+                return lti_res
             if published == 'false':
                 assert lti_res['assignment']['state'] == 'hidden'
             else:
@@ -970,6 +973,17 @@ def test_lti_assignment_create(
         )
         assert assig['name'] == assig_name
         assert assig['course']['name'] == course_name
+
+    with app.app_context():
+        assig, token = do_lti_launch()
+        test_client.req(
+            'delete',
+            f'/api/v1/assignments/{assig["id"]}',
+            204,
+            headers={'Authorization': f'Bearer {token}'}
+        )
+        err = do_lti_launch(error_code=404)
+        assert 'has been deleted' in err['message']
 
 
 @pytest.mark.parametrize(('lms,extra_data'), [
