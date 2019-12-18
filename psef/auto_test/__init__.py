@@ -4,6 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 """
 import os  # typing: ignore
 import abc
+import grp
 import pwd
 import sys
 import copy
@@ -1056,9 +1057,11 @@ class StartedContainer:
         # We cannot cover this as it is run in another process which will
         # execvp.
         pw_record = pwd.getpwnam(username)
+        group_ids = [g.gr_gid for g in grp.getgrall() if username in g.gr_mem]
         user_uid = pw_record.pw_uid
         user_gid = pw_record.pw_gid
 
+        os.setgroups(group_ids)
         os.setgid(user_gid)
         os.setuid(user_uid)
 

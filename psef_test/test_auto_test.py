@@ -46,6 +46,7 @@ def monkeypatch_for_run(
 
     monkeypatch.setattr(psef.auto_test, 'FIXTURES_ROOT', '/tmp')
     monkeypatch.setattr(psef.auto_test, 'OUTPUT_DIR', f'/tmp/{uuid.uuid4()}')
+    monkeypatch.setattr(os, 'setgroups', stub_function_class())
 
     def new_run_command(self, cmd_user):
         signal_start = psef.auto_test.StartedContainer._signal_start
