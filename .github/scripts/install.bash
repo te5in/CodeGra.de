@@ -23,7 +23,7 @@ fi
     mv pmd-bin-6.* pmd;
 ) &
 
-wget https://github.com/checkstyle/checkstyle/releases/download/checkstyle-8.15/checkstyle-8.15-all.jar \
+wget https://github.com/checkstyle/checkstyle/releases/download/checkstyle-8.25/checkstyle-8.25-all.jar \
      -O ./checkstyle.jar &
 
 if ! [[ "$skip" = skip_npm ]]; then
