@@ -202,6 +202,7 @@
 <span class="sd">&quot;&quot;&quot;</span>
 <span class="kn">import</span> <span class="nn">os</span>  <span class="c1"># typing: ignore</span>
 <span class="kn">import</span> <span class="nn">abc</span>
+<span class="kn">import</span> <span class="nn">grp</span>
 <span class="kn">import</span> <span class="nn">pwd</span>
 <span class="kn">import</span> <span class="nn">sys</span>
 <span class="kn">import</span> <span class="nn">copy</span>
@@ -1254,9 +1255,11 @@
         <span class="c1"># We cannot cover this as it is run in another process which will</span>
         <span class="c1"># execvp.</span>
         <span class="n">pw_record</span> <span class="o">=</span> <span class="n">pwd</span><span class="o">.</span><span class="n">getpwnam</span><span class="p">(</span><span class="n">username</span><span class="p">)</span>
+        <span class="n">group_ids</span> <span class="o">=</span> <span class="p">[</span><span class="n">g</span><span class="o">.</span><span class="n">gr_gid</span> <span class="k">for</span> <span class="n">g</span> <span class="ow">in</span> <span class="n">grp</span><span class="o">.</span><span class="n">getgrall</span><span class="p">()</span> <span class="k">if</span> <span class="n">username</span> <span class="ow">in</span> <span class="n">g</span><span class="o">.</span><span class="n">gr_mem</span><span class="p">]</span>
         <span class="n">user_uid</span> <span class="o">=</span> <span class="n">pw_record</span><span class="o">.</span><span class="n">pw_uid</span>
         <span class="n">user_gid</span> <span class="o">=</span> <span class="n">pw_record</span><span class="o">.</span><span class="n">pw_gid</span>
 
+        <span class="n">os</span><span class="o">.</span><span class="n">setgroups</span><span class="p">(</span><span class="n">group_ids</span><span class="p">)</span>
         <span class="n">os</span><span class="o">.</span><span class="n">setgid</span><span class="p">(</span><span class="n">user_gid</span><span class="p">)</span>
         <span class="n">os</span><span class="o">.</span><span class="n">setuid</span><span class="p">(</span><span class="n">user_uid</span><span class="p">)</span>
 
