@@ -41,6 +41,14 @@
     </div>
     <div v-else-if="page == 1">
         <p>
+            CodeGrade allows you to submit your work directly via Git, this is
+            done by setting up a <i>webhook</i>. As a result, every time you
+            push the configured branch, the content of your current branch will
+            be uploaded to CodeGrade. A good practice is to set up the {{
+            providerName }} CodeGrade configuration before starting to work on
+            your assignment.
+        </p>
+        <p>
             First we need to add a <i>deploy key</i>. By adding this key you allow
             CodeGrade to access the code in your repository, which is needed for
             CodeGrade to create a submission.
@@ -223,39 +231,69 @@
 
     <div v-else-if="page == 3">
         <p>
-            {{ providerName }} should now be successfully configured. You can
-            test this by pushing to the {{ data.default_branch }} branch and
-            checking if a new submission was created.
+            {{ providerName }} should now be successfully configured. Now, the
+            content of your repository will be automatically uploaded for this
+            CodeGrade assignment every time you perform a <code>git push
+            </code>. You can test this by pushing to the
+            {{ data.default_branch }} branch and checking if a new submission
+            was created.
         </p>
         <p>
-            If you have nothing to commit, you can try running
-            <code>git commit --allow-empty -m "Create a CodeGrade submission" &&
-                git push</code> while the {{ data.default_branch }} branch is
-            checked out.
+            A good practice is to set up the {{ providerName }} CodeGrade
+            webhook in the beginning of your assignment, so every time you push
+            it automatically gets uploaded to CodeGrade. If you, however, want
+            to hand in your current repository, you can do this by an empty
+            commit.
+            You can run
+            <code>git commit --allow-empty -m "Create a CodeGrade submission"
+                &amp;&amp; git push</code> while the {{ data.default_branch }}
+            branch is checked out. If you are using a GUI for Git that does not
+            support empty commits, simply making an arbitrary change in a
+            tracked file will allow you to still do a <code>git push</code>.
         </p>
-
         <p>
-            You have now successfully setup your GitHub CodeGrade webhook and can close this
-            modal. Make sure to reload the submissions to see your new submissions by
-            pressing the reload button in the top right or by reloading this page.
+            You have now successfully setup your {{ providerName }} CodeGrade
+            webhook and can close this modal. Click the button below to check
+            if your {{ providerName }} submission succeeded.
         </p>
 
-        <advanced-collapse>
-            You can configure multiple repositories (from different providers)
-            for a single CodeGrade assignment. Simply restart this tutorial and
-            follow the instructions again for a different repository.
-        </advanced-collapse>
+        <b-alert v-if="checkLatestResults != null"
+                 show
+                 :variant="checkLatestResults.sub != null ? 'success' : 'warning'"
+                 dismissible
+                 @dismissed="checkLatestResults = null">
+            <span v-if="checkLatestResults.sub != null">
+                A <router-link class="inline-link"
+                               :to="submissionRoute(checkLatestResults.sub)">
+                    new Git submission
+                </router-link> was found!
+            </span>
+            <span v-else>
+                Could not find a new Git submission!
+            </span>
+        </b-alert>
+
+        <b-button-toolbar class="justify-content-end">
+            <submit-button :submit="checkLatestSubmission"
+                           label="Check for new Git submission"
+                           :duration="0"
+                           :wait-at-least="250"/>
+        </b-button-toolbar>
     </div>
 </div>
 </template>
 
 <script>
+import { mapActions, mapGetters } from 'vuex';
+import moment from 'moment';
+
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/arrow-left';
 import 'vue-awesome/icons/arrow-right';
 import 'vue-awesome/icons/clipboard';
 
 import Loader from './Loader';
+import SubmitButton from './SubmitButton';
 import AdvancedCollapse from './AdvancedCollapse';
 
 export default {
@@ -274,10 +312,27 @@ export default {
             provider: null,
             copying: false,
             copyMsg: null,
+            latestSubmission: null,
+            checkLatestResults: null,
         };
     },
 
     computed: {
+        ...mapGetters('courses', ['assignments']),
+        ...mapGetters('submissions', ['latestSubmissions']),
+
+        assignmentId() {
+            return this.data.assignment_id;
+        },
+
+        courseId() {
+            return this.assignments[this.assignmentId].course.id;
+        },
+
+        userId() {
+            return this.data.user_id;
+        },
+
         pageName() {
             return {
                 0: 'Select a Git hoster',
@@ -316,8 +371,13 @@ export default {
     },
 
     watch: {
-        data() {
-            this.page = 0;
+        data: {
+            deep: true,
+            immediate: true,
+            handler() {
+                this.page = 0;
+                this.setLatestSubmission();
+            },
         },
 
         page() {
@@ -327,6 +387,10 @@ export default {
     },
 
     methods: {
+        ...mapActions('submissions', {
+            storeLoadSubmissionsByUser: 'loadSubmissionsByUser',
+        }),
+
         selectProvider(provider) {
             this.page = 1;
             this.provider = provider;
@@ -357,11 +421,63 @@ export default {
                     }, 2000);
                 });
         },
+
+        setLatestSubmission() {
+            // Store the current latest submission, so we have something to compare
+            // created date to in checkLatestSubmission.
+
+            this.storeLoadSubmissionsByUser({
+                assignmentId: this.assignmentId,
+                userId: this.userId,
+            }).then(() => {
+                this.latestSubmission = this.latestSubmissions[this.assignmentId].find(
+                    s => s.user.id === this.userId,
+                );
+            });
+        },
+
+        checkLatestSubmission() {
+            // Get the latest submission of the user for the current webhook
+            // and check if it is a git submission.
+
+            const latestDate = moment.utc(
+                this.$utils.getProps(this.latestSubmission, '1970-01-01', 'created_at'),
+                moment.ISO_8601,
+            );
+
+            return this.storeLoadSubmissionsByUser({
+                assignmentId: this.assignmentId,
+                userId: this.userId,
+                force: true,
+            }).then(subs => {
+                const latestGitSubmission = (subs || []).find(
+                    s =>
+                        (s.origin === 'github' || s.origin === 'gitlab') &&
+                        moment.utc(s.created_at, moment.ISO_8601).isAfter(latestDate),
+                );
+
+                this.checkLatestResults = {
+                    sub: latestGitSubmission,
+                };
+            });
+        },
+
+        submissionRoute(sub) {
+            return {
+                name: 'submission',
+                params: {
+                    courseId: this.courseId,
+                    assignmentId: this.assignmentId,
+                    submissionId: sub.id,
+                },
+            };
+        },
     },
 
     components: {
         Icon,
         Loader,
+        SubmitButton,
         AdvancedCollapse,
     },
 };

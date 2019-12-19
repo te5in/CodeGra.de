@@ -107,8 +107,16 @@ function addSubmission(subs, newSub) {
 }
 
 const actions = {
-    async loadSubmissionsByUser(context, { assignmentId, userId }) {
+    async loadSubmissionsByUser(context, { assignmentId, userId, force }) {
         await context.dispatch('loadSubmissions', assignmentId);
+
+        if (force) {
+            context.commit(types.SET_SUBMISSIONS_BY_USER_PROMISE, {
+                assignmentId,
+                userId,
+                promise: null,
+            });
+        }
 
         if (context.state.submissionsByUserPromises[assignmentId][userId] == null) {
             const promise = axios
