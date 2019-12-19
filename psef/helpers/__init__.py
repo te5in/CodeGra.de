@@ -1434,3 +1434,31 @@ def readable_join(lst: t.Sequence[str]) -> str:
     if len(lst) < 3:
         return ' and '.join(lst)
     return ', '.join(lst[:-1]) + ', and ' + lst[-1]
+
+
+def maybe_wrap_in_list(maybe_lst: t.Union[t.List[T], T]) -> t.List[T]:
+    """Wrap an item into a list if it is not already a list.
+
+    >>> maybe_wrap_in_list(5)
+    [5]
+    >>> maybe_wrap_in_list([5])
+    [5]
+    >>> maybe_wrap_in_list([5, 6])
+    [5, 6]
+    >>> maybe_wrap_in_list({5 : 6})
+    [{5: 6}]
+    >>> maybe_wrap_in_list((1, 2))
+    [(1, 2)]
+    >>> item = object()
+    >>> maybe_wrap_in_list(item)[0] is item
+    True
+    >>> lst_item = [object()]
+    >>> maybe_wrap_in_list(lst_item) is lst_item
+    True
+
+    :param maybe_lst: The item to maybe wrap.
+    :returns: The item wrapped or just the item.
+    """
+    if isinstance(maybe_lst, list):
+        return maybe_lst
+    return [maybe_lst]

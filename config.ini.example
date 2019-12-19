@@ -226,18 +226,21 @@
 # - files: The location of the files that should be checked.
 # checkstyle_program = ["java", "-Dbasedir={files}", "-jar", "checkstyle.jar", "-f", "xml", "-c", "{config}", "{files}"]
 
-# The program lilst to call PMD. The list should be given as a JSON array, the
+# The program list to call PMD. The list should be given as a JSON array, the
 # same as the checkstyle list.
 # pmd_program = ["./pmd/bin/run.sh", "pmd", "-dir", "{files}", "-failOnViolation", "false", "-format", "csv", "-shortnames", "-rulesets", "{config}"]
 
-# The program lilst to call pylint. The list should be given as a JSON array,
+# The program list to call pylint. The list should be given as a JSON array,
 # the same as the checkstyle list.
 # pylint_program = ["pylint", "--rcfile", "{config}", "--output-format", "json", "{files}"]
 
-# The program lilst to call flake8. The list should be given as a JSON array,
+# The program list to call flake8. The list should be given as a JSON array,
 # the same as the checkstyle list, plus an extra format argument '{line_fmt}'.
 # flake8_program = ["flake8", "--disable-noqa", "--config={config}", "--format", "{line_fmt}", "--exit-zero", "{files}"]
 
+# The program list to call eslint. The list should be given as a JSON array, the
+# same as the checkstyle list.
+# eslint_program = ["eslint", "--no-eslintrc", "--format", "json", "--config", "{config}", "--no-inline-config", "--report-unused-disable-directives", "--resolve-plugins-relative-to", "...", "{files}"]
 
 # This section enables you to disable certain features. If you change this
 # config you need to rebuild/restart the front-end and restart the backend

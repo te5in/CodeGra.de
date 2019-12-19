@@ -1,0 +1,25 @@
+{
+  "root": true,
+  "parser": "babel-eslint",
+  "parserOptions": {
+    "sourceType": "module"
+  },
+  "env": {
+    "browser": true
+  },
+  "extends": "/my/path",
+  "plugins": [
+    "html"
+  ],
+  "settings": {
+    "import/resolver": {
+      "webpack": {
+        "config": "build/webpack.base.conf.js"
+      }
+    }
+  },
+  "globals": {
+    "UserConfig": true,
+    "AutoTestBaseSystems": true
+  }
+}

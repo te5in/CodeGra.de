@@ -20,7 +20,7 @@ perm_error = create_marker(pytest.mark.perm_error)
 get_works = create_marker(pytest.mark.get_works)
 
 ALL_LINTERS = sorted([
-    'Flake8', 'MixedWhitespace', 'Pylint', 'Checkstyle', 'PMD'
+    'Flake8', 'MixedWhitespace', 'Pylint', 'Checkstyle', 'PMD', 'ESLint'
 ])
 
 CHECKSTYLE_INVALID_EL = open(
@@ -73,6 +73,53 @@ PMD_MAVEN = open(
         'resources',
         'pmd',
         'maven.xml',
+    )
+).read()
+
+ESLINT_INVALID_PLUGIN = open(
+    os.path.join(
+        os.path.dirname(__file__),
+        '..',
+        'test_data',
+        'test_linter',
+        'eslint_invalid_plugin.json',
+    )
+).read()
+ESLINT_INVALID_JSON = "'"
+ESLINT_INVALID_EXTENDS = open(
+    os.path.join(
+        os.path.dirname(__file__),
+        '..',
+        'test_data',
+        'test_linter',
+        'eslint_invalid_extends.json',
+    )
+).read()
+ESLINT_UNKNOWN_ECMA = open(
+    os.path.join(
+        os.path.dirname(__file__),
+        '..',
+        'test_data',
+        'test_linter',
+        'eslint_unknown_ecma.json',
+    )
+).read()
+ESLINT_EXTENDS_STANDARD = open(
+    os.path.join(
+        os.path.dirname(__file__),
+        '..',
+        'test_data',
+        'test_linter',
+        'eslint_extends_standard.json',
+    )
+).read()
+ESLINT_STANDARD = open(
+    os.path.join(
+        os.path.dirname(__file__),
+        '..',
+        'resources',
+        'eslint',
+        'standard.json',
     )
 ).read()
 
@@ -177,6 +224,29 @@ PMD_MAVEN = open(
                                        ]
                                    )]
         )),
+        *[
+            run_error(error=400)(('test_eslint.tar.gz', [('ESLint', cfg, '')]))
+            for cfg in [
+                ESLINT_INVALID_EXTENDS, ESLINT_INVALID_JSON,
+                ESLINT_INVALID_PLUGIN
+            ]
+        ],
+        *[(
+            'test_eslint.tar.gz', [(
+                'ESLint', cfg, [
+                    (15, 'comma-dangle'),
+                    (185, 'semi'),
+                    (204, 'indent'),
+                    (224, 'comma-dangle'),
+                    (330, 'no-undef'),
+                ]
+            )]
+        ) for cfg in [ESLINT_STANDARD, ESLINT_EXTENDS_STANDARD]],
+        run_error(crash='ESLint'
+                  )(('test_flake8.tar.gz', [('ESLint', ESLINT_STANDARD, [])])),
+        run_error(crash='ESLint')(
+            ('test_eslint.tar.gz', [('ESLint', ESLINT_UNKNOWN_ECMA, [])])
+        ),
     ],
     indirect=['filename'],
 )
@@ -309,11 +379,15 @@ def test_linters(
             key=lambda el: el[0]
         )
 
-        for _, feedbacks in res:
-            for name, linter_comm in feedbacks:
-                val = linters[name].pop(0)
-                assert val[0] == linter_comm['line']
-                assert val[1] == linter_comm['code']
+        try:
+            for _, feedbacks in res:
+                for name, linter_comm in feedbacks:
+                    val = linters[name].pop(0)
+                    assert val[0] == linter_comm['line']
+                    assert val[1] == linter_comm['code']
+        except:
+            print(res)
+            raise
 
         assert not any(linters.values())
 

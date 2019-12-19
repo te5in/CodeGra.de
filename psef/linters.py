@@ -22,7 +22,7 @@ from defusedxml.ElementTree import fromstring as defused_xml_fromstring
 
 from . import app, files, models
 from .models import db
-from .helpers import register, format_list
+from .helpers import register, format_list, maybe_wrap_in_list
 from .exceptions import ValidationException
 
 logger = structlog.get_logger()
@@ -494,6 +494,96 @@ class PMD(Linter):
                 emit(filename, line_number, code, msg)
 
 
+@_linter_handlers.register('ESLint')
+class ESLint(Linter):
+    """Run the ESLint linter.
+    """
+    DEFAULT_OPTIONS: t.ClassVar[t.Mapping[str, str]] = {
+        'Standard': _read_config_file('eslint', 'standard.json')
+    }
+
+    @classmethod
+    def validate_config(cls: t.Type['ESLint'], config: str) -> None:
+        """Check if the given config is valid for ESLint.
+
+        This also does some extra checks to make sure some invalid properties
+        are not present.
+
+        :param config: The config to check.
+        """
+        try:
+            json_config = json.loads(config)
+        except ValueError:
+            raise ValidationException(
+                'The given json config could not be parsed.',
+                f'The config {config} could not be parsed as json.'
+            )
+
+        for plugin in json_config.get('plugins', []):
+            if '/' in plugin:
+                raise ValidationException(
+                    'Plugins cannot be paths',
+                    f'The plugin {plugin} contains a slash'
+                )
+
+        for extend in maybe_wrap_in_list(json_config.get('extends', '')):
+            if '/' in extend:
+                raise ValidationException(
+                    'Base configs cannot be paths',
+                    f'The base config ({extend}) as paths are not supported'
+                )
+
+    def run(
+        self,
+        tempdir: str,
+        emit: t.Callable[[str, int, str, str], None],
+        process_completed: ProcessCompletedCallback,
+    ) -> None:
+        """Run ESLint.
+
+        Arguments are the same as for :py:meth:`Linter.run`.
+        """
+        tempdir = os.path.dirname(tempdir)
+        config = json.loads(self.config)
+
+        with tempfile.NamedTemporaryFile('w') as cfg:
+            config['root'] = True
+            json.dump(config, cfg)
+            cfg.flush()
+
+            out = _run_command(
+                [
+                    part.format(config=cfg.name, files=tempdir)
+                    for part in app.config['ESLINT_PROGRAM']
+                ]
+            )
+            process_completed(out)
+            # Exit code 1 means that linting was successful but that errors
+            # were found.
+            if out.returncode not in {0, 1}:
+                raise LinterCrash(
+                    error_summary=(
+                        'ESLint crashed, stdout: "{}", stderr: "{}"'
+                    ).format(
+                        out.stdout,
+                        out.stderr,
+                    )
+                )
+            output = json.loads(out.stdout)
+
+            for f in output:
+                filename = f['filePath']
+                for message in f['messages']:
+                    msg = message['message']
+                    if message.get('fatal', False):
+                        raise Exception(f'Encountered fatal error: {msg}')
+
+                    line_number = int(message['line'])
+                    code = message['ruleId']
+
+                    emit(filename, line_number, code, msg)
+
+
 class LinterRunner:
     """This class is used to run a :class:`Linter` with a specific config on
     sets of :class:`.models.Work`.
@@ -657,7 +747,7 @@ def get_all_linters(
         >>> MyLinter.DEFAULT_OPTIONS = {'wow': 'sers'}
         >>> all_linters = get_all_linters()
         >>> sorted(all_linters.keys())
-        ['Checkstyle', 'Flake8', 'MixedWhitespace', 'MyLinter', 'PMD', 'Pylint']
+        ['Checkstyle', 'ESLint', 'Flake8', 'MixedWhitespace', 'MyLinter', 'PMD', 'Pylint']
         >>> linter = all_linters['MyLinter']
         >>> linter == {'desc': 'Description', 'opts': {'wow': 'sers'} }
         True

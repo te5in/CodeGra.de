@@ -15,6 +15,12 @@ create_db() {
 for i in $(seq 0 5); do
     create_db "$i" &
 done
+
+sudo chown -R "$USER":"$(id -gn "$USER")" ~/.config
+sudo npm install -g eslint@6 eslint-plugin-{standard,node,promise,import} eslint-config-standard
+sudo chown -R "$USER":"$(id -gn "$USER")" "$(npm root -g)"
+sudo chown -R "$USER":"$(id -gn "$USER")" ~/.config
+
 wait
 
 export BASE_DATABASE_URI='postgresql://postgres:postgres@localhost:5432/ci_test_'

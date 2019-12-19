@@ -116,6 +116,7 @@ FlaskConfig = TypedDict(
         'MIN_PASSWORD_SCORE': int,
         'CHECKSTYLE_PROGRAM': t.List[str],
         'PMD_PROGRAM': t.List[str],
+        'ESLINT_PROGRAM': t.List[str],
         'PYLINT_PROGRAM': t.List[str],
         'FLAKE8_PROGRAM': t.List[str],
         '_USING_SQLITE': str,
@@ -323,21 +324,21 @@ set_str(CONFIG, backend_ops, 'JPLAG_JAR', 'jplag.jar')
 
 
 def _set_version() -> None:
-    CONFIG['_VERSION'] = subprocess.check_output(
-        ['git', 'describe', '--abbrev=0', '--tags']
-    ).decode('utf-8').strip()
+    CONFIG['_VERSION'] = subprocess.check_output([
+        'git', 'describe', '--abbrev=0', '--tags'
+    ]).decode('utf-8').strip()
 
 
 try:
     _set_version()
-except subprocess.CalledProcessError as e:
+except subprocess.CalledProcessError:
     print(
         (
             'An error occurred trying to get the version, this is probably'
             ' caused by not deep cloning the repository. We will try that'
             ' now.'
         ),
-        file=sys.stderr
+        file=sys.stderr,
     )
     subprocess.check_call(['git', 'fetch', '--unshallow'])
     _set_version()
@@ -472,14 +473,24 @@ set_list(
         '{files}',
     ]
 )
-set_list(CONFIG, backend_ops, 'GIT_CLONE_PROGRAM', [
-    f'{os.path.dirname(os.path.abspath(__file__))}/.scripts/clone.sh',
-    '{ssh_key}',
-    '{clone_url}',
-    '{commit}',
-    '{out_dir}',
-    '{git_branch}',
-])
+set_list(
+    CONFIG, backend_ops, 'ESLINT_PROGRAM', [
+        os.path.join(os.path.dirname(__file__), '.scripts', 'run_eslint.bash'),
+        '{files}',
+        '{config}',
+    ]
+)
+
+set_list(
+    CONFIG, backend_ops, 'GIT_CLONE_PROGRAM', [
+        f'{os.path.dirname(os.path.abspath(__file__))}/.scripts/clone.sh',
+        '{ssh_key}',
+        '{clone_url}',
+        '{commit}',
+        '{out_dir}',
+        '{git_branch}',
+    ]
+)
 
 set_str(CONFIG, backend_ops, '_TRANSIP_PRIVATE_KEY_FILE', '')
 set_str(CONFIG, backend_ops, '_TRANSIP_USERNAME', '')
@@ -566,7 +577,6 @@ else:
         "Jupyter": "jupyter",
     }
 
-
 ##########
 # CELERY #
 ##########
@@ -598,7 +608,8 @@ set_str(CONFIG, auto_test_ops, 'AUTO_TEST_BROKER_PASSWORD', None)
 set_str(CONFIG, auto_test_ops, 'AUTO_TEST_PASSWORD', None)
 set_bool(CONFIG, auto_test_ops, 'AUTO_TEST_DISABLE_ORIGIN_CHECK', False)
 set_int(CONFIG, auto_test_ops, 'AUTO_TEST_MAX_JOBS_PER_RUNNER', 25)
-assert CONFIG['AUTO_TEST_MAX_JOBS_PER_RUNNER'] > 0, "Max jobs per runner should be higher than 0"
+assert CONFIG['AUTO_TEST_MAX_JOBS_PER_RUNNER'
+              ] > 0, "Max jobs per runner should be higher than 0"
 set_int(CONFIG, auto_test_ops, 'AUTO_TEST_MAX_CONCURRENT_BATCH_RUNS', 3)
 
 set_float(CONFIG, auto_test_ops, 'AUTO_TEST_CF_SLEEP_TIME', 5.0)
