@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Index &mdash; CodeGrade v1.16.10 documentation</title>
+  <title>Index &mdash; CodeGrade v1.16.12 documentation</title>
   
 
   
@@ -66,7 +66,7 @@
             
             
               <div class="version">
-                v1.16.10
+                v1.16.12
               </div>
             
           
@@ -637,6 +637,8 @@
       <li><a href="psef_api/psef.html#psef.linters.Checkstyle.DEFAULT_OPTIONS">DEFAULT_OPTIONS (psef.linters.Checkstyle attribute)</a>
 
       <ul>
+        <li><a href="psef_api/psef.html#psef.linters.ESLint.DEFAULT_OPTIONS">(psef.linters.ESLint attribute)</a>
+</li>
         <li><a href="psef_api/psef.html#psef.linters.Flake8.DEFAULT_OPTIONS">(psef.linters.Flake8 attribute)</a>
 </li>
         <li><a href="psef_api/psef.html#psef.linters.Linter.DEFAULT_OPTIONS">(psef.linters.Linter attribute)</a>
@@ -664,10 +666,10 @@
 </li>
       <li><a href="psef_api/psef.html#psef.models.file.AutoTestFixture.delete_fixture">delete_fixture() (psef.models.file.AutoTestFixture method)</a>
 </li>
-      <li><a href="psef_api/psef.html#psef.models.file.FileMixin.delete_from_disk">delete_from_disk() (psef.models.file.FileMixin method)</a>
-</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="psef_api/psef.html#psef.models.file.FileMixin.delete_from_disk">delete_from_disk() (psef.models.file.FileMixin method)</a>
+</li>
       <li><a href="psef_api/psef.html#psef.models.lti_provider.LTIProvider.delete_grade_for_submission">delete_grade_for_submission() (psef.models.lti_provider.LTIProvider method)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.ignore.DeletionType">DeletionType (class in psef.ignore)</a>
@@ -777,6 +779,8 @@
       <li><a href="psef_api/psef.html#psef.helpers.escape_like">escape_like() (in module psef.helpers)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.files.escape_logical_filename">escape_logical_filename() (in module psef.files)</a>
+</li>
+      <li><a href="psef_api/psef.html#psef.linters.ESLint">ESLint (class in psef.linters)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.models.auto_test_step.AutoTestStepBase.execute_step">execute_step() (psef.models.auto_test_step.AutoTestStepBase class method)</a>
 </li>
@@ -1428,10 +1432,10 @@
 </li>
       <li><a href="psef_api/psef.html#psef.models.assignment.Assignment.max_grade">max_grade (psef.models.assignment.Assignment attribute)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="psef_api/psef.html#psef.PsefFlask.max_large_file_size">max_large_file_size (psef.PsefFlask attribute)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="psef_api/psef.html#psef.models.assignment.Assignment.max_rubric_points">max_rubric_points (psef.models.assignment.Assignment attribute)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.PsefFlask.max_single_file_size">max_single_file_size (psef.PsefFlask attribute)</a>
@@ -1439,6 +1443,8 @@
       <li><a href="psef_api/psef.html#psef.models.assignment.Assignment.maybe_add_webhook_ignore_combination_warning">maybe_add_webhook_ignore_combination_warning() (psef.models.assignment.Assignment method)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.helpers.maybe_apply_sql_slice">maybe_apply_sql_slice() (in module psef.helpers)</a>
+</li>
+      <li><a href="psef_api/psef.html#psef.helpers.maybe_wrap_in_list">maybe_wrap_in_list() (in module psef.helpers)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.models.assignment.Assignment.min_grade">min_grade (psef.models.assignment.Assignment attribute)</a>
 </li>
@@ -1803,6 +1809,8 @@
       <li><a href="psef_api/psef.html#psef.linters.Checkstyle.run">run() (psef.linters.Checkstyle method)</a>
 
       <ul>
+        <li><a href="psef_api/psef.html#psef.linters.ESLint.run">(psef.linters.ESLint method)</a>
+</li>
         <li><a href="psef_api/psef.html#psef.linters.Flake8.run">(psef.linters.Flake8 method)</a>
 </li>
         <li><a href="psef_api/psef.html#psef.linters.Linter.run">(psef.linters.Linter method)</a>
@@ -2081,15 +2089,17 @@
       <li><a href="psef_api/psef.html#psef.linters.Checkstyle.validate_config">validate_config() (psef.linters.Checkstyle class method)</a>
 
       <ul>
+        <li><a href="psef_api/psef.html#psef.linters.ESLint.validate_config">(psef.linters.ESLint class method)</a>
+</li>
         <li><a href="psef_api/psef.html#psef.linters.Linter.validate_config">(psef.linters.Linter class method)</a>
 </li>
         <li><a href="psef_api/psef.html#psef.linters.PMD.validate_config">(psef.linters.PMD class method)</a>
 </li>
       </ul></li>
-      <li><a href="psef_api/psef.html#psef.models.auto_test_step.AutoTestStepBase.validate_data">validate_data() (psef.models.auto_test_step.AutoTestStepBase method)</a>
-</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="psef_api/psef.html#psef.models.auto_test_step.AutoTestStepBase.validate_data">validate_data() (psef.models.auto_test_step.AutoTestStepBase method)</a>
+</li>
       <li><a href="psef_api/psef.html#psef.models.assignment.Assignment.validate_group_set">validate_group_set() (psef.models.assignment.Assignment method)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.models.auto_test_step.AutoTestStepBase.validate_weight">validate_weight() (psef.models.auto_test_step.AutoTestStepBase static method)</a>

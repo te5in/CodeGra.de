@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>psef.linters &mdash; CodeGrade v1.16.10 documentation</title>
+  <title>psef.linters &mdash; CodeGrade v1.16.12 documentation</title>
   
 
   
@@ -65,7 +65,7 @@
             
             
               <div class="version">
-                v1.16.10
+                v1.16.12
               </div>
             
           
@@ -220,7 +220,7 @@
 
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">app</span><span class="p">,</span> <span class="n">files</span><span class="p">,</span> <span class="n">models</span>
 <span class="kn">from</span> <span class="nn">.models</span> <span class="kn">import</span> <span class="n">db</span>
-<span class="kn">from</span> <span class="nn">.helpers</span> <span class="kn">import</span> <span class="n">register</span><span class="p">,</span> <span class="n">format_list</span>
+<span class="kn">from</span> <span class="nn">.helpers</span> <span class="kn">import</span> <span class="n">register</span><span class="p">,</span> <span class="n">format_list</span><span class="p">,</span> <span class="n">maybe_wrap_in_list</span>
 <span class="kn">from</span> <span class="nn">.exceptions</span> <span class="kn">import</span> <span class="n">ValidationException</span>
 
 <span class="n">logger</span> <span class="o">=</span> <span class="n">structlog</span><span class="o">.</span><span class="n">get_logger</span><span class="p">()</span>
@@ -692,6 +692,96 @@
                 <span class="n">emit</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">line_number</span><span class="p">,</span> <span class="n">code</span><span class="p">,</span> <span class="n">msg</span><span class="p">)</span></div></div>
 
 
+<div class="viewcode-block" id="ESLint"><a class="viewcode-back" href="../../psef_api/psef.html#psef.linters.ESLint">[docs]</a><span class="nd">@_linter_handlers</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s1">&#39;ESLint&#39;</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">ESLint</span><span class="p">(</span><span class="n">Linter</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Run the ESLint linter.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">DEFAULT_OPTIONS</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">ClassVar</span><span class="p">[</span><span class="n">t</span><span class="o">.</span><span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;Standard&#39;</span><span class="p">:</span> <span class="n">_read_config_file</span><span class="p">(</span><span class="s1">&#39;eslint&#39;</span><span class="p">,</span> <span class="s1">&#39;standard.json&#39;</span><span class="p">)</span>
+    <span class="p">}</span>
+
+<div class="viewcode-block" id="ESLint.validate_config"><a class="viewcode-back" href="../../psef_api/psef.html#psef.linters.ESLint.validate_config">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">validate_config</span><span class="p">(</span><span class="bp">cls</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Type</span><span class="p">[</span><span class="s1">&#39;ESLint&#39;</span><span class="p">],</span> <span class="n">config</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Check if the given config is valid for ESLint.</span>
+
+<span class="sd">        This also does some extra checks to make sure some invalid properties</span>
+<span class="sd">        are not present.</span>
+
+<span class="sd">        :param config: The config to check.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">json_config</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">ValidationException</span><span class="p">(</span>
+                <span class="s1">&#39;The given json config could not be parsed.&#39;</span><span class="p">,</span>
+                <span class="sa">f</span><span class="s1">&#39;The config </span><span class="si">{config}</span><span class="s1"> could not be parsed as json.&#39;</span>
+            <span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">plugin</span> <span class="ow">in</span> <span class="n">json_config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;plugins&#39;</span><span class="p">,</span> <span class="p">[]):</span>
+            <span class="k">if</span> <span class="s1">&#39;/&#39;</span> <span class="ow">in</span> <span class="n">plugin</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">ValidationException</span><span class="p">(</span>
+                    <span class="s1">&#39;Plugins cannot be paths&#39;</span><span class="p">,</span>
+                    <span class="sa">f</span><span class="s1">&#39;The plugin </span><span class="si">{plugin}</span><span class="s1"> contains a slash&#39;</span>
+                <span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">extend</span> <span class="ow">in</span> <span class="n">maybe_wrap_in_list</span><span class="p">(</span><span class="n">json_config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;extends&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)):</span>
+            <span class="k">if</span> <span class="s1">&#39;/&#39;</span> <span class="ow">in</span> <span class="n">extend</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">ValidationException</span><span class="p">(</span>
+                    <span class="s1">&#39;Base configs cannot be paths&#39;</span><span class="p">,</span>
+                    <span class="sa">f</span><span class="s1">&#39;The base config (</span><span class="si">{extend}</span><span class="s1">) as paths are not supported&#39;</span>
+                <span class="p">)</span></div>
+
+<div class="viewcode-block" id="ESLint.run"><a class="viewcode-back" href="../../psef_api/psef.html#psef.linters.ESLint.run">[docs]</a>    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">tempdir</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">emit</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Callable</span><span class="p">[[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span> <span class="kc">None</span><span class="p">],</span>
+        <span class="n">process_completed</span><span class="p">:</span> <span class="n">ProcessCompletedCallback</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Run ESLint.</span>
+
+<span class="sd">        Arguments are the same as for :py:meth:`Linter.run`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">tempdir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">tempdir</span><span class="p">)</span>
+        <span class="n">config</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">)</span>
+
+        <span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">NamedTemporaryFile</span><span class="p">(</span><span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">cfg</span><span class="p">:</span>
+            <span class="n">config</span><span class="p">[</span><span class="s1">&#39;root&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">cfg</span><span class="p">)</span>
+            <span class="n">cfg</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
+
+            <span class="n">out</span> <span class="o">=</span> <span class="n">_run_command</span><span class="p">(</span>
+                <span class="p">[</span>
+                    <span class="n">part</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">config</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">files</span><span class="o">=</span><span class="n">tempdir</span><span class="p">)</span>
+                    <span class="k">for</span> <span class="n">part</span> <span class="ow">in</span> <span class="n">app</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;ESLINT_PROGRAM&#39;</span><span class="p">]</span>
+                <span class="p">]</span>
+            <span class="p">)</span>
+            <span class="n">process_completed</span><span class="p">(</span><span class="n">out</span><span class="p">)</span>
+            <span class="c1"># Exit code 1 means that linting was successful but that errors</span>
+            <span class="c1"># were found.</span>
+            <span class="k">if</span> <span class="n">out</span><span class="o">.</span><span class="n">returncode</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">{</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">}:</span>
+                <span class="k">raise</span> <span class="n">LinterCrash</span><span class="p">(</span>
+                    <span class="n">error_summary</span><span class="o">=</span><span class="p">(</span>
+                        <span class="s1">&#39;ESLint crashed, stdout: &quot;</span><span class="si">{}</span><span class="s1">&quot;, stderr: &quot;</span><span class="si">{}</span><span class="s1">&quot;&#39;</span>
+                    <span class="p">)</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                        <span class="n">out</span><span class="o">.</span><span class="n">stdout</span><span class="p">,</span>
+                        <span class="n">out</span><span class="o">.</span><span class="n">stderr</span><span class="p">,</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
+            <span class="n">output</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">out</span><span class="o">.</span><span class="n">stdout</span><span class="p">)</span>
+
+            <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">output</span><span class="p">:</span>
+                <span class="n">filename</span> <span class="o">=</span> <span class="n">f</span><span class="p">[</span><span class="s1">&#39;filePath&#39;</span><span class="p">]</span>
+                <span class="k">for</span> <span class="n">message</span> <span class="ow">in</span> <span class="n">f</span><span class="p">[</span><span class="s1">&#39;messages&#39;</span><span class="p">]:</span>
+                    <span class="n">msg</span> <span class="o">=</span> <span class="n">message</span><span class="p">[</span><span class="s1">&#39;message&#39;</span><span class="p">]</span>
+                    <span class="k">if</span> <span class="n">message</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;fatal&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>
+                        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Encountered fatal error: </span><span class="si">{msg}</span><span class="s1">&#39;</span><span class="p">)</span>
+
+                    <span class="n">line_number</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">message</span><span class="p">[</span><span class="s1">&#39;line&#39;</span><span class="p">])</span>
+                    <span class="n">code</span> <span class="o">=</span> <span class="n">message</span><span class="p">[</span><span class="s1">&#39;ruleId&#39;</span><span class="p">]</span>
+
+                    <span class="n">emit</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">line_number</span><span class="p">,</span> <span class="n">code</span><span class="p">,</span> <span class="n">msg</span><span class="p">)</span></div></div>
+
+
 <div class="viewcode-block" id="LinterRunner"><a class="viewcode-back" href="../../psef_api/psef.html#psef.linters.LinterRunner">[docs]</a><span class="k">class</span> <span class="nc">LinterRunner</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot;This class is used to run a :class:`Linter` with a specific config on</span>
 <span class="sd">    sets of :class:`.models.Work`.</span>
@@ -855,7 +945,7 @@
 <span class="sd">        &gt;&gt;&gt; MyLinter.DEFAULT_OPTIONS = {&#39;wow&#39;: &#39;sers&#39;}</span>
 <span class="sd">        &gt;&gt;&gt; all_linters = get_all_linters()</span>
 <span class="sd">        &gt;&gt;&gt; sorted(all_linters.keys())</span>
-<span class="sd">        [&#39;Checkstyle&#39;, &#39;Flake8&#39;, &#39;MixedWhitespace&#39;, &#39;MyLinter&#39;, &#39;PMD&#39;, &#39;Pylint&#39;]</span>
+<span class="sd">        [&#39;Checkstyle&#39;, &#39;ESLint&#39;, &#39;Flake8&#39;, &#39;MixedWhitespace&#39;, &#39;MyLinter&#39;, &#39;PMD&#39;, &#39;Pylint&#39;]</span>
 <span class="sd">        &gt;&gt;&gt; linter = all_linters[&#39;MyLinter&#39;]</span>
 <span class="sd">        &gt;&gt;&gt; linter == {&#39;desc&#39;: &#39;Description&#39;, &#39;opts&#39;: {&#39;wow&#39;: &#39;sers&#39;} }</span>
 <span class="sd">        True</span>
