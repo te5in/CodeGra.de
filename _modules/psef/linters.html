@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>psef.linters &mdash; CodeGrade v1.16.12 documentation</title>
+  <title>psef.linters &mdash; CodeGrade v1.16.13 documentation</title>
   
 
   
@@ -65,7 +65,7 @@
             
             
               <div class="version">
-                v1.16.12
+                v1.16.13
               </div>
             
           
@@ -707,6 +707,20 @@
 <span class="sd">        This also does some extra checks to make sure some invalid properties</span>
 <span class="sd">        are not present.</span>
 
+<span class="sd">        &gt;&gt;&gt; ESLint.validate_config(&#39;{&quot;extends&quot;: &quot;./a_path&quot;}&#39;)</span>
+<span class="sd">        Traceback (most recent call last):</span>
+<span class="sd">        ...</span>
+<span class="sd">        ValidationException: ...</span>
+<span class="sd">        &gt;&gt;&gt; ESLint.validate_config(&#39;{&quot;extends&quot;: &quot;plugin:a_path&quot;}&#39;)</span>
+<span class="sd">        &gt;&gt;&gt; ESLint.validate_config(&#39;{&quot;extends&quot;: &quot;a/path&#39;)</span>
+<span class="sd">        Traceback (most recent call last):</span>
+<span class="sd">        ...</span>
+<span class="sd">        ValidationException: ...</span>
+<span class="sd">        &gt;&gt;&gt; ESLint.validate_config(&#39;{&quot;extends&quot;: &quot;/path&#39;)</span>
+<span class="sd">        Traceback (most recent call last):</span>
+<span class="sd">        ...</span>
+<span class="sd">        ValidationException: ...</span>
+
 <span class="sd">        :param config: The config to check.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">try</span><span class="p">:</span>
@@ -725,7 +739,9 @@
                 <span class="p">)</span>
 
         <span class="k">for</span> <span class="n">extend</span> <span class="ow">in</span> <span class="n">maybe_wrap_in_list</span><span class="p">(</span><span class="n">json_config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;extends&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)):</span>
-            <span class="k">if</span> <span class="s1">&#39;/&#39;</span> <span class="ow">in</span> <span class="n">extend</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s1">&#39;.&#39;</span> <span class="ow">in</span> <span class="n">extend</span> <span class="ow">or</span> <span class="p">(</span>
+                <span class="ow">not</span> <span class="n">extend</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;plugin:&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="s1">&#39;/&#39;</span> <span class="ow">in</span> <span class="n">extend</span>
+            <span class="p">):</span>
                 <span class="k">raise</span> <span class="n">ValidationException</span><span class="p">(</span>
                     <span class="s1">&#39;Base configs cannot be paths&#39;</span><span class="p">,</span>
                     <span class="sa">f</span><span class="s1">&#39;The base config (</span><span class="si">{extend}</span><span class="s1">) as paths are not supported&#39;</span>

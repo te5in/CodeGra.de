@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Source code documentation of psef &mdash; CodeGrade v1.16.12 documentation</title>
+  <title>Source code documentation of psef &mdash; CodeGrade v1.16.13 documentation</title>
   
 
   
@@ -66,7 +66,7 @@
             
             
               <div class="version">
-                v1.16.12
+                v1.16.13
               </div>
             
           
@@ -4582,6 +4582,21 @@ are not present.</p>
 <dd><p>Check if the given config is valid for ESLint.</p>
 <p>This also does some extra checks to make sure some invalid properties
 are not present.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">ESLint</span><span class="o">.</span><span class="n">validate_config</span><span class="p">(</span><span class="s1">&#39;{&quot;extends&quot;: &quot;./a_path&quot;}&#39;</span><span class="p">)</span>
+<span class="gt">Traceback (most recent call last):</span>
+<span class="c">...</span>
+<span class="gr">ValidationException</span>: <span class="n">...</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ESLint</span><span class="o">.</span><span class="n">validate_config</span><span class="p">(</span><span class="s1">&#39;{&quot;extends&quot;: &quot;plugin:a_path&quot;}&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ESLint</span><span class="o">.</span><span class="n">validate_config</span><span class="p">(</span><span class="s1">&#39;{&quot;extends&quot;: &quot;a/path&#39;</span><span class="p">)</span>
+<span class="gt">Traceback (most recent call last):</span>
+<span class="c">...</span>
+<span class="gr">ValidationException</span>: <span class="n">...</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ESLint</span><span class="o">.</span><span class="n">validate_config</span><span class="p">(</span><span class="s1">&#39;{&quot;extends&quot;: &quot;/path&#39;</span><span class="p">)</span>
+<span class="gt">Traceback (most recent call last):</span>
+<span class="c">...</span>
+<span class="gr">ValidationException</span>: <span class="n">...</span>
+</pre></div>
+</div>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
