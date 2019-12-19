@@ -509,6 +509,20 @@ class ESLint(Linter):
         This also does some extra checks to make sure some invalid properties
         are not present.
 
+        >>> ESLint.validate_config('{"extends": "./a_path"}')
+        Traceback (most recent call last):
+        ...
+        ValidationException: ...
+        >>> ESLint.validate_config('{"extends": "plugin:a_path"}')
+        >>> ESLint.validate_config('{"extends": "a/path')
+        Traceback (most recent call last):
+        ...
+        ValidationException: ...
+        >>> ESLint.validate_config('{"extends": "/path')
+        Traceback (most recent call last):
+        ...
+        ValidationException: ...
+
         :param config: The config to check.
         """
         try:
@@ -527,7 +541,9 @@ class ESLint(Linter):
                 )
 
         for extend in maybe_wrap_in_list(json_config.get('extends', '')):
-            if '/' in extend:
+            if '.' in extend or (
+                not extend.startswith('plugin:') and '/' in extend
+            ):
                 raise ValidationException(
                     'Base configs cannot be paths',
                     f'The base config ({extend}) as paths are not supported'
