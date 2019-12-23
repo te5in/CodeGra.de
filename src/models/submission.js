@@ -1,5 +1,7 @@
 import { cmpNoCase } from '@/utils';
 
+const REVISIONS = ['student', 'teacher'];
+
 // eslint-disable-next-line
 export class FileTree {
     constructor(studentTree, teacherTree) {
@@ -193,6 +195,10 @@ export class FileTree {
     // Search the tree for the file with the givven id.
     search(revision, id) {
         return this.findFileInDir(this[revision], id);
+    }
+
+    getRevision(id) {
+        return REVISIONS.find(rev => this.search(rev, id) != null);
     }
 
     // eslint-disable-next-line

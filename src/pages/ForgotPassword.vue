@@ -2,17 +2,17 @@
 <template>
 <div class="forgot-password">
     <div class="forgot-password-wrapper">
-        <img class="standalone-logo" src="static/img/codegrade.svg" v-if="darkMode"/>
-        <img class="standalone-logo" src="static/img/codegrade-inv.svg" v-else/>
-    <forgot-password class="forgot-password"/>
-</div>
+        <cg-logo :inverted="!darkMode"
+                 class="standalone-logo" />
+        <forgot-password class="forgot-password"/>
+    </div>
 </div>
 </template>
 
 <script>
 import { mapGetters } from 'vuex';
 
-import { ForgotPassword } from '@/components';
+import { CgLogo, ForgotPassword } from '@/components';
 
 import { setPageTitle } from './title';
 
@@ -28,6 +28,7 @@ export default {
     },
 
     components: {
+        CgLogo,
         ForgotPassword,
     },
 };

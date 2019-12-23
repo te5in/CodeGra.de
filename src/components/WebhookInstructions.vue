@@ -10,11 +10,12 @@
             <icon name="arrow-left" />
         </b-btn>
         <div class="flex-grow d-flex justify-content-center">
-            <h4 class="m-0 align-self-center">
+            <h4 class="mx-3 my-0 align-self-center">
                 {{ pageName }}
-                <span v-if="page > 0" class="ml-1">
-                    (in {{ providerName }}).
-                </span>
+                ({{ page + 1 }} / {{ Object.keys(pageNames).length }})
+                <small v-if="page > 0" class="ml-1">
+                    ({{ providerName }})
+                </small>
             </h4>
         </div>
         <b-btn @click="showNextBtn && page++"
@@ -24,6 +25,7 @@
             <icon name="arrow-right" />
         </b-btn>
     </div>
+
     <div v-if="page == 0">
         <div class="logos row justify-content-center">
             <div class="github logo col-lg-5 border m-3 rounded px-5 d-flex"
@@ -39,6 +41,7 @@
             </div>
         </div>
     </div>
+
     <div v-else-if="page == 1">
         <p>
             CodeGrade allows you to submit your work directly via Git, this is
@@ -112,8 +115,8 @@
                 <icon name="clipboard" />
             </b-btn>
         </div>
-
     </div>
+
     <div v-else-if="page == 2">
         <template v-if="provider === 'github'">
             <p>
@@ -333,13 +336,17 @@ export default {
             return this.data.user_id;
         },
 
-        pageName() {
+        pageNames() {
             return {
-                0: 'Select a Git hoster',
-                1: 'Add a deploy key',
+                0: 'Select Git hoster',
+                1: 'Add the deploy key',
                 2: 'Add the webhook',
                 3: 'Test the webhook',
-            }[this.page];
+            };
+        },
+
+        pageName() {
+            return this.pageNames[this.page];
         },
 
         providerName() {
@@ -550,5 +557,11 @@ export default {
     flex-direction: column;
     max-height: 100%;
     overflow: hidden;
+}
+
+.public-key,
+.webhook-url,
+.webhook-secret {
+    word-break: break-all;
 }
 </style>

@@ -2,6 +2,12 @@
 
 set -o xtrace
 
+# Make sure none of the tests are run as the only one.
+if grep -r '\.only(' ./cypress; then
+    printf >&2 'Cypress tests contain a .only()\n'
+    exit 1
+fi
+
 make privacy_statement
 make start_dev_npm &
 
@@ -22,6 +28,7 @@ broker_url = redis://localhost:6379
 register = true
 auto_test = true
 course_register = true
+groups = true
 
 EOF
 

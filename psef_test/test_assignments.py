@@ -4422,7 +4422,8 @@ def test_upload_files_with_duplicate_filenames(
 
 
 def test_get_latest_submissions_only(
-    logged_in, session, test_client, admin_user, tomorrow, describe
+    logged_in, session, test_client, admin_user, tomorrow, describe,
+    monkeypatch_celery
 ):
     with describe('setup'):
         with logged_in(admin_user):
@@ -4472,10 +4473,68 @@ def test_get_latest_submissions_only(
         )
 
     with describe('But method only gives group submission by default'):
-        subs = m.Assignment.query.get(assig_id
-                                      ).get_all_latest_submissions().all()
+        assig = m.Assignment.query.get(assig_id)
+        subs = assig.get_all_latest_submissions().all()
         assert len(subs) == 1
         assert subs[0].id == group_sub['id']
+
+        # And the single function should do the same
+        for user_id in [sub2['user']['id'], sub3['user']['id']]:
+            found_sub = assig.get_latest_submission_for_user(
+                m.User.query.get(user_id)
+            ).one()
+            assert found_sub.id == group_sub['id']
+
+    with describe(
+        'Group submission is always returned, even if user submission is newer'
+    ):
+        m.Work.query.filter_by(id=sub2['id']).update({'created_at': tomorrow})
+        session.commit()
+        subs = assig.get_all_latest_submissions().all()
+        assert len(subs) == 1
+        assert subs[0].id == group_sub['id']
+
+        # And the single function should do the same
+        for user_id in [sub2['user']['id'], sub3['user']['id']]:
+            found_sub = assig.get_latest_submission_for_user(
+                m.User.query.get(user_id)
+            ).one()
+            assert found_sub.id == group_sub['id']
+
+    with describe(
+        'When the assignment is deleted no submissions should be found'
+    ):
+        assig.deleted = True
+        session.flush()
+
+        assert not assig.get_all_latest_submissions().all()
+        for user_id in [sub2['user']['id'], sub3['user']['id']]:
+            assert assig.get_latest_submission_for_user(
+                m.User.query.get(user_id)
+            ).first() is None
+
+        assig.deleted = False
+        session.flush()
+
+    with describe(
+        'After deleting group submission we get student submissions again'
+    ):
+        with logged_in(teacher):
+            test_client.req(
+                'delete', f'/api/v1/submissions/{group_sub["id"]}', 204
+            )
+        subs = m.Assignment.query.get(assig_id
+                                      ).get_all_latest_submissions().all()
+        assert len(subs) == 2
+        assert {s.id for s in subs} == {sub3['id'], sub2['id']}
+
+        # And the single function should do the same
+        for sub in [sub2, sub3]:
+            user_id = sub['user']['id']
+            found_sub = assig.get_latest_submission_for_user(
+                m.User.query.get(user_id)
+            ).one()
+            assert found_sub.id == sub['id']
 
 
 def test_all_submissions_by_a_user(

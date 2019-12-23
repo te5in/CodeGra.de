@@ -1822,9 +1822,21 @@ class AutoTestRunner:
         result_id: int,
         test_suite: SuiteInstructions,
     ) -> None:
-        with tempfile.NamedTemporaryFile() as tfile:
-            cont.run_command(['ls', cont.output_dir])
+        has_files = False
 
+        def stdout_callback(output: bytes) -> None:
+            nonlocal has_files
+            if output:
+                has_files = True
+
+        cont.run_command(
+            ['find', cont.output_dir, '-type', 'f'],
+            stdout=stdout_callback,
+        )
+        if not has_files:
+            return
+
+        with tempfile.NamedTemporaryFile() as tfile:
             os.chmod(tfile.name, 0o777)
             cont.run_command(
                 ['tar', 'cjf', '/dev/stdout', cont.output_dir],

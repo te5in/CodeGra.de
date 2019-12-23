@@ -71,7 +71,6 @@ context('Plagiarsm', () => {
     });
 
     beforeEach(() => {
-        cy.visit('/');
         cy.login('robin', 'Robin')
         cy.visit(`/courses/${course.id}/assignments/${assignment.id}`);
 

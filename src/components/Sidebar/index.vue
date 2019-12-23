@@ -9,7 +9,9 @@
                    class="sidebar-top-item logo"
                    :to="$inLTI ? undefined : ({ name: 'home' })"
                    @click.native="$inLTI && closeSubMenu(true)">
-            <img :src="logoSrc"/>
+            <cg-logo :small="!mobileVisible"
+                     :inverted="!darkMode && $inLTI"
+                     show-easter-eggs />
         </component>
         <hr class="separator">
         <div class="sidebar-top">
@@ -41,7 +43,7 @@
                                @success="afterOpenRouteInTab"
                                v-b-popover.top.hover="'Open this page in a new tab'">
                     <div class="new-tab-wrapper">
-                        <icon name="share-square-o" :scale="1"/>
+                        <icon name="share-square-o" :scale="1" class="mr-2" />
                         <small class="name new-tab">New tab</small>
                     </div>
                 </submit-button>
@@ -164,6 +166,7 @@ import AssignmentList from './AssignmentList';
 import PlagiarismCaseList from './PlagiarismCaseList';
 import SubmissionsSidebarList from './SubmissionsSidebarList';
 import GroupList from './GroupList';
+import CgLogo from '../CgLogo';
 
 import { MANAGE_SITE_PERIMSSIONS } from '../../constants';
 
@@ -333,10 +336,6 @@ export default {
             return (this.assignments || {})[this.assignmentId];
         },
 
-        isChristmas() {
-            return this.$root.$now.month() === 11 && this.$root.$now.date() <= 26;
-        },
-
         floating() {
             return (
                 this.$inLTI ||
@@ -358,24 +357,6 @@ export default {
         hideInitialEntries() {
             const route = this.$route.name;
             return this.$inLTI || !this.$root.$isMediumWindow || hideRoutes.has(route);
-        },
-
-        logoSrc() {
-            let logo;
-
-            if (this.isChristmas) {
-                logo = 'CodeGrade_christmas';
-            } else if (!this.mobileVisible) {
-                logo = 'logo';
-            } else {
-                logo = 'codegrade';
-            }
-
-            if (!this.darkMode && this.$inLTI) {
-                logo += '-inv';
-            }
-
-            return `/static/img/${logo}.svg`;
         },
     },
 
@@ -399,10 +380,6 @@ export default {
     async mounted() {
         this.fixAppMargin();
 
-        if (this.loggedIn) {
-            await this.loadCourses();
-        }
-
         this.$root.$on('sidebar::show', submenu => {
             if (submenu === undefined) {
                 this.toggleMobileSidebar();
@@ -422,8 +399,6 @@ export default {
     },
 
     methods: {
-        ...mapActions('courses', ['loadCourses']),
-
         ...mapActions('user', {
             logoutUser: 'logout',
         }),
@@ -606,6 +581,7 @@ export default {
         SubmissionsSidebarList,
         SubmitButton,
         GroupList,
+        CgLogo,
     },
 };
 </script>
@@ -683,10 +659,6 @@ export default {
         }
     }
 
-    .sidebar-top-item.logo {
-        flex: 0 0 auto;
-    }
-
     .sidebar-top {
         flex: 1 1 auto;
         overflow-y: auto;
@@ -703,6 +675,7 @@ export default {
         }
 
         &.logo {
+            flex: 0 0 auto;
             display: block;
             padding: 1rem 0.5rem;
 
@@ -851,7 +824,7 @@ export default {
 
 .new-tab-wrapper {
     display: flex;
-    justify-content: space-evenly;
+    justify-content: center;
 }
 </style>
 

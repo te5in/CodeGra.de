@@ -19,11 +19,12 @@
     <div v-else-if="oldRemoteVersion">
         <pre>{{ oldCgignore }}</pre>
     </div>
-    <div v-else-if="!editable && !policy">
+    <div v-else-if="!editable && !policy"
+         class="font-italic text-muted">
         No validation set.
     </div>
     <b-form-group
-        v-else
+        v-else-if="!summaryMode"
         class="policy-form"
         :class="policy ? '' : 'policy-form-only'"
         label-class="font-weight-bold pt-0 policy-form-label"
@@ -42,14 +43,7 @@
                              upload. With both options you can specify required
                              files, that students must upload."/>
         </template>
-        <b-btn v-if="summaryMode"
-               size="sm"
-               class="policy-btn"
-               variant="primary">
-            {{ policyOptions.find(x => x.value === policy).text }}
-        </b-btn>
         <b-form-radio-group
-            v-else
             class="option-button"
             :disabled="!editable || policyDisabled"
             v-b-popover.top.hover="policyDisabled && editable ? 'You cannot change the policy after you have created rules.' : ''"
@@ -57,8 +51,7 @@
             size="sm"
             :options="policyOptions"
             button-variant="primary"
-            buttons
-            />
+            buttons />
     </b-form-group>
     <transition :name="disabledAnimations ? '' : 'collapse'">
         <div v-if="policy" class="collapse-entry">
@@ -95,7 +88,13 @@
                 </tbody>
             </table>
             <div>
-                <div class="rules-header"><b>Exceptions and requirements</b></div>
+                <div class="rules-header">
+                    <b v-if="summaryMode">
+                        By default all files are
+                        <i>{{ policyOptions.find(x => x.value === policy).shortText }}</i>.
+                        Exceptions and requirements:
+                    </b>
+                </div>
                 <ul class="rule-list striped-list"
                     v-if="!loadingRules"
                     :class="{ 'background-enabled': !disableBackgroundAnimation }"
@@ -290,8 +289,16 @@ export default {
 
         policyOptions() {
             return [
-                { text: 'Deny all files', value: 'deny_all_files' },
-                { text: 'Allow all files', value: 'allow_all_files' },
+                {
+                    text: 'Deny all files',
+                    shortText: 'denied',
+                    value: 'deny_all_files',
+                },
+                {
+                    text: 'Allow all files',
+                    shortText: 'allowed',
+                    value: 'allow_all_files',
+                },
             ];
         },
     },
@@ -551,9 +558,9 @@ pre {
 }
 
 .rules-header {
-    border-top: 1px solid @color-border-gray-lighter;
     padding: 0.75rem;
     border-bottom: 2px solid @color-border-gray-lighter;
+
     #app.dark & {
         border-color: @color-primary-darker;
     }

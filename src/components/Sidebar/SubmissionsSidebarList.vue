@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
-<div class="submisssions-sidebar-list sidebar-list-wrapper">
+<div class="submissions-sidebar-list sidebar-list-wrapper">
     <div class="sidebar-filter">
         <input class="form-control"
                placeholder="Filter submissions"

@@ -1,186 +1,119 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div class="submission-list d-flex flex-column">
-    <local-header always-show-extra-slot
-                  ref="localHeader">
-        <template slot="title" v-if="assignment && Object.keys(assignment).length">
-            {{ assignment.name }}
+    <b-form-fieldset>
+        <b-input-group class="search-wrapper">
+            <input v-model="filter"
+                   class="form-control"
+                   name="submissions-filter"
+                   placeholder="Type to Search"
+                   @keyup.enter="submit"
+                   @keyup="submitDelayed"/>
 
-            <small v-if="assignment.formatted_deadline">- due {{ assignment.formatted_deadline }}</small>
-            <small v-else class="text-muted"><i>- No deadline</i></small>
-        </template>
-
-        <template slot="extra">
-            <hr class="separator top-separator"/>
-
-            <category-selector slot="extra"
-                               :default="defaultCat"
-                               v-model="selectedCat"
-                               :disabled="showLoader"
-                               :categories="categories"/>
-        </template>
-
-        <b-input-group>
-            <b-button-group>
-                <b-button :to="manageAssignmentRoute"
-                          variant="secondary"
-                          v-if="assignment.canManage"
-                          v-b-popover.bottom.hover="'Manage assignment'">
-                    <icon name="gear"/>
-                </b-button>
-                <submit-button :wait-at-least="500"
-                               :submit="submitForceLoadSubmissions"
-                               v-b-popover.bottom.hover="'Reload submissions'">
-                    <icon name="refresh"/>
-                    <icon name="refresh" spin slot="pending-label"/>
-                </submit-button>
-            </b-button-group>
+            <b-input-group-append is-text
+                                  class="assigned-to-me-option"
+                                  v-if="canSeeOthersWork && !assigneeCheckboxDisabled"
+                                  v-b-popover.bottom.hover="'Show only subbmissions assigned to me.'">
+                <b-form-checkbox v-model="mineOnly"
+                                 @change="submit">
+                    Assigned to me
+                </b-form-checkbox>
+            </b-input-group-append>
         </b-input-group>
-    </local-header>
+    </b-form-fieldset>
 
-    <loader center page-loader v-if="showLoader" />
+    <b-table striped
+             hover
+             ref="table"
+             @row-clicked="gotoSubmission"
+             @sort-changed="(ctx) => $nextTick(() => sortChanged(ctx))"
+             :items="filteredSubmissions"
+             :fields="fields"
+             :current-page="currentPage"
+             :sort-compare="sortSubmissions"
+             :sort-by="this.$route.query.sortBy || 'user'"
+             :sort-desc="!parseBool(this.$route.query.sortAsc, true)"
+             class="mb-0 border-bottom submissions-table">
+        <a class="invisible-link"
+           href="#"
+           slot="user"
+           slot-scope="item"
+           @click.prevent>
+            <user :user="item.value"/>
+            <webhook-name :submission="item.item" />
+            <icon name="exclamation-triangle"
+                  class="text-warning ml-1"
+                  style="margin-bottom: -1px;"
+                  v-b-popover.top.hover="`This user is member of the group ${quote}${usersInGroup[item.value.id].group.name}${quote}, which also created a submission.`"
+                  v-if="usersInGroup[item.value.id]"/>
+        </a>
 
-    <template v-else>
-        <div class="cat-container border-bottom"
-             :class="selectedCat"
-             :style="catContainerStyle">
-            <b-input-group v-if="selectedCat === 'search'"
-                           class="search-wrapper">
-                <input v-model="filter"
-                       class="form-control"
-                       name="submissions-filter"
-                       placeholder="Type to Search"
-                       @keyup.enter="submit"
-                       @keyup="submitDelayed"/>
-                <b-input-group-append is-text
-                                      class="assigned-to-me-option"
-                                      v-if="canSeeOthersWork && !assigneeCheckboxDisabled"
-                                      v-b-popover.bottom.hover="'Show only subbmissions assigned to me.'">
-                    <b-form-checkbox v-model="mineOnly"
-                                     @change="submit">
-                        Assigned to me
-                    </b-form-checkbox>
-                </b-input-group-append>
-            </b-input-group>
+        <span slot="grade" slot-scope="item" class="submission-grade">
+            {{ formatGrade(item.value) || '-' }}
+        </span>
 
-            <div v-if="selectedCat === 'rubric'">
-                <rubric-editor v-if="assignment.rubric != null"
-                               :editable="false"
-                               :default-rubric="rubric"
-                               :assignment="assignment"/>
-                <div class="empty-text text-muted font-italic" v-else>
-                    There is no rubric for this assignment.
-                </div>
-            </div>
+        <template slot="formatted_created_at" slot-scope="item">
+            {{item.value ? item.value : '-'}}
+            <late-submission-icon
+                :submission="item.item"
+                :assignment="assignment" />
+        </template>
 
-            <div v-if="selectedCat === 'hand-in-instructions'">
-                <c-g-ignore-file v-if="assignment.cgignore"
-                                 :assignmentId="assignment.id"
-                                 :editable="false"
-                                 summary-mode/>
-                <div class="empty-text text-muted font-italic" v-else>
-                    There are no hand-in instructions for this assignment.
-                </div>
-            </div>
-
-            <submissions-exporter v-if="selectedCat === 'export'"
-                                  :get-submissions="filter => filter ? filteredSubmissions : submissions"
-                                  :assignment-id="assignment.id"
-                                  :filename="exportFilename"/>
-        </div>
-
-        <b-table striped
-                 hover
-                 ref="table"
-                 @row-clicked="gotoSubmission"
-                 @sort-changed="(ctx) => $nextTick(() => sortChanged(ctx))"
-                 :items="filteredSubmissions"
-                 :fields="fields"
-                 :current-page="currentPage"
-                 :sort-compare="sortSubmissions"
-                 :sort-by="this.$route.query.sortBy || 'user'"
-                 :sort-desc="!parseBool(this.$route.query.sortAsc, true)"
-                 class="submissions-table">
-            <a class="invisible-link"
-               href="#"
-               slot="user"
-               slot-scope="item"
-               @click.prevent>
-                <user :user="item.value"/>
-                <webhook-name :submission="item.item" />
-                <icon name="exclamation-triangle"
-                      class="text-warning ml-1"
-                      style="margin-bottom: -1px;"
-                      v-b-popover.top.hover="`This user is member of the group ${quote}${usersInGroup[item.value.id].group.name}${quote}, which also created a submission.`"
-                      v-if="usersInGroup[item.value.id]"/>
-            </a>
-
-            <span slot="grade" slot-scope="item" class="submission-grade">
-                {{ formatGrade(item.value) || '-' }}
+        <span slot="assignee" slot-scope="item" class="assigned-to-grader">
+            <span v-if="!canAssignGrader || graders == null">
+                <user :user="item.value"
+                      v-if="item.value"/>
+                <span v-else>-</span>
             </span>
+            <loader :scale="1"
+                    v-else-if="assigneeUpdating[item.item.id]"/>
+            <div v-else
+                 v-b-popover.top.hover="item.item.user.is_test_student ? 'You cannot assign test students to graders.' : ''">
+                <b-form-select :options="assignees"
+                               :disabled="!!(item.item.user.is_test_student || usersInGroup[item.item.user.id])"
+                               :value="item.value ? item.value.id : null"
+                               @input="updateAssignee($event, item)"
+                               @click.native.stop
+                               class="user-form-select"/>
+            </div>
+        </span>
+    </b-table>
 
-            <template slot="formatted_created_at" slot-scope="item">
-                {{item.value ? item.value : '-'}}
-                <late-submission-icon :submission="item.item" :assignment="assignment" />
-            </template>
+    <div v-if="!canSeeOthersWork && this.submissions.length === 0"
+         class="no-submissions-found border-bottom text-muted"
+         >
+        You have no submissions yet!
+    </div>
 
-            <span slot="assignee" slot-scope="item" class="assigned-to-grader">
-                <span v-if="!canAssignGrader || graders == null">
-                    <user :user="item.value" v-if="item.value"/>
-                    <span v-else>-</span>
-                </span>
-                <loader :scale="1" v-else-if="assigneeUpdating[item.item.id]"/>
-                <div v-else
-                    v-b-popover.top.hover="item.item.user.is_test_student ? 'You cannot assign test students to graders.' : ''">
-                    <b-form-select :options="assignees"
-                                   :disabled="item.item.user.is_test_student || usersInGroup[item.item.user.id]"
-                                   :value="item.value ? item.value.id : null"
-                                   @input="updateAssignee($event, item)"
-                                   @click.native.stop
-                                   class="user-form-select"/>
-                </div>
-            </span>
-        </b-table>
-        <div class="no-submissions-found"
-             v-if="!canSeeOthersWork && this.submissions.length === 0">
-            You have no submissions yet!
-        </div>
-        <div class="no-submissions-found"
-             v-else-if="this.submissions.length === 0">
-            There are no submissions yet.
-        </div>
-        <div class="no-submissions-found"
-             v-else-if="this.submissions && this.filteredSubmissions.length === 0">
-            No submissions found for the given filters.
-        </div>
+    <div v-else-if="this.submissions.length === 0"
+         class="no-submissions-found border-bottom text-muted"
+         >
+        There are no submissions yet.
+    </div>
 
-        <div v-if="canSeeOthersWork"
-            class="submission-count">
-            Showing {{ numFilteredStudents }} out of {{ numStudents }} students.
-        </div>
-    </template>
+    <div v-else-if="this.submissions && this.filteredSubmissions.length === 0"
+         class="no-submissions-found border-bottom text-muted"
+         >
+        No submissions found with the given filters.
+    </div>
+
+    <div v-if="canSeeOthersWork"
+         class="submission-count border-bottom">
+        Showing {{ numFilteredStudents }} out of {{ numStudents }} students.
+    </div>
 </div>
 </template>
 
 <script>
-import { mapGetters, mapActions } from 'vuex';
+import { mapActions, mapGetters } from 'vuex';
 import Icon from 'vue-awesome/components/Icon';
-import 'vue-awesome/icons/gear';
-import 'vue-awesome/icons/refresh';
 import 'vue-awesome/icons/exclamation-triangle';
-import 'vue-awesome/icons/clock-o';
 
 import { waitAtLeast, formatGrade, parseBool, nameOfUser } from '@/utils';
 import { filterSubmissions, sortSubmissions } from '@/utils/FilterSubmissionsManager';
 
-import SubmissionsExporter from './SubmissionsExporter';
 import Loader from './Loader';
-import SubmitButton from './SubmitButton';
-import RubricEditor from './RubricEditor';
-import LocalHeader from './LocalHeader';
 import User from './User';
-import CategorySelector from './CategorySelector';
-import CGIgnoreFile from './CGIgnoreFile';
 import LateSubmissionIcon from './LateSubmissionIcon';
 import WebhookName from './WebhookName';
 
@@ -215,10 +148,6 @@ export default {
             type: Boolean,
             required: false,
         },
-        showLoader: {
-            type: Boolean,
-            default: false,
-        },
     },
 
     data() {
@@ -229,7 +158,6 @@ export default {
             filter: this.$route.query.q || '',
             assignees: [],
             assigneeUpdating: [],
-            selectedCat: '',
             // For use in v-b-popover directives.
             quote: '"',
         };
@@ -279,47 +207,6 @@ export default {
             return fields;
         },
 
-        categories() {
-            return [
-                {
-                    id: 'search',
-                    name: 'Search',
-                    enabled: true,
-                },
-                {
-                    id: 'rubric',
-                    name: 'Rubric',
-                    enabled: true,
-                },
-                {
-                    id: 'hand-in-instructions',
-                    name: 'Hand-in instructions',
-                    enabled: true,
-                },
-                {
-                    id: 'export',
-                    name: 'Export',
-                    enabled: this.canDownload,
-                },
-            ];
-        },
-
-        defaultCat() {
-            if (!this.canSeeOthersWork && this.assignment.rubric != null) {
-                return 'rubric';
-            } else if (!this.canSeeOthersWork && this.assignment.cgignore) {
-                return 'hand-in-requirements';
-            } else {
-                return 'search';
-            }
-        },
-
-        exportFilename() {
-            return this.assignment
-                ? `${this.assignment.course.name}-${this.assignment.name}.csv`
-                : null;
-        },
-
         filteredSubmissions() {
             // WARNING: We need to access all, do not change!
             if (
@@ -348,16 +235,6 @@ export default {
             );
         },
 
-        manageAssignmentRoute() {
-            return {
-                name: 'manage_assignment',
-                params: {
-                    courseId: this.assignment.course.id,
-                    assignmentId: this.assignment.id,
-                },
-            };
-        },
-
         numStudents() {
             return new Set(this.submissions.map(sub => nameOfUser(sub.user))).size;
         },
@@ -375,33 +252,18 @@ export default {
                 s => this.$utils.getProps(s, null, 'assignee', 'id') === this.userId,
             );
         },
-
-        catContainerStyle() {
-            // We get the window width (but we don't need it for anything) as we want this property
-            // to be recomputed when then window size changes, because the clientHeight of the
-            // LocalHeader may change then.
-            // eslint-disable-next-line
-            const winWidth = this.$root.$windowWidth;
-
-            switch (this.selectedCat) {
-                case 'search':
-                    return {
-                        position: 'sticky',
-                        top: `${this.$utils.getProps(
-                            this.$refs,
-                            0,
-                            'localHeader',
-                            '$el',
-                            'clientHeight',
-                        )}px`,
-                    };
-                default:
-                    return {};
-            }
-        },
     },
 
     watch: {
+        filteredSubmissions: {
+            immediate: true,
+            handler() {
+                this.$emit('filter', {
+                    submissions: this.filteredSubmissions,
+                });
+            },
+        },
+
         graders(graders) {
             if (graders == null) return;
 
@@ -434,11 +296,9 @@ export default {
     },
 
     methods: {
-        ...mapActions('submissions', ['forceLoadSubmissions']),
-
-        submitForceLoadSubmissions() {
-            return this.forceLoadSubmissions(this.assignment.id);
-        },
+        ...mapActions('submissions', {
+            updateSubmission: 'updateSubmission',
+        }),
 
         updateGraders(graders) {
             const assignees = graders.map(ass => ({
@@ -526,7 +386,11 @@ export default {
                             break;
                         }
                     }
-                    this.$emit('assigneeUpdated', submission, newAssignee);
+                    this.updateSubmission({
+                        assignmentId: this.assignment.id,
+                        submissionId: submission.id,
+                        submissionProps: { assignee: newAssignee },
+                    });
                 },
                 ({ response }) => {
                     // TODO: visual feedback
@@ -542,16 +406,10 @@ export default {
 
     components: {
         Icon,
-        Loader,
-        SubmitButton,
-        RubricEditor,
-        SubmissionsExporter,
-        LocalHeader,
         User,
-        CategorySelector,
-        CGIgnoreFile,
-        LateSubmissionIcon,
+        Loader,
         WebhookName,
+        LateSubmissionIcon,
     },
 };
 </script>
@@ -561,49 +419,18 @@ export default {
 
 .submission-list {
     position: relative;
-    margin-bottom: 1rem;
-}
-
-.separator.top-separator {
-    margin: 0.5rem 0;
-}
-
-.cat-container {
-    margin: -1rem -15px 1rem;
-    padding: 1rem;
-    background-color: white;
-    z-index: 100;
-
-    #app.dark & {
-        background-color: @color-primary;
-    }
-}
-
-.empty-text {
-    padding: 0.375rem 0.75rem;
-    border: 1px solid transparent;
 }
 
 .submission-count,
 .no-submissions-found {
     padding: 0.75rem;
-    border: 1px solid #dee2e6;
-    border-right-width: 0;
-    border-left-width: 0;
-
-    #app.dark & {
-        border-color: @color-primary-darker;
-    }
-}
-
-.no-submissions-found {
-    color: @text-color-muted;
 }
 
 .user-form-select {
     max-width: 20em;
     margin: -0.35rem 0;
     cursor: pointer;
+
     &[disabled] {
         cursor: not-allowed;
     }
@@ -614,8 +441,6 @@ export default {
 @import '~mixins.less';
 
 .submissions-table {
-    margin-bottom: 0;
-
     td,
     th {
         vertical-align: middle;

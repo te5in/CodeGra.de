@@ -6,14 +6,11 @@
             Welcome {{ nameOfUser }}!
         </template>
         <div class="search-logo-wrapper">
-            <input class="search form-control"
+            <input class="search form-control mr-3"
                    v-model="searchString"
                    ref="searchInput"
                    placeholder="Type to search"/>
-            <img class="large" src="/static/img/codegrade.svg" v-if="darkMode"/>
-            <img class="large" src="/static/img/codegrade-inv.svg" v-else/>
-            <img class="small" src="/static/img/logo.svg" v-if="darkMode"/>
-            <img class="small" src="/static/img/logo-inv.svg" v-else/>
+            <cg-logo :small="$root.$isSmallWindow" :inverted="!darkMode" />
         </div>
     </local-header>
     <b-alert show v-if="showReleaseNote" variant="info">
@@ -104,6 +101,7 @@ import AssignmentState from './AssignmentState';
 import UserInfo from './UserInfo';
 import Loader from './Loader';
 import LocalHeader from './LocalHeader';
+import CgLogo from './CgLogo';
 
 const COLOR_PAIRS = [
     { background: '#70A3A2', color: 'dark' },
@@ -247,6 +245,7 @@ export default {
 
     components: {
         AssignmentState,
+        CgLogo,
         Icon,
         UserInfo,
         Loader,
@@ -258,32 +257,14 @@ export default {
 <style lang="less" scoped>
 @import '~mixins.less';
 
-.local-header img {
-    &.large {
-        height: 1.3em;
-    }
-
-    &.small {
-        height: 1.8em;
-    }
-
-    @media @media-small {
-        &.large {
-            display: none;
-        }
-    }
-
-    @media @media-no-small {
-        &.small {
-            display: none;
-        }
-    }
-}
-
 .home-grid {
     display: flex;
     flex-direction: column;
     min-height: 100%;
+}
+
+.cg-logo {
+    height: 1.5rem;
 }
 
 .home-grid .outer-block {
@@ -430,9 +411,6 @@ a {
     flex: 0 0 auto;
     display: flex;
     align-items: center;
-    img {
-        padding-left: 15px;
-    }
 }
 
 .super-text-muted,

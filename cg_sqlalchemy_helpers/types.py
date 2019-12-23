@@ -16,7 +16,7 @@ Y = t.TypeVar('Y')
 U = t.TypeVar('U')
 E = t.TypeVar('E', bound=enum.Enum)
 DbSelf = t.TypeVar('DbSelf', bound='MyDb')
-QuerySelf = t.TypeVar('QuerySelf', bound='MyQuery')
+QuerySelf = t.TypeVar('QuerySelf', bound='MyNonOrderableQuery')
 _T_BASE = t.TypeVar('_T_BASE', bound='Base')
 
 
@@ -213,8 +213,8 @@ class DbColumn(t.Generic[T]):  # pragma: no cover
         raise ValueError
 
     def in_(
-        self,
-        val: t.Union[t.Iterable[T], 'DbColumn[T]', 'MyQuery[T]', 'RawTable']
+        self, val: t.Union[t.Iterable[T], 'DbColumn[T]',
+                           'MyNonOrderableQuery[T]', 'RawTable']
     ) -> 'DbColumn[T]':
         ...
 
@@ -260,9 +260,9 @@ class Base:  # pragma: no cover
         pass
 
 
-class MyQuery(t.Generic[T], t.Iterable):  # pragma: no cover
+class MyNonOrderableQuery(t.Generic[T], t.Iterable):  # pragma: no cover
     delete: t.Callable[[QuerySelf], None]
-    as_scalar: t.Callable[[QuerySelf], 'MyQuery[T]']
+    as_scalar: t.Callable[[QuerySelf], 'MyNonOrderableQuery[T]']
     subquery: t.Callable[[QuerySelf, str], RawTable]
     limit: t.Callable[[QuerySelf, int], QuerySelf]
     first: t.Callable[[QuerySelf], t.Optional[T]]
@@ -304,15 +304,10 @@ class MyQuery(t.Generic[T], t.Iterable):  # pragma: no cover
     ) -> None:
         ...
 
-    def from_self(self, *args: t.Type[Z]) -> 'MyQuery[Z]':
+    def from_self(self, *args: t.Type[Z]) -> 'MyNonOrderableQuery[Z]':
         ...
 
     def join(self: QuerySelf, *args: t.Any, **kwargs: t.Any) -> 'QuerySelf':
-        ...
-
-    def order_by(
-        self: QuerySelf, *args: t.Any, **kwargs: t.Any
-    ) -> 'QuerySelf':
         ...
 
     def filter(self: QuerySelf, *args: t.Any, **kwargs: t.Any) -> 'QuerySelf':
@@ -336,8 +331,18 @@ class MyQuery(t.Generic[T], t.Iterable):  # pragma: no cover
         ...
 
 
+class MyQuery(t.Generic[T], MyNonOrderableQuery[T]):
+    def order_by(
+        self: QuerySelf, *args: t.Any, **kwargs: t.Any
+    ) -> 'QuerySelf':
+        ...
+
+    def from_self(self, *args: t.Type[Z]) -> 'MyQuery[Z]':
+        ...
+
+
 class MyQueryTuple(t.Generic[T], MyQuery[t.Tuple[T]]):
-    def scalar(self) -> T:
+    def scalar(self) -> t.Optional[T]:
         ...
 
 

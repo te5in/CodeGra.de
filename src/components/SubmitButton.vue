@@ -104,6 +104,7 @@
                 </div>
             </template>
         </b-modal>
+
         <b-popover v-else-if="confirm.length > 0"
                    :placement="popoverPlacement"
                    :container="container"

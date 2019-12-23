@@ -2,8 +2,8 @@
 <template>
 <div class="login">
     <div class="login-wrapper">
-        <img class="standalone-logo" src="static/img/codegrade.svg" v-if="darkMode"/>
-        <img class="standalone-logo" src="static/img/codegrade-inv.svg" v-else/>
+        <cg-logo :inverted="!darkMode"
+                 class="standalone-logo" />
         <login class="login"/>
     </div>
 </div>
@@ -12,7 +12,7 @@
 <script>
 import { mapGetters } from 'vuex';
 
-import { Login } from '@/components';
+import { Login, CgLogo } from '@/components';
 
 import { setPageTitle } from './title';
 
@@ -29,6 +29,7 @@ export default {
 
     components: {
         Login,
+        CgLogo,
     },
 };
 </script>

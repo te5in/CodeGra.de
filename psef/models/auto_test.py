@@ -747,7 +747,7 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
         db.session.flush()
         any_results_left = any_cleared or db.session.query(
             self.get_results_to_run().exists()
-        ).scalar()
+        ).scalar() or False
 
         logger.info(
             'Killed runners',

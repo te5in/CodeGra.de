@@ -9,7 +9,7 @@ context('Submission uploader', () => {
 
     function goToSubmissions() {
         cy.visit(`/courses/${course.id}/assignments/${assignment.id}/submissions`);
-        return cy.get('.page.submission-list').should('be.visible');
+        return cy.get('.page.submissions').should('be.visible');
     }
 
     function toggleTestSubmission() {
@@ -55,6 +55,48 @@ context('Submission uploader', () => {
             .submit('success');
     }
 
+    function uploadFiles(opts) {
+        const { author, testSub, submitOpts } = Object.assign({
+            author: '',
+            testSub: false,
+            submitOpts: { waitForState: false },
+        }, opts);
+
+        const fileName = 'test_submissions/hello.py';
+
+        cy.get('.multiple-files-uploader .dropzone').should('be.visible');
+
+        return cy.fixture(fileName, 'utf8').then(fileContent => {
+            cy.get('.dropzone').upload(
+                {
+                    fileContent,
+                    fileName,
+                    mimeType: 'text/x-python',
+                    encoding: 'utf8',
+                },
+                { subjectType: 'drag-n-drop' },
+            );
+
+            if (testSub) {
+                cy.get('.submission-uploader')
+                    .contains('.custom-control', 'Test submission')
+                    .click();
+            }
+
+            if (author) {
+                cy.get('.submission-uploader .user-selector').multiselect([author]);
+            }
+
+            cy.get('.submission-uploader .submit-button').submit('success', Object.assign({
+                waitForState: false,
+            }, submitOpts));
+
+            cy.url().should('contain', '/files/');
+
+            return cy.wrap([fileName, fileContent]);
+        });
+    }
+
     before(() => {
         cy.visit('/');
         cy.createCourse('SubmissionUploader', [
@@ -84,40 +126,37 @@ context('Submission uploader', () => {
 
         it('should not be visible to teachers when the assignment has no deadline', () => {
             cy.login('robin', 'Robin');
-            cy.get('.page.submission-list')
-                .should('be.visible');
 
             cy.get('.submission-uploader')
                 .should('not.exist');
-            cy.get('.submission-list .alert-warning')
+            cy.get('.page.submissions .no-deadline-alert')
                 .should('be.visible')
                 .text()
                 .should('contain', 'The deadline for this assignment has not yet been set. You can update the deadline here.');
-            cy.get('.submission-list .alert-warning')
+            cy.get('.page.submissions .no-deadline-alert')
                 .contains('a', 'here')
                 .should('be.visible');
         });
 
         it('should not be visible to students when the assignment has no deadline', () => {
             cy.login('student1', 'Student1');
-            cy.get('.page.submission-list')
-                .should('be.visible');
 
+            cy.get('.action-buttons')
+                .contains('.action-button', 'Upload files')
+                .find('.disabled')
+                .should('exist');
             cy.get('.submission-uploader')
                 .should('not.exist');
-            cy.get('.page.submission-list .submission-list')
-                .should('be.visible');
-            cy.get('.submission-list .alert-warning')
-                .should('be.visible')
-                .text()
-                .should('contain', 'The deadline for this assignment has not yet been set. Please ask your teacher to set a deadline before you can submit your work.');
         });
     });
 
-    context.skip('Test student checkbox', () => {
+    context('Test student checkbox', () => {
         before(() => {
             cy.createAssignment(course.id, 'TestStudentCheckbox', {
                 state: 'open',
+                deadline: 'tomorrow',
+            }).then(res => {
+                assignment = res;
             });
         });
 
@@ -126,19 +165,40 @@ context('Submission uploader', () => {
         });
 
         it('should not be visible for students', () => {
+            cy.login('student1', 'Student1');
+
+            cy.get('.submission-uploader')
+                .contains('.custom-checkbox', 'Test submission')
+                .should('not.exist');
         });
 
         it('should be visible for teachers', () => {
+            cy.login('admin', 'admin');
+
+            cy.get('.submission-uploader')
+                .contains('.custom-checkbox', 'Test submission')
+                .should('exist');
         });
 
         it('should be disabled if a submission author is set', () => {
+            cy.login('admin', 'admin');
+
+            setUploadAuthor('Student1');
+
+            cy.get('.submission-uploader')
+                .contains('.custom-checkbox', 'Test submission')
+                .find('input[type="checkbox"]')
+                .should('be.disabled');
         });
     });
 
-    context.skip('Other author', () => {
+    context('Other author', () => {
         before(() => {
             cy.createAssignment(course.id, 'OtherAuthorCheckbox', {
                 state: 'open',
+                deadline: 'tomorrow',
+            }).then(res => {
+                assignment = res;
             });
         });
 
@@ -147,12 +207,35 @@ context('Submission uploader', () => {
         });
 
         it('should not be visible for students', () => {
+            cy.login('student1', 'Student1');
+
+            cy.get('.submission-uploader')
+                .find('.user-selector')
+                .should('not.exist');
+            cy.get('.submission-uploader')
+                .find('.deadline-information')
+                .should('exist');
         });
 
         it('should be visible for teachers', () => {
+            cy.login('admin', 'admin');
+
+            cy.get('.submission-uploader')
+                .find('.user-selector')
+                .should('exist');
+            cy.get('.submission-uploader')
+                .find('.deadline-information')
+                .should('not.exist');
         });
 
         it('should be disabled if the Test Student checkbox is selected', () => {
+            cy.login('admin', 'admin');
+
+            toggleTestSubmission();
+
+            cy.get('.submission-uploader')
+                .find('.user-selector input')
+                .should('be.disabled');
         });
     });
 
@@ -179,6 +262,43 @@ context('Submission uploader', () => {
             cy.get('.submission-uploader')
                 .find('.multiple-files-uploader')
                 .should('exist');
+        });
+
+        it('should be possible to upload something', () => {
+            goToSubmissions();
+
+            uploadFiles({
+                submitOpts: { hasConfirm: true },
+            }).then(([fileName, fileContent]) => {
+                const lines = fileContent.split('\n');
+
+                cy.openCategory('Code');
+                cy.get('.file-tree').contains('li', 'hello.py').click();
+
+                cy.get('.inner-code-viewer .line').each(($line, i) => {
+                    cy.wrap($line).should('contain', lines[i]);
+                });
+            });
+        });
+
+        it('should be possible to upload something as someone else', () => {
+            goToSubmissions();
+
+            uploadFiles({
+                author: 'Student1',
+            }).then(() => {
+                cy.get('.submission-nav-bar').should('contain', 'Student1');
+            });
+        });
+
+        it('should be possible to upload something as test student', () => {
+            goToSubmissions();
+
+            uploadFiles({
+                testSub: true,
+            }).then(() => {
+                cy.get('.submission-nav-bar').should('contain', 'Test Student');
+            });
         });
     });
 
@@ -247,6 +367,12 @@ context('Submission uploader', () => {
             return cy.get('@webhookData');
         }
 
+        function doAction(name) {
+            cy.get('.action-buttons')
+                .contains('.action-button', name)
+                .click();
+        }
+
         it('should not show git instructions when git submissions are disabled', () => {
             goToManage();
             getGitCheck().should('not.be.checked');
@@ -264,7 +390,8 @@ context('Submission uploader', () => {
 
             cy.login('student1', 'Student1');
             goToSubmissions();
-            getGitLink();
+            doAction('Set up Git');
+            getGitLink(false);
         });
 
         it('should show a modal upon clicking the git instructions link', () => {

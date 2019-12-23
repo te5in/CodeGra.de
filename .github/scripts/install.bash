@@ -4,6 +4,7 @@ set -e
 skip="${1}"
 
 if ! [[ "$skip" = skip_pip ]]; then
+    grep -lr --null microsoft /etc/apt/sources.list.d/ | xargs -0 sudo rm
     sudo apt-get update
     sudo apt-get install -y lxc lxc-dev lxcfs libvirt0 libssl-dev postgresql-client &
 

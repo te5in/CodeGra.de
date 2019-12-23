@@ -147,3 +147,11 @@ mypy:
 .PHONY: create_permission
 create_permission:
 	python ./.scripts/create_permission.py
+
+.PHONY: docs
+docs:
+	$(MAKE) -C docs html
+
+.PHONY: clean
+clean:
+	$(MAKE) -C docs clean

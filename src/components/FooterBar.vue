@@ -6,7 +6,8 @@
             CodeGrade (<a href="https://docs.codegra.de/about/changelog.html" target="_blank">{{ version }}</a>) -
             <a href="https://codegra.de/about" target="_blank">Made with ❤️ &amp; 🍺 </a> -
             <a :href="`mailto:${email}`">{{ email }}</a> -
-            <a class="privacy-statement" @click="showModal = !showModal">Privacy statement</a>
+            <a class="privacy-statement" @click="showModal = !showModal">Privacy statement</a> -
+            <a :href="documentationLink" target="_blank">Help</a>
         </small>
         <b-modal id="privacyModal"
                  v-model="showModal"
@@ -17,6 +18,7 @@
 </template>
 
 <script>
+import { mapGetters } from 'vuex';
 import PrivacyNote from './PrivacyNote';
 
 export default {
@@ -28,6 +30,24 @@ export default {
             email: UserConfig.email,
             version: UserConfig.release.version,
         };
+    },
+
+    computed: {
+        ...mapGetters('courses', ['assignments']),
+
+        isStudent() {
+            const assigId = this.$route.params.assignmentId;
+
+            return this.$utils.getProps(this.assignments, false, assigId, 'course', 'isStudent');
+        },
+
+        documentationLink() {
+            if (this.isStudent) {
+                return 'https://docs.codegra.de/guides/use-codegrade-as-a-student.html';
+            } else {
+                return `https://docs.codegra.de/?v=${this.version}`;
+            }
+        },
     },
 
     components: {

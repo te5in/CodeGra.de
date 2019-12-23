@@ -28,8 +28,11 @@ try {
             storage: {
                 getItem: key => window.localStorage.getItem(key),
                 setItem: (key, value) => {
-                    if (disabledPersistance) {
-                        return null;
+                    if (disabledPersistance && key !== '@@') {
+                        const cleanedValue = {
+                            pref: JSON.parse(value).pref,
+                        };
+                        return window.localStorage.setItem(key, JSON.stringify(cleanedValue));
                     }
                     return window.localStorage.setItem(key, value);
                 },

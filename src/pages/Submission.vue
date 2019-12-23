@@ -131,6 +131,7 @@
             <b-btn v-if="canDeleteSubmission"
                    variant="danger"
                    v-b-popover.hover.top="'Delete submission'"
+                   id="codeviewer-delete-submission"
                    @click="$root.$emit('bv::show::modal',`modal_delete`)">
                 <icon name="times"/>
             </b-btn>
@@ -1020,7 +1021,7 @@ export default {
         }
     }
 
-    .badge {
+    .category-selector .badge {
         font-size: 1em !important;
     }
 }

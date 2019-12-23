@@ -54,3 +54,5 @@ export const NO_LOGIN_REQUIRED_ROUTES = new Set([
     'lti-launch',
     'login_and_redirect',
 ]);
+
+export const RUBRIC_BADGE_AT = '<div class="ml-1 badge badge-primary" title="AutoTest">AT</div>';

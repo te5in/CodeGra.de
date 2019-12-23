@@ -147,7 +147,7 @@ class RubricRow(helpers.NotEqualMixin, Base):
                     [item.id for item in self.items]
                 )
             ).exists()
-        ).scalar()
+        ).scalar() or False
 
     @property
     def is_valid(self) -> bool:

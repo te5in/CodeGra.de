@@ -195,8 +195,8 @@ def remove_member_from_group(group_id: int,
     ) == group.group_set.minimum_size and group.has_a_submission:
         raise APIException(
             (
-                'You cannot shrink a group to smaller to the minimum size when'
-                ' the group has a submissions'
+                'You cannot shrink a group to smaller than the minimum size'
+                ' when the group has a submission.'
             ), (
                 f'The group {group.id} has a submission, so it cannot be '
                 'smaller than the minimum size for this group set'

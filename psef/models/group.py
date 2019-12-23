@@ -264,9 +264,10 @@ class Group(Base):
         """
         return db.session.query(
             work_models.Work.query.filter_by(
-                user_id=self.virtual_user_id, deleted=False
+                user_id=self.virtual_user_id,
+                deleted=False,
             ).exists()
-        ).scalar()
+        ).scalar() or False
 
     @classmethod
     def create_group(

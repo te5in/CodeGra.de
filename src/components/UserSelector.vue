@@ -17,7 +17,7 @@
              :disabled="disabled"
              label="name"
              track-by="username"
-             :class="{ disabled }"
+             :class="{ disabled, 'no-border': noBorder }"
              v-if="useSelector">
     <span class="caret" slot="caret"><icon name="search"/></span>
     <span slot="noResult" v-if="queryTooSmall" class="text-muted">
@@ -69,19 +69,20 @@ export default {
             type: String,
             default: 'Press enter to select',
         },
-
         value: {
             required: true,
         },
-
         extraParams: {
             type: Object,
             default: () => {},
         },
-
         baseUrl: {
             type: String,
             default: '/api/v1/users/',
+        },
+        noBorder: {
+            type: Boolean,
+            default: false,
         },
     },
 
@@ -221,6 +222,10 @@ export default {
     .multiselect__tags {
         border-top-right-radius: 0;
         border-bottom-right-radius: 0;
+    }
+
+    &.no-border .multiselect__tags {
+        border-width: 0 !important;
     }
 
     .multiselect__option {

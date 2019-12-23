@@ -209,7 +209,7 @@ const actions = {
             await Promise.all([
                 axios
                     .get(`/api/v1/assignments/${assignmentId}/submissions/?extended&latest_only`)
-                    .then(({ data: submissions }) => submissions.map(processSubmission), () => []),
+                    .then(({ data: submissions }) => submissions.map(processSubmission)),
                 context.dispatch('courses/loadRubric', assignmentId, { root: true }),
                 // TODO: Maybe not force load the graders here?
                 context.dispatch('courses/forceLoadGraders', assignmentId, { root: true }),

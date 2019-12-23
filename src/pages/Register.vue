@@ -2,8 +2,8 @@
 <template>
 <div class="register">
     <div class="register-wrapper">
-        <img class="standalone-logo" src="/static/img/codegrade.svg" v-if="darkMode"/>
-        <img class="standalone-logo" src="/static/img/codegrade-inv.svg" v-else/>
+        <cg-logo :inverted="!darkMode"
+                 class="standalone-logo" />
         <h4>
             Register
             <span v-if="$route.query.register_for">
@@ -19,7 +19,7 @@
 <script>
 import { mapGetters } from 'vuex';
 
-import { Register } from '@/components';
+import { CgLogo, Register } from '@/components';
 
 import { setPageTitle } from './title';
 
@@ -44,6 +44,7 @@ export default {
     },
 
     components: {
+        CgLogo,
         Register,
     },
 };

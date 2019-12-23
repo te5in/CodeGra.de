@@ -144,6 +144,7 @@
                     <submission-uploader :assignment="assignment"
                                          for-others
                                          no-border
+                                         maybe-show-git-instructions
                                          :can-list-users="permissions.can_list_course_users"/>
                 </b-card>
 

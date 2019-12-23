@@ -15,7 +15,8 @@
     snippet-field-above
     always-show-button
     :visible-without-hover="$root.isEdge"
-    add-space>
+    add-space
+    button-position="bottom-right">
     <object :data="pdfURL"
             type="application/pdf"
             width="100%"

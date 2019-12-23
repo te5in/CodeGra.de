@@ -121,6 +121,15 @@ def _delete_submission_1(work_id: int, assignment_id: int) -> None:
         logger.info('Not an LTI submission, ignoring')
         return
 
+    # TODO: This has a bug: if a user has a group submission, that is already
+    # deleted, and now his/her latest personal submission is deleted, this
+    # personal submission is not found, as we think the deleted group
+    # submission (which we ignore) is the latest submission.
+    # TODO: Another possible bug is that if a user has two submissions, and the
+    # latest is already deleted, and now we delete the new latest this is also
+    # not registered as the latest submission.
+    # In other words: this code works for common cases, but is hopelessly
+    # broken for all other cases :(
     sub = assignment.get_all_latest_submissions(include_deleted=True).filter(
         p.models.Work.id == work_id
     ).one_or_none()

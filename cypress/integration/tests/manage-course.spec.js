@@ -17,9 +17,9 @@ context('Manage Course', () => {
 
     it('should be possible to add users to the course', () => {
         const users = [
-            { name: 'Robin', role: 'Teacher' },
-            { name: 'Student1', role: 'TA' },
-            { name: 'Student2', role: 'Student' },
+            { name: 'Robin', role: 'TA' },
+            { name: 'Student1', role: 'Student' },
+            { name: 'Student2', role: 'Teacher' },
             { name: 'Student3', role: 'Designer' },
             { name: 'Student4', role: 'Observer' },
         ];

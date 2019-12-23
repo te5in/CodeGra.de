@@ -6,7 +6,7 @@
 <loader page-loader v-else-if="loading" />
 
 <div v-else-if="!canSeeFeedback" class="p-3 border rounded font-italic text-muted">
-    Feedback not yet available.
+    The feedback is not yet available.
 </div>
 
 <div v-else class="feedback-overview border rounded">
@@ -62,7 +62,7 @@
                                        :feedback="feedback.user[id] || null"
                                        :linter-feedback="feedback.linter[id]"
                                        :editable="false"
-                                       :file-id="0"
+                                       :file-id="id"
                                        :start-line="part[0]"
                                        :end-line="part[1]"
                                        :show-whitespace="showWhitespace"/>
@@ -251,7 +251,8 @@ export default {
             return this.$utils.highlightCode(codeLines, lang, 1000);
         },
 
-        getFileLink(fileId, revision) {
+        getFileLink(fileId) {
+            const revision = this.fileTree.getRevision(fileId);
             const newQuery = Object.assign({}, this.$route.query, {
                 revision,
             });

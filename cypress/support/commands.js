@@ -13,6 +13,14 @@
 import 'cypress-file-upload';
 import moment from 'moment';
 
+function tomorrow() {
+    return moment().add(1, 'day').endOf('day').toISOString();
+}
+
+function yesterday() {
+    return moment().add(-1, 'day').startOf('day').toISOString();
+}
+
 Cypress.Commands.add('getAll', (aliases) => {
     // Get the value for multiple aliases at once.
 
@@ -32,7 +40,7 @@ Cypress.Commands.add('text', { prevSubject: true }, subject => {
     return subject.text().replace(/\s+/g, ' ');
 });
 
-Cypress.Commands.add('login', (username, password, force=true) => {
+Cypress.Commands.add('login', (username, password) => {
     return cy.request({
         url:'/api/v1/login',
         method: 'POST',
@@ -119,6 +127,17 @@ Cypress.Commands.add('fixtureAsFile', (path, filename, mimeType) => {
     });
 });
 
+// Upload a fixture to a file input.
+Cypress.Commands.add('uploadFixture', { prevSubject: true }, (subject, fileName, mimeType = 'application/octet-stream') => {
+    // Ensure this is a file input.
+    cy.wrap(subject).should('have.prop', 'tagName').should('eq', 'INPUT');
+    cy.wrap(subject).should('have.prop', 'type').should('eq', 'file');
+
+    return cy.fixture(fileName).then(fileContent => {
+        return cy.wrap(subject).upload({ fileContent, fileName, mimeType });
+    });
+});
+
 Cypress.Commands.add('setSitePermission', (perm, role, value) => {
     let reload = false;
 
@@ -201,7 +220,7 @@ Cypress.Commands.add('createCourse', (name, users=[]) => {
 Cypress.Commands.add('createAssignment', (courseId, name, { state, bbZip, deadline } = {}) => {
     cy.login('admin', 'admin');
 
-    cy.authRequest({
+    return cy.authRequest({
         url: `/api/v1/courses/${courseId}/assignments/`,
         method: 'POST',
         body: { name },
@@ -214,8 +233,7 @@ Cypress.Commands.add('createAssignment', (courseId, name, { state, bbZip, deadli
 
         if (deadline !== undefined) {
             if (deadline === 'tomorrow') {
-                deadline = moment().add(1, 'day').endOf('day');
-                deadline = deadline.toISOString();
+                deadline = tomorrow();
             }
             body.deadline = deadline;
         }
@@ -246,6 +264,35 @@ Cypress.Commands.add('createAssignment', (courseId, name, { state, bbZip, deadli
     });
 });
 
+Cypress.Commands.add('createSubmission', (assignmentId, fileName, opts={}) => {
+    const { author, testSub } = opts;
+    let url = `/api/v1/assignments/${assignmentId}/submission`;
+
+    if (author) {
+        url += `?author=${author}`;
+    } else if (testSub) {
+        url += '?is_test_submission';
+    }
+
+    return cy.fixtureAsFile(fileName, fileName, 'application/zip').then(file => {
+        const data = new FormData();
+        data.append('file', file);
+
+        return cy.formRequest({
+            url,
+            method: 'POST',
+            data,
+        });
+    });
+});
+
+Cypress.Commands.add('deleteSubmission', (submissionId) => {
+    return cy.authRequest({
+        url: `/api/v1/submissions/${submissionId}`,
+        method: 'DELETE',
+    });
+});
+
 Cypress.Commands.add('createRubric', (assignmentId, rubricData, maxPoints = null) => {
     return cy.authRequest({
         url: `/api/v1/assignments/${assignmentId}/rubrics/`,
@@ -257,19 +304,72 @@ Cypress.Commands.add('createRubric', (assignmentId, rubricData, maxPoints = null
     });
 });
 
-Cypress.Commands.add('openCategory', (name) => {
-    cy.get('.local-header').contains('.category', name).click();
+Cypress.Commands.add('deleteRubric', (assignmentId) => {
+    return cy.authRequest({
+        url: `/api/v1/assignments/${assignmentId}/rubrics/`,
+        method: 'DELETE',
+    });
 });
 
-// Upload a fixture to a file input.
-Cypress.Commands.add('uploadFixture', { prevSubject: true }, (subject, fileName, mimeType = 'application/octet-stream') => {
-    // Ensure this is a file input.
-    cy.wrap(subject).should('have.prop', 'tagName').should('eq', 'INPUT');
-    cy.wrap(subject).should('have.prop', 'type').should('eq', 'file');
+Cypress.Commands.add('patchAssignment', (assignmentId, body={}) => {
+    switch (body.deadline) {
+        case 'tomorrow':
+            body.deadline = tomorrow();
+            break;
+        case 'yesterday':
+            body.deadline = yesterday();
+            break;
+        default:
+            break;
+    }
 
-    return cy.fixture(fileName).then(fileContent => {
-        return cy.wrap(subject).upload({ fileContent, fileName, mimeType });
+    return cy.authRequest({
+        url: `/api/v1/assignments/${assignmentId}`,
+        method: 'PATCH',
+        body,
+    }).its('body');
+});
+
+Cypress.Commands.add('connectGroupSet', (courseId, assignmentId, minSize=1, maxSize=1) => {
+    return cy.authRequest({
+        url: `/api/v1/courses/${courseId}/group_sets/`,
+        method: 'PUT',
+        body: {
+            minimum_size: minSize,
+            maximum_size: maxSize,
+        },
+    }).its('body').then(
+        groupSet => cy.patchAssignment(assignmentId, {
+            group_set_id: groupSet.id,
+        }),
+    );
+});
+
+Cypress.Commands.add('disconnectGroupSet', (assignmentId) => {
+    return cy.patchAssignment(assignmentId, {
+        group_set_id: null,
     });
+});
+
+Cypress.Commands.add('joinGroup', (groupSetId, username) => {
+    return cy.authRequest({
+        url: `/api/v1/group_sets/${groupSetId}/group`,
+        method: 'POST',
+        body: { member_ids: [] },
+    }).its('body').then(
+        group => cy.authRequest({
+            url: `/api/v1/groups/${group.id}/member`,
+            method: 'POST',
+            body: { username },
+        }),
+    );
+});
+
+Cypress.Commands.add('openCategory', (name) => {
+    return cy.get('.local-header .categories')
+        .contains('.category', name)
+        .click()
+        .should('have.class', 'selected');
 });
 
 // Click a submit button, and optionally wait for its state to return back to
@@ -296,6 +396,7 @@ Cypress.Commands.add('submit', { prevSubject: true }, (subject, state, optsArg =
     // Click a button the confirm popover.
     if (opts.hasConfirm) {
         cy.get('.popover .submit-button-confirm')
+            .should('be.visible')
             .contains('.btn', opts.doConfirm ? 'Yes' : 'No')
             .click();
     }

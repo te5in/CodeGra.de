@@ -378,7 +378,10 @@ export function canUploadWork(assignment, now) {
         return false;
     } else if (assignment.state === assignmentState.HIDDEN) {
         return false;
-    } else if (deadlinePassed(assignment, now) && !perms.can_upload_after_deadline) {
+    } else if (
+        assignment.deadline == null ||
+        (deadlinePassed(assignment, now) && !perms.can_upload_after_deadline)
+    ) {
         return false;
     } else {
         return true;

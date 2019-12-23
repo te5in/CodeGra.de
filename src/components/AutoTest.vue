@@ -132,7 +132,8 @@
                     </b-alert>
 
                     <b-card no-body class="setup-env-wrapper mb-3">
-                        <collapse v-model="setupCollapsed" :disabled="!singleResult"
+                        <collapse v-model="setupCollapsed"
+                                  :disabled="!singleResult"
                                   lazy-load>
                             <b-card-header slot="handle"
                                            class="d-flex justify-content-between align-items-center"
