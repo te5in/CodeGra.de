@@ -2020,9 +2020,21 @@
         <span class="n">result_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
         <span class="n">test_suite</span><span class="p">:</span> <span class="n">SuiteInstructions</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">NamedTemporaryFile</span><span class="p">()</span> <span class="k">as</span> <span class="n">tfile</span><span class="p">:</span>
-            <span class="n">cont</span><span class="o">.</span><span class="n">run_command</span><span class="p">([</span><span class="s1">&#39;ls&#39;</span><span class="p">,</span> <span class="n">cont</span><span class="o">.</span><span class="n">output_dir</span><span class="p">])</span>
+        <span class="n">has_files</span> <span class="o">=</span> <span class="kc">False</span>
 
+        <span class="k">def</span> <span class="nf">stdout_callback</span><span class="p">(</span><span class="n">output</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">nonlocal</span> <span class="n">has_files</span>
+            <span class="k">if</span> <span class="n">output</span><span class="p">:</span>
+                <span class="n">has_files</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="n">cont</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span>
+            <span class="p">[</span><span class="s1">&#39;find&#39;</span><span class="p">,</span> <span class="n">cont</span><span class="o">.</span><span class="n">output_dir</span><span class="p">,</span> <span class="s1">&#39;-type&#39;</span><span class="p">,</span> <span class="s1">&#39;f&#39;</span><span class="p">],</span>
+            <span class="n">stdout</span><span class="o">=</span><span class="n">stdout_callback</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">has_files</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">NamedTemporaryFile</span><span class="p">()</span> <span class="k">as</span> <span class="n">tfile</span><span class="p">:</span>
             <span class="n">os</span><span class="o">.</span><span class="n">chmod</span><span class="p">(</span><span class="n">tfile</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="mo">0o777</span><span class="p">)</span>
             <span class="n">cont</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span>
                 <span class="p">[</span><span class="s1">&#39;tar&#39;</span><span class="p">,</span> <span class="s1">&#39;cjf&#39;</span><span class="p">,</span> <span class="s1">&#39;/dev/stdout&#39;</span><span class="p">,</span> <span class="n">cont</span><span class="o">.</span><span class="n">output_dir</span><span class="p">],</span>

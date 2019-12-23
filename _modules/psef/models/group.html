@@ -462,9 +462,10 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span>
             <span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">filter_by</span><span class="p">(</span>
-                <span class="n">user_id</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">virtual_user_id</span><span class="p">,</span> <span class="n">deleted</span><span class="o">=</span><span class="kc">False</span>
+                <span class="n">user_id</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">virtual_user_id</span><span class="p">,</span>
+                <span class="n">deleted</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
             <span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span>
-        <span class="p">)</span><span class="o">.</span><span class="n">scalar</span><span class="p">()</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">scalar</span><span class="p">()</span> <span class="ow">or</span> <span class="kc">False</span>
 
 <div class="viewcode-block" id="Group.create_group"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.group.Group.create_group">[docs]</a>    <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">create_group</span><span class="p">(</span>

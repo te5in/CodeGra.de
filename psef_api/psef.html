@@ -6994,6 +6994,12 @@ that was assigned a submission.</td>
 <dt id="psef.models.assignment.Assignment.get_from_latest_submissions">
 <code class="descname">get_from_latest_submissions</code><span class="sig-paren">(</span><em>self</em>, <em>*to_query</em>, <em>include_deleted: bool = False</em>, <em>include_old_user_submissions: bool = False</em><span class="sig-paren">)</span> &#x2192; cg_sqlalchemy_helpers.types.MyQuery[typing.Any][Any]<a class="reference internal" href="../_modules/psef/models/assignment.html#Assignment.get_from_latest_submissions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.assignment.Assignment.get_from_latest_submissions" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get the given fields from all last submitted submissions.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Be very careful when changing this function, it is important that
+it always returns the same submission for a user as
+<cite>get_latest_submission_for_user</cite>.</p>
+</div>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
@@ -7004,6 +7010,33 @@ that was assigned a submission.</td>
 </tr>
 <tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">A query object with the given fields selected from the last
 submissions.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="psef.models.assignment.Assignment.get_latest_submission_for_user">
+<code class="descname">get_latest_submission_for_user</code><span class="sig-paren">(</span><em>self</em>, <em>user: psef.models.user.User</em><span class="sig-paren">)</span> &#x2192; cg_sqlalchemy_helpers.types.MyNonOrderableQuery[psef.models.work.Work][psef.models.work.Work]<a class="reference internal" href="../_modules/psef/models/assignment.html#Assignment.get_latest_submission_for_user"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.assignment.Assignment.get_latest_submission_for_user" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get the latest non deleted submission for a given user.</p>
+<p>This function returns a query, but also executes a query, so be careful
+in calling this in a loop.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Be very careful when changing this function, it is important that
+it always returns the same submission for a user as
+<cite>get_from_latest_submission</cite>.</p>
+</div>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>user</strong> (<a class="reference internal" href="#psef.models.user.User" title="psef.models.user.User"><code class="xref py py-class docutils literal notranslate"><span class="pre">User</span></code></a>) – The user to get the latest non deleted submission for.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body"><code class="xref py py-class docutils literal notranslate"><span class="pre">MyNonOrderableQuery</span></code>[<a class="reference internal" href="#psef.models.work.Work" title="psef.models.work.Work"><code class="xref py py-class docutils literal notranslate"><span class="pre">Work</span></code></a>]</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">A query that should not be reordered that contains the latest
+submission for the given user.</td>
 </tr>
 </tbody>
 </table>

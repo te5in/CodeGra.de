@@ -113,15 +113,6 @@ In addition to the new ways of giving feedback in CodeGrade, conventional
 general feedback can be given too. Press the :fa:`pencil-square-o` button to
 give and save general feedback.
 
-Overview mode
-~~~~~~~~~~~~~~~~
-
-The overview mode can be accessed by clicking :fa:`binoculars` or is automatically shown after
-an assignment’s state is set to **“Done”** (:fa:`check`). The overview mode provides an
-overview of all line feedback, the general feedback and the teacher
-revision (see “Filesystem” for more information on the teacher revision).
-This is especially useful for students.
-
 Code Viewer settings
 ~~~~~~~~~~~~~~~~~~~~~
 
@@ -136,4 +127,22 @@ Click :fa:`cog` to change:
 
 - Dark/light theme
 
-- Code context size
+- Amount of context lines
+
+Feedback overview
+~~~~~~~~~~~~~~~~~~~~
+
+In the "Feedback overview" tab you can find an overview of the general feedback
+and all the inline feedback given on a submission. The feedback overview is
+shown automatically when an assignment’s state is set to **“Done”**. The amount
+of lines displayed before and after each inline comment can be changed with the
+"Amount of context" option in the Code Viewer settings. This is especially
+useful for students to identify the types of mistakes they make most often.
+
+Diff overview
+~~~~~~~~~~~~~~~~
+
+The "Diff overview" tab gives an overview of the differences between the
+submitted work and a teacher’s revision. The amount of lines displayed before
+and after each part that is different can be changed with the "Amount of
+context" option in the Code Viewer settings.

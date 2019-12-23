@@ -208,34 +208,60 @@
 <h1>How to use CodeGrade as a student<a class="headerlink" href="#how-to-use-codegrade-as-a-student" title="Permalink to this headline">¶</a></h1>
 <p>Using CodeGrade as a student is easy and offers you the ability to get a lot
 more feedback and optionally automated test results.</p>
+<p>When you open an assignment in CodeGrade or your LMS (Blackboard, Brightspace,
+Canvas, Moddle, etc.) you are presented with a number of actions you can
+perform.</p>
+<ul class="simple">
+<li><strong>Latest submission</strong>: Go to your latest submission.</li>
+<li><strong>Upload files</strong>: Create a new submission by uploading files.</li>
+<li><strong>Set up Git</strong>: Show instructions on how to connect a Git provider to your
+assignment, this allows you to create submissions by pushing to a Git
+repository.</li>
+<li><strong>Rubric</strong>: Show the rubric of this assignment.</li>
+<li><strong>Groups</strong>: Create and/or join groups.</li>
+</ul>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Some of these are not available when they are not applicable, e.g. when an
+assignment is not set up as a group assignment, the groups button will be
+hidden.</p>
+</div>
 <div class="section" id="handing-in">
 <h2>Handing in<a class="headerlink" href="#handing-in" title="Permalink to this headline">¶</a></h2>
 <ol class="arabic simple">
-<li>Navigate to the assignment in Canvas, Moodle, Blackboard or Brightspace.</li>
-<li>CodeGrade will now open and the first thing you see is the rubric.</li>
-<li>Optionally: you can navigate to the hand-in instructions tab to view which files are required by your teacher.</li>
-<li>Scroll down and click (or drag and drop) to upload your files. You can either upload files, or an archive (such as a zip or tar). Archives are automatically extracted by CodeGrade.</li>
+<li>Click the “Upload files” button.</li>
+<li>Optionally, if the teacher has set hand-in instructions, they are displayed
+at the top of the page. Make sure to follow your teacher’s requirements when
+uploading files!</li>
+<li>You can either drag and drop files onto the upload field or select them via
+your browser’s file picker dialog. You can either upload separate files, or
+an archive (such as a zip or tar). Archives are automatically extracted (but
+archives contained in other archives are not).</li>
 <li>Press submit.</li>
-<li>If the teacher enabled Continuous Feedback, you will now be able to see Automated Test results coming in (this might take a few minutes).</li>
+<li>If the teacher enabled Continuous Feedback, you will now be able to see
+Automated Test results coming in (this might take a few minutes).</li>
 </ol>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
-<p class="last">Keep in mind that Continuous Feedback is preliminary, and the rubric will not yet be filled in. You only get a grade after the deadline when the teacher graded your assignment.</p>
+<p class="last">Keep in mind that Continuous Feedback is preliminary, and the rubric will
+not yet be filled in. You only get a grade after the deadline when the
+teacher graded your assignment.</p>
 </div>
-<ol class="arabic simple" start="7">
-<li>Click on tests to see why they succeeded or failed. Improve your code and try again.</li>
+<ol class="arabic simple" start="6">
+<li>Click on tests to see why they succeeded or failed. Improve your code and
+try again.</li>
 </ol>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
-<p class="last">Always test your code first on your own system to make sure it works, before uploading to CodeGrade.</p>
+<p class="last">Always test your code first on your own system to make sure it works,
+before uploading to CodeGrade.</p>
 </div>
 <div class="section" id="handing-in-with-git">
 <h3>Handing in with Git<a class="headerlink" href="#handing-in-with-git" title="Permalink to this headline">¶</a></h3>
-<p>Some CodeGrade assignments allow you to hand in code via Git (GitLab or Github).
-If this is possible, it should show up on the hand-in page. Follow the
-instructions on this page to set up the deploy key and webhook for your
-repository. If this is set up correctly, every <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">push</span></code> you make will
-automatically hand in on CodeGrade too.</p>
+<p>Some CodeGrade assignments allow you to hand in code by pushing to a Git
+repository (GitLab or Github). If an assignment is set up to allow for Git
+submissions the “Set up Git” button shows you instructions on how to set up a
+deploy key and webhook URL for your repository.</p>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
 <p class="last">Working in a group <strong>and</strong> handing in using Git? Make sure all members of
@@ -248,8 +274,8 @@ alone usage of CodeGrade!</em></p>
 <p class="last">CodeGrade has a size limit for uploading submissions. Handing in via git
 can result in files exceeding this size limit to be silently deleted. Always
 check your submission in CodeGrade when working with large repositories.
-<em>If the size limit is exceeded, the ``cg-size-limit-exceeded`` will show up
-in your submission.</em></p>
+<em>If the size limit is exceeded, a file named ``cg-size-limit-exceeded``
+will show up in your submission.</em></p>
 </div>
 </div>
 </div>
@@ -258,7 +284,10 @@ in your submission.</em></p>
 <p>After your assignment is graded, you can view your feedback through CodeGrade.</p>
 <ol class="arabic simple">
 <li>Navigate to the assignment, or click on your grade in the grade center.</li>
-<li>View your feedback. On the Feedback overview, you can view your inline feedback comments with some context. Browse to the Code to view the inline feedback with all of your code. Finally, on the AutoTest tab you can view the output of the Automated Testing system.</li>
+<li>View your feedback. On the Feedback overview, you can view your inline
+feedback comments with some context. Browse to the Code to view the inline
+feedback with all of your code. Finally, on the AutoTest tab you can view
+the output of the Automated Testing system.</li>
 </ol>
 </div>
 </div>
