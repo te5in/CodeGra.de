@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Changelog &mdash; CodeGrade v1.16.13 documentation</title>
+  <title>Changelog &mdash; CodeGrade v1.17.0 documentation</title>
   
 
   
@@ -67,7 +67,7 @@
             
             
               <div class="version">
-                v1.16.13
+                v1.17.0
               </div>
             
           
@@ -131,6 +131,7 @@
 <li class="toctree-l1 current"><a class="reference internal" href="about.html">About CodeGrade</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="whatis.html">What is CodeGrade?</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">Changelog</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#version-1-17-0-knoet-1">Version 1.17.0 (Knoet.1)</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#version-1-16-2-knoet">Version 1.16.2 (Knoet)</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#version-1-13-0-junglejoy-4">Version 1.13.0 (JungleJoy.4)</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#version-1-11-11-junglejoy-3">Version 1.11.11 (JungleJoy.3)</a></li>
@@ -236,6 +237,47 @@
             
   <div class="section" id="changelog">
 <h1>Changelog<a class="headerlink" href="#changelog" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="version-1-17-0-knoet-1">
+<h2>Version 1.17.0 (Knoet.1)<a class="headerlink" href="#version-1-17-0-knoet-1" title="Permalink to this headline">¶</a></h2>
+<p><strong>Released</strong>: December 20th, 2019</p>
+<p>The hand in page for students has been completely redesigned, making it simpler
+and easier to use. You can now import AutoTest configurations and the ESLint
+linter is now available.</p>
+<p><strong>Features</strong></p>
+<ul class="simple">
+<li>Submissions page redesign <a class="reference external" href="https://github.com/CodeGra-de/CodeGra.de/pull/1215">(#1215)</a>:
+the hand in page has been completely redesigned and simplified for students.
+Students now see a few clearly visible big buttons to either view a previous submission,
+view the rubric, upload files, use groups or get git instructions.</li>
+<li>Add ESLint as a linter option <a class="reference external" href="https://github.com/CodeGra-de/CodeGra.de/pull/1225">(#1225)</a>:
+you can now use the ESLint linter.</li>
+<li>Make it possible to delete assignments <a class="reference external" href="https://github.com/CodeGra-de/CodeGra.de/pull/1222">(#1222)</a>:
+assignments can now be deleted from the Assignment Management Page on the general tab.</li>
+<li>Make it possible to copy AT config <a class="reference external" href="https://github.com/CodeGra-de/CodeGra.de/pull/1213">(#1213)</a>:
+you can now import AutoTest configurations from other assignments. This will also copy
+the rubric.</li>
+<li>Add course registration link <a class="reference external" href="https://github.com/CodeGra-de/CodeGra.de/pull/1207">(#1207)</a>:
+for standalone courses, you can let users register via a unique URL. You can
+set this up on the Course Management Page.</li>
+</ul>
+<p><strong>Minor updates</strong></p>
+<ul class="simple">
+<li>Update git instructions <a class="reference external" href="https://github.com/CodeGra-de/CodeGra.de/pull/1221">(#1221)</a>:
+the git instructions have been updated to be more compatible with git GUIs. We’ve
+also added a button to the last step to check if submitting works correctly.</li>
+<li>Stop persisting access tokens in LTI <a class="reference external" href="https://github.com/CodeGra-de/CodeGra.de/pull/1216">(#1216)</a>:
+you’re now only logged in persistently when pressing the “New Tab” button. This fixes some issues
+where users were always logged in via LTI.</li>
+</ul>
+<p><strong>Fixes</strong></p>
+<ul class="simple">
+<li>Set groups of user in AutoTest run <a class="reference external" href="https://github.com/CodeGra-de/CodeGra.de/pull/1223">(#1223)</a>.</li>
+<li>Fix the default configurations for Checkstyle <a class="reference external" href="https://github.com/CodeGra-de/CodeGra.de/pull/1224">(#1224)</a>.</li>
+<li>Stop registering AT jobs at the broker if there are no submissions <a class="reference external" href="https://github.com/CodeGra-de/CodeGra.de/pull/1220">(#1220)</a>.</li>
+<li>Fix deadlock that would occur when attaching failed <a class="reference external" href="https://github.com/CodeGra-de/CodeGra.de/pull/1217">(#1217)</a>.</li>
+<li>Use a blob storage for the jwt data instead of passing it in the request <a class="reference external" href="https://github.com/CodeGra-de/CodeGra.de/pull/1206">(#1206)</a>.</li>
+</ul>
+</div>
 <div class="section" id="version-1-16-2-knoet">
 <h2>Version 1.16.2 (Knoet)<a class="headerlink" href="#version-1-16-2-knoet" title="Permalink to this headline">¶</a></h2>
 <p><strong>Released</strong>: November 27th, 2019</p>

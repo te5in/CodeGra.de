@@ -1,6 +1,49 @@
 Changelog
 ==========
 
+Version 1.17.0 (Knoet.1)
+--------------------------
+
+**Released**: December 20th, 2019
+
+The hand in page for students has been completely redesigned, making it simpler
+and easier to use. You can now import AutoTest configurations and the ESLint
+linter is now available.
+
+**Features**
+
+- Submissions page redesign `(#1215) <https://github.com/CodeGra-de/CodeGra.de/pull/1215>`__:
+  the hand in page has been completely redesigned and simplified for students.
+  Students now see a few clearly visible big buttons to either view a previous submission,
+  view the rubric, upload files, use groups or get git instructions.
+- Add ESLint as a linter option `(#1225) <https://github.com/CodeGra-de/CodeGra.de/pull/1225>`__:
+  you can now use the ESLint linter.
+- Make it possible to delete assignments `(#1222) <https://github.com/CodeGra-de/CodeGra.de/pull/1222>`__:
+  assignments can now be deleted from the Assignment Management Page on the general tab.
+- Make it possible to copy AT config `(#1213) <https://github.com/CodeGra-de/CodeGra.de/pull/1213>`__:
+  you can now import AutoTest configurations from other assignments. This will also copy
+  the rubric.
+- Add course registration link `(#1207) <https://github.com/CodeGra-de/CodeGra.de/pull/1207>`__:
+  for standalone courses, you can let users register via a unique URL. You can
+  set this up on the Course Management Page.
+
+**Minor updates**
+
+- Update git instructions `(#1221) <https://github.com/CodeGra-de/CodeGra.de/pull/1221>`__:
+  the git instructions have been updated to be more compatible with git GUIs. We've
+  also added a button to the last step to check if submitting works correctly.
+- Stop persisting access tokens in LTI `(#1216) <https://github.com/CodeGra-de/CodeGra.de/pull/1216>`__:
+  you're now only logged in persistently when pressing the "New Tab" button. This fixes some issues
+  where users were always logged in via LTI.
+
+**Fixes**
+
+- Set groups of user in AutoTest run `(#1223) <https://github.com/CodeGra-de/CodeGra.de/pull/1223>`__.
+- Fix the default configurations for Checkstyle `(#1224) <https://github.com/CodeGra-de/CodeGra.de/pull/1224>`__.
+- Stop registering AT jobs at the broker if there are no submissions `(#1220) <https://github.com/CodeGra-de/CodeGra.de/pull/1220>`__.
+- Fix deadlock that would occur when attaching failed `(#1217) <https://github.com/CodeGra-de/CodeGra.de/pull/1217>`__.
+- Use a blob storage for the jwt data instead of passing it in the request `(#1206) <https://github.com/CodeGra-de/CodeGra.de/pull/1206>`__.
+
 Version 1.16.2 (Knoet)
 --------------------------
 
