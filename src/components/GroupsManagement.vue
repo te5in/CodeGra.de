@@ -20,25 +20,24 @@
                               :group-set="groupSet"/>
         </transition-group>
 
-        <p class="text-muted">
+        <p class="mb-0 text-muted font-italic">
             <span v-if="groups.length === 0">
                 There are no groups yet.
             </span>
 
             <span v-if="!showAddButton || !canCreate">
                 <span v-if="currentUserInGroup">
-                    You don't have the permission to create any new groups.
+                    You cannot create any new groups because you are already in a group.
                 </span>
                 <span v-else>
                     You are currently not in a group and you don't have the permission to create any.
                 </span>
-                Please ask your instructor to create a group, if needed.
+                Please ask your instructor to create a group if needed.
 
                 <span v-if="groupSet.minimum_size > 1">
                     To submit work it is mandatory that you are in a group of at least
                     {{ groupSet.minimum_size }} members.
                 </span>
-
                 <span v-else>
                     You are not required to be part of a group to submit work for this assignment.
                 </span>
@@ -142,6 +141,13 @@ export default {
             await this.$nextTick();
             this.doAnimations = true;
         },
+
+        groups: {
+            immediate: true,
+            handler() {
+                this.$emit('groups-changed', [...this.groups]);
+            },
+        },
     },
 
     methods: {
@@ -192,8 +198,6 @@ export default {
             } else {
                 this.$set(this.groups, index, group);
             }
-            await this.$nextTick();
-            this.$emit('groups-changed', [...this.groups]);
         },
     },
 

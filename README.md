@@ -4,9 +4,21 @@
   </a>
 </p>
 <p align="center">
-  <a href="https://travis-ci.org/CodeGra-de/CodeGra.de">
-    <img src="https://img.shields.io/travis/CodeGra-de/CodeGra.de.svg"
-      alt="Build Status" title="Build Status">
+  <a href="https://github.com/CodeGra-de/CodeGra.de/actions">
+    <img src="https://github.com/CodeGra-de/CodeGra.de/workflows/Back-end tests/badge.svg?branch=master"
+        alt="Back-end tests status" title="Back-end tests status">
+  </a>
+  <a href="https://github.com/CodeGra-de/CodeGra.de/actions">
+    <img src="https://github.com/CodeGra-de/CodeGra.de/workflows/Front-end tests/badge.svg?branch=master"
+        alt="Front-end tests status" title="Front-end tests status">
+  </a>
+  <a href="https://github.com/CodeGra-de/CodeGra.de/actions">
+    <img src="https://github.com/CodeGra-de/CodeGra.de/workflows/Integration tests/badge.svg?branch=master"
+        alt="Integration tests status" title="Integration tests status">
+  </a>
+  <a href="https://github.com/CodeGra-de/CodeGra.de/actions">
+    <img src="https://github.com/CodeGra-de/CodeGra.de/workflows/Linters/badge.svg?branch=master"
+        alt="Linters status" title="Linters status">
   </a>
   <a href="https://coveralls.io/github/CodeGra-de/CodeGra.de?branch=master">
     <img src="https://img.shields.io/coveralls/CodeGra-de/CodeGra.de.svg"
@@ -15,10 +27,6 @@
   <a href="https://codecov.io/gh/CodeGra-de/CodeGra.de/branch/master">
     <img src="https://codecov.io/gh/CodeGra-de/CodeGra.de/branch/master/graph/badge.svg"
       alt="Coverage Status" title="Coverage Status">
-  </a>
-  <a href="https://github.com/CodeGra-de/CodeGra.de">
-    <img src="https://5ezz6jithh.execute-api.us-east-1.amazonaws.com/prod/lambda-shield-redirect?user=CodeGra-de&repo=CodeGra.de"
-      alt="Source Lines of Code" title="Source Lines of Code">
   </a>
   <a href="https://github.com/CodeGra-de/CodeGra.de">
     <img src="https://img.shields.io/badge/pylint-10.0-brightgreen.svg"
@@ -75,6 +83,12 @@
   <a href="https://github.com/CodeGra-de/CodeGra.de/blob/master/LICENSE">
     <img src="https://img.shields.io/badge/license-AGPL--3.0--only-blue.svg"
       alt="License AGPL-3.0-only" title="License AGPL-3.0-only">
+  </a>
+</p>
+<p align="center">
+  <a href="https://twitter.com/CodeGradeCom">
+    <img alt="Twitter Follow" src="https://img.shields.io/twitter/follow/CodeGradeCom?style=social"
+         title="Follow @CodeGradeCom on twitter">
   </a>
 </p>
 

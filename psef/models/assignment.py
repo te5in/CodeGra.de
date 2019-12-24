@@ -14,13 +14,14 @@ from itertools import cycle
 from collections import Counter, defaultdict
 
 import structlog
+import sqlalchemy
 from sqlalchemy.orm import validates
 from mypy_extensions import DefaultArg
 from sqlalchemy.sql.expression import and_, func
 from sqlalchemy.orm.collections import attribute_mapped_collection
 
 import psef
-from cg_sqlalchemy_helpers.types import MyQuery
+from cg_sqlalchemy_helpers.types import MyQuery, MyNonOrderableQuery
 
 from . import UUID_LENGTH, Base, DbColumn, db
 from . import user as user_models
@@ -443,7 +444,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         order_by="RubricRow.created_at"
     )  # type: t.MutableSequence['rubric_models.RubricRow']
 
-    group_set_id: int = db.Column(
+    group_set_id: t.Optional[int] = db.Column(
         'group_set_id',
         db.Integer,
         db.ForeignKey('GroupSet.id'),
@@ -484,6 +485,14 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
     )
     webhook_upload_enabled: bool = db.Column(
         'webhook_upload_enabled',
+        db.Boolean,
+        default=False,
+        server_default='false',
+        nullable=False,
+    )
+
+    deleted: bool = db.Column(
+        'deleted',
         db.Boolean,
         default=False,
         server_default='false',
@@ -705,7 +714,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
             )
         ).group_by(work_models.Work.id)
 
-        return db.session.query(sql.exists()).scalar()
+        return db.session.query(sql.exists()).scalar() or False
 
     @property
     def is_lti(self) -> bool:
@@ -831,7 +840,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
                     AssignmentLinter.assignment_id == self.id,
                     AssignmentLinter.name == 'MixedWhitespace'
                 ).exists()
-            ).scalar()
+            ).scalar() or False
 
         return self._whitespace_linter_exists
 
@@ -985,6 +994,73 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         else:
             raise InvalidAssignmentState(f'{state} is not a valid state')
 
+    def get_latest_submission_for_user(
+        self,
+        user: 'user_models.User',
+    ) -> MyNonOrderableQuery['work_models.Work']:
+        """Get the latest non deleted submission for a given user.
+
+        This function returns a query, but also executes a query, so be careful
+        in calling this in a loop.
+
+        .. note::
+
+            Be very careful when changing this function, it is important that
+            it always returns the same submission for a user as
+            `get_from_latest_submission`.
+
+        :param user: The user to get the latest non deleted submission for.
+        :returns: A query that should not be reordered that contains the latest
+            submission for the given user.
+        """
+        base_query = db.session.query(
+            work_models.Work,
+        ).filter(work_models.Work.assignment_id == self.id)
+
+        if self.deleted:
+            return base_query.filter(sqlalchemy.sql.false())
+
+        user_ids = [user.id]
+        order_bys = [
+            t.cast(DbColumn[object], work_models.Work.created_at).desc(),
+            # Sort by id too so that when the date is exactly the same we can
+            # still have well defined behavior (i.e. always get the same
+            # submissions for a user.)
+            t.cast(DbColumn[object], work_models.Work.id).desc()
+        ]
+        if self.group_set_id is not None:
+            group_user_id = db.session.query(
+                t.cast(DbColumn[int], group_models.Group.virtual_user_id)
+            ).filter_by(group_set_id=self.group_set_id).filter(
+                t.cast(
+                    DbColumn[t.List['user_models.User']],
+                    group_models.Group.members,
+                ).any(user_models.User.id == user.id)
+            ).scalar()
+            if group_user_id is not None:
+                user_ids.append(group_user_id)
+                # Make sure that group submissions are ordered before user
+                # submissions. This makes sure group submissions are always
+                # seen as the latest submission, even if their created_at is a
+                # bit later. This is the same behavior as
+                # `get_from_latest_submission`.
+                order_bys.insert(
+                    0,
+                    t.cast(
+                        DbColumn[object],
+                        work_models.Work.user_id == group_user_id,
+                    ).desc(),
+                )
+
+        return base_query.filter(
+            t.cast(DbColumn[int], work_models.Work.user_id).in_(user_ids),
+            # We don't need the intelligent `deleted` attribute here from
+            # the Work models, which also checks if the assignment is
+            # deleted, as we already check this at the start of the
+            # function.
+            ~work_models.Work._deleted,  # pylint: disable=protected-access
+        ).order_by(*order_bys).limit(1)
+
     @t.overload
     def get_from_latest_submissions(  # pylint: disable=function-redefined,missing-docstring,unused-argument,no-self-use
         self,
@@ -1014,41 +1090,61 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
     ) -> MyQuery[t.Any]:
         """Get the given fields from all last submitted submissions.
 
+        .. note::
+
+            Be very careful when changing this function, it is important that
+            it always returns the same submission for a user as
+            `get_latest_submission_for_user`.
+
         :param to_query: The field to get from the last submitted submissions.
         :returns: A query object with the given fields selected from the last
             submissions.
         """
+        base_query = db.session.query(*to_query).select_from(work_models.Work)
+        if self.deleted:
+            return base_query.filter(sqlalchemy.sql.false())
+
         # TODO: Investigate this subquery here. We need to do that right now as
         # other functions might use this method and might want to order in a
         # different way or do other distincts. But I have no idea how slow this
         # subquery makes the query, as postgres could optimize it out.
-
         sql = db.session.query(
             t.cast(DbColumn[int], work_models.Work.id),
         ).filter(
             work_models.Work.assignment_id == self.id,
         ).order_by(
             work_models.Work.user_id,
-            t.cast(DbColumn[object], work_models.Work.created_at).desc()
+            t.cast(DbColumn[object], work_models.Work.created_at).desc(),
+            # Sort by id too so that when the date is exactly the same we can
+            # still have well defined behavior (i.e. always get the same
+            # submissions for a user.)
+            t.cast(DbColumn[object], work_models.Work.id).desc()
         )
         if not include_deleted:
-            sql = sql.filter_by(deleted=False)
+            sql = sql.filter_by(_deleted=False)
 
         sub = sql.distinct(work_models.Work.user_id).subquery('ids')
 
-        res = db.session.query(*to_query).select_from(work_models.Work).filter(
+        res = base_query.filter(
             t.cast(DbColumn[int], work_models.Work.id).in_(sub),
         )
         if self.group_set is not None and not include_old_user_submissions:
+            sub_query = db.session.query(work_models.Work).filter(
+                work_models.Work.assignment_id == self.id,
+                work_models.Work.user_id == group_models.Group.virtual_user_id,
+            )
+            if not include_deleted:
+                # We don't need the intelligent `deleted` attribute here from
+                # the Work models, which also checks if the assignment is
+                # deleted, as we already check this at the start of the
+                # function.
+                # pylint: disable=protected-access
+                sub_query = sub_query.filter(~work_models.Work._deleted)
             groups_with_submission = db.session.query(
                 t.cast(DbColumn[int], group_models.Group.id)
             ).filter(
                 group_models.Group.group_set_id == self.group_set_id,
-                db.session.query(work_models.Work).filter(
-                    work_models.Work.assignment_id == self.id,
-                    work_models.Work.user_id ==
-                    group_models.Group.virtual_user_id,
-                ).exists()
+                sub_query.exists(),
             )
             res = res.filter(
                 ~t.cast(DbColumn[int], work_models.Work.user_id).in_(
@@ -1469,7 +1565,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
                 user_models.User,
                 user_models.User.id == work_models.Work.user_id
             ).join(group_models.Group).exists()
-        ).scalar()
+        ).scalar() or False
 
     def get_author_handing_in(
         self, request_args: t.Mapping[str, str]
@@ -1561,7 +1657,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
     def has_webhooks(self) -> bool:
         return db.session.query(
             psef.models.WebhookBase.query.filter_by(assignment=self).exists()
-        ).scalar()
+        ).scalar() or False
 
     def maybe_add_webhook_ignore_combination_warning(self) -> None:
         """Maybe add a warning to this request that warns the user for a

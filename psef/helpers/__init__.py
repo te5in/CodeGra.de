@@ -25,6 +25,7 @@ import requests
 import structlog
 import mypy_extensions
 from flask import g, request
+from mypy_extensions import Arg
 from typing_extensions import Protocol
 from werkzeug.datastructures import FileStorage
 from sqlalchemy.sql.expression import or_
@@ -690,9 +691,10 @@ def get_from_map_transaction(
     mapping: t.Mapping[T, TT],
     *,
     ensure_empty: bool = False,
-) -> t.Generator[t.Tuple[t.Callable[[T, t.Type[TTT]], TTT], t.
-                         Callable[[T, t.Type[TTT], ZZ], t.
-                                  Union[TTT, ZZ]]], None, None]:
+) -> t.Generator[
+    t.Tuple[t.Callable[[T, t.Type[TTT]], TTT], t.
+            Callable[[T, t.Type[TTT], Arg(ZZ, 'default')], t.
+                     Union[TTT, ZZ]]], None, None]:
     """Get from the given map in a transaction like style.
 
     If all gets and optional gets succeed at the end of the ``with`` block no
@@ -1432,3 +1434,31 @@ def readable_join(lst: t.Sequence[str]) -> str:
     if len(lst) < 3:
         return ' and '.join(lst)
     return ', '.join(lst[:-1]) + ', and ' + lst[-1]
+
+
+def maybe_wrap_in_list(maybe_lst: t.Union[t.List[T], T]) -> t.List[T]:
+    """Wrap an item into a list if it is not already a list.
+
+    >>> maybe_wrap_in_list(5)
+    [5]
+    >>> maybe_wrap_in_list([5])
+    [5]
+    >>> maybe_wrap_in_list([5, 6])
+    [5, 6]
+    >>> maybe_wrap_in_list({5 : 6})
+    [{5: 6}]
+    >>> maybe_wrap_in_list((1, 2))
+    [(1, 2)]
+    >>> item = object()
+    >>> maybe_wrap_in_list(item)[0] is item
+    True
+    >>> lst_item = [object()]
+    >>> maybe_wrap_in_list(lst_item) is lst_item
+    True
+
+    :param maybe_lst: The item to maybe wrap.
+    :returns: The item wrapped or just the item.
+    """
+    if isinstance(maybe_lst, list):
+        return maybe_lst
+    return [maybe_lst]

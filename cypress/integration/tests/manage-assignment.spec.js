@@ -58,5 +58,32 @@ context('Manage Assignment', () => {
                 cy.get('.submit-button').submit('success');
             });
         });
+
+        it('should be possible to delete an assignment', () => {
+            cy.get('.sidebar .sidebar-top a:nth-child(1)').click();
+            cy.get('.sidebar .sidebar-top a:nth-child(2)').click();
+            cy.get('.course-list').contains(course.name).click();
+            cy.get('.assignment-list').should('contain', assignment.name);
+
+            cy.get('.danger-zone-wrapper').within(() => {
+                cy.get('.submit-button').contains('Delete assignment').click();
+                cy.get('.modal').contains('Deleting this assignment cannot be reversed').should('be.visible')
+
+                // Cancel should not delete
+                cy.get('.submit-button').contains('Cancel').click();
+                cy.get('.modal').should('not.be.visible')
+
+                cy.get('.submit-button').contains('Delete assignment').click();
+                cy.get('.submit-button').contains('Confirm').click();
+            });
+
+            cy.url().should('eq', Cypress.config().baseUrl + '/');
+            cy.get('.assig-list').should('not.contain', assignment.name);
+            cy.get('.course-wrapper').should('contain', course.name);
+
+            cy.get('.sidebar .sidebar-top a:nth-child(2)').click();
+            cy.get('.course-list').contains(course.name).click();
+            cy.get('.assignment-list').should('not.contain', assignment.name);
+        })
     });
 });

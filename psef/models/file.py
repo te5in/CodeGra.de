@@ -5,6 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 import os
 import enum
 import uuid
+import shutil
 import typing as t
 import datetime
 from collections import defaultdict
@@ -417,6 +418,30 @@ class AutoTestFixture(Base, FileMixin[int], TimestampMixin):
             **super().__to_json__(),
             'hidden': self.hidden,
         }
+
+    def copy(self) -> 'AutoTestFixture':
+        """Copy this AutoTest fixture.
+
+        :returns: The copied AutoTest fixture.
+
+        .. note::
+
+            The connected file is only copied after this request has finished,
+            so there is a very small period of time where this fixture is
+            committed to the database, but where it does not have an underlying
+            file yet.
+        """
+        path, filename = psef.files.random_file_path()
+        old_path = self.get_diskname()
+        helpers.callback_after_this_request(
+            lambda: shutil.copy(old_path, path)
+        )
+
+        return AutoTestFixture(
+            hidden=self.hidden,
+            name=self.name,
+            filename=filename,
+        )
 
 
 class AutoTestOutputFile(Base, NestedFileMixin[uuid.UUID], TimestampMixin):

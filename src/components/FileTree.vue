@@ -130,10 +130,6 @@ export default {
     },
 
     computed: {
-        fileId() {
-            return this.$route.params.fileId;
-        },
-
         fileTree() {
             return this.submission && this.submission.fileTree;
         },

@@ -94,7 +94,7 @@ class RubricItem(helpers.NotEqualMixin, Base):
         return hash(self.id)
 
 
-class RubricRow(Base):
+class RubricRow(helpers.NotEqualMixin, Base):
     """Describes a row of some rubric.
 
     This class forms the link between :class:`.Assignment` and
@@ -147,7 +147,7 @@ class RubricRow(Base):
                     [item.id for item in self.items]
                 )
             ).exists()
-        ).scalar()
+        ).scalar() or False
 
     @property
     def is_valid(self) -> bool:
@@ -303,3 +303,20 @@ class RubricRow(Base):
         self.update_items_from_json(items)
 
         return self
+
+    def __eq__(self, other: object) -> bool:
+        """Check if two rubric items are equal
+
+        >>> RubricRow(id=5) == RubricRow(id=5)
+        True
+        >>> RubricRow(id=6) == RubricRow(id=5)
+        False
+        >>> RubricRow(id=6) == object()
+        False
+        """
+        if isinstance(other, RubricRow):
+            return self.id == other.id
+        return NotImplemented
+
+    def __hash__(self) -> int:
+        return hash(self.id)

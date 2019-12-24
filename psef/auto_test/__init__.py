@@ -4,6 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 """
 import os  # typing: ignore
 import abc
+import grp
 import pwd
 import sys
 import copy
@@ -836,7 +837,7 @@ class StartedContainer:
                 '-c',
                 (
                     'mv "{old_path}" "{new_path}" && '
-                    'chown {user}:{user} "{new_path}"'
+                    'chown {user}:"$(id -gn {user})" "{new_path}"'
                 ).format(
                     user=CODEGRADE_USER,
                     old_path=self.fixtures_dir,
@@ -1056,9 +1057,11 @@ class StartedContainer:
         # We cannot cover this as it is run in another process which will
         # execvp.
         pw_record = pwd.getpwnam(username)
+        group_ids = [g.gr_gid for g in grp.getgrall() if username in g.gr_mem]
         user_uid = pw_record.pw_uid
         user_gid = pw_record.pw_gid
 
+        os.setgroups(group_ids)
         os.setgid(user_gid)
         os.setuid(user_uid)
 
@@ -1466,10 +1469,10 @@ class StartedContainer:
                 stdin=stdin_file,
             )
 
-            res = _wait_for_attach(pid, command_started)
             left = 0.0
 
             try:
+                res = _wait_for_attach(pid, command_started)
                 if res is None:
                     res, left = _wait_for_pid(pid, timeout or sys.maxsize)
             except CommandTimeoutException:
@@ -1819,9 +1822,21 @@ class AutoTestRunner:
         result_id: int,
         test_suite: SuiteInstructions,
     ) -> None:
-        with tempfile.NamedTemporaryFile() as tfile:
-            cont.run_command(['ls', cont.output_dir])
+        has_files = False
 
+        def stdout_callback(output: bytes) -> None:
+            nonlocal has_files
+            if output:
+                has_files = True
+
+        cont.run_command(
+            ['find', cont.output_dir, '-type', 'f'],
+            stdout=stdout_callback,
+        )
+        if not has_files:
+            return
+
+        with tempfile.NamedTemporaryFile() as tfile:
             os.chmod(tfile.name, 0o777)
             cont.run_command(
                 ['tar', 'cjf', '/dev/stdout', cont.output_dir],
@@ -2022,7 +2037,7 @@ class AutoTestRunner:
                     '-c',
                     (
                         'mkdir -p "{output_dir}" && '
-                        'chown -R {user}:{user} "{output_dir}" && '
+                        'chown -R {user}:"$(id -gn {user})" "{output_dir}" && '
                         'chmod 770 "{output_dir}"'
                     ).format(
                         output_dir=OUTPUT_DIR,
@@ -2069,6 +2084,7 @@ class AutoTestRunner:
                 )
             return False
         except StopRunningTestsException:
+            result_state = None
             logger.warning('Stop running steps', exc_info=True)
             raise
         except:
@@ -2222,8 +2238,8 @@ class AutoTestRunner:
                         ' "" {user} && '
                         'mkdir -p "{home_dir}/student/" && '
                         'mkdir -p "{fixtures_root}/{fixtures}" && '
-                        'chown -R {user}:{user} {home_dir} && '
-                        'chown -R {user}:{user} "{fixtures_root}" && '
+                        'chown -R {user}:"$(id -gn {user})" "{home_dir}" && '
+                        'chown -R {user}:"$(id -gn {user})" "{fixtures_root}" && '
                         'chmod 110 "{fixtures_root}"'
                     ).format(
                         user=CODEGRADE_USER,

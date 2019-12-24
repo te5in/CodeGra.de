@@ -22,6 +22,7 @@ const getters = {
 
         return prefix => values.filter(({ key }) => key.startsWith(prefix));
     },
+    dangerousJwtToken: state => state.jwtToken,
 };
 
 const actions = {

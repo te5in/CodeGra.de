@@ -324,5 +324,12 @@
     "course_permission": true,
     "short_description": "View AutoTest output files before done",
     "long_description": "Users with this permission can view output files created during an AutoTest before the assignment state is \"done\""
+  },
+  "can_delete_assignments": {
+    "default_value": false,
+    "course_permission": true,
+    "short_description": "Delete assignments",
+    "long_description": "Users with this permission can delete assignments within this course.",
+    "warning": "With this permission a user can delete assignments which cannot be reverted."
   }
 }

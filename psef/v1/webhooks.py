@@ -37,7 +37,11 @@ def process_webhook(webhook_id: uuid.UUID) -> JSONResponse[t.Dict[str, str]]:
     :returns: A response that gives some information to the end user, the exact
         content may change at any moment.
     """
-    webhook = get_or_404(models.WebhookBase, webhook_id)
+    webhook = get_or_404(
+        models.WebhookBase,
+        webhook_id,
+        also_error=lambda w: w.assignment.deleted
+    )
     try:
         webhook.handle_request(flask.request)
     except APIException as exc:

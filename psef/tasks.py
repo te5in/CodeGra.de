@@ -18,7 +18,7 @@ from operator import itemgetter
 
 import structlog
 from flask import Flask
-from celery import signals
+from celery import signals, current_task
 from requests import HTTPError
 from sqlalchemy.orm import contains_eager
 from mypy_extensions import NamedArg, DefaultNamedArg
@@ -121,6 +121,15 @@ def _delete_submission_1(work_id: int, assignment_id: int) -> None:
         logger.info('Not an LTI submission, ignoring')
         return
 
+    # TODO: This has a bug: if a user has a group submission, that is already
+    # deleted, and now his/her latest personal submission is deleted, this
+    # personal submission is not found, as we think the deleted group
+    # submission (which we ignore) is the latest submission.
+    # TODO: Another possible bug is that if a user has two submissions, and the
+    # latest is already deleted, and now we delete the new latest this is also
+    # not registered as the latest submission.
+    # In other words: this code works for common cases, but is hopelessly
+    # broken for all other cases :(
     sub = assignment.get_all_latest_submissions(include_deleted=True).filter(
         p.models.Work.id == work_id
     ).one_or_none()
@@ -658,6 +667,31 @@ def _clone_commit_as_submission_1(
 
 
 @celery.task
+def _delete_file_at_time_1(
+    filename: str, in_mirror_dir: bool, deletion_time: str
+) -> None:
+    if current_task.maybe_delay_task(
+        datetime.datetime.fromisoformat(deletion_time)
+    ):
+        return
+
+    if in_mirror_dir:
+        root = p.app.config['MIRROR_UPLOAD_DIR']
+    else:  # pragma: no cover
+        # The case outside of the mirror_upload_dir is not yet used
+        root = p.app.config['UPLOAD_DIR']
+
+    filename = p.files.safe_join(root, filename)
+    if os.path.isfile(filename):
+        # There is a race condition here (file is removed in this small space),
+        # but we don't care as it is removed in that case
+        try:
+            os.unlink(filename)
+        except FileNotFoundError:  # pragma: no cover
+            pass
+
+
+@celery.task
 def _add_1(first: int, second: int) -> int:  # pragma: no cover
     """This function is used for testing if celery works. What it actually does
     is completely irrelevant.
@@ -679,6 +713,7 @@ kill_runners_and_adjust = _kill_runners_and_adjust_1.delay  # pylint: disable=in
 delete_submission = _delete_submission_1.delay  # pylint: disable=invalid-name
 update_latest_results_in_broker = _update_latest_results_in_broker_1.delay  # pylint: disable=invalid-name
 clone_commit_as_submission = _clone_commit_as_submission_1.delay  # pylint: disable=invalid-name
+delete_file_at_time = _delete_file_at_time_1.delay  # pylint: disable=invalid-name
 
 send_reminder_mails: t.Callable[[
     t.Tuple[int], NamedArg(t.Optional[datetime.datetime], 'eta')

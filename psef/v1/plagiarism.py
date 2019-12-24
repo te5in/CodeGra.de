@@ -34,7 +34,11 @@ def delete_plagiarism_run(plagiarism_id: int, ) -> EmptyResponse:
     :raises PermissionException: If the user can not manage plagiarism runs or
         cases for the course associated with the run. (INCORRECT_PERMISSION)
     """
-    run = helpers.get_or_404(models.PlagiarismRun, plagiarism_id)
+    run = helpers.get_or_404(
+        models.PlagiarismRun,
+        plagiarism_id,
+        also_error=lambda p: p.assignment.deleted
+    )
     auth.ensure_permission(
         CPerm.can_manage_plagiarism, run.assignment.course_id
     )
@@ -73,6 +77,7 @@ def get_plagiarism_run(
                 models.PlagiarismCase.work2
             ).selectinload(models.Work.selected_items),
         ],
+        also_error=lambda p: p.assignment.deleted
     )
     auth.ensure_permission(CPerm.can_view_plagiarism, run.assignment.course_id)
 
@@ -109,6 +114,7 @@ def get_plagiarism_run_cases(
         models.PlagiarismRun,
         plagiarism_id,
         options=[],
+        also_error=lambda p: p.assignment.deleted
     )
     auth.ensure_permission(CPerm.can_view_plagiarism, run.assignment.course_id)
 
@@ -154,8 +160,10 @@ def get_plagiarism_case(
     # We use the `plagiarism_id` and the `case_id` so we can later make the
     # `case_id` only unique within a single run.
     case = helpers.filter_single_or_404(
-        models.PlagiarismCase, models.PlagiarismCase.id == case_id,
-        models.PlagiarismCase.plagiarism_run_id == plagiarism_id
+        models.PlagiarismCase,
+        models.PlagiarismCase.id == case_id,
+        models.PlagiarismCase.plagiarism_run_id == plagiarism_id,
+        also_error=lambda c: c.work1.deleted or c.work2.deleted,
     )
     auth.ensure_can_see_plagiarims_case(case)
 

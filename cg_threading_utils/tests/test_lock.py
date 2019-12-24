@@ -32,35 +32,30 @@ def get_diff(lock):
     res = []
     t_amount = 1000
     threads = []
+    events = [threading.Event() for _ in range(t_amount)]
 
     def fun(i):
-        time.sleep(0)
+        events[i].set()
         with lock:
             res.append(i)
-            time.sleep(0)
 
     threads = [
         threading.Thread(target=fun, args=(i, )) for i in range(t_amount)
     ]
-    for thread in threads:
-        thread.start()
+    with lock:
+        for i, thread in enumerate(threads):
+            thread.start()
+            events[i].wait()
+
     for thread in threads:
         thread.join()
 
     assert len(res) == t_amount
-    res = sum(
-        abs(r1 - r2) for r1, r2 in zip(res, range(t_amount))
-        if abs(r1 - r2) > 3
-    )
+    res = sum(abs(r1 - r2) for r1, r2 in zip(res, range(t_amount)))
     print(lock, res)
     return res
 
 
 def test_fairness():
-    success = []
-    for _ in range(150):
-        ours = get_diff(FairLock())
-        theirs = get_diff(threading.Lock())
-        success.append(ours <= theirs)
-
-    assert sum(success) > (len(success) / 2)
+    for _ in range(100):
+        assert get_diff(FairLock()) < 2

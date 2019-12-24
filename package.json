@@ -11,11 +11,11 @@
     "local_unit": "jest --runInBand --verbose",
     "unit": "jest --coverage --verbose test/",
     "clear_jest": "jest --clearCache",
-    "e2e": "cypress run",
+    "e2e": "NO_COLOR=1 cypress run",
     "cypress": "cypress",
     "e2e_travis": "cypress run --record --key f830141a-c50d-45cd-b226-4f32208df449",
     "test": "npm run unit && npm run e2e",
-    "lint": "eslint --ext .js,.vue src",
+    "lint": "eslint --max-warnings 0 --ext .js,.vue src",
     "lint-fix": "eslint --ext .js,.vue src --fix",
     "format": "prettier-eslint --use-tabs false --tab-width 4 --trailing-comma all --single-quote true --write src/\\*\\*/\\*.{vue,js,less}",
     "check-format": "prettier-eslint --use-tabs false --tab-width 4 --trailing-comma all --single-quote true --list-different src/\\*\\*/\\*.{vue,js,less}"

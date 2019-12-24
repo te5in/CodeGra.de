@@ -19,6 +19,7 @@ import {
     canSeeGrade,
     autoTestHasCheckpointAfterHiddenStep,
     safeDivide,
+    parseWarningHeader,
 } from '@/utils';
 
 import * as assignmentState from '@/store/assignment-states';
@@ -731,6 +732,41 @@ describe('utils.js', () => {
             const res = {};
             expect(safeDivide(10, 0, res)).toBe(res);
             expect(safeDivide(0, 10, res)).toBe(0);
+        });
+    });
+
+    describe('parseWarningHeader', () => {
+        it('should work for simple single warnings', () => {
+            expect(parseWarningHeader('14 C "Hello warning"')).toEqual([{
+                code: 14,
+                agent: 'C',
+                text: 'Hello warning',
+            }]);
+        });
+
+        it('should work for multiple simple warnings', () => {
+            expect(parseWarningHeader('14 C "Hello warning", 15 C "W2"')).toEqual([{
+                code: 14,
+                agent: 'C',
+                text: 'Hello warning',
+            }, {
+                code: 15,
+                agent: 'C',
+                text: 'W2',
+            }]);
+        });
+
+        it('should work for difficult warnings', () => {
+            const warningStr = '14 C_C ",\\"WARN\\\\ING\\\\", 14 C ",,"';
+            expect(parseWarningHeader(warningStr)).toEqual([{
+                code: 14,
+                agent: 'C_C',
+                text: ',"WARN\\ING\\',
+            }, {
+                code: 14,
+                agent: 'C',
+                text: ',,',
+            }]);
         });
     });
 });

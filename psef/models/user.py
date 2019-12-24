@@ -17,9 +17,9 @@ import psef
 
 from . import UUID_LENGTH, Base, DbColumn, db, course, _MyQuery
 from .role import Role, CourseRole
-from ..helpers import NotEqualMixin
+from ..helpers import NotEqualMixin, validate
 from .permission import Permission
-from ..exceptions import APICodes, PermissionException
+from ..exceptions import APICodes, APIException, PermissionException
 from .link_tables import user_course, course_permissions
 from ..permissions import CoursePermission, GlobalPermission
 
@@ -540,3 +540,59 @@ class User(NotEqualMixin, Base):
         :returns: If the user is active.
         """
         return self.active
+
+    @classmethod
+    def register_new_user(
+        cls, *, username: str, password: str, email: str, name: str
+    ) -> 'User':
+        """Register a new user with the given data.
+
+        :param username: The username of the new user, if a user already exists
+            with this username an :class:`.APIException` is raised.
+        :param password: The password of the new user, if the password is not
+            strong enough an :class:`.APIException` is raised.
+        :param email: The email of the new user, if not valid an
+            :class:`.APIException` is raised.
+        :name: The name of the new user.
+        :returns: The created user, already added (but not committed) to the
+            database.
+        """
+        if not all([username, email, name]):
+            raise APIException(
+                'All fields should contain at least one character',
+                (
+                    'The lengths of the given password, username and '
+                    'email were not all larger than 1'
+                ),
+                APICodes.INVALID_PARAM,
+                400,
+            )
+        validate.ensure_valid_password(
+            password, username=username, email=email, name=name
+        )
+        validate.ensure_valid_email(email)
+
+        if db.session.query(cls.query.filter_by(username=username).exists()
+                            ).scalar():
+            raise APIException(
+                'The given username is already in use',
+                f'The username "{username}" is taken',
+                APICodes.OBJECT_ALREADY_EXISTS,
+                400,
+            )
+
+        role = Role.query.filter_by(name=current_app.config['DEFAULT_ROLE']
+                                    ).one()
+        self = cls(
+            username=username,
+            password=password,
+            email=email,
+            name=name,
+            role=role,
+            active=True,
+        )
+
+        db.session.add(self)
+        db.session.flush()
+
+        return self

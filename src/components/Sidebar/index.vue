@@ -4,12 +4,15 @@
      :class="{ floating, inLTI: $inLTI }"
      id="global-sidebar">
     <div class="main-menu" :class="{ show: mobileVisible }">
-        <router-link class="sidebar-top-item logo"
-                     :to="{ name: 'home' }"
-                     :target="$inLTI ? '_blank' : undefined"
-                     @click.native="closeSubMenu(true)">
-            <img :src="logoSrc"/>
-        </router-link>
+        <component :is="$inLTI ? 'div' : 'router-link'"
+                   :style="{ cursor: $inLTI ? 'default' : 'pointer'}"
+                   class="sidebar-top-item logo"
+                   :to="$inLTI ? undefined : ({ name: 'home' })"
+                   @click.native="$inLTI && closeSubMenu(true)">
+            <cg-logo :small="!mobileVisible"
+                     :inverted="!darkMode && $inLTI"
+                     show-easter-eggs />
+        </component>
         <hr class="separator">
         <div class="sidebar-top">
             <transition v-for="entry in entries"
@@ -34,14 +37,16 @@
 
         <div v-if="canManageCurrentLtiAssignment">
             <div class="sidebar-bottom">
-                <router-link :to="Object.assign({}, $route)" target="_blank"
-                                class="new-tab-link sidebar-bottom-item"
-                                v-b-popover.top.hover="'Open this page in a new tab'">
+                <submit-button :submit="openRouteInTab"
+                               class="new-tab-link sidebar-bottom-item d-inline border-0 rounded-0 shadow-none"
+                               variant="secondary"
+                               @success="afterOpenRouteInTab"
+                               v-b-popover.top.hover="'Open this page in a new tab'">
                     <div class="new-tab-wrapper">
-                        <icon name="share-square-o" :scale="1"/>
+                        <icon name="share-square-o" :scale="1" class="mr-2" />
                         <small class="name new-tab">New tab</small>
                     </div>
-                </router-link>
+                </submit-button>
             </div>
 
             <hr class="separator"/>
@@ -153,6 +158,7 @@ import 'vue-awesome/icons/share-square-o';
 import 'vue-awesome/icons/sign-in';
 
 import { Loader } from '@/components';
+import SubmitButton from '@/components/SubmitButton';
 
 import UserInfo from './UserInfo';
 import CourseList from './CourseList';
@@ -160,6 +166,7 @@ import AssignmentList from './AssignmentList';
 import PlagiarismCaseList from './PlagiarismCaseList';
 import SubmissionsSidebarList from './SubmissionsSidebarList';
 import GroupList from './GroupList';
+import CgLogo from '../CgLogo';
 
 import { MANAGE_SITE_PERIMSSIONS } from '../../constants';
 
@@ -292,7 +299,7 @@ export default {
     computed: {
         ...mapGetters('courses', ['courses', 'assignments']),
 
-        ...mapGetters('user', ['loggedIn', 'name']),
+        ...mapGetters('user', ['loggedIn', 'name', 'dangerousJwtToken']),
         ...mapGetters('user', { globalPermissions: 'permissions' }),
 
         ...mapGetters('pref', ['darkMode']),
@@ -329,10 +336,6 @@ export default {
             return (this.assignments || {})[this.assignmentId];
         },
 
-        isChristmas() {
-            return this.$root.$now.month() === 11 && this.$root.$now.date() <= 26;
-        },
-
         floating() {
             return (
                 this.$inLTI ||
@@ -354,24 +357,6 @@ export default {
         hideInitialEntries() {
             const route = this.$route.name;
             return this.$inLTI || !this.$root.$isMediumWindow || hideRoutes.has(route);
-        },
-
-        logoSrc() {
-            let logo;
-
-            if (this.isChristmas) {
-                logo = 'CodeGrade_christmas';
-            } else if (!this.mobileVisible) {
-                logo = 'logo';
-            } else {
-                logo = 'codegrade';
-            }
-
-            if (!this.darkMode && this.$inLTI) {
-                logo += '-inv';
-            }
-
-            return `/static/img/${logo}.svg`;
         },
     },
 
@@ -395,10 +380,6 @@ export default {
     async mounted() {
         this.fixAppMargin();
 
-        if (this.loggedIn) {
-            await this.loadCourses();
-        }
-
         this.$root.$on('sidebar::show', submenu => {
             if (submenu === undefined) {
                 this.toggleMobileSidebar();
@@ -418,8 +399,6 @@ export default {
     },
 
     methods: {
-        ...mapActions('courses', ['loadCourses']),
-
         ...mapActions('user', {
             logoutUser: 'logout',
         }),
@@ -566,6 +545,30 @@ export default {
 
             return style;
         },
+
+        openRouteInTab() {
+            return this.$http.post('/api/v1/files/', this.dangerousJwtToken);
+        },
+
+        afterOpenRouteInTab({ data: loginFile }) {
+            const curRoute = JSON.stringify({
+                name: this.$route.name,
+                params: this.$route.params,
+                query: this.$route.query,
+                hash: this.$route.hash,
+            });
+            const newRoute = this.$router.resolve({
+                name: 'login_and_redirect',
+                params: {
+                    loginFile,
+                },
+                query: {
+                    next: curRoute,
+                },
+            });
+
+            window.open(newRoute.href, '_blank');
+        },
     },
 
     components: {
@@ -576,7 +579,9 @@ export default {
         AssignmentList,
         PlagiarismCaseList,
         SubmissionsSidebarList,
+        SubmitButton,
         GroupList,
+        CgLogo,
     },
 };
 </script>
@@ -654,10 +659,6 @@ export default {
         }
     }
 
-    .sidebar-top-item.logo {
-        flex: 0 0 auto;
-    }
-
     .sidebar-top {
         flex: 1 1 auto;
         overflow-y: auto;
@@ -674,6 +675,7 @@ export default {
         }
 
         &.logo {
+            flex: 0 0 auto;
             display: block;
             padding: 1rem 0.5rem;
 
@@ -815,11 +817,14 @@ export default {
 
 .main-menu .new-tab-link.sidebar-bottom-item {
     padding: 0.5rem;
+    &.submit-button:not(.state-default) .new-tab-wrapper {
+        opacity: 0;
+    }
 }
 
 .new-tab-wrapper {
     display: flex;
-    justify-content: space-evenly;
+    justify-content: center;
 }
 </style>
 

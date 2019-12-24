@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
-<div class="submission-uploader"
-     :class="noBorder ? 'no-border' : ''">
+<div class="submission-uploader d-flex flex-column"
+     :class="noBorder ? '' : 'border rounded'">
     <b-modal id="git-instructions-modal"
              v-if="gitData != null"
              title="Git instructions"
@@ -91,6 +91,7 @@
                 </b-tab>
             </b-tabs>
         </div>
+
         <b-button-toolbar justify>
             <div v-b-popover.top.hover="canDeleteFiles ? '' : 'You are missing required files.'">
                 <submit-button label="Delete disallowed files and hand in"
@@ -138,6 +139,7 @@
                     currently not member of any group.
                 </span>
             </p>
+
             <p v-if="assignment.is_lti">
                 This assignment is connected to an assignment in your
                 {{ lmsName }}. This means that every user has to open the
@@ -176,8 +178,8 @@
         </b-button-toolbar>
     </b-modal>
 
-    <div v-if="assignment.webhook_upload_enabled" class="p-1 text-center pb-3"
-         :class="{ 'p-3': noBorder }">
+    <div v-if="maybeShowGitInstructions && assignment.webhook_upload_enabled"
+         class="border-bottom text-center p-3">
         <span class="position-relative">
             <a href="#" @click.prevent="doGitSubmission" class="inline-link git-link"><u><b>
                 Click here for instructions on setting up Git
@@ -213,18 +215,19 @@
     </div>
 
     <multiple-files-uploader
-        :no-border="noBorder"
-        :class="noBorder && assignment.webhook_upload_enabled ? 'border-top' : ''"
+        no-border
         v-if="assignment.files_upload_enabled"
-        v-model="files" />
-    <div v-else :class="noBorder ? 'border-top' : 'border border-bottom-0 rounded-top'" class="bg-light p-3">
+        v-model="files"
+        class="flex-grow-1" />
+    <div v-else
+         class="bg-light p-3">
         Uploading submissions through files is disabled for this assignment. You
         can only hand-in submissions using git. <a href="#"
         @click.prevent="doGitSubmission" class="inline-link underline">Click
         here</a> for instructions on setting up Git submissions.
     </div>
 
-    <b-input-group class="submit-options">
+    <b-input-group class="submit-options border-top">
         <template v-if="forOthers">
             <div class="author-wrapper"
                  v-b-popover.hover.top="authorDisabledPopover">
@@ -234,28 +237,31 @@
                                :disabled="disabled || isTestSubmission"
                                :base-url="`/api/v1/courses/${assignment.course.id}/users/`"
                                :use-selector="canListUsers"
-                               :placeholder="`${defaultAuthor.name} (${defaultAuthor.username})`" />
+                               :placeholder="`${defaultAuthor.name} (${defaultAuthor.username})`"
+                               no-border />
             </div>
 
-            <b-input-group-prepend is-text
-                                   class="test-student-checkbox"
+            <b-input-group-prepend class="test-student-checkbox border-left"
                                    v-b-popover.hover.top="testSubmissionDisabledPopover">
-                <b-form-checkbox v-model="isTestSubmission"
-                                 :disabled="disabled || !!author">
-                    Test submission
-                    <description-popover hug-text>
-                        This submission will be uploaded by a special test student.
-                        When you enable this option you will not be able to select
-                        another author.
-                    </description-popover>
-                </b-form-checkbox>
+                <b-input-group-text class="border-0">
+                    <b-form-checkbox v-model="isTestSubmission"
+                                    :disabled="disabled || !!author">
+                        Test submission
+                        <description-popover hug-text>
+                            This submission will be uploaded by a special test student.
+                            When you enable this option you will not be able to select
+                            another author.
+                        </description-popover>
+                    </b-form-checkbox>
+                </b-input-group-text>
             </b-input-group-prepend>
         </template>
 
         <b-input-group-prepend v-else
-                               is-text
                                class="deadline-information">
-            The assignment is due {{ readableDeadline }}.
+            <b-input-group-text class="border-0">
+                The assignment is due {{ readableDeadline }}.
+            </b-input-group-text>
         </b-input-group-prepend>
 
         <submit-button class="submit-file-button"
@@ -313,6 +319,10 @@ export default {
         },
 
         noBorder: {
+            type: Boolean,
+            default: false,
+        },
+        maybeShowGitInstructions: {
             type: Boolean,
             default: false,
         },
@@ -743,11 +753,6 @@ export default {
 @import '~mixins.less';
 
 .submission-uploader {
-    &.no-border .user-selector .multiselect__tags {
-        border-bottom: none;
-        border-left: none;
-    }
-
     .deadline-information {
         flex: 1 1 auto;
 

@@ -181,12 +181,28 @@ export default {
 </style>
 
 <style lang="less">
-.local-header > .toolbar {
-    & > * {
-        margin-right: 1rem;
+@import '~mixins.less';
+
+.local-header {
+    > .toolbar {
+        & > * {
+            margin-right: 1rem;
+        }
+        & > *:last-child {
+            margin-right: 0;
+        }
     }
-    & > *:last-child {
-        margin-right: 0;
+
+    #app.dark & .btn.btn-primary {
+        background-color: @color-primary-darkest;
+
+        &:hover {
+            background-color: darken(@color-primary-darkest, 2%);
+        }
+    }
+
+    #app.dark & .btn.btn-secondary:hover {
+        background-color: darken(@color-primary, 2.5%) !important;
     }
 }
 </style>

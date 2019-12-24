@@ -26,7 +26,53 @@
                        @results-deleted="afterDeleteResults" />
     </transition-group>
 
-    <b-card no-body :class="{ 'border-0': !editable }">
+    <b-card no-body v-if="autoTestId == null || test == null">
+        <b-card-header v-if="editable"
+                       class="py-1 d-flex justify-content-between align-items-center">
+            Configuration
+
+            <b-button-toolbar>
+                <div v-b-popover.hover.top="createAutoTestPopover">
+                    <submit-button label="Create AutoTest"
+                                   :disabled="cannotCreateAutoTest"
+                                   :submit="createAutoTest"
+                                   @after-success="afterCreateAutoTest"/>
+                </div>
+            </b-button-toolbar>
+        </b-card-header>
+        <b-card-body v-if="test == null" class="text-muted font-italic">
+            This assignment does not have an AutoTest configuration.
+            <b-input-group v-if="editable && possibleImportAssignments.length > 0"
+                           class="mt-3 copy-at-wrapper">
+                <multiselect
+                    class="assignment-selector"
+                    v-model="importAssignment"
+                    :options="possibleImportAssignments || []"
+                    :searchable="true"
+                    :custom-label="a => `${a.course.name} - ${a.name}`"
+                    :multiple="false"
+                    track-by="id"
+                    label="label"
+                    :close-on-select="true"
+                    :hide-selected="false"
+                    placeholder="Select assignment to import AutoTest configuration from"
+                    :internal-search="true">
+                    <span slot="noResult">
+                        No results were found.
+                    </span>
+                </multiselect>
+                <template slot="append">
+                    <submit-button label="Import"
+                                   :disabled="importAssignment == null"
+                                   :confirm="importConfirmMessage"
+                                   @after-success="afterImportAutoTest"
+                                   :submit="importAutoTest"/>
+                </template>
+            </b-input-group>
+        </b-card-body>
+    </b-card>
+
+    <b-card no-body :class="{ 'border-0': !editable }" v-else>
         <collapse v-model="configCollapsed" :disabled="!isConfigCollapsible">
             <b-card-header v-if="editable"
                            slot="handle"
@@ -36,16 +82,7 @@
                     Configuration
                 </span>
 
-                <b-button-toolbar v-if="autoTestId == null">
-                    <div v-b-popover.hover.top="createAutoTestPopover">
-                        <submit-button label="Create AutoTest"
-                                       :disabled="canCreateAutoTest"
-                                       :submit="createAutoTest"
-                                       @after-success="afterCreateAutoTest"/>
-                    </div>
-                </b-button-toolbar>
-
-                <b-button-toolbar v-else>
+                <b-button-toolbar>
                     <b-popover v-if="runAutoTestPopover.length > 0"
                                :target="runAutoTestId"
                                triggers="hover"
@@ -84,11 +121,7 @@
             </b-card-header>
 
             <template slot-scope="{}">
-                <b-card-body v-if="test == null"
-                             class="text-muted font-italic">
-                    This assignment does not have an AutoTest configuration.
-                </b-card-body>
-                <b-card-body v-else class="p-3">
+                <b-card-body class="p-3">
                     <b-alert v-if="singleResult && (result.isFinal === false || !$utils.canSeeGrade(assignment))"
                              variant="warning"
                              dismissible
@@ -99,7 +132,8 @@
                     </b-alert>
 
                     <b-card no-body class="setup-env-wrapper mb-3">
-                        <collapse v-model="setupCollapsed" :disabled="!singleResult"
+                        <collapse v-model="setupCollapsed"
+                                  :disabled="!singleResult"
                                   lazy-load>
                             <b-card-header slot="handle"
                                            class="d-flex justify-content-between align-items-center"
@@ -315,7 +349,7 @@
                                                     <inner-code-viewer class="rounded border"
                                                                        :assignment="assignment"
                                                                        :code-lines="prepareOutput(currentRun.setupStdout)"
-                                                                       :file-id="-1"
+                                                                       :file-id="'-1'"
                                                                        :feedback="{}"
                                                                        :start-line="0"
                                                                        :show-whitespace="true"
@@ -327,7 +361,7 @@
                                                     <inner-code-viewer class="rounded border"
                                                                        :assignment="assignment"
                                                                        :code-lines="prepareOutput(currentRun.setupStderr)"
-                                                                       :file-id="-1"
+                                                                       :file-id="'-1'"
                                                                        :feedback="{}"
                                                                        :start-line="0"
                                                                        :show-whitespace="true"
@@ -378,7 +412,7 @@
                                                     <inner-code-viewer class="rounded border"
                                                                        :assignment="assignment"
                                                                        :code-lines="prepareOutput(result.setupStdout)"
-                                                                       :file-id="-1"
+                                                                       :file-id="'-1'"
                                                                        :feedback="{}"
                                                                        :start-line="0"
                                                                        :show-whitespace="true"
@@ -390,7 +424,7 @@
                                                     <inner-code-viewer class="rounded border"
                                                                        :assignment="assignment"
                                                                        :code-lines="prepareOutput(result.setupStderr)"
-                                                                       :file-id="-1"
+                                                                       :file-id="'-1'"
                                                                        :feedback="{}"
                                                                        :start-line="0"
                                                                        :show-whitespace="true"
@@ -479,7 +513,7 @@
             <inner-code-viewer v-else
                                :assignment="assignment"
                                :code-lines="prepareOutput(currentFixture.data)"
-                               :file-id="-1"
+                               :file-id="'-1'"
                                :feedback="{}"
                                :start-line="0"
                                :show-whitespace="true"
@@ -505,6 +539,7 @@
 </template>
 
 <script>
+import Multiselect from 'vue-multiselect';
 import { mapActions, mapGetters } from 'vuex';
 
 import Icon from 'vue-awesome/components/Icon';
@@ -592,6 +627,7 @@ export default {
 
             resultSubmissionLoading: true,
             resultSubmission: null,
+            importAssignment: null,
         };
     },
 
@@ -663,6 +699,7 @@ export default {
         ...mapActions('submissions', {
             storeLoadSubmissions: 'loadSubmissions',
             storeLoadSingleSubmission: 'loadSingleSubmission',
+            storeForceLoadSubmissions: 'forceLoadSubmissions',
         }),
 
         ...mapActions('autotest', {
@@ -677,10 +714,13 @@ export default {
             storeLoadAutoTestResult: 'loadAutoTestResult',
             storeCreateAutoTestSet: 'createAutoTestSet',
             storeDeleteAutoTestResults: 'deleteAutoTestResults',
+            storeSetAutoTest: 'setAutoTest',
         }),
 
         ...mapActions('courses', {
             storeLoadRubric: 'loadRubric',
+            storeForceLoadRubric: 'forceLoadRubric',
+            storeUpdateAssignment: 'updateAssignment',
         }),
 
         ...mapActions('rubrics', {
@@ -950,10 +990,21 @@ export default {
                 throw new Error('AutoTest cannot be created on a single result page.');
             }
 
-            return this.storeCreateAutoTest(this.assignment.id);
+            return this.$http.post('/api/v1/auto_tests/', {
+                assignment_id: this.assignment.id,
+            });
         },
 
-        async afterCreateAutoTest() {
+        async afterCreateAutoTest({ data }) {
+            await Promise.all([
+                this.storeSetAutoTest(data),
+                this.storeUpdateAssignment({
+                    assignmentId: this.assignmentId,
+                    assignmentProps: {
+                        auto_test_id: data.id,
+                    },
+                }),
+            ]);
             await this.$nextTick();
             this.configCollapsed = false;
         },
@@ -966,7 +1017,8 @@ export default {
             return this.storeDeleteAutoTest(this.autoTestId);
         },
 
-        async afterDeleteAutoTest() {
+        async afterDeleteAutoTest({ callback }) {
+            await callback();
             await this.$nextTick();
             this.configCollapsed = false;
         },
@@ -1006,6 +1058,26 @@ export default {
                 this.pollingTimer = setTimeout(callback, this.pollingInterval);
             }
         },
+
+        importAutoTest() {
+            const url = `/api/v1/auto_tests/${this.importAssignment.auto_test_id}/copy`;
+            return this.$http
+                .post(url, {
+                    assignment_id: this.assignmentId,
+                })
+                .then(async response => {
+                    await Promise.all([
+                        this.storeForceLoadSubmissions(this.assignmentId),
+                        this.storeForceLoadRubric(this.assignmentId),
+                    ]);
+                    return response;
+                });
+        },
+
+        async afterImportAutoTest(payload) {
+            this.$root.$emit('cg::rubric-editor::reload');
+            await this.afterCreateAutoTest(payload);
+        },
     },
 
     computed: {
@@ -1013,6 +1085,7 @@ export default {
             storeTests: 'tests',
             storeResults: 'results',
         }),
+        ...mapGetters('courses', ['assignments']),
 
         permissions() {
             return this.$utils.getProps(this, {}, 'assignment', 'course', 'permissions');
@@ -1024,6 +1097,16 @@ export default {
 
         autoTestId() {
             return this.assignment.auto_test_id;
+        },
+
+        possibleImportAssignments() {
+            return Object.values(this.assignments)
+                .filter(a => a.auto_test_id != null)
+                .map(a => ({
+                    name: a.name,
+                    course: { name: a.course.name },
+                    auto_test_id: a.auto_test_id,
+                }));
         },
 
         allNonDeletedSuites() {
@@ -1150,8 +1233,8 @@ export default {
             return this.assignment.state === 'done';
         },
 
-        canCreateAutoTest() {
-            return this.permissions.can_edit_autotest && this.assignment.rubric == null;
+        cannotCreateAutoTest() {
+            return !this.permissions.can_edit_autotest || this.assignment.rubric == null;
         },
 
         canDeleteAutoTest() {
@@ -1191,6 +1274,13 @@ export default {
 
             return results.some(res => !res.finished) ? 5000 : 60000;
         },
+
+        importConfirmMessage() {
+            if (this.assignment.rubric == null) {
+                return '';
+            }
+            return 'This assignment already has a rubric. Importing an AutoTest configuration will also import the rubric of the other assignment and delete the current rubric. Any grade given using the existing rubric will be cleared. Are you sure you want to continue?';
+        },
     },
 
     components: {
@@ -1206,6 +1296,7 @@ export default {
         Loader,
         InnerCodeViewer,
         DescriptionPopover,
+        Multiselect,
     },
 };
 </script>
@@ -1347,6 +1438,15 @@ export default {
         .toggle .fa-icon,
         .toggle.fa-icon {
             transform: rotate(-90deg);
+        }
+    }
+
+    .assignment-selector {
+        z-index: 8;
+        flex: 1;
+        .multiselect__tags {
+            border-bottom-right-radius: 0;
+            border-top-right-radius: 0;
         }
     }
 }

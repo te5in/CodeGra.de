@@ -45,13 +45,22 @@ def get_database_name(request):
     global _DATABASE
 
     if _DATABASE is None:
-        _DATABASE = request.config.getoption('--postgresql'), False
+        _DATABASE = [request.config.getoption('--postgresql'), False]
         if _DATABASE[0] == 'GENERATE':
-            _DATABASE = ''.join(
-                x for x in secrets.token_hex(64) if x in string.ascii_lowercase
-            ), True
+            _DATABASE = [
+                ''.join(
+                    x for x in secrets.token_hex(64)
+                    if x in string.ascii_lowercase
+                ),
+                True,
+            ]
 
-    return _DATABASE
+    if not _DATABASE[0].startswith('postgresql:/'):
+        _DATABASE[0] = 'postgresql:///' + _DATABASE[0]
+
+    _DATABASE[0] = _DATABASE[0] + os.environ.get('PYTEST_XDIST_WORKER', '')
+
+    return tuple(_DATABASE)
 
 
 def pytest_addoption(parser):
@@ -135,7 +144,7 @@ def app(request):
     if request.config.getoption('--postgresql'):
         pdb, _ = get_database_name(request)
 
-        settings_override['SQLALCHEMY_DATABASE_URI'] = f'postgresql:///{pdb}'
+        settings_override['SQLALCHEMY_DATABASE_URI'] = pdb
         settings_override['_USING_SQLITE'] = False
     else:
         settings_override['SQLALCHEMY_DATABASE_URI'] = TEST_DATABASE_URI
@@ -158,6 +167,9 @@ def app(request):
     app.config['__S_FEATURES']['INCREMENTAL_RUBRIC_SUBMISSION'] = True
     app.config['FEATURES'][psef.features.Feature.INCREMENTAL_RUBRIC_SUBMISSION
                            ] = True
+
+    app.config['__S_FEATURES']['COURSE_REGISTER'] = True
+    app.config['FEATURES'][psef.features.Feature.COURSE_REGISTER] = True
 
     psef.tasks.celery.conf.update({
         'task_always_eager': False,
@@ -401,7 +413,10 @@ def db(app, request):
         if generated:
             try:
                 subprocess.check_output(
-                    'psql -c "create database {}"'.format(db_name), shell=True
+                    'psql -c "create database {}"'.format(
+                        db_name.replace('postgresql:///', '')
+                    ),
+                    shell=True
                 )
             except subprocess.CalledProcessError as e:
                 print(e.stdout, file=sys.stderr)
@@ -412,6 +427,7 @@ def db(app, request):
     manage.seed_force(psef.models.db)
     manage.test_data(psef.models.db)
 
+    assert psef.models.Permission.query.all()
     psef.permissions.database_permissions_sanity_check(app)
 
     try:
@@ -423,7 +439,9 @@ def db(app, request):
                 orm.session.close_all_sessions()
                 psef.models.db.engine.dispose()
                 subprocess.check_call(
-                    'dropdb "{}"'.format(db_name),
+                    'dropdb "{}"'.format(
+                        db_name.replace('postgresql:///', '')
+                    ),
                     shell=True,
                     stdout=sys.stdout,
                     stderr=sys.stderr
@@ -454,7 +472,6 @@ def session(app, db, use_transaction):
         yield session
     finally:
         psef.models.db.session = old_ses
-        print(old_ses)
 
         if use_transaction:
             transaction.rollback()
@@ -722,3 +739,8 @@ def stubmailer(monkeypatch):
 @pytest.fixture
 def tomorrow():
     yield datetime.datetime.utcnow() + datetime.timedelta(days=1)
+
+
+@pytest.fixture
+def yesterday():
+    yield datetime.datetime.utcnow() - datetime.timedelta(days=1)

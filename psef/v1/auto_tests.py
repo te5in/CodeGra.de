@@ -28,6 +28,22 @@ from ..permissions import CoursePermission as CPerm
 logger = structlog.get_logger()
 
 
+def _get_at_set_by_ids(
+    auto_test_id: int, auto_test_set_id: int
+) -> models.AutoTestSet:
+    def also_error(at_set: models.AutoTestSet) -> bool:
+        return (
+            at_set.auto_test_id != auto_test_id or
+            at_set.auto_test.assignment.deleted
+        )
+
+    return filter_single_or_404(
+        models.AutoTestSet,
+        models.AutoTestSet.id == auto_test_set_id,
+        also_error=also_error,
+    )
+
+
 def _update_auto_test(
     auto_test: models.AutoTest, json_dict: t.Mapping[str, helpers.JSONType]
 ) -> None:
@@ -111,6 +127,7 @@ def create_auto_test() -> JSONResponse[models.AutoTest]:
     assignment = filter_single_or_404(
         models.Assignment,
         models.Assignment.id == assignment_id,
+        ~models.Assignment.deleted,
         with_for_update=True
     )
     auth.ensure_permission(CPerm.can_edit_autotest, assignment.course_id)
@@ -152,6 +169,7 @@ def delete_auto_test(auto_test_id: int) -> EmptyResponse:
         models.AutoTest,
         models.AutoTest.id == auto_test_id,
         with_for_update=True,
+        also_error=lambda at: at.assignment.deleted,
     )
 
     auth.ensure_permission(
@@ -170,12 +188,11 @@ def delete_auto_test(auto_test_id: int) -> EmptyResponse:
 
 
 @api.route(
-    '/auto_tests/<int:auto_test_id>/fixtures/<int:fixture_id>',
-    methods=['GET']
+    '/auto_tests/<int:at_id>/fixtures/<int:fixture_id>', methods=['GET']
 )
 @feature_required(Feature.AUTO_TEST)
 def get_fixture_contents(
-    auto_test_id: int, fixture_id: int
+    at_id: int, fixture_id: int
 ) -> werkzeug.wrappers.Response:
     """Get the contents of the given :class:`.models.AutoTestFixture`.
 
@@ -188,7 +205,9 @@ def get_fixture_contents(
     fixture = get_or_404(
         models.AutoTestFixture,
         fixture_id,
-        also_error=lambda obj: obj.auto_test_id != auto_test_id,
+        also_error=(
+            lambda f: f.auto_test_id != at_id or f.auto_test.assignment.deleted
+        )
     )
 
     auth.ensure_can_view_fixture(fixture)
@@ -200,11 +219,11 @@ def get_fixture_contents(
 
 
 @api.route(
-    '/auto_tests/<int:auto_test_id>/fixtures/<int:fixture_id>/hide',
+    '/auto_tests/<int:at_id>/fixtures/<int:fixture_id>/hide',
     methods=['POST', 'DELETE']
 )
 @feature_required(Feature.AUTO_TEST)
-def hide_or_open_fixture(auto_test_id: int, fixture_id: int) -> EmptyResponse:
+def hide_or_open_fixture(at_id: int, fixture_id: int) -> EmptyResponse:
     """Change the visibility of the given fixture.
 
     .. :quickref: AutoTest; Change the hidden state of a fixture.
@@ -218,7 +237,9 @@ def hide_or_open_fixture(auto_test_id: int, fixture_id: int) -> EmptyResponse:
     fixture = filter_single_or_404(
         models.AutoTestFixture,
         models.AutoTestFixture.id == fixture_id,
-        also_error=lambda fixture: fixture.auto_test_id != auto_test_id
+        also_error=(
+            lambda f: f.auto_test_id != at_id or f.auto_test.assignment.deleted
+        ),
     )
 
     auth.ensure_permission(
@@ -251,7 +272,11 @@ def update_auto_test(auto_test_id: int) -> JSONResponse[models.AutoTest]:
     :param auto_test_id: The id of the AutoTest you want to update.
     :returns: The updated AutoTest.
     """
-    auto_test = get_or_404(models.AutoTest, auto_test_id)
+    auto_test = get_or_404(
+        models.AutoTest,
+        auto_test_id,
+        also_error=lambda at: at.assignment.deleted
+    )
     auth.ensure_permission(
         CPerm.can_edit_autotest, auto_test.assignment.course_id
     )
@@ -280,7 +305,11 @@ def create_auto_test_set(auto_test_id: int
         set.
     :returns: The newly created set.
     """
-    auto_test = get_or_404(models.AutoTest, auto_test_id)
+    auto_test = get_or_404(
+        models.AutoTest,
+        auto_test_id,
+        also_error=lambda at: at.assignment.deleted
+    )
     auth.ensure_permission(
         CPerm.can_edit_autotest, auto_test.assignment.course_id
     )
@@ -313,11 +342,8 @@ def update_auto_test_set(auto_test_id: int, auto_test_set_id: int
         should be updated.
     :returns: The updated set.
     """
-    auto_test_set = filter_single_or_404(
-        models.AutoTestSet,
-        models.AutoTestSet.id == auto_test_set_id,
-        models.AutoTest.id == auto_test_id,
-    )
+
+    auto_test_set = _get_at_set_by_ids(auto_test_id, auto_test_set_id)
 
     auth.ensure_permission(
         CPerm.can_edit_autotest, auto_test_set.auto_test.assignment.course_id
@@ -367,11 +393,7 @@ def delete_auto_test_set(
     :param auto_test_set_id: The id of the :class:`.models.AutoTestSet` that
         should be deleted.
     """
-    auto_test_set = filter_single_or_404(
-        models.AutoTestSet,
-        models.AutoTestSet.id == auto_test_set_id,
-        models.AutoTest.id == auto_test_id,
-    )
+    auto_test_set = _get_at_set_by_ids(auto_test_id, auto_test_set_id)
     auth.ensure_permission(
         CPerm.can_edit_autotest, auto_test_set.auto_test.assignment.course_id
     )
@@ -415,11 +437,7 @@ def update_or_create_auto_test_suite(auto_test_id: int, auto_test_set_id: int
         this suite should be created.
     :returns: The just updated or created :class:`.models.AutoTestSuite`.
     """
-    auto_test_set = filter_single_or_404(
-        models.AutoTestSet,
-        models.AutoTestSet.id == auto_test_set_id,
-        models.AutoTest.id == auto_test_id,
-    )
+    auto_test_set = _get_at_set_by_ids(auto_test_id, auto_test_set_id)
     auth.ensure_permission(
         CPerm.can_edit_autotest, auto_test_set.auto_test.assignment.course_id
     )
@@ -668,10 +686,17 @@ def get_auto_test_results_for_user(
     If you don't have permission to see the results of the requested user an
     empty list will be returned.
     """
+
+    def also_error(atr: models.AutoTestRun) -> bool:
+        return (
+            atr.auto_test_id != auto_test_id or
+            atr.auto_test.assignment.deleted
+        )
+
     run = filter_single_or_404(
         models.AutoTestRun,
         models.AutoTestRun.id == run_id,
-        also_error=lambda obj: obj.auto_test_id != auto_test_id,
+        also_error=also_error,
     )
     user = get_or_404(models.User, user_id)
     auth.ensure_enrolled(run.auto_test.assignment.course_id)
@@ -708,7 +733,11 @@ def get_auto_test_result(auto_test_id: int, run_id: int, result_id: int
     :param result_id: The id of the result you want to get.
     :returns: The extended version of a :class:`.models.AutoTestResult`.
     """
-    test = get_or_404(models.AutoTest, auto_test_id)
+    test = get_or_404(
+        models.AutoTest,
+        auto_test_id,
+        also_error=lambda at: at.assignment.deleted
+    )
     auth.ensure_can_view_autotest(test)
 
     def also_error(obj: models.AutoTestResult) -> bool:
@@ -727,3 +756,58 @@ def get_auto_test_result(auto_test_id: int, run_id: int, result_id: int
     auth.ensure_can_view_autotest_result(result)
 
     return extended_jsonify(result, use_extended=models.AutoTestResult)
+
+
+@api.route('/auto_tests/<int:auto_test_id>/copy', methods=['POST'])
+@feature_required(Feature.AUTO_TEST)
+def copy_auto_test(auto_test_id: int) -> JSONResponse[models.AutoTest]:
+    """Copy the given AutoTest configuration.
+
+    .. :quickref: AutoTest; Copy an AutoTest config to another assignment.
+
+    :>json assignment_id: The id of the assignment which should own the copied
+        AutoTest config.
+    :param auto_test_id: The id of the AutoTest config which should be copied.
+    :returns: The copied AutoTest configuration.
+    """
+    test = get_or_404(
+        models.AutoTest,
+        auto_test_id,
+        also_error=lambda at: at.assignment.deleted
+    )
+    auth.ensure_can_view_autotest(test)
+    for fixture in test.fixtures:
+        auth.ensure_can_view_fixture(fixture)
+    for suite in test.all_suites:
+        for step in suite.steps:
+            auth.ensure_can_view_autotest_step_details(step)
+
+    with get_from_map_transaction(get_json_dict_from_request()) as [get, _]:
+        assignment_id = get('assignment_id', int)
+
+    assignment = filter_single_or_404(
+        models.Assignment,
+        models.Assignment.id == assignment_id,
+        with_for_update=True
+    )
+    auth.ensure_permission(CPerm.can_edit_autotest, assignment.course_id)
+
+    if assignment.auto_test is not None:
+        raise APIException(
+            'The given assignment already has an AutoTest',
+            f'The assignment "{assignment.id}" already has an auto test',
+            APICodes.INVALID_STATE, 409
+        )
+
+    assignment.rubric_rows = []
+    mapping = {}
+    for old_row in test.assignment.rubric_rows:
+        new_row = old_row.copy()
+        mapping[old_row] = new_row
+        assignment.rubric_rows.append(new_row)
+
+    db.session.flush()
+
+    assignment.auto_test = test.copy(mapping)
+    db.session.commit()
+    return jsonify(assignment.auto_test)

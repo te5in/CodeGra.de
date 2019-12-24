@@ -153,7 +153,7 @@ export default {
         },
 
         currentRevision() {
-            return this.$route.query.revision;
+            return this.$route.query.revision || 'student';
         },
 
         dirIcon() {
@@ -162,6 +162,10 @@ export default {
             } else {
                 return this.isCollapsed ? 'folder' : 'folder-open';
             }
+        },
+
+        fileId() {
+            return this.$route.params.fileId;
         },
     },
 
@@ -261,7 +265,7 @@ export default {
 
         shouldCollapseTree(dir) {
             return (
-                !this.fileInTree(this.$route.params.fileId, dir) &&
+                !this.fileInTree(this.fileId, dir) &&
                 this.collapseFunction(`${this.fullName}/${dir.name}/`)
             );
         },

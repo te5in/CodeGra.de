@@ -21,9 +21,11 @@
              :class="{ hovered: dropzoneHovered }"/>
 
         <a class="dz-custom-message">
-            <slot>
-                Click here or drop file(s) to upload.
-            </slot>
+            <span class="center">
+                <slot>
+                    Click here or drop file(s) to upload.
+                </slot>
+            </span>
         </a>
     </vue-dropzone>
 </div>
@@ -210,8 +212,10 @@ export default {
 
     .dropzone {
         position: relative;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
         margin-bottom: -1px;
-        padding-bottom: 4.5rem;
 
         #app.dark & {
             border-color: @color-primary-darker;
@@ -223,6 +227,7 @@ export default {
             left: 0;
             right: 0;
             bottom: 0;
+            z-index: 20;
             background-color: rgba(0, 0, 0, 0.25);
             pointer-events: none;
 
@@ -251,26 +256,39 @@ export default {
                 align-items: center;
 
                 #app.dark & {
-                    color: rgba(0, 0, 0, 0.125);
-                    border-color: rgba(0, 0, 0, 0.125);
+                    color: @text-color-dark;
+                    border-color: @text-color-dark;
                 }
             }
         }
 
-        .dz-custom-message {
-            position: absolute;
-            bottom: 0;
+        .dz-message {
+            display: flex;
+            flex: 1 1 auto;
             width: 100%;
-            height: 4.5rem;
-            padding: 1.5rem;
-            text-align: center;
+            min-height: 4.5rem;
             cursor: pointer;
             color: @color-primary;
             text-decoration: underline;
+            order: 1;
 
             &:hover {
                 background-color: rgba(0, 0, 0, 0.075);
                 text-decoration: underline;
+            }
+
+            .dz-custom-message {
+                flex: 1 1 100%;
+                align-self: stretch;
+                position: relative;
+
+                .center {
+                    position: absolute;
+                    display: block;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                }
             }
         }
 
@@ -279,16 +297,24 @@ export default {
         }
 
         .dz-preview {
+            position: relative;
+            z-index: 10;
             display: flex;
             padding: 0.75rem;
+            background-color: @color-lighter-gray;
             border-bottom: 1px solid rgba(0, 0, 0, 0.125);
 
-            #app.dark & {
-                border-color: @color-primary-darker;
+            &:nth-child(2n) {
+                background-color: white;
             }
 
-            &:nth-child(2n) {
-                background-color: rgba(0, 0, 0, 0.05);
+            #app.dark & {
+                background-color: darken(@color-primary, 2.5%);
+                border-color: @color-primary-darker;
+
+                &:nth-child(2n) {
+                    background-color: @color-primary;
+                }
             }
         }
 
@@ -304,6 +330,7 @@ export default {
                 flex: 1 1 auto;
                 word-break: all;
                 min-width: 0;
+
                 span {
                     max-width: 100%;
                     text-overflow: ellipsis;

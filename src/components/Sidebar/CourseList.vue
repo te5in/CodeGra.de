@@ -39,7 +39,7 @@
     <hr class="separator"
         v-if="showAddButton">
 
-    <b-button-group>
+    <b-button-group class="sidebar-footer">
         <b-btn class="add-course-button sidebar-footer-button"
                :id="addButtonId"
                v-if="showAddButton"

@@ -92,6 +92,8 @@ import 'vue-awesome/icons/times';
 import 'vue-awesome/icons/check';
 import 'vue-awesome/icons/lock';
 
+import * as constants from '@/constants';
+
 import Loader from './Loader';
 
 export default {
@@ -386,19 +388,18 @@ export default {
         }),
 
         getHeadHtml(row) {
-            const selected = this.selectedRows[row.id];
-            const maxPoints = this.$utils.htmlEscape(row.maxPoints);
-            const header =
-                this.$utils.htmlEscape(`${row.header}`) ||
-                '<span class="unnamed">Unnamed category</span>';
-
             const escape = this.$utils.htmlEscape;
+            const selected = this.selectedRows[row.id];
+            const maxPoints = escape(row.maxPoints);
+            const header =
+                escape(`${row.header}`) || '<span class="unnamed">Unnamed category</span>';
+
             const getFraction = (upper, lower) =>
                 `<sup>${escape(upper)}</sup>&frasl;<sub>${escape(lower)}</sub>`;
             let res;
 
             if (selected) {
-                const selectedPoints = this.$utils.htmlEscape(selected.points);
+                const selectedPoints = escape(selected.points);
                 res = `<span>${header}</span> - <span>${getFraction(
                     selectedPoints,
                     maxPoints,
@@ -407,6 +408,10 @@ export default {
                 res = header;
             } else {
                 res = `<span>${header}</span> - <span>${getFraction('Nothing', maxPoints)}<span>`;
+            }
+
+            if (row.locked === 'auto_test') {
+                res += ` ${constants.RUBRIC_BADGE_AT}`;
             }
 
             return `<div class="tab-header">${res}</div>`;
@@ -658,6 +663,10 @@ export default {
 
     .unnamed {
         color: @color-light-gray;
+    }
+
+    .badge {
+        transform: translateY(-2px);
     }
 }
 </style>

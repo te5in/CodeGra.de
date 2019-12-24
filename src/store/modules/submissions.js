@@ -107,8 +107,16 @@ function addSubmission(subs, newSub) {
 }
 
 const actions = {
-    async loadSubmissionsByUser(context, { assignmentId, userId }) {
+    async loadSubmissionsByUser(context, { assignmentId, userId, force }) {
         await context.dispatch('loadSubmissions', assignmentId);
+
+        if (force) {
+            context.commit(types.SET_SUBMISSIONS_BY_USER_PROMISE, {
+                assignmentId,
+                userId,
+                promise: null,
+            });
+        }
 
         if (context.state.submissionsByUserPromises[assignmentId][userId] == null) {
             const promise = axios
@@ -201,7 +209,7 @@ const actions = {
             await Promise.all([
                 axios
                     .get(`/api/v1/assignments/${assignmentId}/submissions/?extended&latest_only`)
-                    .then(({ data: submissions }) => submissions.map(processSubmission), () => []),
+                    .then(({ data: submissions }) => submissions.map(processSubmission)),
                 context.dispatch('courses/loadRubric', assignmentId, { root: true }),
                 // TODO: Maybe not force load the graders here?
                 context.dispatch('courses/forceLoadGraders', assignmentId, { root: true }),

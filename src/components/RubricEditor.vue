@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <loader class="rubric-editor" v-if="loading"/>
-<div v-else class="rubric-editor" :class="{ editable }">
+<div v-else class="rubric-editor" :class="{ grow, editable }">
     <b-tabs no-fade
             v-model="currentCategory">
         <b-nav-item slot="tabs"
@@ -119,7 +119,13 @@
                                   placeholder="Description"/>
                         <p v-else
                            class="form-control input item-description disabled">
-                            {{ item.description }}
+                            <template v-if="item.description">
+                                {{ item.description }}
+                            </template>
+                            <span v-else
+                                  class="text-muted font-italic">
+                                No description for this item.
+                            </span>
                         </p>
                     </b-card>
                 </b-card-group>
@@ -310,6 +316,7 @@ import 'vue-awesome/icons/info';
 import 'vue-awesome/icons/lock';
 import 'vue-awesome/icons/reply';
 
+import * as constants from '@/constants';
 import { formatGrade } from '@/utils';
 
 import SubmitButton from './SubmitButton';
@@ -352,6 +359,10 @@ export default {
             default: null,
         },
         hidden: {
+            type: Boolean,
+            default: false,
+        },
+        grow: {
             type: Boolean,
             default: false,
         },
@@ -853,7 +864,17 @@ export default {
         },
 
         rubricCategoryTitle(category) {
-            return category.header || '<span class="unnamed">Unnamed category</span>';
+            if (!category.header) {
+                return '<span class="unnamed">Unnamed category</span>';
+            }
+
+            let title = this.$utils.htmlEscape(category.header);
+
+            if (category.locked === 'auto_test') {
+                title += ` ${constants.RUBRIC_BADGE_AT}`;
+            }
+
+            return title;
         },
 
         calcMaxPoints(rubrics) {
@@ -984,8 +1005,8 @@ export default {
             }
 
             &.item-description {
-                height: 10em;
                 overflow: auto;
+                flex: 1 1 auto;
             }
         }
 
@@ -1037,6 +1058,10 @@ export default {
                 }
             }
         }
+    }
+
+    &:not(.grow) .rubric .input.disabled.item-description {
+        height: 10em;
     }
 
     &:not(.editable) .rubric {
@@ -1102,6 +1127,8 @@ export default {
 
 .card-body {
     padding: 0;
+    display: flex;
+    flex-direction: column;
 }
 
 .danger-buttons {
@@ -1147,6 +1174,17 @@ export default {
             }
         }
     }
+
+    &.grow {
+        min-height: 100%;
+        display: flex;
+        flex-direction: column;
+
+        .tabs {
+            flex: 1 1 auto;
+        }
+    }
+
     .rubric-items-container .card.rubric-item > .card-block {
         border: 0;
     }
@@ -1158,6 +1196,10 @@ export default {
             .unnamed {
                 color: @color-light-gray;
             }
+        }
+
+        .badge {
+            transform: translateY(-2px);
         }
     }
 

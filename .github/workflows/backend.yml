@@ -1,0 +1,77 @@
+---
+name: "Back-end tests"
+
+"on":
+  pull_request:
+    branches:
+      - master
+      - stable
+  push:
+    branches:
+      - master
+      - stable
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 4
+      matrix:
+        python-version: [3.7]
+
+    services:
+      redis:
+        image: redis
+        ports:
+          - 6379:6379
+      postgres:
+        image: postgres:9.6
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_DB: travis_ci_test
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        # needed because the postgres container does not provide a healthcheck
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+
+
+    steps:
+      - name: "Checkout code"
+        uses: actions/checkout@v1
+      - name: "Set up Python ${{ matrix.python-version }}"
+        uses: actions/setup-python@v1
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: cache for python
+        uses: actions/cache@v1
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}-${{ hashFiles('broker_requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: ./.github/scripts/install.bash skip_npm
+
+      - name: Install pytest timeout
+        run: pip install pytest-timeout
+
+      - name: Make needed directories
+        run: |
+          mkdir -p /tmp/psef/uploads
+          mkdir -p /tmp/psef/mirror_uploads
+
+      - name: Run tests
+        run: ./.github/scripts/run_backend_tests.bash
+
+      - name: Upload to coveralls
+        run: coveralls
+        env:
+          COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS }}
+
+      - name: Upload to codecov
+        run: codecov
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

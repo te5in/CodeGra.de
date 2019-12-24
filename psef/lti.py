@@ -549,6 +549,13 @@ class LTI:  # pylint: disable=too-many-public-methods
             db.session.add(assignment)
             db.session.flush()
 
+        if assignment.deleted:
+            raise APIException(
+                'The launched assignment has been deleted on CodeGrade',
+                f'The assignment "{assignment.id}" has been deleted',
+                APICodes.OBJECT_NOT_FOUND, 404
+            )
+
         if assignment.course != course:  # pragma: no cover
             logger.warning(
                 'Assignment changed course!',

@@ -241,7 +241,14 @@ export default {
             function makeOrAppend(accum, match, index) {
                 if (accum[match.files[index].id]) {
                     accum[match.files[index].id].lines.push(match.lines[index]);
-                    accum[match.files[index].id].lines.sort((x1, x2) => x1[0] - x2[0]);
+                    accum[match.files[index].id].lines.sort((x1, x2) => {
+                        let diff = x1[0] - x2[0];
+                        if (diff === 0) {
+                            // If the start is the same, sort from short to long.
+                            diff = x1[1] - x2[1];
+                        }
+                        return diff;
+                    });
                 } else {
                     accum[match.files[index].id] = {
                         name: match.files[index].name,
@@ -286,7 +293,7 @@ export default {
         },
 
         assignmentId() {
-            return this.$route.params.assignmentId;
+            return Number(this.$route.params.assignmentId);
         },
 
         assignment() {
@@ -342,7 +349,11 @@ export default {
                     if (!accum[f.id]) {
                         accum[f.id] = {};
                     }
-                    accum[f.id][match.lines[fIndex][0]] = index % colorsAmount;
+                    // If two matches have the same start index, we want to set
+                    // the color of the largest match.
+                    if (accum[f.id][match.lines[fIndex][0]] == null) {
+                        accum[f.id][match.lines[fIndex][0]] = index % colorsAmount;
+                    }
                 });
                 return accum;
             }, {});
@@ -482,7 +493,14 @@ ${right.join('\n')}
 
                 if (range[1] === index) {
                     curColor = null;
+                    curColor = colorPairs[colors[index]];
                     rangeIndex++;
+
+                    // Find the last match (which is the longest) which starts
+                    // at this line.
+                    for (let i = rangeIndex; i < ranges.length && ranges[i][0] === index; ++i) {
+                        rangeIndex = i;
+                    }
                 }
 
                 return res;

@@ -189,12 +189,12 @@ def test_lti_new_user_new_course(test_client, app, logged_in, ta_user):
             res = test_client.post('/api/v1/lti/launch/1', data=data)
 
             url = urllib.parse.urlparse(res.headers['Location'])
-            jwt = urllib.parse.parse_qs(url.query)['jwt'][0]
+            blob_id = urllib.parse.parse_qs(url.query)['blob_id'][0]
             lti_res = test_client.req(
                 'post',
                 '/api/v1/lti/launch/2',
                 200,
-                data={'jwt_token': jwt},
+                data={'blob_id': blob_id},
             )
             if published == 'false':
                 assert lti_res['assignment']['state'] == 'hidden'
@@ -311,12 +311,12 @@ def test_lti_no_roles_found(test_client, app, logged_in, ta_user, monkeypatch):
             res = test_client.post('/api/v1/lti/launch/1', data=data)
 
             url = urllib.parse.urlparse(res.headers['Location'])
-            jwt = urllib.parse.parse_qs(url.query)['jwt'][0]
+            blob_id = urllib.parse.parse_qs(url.query)['blob_id'][0]
             lti_res = test_client.req(
                 'post',
                 '/api/v1/lti/launch/2',
                 code,
-                data={'jwt_token': jwt},
+                data={'blob_id': blob_id},
             )
             if not parse:
                 return lti_res
@@ -412,12 +412,12 @@ def test_invalid_lti_role(test_client, app, role, session):
         assert res.status_code < 400
 
         url = urllib.parse.urlparse(res.headers['Location'])
-        jwt = urllib.parse.parse_qs(url.query)['jwt'][0]
+        blob_id = urllib.parse.parse_qs(url.query)['blob_id'][0]
         res = test_client.req(
             'post',
             '/api/v1/lti/launch/2',
             200,
-            data={'jwt_token': jwt},
+            data={'blob_id': blob_id},
         )
         assig, token = res['assignment'], res.get('access_token', None)
         out = test_client.req(
@@ -504,12 +504,12 @@ def test_lti_grade_passback(
             res = test_client.post('/api/v1/lti/launch/1', data=data)
 
             url = urllib.parse.urlparse(res.headers['Location'])
-            jwt = urllib.parse.parse_qs(url.query)['jwt'][0]
+            blob_id = urllib.parse.parse_qs(url.query)['blob_id'][0]
             lti_res = test_client.req(
                 'post',
                 '/api/v1/lti/launch/2',
                 200,
-                data={'jwt_token': jwt},
+                data={'blob_id': blob_id},
             )
             if published == 'false':
                 assert lti_res['assignment']['state'] == 'hidden'
@@ -742,12 +742,12 @@ def test_lti_grade_passback_blackboard(
             res = test_client.post('/api/v1/lti/launch/1', data=data)
 
             url = urllib.parse.urlparse(res.headers['Location'])
-            jwt = urllib.parse.parse_qs(url.query)['jwt'][0]
+            blob_id = urllib.parse.parse_qs(url.query)['blob_id'][0]
             lti_res = test_client.req(
                 'post',
                 '/api/v1/lti/launch/2',
                 200,
-                data={'jwt_token': jwt},
+                data={'blob_id': blob_id},
             )
             token = lti_res.get('access_token', None)
             test_client.req(
@@ -898,7 +898,7 @@ def test_lti_grade_passback_blackboard(
     assert not patch_request.called
 
 
-def test_lti_assignment_create(
+def test_lti_assignment_create_and_delete(
     test_client, app, logged_in, ta_user, error_template
 ):
     def do_lti_launch(
@@ -908,6 +908,7 @@ def test_lti_assignment_create(
         published='false',
         course_name='NEW_COURSE',
         assig_name='MY_ASSIG_TITLE',
+        error_code=None,
     ):
         with app.app_context():
             data = {
@@ -932,13 +933,15 @@ def test_lti_assignment_create(
             res = test_client.post('/api/v1/lti/launch/1', data=data)
 
             url = urllib.parse.urlparse(res.headers['Location'])
-            jwt = urllib.parse.parse_qs(url.query)['jwt'][0]
+            blob_id = urllib.parse.parse_qs(url.query)['blob_id'][0]
             lti_res = test_client.req(
                 'post',
                 '/api/v1/lti/launch/2',
-                200,
-                data={'jwt_token': jwt},
+                error_code if error_code else 200,
+                data={'blob_id': blob_id},
             )
+            if error_code:
+                return lti_res
             if published == 'false':
                 assert lti_res['assignment']['state'] == 'hidden'
             else:
@@ -970,6 +973,17 @@ def test_lti_assignment_create(
         )
         assert assig['name'] == assig_name
         assert assig['course']['name'] == course_name
+
+    with app.app_context():
+        assig, token = do_lti_launch()
+        test_client.req(
+            'delete',
+            f'/api/v1/assignments/{assig["id"]}',
+            204,
+            headers={'Authorization': f'Bearer {token}'}
+        )
+        err = do_lti_launch(error_code=404)
+        assert 'has been deleted' in err['message']
 
 
 @pytest.mark.parametrize(('lms,extra_data'), [
@@ -1039,12 +1053,12 @@ def test_lti_assignment_update(
             res = test_client.post('/api/v1/lti/launch/1', data=data)
 
             url = urllib.parse.urlparse(res.headers['Location'])
-            jwt = urllib.parse.parse_qs(url.query)['jwt'][0]
+            blob_id = urllib.parse.parse_qs(url.query)['blob_id'][0]
             lti_res = test_client.req(
                 'post',
                 '/api/v1/lti/launch/2',
                 200,
-                data={'jwt_token': jwt},
+                data={'blob_id': blob_id},
             )
             if data.get('custom_canvas_assignment_published', '') == 'false':
                 assert lti_res['assignment']['state'] == 'hidden'
@@ -1141,12 +1155,12 @@ def test_reset_lti_email(test_client, app, logged_in, ta_user, session):
             res = test_client.post('/api/v1/lti/launch/1', data=data)
 
             url = urllib.parse.urlparse(res.headers['Location'])
-            jwt = urllib.parse.parse_qs(url.query)['jwt'][0]
+            blob_id = urllib.parse.parse_qs(url.query)['blob_id'][0]
             lti_res = test_client.req(
                 'post',
                 '/api/v1/lti/launch/2',
                 200,
-                data={'jwt_token': jwt},
+                data={'blob_id': blob_id},
             )
             if published == 'false':
                 assert lti_res['assignment']['state'] == 'hidden'
@@ -1234,13 +1248,37 @@ def test_invalid_jwt(test_client, app, logged_in, session, error_template):
         res = test_client.post('/api/v1/lti/launch/1', data=data)
 
         url = urllib.parse.urlparse(res.headers['Location'])
-        urllib.parse.parse_qs(url.query)['jwt'][0]
+        blob_id = urllib.parse.parse_qs(url.query)['blob_id'][0]
+
+        blob = m.BlobStorage.query.get(blob_id)
+        blob.created_at -= datetime.timedelta(hours=1)
+        session.commit()
+
+        # Too old blob should give a 404
         test_client.req(
             'post',
             '/api/v1/lti/launch/2',
-            400,
-            data={'jwt_token': 'INVALID_JWT'},
+            404,
+            data={'blob_id': blob_id},
             result=error_template
+        )
+
+        # Cannot use blob twice
+        blob.created_at = datetime.datetime.utcnow()
+        session.commit()
+        test_client.req(
+            'post', '/api/v1/lti/launch/2', 200, data={'blob_id': blob_id}
+        )
+        test_client.req(
+            'post', '/api/v1/lti/launch/2', 404, data={'blob_id': blob_id}
+        )
+
+        # Not found blob should error
+        test_client.req(
+            'post',
+            '/api/v1/lti/launch/2',
+            404,
+            data={'blob_id': str(uuid.uuid4())}
         )
 
 
@@ -1363,12 +1401,12 @@ def test_lti_grade_passback_with_groups(
             res = test_client.post('/api/v1/lti/launch/1', data=data)
 
             url = urllib.parse.urlparse(res.headers['Location'])
-            jwt = urllib.parse.parse_qs(url.query)['jwt'][0]
+            blob_id = urllib.parse.parse_qs(url.query)['blob_id'][0]
             lti_res = test_client.req(
                 'post',
                 '/api/v1/lti/launch/2',
                 200,
-                data={'jwt_token': jwt},
+                data={'blob_id': blob_id},
             )
             assert m.Assignment.query.get(
                 lti_res['assignment']['id']
@@ -1565,12 +1603,12 @@ def test_lti_grade_passback_test_submission(
             res = test_client.post('/api/v1/lti/launch/1', data=data)
 
             url = urllib.parse.urlparse(res.headers['Location'])
-            jwt = urllib.parse.parse_qs(url.query)['jwt'][0]
+            blob_id = urllib.parse.parse_qs(url.query)['blob_id'][0]
             lti_res = test_client.req(
                 'post',
                 '/api/v1/lti/launch/2',
                 200,
-                data={'jwt_token': jwt},
+                data={'blob_id': blob_id},
             )
             assert m.Assignment.query.get(
                 lti_res['assignment']['id']
@@ -1674,12 +1712,12 @@ def test_lti_grade_passback_moodle(
             res = test_client.post('/api/v1/lti/launch/1', data=data)
 
             url = urllib.parse.urlparse(res.headers['Location'])
-            jwt = urllib.parse.parse_qs(url.query)['jwt'][0]
+            blob_id = urllib.parse.parse_qs(url.query)['blob_id'][0]
             lti_res = test_client.req(
                 'post',
                 '/api/v1/lti/launch/2',
                 200,
-                data={'jwt_token': jwt},
+                data={'blob_id': blob_id},
             )
             token = lti_res.get('access_token', None)
             test_client.req(
@@ -1847,12 +1885,12 @@ def test_lti_grade_passback_brightspace(
             res = test_client.post('/api/v1/lti/launch/1', data=data)
 
             url = urllib.parse.urlparse(res.headers['Location'])
-            jwt = urllib.parse.parse_qs(url.query)['jwt'][0]
+            blob_id = urllib.parse.parse_qs(url.query)['blob_id'][0]
             lti_res = test_client.req(
                 'post',
                 '/api/v1/lti/launch/2',
                 200,
-                data={'jwt_token': jwt},
+                data={'blob_id': blob_id},
             )
             token = lti_res.get('access_token', None)
             test_client.req(
@@ -1998,12 +2036,12 @@ def test_lti_roles(
             res = test_client.post('/api/v1/lti/launch/1', data=data)
 
             url = urllib.parse.urlparse(res.headers['Location'])
-            jwt = urllib.parse.parse_qs(url.query)['jwt'][0]
+            blob_id = urllib.parse.parse_qs(url.query)['blob_id'][0]
             lti_res = test_client.req(
                 'post',
                 '/api/v1/lti/launch/2',
                 200,
-                data={'jwt_token': jwt},
+                data={'blob_id': blob_id},
             )
             token = lti_res.get('access_token', None)
             assert token

@@ -12,7 +12,7 @@ import tempfile
 from collections import defaultdict
 
 import sqlalchemy.sql as sql
-from sqlalchemy import orm
+from sqlalchemy import orm, select
 from sqlalchemy.types import JSON
 
 import psef
@@ -21,6 +21,7 @@ from . import Base, DbColumn, db
 from . import file as file_models
 from . import group as group_models
 from . import _MyQuery
+from . import assignment as assignment_models
 from .. import auth, helpers, features
 from .linter import LinterState, LinterComment, LinterInstance
 from .rubric import RubricItem
@@ -31,9 +32,11 @@ from .link_tables import work_rubric_item
 from ..permissions import CoursePermission
 
 if t.TYPE_CHECKING:  # pragma: no cover
-    # pylint: disable=unused-import
+    # pylint: disable=unused-import, invalid-name
     from . import user as user_models
-    from . import assignment as assignment_models
+    hybrid_property = property
+else:
+    from sqlalchemy.ext.hybrid import hybrid_property
 
 
 class GradeOrigin(enum.Enum):
@@ -198,7 +201,7 @@ class Work(Base):
     )  # type: t.Optional[user_models.User]
 
     grade_histories: t.List['GradeHistory']
-    deleted: bool = db.Column(
+    _deleted: bool = db.Column(
         'deleted',
         db.Boolean,
         default=False,
@@ -220,6 +223,31 @@ class Work(Base):
 
     # This variable is generated from the backref from all files
     files: 't.List["file_models.File"]'
+
+    if t.TYPE_CHECKING:  # pragma: no cover
+        deleted: bool
+    else:
+
+        @hybrid_property
+        def deleted(self) -> bool:
+            """Is this submission deleted.
+            """
+            return self._deleted or self.assignment.deleted
+
+        @deleted.expression
+        def deleted(cls: t.Type['Work']) -> object:
+            """Get a query that checks if this submission is deleted.
+            """
+            # pylint: disable=no-self-argument
+            return select(
+                [sql.or_(cls._deleted, assignment_models.Assignment.deleted)]
+            ).where(
+                cls.assignment_id == assignment_models.Assignment.id,
+            ).label('deleted')
+
+        @deleted.setter
+        def deleted(self, new_value: bool) -> None:
+            self._deleted = new_value
 
     def divide_new_work(self) -> None:
         """Divide a freshly created work.

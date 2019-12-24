@@ -5,8 +5,9 @@
     <component
         :is="injections.components.Icon"
         name="clock-o"
+        :scale="props.scale"
         class="late-icon"
-        :class="{'with-popover': !props.hidePopover}"
+        :class="{ 'with-popover': !props.hidePopover }"
         v-b-popover.hover.top="props.hidePopover ? '' : props.getHandedInLateText(props)"/>
 </span>
 <span v-else class="late-submission-icon non-active" :class="data.class"/>
@@ -42,6 +43,11 @@ export default {
         hidePopover: {
             type: Boolean,
             default: false,
+        },
+
+        scale: {
+            type: Number,
+            default: 1,
         },
 
         getHandedInLateText: {

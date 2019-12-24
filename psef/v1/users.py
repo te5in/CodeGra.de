@@ -9,7 +9,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 import typing as t
 
 import flask_jwt_extended as flask_jwt
-from flask import request, current_app
+from flask import request
 from sqlalchemy import case, func
 from flask_limiter.util import get_remote_address
 
@@ -17,7 +17,8 @@ from . import api
 from .. import auth, models, helpers, limiter, features, current_user
 from ..models import db
 from ..helpers import (
-    JSONResponse, jsonify, validate, ensure_json_dict, ensure_keys_in_dict
+    JSONResponse, jsonify, ensure_json_dict, ensure_keys_in_dict,
+    get_from_map_transaction
 )
 from ..exceptions import APICodes, APIException
 from ..permissions import CoursePermission as CPerm
@@ -111,53 +112,15 @@ def register_user() -> JSONResponse[t.Mapping[str, str]]:
         email. (INVALID_PARAM)
     """
     content = ensure_json_dict(request.get_json())
-    ensure_keys_in_dict(
-        content,
-        [('username', str), ('password', str), ('email', str), ('name', str)]
+    with get_from_map_transaction(content) as [get, _]:
+        username = get('username', str)
+        password = get('password', str)
+        email = get('email', str)
+        name = get('name', str)
+
+    user = models.User.register_new_user(
+        username=username, password=password, email=email, name=name
     )
-    username = t.cast(str, content['username'])
-    password = t.cast(str, content['password'])
-    email = t.cast(str, content['email'])
-    name = t.cast(str, content['name'])
-
-    if not all([username, email, name]):
-        raise APIException(
-            'All fields should contain at least one character',
-            (
-                'The lengths of the given password, username and '
-                'email were not all larger than 1'
-            ),
-            APICodes.INVALID_PARAM,
-            400,
-        )
-    validate.ensure_valid_password(
-        password, username=username, email=email, name=name
-    )
-    validate.ensure_valid_email(email)
-
-    if db.session.query(
-        models.User.query.filter_by(username=username).exists()
-    ).scalar():
-        raise APIException(
-            'The given username is already in use',
-            f'The username "{username}" is taken',
-            APICodes.OBJECT_ALREADY_EXISTS,
-            400,
-        )
-
-    role = models.Role.query.filter_by(
-        name=current_app.config['DEFAULT_ROLE']
-    ).one()
-    user = models.User(
-        username=username,
-        password=password,
-        email=email,
-        name=name,
-        role=role,
-        active=True,
-    )
-
-    db.session.add(user)
     db.session.commit()
 
     token: str = flask_jwt.create_access_token(

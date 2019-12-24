@@ -4,8 +4,8 @@
     <div class="content">
         <slot/>
         <b-button class="feedback-button"
+                  :class="buttonClasses"
                   @click="startEditingFeedback"
-                  :class="{ hide: hasFeedback && !alwaysShowButton }"
                   v-b-popover.window.top.hover="`Edit feedback for this ${slotDescription}`"
                   v-if="editable && !disabled">
             <icon name="edit"/>
@@ -101,6 +101,10 @@ export default {
             type: Boolean,
             default: false,
         },
+        buttonPosition: {
+            type: String,
+            default: 'top-right',
+        },
     },
 
     computed: {
@@ -110,6 +114,14 @@ export default {
 
         hasFeedback() {
             return this.feedback && this.feedback.msg != null;
+        },
+
+        buttonClasses() {
+            const res = { hide: this.hasFeedback && !this.alwaysShowButton };
+            this.buttonPosition.split('-').forEach(pos => {
+                res[pos] = true;
+            });
+            return res;
         },
     },
 
@@ -183,17 +195,28 @@ export default {
 
 .feedback-button.btn {
     position: absolute;
-    top: 0;
-    right: 0;
+
+    &.top {
+        top: 0;
+    }
+    &.bottom {
+        bottom: 0;
+    }
+    &.right {
+        right: 0;
+    }
+    &.left {
+        left: 0;
+    }
+
+    .add-space & {
+        margin: 1rem;
+    }
 
     transition-property: opacity, transform;
     transition-duration: @transition-duration;
     transform: scale(0);
     opacity: 0;
-
-    .add-space & {
-        margin: 1rem;
-    }
 
     .floating-feedback-button:hover &:not(.hide),
     .floating-feedback-button.without-hover &:not(.hide) {

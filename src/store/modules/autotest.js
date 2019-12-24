@@ -27,26 +27,6 @@ function getRun(autoTest, runId) {
 }
 
 const actions = {
-    createAutoTest({ commit, dispatch }, assignmentId) {
-        return axios
-            .post('/api/v1/auto_tests/', {
-                assignment_id: assignmentId,
-            })
-            .then(({ data }) =>
-                Promise.all([
-                    dispatch(
-                        'courses/updateAssignment',
-                        {
-                            assignmentId,
-                            assignmentProps: { auto_test_id: data.id },
-                        },
-                        { root: true },
-                    ),
-                    commit(types.SET_AUTO_TEST, data),
-                ]),
-            );
-    },
-
     deleteAutoTest({ commit, dispatch, state }, autoTestId) {
         if (state.tests[autoTestId] == null) {
             return Promise.resolve();
@@ -54,20 +34,22 @@ const actions = {
 
         const assignmentId = state.tests[autoTestId].assignment_id;
 
-        return axios.delete(`/api/v1/auto_tests/${autoTestId}`).then(() =>
-            Promise.all([
-                dispatch(
-                    'courses/updateAssignment',
-                    {
-                        assignmentId,
-                        assignmentProps: { auto_test_id: null },
-                    },
-                    { root: true },
-                ),
-                dispatch('submissions/forceLoadSubmissions', assignmentId, { root: true }),
-                commit(types.DELETE_AUTO_TEST, autoTestId),
-            ]),
-        );
+        return axios.delete(`/api/v1/auto_tests/${autoTestId}`).then(data => {
+            const callback = () =>
+                Promise.all([
+                    dispatch(
+                        'courses/updateAssignment',
+                        {
+                            assignmentId,
+                            assignmentProps: { auto_test_id: null },
+                        },
+                        { root: true },
+                    ),
+                    dispatch('submissions/forceLoadSubmissions', assignmentId, { root: true }),
+                    commit(types.DELETE_AUTO_TEST, autoTestId),
+                ]);
+            return Object.assign({ callback }, data);
+        });
     },
 
     updateAutoTest({ commit }, { autoTestId, autoTestProps }) {
@@ -440,6 +422,10 @@ const actions = {
                 });
             },
         );
+    },
+
+    setAutoTest({ commit }, autoTest) {
+        commit(types.SET_AUTO_TEST, autoTest);
     },
 };
 

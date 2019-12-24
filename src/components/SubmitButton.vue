@@ -3,7 +3,8 @@
           class="submit-button"
           :class="`state-${state}`"
           :tabindex="tabindex"
-          :disabled="isDisabled"
+          :disabled="isDisabled && !modalVisible"
+          :style="{ opacity: modalVisible ? 1 : undefined }"
           :variant="currentVariant"
           :size="size"
           @click.stop="onClick">
@@ -42,8 +43,8 @@
                @hide="onHideError">
         <div class="submit-button-error">
             <icon name="times"
-                class="hide-button"
-                @click.native="hideError"/>
+                  class="hide-button"
+                  @click.native="hideError"/>
 
             <span v-if="error">
                 <slot name="error" :error="error">
@@ -60,48 +61,82 @@
                @hide="onHideWarning">
         <div class="submit-button-warning">
             <icon name="times"
-                class="hide-button"
-                @click.native="hideWarning"/>
+                  class="hide-button"
+                  @click.native="hideWarning"/>
 
             <span v-if="warning">
-                <slot name="warning" :warning="warning">
-                    {{ warning }}
+                <slot name="warning" :warning="warning[0].text" :warning-array="warning">
+                    <template v-if="warning.length > 1">
+                        <ul class="p-0 text-left pl-3 m-0">
+                            <li v-for="w in warning">{{ w.text }}</li>
+                        </ul>
+                    </template>
+                    <template v-else>
+                        {{ warning[0].text }}
+                    </template>
                 </slot>
             </span>
         </div>
     </b-popover>
 
-    <b-popover v-if="confirm.length > 0"
-               :placement="popoverPlacement"
-               :container="container"
-               :show="confirmVisible"
-               :target="btnId"
-               triggers=""
-               @hide="resetConfirm">
-        <div class="submit-button-confirm">
-            <slot name="confirm">
-                <p class="confirm-message">
-                    {{ confirm }}
-                </p>
-            </slot>
+    <template>
+        <b-modal v-if="confirmInModal"
+                 style="pointer: initial;"
+                 ref="modal"
+                 class="submit-button-confirm-modal"
+                 title="Are you sure?"
+                 @hide="$nextTick(() => resetConfirm(true))"
+                 :visible="confirmVisible"
+                 :id="`${btnId}-modal`">
+            <div class="text-left text-wrap">
+                {{ confirm }}
+            </div>
+            <template slot="modal-footer">
+                <div class="d-flex justify-content-between" style="width: 100%">
+                    <b-btn variant="outline-danger"
+                           @click="acceptConfirm">
+                        Confirm
+                    </b-btn>
+                    <b-btn variant="primary"
+                           @click="resetConfirm(true)">
+                        Cancel
+                    </b-btn>
+                </div>
+            </template>
+        </b-modal>
 
-            <b-button-toolbar justify>
-                <b-button size="sm"
-                        variant="outline-primary"
-                        class="confirm-button confirm-button-accept"
-                        @click="acceptConfirm">
-                    Yes
-                </b-button>
-                <div class="sep"/>
-                <b-button size="sm"
-                        variant="primary"
-                        class="confirm-button"
-                        @click="resetConfirm">
-                    No
-                </b-button>
-            </b-button-toolbar>
-        </div>
-    </b-popover>
+        <b-popover v-else-if="confirm.length > 0"
+                   :placement="popoverPlacement"
+                   :container="container"
+                   :show="confirmVisible"
+                   :target="btnId"
+                   triggers=""
+                   @hide="resetConfirm(true)">
+            <div class="submit-button-confirm">
+                <slot name="confirm">
+                    <p class="confirm-message">
+                        {{ confirm }}
+                    </p>
+                </slot>
+
+                <b-button-toolbar justify>
+                    <b-button size="sm"
+                              variant="outline-primary"
+                              class="confirm-button confirm-button-accept"
+                              @click="acceptConfirm">
+                        Yes
+                    </b-button>
+                    <div class="sep"/>
+                    <b-button size="sm"
+                              variant="primary"
+                              class="confirm-button"
+                              @click="resetConfirm(true)">
+                        No
+                    </b-button>
+                </b-button-toolbar>
+            </div>
+        </b-popover>
+    </template>
 </b-button>
 </template>
 
@@ -180,6 +215,11 @@ export default {
             default: '',
         },
 
+        confirmInModal: {
+            type: Boolean,
+            default: false,
+        },
+
         popoverPlacement: {
             type: String,
             default: 'top',
@@ -227,6 +267,10 @@ export default {
             return getErrorMessage(this.error);
         },
 
+        modalVisible() {
+            return this.state === 'pending' && this.confirmVisible && this.confirmInModal;
+        },
+
         isDisabled() {
             return this.disabled || this.state !== 'default' || this.confirmVisible;
         },
@@ -253,7 +297,9 @@ export default {
                 promise = waitAtLeast(this.waitAtLeast, promise);
             }
 
-            promise.then(this.filterSuccess, this.filterError).then(this.onSuccess, this.onError);
+            promise = promise.then(this.filterSuccess, this.filterError);
+            promise.then(this.onSuccess, this.onError);
+            promise.then(() => this.resetConfirm(false), () => this.resetConfirm(false));
         },
 
         onSuccess(data, fromWarning = false) {
@@ -280,7 +326,7 @@ export default {
         onWarning(data) {
             this.$emit('warning', data);
             this.state = 'warning';
-            this.warning = parseWarningHeader(data.headers.warning).text;
+            this.warning = parseWarningHeader(data.headers.warning);
             this.response = data;
         },
 
@@ -325,8 +371,8 @@ export default {
             this.confirmVisible = true;
         },
 
-        resetConfirm() {
-            if (!this.confirmAccepted) {
+        resetConfirm(resetState = false) {
+            if (!this.confirmAccepted && this.confirmVisible && resetState) {
                 this.state = 'default';
             }
             this.confirmVisible = false;
@@ -421,5 +467,10 @@ export default {
         background-color: @color-lighter-gray;
         color: @color-primary;
     }
+}
+
+.submit-button-confirm-modal {
+    cursor: initial !important;
+    pointer-events: all !important;
 }
 </style>

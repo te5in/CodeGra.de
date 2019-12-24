@@ -14,7 +14,7 @@ from flask import request, make_response, send_from_directory
 
 from . import api
 from .. import app, files, tasks, models, helpers, auto_test
-from ..models import db
+from ..models import DbColumn, db
 from ..helpers import (
     JSONResponse, EmptyResponse, jsonify, get_or_404, request_arg_true,
     make_empty_response, filter_single_or_404, get_from_map_transaction,
@@ -31,11 +31,9 @@ LocalRunner = t.NewType('LocalRunner', t.Tuple[str, bool])
 def _ensure_from_latest_work(result: models.AutoTestResult) -> None:
     work = result.work
 
-    if not db.session.query(
-        work.assignment.get_from_latest_submissions(
-            models.Work.id
-        ).filter(models.Work.id == work.id).exists()
-    ).scalar():
+    if work.assignment.get_latest_submission_for_user(work.user).with_entities(
+        t.cast(DbColumn[int], models.Work.id)
+    ).scalar() != work.id:
         raise APIException(
             'You are not working on the newest submission',
             f'The submission {work.id} is not the newest submission',
@@ -406,12 +404,9 @@ def update_step_result(auto_test_id: int, result_id: int
         )
         db.session.add(result)
     else:
-        step_result = filter_single_or_404(
-            models.AutoTestStepResult,
-            models.AutoTestStepResult.id == res_id,
-            models.AutoTestStepResult.auto_test_result_id == result.id,
-            models.AutoTestStepResult.auto_test_step_id == auto_test_step_id,
-        )
+        step_result = get_or_404(models.AutoTestStepResult, res_id)
+        assert step_result.auto_test_result_id == result.id
+        assert step_result.auto_test_step_id == auto_test_step_id
 
     new_state = parse_enum(state, models.AutoTestStepResultState)
     assert new_state is not None

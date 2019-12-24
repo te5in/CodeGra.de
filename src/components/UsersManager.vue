@@ -2,6 +2,115 @@
 <template>
 <loader v-if="loading" page-loader/>
 <div class="users-manager" v-else>
+    <div ref="copyContainer" />
+    <div class="registration-link-wrapper" v-if="course.permissions.can_edit_course_users && UserConfig.features.course_register">
+        <table class="registration-table table">
+            <thead>
+                <tr>
+                    <th />
+                    <th>
+                        Link
+                        <description-popover hug-text>
+                            This is the link users can use to register an
+                            automatically enroll in this course. The link does
+                            not enroll already logged-in users.
+                        </description-popover>
+                    </th>
+                    <th>
+                        Expiration date
+                        <description-popover hug-text>
+                            After this date the link will no longer work.
+                        </description-popover>
+                    </th>
+                    <th>
+                        Role
+                        <description-popover hug-text>
+                            The role users will get in the course after
+                            registering with this link.
+                        </description-popover>
+                    </th>
+                    <th />
+                </tr>
+            </thead>
+            <tbody>
+                <tr v-for="link in registrationLinks"
+                    :key="link.trackingId"
+                    v-if="!link.deleted"
+                    class="registration-links">
+                    <template v-if="link.id == null">
+                        <td  />
+                        <td class="align-middle">
+                            This link has not been saved yet
+                        </td>
+                    </template>
+                    <template v-else>
+                        <td>
+                            <div v-b-popover.top.hover="isLinkExpired(link) ? 'This link has expired, therefore it cannot be copied anymore.' : ''">
+                                <submit-button :submit="() => copyLink(link)" class="mr-3"
+                                               :disabled="isLinkExpired(link)"
+                                               variant="secondary">
+                                    Copy
+                                </submit-button>
+                            </div>
+                        </td>
+                        <td class="align-middle">
+                            <div class="d-flex">
+                                <code style="word-break: break-all"
+                                      :style="{ textDecoration: isLinkExpired(link) ? 'line-through' : 'none' }">
+                                    {{ getRegistrationLinkUrl(link) }}
+                                </code>
+                            </div>
+                        </td>
+                    </template>
+                    <td>
+                        <datetime-picker v-model="link.expiration_date"
+                                         placeholder="None set"/>
+                    </td>
+                    <td>
+                        <b-dropdown :text="link.role.name"
+                                    class="role-dropdown">
+                            <b-dropdown-header>Select the new role</b-dropdown-header>
+                            <b-dropdown-item v-for="role in roles"
+                                             @click="$set(link, 'role', role)"
+                                             :key="role.id">
+                                {{ role.name }}
+                            </b-dropdown-item>
+                        </b-dropdown>
+                    </td>
+                    <td>
+                        <div class="save-link-wrapper">
+                            <submit-button :submit="() => saveLink(link)" label="Save"
+                                           :disabled="link.role.id == null || link.expiration_date == null"
+                                           class="mr-1"/>
+                            <submit-button :submit="() => deleteLink(link)"
+                                           @after-success="$set(link, 'deleted', true)"
+                                           label="Delete"
+                                           :confirm="link.id ? 'Are you sure you want to delete this link? This invalidates the link.' : ''"
+                                           variant="danger"
+                                           />
+                        </div>
+                    </td>
+                </tr>
+                <tr v-if="registrationLinks.filter(x => !x.deleted).length === 0">
+                    <td colspan="5" class="text-muted font-italic">
+                        There are no registration links yet.
+                    </td>
+                </tr>
+
+                <tr>
+                    <td colspan="5">
+                        <b-btn @click="addRegistrationLink"
+                               class="float-right"
+                               name="add-registration-link"
+                               variant="primary">
+                            Add new
+                        </b-btn>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
     <b-table striped
              ref="table"
              v-if="canListUsers"
@@ -76,6 +185,8 @@
 </template>
 
 <script>
+import moment from 'moment';
+
 import { mapGetters } from 'vuex';
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/times';
@@ -87,13 +198,16 @@ import { cmpNoCase, cmpOneNull, waitAtLeast } from '@/utils';
 import Loader from './Loader';
 import SubmitButton from './SubmitButton';
 import UserSelector from './UserSelector';
+import DatetimePicker from './DatetimePicker';
+
+import DescriptionPopover from './DescriptionPopover';
 
 export default {
     name: 'users-manager',
     props: {
         course: {
             type: Object,
-            default: null,
+            required: true,
         },
 
         filter: {
@@ -125,6 +239,9 @@ export default {
                     key: 'CourseRole',
                 },
             },
+
+            registrationLinks: [],
+            UserConfig,
         };
     },
 
@@ -170,17 +287,36 @@ export default {
         async loadData() {
             this.loading = true;
 
-            [, , this.canListUsers, this.canSearchUsers] = await Promise.all([
+            [
+                ,
+                ,
+                this.canListUsers,
+                this.canSearchUsers,
+                this.registrationLinks,
+            ] = await Promise.all([
                 this.getAllUsers(),
                 this.getAllRoles(),
                 this.$hasPermission('can_list_course_users', this.courseId),
                 this.$hasPermission('can_search_users'),
+                this.getRegistrationLinks(),
             ]);
 
             this.loading = false;
             this.$nextTick(() => {
                 this.$refs.table.sortBy = 'User';
             });
+        },
+
+        getRegistrationLinks() {
+            return this.$http.get(`/api/v1/courses/${this.course.id}/registration_links/`).then(
+                ({ data }) =>
+                    data.map(link => {
+                        link.expiration_date = this.$utils.formatDate(link.expiration_date);
+                        link.trackingId = this.$utils.getUniqueId();
+                        return link;
+                    }),
+                () => [],
+            );
         },
 
         sortTable(a, b, sortBy) {
@@ -263,6 +399,62 @@ export default {
             this.newStudentUsername = null;
             this.users.push(response.data);
         },
+
+        addRegistrationLink() {
+            this.registrationLinks.push({
+                id: undefined,
+                role: {
+                    name: 'Select a default role',
+                },
+                expiration_date: null,
+                trackingId: this.$utils.getUniqueId(),
+            });
+        },
+
+        saveLink(link) {
+            if (link.role == null) {
+                throw new Error('You have to select a default role');
+            }
+            return this.$http
+                .put(`/api/v1/courses/${this.course.id}/registration_links/`, {
+                    id: link.id,
+                    role_id: link.role.id,
+                    expiration_date: this.$utils.convertToUTC(link.expiration_date),
+                })
+                .then(response => {
+                    response.data.expiration_date = link.expiration_date;
+                    Object.assign(link, response.data);
+                    return response;
+                });
+        },
+
+        deleteLink(link) {
+            if (link.id == null) {
+                return null;
+            }
+            return this.$http.delete(
+                `/api/v1/courses/${this.course.id}/registration_links/${link.id}`,
+            );
+        },
+
+        getRegistrationLinkUrl(link) {
+            const { host, protocol } = window.location;
+            const linkId = link.id;
+            return `${protocol}//${host}/register/?course_register_link_id=${linkId}&course_id=${
+                this.course.id
+            }&register_for=${encodeURIComponent(this.course.name)}`;
+        },
+
+        copyLink(link) {
+            return this.$copyText(this.getRegistrationLinkUrl(link), this.$refs.copyContainer);
+        },
+
+        isLinkExpired(link) {
+            if (link.expiration_date == null) {
+                return false;
+            }
+            return this.$root.$now.isAfter(moment(link.expiration_date, moment.ISO_8601).local());
+        },
     },
 
     components: {
@@ -270,6 +462,8 @@ export default {
         Loader,
         SubmitButton,
         UserSelector,
+        DatetimePicker,
+        DescriptionPopover,
     },
 };
 </script>
@@ -279,10 +473,13 @@ export default {
     text-align: center;
 }
 
-.users-table th,
-.users-table td {
-    &:last-child {
-        width: 1px;
+.users-manager .users-table,
+.users-manager .registration-table {
+    th,
+    td {
+        &:last-child {
+            width: 1px;
+        }
     }
 }
 
@@ -318,14 +515,20 @@ export default {
     padding-top: 3px;
     padding-bottom: 4px;
 }
-</style>
 
-<style lang="less">
+.registration-table .role-dropdown .btn {
+    padding: 0.375rem 0.75rem;
+}
+
 .add-user-button {
     .btn {
         border-top-left-radius: 0;
         border-bottom-left-radius: 0;
         height: 100%;
     }
+}
+
+.save-link-wrapper {
+    display: flex;
 }
 </style>

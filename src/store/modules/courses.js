@@ -111,17 +111,17 @@ const actions = {
 
         const [manageCourses, manageAssigs, createAssigs] = Object.entries(perms).reduce(
             ([course, assig, create], [key, val]) => {
-                assig[key] = Object.entries(val).some(
+                const entries = Object.entries(val);
+
+                assig[key] = entries.some(
                     ([k, v]) => MANAGE_ASSIGNMENT_PERMISSIONS.indexOf(k) !== -1 && v,
                 );
 
-                course[key] = Object.entries(val).some(
+                course[key] = entries.some(
                     ([k, v]) => MANAGE_GENERAL_COURSE_PERMISSIONS.indexOf(k) !== -1 && v,
                 );
 
-                create[key] = Object.entries(val).some(
-                    ([k, v]) => k === 'can_create_assignment' && v,
-                );
+                create[key] = entries.some(([k, v]) => k === 'can_create_assignment' && v);
 
                 return [course, assig, create];
             },
@@ -190,7 +190,18 @@ const mutations = {
 
             course.permissions = perms[course.id];
             course.canManage = manageCourses[course.id];
+            course.canManageAssignments = manageAssigs[course.id];
             course.canCreateAssignments = createAssigs[course.id];
+
+            Object.defineProperty(course, 'isStudent', {
+                get() {
+                    return !(
+                        this.canManage ||
+                        this.canManageAssignments ||
+                        this.canCreateAssignments
+                    );
+                },
+            });
 
             res[course.id] = course;
             return res;

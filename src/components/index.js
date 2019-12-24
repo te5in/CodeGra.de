@@ -61,3 +61,6 @@ export { default as AutoTest } from './AutoTest';
 export { default as Collapse } from './Collapse';
 export { default as ImpersonateUser } from './ImpersonateUser';
 export { default as AssignmentSubmitTypes } from './AssignmentSubmitTypes';
+export { default as CgLogo } from './CgLogo';
+export { default as WebhookInstructions } from './WebhookInstructions';
+export { default as LateSubmissionIcon } from './LateSubmissionIcon';

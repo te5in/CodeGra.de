@@ -173,6 +173,14 @@ class AutoTestSuite(Base, TimestampMixin, IdMixin):
 
         self.steps = new_steps
 
+    def copy(self) -> 'AutoTestSuite':
+        return AutoTestSuite(
+            rubric_row=self.rubric_row,
+            network_disabled=self.network_disabled,
+            steps=[s.copy() for s in self.steps],
+            command_time_limit=self.command_time_limit,
+        )
+
 
 class AutoTestSet(Base, TimestampMixin, IdMixin):
     """This class represents a set (also known as level) of an AutoTest.
@@ -224,6 +232,12 @@ class AutoTestSet(Base, TimestampMixin, IdMixin):
             'suites': self.suites,
             'stop_points': self.stop_points,
         }
+
+    def copy(self) -> 'AutoTestSet':
+        return AutoTestSet(
+            suites=[s.copy() for s in self.suites],
+            stop_points=self.stop_points,
+        )
 
 
 class AutoTestResult(Base, TimestampMixin, IdMixin, NotEqualMixin):
@@ -733,7 +747,7 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
         db.session.flush()
         any_results_left = any_cleared or db.session.query(
             self.get_results_to_run().exists()
-        ).scalar()
+        ).scalar() or False
 
         logger.info(
             'Killed runners',
@@ -1252,10 +1266,12 @@ class AutoTest(Base, TimestampMixin, IdMixin):
         )
         results = [run.make_result(work_id) for work_id, in work_ids]
         db.session.bulk_save_objects(results)
-        psef.helpers.callback_after_this_request(
-            lambda: psef.tasks.
-            notify_broker_of_new_job(run.id, run.get_amount_needed_runners())
-        )
+        if results:
+            psef.helpers.callback_after_this_request(
+                lambda: psef.tasks.notify_broker_of_new_job(
+                    run.id, run.get_amount_needed_runners()
+                )
+            )
         return run
 
     @property
@@ -1367,3 +1383,34 @@ class AutoTest(Base, TimestampMixin, IdMixin):
             'runs': self._runs,
             'results_always_visible': self.results_always_visible,
         }
+
+    def copy(
+        self,
+        rubric_mapping: (
+            t.Mapping['rubric_models.RubricRow', 'rubric_models.RubricRow']
+        ),
+    ) -> 'AutoTest':
+        """Copy this AutoTest configuration.
+
+        :param rubric_mapping: The mapping how the rubric was copied, if suite
+            ``A`` was copied to suite ``B`` then suite ``B`` is connected to
+            rubric row ``rubric_mapping[A.rubric_row]``.
+        :returns: The copied AutoTest config.
+
+        .. note::
+
+            The caller still needs to connect the copied config to an
+            assignment.
+        """
+        res = AutoTest(
+            sets=[s.copy() for s in self.sets],
+            fixtures=[fixture.copy() for fixture in self.fixtures],
+            setup_script=self.setup_script,
+            run_setup_script=self.run_setup_script,
+            finalize_script=self.finalize_script,
+            results_always_visible=self.results_always_visible,
+            _grade_calculation=self._grade_calculation,
+        )
+        for suite in res.all_suites:
+            suite.rubric_row = rubric_mapping[suite.rubric_row]
+        return res

@@ -142,7 +142,7 @@ export default {
                 jpg: 'image/jpeg',
                 jpeg: 'image/jpeg',
                 png: 'image/png',
-                svg: 'image/svg%2Bxml',
+                svg: 'image/svg+xml',
             };
             return types[ext];
         },

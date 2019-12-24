@@ -2,20 +2,28 @@
 <template>
 <div id="app" :class="{ dark: hasDarkMode, lti: $inLTI }">
     <loader v-if="loading" page-loader/>
-    <sidebar ref="sidebar"
-             v-if="!loading && showSidebar"/>
-    <div class="container-fluid" v-if="!loading">
-        <main class="row justify-content-center" id="main-content">
-            <router-view class="page col-lg-12"/>
-            <footer-bar v-if="showFooter"/>
-        </main>
-    </div>
+    <template v-else>
+        <sidebar ref="sidebar" v-if="showSidebar"/>
+        <div class="container-fluid">
+            <!-- We have an extra data element, `showContent`, to make sure we
+            first render the sidebar, to make sure the logo request (for the
+            svg) is done first, as otherwise the max requests the browser can do
+            is reached, and it is empty for quite a long time. However, we still
+            need this container-fluid div, as otherwise the sidebar will not be
+            in the correct position. -->
+            <main class="row justify-content-center" id="main-content">
+                <router-view class="page col-lg-12" v-if="showContent"/>
+                <div class="page col-lg-12" v-else />
+                <footer-bar v-if="showFooter"/>
+            </main>
+        </div>
+    </template>
     <div v-if="showFrameBorder" class="frame-border"/>
 </div>
 </template>
 
 <script>
-import { mapActions } from 'vuex';
+import { mapActions, mapGetters } from 'vuex';
 
 import { setRestoreRoute } from '@/router';
 import { Loader, FooterBar, Sidebar } from '@/components';
@@ -25,12 +33,25 @@ export default {
     name: 'app',
 
     computed: {
+        ...mapGetters('user', ['loggedIn']),
+        ...mapGetters('courses', ['assignments']),
+
+        canManageLTICourse() {
+            return this.$utils.getProps(
+                this.assignments,
+                false,
+                this.$LTIAssignmentId,
+                'course',
+                'canManage',
+            );
+        },
+
         hasDarkMode() {
             return this.$store.getters['pref/darkMode'];
         },
 
         showSidebar() {
-            return this.$route.name !== 'lti-launch';
+            return this.$route.name !== 'lti-launch' && (!this.$inLTI || this.canManageLTICourse);
         },
 
         showFooter() {
@@ -49,11 +70,13 @@ export default {
     data() {
         return {
             loading: true,
+            showContent: false,
         };
     },
 
     methods: {
         ...mapActions('user', ['verifyLogin']),
+        ...mapActions('courses', ['loadCourses']),
     },
 
     created() {
@@ -99,8 +122,9 @@ export default {
         );
     },
 
-    async mounted() {
-        await this.verifyLogin()
+    mounted() {
+        this.verifyLogin()
+            .then(() => (this.loggedIn ? this.loadCourses() : Promise.resolve()))
             .then(
                 () => {
                     const route = this.$route.name;
@@ -118,8 +142,12 @@ export default {
                     }
                 },
             )
-            .then(() => {
+            .then(async () => {
                 this.loading = false;
+                if (this.showSidebar) {
+                    await this.$afterRerender();
+                }
+                this.showContent = true;
             });
     },
 

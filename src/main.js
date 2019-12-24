@@ -21,7 +21,7 @@ import '@/polyfills';
 import App from '@/App';
 import router, { setRestoreRoute } from '@/router';
 import * as utils from '@/utils';
-import store from './store';
+import { store } from './store';
 import * as mutationTypes from './store/mutation-types';
 
 Vue.use(BootstrapVue);

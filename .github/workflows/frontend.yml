@@ -1,0 +1,51 @@
+---
+name: "Front-end tests"
+
+"on":
+  pull_request:
+    branches:
+      - master
+      - stable
+  push:
+    branches:
+      - master
+      - stable
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 4
+      matrix:
+        python-version: [3.7]
+
+    steps:
+      - name: "Checkout code"
+        uses: actions/checkout@v1
+      - name: "Set up Python ${{ matrix.python-version }}"
+        uses: actions/setup-python@v1
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: cache for npm
+        uses: actions/cache@v1
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-lint-node-${{ hashFiles('npm-shrinkwrap.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      - name: Install dependencies
+        run: ./.github/scripts/install.bash skip_pip
+
+      - name: Make needed directories
+        run: |
+          mkdir -p /tmp/psef/uploads
+          mkdir -p /tmp/psef/mirror_uploads
+
+      - name: Test front-end code & publish code coverage
+        uses: paambaati/codeclimate-action@v2.3.0
+        env:
+          CC_TEST_REPORTER_ID: ${{ secrets.CC_TEST_REPORTER_ID }}
+        with:
+          coverageCommand: ./.github/scripts/run_frontend_tests.bash

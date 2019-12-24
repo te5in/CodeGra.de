@@ -1,8 +1,8 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div class="reset-password justify-content-center">
-    <img class="standalone-logo" src="/static/img/codegrade.svg" v-if="darkMode"/>
-    <img class="standalone-logo" src="/static/img/codegrade-inv.svg" v-else/>
+    <cg-logo :inverted="!darkMode"
+             class="standalone-logo" />
 
     <b-form-fieldset class="col-sm-8 text-center form-wrapper"
                      @keyup.native.ctrl.enter="$refs.btn.onClick">
@@ -36,7 +36,7 @@ import { mapActions, mapGetters } from 'vuex';
 
 import { PASSWORD_UNIQUE_MESSAGE } from '@/constants';
 
-import { SubmitButton, PasswordInput, PasswordSuggestions } from '@/components';
+import { CgLogo, SubmitButton, PasswordInput, PasswordSuggestions } from '@/components';
 
 export default {
     name: 'reset-password',
@@ -51,6 +51,7 @@ export default {
 
     components: {
         Icon,
+        CgLogo,
         SubmitButton,
         PasswordInput,
         PasswordSuggestions,

@@ -68,6 +68,7 @@ def get_all_assignments() -> JSONResponse[t.Sequence[models.Assignment]]:
         models.Assignment,
         t.cast(models.DbColumn[str], models.AssignmentLinter.id).isnot(None)
     ).filter(
+        ~models.Assignment.deleted,
         t.cast(
             models.DbColumn[int],
             models.Assignment.course_id,
@@ -101,6 +102,29 @@ def get_all_assignments() -> JSONResponse[t.Sequence[models.Assignment]]:
     return jsonify(res)
 
 
+@api.route("/assignments/<int:assignment_id>", methods=['DELETE'])
+@auth.login_required
+def delete_assignment(assignment_id: int) -> EmptyResponse:
+    """Delete a given :class:`.models.Assignment`.
+
+    .. :quickref: Assignment; Delete a single assignment by id.
+
+    :param int assignment_id: The id of the assignment
+    """
+    assignment = helpers.get_or_404(
+        models.Assignment, assignment_id, also_error=lambda a: a.deleted
+    )
+
+    auth.ensure_can_see_assignment(assignment)
+    auth.ensure_permission(CPerm.can_delete_assignments, assignment.course_id)
+
+    assignment.deleted = True
+    assignment.group_set = None
+    db.session.commit()
+
+    return make_empty_response()
+
+
 @api.route("/assignments/<int:assignment_id>", methods=['GET'])
 @auth.login_required
 def get_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
@@ -117,7 +141,9 @@ def get_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
     :raises PermissionException: If the user is not allowed to view this
                                  assignment. (INCORRECT_PERMISSION)
     """
-    assignment = helpers.get_or_404(models.Assignment, assignment_id)
+    assignment = helpers.get_or_404(
+        models.Assignment, assignment_id, also_error=lambda a: a.deleted
+    )
 
     auth.ensure_can_see_assignment(assignment)
 
@@ -139,7 +165,9 @@ def get_assignments_feedback(assignment_id: int) -> JSONResponse[
         as a list of strings. If a user cannot see others work only submissions
         by the current users are returned.
     """
-    assignment = helpers.get_or_404(models.Assignment, assignment_id)
+    assignment = helpers.get_or_404(
+        models.Assignment, assignment_id, also_error=lambda a: a.deleted
+    )
 
     auth.ensure_enrolled(assignment.course_id)
 
@@ -261,7 +289,9 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
     :returns: An empty response with return code 204.
     :raises APIException: If an invalid value is submitted. (INVALID_PARAM)
     """
-    assig = helpers.get_or_404(models.Assignment, assignment_id)
+    assig = helpers.get_or_404(
+        models.Assignment, assignment_id, also_error=lambda a: a.deleted
+    )
     content = ensure_json_dict(request.get_json())
 
     lti_class: t.Optional[t.Type[psef.lti.LTI]]
@@ -450,7 +480,8 @@ def get_assignment_rubric(assignment_id: int
             ).selectinload(
                 models.RubricRow.items,
             )
-        ]
+        ],
+        also_error=lambda a: a.deleted
     )
 
     auth.ensure_permission(CPerm.can_see_assignments, assig.course_id)
@@ -484,7 +515,9 @@ def delete_rubric(assignment_id: int) -> EmptyResponse:
     :raises APIException: If the assignment has no rubric.
         (OBJECT_ID_NOT_FOUND)
     """
-    assig = helpers.get_or_404(models.Assignment, assignment_id)
+    assig = helpers.get_or_404(
+        models.Assignment, assignment_id, also_error=lambda a: a.deleted
+    )
     auth.ensure_permission(CPerm.manage_rubrics, assig.course_id)
 
     if not assig.rubric_rows:
@@ -527,7 +560,9 @@ def import_assignment_rubric(assignment_id: int
         imported, so the assignment with id ``assignment_id`` and not
         ``old_assignment_id``.
     """
-    assig = helpers.get_or_404(models.Assignment, assignment_id)
+    assig = helpers.get_or_404(
+        models.Assignment, assignment_id, also_error=lambda a: a.deleted
+    )
     auth.ensure_permission(CPerm.manage_rubrics, assig.course_id)
 
     content = ensure_json_dict(request.get_json())
@@ -587,7 +622,9 @@ def add_assignment_rubric(assignment_id: int
     :raises PermissionException: If the user is not allowed to manage rubrics.
                                 (INCORRECT_PERMISSION)
     """
-    assig = helpers.get_or_404(models.Assignment, assignment_id)
+    assig = helpers.get_or_404(
+        models.Assignment, assignment_id, also_error=lambda a: a.deleted
+    )
 
     auth.ensure_permission(CPerm.manage_rubrics, assig.course_id)
     content = ensure_json_dict(request.get_json())
@@ -731,6 +768,7 @@ def upload_work(assignment_id: int) -> ExtendedJSONResponse[models.Work]:
         models.Assignment,
         models.Assignment.id == assignment_id,
         with_for_update=helpers.LockType.read,
+        also_error=lambda a: a.deleted,
     )
     if not current_user.has_permission(
         CPerm.can_submit_others_work, course_id=assig.course_id
@@ -792,6 +830,7 @@ def change_division_parent(assignment_id: int) -> EmptyResponse:
         models.Assignment,
         assignment_id,
         options=[joinedload(models.Assignment.division_children)],
+        also_error=lambda a: a.deleted,
     )
 
     auth.ensure_permission(CPerm.can_assign_graders, assignment.course_id)
@@ -874,6 +913,7 @@ def divide_assignments(assignment_id: int) -> EmptyResponse:
         models.Assignment,
         assignment_id,
         options=[joinedload(models.Assignment.division_children)],
+        also_error=lambda a: a.deleted,
     )
 
     auth.ensure_permission(CPerm.can_assign_graders, assignment.course_id)
@@ -970,7 +1010,9 @@ def get_all_graders(
     :raises PermissionException: If the user is not allowed to view graders of
                                  this assignment. (INCORRECT_PERMISSION)
     """
-    assignment = helpers.get_or_404(models.Assignment, assignment_id)
+    assignment = helpers.get_or_404(
+        models.Assignment, assignment_id, also_error=lambda a: a.deleted
+    )
     auth.ensure_permission(CPerm.can_see_assignee, assignment.course_id)
 
     result = assignment.get_all_graders(sort=True)
@@ -1021,7 +1063,9 @@ def set_grader_to_not_done(
         status but does not have the `can_update_grader_status` or the
         `can_grade_work` permission. (INCORRECT_PERMISSION)
     """
-    assig = helpers.get_or_404(models.Assignment, assignment_id)
+    assig = helpers.get_or_404(
+        models.Assignment, assignment_id, also_error=lambda a: a.deleted
+    )
 
     if current_user.id == grader_id:
         auth.ensure_permission(CPerm.can_grade_work, assig.course_id)
@@ -1071,6 +1115,7 @@ def set_grader_to_done(assignment_id: int, grader_id: int) -> EmptyResponse:
         models.Assignment,
         assignment_id,
         options=[joinedload(models.Assignment.finished_graders)],
+        also_error=lambda a: a.deleted,
     )
 
     if current_user.id == grader_id:
@@ -1141,7 +1186,9 @@ def get_all_works_by_user_for_assignment(
     :param int user_id: The user of which you want to get the assignments.
     :returns: A response containing the JSON serialized submissions.
     """
-    assignment = helpers.get_or_404(models.Assignment, assignment_id)
+    assignment = helpers.get_or_404(
+        models.Assignment, assignment_id, also_error=lambda a: a.deleted
+    )
     auth.ensure_permission(CPerm.can_see_assignments, assignment.course_id)
     if assignment.is_hidden:
         auth.ensure_permission(
@@ -1189,7 +1236,9 @@ def get_all_works_for_assignment(
     :raises PermissionException: If the assignment is hidden and the user is
                                  not allowed to view it. (INCORRECT_PERMISSION)
     """
-    assignment = helpers.get_or_404(models.Assignment, assignment_id)
+    assignment = helpers.get_or_404(
+        models.Assignment, assignment_id, also_error=lambda a: a.deleted
+    )
 
     auth.ensure_permission(CPerm.can_see_assignments, assignment.course_id)
 
@@ -1273,6 +1322,7 @@ def post_submissions(assignment_id: int) -> EmptyResponse:
         models.Assignment,
         models.Assignment.id == assignment_id,
         with_for_update=helpers.LockType.read,
+        also_error=lambda a: a.deleted,
     )
     auth.ensure_permission(CPerm.can_upload_bb_zip, assignment.course_id)
     files = helpers.get_files_from_request(
@@ -1406,7 +1456,9 @@ def get_linters(assignment_id: int
     :raises PermissionException: If the user can not user linters in this
                                  course. (INCORRECT_PERMISSION)
     """
-    assignment = helpers.get_or_404(models.Assignment, assignment_id)
+    assignment = helpers.get_or_404(
+        models.Assignment, assignment_id, also_error=lambda a: a.deleted
+    )
 
     auth.ensure_permission(CPerm.can_use_linter, assignment.course_id)
 
@@ -1469,7 +1521,9 @@ def start_linting(assignment_id: int) -> JSONResponse[models.AssignmentLinter]:
     """
     content = ensure_json_dict(request.get_json())
 
-    assig = helpers.get_or_404(models.Assignment, assignment_id)
+    assig = helpers.get_or_404(
+        models.Assignment, assignment_id, also_error=lambda a: a.deleted
+    )
     auth.ensure_permission(CPerm.can_use_linter, assig.course_id)
 
     ensure_keys_in_dict(content, [('cfg', str), ('name', str)])
@@ -1540,7 +1594,9 @@ def get_plagiarism_runs(
     :raises PermissionException: If the user can not view plagiarism runs or
         cases for this course. (INCORRECT_PERMISSION)
     """
-    assig = helpers.get_or_404(models.Assignment, assignment_id)
+    assig = helpers.get_or_404(
+        models.Assignment, assignment_id, also_error=lambda a: a.deleted
+    )
     try:
         auth.ensure_permission(CPerm.can_view_plagiarism, assig.course_id)
     except auth.PermissionException:
@@ -1590,7 +1646,9 @@ def start_plagiarism_check(
     :raises PermissionException: If the user can not manage plagiarism runs or
         cases for this course. (INCORRECT_PERMISSION)
     """
-    assig = helpers.get_or_404(models.Assignment, assignment_id)
+    assig = helpers.get_or_404(
+        models.Assignment, assignment_id, also_error=lambda a: a.deleted
+    )
     auth.ensure_permission(CPerm.can_manage_plagiarism, assig.course_id)
 
     content = ensure_json_dict(
@@ -1755,7 +1813,9 @@ def get_group_member_states(assignment_id: int, group_id: int
         assignment and any of the values in this mapping is ``False`` trying to
         submit anyway will result in a failure.
     """
-    assig = helpers.get_or_404(models.Assignment, assignment_id)
+    assig = helpers.get_or_404(
+        models.Assignment, assignment_id, also_error=lambda a: a.deleted
+    )
     group = helpers.filter_single_or_404(
         models.Group, models.Group.id == group_id,
         models.Group.group_set_id == assig.group_set_id
@@ -1784,7 +1844,9 @@ def get_git_settings(assignment_id: int) -> JSONResponse[models.WebhookBase]:
     :returns: A serialized form of a webhook, which contains all data needed to
         add the webhook to your provider.
     """
-    assig = helpers.get_or_404(models.Assignment, assignment_id)
+    assig = helpers.get_or_404(
+        models.Assignment, assignment_id, also_error=lambda a: a.deleted
+    )
     if not assig.webhook_upload_enabled:
         raise APIException(
             'Handing in through webhooks is disabled for this assignment',

@@ -4,26 +4,28 @@ are used to create courses and return information about courses.
 
 SPDX-License-Identifier: AGPL-3.0-only
 """
-
+import uuid
 import typing as t
 
+import flask_jwt_extended as flask_jwt
 from flask import request
 from sqlalchemy.orm import selectinload
 from mypy_extensions import TypedDict
+from flask_limiter.util import get_remote_address
 
 import psef.auth as auth
 import psef.models as models
 import psef.helpers as helpers
 from psef import limiter, current_user
-from psef.errors import APICodes, APIException
+from psef.errors import APICodes, APIWarnings, APIException
 from psef.models import db
 from psef.helpers import (
     JSONResponse, EmptyResponse, jsonify, ensure_keys_in_dict,
-    make_empty_response, get_json_dict_from_request
+    make_empty_response, get_from_map_transaction, get_json_dict_from_request
 )
 
 from . import api
-from .. import features
+from .. import limiter, parsers, features
 from ..lti import LTI_COURSEROLE_LOOKUPS
 from ..permissions import CoursePermMap
 from ..permissions import CoursePermission as CPerm
@@ -80,13 +82,22 @@ def delete_role(course_id: int, role_id: int) -> EmptyResponse:
                 403
             )
 
-    sql = db.session.query(
+    users_with_role = db.session.query(
         models.user_course
     ).filter(models.user_course.c.course_id == role_id).exists()
-    if db.session.query(sql).scalar():
+    if db.session.query(users_with_role).scalar():
         raise APIException(
             'There are still users with this role',
             'There are still users with role {}'.format(role_id),
+            APICodes.INVALID_PARAM, 400
+        )
+    links_with_role = db.session.query(
+        models.CourseRegistrationLink
+    ).filter_by(course_role_id=role_id).exists()
+    if db.session.query(links_with_role).scalar():
+        raise APIException(
+            'There are still registration links with this role',
+            f'The role "{role_id}" cannot be deleted as it is still in use',
             APICodes.INVALID_PARAM, 400
         )
 
@@ -905,3 +916,166 @@ def delete_course_snippets(course_id: int, snippet_id: int) -> EmptyResponse:
     db.session.delete(snip)
     db.session.commit()
     return make_empty_response()
+
+
+@api.route('/courses/<int:course_id>/registration_links/', methods=['GET'])
+@features.feature_required(features.Feature.COURSE_REGISTER)
+def get_registration_links(
+    course_id: int
+) -> JSONResponse[t.Sequence[models.CourseRegistrationLink]]:
+    """Get the registration links for the given course.
+
+    .. :quickref: Course; Get the registration links for this course.
+
+    :param course_id: The course id for which to get the registration links.
+    :returns: An array of registration links.
+    """
+    course = helpers.get_or_404(
+        models.Course, course_id, also_error=lambda c: c.virtual
+    )
+    auth.ensure_permission(CPerm.can_edit_course_users, course_id)
+    return jsonify(course.registration_links)
+
+
+@api.route(
+    '/courses/<int:course_id>/registration_links/<uuid:link_id>',
+    methods=['DELETE']
+)
+@features.feature_required(features.Feature.COURSE_REGISTER)
+def delete_registration_link(
+    course_id: int, link_id: uuid.UUID
+) -> EmptyResponse:
+    """Delete the given registration link.
+
+    .. :quickref: Course; The delete a registration link of the given course.
+
+    :param course_id: The id of the course to which the registration link is
+        connected.
+    :param link_id: The id of the registration link.
+    :returns: Nothing.
+    """
+    course = helpers.get_or_404(
+        models.Course, course_id, also_error=lambda c: c.virtual
+    )
+    auth.ensure_permission(CPerm.can_edit_course_users, course_id)
+    link = helpers.get_or_404(
+        models.CourseRegistrationLink,
+        link_id,
+        also_error=lambda l: l.course_id != course.id
+    )
+    db.session.delete(link)
+    db.session.commit()
+    return make_empty_response()
+
+
+@api.route('/courses/<int:course_id>/registration_links/', methods=['PUT'])
+@features.feature_required(features.Feature.COURSE_REGISTER)
+def create_or_edit_registration_link(
+    course_id: int
+) -> JSONResponse[models.CourseRegistrationLink]:
+    """Create or edit a registration link.
+
+    .. :quickref: Course; Create or edit a registration link for a course.
+
+    :param course_id: The id of the course in which this link should enroll
+        users.
+    :>json id: The id of the link to edit, omit to create a new link.
+    :>json role_id: The id of the role that users should get when registering
+        with this link.
+    :>json expiration_date: The date this link should stop working, this date
+        should be in ISO8061 format without any timezone information, as it
+        will be interpret as a UTC date.
+    :returns: The created or edited link.
+    """
+    course = helpers.get_or_404(
+        models.Course, course_id, also_error=lambda c: c.virtual
+    )
+    auth.ensure_permission(CPerm.can_edit_course_users, course_id)
+
+    with get_from_map_transaction(get_json_dict_from_request()) as [
+        get, opt_get
+    ]:
+        expiration_date = get('expiration_date', str)
+        role_id = get('role_id', int)
+        link_id = opt_get('id', str, default=None)
+
+    if link_id is None:
+        link = models.CourseRegistrationLink(course=course)
+        db.session.add(link)
+    else:
+        link = helpers.filter_single_or_404(
+            models.CourseRegistrationLink,
+            models.CourseRegistrationLink.id == link_id,
+            also_error=lambda l: l.course_id != course.id
+        )
+
+    link.course_role = helpers.get_or_404(
+        models.CourseRole,
+        role_id,
+        also_error=lambda r: r.course_id != course.id
+    )
+    link.expiration_date = parsers.parse_datetime(expiration_date)
+    if link.expiration_date < helpers.get_request_start_time():
+        helpers.add_warning(
+            'The link has already expired.', APIWarnings.ALREADY_EXPIRED
+        )
+
+    if link.course_role.has_permission(CPerm.can_edit_course_roles):
+        helpers.add_warning(
+            (
+                'Users that register with this link will have the permission'
+                ' to give themselves more permissions.'
+            ), APIWarnings.DANGEROUS_ROLE
+        )
+
+    db.session.commit()
+    return jsonify(link)
+
+
+@api.route(
+    '/courses/<int:course_id>/registration_links/<uuid:link_id>/user',
+    methods=['POST']
+)
+@features.feature_required(features.Feature.COURSE_REGISTER)
+@limiter.limit('1 per second', key_func=get_remote_address)
+def register_user_in_course(course_id: int, link_id: uuid.UUID
+                            ) -> JSONResponse[t.Mapping[str, str]]:
+    """Register as a new user, and directly enroll in a course.
+
+    .. :quickref: Course; Register as a new user, and enroll in a course.
+
+    :param course_id: The id of the course to which the registration link is
+        connected.
+    :param link_id: The id of the registration link.
+    :>json access_token: The access token that the created user can use to
+        login.
+    """
+    link = helpers.get_or_404(
+        models.CourseRegistrationLink,
+        link_id,
+        also_error=lambda l: l.course_id != course_id
+    )
+    if link.expiration_date < helpers.get_request_start_time():
+        raise APIException(
+            'This registration link has expired.',
+            f'The registration link {link.id} has expired',
+            APICodes.OBJECT_EXPIRED, 409
+        )
+
+    with get_from_map_transaction(get_json_dict_from_request()) as [get, _]:
+        username = get('username', str)
+        password = get('password', str)
+        email = get('email', str)
+        name = get('name', str)
+
+    user = models.User.register_new_user(
+        username=username, password=password, email=email, name=name
+    )
+    user.courses[link.course_id] = link.course_role
+    db.session.commit()
+
+    token: str = flask_jwt.create_access_token(
+        identity=user.id,
+        fresh=True,
+    )
+    return jsonify({'access_token': token})

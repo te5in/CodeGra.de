@@ -132,7 +132,11 @@ export default {
                     res => {
                         if (res.headers.warning) {
                             const warning = parseWarningHeader(res.headers.warning);
-                            this.$set(this.warningGraders, grader.id, warning.text);
+                            this.$set(
+                                this.warningGraders,
+                                grader.id,
+                                warning.map(w => w.text).join(' '),
+                            );
                             this.$nextTick(() =>
                                 setTimeout(() => {
                                     this.$set(this.warningGraders, grader.id, undefined);

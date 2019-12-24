@@ -144,7 +144,35 @@
                     <submission-uploader :assignment="assignment"
                                          for-others
                                          no-border
+                                         maybe-show-git-instructions
                                          :can-list-users="permissions.can_list_course_users"/>
+                </b-card>
+
+                <b-card header="Danger zone"
+                        class="danger-zone-wrapper"
+                        border-variant="danger"
+                        header-text-variant="danger"
+                        header-border-variant="danger"
+                        v-if="assignment.course.permissions.can_delete_assignments">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <strong class="d-block">Delete assignment</strong>
+
+                            <small>
+                                Delete this assignment, including all its
+                                submissions.
+                            </small>
+                        </div>
+                        <div>
+                            <submit-button :submit="deleteAssignment"
+                                           @after-success="afterDeleteAssignment"
+                                           confirm="Deleting this assignment cannot be reversed, and all submissions will be lost."
+                                           confirm-in-modal
+                                           variant="danger">
+                                Delete assignment
+                            </submit-button>
+                        </div>
+                    </div>
                 </b-card>
             </div>
 
@@ -491,7 +519,7 @@ export default {
     },
 
     methods: {
-        ...mapActions('courses', ['updateAssignment', 'loadCourses']),
+        ...mapActions('courses', ['updateAssignment', 'loadCourses', 'reloadCourses']),
         ...mapActions('submissions', ['forceLoadSubmissions']),
 
         async loadData() {
@@ -564,6 +592,15 @@ export default {
                     formatted_deadline: readableFormatDate(this.assignmentTempDeadline),
                 },
             });
+        },
+
+        deleteAssignment() {
+            return this.$http.delete(`/api/v1/assignments/${this.assignment.id}`);
+        },
+
+        afterDeleteAssignment() {
+            this.reloadCourses();
+            this.$router.push({ name: 'home' });
         },
     },
 
