@@ -281,6 +281,7 @@ context('Submissions page', () => {
                 cy.get('.submission-nav-bar').should('contain', 'Student2');
 
                 cy.get('.sidebar').contains('.sidebar-entry', 'Submissions').click();
+                cy.get('.sidebar .submissions-sidebar-list').should('be.visible');
                 cy.get('.sidebar-filter input').should('have.value', 'Student2');
                 cy.get('.sidebar-list').should('contain', 'Student2');
                 cy.get('.sidebar-list').should('not.contain', 'Student1');

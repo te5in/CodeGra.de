@@ -73,3 +73,17 @@ jobs:
 
       - name: Run tests
         run: ./.github/scripts/run_integration.bash
+
+      - name: Upload screenshots
+        uses: actions/upload-artifact@v1
+        if: failure()
+        with:
+          name: test-screenshots
+          path: /home/runner/work/CodeGra.de/CodeGra.de/cypress/screenshots/
+
+      - name: Upload screen casts
+        uses: actions/upload-artifact@v1
+        if: failure()
+        with:
+          name: test-videos
+          path: /home/runner/work/CodeGra.de/CodeGra.de/cypress/videos/

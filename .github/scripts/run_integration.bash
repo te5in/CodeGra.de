@@ -46,7 +46,7 @@ curl http://localhost:8080
 
 sleep 4
 
-NO_COLOR=1 xvfb-run --auto-servernum npm run e2e
+NO_COLOR=1 xvfb-run --server-args="-screen 0 1600x1024x24" --auto-servernum npm run e2e
 res="$?"
 
 exit "$res"
