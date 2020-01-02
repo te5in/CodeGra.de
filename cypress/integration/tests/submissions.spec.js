@@ -279,6 +279,7 @@ context('Submissions page', () => {
 
                 getStudent('Student2').click();
                 cy.get('.submission-nav-bar').should('contain', 'Student2');
+                cy.get('.file-viewer .inner-viewer').should('be.visible');
 
                 cy.get('.sidebar').contains('.sidebar-entry', 'Submissions').click();
                 cy.get('.sidebar .submissions-sidebar-list').should('be.visible');

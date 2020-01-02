@@ -307,7 +307,7 @@
 
 <script>
 import Multiselect from 'vue-multiselect';
-import { mapActions, mapGetters, mapMutations } from 'vuex';
+import { mapActions, mapGetters } from 'vuex';
 
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/plus';
@@ -490,10 +490,6 @@ export default {
             storeLoadAutoTest: 'loadAutoTest',
         }),
 
-        ...mapMutations('rubrics', {
-            storeClearRubric: 'clearRubric',
-        }),
-
         async loadInitialData() {
             if (this.defaultRubric) {
                 await this.setRubricData(this.defaultRubric);
@@ -548,10 +544,6 @@ export default {
                     maxPoints: this.calcMaxPoints(response.data),
                 }),
                 this.forceLoadSubmissions(this.assignmentId),
-
-                // TODO: Improve use of rubric store.
-                // Clear rubric from the rubric store so it will be reloaded.
-                this.storeClearRubric({ assignmentId: this.assignmentId }),
             ]);
         },
 
@@ -690,10 +682,6 @@ export default {
                 rubric: null,
                 maxPoints: null,
             });
-
-            // TODO: Improve use of rubric store.
-            // Clear rubric from the store so it will be reloaded.
-            this.storeClearRubric({ assignmentId: this.assignmentId });
         },
 
         ensureFixedMaxPoints() {
