@@ -3,24 +3,24 @@ set -e
 
 skip="${1}"
 
-if ! [[ "$skip" = skip_pip ]]; then
+if [[ "$skip" = skip_pip ]]; then
+    pip install mistune &
+else
     grep -lr --null microsoft /etc/apt/sources.list.d/ | xargs -0 sudo rm
-    sudo apt-get update
-    sudo apt-get install -y lxc lxc-dev lxcfs libvirt0 libssl-dev postgresql-client &
 
     (
-        python -m pip install --upgrade pip;
-        pip install 'celery[redis]' coveralls pytest-cov codecov;
-        pip install -r requirements.txt;
+        sudo apt-get update &&
+        sudo apt-get install -y lxc lxc-dev lxcfs libvirt0 libssl-dev postgresql-client &&
+        python -m pip install --upgrade pip &&
+        pip install 'celery[redis]' coveralls pytest-cov codecov &&
+        pip install -r requirements.txt &&
         pip install -r broker_requirements.txt;
     ) &
-else
-    pip install mistune &
 fi
 
 (
-    wget https://github.com/pmd/pmd/releases/download/pmd_releases%2F6.18.0/pmd-bin-6.18.0.zip -O pmd.zip;
-    unzip pmd.zip;
+    wget https://github.com/pmd/pmd/releases/download/pmd_releases%2F6.18.0/pmd-bin-6.18.0.zip -O pmd.zip &&
+    unzip pmd.zip &&
     mv pmd-bin-6.* pmd;
 ) &
 
@@ -32,3 +32,4 @@ if ! [[ "$skip" = skip_npm ]]; then
 fi
 
 wait
+exit "$?"

@@ -15,7 +15,7 @@ import dataclasses
 
 import structlog
 
-from . import files, errors, models, helpers
+from . import files, errors, models, helpers, plagiarism_providers
 
 logger = structlog.get_logger()
 
@@ -26,7 +26,6 @@ def init_app(app: t.Any) -> None:
     :param: The flask app to initialize for.
     :returns: Nothing
     """
-    from . import plagiarism_providers
     plagiarism_providers.init_app(app)
 
 

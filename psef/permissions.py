@@ -35,9 +35,9 @@ def init_app(app: t.Any, skip_perm_check: bool) -> None:
 def database_permissions_sanity_check(app: t.Any) -> None:
     """Check if database has all the correct permissions.
     """
-    from . import models
+    from . import models  # pylint: disable=import-outside-toplevel
     with app.app_context():
-        import structlog
+        import structlog  # pylint: disable=import-outside-toplevel
 
         logger = structlog.get_logger()
 

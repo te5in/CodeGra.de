@@ -178,11 +178,14 @@ def self_information(
         )
 
     elif helpers.extended_requested() or args.get('type') == 'extended':
-        obj = current_user.__extended_to_json__()
+        obj: t.Union[t.MutableMapping[str, t.Any], models.User]
         if request_arg_true('with_permissions'):
+            obj = current_user.__extended_to_json__()
             obj['permissions'] = GPerm.create_map(
                 current_user.get_all_permissions()
             )
+        else:
+            obj = current_user
         return extended_jsonify(obj)
     return jsonify(current_user)
 

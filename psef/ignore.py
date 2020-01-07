@@ -15,7 +15,6 @@ import os.path
 from dataclasses import dataclass
 
 import structlog
-import typing_extensions
 
 from . import app, helpers
 from .helpers import register
@@ -93,7 +92,7 @@ class FileDeletion:
         return self.__to_json__()
 
 
-class SubmissionFilter(typing_extensions.Protocol):
+class SubmissionFilter:
     """Class representing the base submission filter.
 
     This filters a submission, and checks if the resulting submission is valid.
@@ -246,8 +245,6 @@ class EmptySubmissionFilter(SubmissionFilter):
     CGIGNORE_VERSION = -1
 
     @classmethod
-    # type: ignore
-    # Known Mypy issue: https://github.com/python/mypy/issues/2511
     def parse(cls, data: 'helpers.JSONType') -> 'EmptySubmissionFilter':
         return cls()
 
@@ -425,13 +422,13 @@ class IgnoreFilterManager(SubmissionFilter):
         self,
         global_filters: t.Union[str, t.Sequence[str]],
     ) -> None:
+        super().__init__()
+
         if isinstance(global_filters, str):
             global_filters = global_filters.split('\n')
         self._filter = IgnoreFilter(global_filters)
 
     @classmethod
-    # type: ignore
-    # Known Mypy issue: https://github.com/python/mypy/issues/2511
     def parse(cls, data: 'helpers.JSONType') -> 'IgnoreFilterManager':
         if not isinstance(data, str):
             raise ParseError('CGIgnore version 1 should be given as a string.')
@@ -859,8 +856,6 @@ class SubmissionValidator(SubmissionFilter):
         allow_all_files = enum.auto()
 
     @classmethod
-    # type: ignore
-    # Known Mypy issue: https://github.com/python/mypy/issues/2511
     def parse(cls, data: 'helpers.JSONType') -> 'SubmissionValidator':
         """Parse and validate the given data as a config for the validator.
 
@@ -945,6 +940,7 @@ class SubmissionValidator(SubmissionFilter):
         rules: t.List[FileRule],
         data: 'helpers.JSONType',
     ) -> None:
+        super().__init__()
         self.policy = policy
         self.options = options
         self.rules = rules

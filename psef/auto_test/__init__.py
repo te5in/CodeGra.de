@@ -558,7 +558,7 @@ def _start_container(
             if domain_or_systemd is None:
                 for _ in range(10):
                     try:
-                        res = subprocess.run(_SYSTEMD_WAIT_CMD, timeout=1)
+                        res = subprocess.run(_SYSTEMD_WAIT_CMD, timeout=1)  # pylint: disable=subprocess-run-check
                     except subprocess.TimeoutExpired:  # pragma: no cover
                         pass
                     else:
@@ -595,7 +595,7 @@ def _start_container(
 class StepInstructions(TypedDict, total=True):
     """Instructions on how to run a single AutoTest step.
 
-    :ivar id: The id of the step.
+    :ivar ~.StepInstructions.id: The id of the step.
     :ivar weight: The amount of points you can achieve with this step.
     :ivar test_type_name: The type of step this is.
     :ivar data: The data of this step, this contains stuff like which command
@@ -613,7 +613,7 @@ class StepInstructions(TypedDict, total=True):
 class SuiteInstructions(TypedDict, total=True):
     """Instructions on how to run a single AutoTest suite.
 
-    :ivar id: The id of the suite.
+    :ivar ~.StepInstructions.id: The id of the suite.
     :ivar steps: The steps of this suite.
     :ivar network_disabled: Should this suite be run with networking disabled.
     """
@@ -625,7 +625,7 @@ class SuiteInstructions(TypedDict, total=True):
 class SetInstructions(TypedDict, total=True):
     """Instructions for a single AutoTest set.
 
-    :ivar id: The id of this set.
+    :ivar ~.SetInstructions.id: The id of this set.
     :ivar suites: The suites of this set.
     :ivar stop_points: The minimum amount of points that we should have to be
         able to continue running sets.
@@ -1364,14 +1364,13 @@ class StartedContainer:
         stdin: t.Union[None, bytes],
     ) -> t.Generator[t.Tuple[t.IO[bytes], t.BinaryIO, t.BinaryIO, threading.
                              Event, t.Callable[[float], None]], None, None]:
-        has_stdin = isinstance(stdin, bytes)
 
         with tempfile.TemporaryDirectory() as output_dir, (
-            tempfile.NamedTemporaryFile()
-            if has_stdin else open('/dev/null', 'rb')
+            open('/dev/null', 'rb')
+            if stdin is None else tempfile.NamedTemporaryFile()
         ) as stdin_file:
             local_logger = structlog.threadlocal.as_immutable(logger)
-            if has_stdin:
+            if stdin is not None:
                 os.chmod(stdin_file.name, 0o777)
                 stdin_file.write(stdin)
                 stdin_file.flush()

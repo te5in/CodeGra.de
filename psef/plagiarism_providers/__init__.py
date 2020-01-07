@@ -9,4 +9,4 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 
 def init_app(_: object) -> None:
-    from . import jplag  # pylint: disable=unused-import
+    from . import jplag  # pylint: disable=unused-import, import-outside-toplevel

@@ -10,7 +10,7 @@ import datetime
 import structlog
 from flask import (
     Blueprint, abort, flash, request, session, url_for, redirect,
-    render_template
+    make_response, render_template
 )
 from flask_login import (
     UserMixin, LoginManager, login_user, logout_user, login_required
@@ -140,7 +140,7 @@ def login() -> Response:
     """Login to the admin panel, or get the admin panel page.
     """
     if request.method == 'GET':
-        return render_template('login.j2', runners=[])
+        return make_response(render_template('login.j2', runners=[]))
     elif request.method == 'POST':
         next_url = request.args.get('next', url_for('.show_all_runners'))
         if secrets.compare_digest(
@@ -162,7 +162,7 @@ def login() -> Response:
 
 @admin.route('/runners/', methods=['GET'])
 @login_required
-def show_all_runners() -> Response:
+def show_all_runners() -> str:
     """Get all runners in a nice (?) layout.
     """
     finished_runners = db.session.query(models.Runner).filter(
@@ -186,7 +186,7 @@ def show_all_runners() -> Response:
 
 @admin.route('/jobs/', methods=['GET'])
 @login_required
-def show_all_jobs() -> Response:
+def show_all_jobs() -> str:
     """Get all jobs in a nice (?) layout.
     """
     finished_jobs = db.session.query(models.Job).filter(

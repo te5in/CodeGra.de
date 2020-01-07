@@ -123,7 +123,7 @@ class WebhookBase(Base, UUIDMixin, TimestampMixin):
         )
 
     @property
-    def _ssh_private_key(self) -> rsa.RSAPrivateKey:
+    def _ssh_private_key(self) -> rsa.RSAPrivateKeyWithSerialization:
         assert self._ssh_key is not None
         return serialization.load_pem_private_key(
             self._ssh_key, None, default_backend()

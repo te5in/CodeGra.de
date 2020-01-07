@@ -41,21 +41,33 @@ class AbstractRole(t.Generic[_T]):
         """
         raise NotImplementedError
 
+    # Unfortunately mypy doesn't really support abstract properties at this
+    # time.
     @property
-    @abc.abstractmethod
     def name(self) -> str:
         """The name of this role.
         """
         raise NotImplementedError
 
+    @name.setter
+    def name(self, new_name: str) -> None:
+        """The name of this role.
+        """
+        raise NotImplementedError
+
     @property
-    @abc.abstractmethod
     def _permissions(self) -> t.MutableMapping['_T', Permission['_T']]:
         """The permissions this role has a connection to.
 
         A connection means this role has the permission if, and only if, the
         ``default_value`` of this permission is ``False``.
         """
+        raise NotImplementedError
+
+    @_permissions.setter
+    def _permissions(
+        self, new_perms: t.MutableMapping['_T', Permission['_T']]
+    ) -> None:
         raise NotImplementedError
 
     @property

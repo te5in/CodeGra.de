@@ -35,7 +35,9 @@ from cg_json import (
     JSONResponse, ExtendedJSONResponse, jsonify, extended_jsonify
 )
 from cg_timers import timed_code
-from cg_flask_helpers import callback_after_this_request
+from cg_flask_helpers import (
+    EmptyResponse, make_empty_response, callback_after_this_request
+)
 from cg_sqlalchemy_helpers.types import Base, MyQuery, DbColumn
 
 from . import features, validate, jsonify_options
@@ -50,6 +52,7 @@ logger = structlog.get_logger()
 
 #: Type vars
 T = t.TypeVar('T')
+T_CONTRA = t.TypeVar('T_CONTRA', contravariant=True)  # pylint: disable=invalid-name
 T_STOP_THREAD = t.TypeVar('T_STOP_THREAD', bound='StoppableThread')  # pylint: disable=invalid-name
 T_CAL = t.TypeVar('T_CAL', bound=t.Callable)  # pylint: disable=invalid-name
 TT = t.TypeVar('TT')
@@ -387,22 +390,6 @@ class LockType(enum.Enum):
     read = 2
 
 
-class EmptyResponse:
-    """An empty response.
-
-    This is a subtype of :py:class:`werkzeug.wrappers.Response` where the body
-    is empty and the status code is always 204.
-
-    .. warning::
-
-        This class is only used for type hinting and is never actually used! It
-        does not contain any valid data!
-    """
-
-    def __init__(self) -> None:  # pragma: no cover
-        raise NotImplementedError("Do not use this class as actual data")
-
-
 def get_in_or_error(
     model: t.Type[Y],
     in_column: DbColumn[T],
@@ -686,15 +673,53 @@ def get_key_from_dict(
     return val
 
 
+class TransactionGet(Protocol[T_CONTRA]):
+    """Protocol for a function to get something with a given type from a map.
+    """
+
+    @t.overload
+    def __call__(self, to_get: T_CONTRA, typ: t.Type[T]) -> T:
+        ...
+
+    @t.overload
+    def __call__(
+        self,
+        to_get: T_CONTRA,
+        typ: t.Tuple[t.Type[T], t.Type[TT]],
+    ) -> t.Union[T, TT]:
+        ...
+
+
+class TransactionOptionalGet(Protocol[T_CONTRA]):
+    """Protocol for a function to optionally get something with a given type
+    from a map.
+    """
+
+    @t.overload
+    def __call__(self, to_get: T_CONTRA, typ: t.Type[T],
+                 default: TT) -> t.Union[T, TT]:
+        ...
+
+    @t.overload
+    def __call__(
+        self,
+        to_get: T_CONTRA,
+        typ: t.Tuple[t.Type[T], t.Type[TT]],
+        default: ZZ,
+    ) -> t.Union[T, TT, ZZ]:
+        ...
+
+
+# pylint: enable
+
+
 @contextlib.contextmanager
 def get_from_map_transaction(
     mapping: t.Mapping[T, TT],
     *,
     ensure_empty: bool = False,
-) -> t.Generator[
-    t.Tuple[t.Callable[[T, t.Type[TTT]], TTT], t.
-            Callable[[T, t.Type[TTT], Arg(ZZ, 'default')], t.
-                     Union[TTT, ZZ]]], None, None]:
+) -> t.Generator[t.Tuple[TransactionGet[T], TransactionOptionalGet[T]], None,
+                 None]:
     """Get from the given map in a transaction like style.
 
     If all gets and optional gets succeed at the end of the ``with`` block no
@@ -713,20 +738,21 @@ def get_from_map_transaction(
     all_keys_requested = []
     keys = []
 
-    def get(key: T, typ: t.Type[TTT]) -> TTT:
+    def get(key: T, typ: t.Union[t.Type, t.Tuple[t.Type, ...]]) -> TT:
         all_keys_requested.append(key)
         keys.append((key, typ))
-        return t.cast(TTT, mapping.get(key, MISSING))
+        return t.cast(TT, mapping.get(key, MISSING))
 
-    def optional_get(key: T, typ: t.Type[TTT],
-                     default: ZZ) -> t.Union[TTT, ZZ]:
+    def optional_get(
+        key: T, typ: t.Union[t.Type, t.Tuple[t.Type, ...]], default: ZZ
+    ) -> t.Union[TT, ZZ]:
         if key not in mapping:
             all_keys_requested.append(key)
             return default
         return get(key, typ)
 
     try:
-        yield get, optional_get
+        yield get, optional_get  # type: ignore
     finally:
         ensure_keys_in_dict(mapping, keys)
         if ensure_empty and len(all_keys_requested) < len(mapping):
@@ -845,17 +871,6 @@ def ensure_json_dict(
         psef.errors.APICodes.INVALID_PARAM,
         400,
     )
-
-
-def make_empty_response() -> EmptyResponse:
-    """Create an empty response.
-
-    :returns: A empty response with status code 204
-    """
-    response = flask.make_response('')
-    response.status_code = 204
-
-    return response
 
 
 def human_readable_size(size: 'psef.archive.FileSize') -> str:
@@ -1302,11 +1317,11 @@ class BrokerSession(requests.Session):
         )
 
     def request(  # pylint: disable=arguments-differ
-        self, method: str, url: str, *args: t.Any, **kwargs: t.Any
+        self, method: str, url: t.Union[str, bytes, t.Text], *args: t.Any, **kwargs: t.Any,
     ) -> requests.Response:
         """Do a request to the AutoTest broker.
         """
-        url = urllib.parse.urljoin(self.broker_base, url)
+        url = urllib.parse.urljoin(self.broker_base, str(url))
         if 'timeout' not in kwargs:
             kwargs['timeout'] = 10
         return super().request(method, url, *args, **kwargs)

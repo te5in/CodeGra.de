@@ -164,7 +164,7 @@ else:
 def create_app() -> flask.Flask:
     """Create a broker flask app.
     """
-    # pylint: disable=redefined-outer-name
+    # pylint: disable=redefined-outer-name, import-outside-toplevel
     from . import api, exceptions, models, tasks, admin_panel
 
     app = BrokerFlask(__name__)

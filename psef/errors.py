@@ -49,7 +49,7 @@ def init_app(app: t.Any) -> None:
         :returns: A response with the JSON serialized error as content.
         :rtype: flask.Response
         """
-        from . import models
+        from . import models  # pylint: disable=import-outside-toplevel
         models.db.session.expire_all()
 
         response = t.cast(t.Any, jsonify(error))
@@ -67,7 +67,7 @@ def init_app(app: t.Any) -> None:
 
     @app.errorhandler(404)
     def handle_404(_: object) -> Response:  # pylint: disable=unused-variable; #pragma: no cover
-        from . import models
+        from . import models  # pylint: disable=import-outside-toplevel
         models.db.session.expire_all()
 
         api_exp = APIException(
@@ -87,7 +87,7 @@ def init_app(app: t.Any) -> None:
         This function should never really be called, as it means our code
         contains a bug.
         """
-        from . import models
+        from . import models  # pylint: disable=import-outside-toplevel
         models.db.session.expire_all()
 
         api_exp = APIException(

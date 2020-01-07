@@ -39,6 +39,7 @@ from os import path
 
 import py7zlib
 import structlog
+from typing_extensions import Protocol
 
 from . import app
 from .helpers import register, add_warning
@@ -67,21 +68,29 @@ class ArchiveMemberInfo(t.Generic[TT]):  # pylint: disable=unsubscriptable-objec
 _BUFFER_SIZE = 16 * 1024
 
 
-def _limited_copy(
-    src: t.IO[bytes], dst: t.IO[bytes], max_size: FileSize
+class ReadableStream(Protocol):
+    """A protocol representing an object from which you can read binary data.
+    """
+
+    def read(self, amount: int) -> bytes:  # pylint: disable=unused-argument,no-self-use
+        ...
+
+
+def limited_copy(
+    src: ReadableStream, dst: t.IO[bytes], max_size: FileSize
 ) -> FileSize:
     """Copy ``max_size`` bytes from ``src`` to ``dst``.
 
     >>> import io
     >>> dst = io.BytesIO()
-    >>> _limited_copy(io.BytesIO(b'1234567890'), dst, 15)
+    >>> limited_copy(io.BytesIO(b'1234567890'), dst, 15)
     10
     >>> dst.seek(0)
     0
     >>> dst.read()
     b'1234567890'
     >>> dst = io.BytesIO()
-    >>> _limited_copy(io.BytesIO(b'1234567890'), dst, 5)
+    >>> limited_copy(io.BytesIO(b'1234567890'), dst, 5)
     Traceback (most recent call last):
     ...
     _LimitedCopyOverflow
@@ -95,7 +104,7 @@ def _limited_copy(
     written = FileSize(0)
 
     while True:
-        buf = src.read(_BUFFER_SIZE)
+        buf: bytes = src.read(_BUFFER_SIZE)
         if not buf:
             break
         elif len(buf) > size_left:
@@ -179,8 +188,9 @@ class Archive(t.Generic[TT]):  # pylint: disable=unsubscriptable-object
         return cls.__get_base_archive_class(filename) is not None
 
     @staticmethod
-    def __get_base_archive_class(filename: str
-                                 ) -> t.Optional[t.Type['_BaseArchive']]:
+    def __get_base_archive_class(
+        filename: str
+    ) -> t.Optional[t.Type['_BaseArchive[object]']]:
         base, tail_ext = os.path.splitext(filename.lower())
         cls = _archive_handlers.get(tail_ext)
         if cls is None:
@@ -190,8 +200,7 @@ class Archive(t.Generic[TT]):  # pylint: disable=unsubscriptable-object
 
     @classmethod
     @contextlib.contextmanager
-    def create_from_file(cls: t.Type['Archive[object]'],
-                         filename: str) -> t.Iterator['Archive[object]']:
+    def create_from_file(cls, filename: str) -> t.Iterator['Archive[object]']:
         """Create a instance of this class from the given filename.
 
         >>> with Archive.create_from_file('test_data/test_blackboard/correct.tar.gz') as arch:
@@ -221,7 +230,7 @@ class Archive(t.Generic[TT]):  # pylint: disable=unsubscriptable-object
         arr = base_archive_cls(filename)
 
         try:
-            yield cls(arr)
+            yield t.cast(t.Type[Archive[object]], cls)(arr)
         finally:
             arr.close()
 
@@ -667,7 +676,7 @@ class _ZipArchive(_BaseArchive[zipfile.ZipInfo]):  # pylint: disable=unsubscript
 
         with open(dst_path,
                   'wb') as dst, self._archive.open(member.orig_file) as src:
-            _limited_copy(src, dst, size_left)
+            limited_copy(src, dst, size_left)
 
     def get_members(self) -> t.Iterable[ArchiveMemberInfo[zipfile.ZipInfo]]:
         """Get all members from this zip archive.

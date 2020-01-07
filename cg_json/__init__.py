@@ -14,45 +14,29 @@ T = t.TypeVar('T')
 logger = structlog.get_logger()
 
 
+def _maybe_log_response(obj: object, response: t.Any, extended: bool) -> None:
+    if not isinstance(obj, Exception):
+        to_log = str(b''.join(response.response))
+        max_length = 1000
+        if len(to_log) > max_length:
+            logger.bind(truncated=True, truncated_size=len(to_log))
+            to_log = '{1:.{0}} ... [TRUNCATED]'.format(max_length, to_log)
+
+        ext = 'extended ' if extended else ''
+        logger.info(
+            f'Created {ext}json return response',
+            reponse_type=str(type(obj)),
+            response=to_log,
+        )
+        logger.try_unbind('truncated', 'truncated_size')
+
+
 class SerializableEnum(enum.Enum):
     """An enum that you can serialize to json.
     """
 
     def __to_json__(self) -> str:
         return self.name
-
-
-class ExtendedJSONResponse(t.Generic[T]):
-    """A datatype for a JSON response created by using the
-    ``__extended_to_json__`` if available.
-
-    This is a subtype of :py:class:`werkzeug.wrappers.Response` where the body
-    is a valid JSON object and ``content-type`` is ``application/json``.
-
-    .. warning::
-
-        This class is only used for type hinting and is never actually used! It
-        does not contain any valid data!
-    """
-
-    def __init__(self) -> None:  # pragma: no cover
-        raise NotImplementedError("Do not use this class as actual data")
-
-
-class JSONResponse(t.Generic[T]):
-    """A datatype for a JSON response.
-
-    This is a subtype of :py:class:`werkzeug.wrappers.Response` where the body
-    is a valid JSON object and ``content-type`` is ``application/json``.
-
-    .. warning::
-
-        This class is only used for type hinting and is never actually used! It
-        does not contain any valid data!
-    """
-
-    def __init__(self) -> None:  # pragma: no cover
-        raise NotImplementedError("Do not use this class as actual data")
 
 
 class CustomJSONEncoder(JSONEncoder):
@@ -123,83 +107,101 @@ def get_extended_encoder_class(
     return CustomExtendedJSONEncoder
 
 
-def _maybe_log_response(obj: object, response: t.Any, extended: bool) -> None:
-    if not isinstance(obj, Exception):
-        to_log = str(b''.join(response.response))
-        max_length = 1000
-        if len(to_log) > max_length:
-            logger.bind(truncated=True, truncated_size=len(to_log))
-            to_log = '{1:.{0}} ... [TRUNCATED]'.format(max_length, to_log)
-
-        ext = 'extended ' if extended else ''
-        logger.info(
-            f'Created {ext}json return response',
-            reponse_type=str(type(obj)),
-            response=to_log,
-        )
-        logger.try_unbind('truncated', 'truncated_size')
+T_JSONResponse = t.TypeVar('T_JSONResponse', bound='JSONResponse')  # pylint: disable=invalid-name
 
 
-def extended_jsonify(
-    obj: T,
-    status_code: int = 200,
-    use_extended: t.Union[t.Callable[[object], bool],
-                          type,
-                          t.Tuple[type, ...],
-                          ] = object,
-) -> ExtendedJSONResponse[T]:
-    """Create a response with the given object ``obj`` as json payload.
+class JSONResponse(t.Generic[T], flask.Response):  # pylint: disable=too-many-ancestors
+    """A datatype for a JSON response.
 
-    This function differs from :py:func:`jsonify` by that it used the
-    ``__extended_to_json__`` magic function if it is available.
-
-    :param obj: The object that will be jsonified using
-        :py:class:`~.CustomExtendedJSONEncoder`
-    :param statuscode: The status code of the response
-    :param use_extended: The ``__extended_to_json__`` method is only used if
-        this function returns something that equals to ``True``. This method is
-        called with object that is currently being encoded. You can also pass a
-        class or tuple as this parameter which is converted to
-        ``lambda o: isinstance(o, passed_value)``.
-    :returns: The response with the jsonified object as payload
+    This is a subtype of :py:class:`werkzeug.wrappers.Response` where the body
+    is a valid JSON object and ``content-type`` is ``application/json``.
     """
-    try:
-        old_encoder = current_app.json_encoder
+
+    _SEPERATORS = (',', ':')
+
+    @classmethod
+    def _make(
+        cls: t.Type[T_JSONResponse], obj: T, status_code: int
+    ) -> T_JSONResponse:
+        return cls(
+            flask.json.dumps(
+                obj,
+                indent=None,
+                separators=cls._SEPERATORS,
+            ) + '\n',
+            mimetype=flask.current_app.config['JSONIFY_MIMETYPE'],
+            status=status_code,
+        )
+
+    @classmethod
+    def make(cls, obj: T, status_code: int = 200) -> 'JSONResponse[T]':
+        """Create a response with the given object ``obj`` as json payload.
+
+        :param obj: The object that will be jsonified using
+            :py:class:`~.CustomJSONEncoder`
+        :param status_code: The status code of the response
+        :returns: The response with the jsonified object as payload
+        """
+        try:
+            old_encoder = current_app.json_encoder
+            current_app.json_encoder = CustomJSONEncoder
+            self = cls._make(obj, status_code)
+        finally:
+            current_app.json_encoder = old_encoder
+
+        _maybe_log_response(obj, self, False)
+
+        return self
+
+
+class ExtendedJSONResponse(t.Generic[T], JSONResponse[T]):  # pylint: disable=too-many-ancestors
+    """A datatype for a JSON response created by using the
+    ``__extended_to_json__`` if available.
+
+    This is a subtype of :py:class:`werkzeug.wrappers.Response` where the body
+    is a valid JSON object and ``content-type`` is ``application/json``.
+    """
+
+    @classmethod
+    def make(
+        cls,
+        obj: T,
+        status_code: int = 200,
+        use_extended: t.Union[t.Callable[[object], bool],
+                              type,
+                              t.Tuple[type, ...],
+                              ] = object
+    ) -> 'ExtendedJSONResponse[T]':
+        """Create a response with the given object ``obj`` as json payload.
+
+        This function differs from :py:func:`jsonify` by that it used the
+        ``__extended_to_json__`` magic function if it is available.
+
+        :param obj: The object that will be jsonified using
+            :py:class:`~.CustomExtendedJSONEncoder`
+        :param status_code: The status code of the response
+        :param use_extended: The ``__extended_to_json__`` method is only used if
+            this function returns something that equals to ``True``. This method is
+            called with object that is currently being encoded. You can also pass a
+            class or tuple as this parameter which is converted to
+            ``lambda o: isinstance(o, passed_value)``.
+        :returns: The response with the jsonified object as payload
+        """
         if isinstance(use_extended, (tuple, type)):
             class_only = use_extended
             use_extended = lambda o: isinstance(o, class_only)
-        current_app.json_encoder = get_extended_encoder_class(use_extended)
-        response = flask.make_response(flask.jsonify(obj))
-    finally:
-        current_app.json_encoder = old_encoder
 
-    response.status_code = status_code
+        try:
+            old_encoder = current_app.json_encoder
+            current_app.json_encoder = get_extended_encoder_class(use_extended)
+            self = cls._make(obj, status_code)
+        finally:
+            current_app.json_encoder = old_encoder
 
-    _maybe_log_response(obj, response, True)
+        _maybe_log_response(obj, self, True)
 
-    return response
+        return self
 
 
-def jsonify(
-    obj: T,
-    status_code: int = 200,
-) -> JSONResponse[T]:
-    """Create a response with the given object ``obj`` as json payload.
-
-    :param obj: The object that will be jsonified using
-        :py:class:`~.CustomJSONEncoder`
-    :param statuscode: The status code of the response
-    :returns: The response with the jsonified object as payload
-    """
-    try:
-        old_encoder = current_app.json_encoder
-        current_app.json_encoder = CustomJSONEncoder
-        response = flask.jsonify(obj)
-    finally:
-        current_app.json_encoder = old_encoder
-
-    response.status_code = status_code
-
-    _maybe_log_response(obj, response, False)
-
-    return response
+extended_jsonify = ExtendedJSONResponse.make  # pylint: disable=invalid-name
+jsonify = JSONResponse.make  # pylint: disable=invalid-name

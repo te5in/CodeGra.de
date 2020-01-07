@@ -32,5 +32,5 @@ def init_app(app: t.Any) -> None:
     """
     # These imports are done for the side effect of registering routes, so they
     # are NOT unused.
-    from . import auto_tests  # pylint: disable=unused-import
+    from . import auto_tests  # pylint: disable=unused-import, import-outside-toplevel
     app.register_blueprint(api, url_prefix='/api/v-internal')

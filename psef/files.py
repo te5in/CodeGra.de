@@ -30,6 +30,7 @@ from .ignore import (
     DeletionType, FileDeletion, IgnoreHandling, SubmissionFilter,
     EmptySubmissionFilter
 )
+from .archive import limited_copy  # pylint: disable=unused-import
 from .exceptions import APICodes, APIWarnings, APIException
 from .extract_tree import (
     ExtractFileTree, ExtractFileTreeBase, ExtractFileTreeFile,
@@ -671,6 +672,7 @@ def extract(
         for val in res:
             val.forget_parent()
 
+        assert file.filename is not None
         new_parent = ExtractFileTree(
             name=file.filename,
             values=[],
@@ -737,11 +739,14 @@ def process_files(
         )
 
     def consider_archive(f: FileStorage) -> bool:
+        assert f.filename is not None
         return not force_txt and archive.Archive.is_archive(f.filename)
 
     if len(files) > 1 or not consider_archive(files[0]):
         tree = ExtractFileTree(name='top', values=[], parent=None)
         for file in files:
+            assert file.filename is not None
+
             if consider_archive(file):
                 tree.add_child(extract(
                     file,

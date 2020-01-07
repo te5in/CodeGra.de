@@ -10,11 +10,11 @@ from datetime import datetime, timedelta
 from functools import wraps
 
 import structlog
-from flask import Blueprint, g, request, make_response
+from flask import Blueprint, g, request
 from flask_expects_json import expects_json
 
 import cg_json
-from cg_flask_helpers import callback_after_this_request
+from cg_flask_helpers import EmptyResponse, callback_after_this_request
 from cg_sqlalchemy_helpers.types import DbColumn
 
 from . import BrokerFlask, app, tasks, models
@@ -24,23 +24,11 @@ from .exceptions import NotFoundException, PermissionException
 logger = structlog.get_logger()
 
 api = Blueprint("api", __name__)  # pylint: disable=invalid-name
-EmptyResponse = t.NewType('EmptyResponse', object)
 T_CAL = t.TypeVar('T_CAL', bound=t.Callable)  # pylint: disable=invalid-name
 
 
 def init_app(flask_app: BrokerFlask) -> None:
     flask_app.register_blueprint(api, url_prefix="/api/v1")
-
-
-def make_empty_response() -> EmptyResponse:
-    """Create an empty response.
-
-    :returns: A empty response with status code 204
-    """
-    response = make_response('')
-    response.status_code = 204
-
-    return EmptyResponse(response)
 
 
 def instance_route(f: T_CAL) -> T_CAL:
@@ -171,7 +159,7 @@ def remove_runner_of_job(job_id: str) -> EmptyResponse:
     db.session.commit()
 
     tasks.kill_runner(runner.id.hex)
-    return make_empty_response()
+    return EmptyResponse.make()
 
 
 @api.route('/jobs/<job_id>', methods=['DELETE'])
@@ -187,7 +175,7 @@ def delete_job(job_id: str) -> EmptyResponse:
     ).filter_by(remote_id=job_id).with_for_update().one_or_none()
     if job is None:
         if request.args.get('ignore_non_existing') == 'true':
-            return make_empty_response()
+            return EmptyResponse.make()
 
         # Make sure job will never be able to run
         job = models.Job(
@@ -196,10 +184,10 @@ def delete_job(job_id: str) -> EmptyResponse:
         job.state = models.JobState.finished
         db.session.add(job)
         db.session.commit()
-        return make_empty_response()
+        return EmptyResponse.make()
     elif job.state == models.JobState.finished:
         logger.info('Job already cleaned')
-        return make_empty_response()
+        return EmptyResponse.make()
 
     runners = db.session.query(models.Runner).filter_by(
         job_id=job.id,
@@ -214,7 +202,7 @@ def delete_job(job_id: str) -> EmptyResponse:
 
     tasks.cleanup_runners_of_job.delay(job.id)
 
-    return make_empty_response()
+    return EmptyResponse.make()
 
 
 @api.route('/jobs/<job_id>/runners/', methods=['POST'])
@@ -265,7 +253,7 @@ def register_runner_for_job(job_id: str) -> EmptyResponse:
     job.state = models.JobState.started
     db.session.commit()
 
-    return make_empty_response()
+    return EmptyResponse.make()
 
 
 @api.route('/alive/', methods=['POST'])
@@ -286,7 +274,7 @@ def mark_runner_as_alive() -> EmptyResponse:
     runner.started_at = datetime.utcnow()
     db.session.commit()
 
-    return make_empty_response()
+    return EmptyResponse.make()
 
 
 @api.route('/about', methods=['GET'])

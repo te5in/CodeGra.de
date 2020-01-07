@@ -72,6 +72,7 @@ def _update_auto_test(
 
         for new_fixture in new_fixtures:
             new_file_name, filename = files.random_file_path()
+            assert new_fixture.filename is not None
             new_fixture.save(new_file_name)
             auto_test.fixtures.append(
                 models.AutoTestFixture(
