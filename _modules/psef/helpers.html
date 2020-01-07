@@ -233,7 +233,9 @@
     <span class="n">JSONResponse</span><span class="p">,</span> <span class="n">ExtendedJSONResponse</span><span class="p">,</span> <span class="n">jsonify</span><span class="p">,</span> <span class="n">extended_jsonify</span>
 <span class="p">)</span>
 <span class="kn">from</span> <span class="nn">cg_timers</span> <span class="kn">import</span> <span class="n">timed_code</span>
-<span class="kn">from</span> <span class="nn">cg_flask_helpers</span> <span class="kn">import</span> <span class="n">callback_after_this_request</span>
+<span class="kn">from</span> <span class="nn">cg_flask_helpers</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">EmptyResponse</span><span class="p">,</span> <span class="n">make_empty_response</span><span class="p">,</span> <span class="n">callback_after_this_request</span>
+<span class="p">)</span>
 <span class="kn">from</span> <span class="nn">cg_sqlalchemy_helpers.types</span> <span class="kn">import</span> <span class="n">Base</span><span class="p">,</span> <span class="n">MyQuery</span><span class="p">,</span> <span class="n">DbColumn</span>
 
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">features</span><span class="p">,</span> <span class="n">validate</span><span class="p">,</span> <span class="n">jsonify_options</span>
@@ -248,6 +250,7 @@
 
 <span class="c1">#: Type vars</span>
 <span class="n">T</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">TypeVar</span><span class="p">(</span><span class="s1">&#39;T&#39;</span><span class="p">)</span>
+<span class="n">T_CONTRA</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">TypeVar</span><span class="p">(</span><span class="s1">&#39;T_CONTRA&#39;</span><span class="p">,</span> <span class="n">contravariant</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>  <span class="c1"># pylint: disable=invalid-name</span>
 <span class="n">T_STOP_THREAD</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">TypeVar</span><span class="p">(</span><span class="s1">&#39;T_STOP_THREAD&#39;</span><span class="p">,</span> <span class="n">bound</span><span class="o">=</span><span class="s1">&#39;StoppableThread&#39;</span><span class="p">)</span>  <span class="c1"># pylint: disable=invalid-name</span>
 <span class="n">T_CAL</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">TypeVar</span><span class="p">(</span><span class="s1">&#39;T_CAL&#39;</span><span class="p">,</span> <span class="n">bound</span><span class="o">=</span><span class="n">t</span><span class="o">.</span><span class="n">Callable</span><span class="p">)</span>  <span class="c1"># pylint: disable=invalid-name</span>
 <span class="n">TT</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">TypeVar</span><span class="p">(</span><span class="s1">&#39;TT&#39;</span><span class="p">)</span>
@@ -585,22 +588,6 @@
     <span class="n">read</span> <span class="o">=</span> <span class="mi">2</span></div>
 
 
-<div class="viewcode-block" id="EmptyResponse"><a class="viewcode-back" href="../../psef_api/psef.html#psef.helpers.EmptyResponse">[docs]</a><span class="k">class</span> <span class="nc">EmptyResponse</span><span class="p">:</span>
-    <span class="sd">&quot;&quot;&quot;An empty response.</span>
-
-<span class="sd">    This is a subtype of :py:class:`werkzeug.wrappers.Response` where the body</span>
-<span class="sd">    is empty and the status code is always 204.</span>
-
-<span class="sd">    .. warning::</span>
-
-<span class="sd">        This class is only used for type hinting and is never actually used! It</span>
-<span class="sd">        does not contain any valid data!</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
-        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Do not use this class as actual data&quot;</span><span class="p">)</span></div>
-
-
 <div class="viewcode-block" id="get_in_or_error"><a class="viewcode-back" href="../../psef_api/psef.html#psef.helpers.get_in_or_error">[docs]</a><span class="k">def</span> <span class="nf">get_in_or_error</span><span class="p">(</span>
     <span class="n">model</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Type</span><span class="p">[</span><span class="n">Y</span><span class="p">],</span>
     <span class="n">in_column</span><span class="p">:</span> <span class="n">DbColumn</span><span class="p">[</span><span class="n">T</span><span class="p">],</span>
@@ -884,15 +871,53 @@
     <span class="k">return</span> <span class="n">val</span></div>
 
 
+<div class="viewcode-block" id="TransactionGet"><a class="viewcode-back" href="../../psef_api/psef.html#psef.helpers.TransactionGet">[docs]</a><span class="k">class</span> <span class="nc">TransactionGet</span><span class="p">(</span><span class="n">Protocol</span><span class="p">[</span><span class="n">T_CONTRA</span><span class="p">]):</span>
+    <span class="sd">&quot;&quot;&quot;Protocol for a function to get something with a given type from a map.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="nd">@t</span><span class="o">.</span><span class="n">overload</span>
+    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">to_get</span><span class="p">:</span> <span class="n">T_CONTRA</span><span class="p">,</span> <span class="n">typ</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Type</span><span class="p">[</span><span class="n">T</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="p">:</span>
+        <span class="o">...</span>
+
+    <span class="nd">@t</span><span class="o">.</span><span class="n">overload</span>
+    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">to_get</span><span class="p">:</span> <span class="n">T_CONTRA</span><span class="p">,</span>
+        <span class="n">typ</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Tuple</span><span class="p">[</span><span class="n">t</span><span class="o">.</span><span class="n">Type</span><span class="p">[</span><span class="n">T</span><span class="p">],</span> <span class="n">t</span><span class="o">.</span><span class="n">Type</span><span class="p">[</span><span class="n">TT</span><span class="p">]],</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="n">T</span><span class="p">,</span> <span class="n">TT</span><span class="p">]:</span>
+        <span class="o">...</span></div>
+
+
+<div class="viewcode-block" id="TransactionOptionalGet"><a class="viewcode-back" href="../../psef_api/psef.html#psef.helpers.TransactionOptionalGet">[docs]</a><span class="k">class</span> <span class="nc">TransactionOptionalGet</span><span class="p">(</span><span class="n">Protocol</span><span class="p">[</span><span class="n">T_CONTRA</span><span class="p">]):</span>
+    <span class="sd">&quot;&quot;&quot;Protocol for a function to optionally get something with a given type</span>
+<span class="sd">    from a map.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="nd">@t</span><span class="o">.</span><span class="n">overload</span>
+    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">to_get</span><span class="p">:</span> <span class="n">T_CONTRA</span><span class="p">,</span> <span class="n">typ</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Type</span><span class="p">[</span><span class="n">T</span><span class="p">],</span>
+                 <span class="n">default</span><span class="p">:</span> <span class="n">TT</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="n">T</span><span class="p">,</span> <span class="n">TT</span><span class="p">]:</span>
+        <span class="o">...</span>
+
+    <span class="nd">@t</span><span class="o">.</span><span class="n">overload</span>
+    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">to_get</span><span class="p">:</span> <span class="n">T_CONTRA</span><span class="p">,</span>
+        <span class="n">typ</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Tuple</span><span class="p">[</span><span class="n">t</span><span class="o">.</span><span class="n">Type</span><span class="p">[</span><span class="n">T</span><span class="p">],</span> <span class="n">t</span><span class="o">.</span><span class="n">Type</span><span class="p">[</span><span class="n">TT</span><span class="p">]],</span>
+        <span class="n">default</span><span class="p">:</span> <span class="n">ZZ</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="n">T</span><span class="p">,</span> <span class="n">TT</span><span class="p">,</span> <span class="n">ZZ</span><span class="p">]:</span>
+        <span class="o">...</span></div>
+
+
+<span class="c1"># pylint: enable</span>
+
+
 <div class="viewcode-block" id="get_from_map_transaction"><a class="viewcode-back" href="../../psef_api/psef.html#psef.helpers.get_from_map_transaction">[docs]</a><span class="nd">@contextlib</span><span class="o">.</span><span class="n">contextmanager</span>
 <span class="k">def</span> <span class="nf">get_from_map_transaction</span><span class="p">(</span>
     <span class="n">mapping</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Mapping</span><span class="p">[</span><span class="n">T</span><span class="p">,</span> <span class="n">TT</span><span class="p">],</span>
     <span class="o">*</span><span class="p">,</span>
     <span class="n">ensure_empty</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Generator</span><span class="p">[</span>
-    <span class="n">t</span><span class="o">.</span><span class="n">Tuple</span><span class="p">[</span><span class="n">t</span><span class="o">.</span><span class="n">Callable</span><span class="p">[[</span><span class="n">T</span><span class="p">,</span> <span class="n">t</span><span class="o">.</span><span class="n">Type</span><span class="p">[</span><span class="n">TTT</span><span class="p">]],</span> <span class="n">TTT</span><span class="p">],</span> <span class="n">t</span><span class="o">.</span>
-            <span class="n">Callable</span><span class="p">[[</span><span class="n">T</span><span class="p">,</span> <span class="n">t</span><span class="o">.</span><span class="n">Type</span><span class="p">[</span><span class="n">TTT</span><span class="p">],</span> <span class="n">Arg</span><span class="p">(</span><span class="n">ZZ</span><span class="p">,</span> <span class="s1">&#39;default&#39;</span><span class="p">)],</span> <span class="n">t</span><span class="o">.</span>
-                     <span class="n">Union</span><span class="p">[</span><span class="n">TTT</span><span class="p">,</span> <span class="n">ZZ</span><span class="p">]]],</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">]:</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Generator</span><span class="p">[</span><span class="n">t</span><span class="o">.</span><span class="n">Tuple</span><span class="p">[</span><span class="n">TransactionGet</span><span class="p">[</span><span class="n">T</span><span class="p">],</span> <span class="n">TransactionOptionalGet</span><span class="p">[</span><span class="n">T</span><span class="p">]],</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="kc">None</span><span class="p">]:</span>
     <span class="sd">&quot;&quot;&quot;Get from the given map in a transaction like style.</span>
 
 <span class="sd">    If all gets and optional gets succeed at the end of the ``with`` block no</span>
@@ -911,20 +936,21 @@
     <span class="n">all_keys_requested</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="n">keys</span> <span class="o">=</span> <span class="p">[]</span>
 
-    <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="n">key</span><span class="p">:</span> <span class="n">T</span><span class="p">,</span> <span class="n">typ</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Type</span><span class="p">[</span><span class="n">TTT</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">TTT</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="n">key</span><span class="p">:</span> <span class="n">T</span><span class="p">,</span> <span class="n">typ</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="n">t</span><span class="o">.</span><span class="n">Type</span><span class="p">,</span> <span class="n">t</span><span class="o">.</span><span class="n">Tuple</span><span class="p">[</span><span class="n">t</span><span class="o">.</span><span class="n">Type</span><span class="p">,</span> <span class="o">...</span><span class="p">]])</span> <span class="o">-&gt;</span> <span class="n">TT</span><span class="p">:</span>
         <span class="n">all_keys_requested</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
         <span class="n">keys</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">key</span><span class="p">,</span> <span class="n">typ</span><span class="p">))</span>
-        <span class="k">return</span> <span class="n">t</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">TTT</span><span class="p">,</span> <span class="n">mapping</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">MISSING</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">t</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">TT</span><span class="p">,</span> <span class="n">mapping</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">MISSING</span><span class="p">))</span>
 
-    <span class="k">def</span> <span class="nf">optional_get</span><span class="p">(</span><span class="n">key</span><span class="p">:</span> <span class="n">T</span><span class="p">,</span> <span class="n">typ</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Type</span><span class="p">[</span><span class="n">TTT</span><span class="p">],</span>
-                     <span class="n">default</span><span class="p">:</span> <span class="n">ZZ</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="n">TTT</span><span class="p">,</span> <span class="n">ZZ</span><span class="p">]:</span>
+    <span class="k">def</span> <span class="nf">optional_get</span><span class="p">(</span>
+        <span class="n">key</span><span class="p">:</span> <span class="n">T</span><span class="p">,</span> <span class="n">typ</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="n">t</span><span class="o">.</span><span class="n">Type</span><span class="p">,</span> <span class="n">t</span><span class="o">.</span><span class="n">Tuple</span><span class="p">[</span><span class="n">t</span><span class="o">.</span><span class="n">Type</span><span class="p">,</span> <span class="o">...</span><span class="p">]],</span> <span class="n">default</span><span class="p">:</span> <span class="n">ZZ</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="n">TT</span><span class="p">,</span> <span class="n">ZZ</span><span class="p">]:</span>
         <span class="k">if</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">mapping</span><span class="p">:</span>
             <span class="n">all_keys_requested</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
             <span class="k">return</span> <span class="n">default</span>
         <span class="k">return</span> <span class="n">get</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">typ</span><span class="p">)</span>
 
     <span class="k">try</span><span class="p">:</span>
-        <span class="k">yield</span> <span class="n">get</span><span class="p">,</span> <span class="n">optional_get</span>
+        <span class="k">yield</span> <span class="n">get</span><span class="p">,</span> <span class="n">optional_get</span>  <span class="c1"># type: ignore</span>
     <span class="k">finally</span><span class="p">:</span>
         <span class="n">ensure_keys_in_dict</span><span class="p">(</span><span class="n">mapping</span><span class="p">,</span> <span class="n">keys</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">ensure_empty</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">all_keys_requested</span><span class="p">)</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">mapping</span><span class="p">):</span>
@@ -1043,17 +1069,6 @@
         <span class="n">psef</span><span class="o">.</span><span class="n">errors</span><span class="o">.</span><span class="n">APICodes</span><span class="o">.</span><span class="n">INVALID_PARAM</span><span class="p">,</span>
         <span class="mi">400</span><span class="p">,</span>
     <span class="p">)</span></div>
-
-
-<div class="viewcode-block" id="make_empty_response"><a class="viewcode-back" href="../../psef_api/psef.html#psef.helpers.make_empty_response">[docs]</a><span class="k">def</span> <span class="nf">make_empty_response</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">EmptyResponse</span><span class="p">:</span>
-    <span class="sd">&quot;&quot;&quot;Create an empty response.</span>
-
-<span class="sd">    :returns: A empty response with status code 204</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">response</span> <span class="o">=</span> <span class="n">flask</span><span class="o">.</span><span class="n">make_response</span><span class="p">(</span><span class="s1">&#39;&#39;</span><span class="p">)</span>
-    <span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="o">=</span> <span class="mi">204</span>
-
-    <span class="k">return</span> <span class="n">response</span></div>
 
 
 <div class="viewcode-block" id="human_readable_size"><a class="viewcode-back" href="../../psef_api/psef.html#psef.helpers.human_readable_size">[docs]</a><span class="k">def</span> <span class="nf">human_readable_size</span><span class="p">(</span><span class="n">size</span><span class="p">:</span> <span class="s1">&#39;psef.archive.FileSize&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
@@ -1500,11 +1515,11 @@
         <span class="p">)</span>
 
 <div class="viewcode-block" id="BrokerSession.request"><a class="viewcode-back" href="../../psef_api/psef.html#psef.helpers.BrokerSession.request">[docs]</a>    <span class="k">def</span> <span class="nf">request</span><span class="p">(</span>  <span class="c1"># pylint: disable=arguments-differ</span>
-        <span class="bp">self</span><span class="p">,</span> <span class="n">method</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Any</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Any</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">method</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">url</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">,</span> <span class="n">t</span><span class="o">.</span><span class="n">Text</span><span class="p">],</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Any</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Any</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">requests</span><span class="o">.</span><span class="n">Response</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Do a request to the AutoTest broker.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">url</span> <span class="o">=</span> <span class="n">urllib</span><span class="o">.</span><span class="n">parse</span><span class="o">.</span><span class="n">urljoin</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">broker_base</span><span class="p">,</span> <span class="n">url</span><span class="p">)</span>
+        <span class="n">url</span> <span class="o">=</span> <span class="n">urllib</span><span class="o">.</span><span class="n">parse</span><span class="o">.</span><span class="n">urljoin</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">broker_base</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">url</span><span class="p">))</span>
         <span class="k">if</span> <span class="s1">&#39;timeout&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
             <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;timeout&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">10</span>
         <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">request</span><span class="p">(</span><span class="n">method</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div></div>

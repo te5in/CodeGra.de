@@ -217,9 +217,9 @@
     <span class="kn">from</span> <span class="nn">config</span> <span class="kn">import</span> <span class="n">FlaskConfig</span>
     <span class="kn">from</span> <span class="nn">flask</span> <span class="kn">import</span> <span class="n">Flask</span>
 
-    <span class="n">current_app</span><span class="p">:</span> <span class="s1">&#39;psef.Flask&#39;</span>
+    <span class="n">current_app</span><span class="p">:</span> <span class="s1">&#39;PsefFlask&#39;</span>
 <span class="k">else</span><span class="p">:</span>
-    <span class="kn">from</span> <span class="nn">flask</span> <span class="kn">import</span> <span class="n">Flask</span><span class="p">,</span> <span class="n">current_app</span>
+    <span class="kn">from</span> <span class="nn">flask</span> <span class="kn">import</span> <span class="n">Flask</span><span class="p">,</span> <span class="n">current_app</span>  <span class="c1"># type: ignore</span>
 
 
 <div class="viewcode-block" id="PsefFlask"><a class="viewcode-back" href="../psef_api/psef.html#psef.PsefFlask">[docs]</a><span class="k">class</span> <span class="nc">PsefFlask</span><span class="p">(</span><span class="n">Flask</span><span class="p">):</span>
@@ -236,7 +236,7 @@
     <span class="k">def</span> <span class="nf">max_single_file_size</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;psef.archive.FileSize&#39;</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;The maximum allowed size for a single file.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;MAX_FILE_SIZE&#39;</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">archive</span><span class="o">.</span><span class="n">FileSize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;MAX_FILE_SIZE&#39;</span><span class="p">])</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">max_file_size</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;psef.archive.FileSize&#39;</span><span class="p">:</span>
@@ -244,7 +244,7 @@
 
 <span class="sd">        .. note:: An individual file has a different limit!</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;MAX_NORMAL_UPLOAD_SIZE&#39;</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">archive</span><span class="o">.</span><span class="n">FileSize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;MAX_NORMAL_UPLOAD_SIZE&#39;</span><span class="p">])</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">max_large_file_size</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;psef.archive.FileSize&#39;</span><span class="p">:</span>
@@ -252,7 +252,7 @@
 
 <span class="sd">        .. note:: An individual file has a different limit!</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;MAX_LARGE_UPLOAD_SIZE&#39;</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">archive</span><span class="o">.</span><span class="n">FileSize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;MAX_LARGE_UPLOAD_SIZE&#39;</span><span class="p">])</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">do_sanity_checks</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
@@ -269,6 +269,8 @@
 
 <span class="n">_current_tester</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># pylint: disable=invalid-name</span>
 <span class="n">current_tester</span> <span class="o">=</span> <span class="n">LocalProxy</span><span class="p">(</span><span class="k">lambda</span><span class="p">:</span> <span class="n">_current_tester</span><span class="p">)</span>  <span class="c1"># pylint: disable=invalid-name</span>
+
+<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">archive</span>  <span class="c1"># isort:skip, pylint: disable=wrong-import-position</span>
 
 
 <div class="viewcode-block" id="enable_testing"><a class="viewcode-back" href="../psef_api/psef.html#psef.enable_testing">[docs]</a><span class="k">def</span> <span class="nf">enable_testing</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
@@ -310,6 +312,7 @@
 <span class="sd">    :param skip_celery: Set to true to disable sanity checks for celery.</span>
 <span class="sd">    :returns: A new psef app object.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># pylint: disable=import-outside-toplevel</span>
     <span class="kn">import</span> <span class="nn">config</span> <span class="k">as</span> <span class="nn">global_config</span>
 
     <span class="n">resulting_app</span> <span class="o">=</span> <span class="n">PsefFlask</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>

@@ -247,7 +247,7 @@
 <span class="sd">        :returns: A response with the JSON serialized error as content.</span>
 <span class="sd">        :rtype: flask.Response</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">models</span>
+        <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">models</span>  <span class="c1"># pylint: disable=import-outside-toplevel</span>
         <span class="n">models</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">expire_all</span><span class="p">()</span>
 
         <span class="n">response</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">Any</span><span class="p">,</span> <span class="n">jsonify</span><span class="p">(</span><span class="n">error</span><span class="p">))</span>
@@ -265,7 +265,7 @@
 
     <span class="nd">@app</span><span class="o">.</span><span class="n">errorhandler</span><span class="p">(</span><span class="mi">404</span><span class="p">)</span>
     <span class="k">def</span> <span class="nf">handle_404</span><span class="p">(</span><span class="n">_</span><span class="p">:</span> <span class="nb">object</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>  <span class="c1"># pylint: disable=unused-variable; #pragma: no cover</span>
-        <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">models</span>
+        <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">models</span>  <span class="c1"># pylint: disable=import-outside-toplevel</span>
         <span class="n">models</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">expire_all</span><span class="p">()</span>
 
         <span class="n">api_exp</span> <span class="o">=</span> <span class="n">APIException</span><span class="p">(</span>
@@ -285,7 +285,7 @@
 <span class="sd">        This function should never really be called, as it means our code</span>
 <span class="sd">        contains a bug.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">models</span>
+        <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">models</span>  <span class="c1"># pylint: disable=import-outside-toplevel</span>
         <span class="n">models</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">expire_all</span><span class="p">()</span>
 
         <span class="n">api_exp</span> <span class="o">=</span> <span class="n">APIException</span><span class="p">(</span>

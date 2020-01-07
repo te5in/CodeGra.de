@@ -213,7 +213,6 @@
 <span class="kn">from</span> <span class="nn">dataclasses</span> <span class="kn">import</span> <span class="n">dataclass</span>
 
 <span class="kn">import</span> <span class="nn">structlog</span>
-<span class="kn">import</span> <span class="nn">typing_extensions</span>
 
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">app</span><span class="p">,</span> <span class="n">helpers</span>
 <span class="kn">from</span> <span class="nn">.helpers</span> <span class="kn">import</span> <span class="n">register</span>
@@ -291,7 +290,7 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__to_json__</span><span class="p">()</span></div>
 
 
-<div class="viewcode-block" id="SubmissionFilter"><a class="viewcode-back" href="../../psef_api/psef.html#psef.ignore.SubmissionFilter">[docs]</a><span class="k">class</span> <span class="nc">SubmissionFilter</span><span class="p">(</span><span class="n">typing_extensions</span><span class="o">.</span><span class="n">Protocol</span><span class="p">):</span>
+<div class="viewcode-block" id="SubmissionFilter"><a class="viewcode-back" href="../../psef_api/psef.html#psef.ignore.SubmissionFilter">[docs]</a><span class="k">class</span> <span class="nc">SubmissionFilter</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot;Class representing the base submission filter.</span>
 
 <span class="sd">    This filters a submission, and checks if the resulting submission is valid.</span>
@@ -444,8 +443,6 @@
     <span class="n">CGIGNORE_VERSION</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
 
 <div class="viewcode-block" id="EmptySubmissionFilter.parse"><a class="viewcode-back" href="../../psef_api/psef.html#psef.ignore.EmptySubmissionFilter.parse">[docs]</a>    <span class="nd">@classmethod</span>
-    <span class="c1"># type: ignore</span>
-    <span class="c1"># Known Mypy issue: https://github.com/python/mypy/issues/2511</span>
     <span class="k">def</span> <span class="nf">parse</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="s1">&#39;helpers.JSONType&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;EmptySubmissionFilter&#39;</span><span class="p">:</span>
         <span class="k">return</span> <span class="bp">cls</span><span class="p">()</span></div>
 
@@ -623,13 +620,13 @@
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">global_filters</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">t</span><span class="o">.</span><span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">]],</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">global_filters</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
             <span class="n">global_filters</span> <span class="o">=</span> <span class="n">global_filters</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_filter</span> <span class="o">=</span> <span class="n">IgnoreFilter</span><span class="p">(</span><span class="n">global_filters</span><span class="p">)</span>
 
 <div class="viewcode-block" id="IgnoreFilterManager.parse"><a class="viewcode-back" href="../../psef_api/psef.html#psef.ignore.IgnoreFilterManager.parse">[docs]</a>    <span class="nd">@classmethod</span>
-    <span class="c1"># type: ignore</span>
-    <span class="c1"># Known Mypy issue: https://github.com/python/mypy/issues/2511</span>
     <span class="k">def</span> <span class="nf">parse</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="s1">&#39;helpers.JSONType&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;IgnoreFilterManager&#39;</span><span class="p">:</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
             <span class="k">raise</span> <span class="n">ParseError</span><span class="p">(</span><span class="s1">&#39;CGIgnore version 1 should be given as a string.&#39;</span><span class="p">)</span>
@@ -1057,8 +1054,6 @@
         <span class="n">allow_all_files</span> <span class="o">=</span> <span class="n">enum</span><span class="o">.</span><span class="n">auto</span><span class="p">()</span></div>
 
 <div class="viewcode-block" id="SubmissionValidator.parse"><a class="viewcode-back" href="../../psef_api/psef.html#psef.ignore.SubmissionValidator.parse">[docs]</a>    <span class="nd">@classmethod</span>
-    <span class="c1"># type: ignore</span>
-    <span class="c1"># Known Mypy issue: https://github.com/python/mypy/issues/2511</span>
     <span class="k">def</span> <span class="nf">parse</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="s1">&#39;helpers.JSONType&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;SubmissionValidator&#39;</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Parse and validate the given data as a config for the validator.</span>
 
@@ -1143,6 +1138,7 @@
         <span class="n">rules</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="n">FileRule</span><span class="p">],</span>
         <span class="n">data</span><span class="p">:</span> <span class="s1">&#39;helpers.JSONType&#39;</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">policy</span> <span class="o">=</span> <span class="n">policy</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">options</span> <span class="o">=</span> <span class="n">options</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">rules</span> <span class="o">=</span> <span class="n">rules</span>

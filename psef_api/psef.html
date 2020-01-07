@@ -2324,7 +2324,7 @@ directory.</td>
 <p>A session to use when doing requests to the AutoTest broker.</p>
 <dl class="method">
 <dt id="psef.helpers.BrokerSession.request">
-<code class="descname">request</code><span class="sig-paren">(</span><em>self</em>, <em>method: str</em>, <em>url: str</em>, <em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span> &#x2192; requests.models.Response<a class="reference internal" href="../_modules/psef/helpers.html#BrokerSession.request"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.helpers.BrokerSession.request" title="Permalink to this definition">¶</a></dt>
+<code class="descname">request</code><span class="sig-paren">(</span><em>self, method: str, url: Union[str, bytes], *args, **kwargs</em><span class="sig-paren">)</span> &#x2192; requests.models.Response<a class="reference internal" href="../_modules/psef/helpers.html#BrokerSession.request"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.helpers.BrokerSession.request" title="Permalink to this definition">¶</a></dt>
 <dd><p>Do a request to the AutoTest broker.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -2352,20 +2352,6 @@ directory.</td>
 <em class="property">class </em><code class="descclassname">psef.helpers.</code><code class="descname">Dividable</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/psef/helpers.html#Dividable"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.helpers.Dividable" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">typing_extensions.Protocol</span></code></p>
 <p>A protocol that for dividable variables.</p>
-</dd></dl>
-
-<dl class="class">
-<dt id="psef.helpers.EmptyResponse">
-<em class="property">class </em><code class="descclassname">psef.helpers.</code><code class="descname">EmptyResponse</code><span class="sig-paren">(</span><em>self</em><span class="sig-paren">)</span> &#x2192; None<a class="reference internal" href="../_modules/psef/helpers.html#EmptyResponse"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.helpers.EmptyResponse" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
-<p>An empty response.</p>
-<p>This is a subtype of <a class="reference external" href="https://werkzeug.palletsprojects.com/en/0.16.x/wrappers/#werkzeug.wrappers.Response" title="(in Werkzeug v0.16.x)"><code class="xref py py-class docutils literal notranslate"><span class="pre">werkzeug.wrappers.Response</span></code></a> where the body
-is empty and the status code is always 204.</p>
-<div class="admonition warning">
-<p class="first admonition-title">Warning</p>
-<p class="last">This class is only used for type hinting and is never actually used! It
-does not contain any valid data!</p>
-</div>
 </dd></dl>
 
 <dl class="class">
@@ -2654,6 +2640,21 @@ method.</p>
 <dt id="psef.helpers.T">
 <code class="descclassname">psef.helpers.</code><code class="descname">T</code><em class="property"> = ~T</em><a class="headerlink" href="#psef.helpers.T" title="Permalink to this definition">¶</a></dt>
 <dd><p>Type vars</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="psef.helpers.TransactionGet">
+<em class="property">class </em><code class="descclassname">psef.helpers.</code><code class="descname">TransactionGet</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/psef/helpers.html#TransactionGet"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.helpers.TransactionGet" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">typing_extensions.Protocol</span></code></p>
+<p>Protocol for a function to get something with a given type from a map.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="psef.helpers.TransactionOptionalGet">
+<em class="property">class </em><code class="descclassname">psef.helpers.</code><code class="descname">TransactionOptionalGet</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/psef/helpers.html#TransactionOptionalGet"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.helpers.TransactionOptionalGet" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">typing_extensions.Protocol</span></code></p>
+<p>Protocol for a function to optionally get something with a given type
+from a map.</p>
 </dd></dl>
 
 <dl class="function">
@@ -3164,7 +3165,7 @@ the length of <code class="docutils literal notranslate"><span class="pre">keys<
 
 <dl class="function">
 <dt id="psef.helpers.get_from_map_transaction">
-<code class="descclassname">psef.helpers.</code><code class="descname">get_from_map_transaction</code><span class="sig-paren">(</span><em>mapping: Mapping[T, TT], *, ensure_empty: bool = False</em><span class="sig-paren">)</span> &#x2192; Generator[Tuple[Callable[[T, Type[TTT]], TTT], Callable[[T, Type[TTT], ZZ], Union[TTT, ZZ]]], None, None]<a class="reference internal" href="../_modules/psef/helpers.html#get_from_map_transaction"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.helpers.get_from_map_transaction" title="Permalink to this definition">¶</a></dt>
+<code class="descclassname">psef.helpers.</code><code class="descname">get_from_map_transaction</code><span class="sig-paren">(</span><em>mapping: Mapping[T, TT], *, ensure_empty: bool = False</em><span class="sig-paren">)</span> &#x2192; Generator[Tuple[psef.helpers.TransactionGet[~T][T], psef.helpers.TransactionOptionalGet[~T][T]], None, None]<a class="reference internal" href="../_modules/psef/helpers.html#get_from_map_transaction"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.helpers.get_from_map_transaction" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get from the given map in a transaction like style.</p>
 <p>If all gets and optional gets succeed at the end of the <code class="docutils literal notranslate"><span class="pre">with</span></code> block no
 exception will be raised. However, as soon as one fails we continue with
@@ -3180,7 +3181,7 @@ than requested.</li>
 </ul>
 </td>
 </tr>
-<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body"><p class="first"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Generator" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Generator</span></code></a>[<code class="xref py py-class docutils literal notranslate"><span class="pre">tuple</span></code>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Callable</span></code></a>[[<a class="reference internal" href="#psef.helpers.T" title="psef.helpers.T"><code class="xref py py-class docutils literal notranslate"><span class="pre">T</span></code></a>, <code class="xref py py-class docutils literal notranslate"><span class="pre">type</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">TTT</span></code>]], <code class="xref py py-class docutils literal notranslate"><span class="pre">TTT</span></code>], <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Callable</span></code></a>[[<a class="reference internal" href="#psef.helpers.T" title="psef.helpers.T"><code class="xref py py-class docutils literal notranslate"><span class="pre">T</span></code></a>, <code class="xref py py-class docutils literal notranslate"><span class="pre">type</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">TTT</span></code>], <code class="xref py py-class docutils literal notranslate"><span class="pre">ZZ</span></code>], <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code></a>[<code class="xref py py-class docutils literal notranslate"><span class="pre">TTT</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">ZZ</span></code>]]], <code class="docutils literal notranslate"><span class="pre">None</span></code>, <code class="docutils literal notranslate"><span class="pre">None</span></code>]</p>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body"><p class="first"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Generator" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Generator</span></code></a>[<code class="xref py py-class docutils literal notranslate"><span class="pre">tuple</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">TransactionGet</span></code>[<a class="reference internal" href="#psef.helpers.T" title="psef.helpers.T"><code class="xref py py-class docutils literal notranslate"><span class="pre">T</span></code></a>], <code class="xref py py-class docutils literal notranslate"><span class="pre">TransactionOptionalGet</span></code>[<a class="reference internal" href="#psef.helpers.T" title="psef.helpers.T"><code class="xref py py-class docutils literal notranslate"><span class="pre">T</span></code></a>]], <code class="docutils literal notranslate"><span class="pre">None</span></code>, <code class="docutils literal notranslate"><span class="pre">None</span></code>]</p>
 </td>
 </tr>
 <tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">A tuple of two functions. The first function takes a key and type
@@ -3449,22 +3450,6 @@ lookup tables.</p>
 </dd></dl>
 
 <dl class="function">
-<dt id="psef.helpers.make_empty_response">
-<code class="descclassname">psef.helpers.</code><code class="descname">make_empty_response</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; psef.helpers.EmptyResponse<a class="reference internal" href="../_modules/psef/helpers.html#make_empty_response"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.helpers.make_empty_response" title="Permalink to this definition">¶</a></dt>
-<dd><p>Create an empty response.</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><a class="reference internal" href="#psef.helpers.EmptyResponse" title="psef.helpers.EmptyResponse"><code class="xref py py-class docutils literal notranslate"><span class="pre">EmptyResponse</span></code></a></td>
-</tr>
-<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">A empty response with status code 204</td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
-
-<dl class="function">
 <dt id="psef.helpers.maybe_apply_sql_slice">
 <code class="descclassname">psef.helpers.</code><code class="descname">maybe_apply_sql_slice</code><span class="sig-paren">(</span><em>sql: cg_sqlalchemy_helpers.types.MyQuery[~T][T]</em><span class="sig-paren">)</span> &#x2192; cg_sqlalchemy_helpers.types.MyQuery[~T][T]<a class="reference internal" href="../_modules/psef/helpers.html#maybe_apply_sql_slice"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.helpers.maybe_apply_sql_slice" title="Permalink to this definition">¶</a></dt>
 <dd><p>Slice the given query if <code class="docutils literal notranslate"><span class="pre">limit</span></code> is given in the request args.</p>
@@ -3692,7 +3677,7 @@ AssertionError
 
 <dl class="class">
 <dt id="psef.ignore.EmptySubmissionFilter">
-<em class="property">class </em><code class="descclassname">psef.ignore.</code><code class="descname">EmptySubmissionFilter</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/psef/ignore.html#EmptySubmissionFilter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.ignore.EmptySubmissionFilter" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="descclassname">psef.ignore.</code><code class="descname">EmptySubmissionFilter</code><a class="reference internal" href="../_modules/psef/ignore.html#EmptySubmissionFilter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.ignore.EmptySubmissionFilter" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <a class="reference internal" href="#psef.ignore.SubmissionFilter" title="psef.ignore.SubmissionFilter"><code class="xref py py-class docutils literal notranslate"><span class="pre">psef.ignore.SubmissionFilter</span></code></a></p>
 <p>A <a class="reference internal" href="#psef.ignore.SubmissionFilter" title="psef.ignore.SubmissionFilter"><code class="xref py py-class docutils literal notranslate"><span class="pre">SubmissionFilter</span></code></a> that does nothing.</p>
 <p>This filter allows all files, and all submissions are seen as valid.</p>
@@ -4252,8 +4237,8 @@ to cope with features in Git ignore patterns.</p>
 
 <dl class="class">
 <dt id="psef.ignore.SubmissionFilter">
-<em class="property">class </em><code class="descclassname">psef.ignore.</code><code class="descname">SubmissionFilter</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/psef/ignore.html#SubmissionFilter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.ignore.SubmissionFilter" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">typing_extensions.Protocol</span></code></p>
+<em class="property">class </em><code class="descclassname">psef.ignore.</code><code class="descname">SubmissionFilter</code><a class="reference internal" href="../_modules/psef/ignore.html#SubmissionFilter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.ignore.SubmissionFilter" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
 <p>Class representing the base submission filter.</p>
 <p>This filters a submission, and checks if the resulting submission is valid.</p>
 <dl class="attribute">
@@ -10494,13 +10479,13 @@ this run. This is used for authentication purposes.</td>
 
 <dl class="method">
 <dt id="psef.models.auto_test.AutoTestRun.get_instructions">
-<code class="descname">get_instructions</code><span class="sig-paren">(</span><em>self</em>, <em>for_runner: psef.models.auto_test.AutoTestRunner</em><span class="sig-paren">)</span> &#x2192; importlib._bootstrap.RunnerInstructions<a class="reference internal" href="../_modules/psef/models/auto_test.html#AutoTestRun.get_instructions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.auto_test.AutoTestRun.get_instructions" title="Permalink to this definition">¶</a></dt>
+<code class="descname">get_instructions</code><span class="sig-paren">(</span><em>self</em>, <em>for_runner: psef.models.auto_test.AutoTestRunner</em><span class="sig-paren">)</span> &#x2192; psef.auto_test.RunnerInstructions<a class="reference internal" href="../_modules/psef/models/auto_test.html#AutoTestRun.get_instructions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.auto_test.AutoTestRun.get_instructions" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get the instructions to run this AutoTestRun.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><code class="xref py py-class docutils literal notranslate"><span class="pre">RunnerInstructions</span></code></td>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><a class="reference internal" href="#psef.auto_test.RunnerInstructions" title="psef.auto_test.RunnerInstructions"><code class="xref py py-class docutils literal notranslate"><span class="pre">RunnerInstructions</span></code></a></td>
 </tr>
 </tbody>
 </table>
@@ -10711,13 +10696,13 @@ this case it is replaced by a new runner.</p>
 <p>This class represents a set (also known as level) of an AutoTest.</p>
 <dl class="method">
 <dt id="psef.models.auto_test.AutoTestSet.get_instructions">
-<code class="descname">get_instructions</code><span class="sig-paren">(</span><em>self</em>, <em>run: psef.models.auto_test.AutoTestRun</em><span class="sig-paren">)</span> &#x2192; importlib._bootstrap.SetInstructions<a class="reference internal" href="../_modules/psef/models/auto_test.html#AutoTestSet.get_instructions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.auto_test.AutoTestSet.get_instructions" title="Permalink to this definition">¶</a></dt>
+<code class="descname">get_instructions</code><span class="sig-paren">(</span><em>self</em>, <em>run: psef.models.auto_test.AutoTestRun</em><span class="sig-paren">)</span> &#x2192; psef.auto_test.SetInstructions<a class="reference internal" href="../_modules/psef/models/auto_test.html#AutoTestSet.get_instructions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.auto_test.AutoTestSet.get_instructions" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get the instructions to run this set.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><code class="xref py py-class docutils literal notranslate"><span class="pre">SetInstructions</span></code></td>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><a class="reference internal" href="#psef.auto_test.SetInstructions" title="psef.auto_test.SetInstructions"><code class="xref py py-class docutils literal notranslate"><span class="pre">SetInstructions</span></code></a></td>
 </tr>
 </tbody>
 </table>
@@ -10732,13 +10717,13 @@ this case it is replaced by a new runner.</p>
 <p>This class represents a Suite (also known as category) in an AutoTest.</p>
 <dl class="method">
 <dt id="psef.models.auto_test.AutoTestSuite.get_instructions">
-<code class="descname">get_instructions</code><span class="sig-paren">(</span><em>self</em>, <em>run: psef.models.auto_test.AutoTestRun</em><span class="sig-paren">)</span> &#x2192; importlib._bootstrap.SuiteInstructions<a class="reference internal" href="../_modules/psef/models/auto_test.html#AutoTestSuite.get_instructions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.auto_test.AutoTestSuite.get_instructions" title="Permalink to this definition">¶</a></dt>
+<code class="descname">get_instructions</code><span class="sig-paren">(</span><em>self</em>, <em>run: psef.models.auto_test.AutoTestRun</em><span class="sig-paren">)</span> &#x2192; psef.auto_test.SuiteInstructions<a class="reference internal" href="../_modules/psef/models/auto_test.html#AutoTestSuite.get_instructions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.auto_test.AutoTestSuite.get_instructions" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get the instructions to run this suite.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><code class="xref py py-class docutils literal notranslate"><span class="pre">SuiteInstructions</span></code></td>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><a class="reference internal" href="#psef.auto_test.SuiteInstructions" title="psef.auto_test.SuiteInstructions"><code class="xref py py-class docutils literal notranslate"><span class="pre">SuiteInstructions</span></code></a></td>
 </tr>
 </tbody>
 </table>
@@ -11977,7 +11962,7 @@ generated if not provided.</td>
 
 <dl class="class">
 <dt id="psef.auto_test.AutoTestRunner">
-<em class="property">class </em><code class="descclassname">psef.auto_test.</code><code class="descname">AutoTestRunner</code><span class="sig-paren">(</span><em>self</em>, <em>base_url: NewType.&lt;locals&gt;.new_type</em>, <em>instructions: importlib._bootstrap.RunnerInstructions</em>, <em>global_password: str</em>, <em>config: psef.FlaskConfig</em><span class="sig-paren">)</span> &#x2192; None<a class="reference internal" href="../_modules/psef/auto_test.html#AutoTestRunner"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.auto_test.AutoTestRunner" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="descclassname">psef.auto_test.</code><code class="descname">AutoTestRunner</code><span class="sig-paren">(</span><em>self</em>, <em>base_url: NewType.&lt;locals&gt;.new_type</em>, <em>instructions: psef.auto_test.RunnerInstructions</em>, <em>global_password: str</em>, <em>config: psef.FlaskConfig</em><span class="sig-paren">)</span> &#x2192; None<a class="reference internal" href="../_modules/psef/auto_test.html#AutoTestRunner"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.auto_test.AutoTestRunner" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
 <p>This class contains all functionality needed to run a single AutoTest.</p>
 <dl class="method">
@@ -12199,7 +12184,7 @@ after the call.</p>
 
 <dl class="class">
 <dt id="psef.auto_test.ExecuteOptions">
-<em class="property">class </em><code class="descclassname">psef.auto_test.</code><code class="descname">ExecuteOptions</code><span class="sig-paren">(</span><em>self</em>, <em>update_test_result: psef.auto_test.UpdateResultFunction</em>, <em>test_instructions: importlib._bootstrap.StepInstructions</em>, <em>achieved_percentage: float</em>, <em>yield_core: psef.auto_test.YieldCoreCallback</em><span class="sig-paren">)</span> &#x2192; None<a class="reference internal" href="../_modules/psef/auto_test.html#ExecuteOptions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.auto_test.ExecuteOptions" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="descclassname">psef.auto_test.</code><code class="descname">ExecuteOptions</code><span class="sig-paren">(</span><em>self</em>, <em>update_test_result: psef.auto_test.UpdateResultFunction</em>, <em>test_instructions: psef.auto_test.StepInstructions</em>, <em>achieved_percentage: float</em>, <em>yield_core: psef.auto_test.YieldCoreCallback</em><span class="sig-paren">)</span> &#x2192; None<a class="reference internal" href="../_modules/psef/auto_test.html#ExecuteOptions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.auto_test.ExecuteOptions" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
 <p>Options passed to the steps when executing them.</p>
 <table class="docutils field-list" frame="void" rules="none">
@@ -12271,6 +12256,55 @@ container back up.</li>
 <p>This class represents the tail of an output stream.</p>
 <p>If <code class="docutils literal notranslate"><span class="pre">overflowed</span></code> is <code class="docutils literal notranslate"><span class="pre">True</span></code> there was even more data captured, but this
 was thrown away.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="psef.auto_test.RunnerInstructions">
+<em class="property">class </em><code class="descclassname">psef.auto_test.</code><code class="descname">RunnerInstructions</code><a class="reference internal" href="../_modules/psef/auto_test.html#RunnerInstructions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.auto_test.RunnerInstructions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code></a></p>
+<p>Instructions for a complete auto test run.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Variables:</th><td class="field-body"><ul class="first last simple">
+<li><strong>runner_id</strong> – The id of this runner.</li>
+<li><strong>run_id</strong> – The id of this auto test run.</li>
+<li><strong>auto_test_id</strong> – The id of this AutoTest configuration.</li>
+<li><strong>result_ids</strong> – The ids of the results this runner should produce. These
+can be seen as submissions.</li>
+<li><strong>sets</strong> – The sets that this AutoTest configuration contain.</li>
+<li><strong>setup_script</strong> – The setup script that should be run for each student.</li>
+<li><strong>run_setup_script</strong> – The setup script that should be run once.</li>
+<li><strong>heartbeat_interval</strong> – The interval in seconds to send heartbeats in.</li>
+<li><strong>fixtures</strong> – A list of tuples where the first item is the name of the
+fixture and the second item is its id.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="class">
+<dt id="psef.auto_test.SetInstructions">
+<em class="property">class </em><code class="descclassname">psef.auto_test.</code><code class="descname">SetInstructions</code><a class="reference internal" href="../_modules/psef/auto_test.html#SetInstructions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.auto_test.SetInstructions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code></a></p>
+<p>Instructions for a single AutoTest set.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Variables:</th><td class="field-body"><ul class="first last simple">
+<li><strong>id</strong> – The id of this set.</li>
+<li><strong>suites</strong> – The suites of this set.</li>
+<li><strong>stop_points</strong> – The minimum amount of points that we should have to be
+able to continue running sets.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 <dl class="class">
@@ -12501,6 +12535,30 @@ time taken by the command.</p>
 
 </dd></dl>
 
+<dl class="class">
+<dt id="psef.auto_test.StepInstructions">
+<em class="property">class </em><code class="descclassname">psef.auto_test.</code><code class="descname">StepInstructions</code><a class="reference internal" href="../_modules/psef/auto_test.html#StepInstructions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.auto_test.StepInstructions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code></a></p>
+<p>Instructions on how to run a single AutoTest step.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Variables:</th><td class="field-body"><ul class="first last simple">
+<li><strong>id</strong> – The id of the step.</li>
+<li><a class="reference internal" href="#psef.models.auto_test_step.AutoTestStepBase.weight" title="psef.models.auto_test_step.AutoTestStepBase.weight"><strong>weight</strong></a> – The amount of points you can achieve with this step.</li>
+<li><strong>test_type_name</strong> – The type of step this is.</li>
+<li><a class="reference internal" href="#psef.models.auto_test_step.AutoTestStepBase.data" title="psef.models.auto_test_step.AutoTestStepBase.data"><strong>data</strong></a> – The data of this step, this contains stuff like which command
+to run and what output to expect.</li>
+<li><a class="reference internal" href="#psef.models.auto_test_step.AutoTestStepBase.command_time_limit" title="psef.models.auto_test_step.AutoTestStepBase.command_time_limit"><strong>command_time_limit</strong></a> – What is the maximum amount of time a command may
+run in this step.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
 <dl class="exception">
 <dt id="psef.auto_test.StopContainerException">
 <em class="property">exception </em><code class="descclassname">psef.auto_test.</code><code class="descname">StopContainerException</code><a class="reference internal" href="../_modules/psef/auto_test.html#StopContainerException"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.auto_test.StopContainerException" title="Permalink to this definition">¶</a></dt>
@@ -12526,6 +12584,26 @@ running.</p>
 <em class="property">class </em><code class="descclassname">psef.auto_test.</code><code class="descname">StudentCommandResult</code><span class="sig-paren">(</span><em>self</em>, <em>exit_code: int</em>, <em>stdout: str</em>, <em>stderr: str</em>, <em>time_spend: float</em>, <em>stdout_tail: psef.auto_test.OutputTail</em><span class="sig-paren">)</span> &#x2192; None<a class="reference internal" href="../_modules/psef/auto_test.html#StudentCommandResult"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.auto_test.StudentCommandResult" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
 <p>The result of a student command.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="psef.auto_test.SuiteInstructions">
+<em class="property">class </em><code class="descclassname">psef.auto_test.</code><code class="descname">SuiteInstructions</code><a class="reference internal" href="../_modules/psef/auto_test.html#SuiteInstructions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.auto_test.SuiteInstructions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code></a></p>
+<p>Instructions on how to run a single AutoTest suite.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Variables:</th><td class="field-body"><ul class="first last simple">
+<li><strong>id</strong> – The id of the suite.</li>
+<li><strong>steps</strong> – The steps of this suite.</li>
+<li><strong>network_disabled</strong> – Should this suite be run with networking disabled.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 <dl class="class">
