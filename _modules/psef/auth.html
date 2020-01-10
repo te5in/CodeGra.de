@@ -210,6 +210,8 @@
 <span class="kn">from</span> <span class="nn">mypy_extensions</span> <span class="kn">import</span> <span class="n">NoReturn</span>
 
 <span class="kn">import</span> <span class="nn">psef</span>
+<span class="kn">from</span> <span class="nn">psef</span> <span class="kn">import</span> <span class="n">features</span>
+<span class="kn">from</span> <span class="nn">psef.helpers</span> <span class="kn">import</span> <span class="n">readable_join</span>
 <span class="kn">from</span> <span class="nn">psef.exceptions</span> <span class="kn">import</span> <span class="n">APICodes</span><span class="p">,</span> <span class="n">APIException</span><span class="p">,</span> <span class="n">PermissionException</span>
 
 <span class="kn">from</span> <span class="nn">.permissions</span> <span class="kn">import</span> <span class="n">CoursePermission</span> <span class="k">as</span> <span class="n">CPerm</span>
@@ -443,6 +445,50 @@
     <span class="k">if</span> <span class="ow">not</span> <span class="n">work</span><span class="o">.</span><span class="n">assignment</span><span class="o">.</span><span class="n">is_done</span><span class="p">:</span>
         <span class="n">ensure_permission</span><span class="p">(</span>
             <span class="n">CPerm</span><span class="o">.</span><span class="n">can_see_grade_before_open</span><span class="p">,</span> <span class="n">work</span><span class="o">.</span><span class="n">assignment</span><span class="o">.</span><span class="n">course_id</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="ensure_can_see_user_feedback"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auth.ensure_can_see_user_feedback">[docs]</a><span class="nd">@login_required</span>
+<span class="k">def</span> <span class="nf">ensure_can_see_user_feedback</span><span class="p">(</span><span class="n">work</span><span class="p">:</span> <span class="s1">&#39;psef.models.Work&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Ensure the current user can see the grade of the given work.</span>
+
+<span class="sd">    :param work: The work to check for.</span>
+
+<span class="sd">    :returns: Nothing</span>
+
+<span class="sd">    :raises PermissionException: If there is no logged in user. (NOT_LOGGED_IN)</span>
+<span class="sd">    :raises PermissionException: If the user can not see the grade.</span>
+<span class="sd">        (INCORRECT_PERMISSION)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">work</span><span class="o">.</span><span class="n">has_as_author</span><span class="p">(</span><span class="n">psef</span><span class="o">.</span><span class="n">current_user</span><span class="p">):</span>
+        <span class="n">ensure_permission</span><span class="p">(</span><span class="n">CPerm</span><span class="o">.</span><span class="n">can_see_others_work</span><span class="p">,</span> <span class="n">work</span><span class="o">.</span><span class="n">assignment</span><span class="o">.</span><span class="n">course_id</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">work</span><span class="o">.</span><span class="n">assignment</span><span class="o">.</span><span class="n">is_done</span><span class="p">:</span>
+        <span class="n">ensure_permission</span><span class="p">(</span>
+            <span class="n">CPerm</span><span class="o">.</span><span class="n">can_see_user_feedback_before_done</span><span class="p">,</span> <span class="n">work</span><span class="o">.</span><span class="n">assignment</span><span class="o">.</span><span class="n">course_id</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="ensure_can_see_linter_feedback"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auth.ensure_can_see_linter_feedback">[docs]</a><span class="nd">@login_required</span>
+<span class="nd">@features</span><span class="o">.</span><span class="n">feature_required</span><span class="p">(</span><span class="n">features</span><span class="o">.</span><span class="n">Feature</span><span class="o">.</span><span class="n">LINTERS</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">ensure_can_see_linter_feedback</span><span class="p">(</span><span class="n">work</span><span class="p">:</span> <span class="s1">&#39;psef.models.Work&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Ensure the current user can see the grade of the given work.</span>
+
+<span class="sd">    :param work: The work to check for.</span>
+
+<span class="sd">    :returns: Nothing</span>
+
+<span class="sd">    :raises PermissionException: If there is no logged in user. (NOT_LOGGED_IN)</span>
+<span class="sd">    :raises PermissionException: If the user can not see the grade.</span>
+<span class="sd">        (INCORRECT_PERMISSION)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">work</span><span class="o">.</span><span class="n">has_as_author</span><span class="p">(</span><span class="n">psef</span><span class="o">.</span><span class="n">current_user</span><span class="p">):</span>
+        <span class="n">ensure_permission</span><span class="p">(</span><span class="n">CPerm</span><span class="o">.</span><span class="n">can_see_others_work</span><span class="p">,</span> <span class="n">work</span><span class="o">.</span><span class="n">assignment</span><span class="o">.</span><span class="n">course_id</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">work</span><span class="o">.</span><span class="n">assignment</span><span class="o">.</span><span class="n">is_done</span><span class="p">:</span>
+        <span class="n">ensure_permission</span><span class="p">(</span>
+            <span class="n">CPerm</span><span class="o">.</span><span class="n">can_see_linter_feedback_before_done</span><span class="p">,</span>
+            <span class="n">work</span><span class="o">.</span><span class="n">assignment</span><span class="o">.</span><span class="n">course_id</span>
         <span class="p">)</span></div>
 
 
@@ -739,7 +785,8 @@
 
 <div class="viewcode-block" id="ensure_any_of_permissions"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auth.ensure_any_of_permissions">[docs]</a><span class="nd">@login_required</span>
 <span class="k">def</span> <span class="nf">ensure_any_of_permissions</span><span class="p">(</span>
-    <span class="n">permissions</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="n">CPerm</span><span class="p">],</span> <span class="n">course_id</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">permissions</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="n">CPerm</span><span class="p">],</span>
+    <span class="n">course_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot;Make sure that the current user has at least one of the given</span>
 <span class="sd">        permissions.</span>
@@ -759,11 +806,12 @@
             <span class="k">continue</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">return</span>
-    <span class="c1"># All checks raised a PermissionException</span>
+    <span class="c1"># All checks raised a PermissionException.</span>
     <span class="k">raise</span> <span class="n">PermissionException</span><span class="p">(</span>
         <span class="s1">&#39;You do not have permission to do this.&#39;</span><span class="p">,</span>
-        <span class="s1">&#39;None of the permissions &quot;</span><span class="si">{}</span><span class="s1">&quot; are not enabled for user &quot;</span><span class="si">{}</span><span class="s1">&quot;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
-            <span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">permissions</span><span class="p">),</span> <span class="n">psef</span><span class="o">.</span><span class="n">current_user</span><span class="o">.</span><span class="n">id</span>
+        <span class="s1">&#39;None of the permissions &quot;</span><span class="si">{}</span><span class="s1">&quot; are enabled for user &quot;</span><span class="si">{}</span><span class="s1">&quot;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="n">readable_join</span><span class="p">([</span><span class="n">p</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">permissions</span><span class="p">]),</span>
+            <span class="n">psef</span><span class="o">.</span><span class="n">current_user</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
         <span class="p">),</span> <span class="n">APICodes</span><span class="o">.</span><span class="n">INCORRECT_PERMISSION</span><span class="p">,</span> <span class="mi">403</span>
     <span class="p">)</span></div>
 

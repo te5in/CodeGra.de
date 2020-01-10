@@ -1059,7 +1059,7 @@
 <span class="sd">        .. note::</span>
 
 <span class="sd">            If the assignment is not yet done we check if the ``current_user``</span>
-<span class="sd">            has the permission ``can_see_grade_before_open``.</span>
+<span class="sd">            has the permission ``can_see_linter_feedback_before_done``.</span>
 
 <span class="sd">        :returns: True if there is an :py:class:`.AssignmentLinter` with name</span>
 <span class="sd">            ``MixedWhitespace`` and ``assignment_id``.</span>
@@ -1067,7 +1067,7 @@
         <span class="k">try</span><span class="p">:</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_done</span><span class="p">:</span>
                 <span class="n">auth</span><span class="o">.</span><span class="n">ensure_permission</span><span class="p">(</span>
-                    <span class="n">CPerm</span><span class="o">.</span><span class="n">can_see_grade_before_open</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">course_id</span>
+                    <span class="n">CPerm</span><span class="o">.</span><span class="n">can_see_linter_feedback_before_done</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">course_id</span>
                 <span class="p">)</span>
         <span class="k">except</span> <span class="n">PermissionException</span><span class="p">:</span>
             <span class="k">return</span> <span class="kc">False</span>

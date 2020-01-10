@@ -530,6 +530,34 @@ files.</td>
 </dd></dl>
 
 <dl class="function">
+<dt id="psef.auth.ensure_can_see_linter_feedback">
+<code class="descclassname">psef.auth.</code><code class="descname">ensure_can_see_linter_feedback</code><span class="sig-paren">(</span><em>work: psef.models.work.Work</em><span class="sig-paren">)</span> &#x2192; None<a class="reference internal" href="../_modules/psef/auth.html#ensure_can_see_linter_feedback"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.auth.ensure_can_see_linter_feedback" title="Permalink to this definition">¶</a></dt>
+<dd><p>Ensure the current user can see the grade of the given work.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>work</strong> (<a class="reference internal" href="#psef.models.work.Work" title="psef.models.work.Work"><code class="xref py py-class docutils literal notranslate"><span class="pre">Work</span></code></a>) – The work to check for.</p>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body"><p class="first"><code class="docutils literal notranslate"><span class="pre">None</span></code></p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">Nothing</p>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Raises:</th><td class="field-body"><ul class="first last simple">
+<li><a class="reference internal" href="#psef.exceptions.PermissionException" title="psef.exceptions.PermissionException"><strong>PermissionException</strong></a> – If there is no logged in user. (NOT_LOGGED_IN)</li>
+<li><a class="reference internal" href="#psef.exceptions.PermissionException" title="psef.exceptions.PermissionException"><strong>PermissionException</strong></a> – If the user can not see the grade.
+(INCORRECT_PERMISSION)</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
 <dt id="psef.auth.ensure_can_see_plagiarims_case">
 <code class="descclassname">psef.auth.</code><code class="descname">ensure_can_see_plagiarims_case</code><span class="sig-paren">(</span><em>case: psef.models.plagiarism.PlagiarismCase</em>, <em>assignments: bool = True</em>, <em>submissions: bool = True</em><span class="sig-paren">)</span> &#x2192; None<a class="reference internal" href="../_modules/psef/auth.html#ensure_can_see_plagiarims_case"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.auth.ensure_can_see_plagiarims_case" title="Permalink to this definition">¶</a></dt>
 <dd><p>Make sure the current user can see the given plagiarism case.</p>
@@ -549,6 +577,34 @@ cases.</li>
 </td>
 </tr>
 <tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">Nothing</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="psef.auth.ensure_can_see_user_feedback">
+<code class="descclassname">psef.auth.</code><code class="descname">ensure_can_see_user_feedback</code><span class="sig-paren">(</span><em>work: psef.models.work.Work</em><span class="sig-paren">)</span> &#x2192; None<a class="reference internal" href="../_modules/psef/auth.html#ensure_can_see_user_feedback"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.auth.ensure_can_see_user_feedback" title="Permalink to this definition">¶</a></dt>
+<dd><p>Ensure the current user can see the grade of the given work.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>work</strong> (<a class="reference internal" href="#psef.models.work.Work" title="psef.models.work.Work"><code class="xref py py-class docutils literal notranslate"><span class="pre">Work</span></code></a>) – The work to check for.</p>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body"><p class="first"><code class="docutils literal notranslate"><span class="pre">None</span></code></p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">Nothing</p>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Raises:</th><td class="field-body"><ul class="first last simple">
+<li><a class="reference internal" href="#psef.exceptions.PermissionException" title="psef.exceptions.PermissionException"><strong>PermissionException</strong></a> – If there is no logged in user. (NOT_LOGGED_IN)</li>
+<li><a class="reference internal" href="#psef.exceptions.PermissionException" title="psef.exceptions.PermissionException"><strong>PermissionException</strong></a> – If the user can not see the grade.
+(INCORRECT_PERMISSION)</li>
+</ul>
 </td>
 </tr>
 </tbody>
@@ -1223,6 +1279,13 @@ from this class.</li>
 <code class="descname">WEBHOOKS_DISABLED</code><em class="property"> = 12</em><a class="headerlink" href="#psef.exceptions.APIWarnings.WEBHOOKS_DISABLED" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
+</dd></dl>
+
+<dl class="exception">
+<dt id="psef.exceptions.FeatureException">
+<em class="property">exception </em><code class="descclassname">psef.exceptions.</code><code class="descname">FeatureException</code><span class="sig-paren">(</span><em>self</em>, <em>feature: Feature</em><span class="sig-paren">)</span> &#x2192; None<a class="reference internal" href="../_modules/psef/exceptions.html#FeatureException"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.exceptions.FeatureException" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#psef.exceptions.PermissionException" title="psef.exceptions.PermissionException"><code class="xref py py-class docutils literal notranslate"><span class="pre">psef.exceptions.PermissionException</span></code></a></p>
+<p>The exception used when a feature is not enabled.</p>
 </dd></dl>
 
 <dl class="exception">
@@ -7338,7 +7401,7 @@ id of the assignment.</p>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
 <p class="last">If the assignment is not yet done we check if the <code class="docutils literal notranslate"><span class="pre">current_user</span></code>
-has the permission <code class="docutils literal notranslate"><span class="pre">can_see_grade_before_open</span></code>.</p>
+has the permission <code class="docutils literal notranslate"><span class="pre">can_see_linter_feedback_before_done</span></code>.</p>
 </div>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -9726,25 +9789,6 @@ most of work.</p>
 </dd></dl>
 
 <dl class="method">
-<dt id="psef.models.work.Work.get_all_feedback">
-<code class="descname">get_all_feedback</code><span class="sig-paren">(</span><em>self</em><span class="sig-paren">)</span> &#x2192; Tuple[Iterable[str], Iterable[str]]<a class="reference internal" href="../_modules/psef/models/work.html#Work.get_all_feedback"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.work.Work.get_all_feedback" title="Permalink to this definition">¶</a></dt>
-<dd><p>Get all feedback for this work.</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><code class="xref py py-class docutils literal notranslate"><span class="pre">tuple</span></code>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Iterable" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Iterable</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>], <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Iterable" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Iterable</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>]]</td>
-</tr>
-<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">A tuple of two iterators both producing human readable
-representations of the given feedback. The first iterator produces
-the feedback given by a person and the second the feedback given by
-the linters.</td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
-
-<dl class="method">
 <dt id="psef.models.work.Work.get_file_children_mapping">
 <code class="descname">get_file_children_mapping</code><span class="sig-paren">(</span><em>self</em>, <em>exclude: psef.models.file.FileOwner</em><span class="sig-paren">)</span> &#x2192; Mapping[int, Sequence[psef.models.file.File]]<a class="reference internal" href="../_modules/psef/models/work.html#Work.get_file_children_mapping"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.work.Work.get_file_children_mapping" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get a mapping that maps a file id to all its children.</p>
@@ -9763,6 +9807,40 @@ all files.</p>
 </tr>
 <tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">A mapping from file id to list of all its children for this
 submission.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="psef.models.work.Work.get_linter_feedback">
+<code class="descname">get_linter_feedback</code><span class="sig-paren">(</span><em>self</em><span class="sig-paren">)</span> &#x2192; Iterable[str]<a class="reference internal" href="../_modules/psef/models/work.html#Work.get_linter_feedback"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.work.Work.get_linter_feedback" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get all linter feedback for this work.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Iterable" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Iterable</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>]</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">An iterator that produces the all feedback given on this work
+by linters.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="psef.models.work.Work.get_user_feedback">
+<code class="descname">get_user_feedback</code><span class="sig-paren">(</span><em>self</em><span class="sig-paren">)</span> &#x2192; Iterable[str]<a class="reference internal" href="../_modules/psef/models/work.html#Work.get_user_feedback"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.work.Work.get_user_feedback" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get all user given feedback for this work.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Iterable" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Iterable</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>]</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">An iterator producing human readable representations of the
+feedback given by a person.</td>
 </tr>
 </tbody>
 </table>
@@ -11518,6 +11596,8 @@ trees.</li>
 <li><a class="reference internal" href="#psef.permissions.CoursePermission.can_view_autotest_fixture" title="psef.permissions.CoursePermission.can_view_autotest_fixture"><strong>can_view_autotest_fixture</strong></a> – Users with this permission are allowed to see non hidden AutoTest fixtures</li>
 <li><a class="reference internal" href="#psef.permissions.CoursePermission.can_view_autotest_output_files_before_done" title="psef.permissions.CoursePermission.can_view_autotest_output_files_before_done"><strong>can_view_autotest_output_files_before_done</strong></a> – Users with this permission can view output files created during an AutoTest before the assignment state is “done”</li>
 <li><a class="reference internal" href="#psef.permissions.CoursePermission.can_delete_assignments" title="psef.permissions.CoursePermission.can_delete_assignments"><strong>can_delete_assignments</strong></a> – Users with this permission can delete assignments within this course.</li>
+<li><a class="reference internal" href="#psef.permissions.CoursePermission.can_see_linter_feedback_before_done" title="psef.permissions.CoursePermission.can_see_linter_feedback_before_done"><strong>can_see_linter_feedback_before_done</strong></a> – Users with this permission can see the output of linters before an assignment is set to “done”</li>
+<li><a class="reference internal" href="#psef.permissions.CoursePermission.can_see_user_feedback_before_done" title="psef.permissions.CoursePermission.can_see_user_feedback_before_done"><strong>can_see_user_feedback_before_done</strong></a> – Users with this permission can see feedback before an assignment is set to “done”</li>
 </ul>
 </td>
 </tr>
@@ -11664,8 +11744,18 @@ trees.</li>
 <dd></dd></dl>
 
 <dl class="attribute">
+<dt id="psef.permissions.CoursePermission.can_see_linter_feedback_before_done">
+<code class="descname">can_see_linter_feedback_before_done</code><em class="property"> = _PermissionValue(item=47, default_value=False)</em><a class="headerlink" href="#psef.permissions.CoursePermission.can_see_linter_feedback_before_done" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
 <dt id="psef.permissions.CoursePermission.can_see_others_work">
 <code class="descname">can_see_others_work</code><em class="property"> = _PermissionValue(item=5, default_value=False)</em><a class="headerlink" href="#psef.permissions.CoursePermission.can_see_others_work" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="psef.permissions.CoursePermission.can_see_user_feedback_before_done">
+<code class="descname">can_see_user_feedback_before_done</code><em class="property"> = _PermissionValue(item=48, default_value=False)</em><a class="headerlink" href="#psef.permissions.CoursePermission.can_see_user_feedback_before_done" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="attribute">

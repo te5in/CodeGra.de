@@ -760,7 +760,7 @@
         <span class="p">}</span>
 
         <span class="k">try</span><span class="p">:</span>
-            <span class="n">auth</span><span class="o">.</span><span class="n">ensure_can_see_grade</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+            <span class="n">auth</span><span class="o">.</span><span class="n">ensure_can_see_user_feedback</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
         <span class="k">except</span> <span class="n">PermissionException</span><span class="p">:</span>
             <span class="k">pass</span>
         <span class="k">else</span><span class="p">:</span>
@@ -841,41 +841,39 @@
             <span class="n">tree</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;work&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="p">}</span>
         <span class="p">)</span></div>
 
-<div class="viewcode-block" id="Work.get_all_feedback"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.work.Work.get_all_feedback">[docs]</a>    <span class="k">def</span> <span class="nf">get_all_feedback</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Tuple</span><span class="p">[</span><span class="n">t</span><span class="o">.</span><span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">t</span><span class="o">.</span><span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="p">]:</span>
-        <span class="sd">&quot;&quot;&quot;Get all feedback for this work.</span>
+<div class="viewcode-block" id="Work.get_user_feedback"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.work.Work.get_user_feedback">[docs]</a>    <span class="k">def</span> <span class="nf">get_user_feedback</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;Get all user given feedback for this work.</span>
 
-<span class="sd">        :returns: A tuple of two iterators both producing human readable</span>
-<span class="sd">            representations of the given feedback. The first iterator produces</span>
-<span class="sd">            the feedback given by a person and the second the feedback given by</span>
-<span class="sd">            the linters.</span>
+<span class="sd">        :returns: An iterator producing human readable representations of the</span>
+<span class="sd">            feedback given by a person.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">comments</span> <span class="o">=</span> <span class="n">Comment</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+            <span class="n">t</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">DbColumn</span><span class="p">[</span><span class="n">file_models</span><span class="o">.</span><span class="n">File</span><span class="p">],</span> <span class="n">Comment</span><span class="o">.</span><span class="n">file</span><span class="p">)</span><span class="o">.</span><span class="n">has</span><span class="p">(</span><span class="n">work</span><span class="o">=</span><span class="bp">self</span><span class="p">),</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">order_by</span><span class="p">(</span>
+            <span class="n">t</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">DbColumn</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="n">Comment</span><span class="o">.</span><span class="n">file_id</span><span class="p">)</span><span class="o">.</span><span class="n">asc</span><span class="p">(),</span>
+            <span class="n">t</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">DbColumn</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="n">Comment</span><span class="o">.</span><span class="n">line</span><span class="p">)</span><span class="o">.</span><span class="n">asc</span><span class="p">(),</span>
+        <span class="p">)</span>
+        <span class="k">for</span> <span class="n">com</span> <span class="ow">in</span> <span class="n">comments</span><span class="p">:</span>
+            <span class="k">yield</span> <span class="sa">f</span><span class="s1">&#39;{com.file.get_path()}:</span><span class="si">{com.line}</span><span class="s1">:0: </span><span class="si">{com.comment}</span><span class="s1">&#39;</span></div>
 
-        <span class="k">def</span> <span class="nf">__get_user_feedback</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
-            <span class="n">comments</span> <span class="o">=</span> <span class="n">Comment</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
-                <span class="n">t</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">DbColumn</span><span class="p">[</span><span class="n">file_models</span><span class="o">.</span><span class="n">File</span><span class="p">],</span>
-                       <span class="n">Comment</span><span class="o">.</span><span class="n">file</span><span class="p">)</span><span class="o">.</span><span class="n">has</span><span class="p">(</span><span class="n">work</span><span class="o">=</span><span class="bp">self</span><span class="p">),</span>
-            <span class="p">)</span><span class="o">.</span><span class="n">order_by</span><span class="p">(</span>
-                <span class="n">t</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">DbColumn</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="n">Comment</span><span class="o">.</span><span class="n">file_id</span><span class="p">)</span><span class="o">.</span><span class="n">asc</span><span class="p">(),</span>
-                <span class="n">t</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">DbColumn</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="n">Comment</span><span class="o">.</span><span class="n">line</span><span class="p">)</span><span class="o">.</span><span class="n">asc</span><span class="p">(),</span>
-            <span class="p">)</span>
-            <span class="k">for</span> <span class="n">com</span> <span class="ow">in</span> <span class="n">comments</span><span class="p">:</span>
-                <span class="k">yield</span> <span class="sa">f</span><span class="s1">&#39;{com.file.get_path()}:</span><span class="si">{com.line}</span><span class="s1">:0: </span><span class="si">{com.comment}</span><span class="s1">&#39;</span>
+<div class="viewcode-block" id="Work.get_linter_feedback"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.work.Work.get_linter_feedback">[docs]</a>    <span class="k">def</span> <span class="nf">get_linter_feedback</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;Get all linter feedback for this work.</span>
 
-        <span class="k">def</span> <span class="nf">__get_linter_feedback</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
-            <span class="n">linter_comments</span> <span class="o">=</span> <span class="n">LinterComment</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
-                <span class="n">LinterComment</span><span class="o">.</span><span class="n">file</span><span class="o">.</span><span class="n">has</span><span class="p">(</span><span class="n">work</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span>  <span class="c1"># type: ignore</span>
-            <span class="p">)</span><span class="o">.</span><span class="n">order_by</span><span class="p">(</span>
-                <span class="n">LinterComment</span><span class="o">.</span><span class="n">file_id</span><span class="o">.</span><span class="n">asc</span><span class="p">(),</span>  <span class="c1"># type: ignore</span>
-                <span class="n">LinterComment</span><span class="o">.</span><span class="n">line</span><span class="o">.</span><span class="n">asc</span><span class="p">(),</span>  <span class="c1"># type: ignore</span>
-            <span class="p">)</span>
-            <span class="k">for</span> <span class="n">line_comm</span> <span class="ow">in</span> <span class="n">linter_comments</span><span class="p">:</span>
-                <span class="k">yield</span> <span class="p">(</span>
-                    <span class="sa">f</span><span class="s1">&#39;{line_comm.file.get_path()}:</span><span class="si">{line_comm.line}</span><span class="s1">:0: &#39;</span>
-                    <span class="sa">f</span><span class="s1">&#39;(</span><span class="si">{line_comm.linter.tester.name}</span><span class="s1">&#39;</span>
-                    <span class="sa">f</span><span class="s1">&#39; </span><span class="si">{line_comm.linter_code}</span><span class="s1">) </span><span class="si">{line_comm.comment}</span><span class="s1">&#39;</span>
-                <span class="p">)</span>
-
-        <span class="k">return</span> <span class="n">__get_user_feedback</span><span class="p">(),</span> <span class="n">__get_linter_feedback</span><span class="p">()</span></div>
+<span class="sd">        :returns: An iterator that produces the all feedback given on this work</span>
+<span class="sd">            by linters.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">linter_comments</span> <span class="o">=</span> <span class="n">LinterComment</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+            <span class="n">LinterComment</span><span class="o">.</span><span class="n">file</span><span class="o">.</span><span class="n">has</span><span class="p">(</span><span class="n">work</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span>  <span class="c1"># type: ignore</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">order_by</span><span class="p">(</span>
+            <span class="n">LinterComment</span><span class="o">.</span><span class="n">file_id</span><span class="o">.</span><span class="n">asc</span><span class="p">(),</span>  <span class="c1"># type: ignore</span>
+            <span class="n">LinterComment</span><span class="o">.</span><span class="n">line</span><span class="o">.</span><span class="n">asc</span><span class="p">(),</span>  <span class="c1"># type: ignore</span>
+        <span class="p">)</span>
+        <span class="k">for</span> <span class="n">line_comm</span> <span class="ow">in</span> <span class="n">linter_comments</span><span class="p">:</span>
+            <span class="k">yield</span> <span class="p">(</span>
+                <span class="sa">f</span><span class="s1">&#39;{line_comm.file.get_path()}:</span><span class="si">{line_comm.line}</span><span class="s1">:0: &#39;</span>
+                <span class="sa">f</span><span class="s1">&#39;(</span><span class="si">{line_comm.linter.tester.name}</span><span class="s1">&#39;</span>
+                <span class="sa">f</span><span class="s1">&#39; </span><span class="si">{line_comm.linter_code}</span><span class="s1">) </span><span class="si">{line_comm.comment}</span><span class="s1">&#39;</span>
+            <span class="p">)</span></div>
 
 <div class="viewcode-block" id="Work.remove_selected_rubric_item"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.work.Work.remove_selected_rubric_item">[docs]</a>    <span class="k">def</span> <span class="nf">remove_selected_rubric_item</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">row_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Deselect selected :class:`.RubricItem` on row.</span>
