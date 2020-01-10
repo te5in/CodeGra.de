@@ -562,7 +562,7 @@ class Work(Base):
         }
 
         try:
-            auth.ensure_can_see_grade(self)
+            auth.ensure_can_see_user_feedback(self)
         except PermissionException:
             pass
         else:
@@ -643,41 +643,39 @@ class Work(Base):
             tree, None, {'work': self}
         )
 
-    def get_all_feedback(self) -> t.Tuple[t.Iterable[str], t.Iterable[str], ]:
-        """Get all feedback for this work.
+    def get_user_feedback(self) -> t.Iterable[str]:
+        """Get all user given feedback for this work.
 
-        :returns: A tuple of two iterators both producing human readable
-            representations of the given feedback. The first iterator produces
-            the feedback given by a person and the second the feedback given by
-            the linters.
+        :returns: An iterator producing human readable representations of the
+            feedback given by a person.
         """
+        comments = Comment.query.filter(
+            t.cast(DbColumn[file_models.File], Comment.file).has(work=self),
+        ).order_by(
+            t.cast(DbColumn[int], Comment.file_id).asc(),
+            t.cast(DbColumn[int], Comment.line).asc(),
+        )
+        for com in comments:
+            yield f'{com.file.get_path()}:{com.line}:0: {com.comment}'
 
-        def __get_user_feedback() -> t.Iterable[str]:
-            comments = Comment.query.filter(
-                t.cast(DbColumn[file_models.File],
-                       Comment.file).has(work=self),
-            ).order_by(
-                t.cast(DbColumn[int], Comment.file_id).asc(),
-                t.cast(DbColumn[int], Comment.line).asc(),
+    def get_linter_feedback(self) -> t.Iterable[str]:
+        """Get all linter feedback for this work.
+
+        :returns: An iterator that produces the all feedback given on this work
+            by linters.
+        """
+        linter_comments = LinterComment.query.filter(
+            LinterComment.file.has(work=self)  # type: ignore
+        ).order_by(
+            LinterComment.file_id.asc(),  # type: ignore
+            LinterComment.line.asc(),  # type: ignore
+        )
+        for line_comm in linter_comments:
+            yield (
+                f'{line_comm.file.get_path()}:{line_comm.line}:0: '
+                f'({line_comm.linter.tester.name}'
+                f' {line_comm.linter_code}) {line_comm.comment}'
             )
-            for com in comments:
-                yield f'{com.file.get_path()}:{com.line}:0: {com.comment}'
-
-        def __get_linter_feedback() -> t.Iterable[str]:
-            linter_comments = LinterComment.query.filter(
-                LinterComment.file.has(work=self)  # type: ignore
-            ).order_by(
-                LinterComment.file_id.asc(),  # type: ignore
-                LinterComment.line.asc(),  # type: ignore
-            )
-            for line_comm in linter_comments:
-                yield (
-                    f'{line_comm.file.get_path()}:{line_comm.line}:0: '
-                    f'({line_comm.linter.tester.name}'
-                    f' {line_comm.linter_code}) {line_comm.comment}'
-                )
-
-        return __get_user_feedback(), __get_linter_feedback()
 
     def remove_selected_rubric_item(self, row_id: int) -> None:
         """Deselect selected :class:`.RubricItem` on row.

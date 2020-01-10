@@ -181,18 +181,23 @@ def get_assignments_feedback(assignment_id: int) -> JSONResponse[
 
     res = {}
     for sub in latest_subs:
-        try:
-            # This call should be cached in auth.py
-            auth.ensure_can_see_grade(sub)
+        item: t.MutableMapping[str, t.Union[str, t.Sequence[str]]] = {}
 
-            user_feedback, linter_feedback = sub.get_all_feedback()
-            item = {
-                'general': sub.comment or '',
-                'user': list(user_feedback),
-                'linter': list(linter_feedback),
-            }
+        try:
+            auth.ensure_can_see_user_feedback(sub)
         except auth.PermissionException:
-            item = {'user': [], 'linter': [], 'general': ''}
+            item['general'] = ''
+            item['user'] = []
+        else:
+            item['general'] = sub.comment or ''
+            item['user'] = list(sub.get_user_feedback())
+
+        try:
+            auth.ensure_can_see_linter_feedback(sub)
+        except auth.PermissionException:
+            item['linter'] = []
+        else:
+            item['linter'] = list(sub.get_linter_feedback())
 
         res[str(sub.id)] = item
 

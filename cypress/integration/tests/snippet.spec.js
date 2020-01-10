@@ -1,8 +1,9 @@
 context('Personal snippet manager', () => {
     beforeEach(() => {
-        cy.visit('/')
-        cy.login('admin', 'admin')
-        cy.get('.sidebar-top-item.sidebar-entry-user').click()
+        cy.visit('/');
+        cy.login('admin', 'admin');
+        cy.get('#global-sidebar').should('exist');
+        cy.get('.sidebar-top-item.sidebar-entry-user').click();
     });
 
     const seed = `${Math.random()}`;

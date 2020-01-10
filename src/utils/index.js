@@ -388,10 +388,33 @@ export function canUploadWork(assignment, now) {
     }
 }
 
-export function canSeeGrade(assignment) {
-    const perms = assignment.course.permissions;
+export function canSeeFeedbackType(assignment, type) {
+    const perm = {
+        grade: 'can_see_grade_before_open',
+        linter: 'can_see_linter_feedback_before_done',
+        user: 'can_see_user_feedback_before_done',
+    }[type];
 
-    return assignment.state === assignmentState.DONE || perms.can_see_grade_before_open;
+    if (assignment == null || perm == null) {
+        return false;
+    }
+
+    return (
+        assignment.state === assignmentState.DONE ||
+        getProps(assignment.course, false, 'permissions', perm)
+    );
+}
+
+export function canSeeGrade(assignment) {
+    return canSeeFeedbackType(assignment, 'grade');
+}
+
+export function canSeeUserFeedback(assignment) {
+    return canSeeFeedbackType(assignment, 'user');
+}
+
+export function canSeeLinterFeedback(assignment) {
+    return canSeeFeedbackType(assignment, 'linter');
 }
 
 export function autoTestHasCheckpointAfterHiddenStep(autoTest) {

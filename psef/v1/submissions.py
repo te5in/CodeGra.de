@@ -27,6 +27,7 @@ from ..helpers import (
     ensure_json_dict, extended_jsonify, ensure_keys_in_dict,
     make_empty_response
 )
+from ..exceptions import PermissionException
 from ..permissions import CoursePermission as CPerm
 
 logger = structlog.get_logger()
@@ -94,7 +95,6 @@ def get_submission(
         )
         return extended_jsonify(get_zip(work, exclude_owner))
     elif request.args.get('type') == 'feedback':
-        auth.ensure_can_see_grade(work)
         return extended_jsonify(get_feedback(work))
     return extended_jsonify(work, use_extended=models.Work)
 
@@ -107,7 +107,31 @@ def get_feedback(work: models.Work) -> t.Mapping[str, str]:
         which can be given to ``GET - /api/v1/files/<name>`` and
         ``output_name`` which is the resulting file should be named.
     """
-    comments, linter_comments = work.get_all_feedback()
+    comments: t.Iterable[str]
+    linter_comments: t.Iterable[str]
+
+    try:
+        auth.ensure_can_see_grade(work)
+    except PermissionException:
+        grade = ''
+    else:
+        grade = str(work.grade or '')
+
+    try:
+        auth.ensure_can_see_user_feedback(work)
+    except PermissionException:
+        general_comment = ''
+        comments = []
+    else:
+        general_comment = work.comment or ''
+        comments = work.get_user_feedback()
+
+    try:
+        auth.ensure_can_see_linter_feedback(work)
+    except PermissionException:
+        linter_comments = []
+    else:
+        linter_comments = work.get_linter_feedback()
 
     filename = f'{work.assignment.name}-{work.user.name}-feedback.txt'
 
@@ -115,20 +139,17 @@ def get_feedback(work: models.Work) -> t.Mapping[str, str]:
 
     with open(path, 'w') as f:
         f.write(
-            'Assignment: {}\n'
-            'Grade: {}\n'
-            'General feedback:\n{}\n\n'
-            'Comments:\n'.format(
-                work.assignment.name, work.grade or '', work.comment or ''
-            )
+            f'Assignment: {work.assignment.name}\n'
+            f'Grade: {grade}\n'
+            f'General feedback:\n{general_comment}\n\n'
+            f'Comments:\n'
         )
         for comment in comments:
             f.write(f'{comment}\n')
 
-        if features.has_feature(features.Feature.LINTERS):
-            f.write('\nLinter comments:\n')
-            for lcomment in linter_comments:
-                f.write(f'{lcomment}\n')
+        f.write('\nLinter comments:\n')
+        for lcomment in linter_comments:
+            f.write(f'{lcomment}\n')
 
     return {'name': name, 'output_name': filename}
 
@@ -248,42 +269,54 @@ def get_feedback_from_submission(submission_id: int) -> JSONResponse[Feedback]:
     work = helpers.filter_single_or_404(
         models.Work, models.Work.id == submission_id, ~models.Work.deleted
     )
-    auth.ensure_can_see_grade(work)
-    can_view_author = current_user.has_permission(
-        CPerm.can_see_assignee, work.assignment.course_id
+    course_id = work.assignment.course_id
+    can_view_authors = current_user.has_permission(
+        CPerm.can_see_assignee,
+        course_id,
     )
 
-    # The authors dict gets filled if `can_view_authors` is set to `True`. This
-    # value is used so that `mypy` wont complain about indexing null values.
-    authors: t.MutableMapping[int, t.MutableMapping[int, models.
-                                                    User]] = defaultdict(dict)
     res: Feedback = {
-        'general': work.comment or '',
+        'general': '',
         'user': defaultdict(dict),
+        'authors': None,
         'linter': defaultdict(lambda: defaultdict(list)),
-        'authors': authors if can_view_author else None,
     }
 
-    comments = models.Comment.query.filter(
-        t.cast(DbColumn[models.File], models.Comment.file).has(work=work),
-    ).order_by(
-        t.cast(DbColumn[int], models.Comment.file_id).asc(),
-        t.cast(DbColumn[int], models.Comment.line).asc(),
-    )
+    try:
+        auth.ensure_can_see_user_feedback(work)
+    except PermissionException:
+        pass
+    else:
+        authors: t.MutableMapping[int, t.MutableMapping[int, models.User]
+                                  ] = defaultdict(dict)
 
-    for comment in comments:
-        res['user'][comment.file_id][comment.line] = comment.comment
-        if can_view_author:
-            authors[comment.file_id][comment.line] = comment.user
+        res['general'] = work.comment or ''
+        res['authors'] = authors if can_view_authors else None
 
-    linter_comments = models.LinterComment.query.filter(
-        t.cast(DbColumn[models.File],
-               models.LinterComment.file).has(work=work)
-    ).order_by(
-        t.cast(DbColumn[int], models.LinterComment.file_id).asc(),
-        t.cast(DbColumn[int], models.LinterComment.line).asc(),
-    )
-    if features.has_feature(features.Feature.LINTERS):
+        comments = models.Comment.query.filter(
+            t.cast(DbColumn[models.File], models.Comment.file).has(work=work),
+        ).order_by(
+            t.cast(DbColumn[int], models.Comment.file_id).asc(),
+            t.cast(DbColumn[int], models.Comment.line).asc(),
+        )
+
+        for comment in comments:
+            res['user'][comment.file_id][comment.line] = comment.comment
+            if can_view_authors:
+                authors[comment.file_id][comment.line] = comment.user
+
+    try:
+        auth.ensure_can_see_linter_feedback(work)
+    except PermissionException:
+        pass
+    else:
+        linter_comments = models.LinterComment.query.filter(
+            t.cast(DbColumn[models.File],
+                   models.LinterComment.file).has(work=work)
+        ).order_by(
+            t.cast(DbColumn[int], models.LinterComment.file_id).asc(),
+            t.cast(DbColumn[int], models.LinterComment.line).asc(),
+        )
         for lcomment in linter_comments:
             res['linter'][lcomment.file_id][lcomment.line].append(
                 (lcomment.linter_code, lcomment)

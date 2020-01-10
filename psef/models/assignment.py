@@ -861,7 +861,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         .. note::
 
             If the assignment is not yet done we check if the ``current_user``
-            has the permission ``can_see_grade_before_open``.
+            has the permission ``can_see_linter_feedback_before_done``.
 
         :returns: True if there is an :py:class:`.AssignmentLinter` with name
             ``MixedWhitespace`` and ``assignment_id``.
@@ -869,7 +869,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         try:
             if not self.is_done:
                 auth.ensure_permission(
-                    CPerm.can_see_grade_before_open, self.course_id
+                    CPerm.can_see_linter_feedback_before_done, self.course_id
                 )
         except PermissionException:
             return False

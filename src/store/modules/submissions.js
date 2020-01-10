@@ -301,13 +301,7 @@ const actions = {
                 dispatch('loadSingleSubmission', { assignmentId, submissionId }),
                 axios.get(`/api/v1/submissions/${submissionId}/feedbacks/`).catch(err => {
                     delete loaders.feedback[submissionId];
-
-                    switch (utils.getProps(err, null, 'response', 'status')) {
-                        case 403:
-                            return {};
-                        default:
-                            throw err;
-                    }
+                    throw err;
                 }),
             ]).then(([, { data }]) => {
                 delete loaders.feedback[submissionId];

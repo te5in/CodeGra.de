@@ -1,4 +1,4 @@
-import { cmpNoCase } from '@/utils';
+import { cmpNoCase, getProps } from '@/utils';
 
 const REVISIONS = ['student', 'teacher'];
 
@@ -226,16 +226,23 @@ export class FileTree {
 
 export class Feedback {
     constructor(feedback) {
-        Object.assign(this, feedback);
+        this.general = getProps(feedback, null, 'general');
+        this.linter = getProps(feedback, {}, 'linter');
+        this.authors = getProps(feedback, {}, 'authors');
 
-        Object.entries(this.user).forEach(([fileId, fileFeedback]) => {
-            Object.keys(fileFeedback).forEach(line => {
-                fileFeedback[line] = {
-                    line,
-                    msg: fileFeedback[line],
-                    author: this.authors ? this.authors[fileId][line] : null,
-                };
-            });
-        });
+        this.user = Object.entries(getProps(feedback, {}, 'user')).reduce(
+            (acc, [fileId, fileFeedback]) => {
+                acc[fileId] = Object.entries(fileFeedback).reduce((acc2, [line, lineFeedback]) => {
+                    acc2[line] = {
+                        line,
+                        msg: lineFeedback,
+                        author: getProps(this.authors, null, fileId, line),
+                    };
+                    return acc2;
+                }, {});
+                return acc;
+            },
+            {},
+        );
     }
 }

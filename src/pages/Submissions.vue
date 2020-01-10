@@ -149,7 +149,6 @@
                  :class="selectedCat === 'hand-in' ? 'd-flex' : 'd-none'">
                 <submission-list v-if="!isStudent"
                                  :assignment="assignment"
-                                 :canDownload="canDownload"
                                  :rubric="rubric"
                                  :graders="graders"
                                  :can-see-assignee="canSeeAssignee"
@@ -375,7 +374,7 @@ export default {
                 {
                     id: 'export',
                     name: 'Export',
-                    enabled: this.canDownload,
+                    enabled: !this.isStudent,
                 },
             ];
         },
@@ -596,13 +595,6 @@ export default {
 
         canSeeOthersWork() {
             return this.coursePermissions.can_see_others_work;
-        },
-
-        canDownload() {
-            return (
-                this.assignment.state === assignmentState.DONE ||
-                this.coursePermissions.can_see_grade_before_open
-            );
         },
 
         canEditDeadline() {

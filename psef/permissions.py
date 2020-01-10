@@ -184,6 +184,8 @@ class CoursePermission(BasePermission):
     :ivar can_view_autotest_fixture: Users with this permission are allowed to see non hidden AutoTest fixtures
     :ivar can_view_autotest_output_files_before_done: Users with this permission can view output files created during an AutoTest before the assignment state is "done"
     :ivar can_delete_assignments: Users with this permission can delete assignments within this course.
+    :ivar can_see_linter_feedback_before_done: Users with this permission can see the output of linters before an assignment is set to "done"
+    :ivar can_see_user_feedback_before_done: Users with this permission can see feedback before an assignment is set to "done"
     """
 
     @staticmethod
@@ -237,5 +239,7 @@ class CoursePermission(BasePermission):
     can_view_autotest_fixture = _PermissionValue(item=44, default_value=True)
     can_view_autotest_output_files_before_done = _PermissionValue(item=45, default_value=False)
     can_delete_assignments = _PermissionValue(item=46, default_value=False)
+    can_see_linter_feedback_before_done = _PermissionValue(item=47, default_value=False)
+    can_see_user_feedback_before_done = _PermissionValue(item=48, default_value=False)
 
 # yapf: enable

@@ -12,6 +12,8 @@ from werkzeug.local import LocalProxy
 from mypy_extensions import NoReturn
 
 import psef
+from psef import features
+from psef.helpers import readable_join
 from psef.exceptions import APICodes, APIException, PermissionException
 
 from .permissions import CoursePermission as CPerm
@@ -245,6 +247,50 @@ def ensure_can_see_grade(work: 'psef.models.Work') -> None:
     if not work.assignment.is_done:
         ensure_permission(
             CPerm.can_see_grade_before_open, work.assignment.course_id
+        )
+
+
+@login_required
+def ensure_can_see_user_feedback(work: 'psef.models.Work') -> None:
+    """Ensure the current user can see the grade of the given work.
+
+    :param work: The work to check for.
+
+    :returns: Nothing
+
+    :raises PermissionException: If there is no logged in user. (NOT_LOGGED_IN)
+    :raises PermissionException: If the user can not see the grade.
+        (INCORRECT_PERMISSION)
+    """
+    if not work.has_as_author(psef.current_user):
+        ensure_permission(CPerm.can_see_others_work, work.assignment.course_id)
+
+    if not work.assignment.is_done:
+        ensure_permission(
+            CPerm.can_see_user_feedback_before_done, work.assignment.course_id
+        )
+
+
+@login_required
+@features.feature_required(features.Feature.LINTERS)
+def ensure_can_see_linter_feedback(work: 'psef.models.Work') -> None:
+    """Ensure the current user can see the grade of the given work.
+
+    :param work: The work to check for.
+
+    :returns: Nothing
+
+    :raises PermissionException: If there is no logged in user. (NOT_LOGGED_IN)
+    :raises PermissionException: If the user can not see the grade.
+        (INCORRECT_PERMISSION)
+    """
+    if not work.has_as_author(psef.current_user):
+        ensure_permission(CPerm.can_see_others_work, work.assignment.course_id)
+
+    if not work.assignment.is_done:
+        ensure_permission(
+            CPerm.can_see_linter_feedback_before_done,
+            work.assignment.course_id
         )
 
 
@@ -541,7 +587,8 @@ def ensure_can_edit_members_of_group(
 
 @login_required
 def ensure_any_of_permissions(
-    permissions: t.List[CPerm], course_id: int
+    permissions: t.List[CPerm],
+    course_id: int,
 ) -> None:
     """Make sure that the current user has at least one of the given
         permissions.
@@ -561,11 +608,12 @@ def ensure_any_of_permissions(
             continue
         else:
             return
-    # All checks raised a PermissionException
+    # All checks raised a PermissionException.
     raise PermissionException(
         'You do not have permission to do this.',
-        'None of the permissions "{}" are not enabled for user "{}"'.format(
-            ', '.join(p.name for p in permissions), psef.current_user.id
+        'None of the permissions "{}" are enabled for user "{}"'.format(
+            readable_join([p.name for p in permissions]),
+            psef.current_user.id,
         ), APICodes.INCORRECT_PERMISSION, 403
     )
 

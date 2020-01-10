@@ -125,10 +125,6 @@ export default {
             type: Object,
             default: null,
         },
-        canDownload: {
-            type: Boolean,
-            default: false,
-        },
         rubric: {
             default: null,
         },

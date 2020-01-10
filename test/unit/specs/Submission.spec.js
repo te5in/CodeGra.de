@@ -99,6 +99,9 @@ describe('Submission.vue', () => {
                     id: 2,
                     submissions,
                 }],
+                permissions: {
+                    can_see_grade_before_done: true,
+                },
                 is_lti: false,
             },
         };

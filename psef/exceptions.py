@@ -6,6 +6,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 import typing as t
 from enum import IntEnum, unique
 
+if t.TYPE_CHECKING and getattr(
+    t, 'SPHINX', False
+) is not True:  # pragma: no cover
+    from .features import Feature  # pylint: disable=unused-import
+
 
 @unique
 class APIWarnings(IntEnum):
@@ -120,6 +125,20 @@ class APIException(Exception):
 class PermissionException(APIException):
     """The exception used when a permission check fails.
     """
+
+
+class FeatureException(PermissionException):
+    """The exception used when a feature is not enabled.
+    """
+
+    def __init__(self, feature: 'Feature') -> None:
+        super().__init__(
+            'This feature is not enabled on this instance.',
+            f'The feature "{feature.name}" is not enabled.',
+            APICodes.DISABLED_FEATURE,
+            400,
+            disabled_feature=feature,
+        )
 
 
 class ValidationException(APIException):
