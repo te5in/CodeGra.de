@@ -1,10 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import Vue from 'vue';
 import axios from 'axios';
+
 import moment from 'moment';
 
-import * as utils from '@/utils';
-import { Rubric } from '@/models/rubric';
+import { Assignment } from '@/models';
 
 import * as types from '../mutation-types';
 import { MANAGE_ASSIGNMENT_PERMISSIONS, MANAGE_GENERAL_COURSE_PERMISSIONS } from '../../constants';
@@ -37,7 +37,7 @@ function getAssignment(state, assignmentId) {
     return assignment;
 }
 
-const actions = {
+export const actions = {
     async loadCourses({ state, commit, dispatch }) {
         if (state.currentCourseLoader == null) {
             commit(types.SET_COURSES_PROMISE, dispatch('reloadCourses'));
@@ -46,14 +46,16 @@ const actions = {
         return state.currentCourseLoader;
     },
 
-    setRubric({ commit }, { assignmentId, rubric, maxPoints }) {
+    async setRubric({ commit, dispatch }, { assignmentId, rubric, maxPoints }) {
+        await dispatch('loadCourses');
         commit(types.UPDATE_ASSIGNMENT, {
             assignmentId,
             assignmentProps: { rubric, fixed_max_rubric_points: maxPoints },
         });
     },
 
-    async forceLoadGraders({ commit }, assignmentId) {
+    async forceLoadGraders({ commit, dispatch }, assignmentId) {
+        await dispatch('loadCourses');
         const graders = await axios
             .get(`/api/v1/assignments/${assignmentId}/graders/`)
             .then(({ data }) => data, () => null);
@@ -66,7 +68,7 @@ const actions = {
     async loadRubric(context, assignmentId) {
         await context.dispatch('loadCourses');
 
-        const assig = context.getters.assignments[assignmentId];
+        const assig = getAssignment(context.state, assignmentId);
         if (assig.rubric) {
             return;
         }
@@ -74,7 +76,9 @@ const actions = {
         await context.dispatch('forceLoadRubric', assignmentId);
     },
 
-    forceLoadRubric({ commit }, assignmentId) {
+    async forceLoadRubric({ commit, dispatch }, assignmentId) {
+        await dispatch('loadCourses');
+
         if (!loaders.rubrics[assignmentId]) {
             loaders.rubrics[assignmentId] = new Promise(async resolve => {
                 const rubric = await axios
@@ -95,7 +99,7 @@ const actions = {
     async reloadCourses({ commit }) {
         let courses;
         let perms;
-        await commit(`submissions/${types.CLEAR_SUBMISSIONS}`, null, { root: true });
+        commit(`submissions/${types.CLEAR_SUBMISSIONS}`, null, { root: true });
 
         try {
             [{ data: courses }, { data: perms }] = await Promise.all([
@@ -137,61 +141,77 @@ const actions = {
         ]);
     },
 
-    updateCourse({ commit }, data) {
+    async updateCourse({ commit, dispatch }, data) {
+        await dispatch('loadCourses');
         commit(types.UPDATE_COURSE, data);
     },
 
-    updateAssignment({ commit }, data) {
+    async updateAssignment({ commit, dispatch }, data) {
+        await dispatch('loadCourses');
         commit(types.UPDATE_ASSIGNMENT, data);
+    },
+
+    async updateAssignmentReminder(
+        { commit, state, dispatch },
+        {
+            assignmentId, reminderTime, doneType, doneEmail,
+        },
+    ) {
+        await dispatch('loadCourses');
+
+        const assig = getAssignment(state, assignmentId);
+        const newReminderTime = moment(reminderTime, moment.ISO_8601).utc();
+        const props = {
+            done_type: doneType,
+            done_email: doneEmail,
+            reminder_time: newReminderTime.format('YYYY-MM-DDTHH:mm'),
+        };
+
+        return axios.patch(`/api/v1/assignments/${assig.id}`, props).then(response => {
+            delete props.reminder_time;
+            props.reminderTime = newReminderTime;
+            response.onAfterSuccess = () =>
+                commit(types.UPDATE_ASSIGNMENT, {
+                    assignmentId,
+                    assignmentProps: props,
+                });
+            return response;
+        });
+    },
+
+    async updateAssignmentDeadline({ commit, state, dispatch }, { assignmentId, deadline }) {
+        await dispatch('loadCourses');
+
+        const assig = getAssignment(state, assignmentId);
+        const newDeadline = moment(deadline, moment.ISO_8601).utc();
+        return axios
+            .patch(`/api/v1/assignments/${assig.id}`, {
+                deadline: newDeadline.toISOString(),
+            })
+            .then(response => {
+                response.onAfterSuccess = () =>
+                    commit(types.UPDATE_ASSIGNMENT, {
+                        assignmentId,
+                        assignmentProps: {
+                            deadline: newDeadline,
+                        },
+                    });
+                return response;
+            });
     },
 };
 
 const mutations = {
     [types.SET_COURSES](state, [courses, manageCourses, manageAssigs, createAssigs, perms]) {
         state.courses = courses.reduce((res, course) => {
-            course.assignments.forEach(assignment => {
-                assignment.course = course;
-                assignment.canManage = manageAssigs[course.id];
+            course.assignments = course.assignments.map(serverData =>
+                Assignment.fromServerData(serverData, course.id, manageAssigs[course.id]),
+            );
 
-                // WARNING: This code is complex. If you change it, it will
-                // probably be wrong...
-
-                let reminderTime = moment.utc(assignment.reminder_time, moment.ISO_8601).local();
-                // This indicates if we got a valid reminder time from the
-                // server. We set it to something useful as a default if this is
-                // not the case.
-                assignment.has_reminder_time = reminderTime.isValid();
-                if (!assignment.has_reminder_time) {
-                    let baseTime = null;
-
-                    if (assignment.deadline) {
-                        baseTime = moment.utc(assignment.deadline, moment.ISO_8601).local();
-
-                        if (!reminderTime.isValid() || reminderTime.isBefore(moment())) {
-                            baseTime = moment();
-                        }
-                    } else {
-                        baseTime = moment();
-                    }
-
-                    reminderTime = baseTime.clone().add(1, 'weeks');
-                }
-                assignment.reminder_time = reminderTime.format('YYYY-MM-DDTHH:mm');
-
-                if (assignment.deadline) {
-                    assignment.formatted_deadline = utils.readableFormatDate(assignment.deadline);
-                    assignment.deadline = utils.formatDate(assignment.deadline);
-                } else {
-                    assignment.formatted_deadline = null;
-                }
-
-                assignment.created_at = utils.formatDate(assignment.created_at);
-            });
-
-            course.permissions = perms[course.id];
-            course.canManage = manageCourses[course.id];
-            course.canManageAssignments = manageAssigs[course.id];
-            course.canCreateAssignments = createAssigs[course.id];
+            course.permissions = perms[course.id] || {};
+            course.canManage = manageCourses[course.id] || false;
+            course.canManageAssignments = manageAssigs[course.id] || false;
+            course.canCreateAssignments = createAssigs[course.id] || false;
 
             Object.defineProperty(course, 'isStudent', {
                 get() {
@@ -201,6 +221,7 @@ const mutations = {
                         this.canCreateAssignments
                     );
                 },
+                enumerable: true,
             });
 
             res[course.id] = course;
@@ -235,24 +256,11 @@ const mutations = {
     },
 
     [types.UPDATE_ASSIGNMENT](state, { assignmentId, assignmentProps }) {
-        const assignment = getAssignment(state, assignmentId);
-        let sawRubric = false;
+        const assignment = getAssignment(state, assignmentId).update(assignmentProps);
 
-        Object.keys(assignmentProps).forEach(key => {
-            if (
-                key !== 'rubric' &&
-                key !== 'graders' &&
-                (!{}.hasOwnProperty.call(assignment, key) || key === 'id')
-            ) {
-                throw TypeError(`Cannot set assignment property: ${key}`);
-            }
-
-            sawRubric = sawRubric || key === 'rubric';
-            Vue.set(assignment, key, assignmentProps[key]);
-        });
-        if (sawRubric) {
-            Vue.set(assignment, 'rubricModel', new Rubric(assignmentProps.rubric, assignment));
-        }
+        const assigs = state.courses[assignment.courseId].assignments;
+        const assigindex = assigs.findIndex(x => x.id === assignment.id);
+        Vue.set(assigs, assigindex, assignment);
     },
 };
 

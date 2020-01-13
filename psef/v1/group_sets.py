@@ -13,8 +13,9 @@ from flask import request
 from . import api
 from .. import auth, models, features, current_user
 from ..helpers import (
-    JSONResponse, EmptyResponse, jsonify, get_or_404, get_in_or_error,
-    ensure_json_dict, ensure_keys_in_dict, make_empty_response
+    JSONResponse, EmptyResponse, ExtendedJSONResponse, jsonify, get_or_404,
+    get_in_or_error, ensure_json_dict, extended_jsonify, ensure_keys_in_dict,
+    make_empty_response
 )
 from ..exceptions import APICodes, APIException
 from ..permissions import CoursePermission as CPerm
@@ -23,7 +24,7 @@ from ..permissions import CoursePermission as CPerm
 @api.route('/group_sets/<int:group_set_id>/group', methods=['POST'])
 @features.feature_required(features.Feature.GROUPS)
 @auth.login_required
-def create_group(group_set_id: int) -> JSONResponse[models.Group]:
+def create_group(group_set_id: int) -> ExtendedJSONResponse[models.Group]:
     """Create a group for the given group set.
 
     .. :quickref: GroupSet; Create a group in a given group set.
@@ -71,13 +72,14 @@ def create_group(group_set_id: int) -> JSONResponse[models.Group]:
     models.db.session.add(group)
     models.db.session.commit()
 
-    return jsonify(group)
+    return extended_jsonify(group, use_extended=models.Group)
 
 
 @api.route('/group_sets/<int:group_set_id>/groups/', methods=['GET'])
 @features.feature_required(features.Feature.GROUPS)
 @auth.login_required
-def get_groups(group_set_id: int) -> JSONResponse[t.Sequence[models.Group]]:
+def get_groups(group_set_id: int
+               ) -> ExtendedJSONResponse[t.Sequence[models.Group]]:
     """Get all groups for a given group set.
 
     .. :quickref: GroupSet; Get the groups of this assignment.
@@ -103,7 +105,7 @@ def get_groups(group_set_id: int) -> JSONResponse[t.Sequence[models.Group]]:
     else:
         groups = group_set.groups
 
-    return jsonify(groups)
+    return extended_jsonify(groups, use_extended=models.Group)
 
 
 @api.route('/group_sets/<int:group_set_id>', methods=['GET'])

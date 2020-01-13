@@ -285,14 +285,16 @@ export default {
             userPerms: 'permissions',
         }),
         ...mapGetters('submissions', {
-            storeLatestSubmissions: 'latestSubmissions',
+            storeGetLatestSubmissions: 'getLatestSubmissions',
             storeGetSingleSubmission: 'getSingleSubmission',
-            storeUsersWithGroupSubmissions: 'usersWithGroupSubmission',
+            storeGetGroupSubmissionOfUser: 'getGroupSubmissionOfUser',
         }),
         ...mapGetters('courses', ['assignments']),
         ...mapGetters('autotest', {
             allAutoTests: 'tests',
         }),
+        ...mapGetters('fileTrees', ['getFileTree']),
+        ...mapGetters('feedback', ['getFeedback']),
 
         courseId() {
             return Number(this.$route.params.courseId);
@@ -331,15 +333,15 @@ export default {
         },
 
         canSeeGrade() {
-            return this.$utils.canSeeGrade(this.assignment);
+            return this.assignment && this.assignment.canSeeGrade();
         },
 
         canSeeUserFeedback() {
-            return this.$utils.canSeeUserFeedback(this.assignment);
+            return this.assignment && this.assignment.canSeeUserFeedback();
         },
 
         canSeeLinterFeedback() {
-            return this.$utils.canSeeLinterFeedback(this.assignment);
+            return this.assignment && this.assignment.canSeeLinterFeedback();
         },
 
         canDeleteSubmission() {
@@ -371,7 +373,7 @@ export default {
         },
 
         canUseSnippets() {
-            return this.userPerms.can_use_snippets;
+            return !!this.userPerms.can_use_snippets;
         },
 
         prefFileId() {
@@ -398,7 +400,7 @@ export default {
         },
 
         latestSubmissions() {
-            return this.storeLatestSubmissions[this.assignmentId] || [];
+            return this.storeGetLatestSubmissions(this.assignmentId);
         },
 
         currentSubmissionIsLatest() {
@@ -406,17 +408,15 @@ export default {
         },
 
         groupOfCurrentUser() {
-            const usersWithGroup = this.storeUsersWithGroupSubmissions[this.assignmentId] || {};
-            const userId = this.$utils.getProps(this.submission, null, 'user', 'id');
-            return usersWithGroup[userId];
+            return this.storeGetGroupSubmissionOfUser(this.assignmentId, this.submissionId);
         },
 
         fileTree() {
-            return this.submission && this.submission.fileTree;
+            return this.getFileTree(this.assignmentId, this.submissionId);
         },
 
         feedback() {
-            return this.submission && this.submission.feedback;
+            return this.getFeedback(this.assignmentId, this.submissionId);
         },
 
         autoTestId() {
@@ -529,7 +529,7 @@ export default {
         hasFeedback() {
             const fb = this.feedback;
 
-            return fb && (fb.general || Object.keys(fb.user).length);
+            return !!(fb && (fb.general || Object.keys(fb.user).length));
         },
 
         assignmentDone() {
@@ -616,7 +616,7 @@ export default {
             },
         },
 
-        assignment: {
+        autoTestId: {
             immediate: true,
             handler() {
                 this.loadAutoTest();
@@ -679,10 +679,13 @@ export default {
         ...mapActions('submissions', {
             storeLoadSubmissions: 'loadSubmissions',
             storeLoadSingleSubmission: 'loadSingleSubmission',
-            storeUpdateSubmission: 'updateSubmission',
             storeDeleteSubmission: 'deleteSubmission',
-            storeLoadFileTree: 'loadSubmissionFileTree',
-            storeLoadFeedback: 'loadSubmissionFeedback',
+        }),
+        ...mapActions('feedback', {
+            storeLoadFeedback: 'loadFeedback',
+        }),
+        ...mapActions('fileTrees', {
+            storeLoadFileTree: 'loadFileTree',
         }),
 
         ...mapActions('autotest', {

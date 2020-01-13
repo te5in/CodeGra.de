@@ -87,7 +87,7 @@
 </template>
 
 <script>
-import { mapActions } from 'vuex';
+import { mapActions, mapGetters } from 'vuex';
 
 import 'vue-awesome/icons/user-plus';
 import 'vue-awesome/icons/user';
@@ -130,8 +130,10 @@ export default {
     },
 
     computed: {
+        ...mapGetters('fileTrees', ['getFileTree']),
+
         fileTree() {
-            return this.submission && this.submission.fileTree;
+            return this.getFileTree(this.assignment.id, this.submission.id);
         },
 
         showRevisions() {
@@ -152,8 +154,8 @@ export default {
     },
 
     methods: {
-        ...mapActions('submissions', {
-            storeLoadFileTree: 'loadSubmissionFileTree',
+        ...mapActions('fileTrees', {
+            storeLoadFileTree: 'loadFileTree',
         }),
     },
 

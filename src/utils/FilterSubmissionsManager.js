@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
-import { cmpOneNull, cmpNoCase, nameOfUser, groupMembers } from '@/utils';
+import { cmpOneNull, cmpNoCase } from '@/utils';
 
 export function filterSubmissions(submissions, mine, userId, filter, callback = () => false) {
     const l = new Set();
@@ -7,25 +7,27 @@ export function filterSubmissions(submissions, mine, userId, filter, callback = 
     const filterAssignee = submissions.some(s => s.assignee && s.assignee.id === userId);
 
     return submissions.filter(item => {
-        if (filterAssignee && mine && (item.assignee == null || item.assignee.id !== userId)) {
+        if (filterAssignee && mine && (item.assigneeId == null || item.assigneeId !== userId)) {
             if (!callback(item)) return false;
-        } else if (!filter) {
+        }
+
+        if (!filter) {
             return true;
         }
 
         const terms = [
-            nameOfUser(item.user).toLowerCase(),
+            item.user.readableName.toLowerCase(),
             (item.grade || 0).toString(),
-            item.formatted_created_at,
-            nameOfUser(item.assignee).toLowerCase() || '-',
-            ...groupMembers(item.user).map(n => n.toLowerCase()),
+            item.formattedCreatedAt,
+            item.assigneeId == null ? '-' : item.assignee.readableName.toLowerCase(),
+            ...item.user.getGroupMembers().map(member => member.readableName.toLowerCase()),
         ];
-        const out = (filter || '')
+        const out = filter
             .toLowerCase()
             .split(' ')
             .every(word => terms.some(value => value.indexOf(word) >= 0));
         if (out) {
-            l.add(item.user.id);
+            l.add(item.userId);
         }
         return out;
     });
@@ -41,17 +43,15 @@ export function sortSubmissions(a, b, sortBy) {
     }
 
     if (sortBy === 'assignee') {
-        return cmpNoCase(nameOfUser(first), nameOfUser(second));
+        return cmpNoCase(first.readableName, second.readableName);
     } else if (sortBy === 'user') {
-        return cmpNoCase(nameOfUser(first), nameOfUser(second));
-    } else if (sortBy === 'formatted_created_at' || sortBy === 'created_at') {
-        const createdA = a.created_at;
-        const createdB = b.created_at;
-
-        const res = cmpOneNull(createdA, createdB);
-        if (res !== null) return res;
-
-        return cmpNoCase(createdA, createdB);
+        return cmpNoCase(first.readableName, second.readableName);
+    } else if (
+        sortBy === 'formatted_created_at' ||
+        sortBy === 'created_at' ||
+        sortBy === 'createdAt'
+    ) {
+        return a.createdAt.valueOf() - b.createdAt.valueOf();
     } else if (sortBy === 'grade') {
         const firstF = parseFloat(first);
         const secondF = parseFloat(second);

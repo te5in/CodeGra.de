@@ -14,12 +14,12 @@ import {
     highlightCode,
     nameOfUser,
     groupMembers,
-    deadlinePassed,
-    canUploadWork,
-    canSeeGrade,
     autoTestHasCheckpointAfterHiddenStep,
     safeDivide,
     parseWarningHeader,
+    setProps,
+    coerceToString,
+    getNoNull,
 } from '@/utils';
 
 import * as assignmentState from '@/store/assignment-states';
@@ -265,6 +265,11 @@ describe('utils.js', () => {
             expect(nameOfUser(null)).toEqual('');
             expect(nameOfUser({})).toEqual('');
         });
+
+        it('should the `readableName` property if available', () => {
+            const obj = {};
+            expect(nameOfUser({ readableName: obj })).toBe(obj);
+        });
     });
 
     describe('groupMembers', () => {
@@ -293,184 +298,6 @@ describe('utils.js', () => {
         it('should work for empty objects', () => {
             expect(groupMembers(null)).toEqual([]);
             expect(groupMembers({})).toEqual([]);
-        });
-    });
-
-    describe('deadlinePassed', () => {
-        it.each([
-            [-1, 'minutes'],
-            [-1, 'hours'],
-            [-1, 'days'],
-            [-1, 'months'],
-            [-1, 'years'],
-            [1, 'minutes'],
-            [1, 'hours'],
-            [1, 'days'],
-            [1, 'months'],
-            [1, 'years'],
-        ])('should return true (false) when the deadline has (not) passed', (delta, type) => {
-            const now = moment();
-
-            expect(deadlinePassed({
-                deadline: formatDate(moment(now).add(delta, type)),
-            }, now)).toBe(delta < 0 ? true : false);
-        });
-    });
-
-    describe('canUploadWork', () => {
-        it('should return false when you cannot submit work', () => {
-            expect(canUploadWork({
-                course: {
-                    permissions: {
-                        can_submit_own_work: false,
-                        can_submit_others_work: false,
-                    },
-                },
-            })).toBe(false);
-        });
-
-        it.each([
-            [false],
-            [true],
-        ])('should return false when the assignment is hidden', (submitOwn) => {
-            const assig = {
-                state: assignmentState.HIDDEN,
-                course: {
-                    permissions: {
-                        can_submit_own_work: true,
-                        can_submit_others_work: false,
-                    },
-                },
-            };
-
-            expect(canUploadWork(assig)).toBe(false);
-
-            assig.course.permissions = {
-                can_submit_own_work: false,
-                can_submit_others_work: true,
-            };
-
-            expect(canUploadWork(assig)).toBe(false);
-
-            assig.course.permissions.can_submit_own_work = true;
-
-            expect(canUploadWork(assig)).toBe(false);
-        });
-
-        it('should return false when the deadline has passed and you do not have permission to submit after the deadline', () => {
-            const now = moment();
-            const assig = {
-                state: assignmentState.OPEN,
-                deadline: formatDate(moment(now).add(-1, 'days')),
-                course: {
-                    permissions: {
-                        can_submit_own_work: true,
-                        can_submit_others_work: false,
-                        can_upload_after_deadline: false,
-                    },
-                },
-            };
-
-            expect(canUploadWork(assig, now)).toBe(false);
-
-            assig.course.permissions = {
-                can_submit_own_work: false,
-                can_submit_others_work: true,
-            };
-
-            expect(canUploadWork(assig, now)).toBe(false);
-
-            assig.course.permissions.can_submit_own_work = true;
-
-            expect(canUploadWork(assig, now)).toBe(false);
-
-            assig.state = assignmentState.DONE;
-            assig.course.permissions.can_submit_others_work = false;
-
-            expect(canUploadWork(assig, now)).toBe(false);
-
-            assig.course.permissions = {
-                can_submit_own_work: false,
-                can_submit_others_work: true,
-            };
-
-            expect(canUploadWork(assig, now)).toBe(false);
-
-            assig.course.permissions.can_submit_own_work = true;
-
-            expect(canUploadWork(assig, now)).toBe(false);
-
-        });
-
-        it('should return true when you can submit work, the assignment is not hidden, and the deadline has not passed', () => {
-            const now = moment();
-            const assig = {
-                state: assignmentState.OPEN,
-                deadline: moment(now).add(1, 'days'),
-                course: {
-                    permissions: {
-                        can_submit_own_work: true,
-                        can_submit_others_work: false,
-                    },
-                },
-            };
-
-            expect(canUploadWork(assig, now)).toBe(true);
-
-            assig.state = assignmentState.DONE;
-
-            expect(canUploadWork(assig, now)).toBe(true);
-        });
-    });
-
-    describe('canSeeGrade', () => {
-        it.each([
-            assignmentState.HIDDEN,
-            assignmentState.SUBMITTING,
-            assignmentState.GRADING,
-            assignmentState.OPEN,
-        ])('should return false when the assignment state is %s and you don\'t have permission can_see_grade_before_open', (state) => {
-            const assig = {
-                state,
-                course: {
-                    permissions: {
-                        can_see_grade_before_open: false,
-                    },
-                },
-            };
-
-            expect(canSeeGrade(assig)).toBe(false);
-        });
-
-        it('should return true when the assignment state is done', () => {
-            const assig = {
-                state: assignmentState.DONE,
-                course: {
-                    permissions: {
-                        can_see_grade_before_open: false,
-                    },
-                },
-            };
-
-            expect(canSeeGrade(assig)).toBe(true);
-        });
-
-        it.each([
-            assignmentState.HIDDEN,
-            assignmentState.SUBMITTING,
-            assignmentState.GRADING,
-            assignmentState.OPEN,
-        ])('should return true when you have the permission can_see_grade_before_open', (state) => {
-            const assig = {
-                state,
-                course: {
-                    permissions: {
-                        can_see_grade_before_open: true,
-                    },
-                },
-            };
-
-            expect(canSeeGrade(assig)).toBe(true);
         });
     });
 
@@ -767,6 +594,83 @@ describe('utils.js', () => {
                 agent: 'C',
                 text: ',,',
             }]);
+        });
+    });
+
+    describe('setProps', () => {
+        it('should work when the key is not there yet', () => {
+            let obj = {};
+            let value = {};
+            setProps(obj, value, '1', '2', '3', '4');
+            expect(obj).toEqual({
+                1: {
+                    2: {
+                        3: {
+                            4: value,
+                        }
+                    }
+                }
+            })
+            expect(obj[1][2][3][4]).toBe(value);
+        });
+
+        it('should work when a part of the path is there', () => {
+            let obj = {};
+            let value = {1: { 2: { }}};
+            setProps(obj, value, '1', '2', '3', '4');
+            expect(obj).toEqual({
+                1: {
+                    2: {
+                        3: {
+                            4: value,
+                        }
+                    }
+                }
+            })
+            expect(obj[1][2][3][4]).toBe(value);
+        });
+
+        it('should throw when the given object is null', () => {
+            expect(() => setProps(null, 5, 1)).toThrow(Error);
+        });
+    });
+
+    describe('coerceToString', () => {
+        it('should work for strings', () => {
+            expect(coerceToString('abc')).toBe('abc');
+        });
+
+        it('should work for null', () => {
+            expect(coerceToString(null)).toBe('');
+        });
+
+        it('should work for objects', () => {
+            expect(coerceToString(true)).toBe('true');
+
+            expect(coerceToString({})).toBe('[object Object]');
+            expect(coerceToString({ toString() { return 'abc'; }})).toBe('abc');
+        });
+
+        it('should work for numbers', () => {
+            expect(coerceToString(-1)).toBe('-1');
+            expect(coerceToString(15.555)).toBe('15.555');
+            expect(coerceToString(0)).toBe('0');
+            expect(coerceToString(1)).toBe('1');
+        });
+    });
+
+    describe('getNoNull', () => {
+        const obj1 = {};
+        const obj2 = {};
+
+        it('should work when it is in the first obj', () => {
+            expect(getNoNull('a', {a: obj1}, {a: obj2})).toBe(obj1);
+        });
+        it('should work when it is not the first obj', () => {
+            expect(getNoNull('b', {a: obj1}, null, {b: obj2})).toBe(obj2);
+        });
+        it('should return null if it is not found', () => {
+            expect(getNoNull('c', {a: obj1}, null, {b: obj2})).toBe(null);
         });
     });
 });

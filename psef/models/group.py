@@ -380,4 +380,15 @@ class Group(Base):
             'id': self.id,
             'members': self.members,
             'name': self.name,
+            'group_set_id': self.group_set_id,
+            'created_at': self.created_at.isoformat(),
+        }
+
+    def __extended_to_json__(self) -> t.Mapping[str, t.Any]:
+        virt_user = self.virtual_user.__to_json__()
+        del virt_user['group']
+
+        return {
+            **self.__to_json__(),
+            'virtual_user': virt_user,
         }

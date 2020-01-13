@@ -8,7 +8,7 @@
         <template slot="title" v-if="assignment && Object.keys(assignment).length">
             {{ assignment.name }}
 
-            <small v-if="assignment.formatted_deadline">- due {{ assignment.formatted_deadline }}</small>
+            <small v-if="assignment.hasDeadline">- due {{ assignment.getFormattedDeadline() }}</small>
             <small v-else class="text-muted"><i>- No deadline</i></small>
         </template>
 
@@ -174,7 +174,7 @@
                          variant="warning"
                          class="no-deadline-alert"
                          v-if="uploaderDisabled">
-                    <p v-if="!assignment.deadline">
+                    <p v-if="!assignment.hasDeadline">
                         The deadline for this assignment has not yet been set.
 
                         <span v-if="canEditDeadline && deadlineEditable">
@@ -263,10 +263,8 @@
                 <groups-management :assignment="assignment"
                                    :course="assignment.course"
                                    :group-set="assignment.group_set"
-                                   :filter="filterGroups"
                                    :show-lti-progress="showGroupLTIProgress"
-                                   :show-add-button="!currentGroup || !isStudent"
-                                   @groups-changed="groupsChanged" />
+                                   :show-add-button="showAddGroupButton" />
             </div>
 
             <div v-show="selectedCat === 'export'"
@@ -327,7 +325,6 @@ export default {
             ltiProviders,
             selectedCat: '',
             filteredSubmissions: [],
-            currentGroup: null,
             gitData: null,
             error: null,
         };
@@ -337,7 +334,8 @@ export default {
         ...mapGetters('user', { userId: 'id' }),
         ...mapGetters('pref', ['darkMode']),
         ...mapGetters('courses', ['assignments']),
-        ...mapGetters('submissions', ['latestSubmissions']),
+        ...mapGetters('submissions', ['getLatestSubmissions']),
+        ...mapGetters('users', ['getGroupInGroupSetOfUser']),
 
         categories() {
             return [
@@ -409,7 +407,7 @@ export default {
         },
 
         submissions() {
-            return this.latestSubmissions[this.assignmentId] || [];
+            return this.getLatestSubmissions(this.assignmentId);
         },
 
         rubric() {
@@ -440,12 +438,9 @@ export default {
                 return 'you cannot submit work for this course.';
             } else if (assig.state === assignmentState.HIDDEN) {
                 return 'the assignment is hidden.';
-            } else if (assig.deadline == null) {
+            } else if (!assig.hasDeadline) {
                 return "the assignment's deadline has not yet been set.";
-            } else if (
-                this.$utils.deadlinePassed(assig, this.$root.$now) &&
-                !perms.can_upload_after_deadline
-            ) {
+            } else if (!perms.can_upload_after_deadline && assig.deadlinePassed(this.$root.$now)) {
                 return "the assignment's deadline has passed.";
             } else {
                 return '';
@@ -487,7 +482,7 @@ export default {
         },
 
         uploaderDisabled() {
-            return this.ltiUploadDisabledMessage || !this.assignment.deadline;
+            return !!(this.ltiUploadDisabledMessage || !this.assignment.hasDeadline);
         },
 
         deadlineEditable() {
@@ -507,7 +502,7 @@ export default {
                 return false;
             }
 
-            return this.latestSubmission.formatted_created_at > this.assignment.formatted_deadline;
+            return this.latestSubmission.isLate();
         },
 
         // It should not be possible that `assignment` is null. Still we use getProps below just in
@@ -590,7 +585,7 @@ export default {
         },
 
         canUpload() {
-            return this.$utils.canUploadWork(this.assignment, this.$root.$now);
+            return this.assignment.canUploadWork(this.$root.$now);
         },
 
         canSeeOthersWork() {
@@ -599,6 +594,19 @@ export default {
 
         canEditDeadline() {
             return this.coursePermissions.can_edit_assignment_info;
+        },
+
+        currentGroup() {
+            const groupSetId = this.$utils.getProps(this.assignment, null, 'group_set', 'id');
+            return this.getGroupInGroupSetOfUser(groupSetId, this.userId);
+        },
+
+        showAddGroupButton() {
+            if (this.currentGroup == null) {
+                return true;
+            }
+            // When there is a group, only show the add button if you are not a student.
+            return !this.isStudent;
         },
     },
 
@@ -712,22 +720,11 @@ export default {
             );
         },
 
-        filterGroups(group) {
-            if (this.isStudent && this.currentGroup) {
-                return this.currentGroup.id === group.id;
-            } else {
-                return true;
-            }
-        },
-
         showGroupLTIProgress(group) {
-            return this.currentGroup && this.assignment.is_lti
-                ? this.currentGroup.id === group.id
-                : false;
-        },
-
-        groupsChanged(groups) {
-            this.currentGroup = groups.find(g => g.members.find(m => m.id === this.userId));
+            if (this.assignment.is_lti && this.currentGroup && this.currentGroup.isGroup) {
+                return this.currentGroup.group.id === group.id;
+            }
+            return false;
         },
     },
 

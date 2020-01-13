@@ -57,7 +57,6 @@
 
 <script>
 import { mapActions, mapGetters } from 'vuex';
-import moment from 'moment';
 
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/plus';
@@ -99,10 +98,10 @@ export default {
                 }
                 return Math.min(
                     ...course.assignments.map(assig => {
-                        if (assig.deadline == null) {
-                            return Infinity;
+                        if (assig.hasDeadline) {
+                            return Math.abs(assig.deadline.diff(now));
                         } else {
-                            return Math.abs(moment(assig.deadline).diff(now));
+                            return Infinity;
                         }
                     }),
                 );

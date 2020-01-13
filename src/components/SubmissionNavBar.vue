@@ -15,7 +15,7 @@
                     :class="subLate(curSub) ? 'current-sub-late' : ''">
             <template slot="button-content">
                 <span class="button-content">
-                    <user :user="curSub.user"/> at {{ curSub.formatted_created_at }}
+                    <user :user="curSub.user"/> at {{ curSub.formattedCreatedAt }}
                     <webhook-name :submission="curSub" />
                     <span class="d-inline-block" style="transform: translateY(-2px)">
                         <late-submission-icon
@@ -34,7 +34,7 @@
                           v-else-if="groupOfUser"/>
                 </span>
             </template>
-            <template v-if="!loadingOldSubs && oldSubmissions != null">
+            <template v-if="!loadingOldSubs && loadedOldSubs">
                 <b-dropdown-item v-if="oldSubmissions.length === 0">
                     <b>No submissions found on the server</b>
                 </b-dropdown-item>
@@ -48,7 +48,7 @@
                     <template v-if="hasMixedSubmissions">
                         <user :user="sub.user" /> at
                     </template>
-                    {{ sub.formatted_created_at }}
+                    {{ sub.formattedCreatedAt }}
                     <webhook-name :submission="sub" />
                     <template v-if="sub.grade != null">
                         graded with a {{ sub.grade }}
@@ -129,7 +129,7 @@ export default {
 
     data() {
         return {
-            oldSubmissions: null,
+            loadedOldSubs: false,
             loadingOldSubs: false,
             // For use in v-b-popover directives.
             quote: '"',
@@ -138,15 +138,15 @@ export default {
 
     watch: {
         assignmentId() {
-            this.oldSubmissions = null;
+            this.loadedOldSubs = false;
         },
 
         curUserId() {
-            this.oldSubmissions = null;
+            this.loadedOldSubs = false;
         },
 
         showUserButtons() {
-            this.oldSubmissions = null;
+            this.loadedOldSubs = false;
         },
     },
 
@@ -154,8 +154,44 @@ export default {
         ...mapGetters({
             loggedInUserId: 'user/id',
         }),
+        ...mapGetters('submissions', ['getGroupSubmissionOfUser', 'getSubmissionsByUser']),
 
-        ...mapGetters('submissions', ['usersWithGroupSubmission']),
+        userIdsToShow() {
+            const res = [this.curSub.userId];
+
+            // If the prev/next buttons are disabled, try to load all
+            // submissions by the current user, so if this is a single user
+            // submission, also load submissions by the user's group, and
+            // vice versa.
+            if (!this.showUserButtons) {
+                let userId;
+
+                if (this.curSub.user.group != null) {
+                    userId = this.loggedInUserId;
+                } else {
+                    userId = this.$utils.getProps(
+                        this.getGroupSubmissionOfUser(this.assignmentId, this.loggedInUserId),
+                        null,
+                        'userId',
+                    );
+                }
+
+                if (userId != null) {
+                    res.push(userId);
+                }
+            }
+
+            return res;
+        },
+
+        oldSubmissions() {
+            const subs = this.userIdsToShow.reduce((acc, userId) => {
+                acc.push(...this.getSubmissionsByUser(this.assignmentId, userId));
+                return acc;
+            }, []);
+            subs.sort((a, b) => b.createdAt - a.createdAt);
+            return subs;
+        },
 
         curUserId() {
             return this.$utils.getProps(this.curSub, null, 'user', 'id');
@@ -216,7 +252,7 @@ export default {
             if (this.loading) {
                 return null;
             }
-            return this.filteredSubmissions.findIndex(sub => sub.user.id === this.curSub.user.id);
+            return this.filteredSubmissions.findIndex(sub => sub.userId === this.curSub.userId);
         },
 
         prevSub() {
@@ -251,7 +287,7 @@ export default {
         ...mapActions('submissions', ['loadSingleSubmission', 'loadSubmissionsByUser']),
 
         subLate(sub) {
-            return sub.formatted_created_at > this.assignment.formatted_deadline;
+            return sub.isLate();
         },
 
         selectSub(sub) {
@@ -278,61 +314,24 @@ export default {
 
         async onDropdownShow() {
             const sub = this.curSub;
-            if (this.oldSubmissions != null || sub == null) {
+            if (this.loadedOldSubs || sub == null) {
                 return;
             }
 
             const assignmentId = this.assignment.id;
 
             this.loadingOldSubs = true;
-            const promises = [
+            const promises = this.userIdsToShow.map(userId =>
                 this.loadSubmissionsByUser({
                     assignmentId,
-                    userId: sub.user.id,
+                    userId,
                 }),
-            ];
+            );
 
-            // If the prev/next buttons are disabled, try to load all
-            // submissions by the current user, so if this is a single user
-            // submission, also load submissions by the user's group, and
-            // vice versa.
-            if (!this.showUserButtons) {
-                let userId = null;
-
-                if (sub.user.group != null) {
-                    userId = this.loggedInUserId;
-                } else {
-                    userId = this.$utils.getProps(
-                        this.usersWithGroupSubmission,
-                        null,
-                        assignmentId,
-                        this.loggedInUserId,
-                        'id',
-                    );
-                }
-
-                if (userId != null) {
-                    promises.push(
-                        this.loadSubmissionsByUser({
-                            assignmentId,
-                            userId,
-                        }),
-                    );
-                }
-            }
-
-            const subs = await Promise.all(promises).then(([subUserSubs, otherUserSubs]) => {
-                if (otherUserSubs === undefined) {
-                    return [...subUserSubs];
-                } else {
-                    return subUserSubs
-                        .concat(otherUserSubs)
-                        .sort((a, b) => b.created_at.localeCompare(a.created_at));
-                }
-            });
+            await Promise.all(promises);
 
             if (this.curSub && this.curSub.id === sub.id) {
-                this.oldSubmissions = subs;
+                this.loadedOldSubs = true;
                 this.loadingOldSubs = false;
             }
         },

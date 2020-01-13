@@ -102,7 +102,7 @@ export default {
                     {
                         name: 'Created at',
                         enabled: true,
-                        getter: submission => submission.formatted_created_at,
+                        getter: submission => this.$utils.readableFormatDate(submission.createdAt),
                     },
                     {
                         name: 'Assigned to',

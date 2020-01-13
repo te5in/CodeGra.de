@@ -17,6 +17,14 @@ describe('SubmitButton.vue', () => {
     let comp;
     let mockSubmit;
 
+    async function wait(n=10) {
+        await comp.$afterRerender();
+        for (let i = 0; i < n; ++i) {
+            await comp.$nextTick();
+        }
+        await comp.$afterRerender();
+    }
+
     function mount(props) {
         let submit = 'success';
         if (props && props.submit) {
@@ -28,10 +36,10 @@ describe('SubmitButton.vue', () => {
             mockSubmit = jest.fn(() => Promise.resolve('success'));
         } else if (submit === 'warning') {
             mockSubmit = jest.fn(() =>
-                Promise.resolve({ data: { headers: { warning: 'warning' } } }),
+                                 Promise.resolve({ data: { headers: { warning: 'warning' } } }),
             );
         } else if (submit === 'error') {
-            mockSubmit = jest.fn(() => Promise.reject(new Error('error')));
+            mockSubmit = jest.fn(() => Promise.reject('error'));
         } else {
             mockSubmit = submit;
         }
@@ -47,13 +55,9 @@ describe('SubmitButton.vue', () => {
         comp = wrapper.vm;
     }
 
-    beforeEach(() => mount());
+    describe('the button state', async () => {
+        beforeEach(() => mount());
 
-    it('should not be null', () => {
-        expect(comp).not.toBe(null);
-    });
-
-    describe('the button state', () => {
         it('should be "default" by default', () => {
             expect(comp.state).toBe('default');
         });
@@ -67,11 +71,16 @@ describe('SubmitButton.vue', () => {
             mount({ submit: 'error' });
             comp.onClick();
             await comp.$nextTick();
+
             expect(comp.state).toBe('pending');
+            expect(mockSubmit).toBeCalledTimes(1);
+
+            await wait();
+            expect(comp.state).toBe('error');
             expect(mockSubmit).toBeCalledTimes(1);
         });
 
-        it.skip('should be "success" after a successful request', async () => {
+        it('should be "success" after a successful request', async () => {
             let promise;
             mount({ submit: jest.fn(() => {
                 promise = Promise.resolve('success');
@@ -80,7 +89,7 @@ describe('SubmitButton.vue', () => {
             comp.onClick();
             expect(comp.state).not.toBe('success');
 
-            await comp.$nextTick();
+            await wait();
             expect(mockSubmit).toBeCalledTimes(1);
 
             await promise;
@@ -93,6 +102,7 @@ describe('SubmitButton.vue', () => {
             expect(comp.state).toBe('success');
 
             await timedPromise(comp.duration);
+            await wait();
             expect(comp.state).toBe('default');
             expect(wrapper.emitted()['after-success']).toHaveLength(1);
         });
@@ -177,24 +187,31 @@ describe('SubmitButton.vue', () => {
 
         it('should trigger submission after it has been confirmed', async () => {
             expect(comp.confirmVisible).toBe(true);
+            expect(mockSubmit).toBeCalledTimes(0);
             comp.acceptConfirm();
+            await comp.$nextTick();
+            expect(mockSubmit).toBeCalledTimes(1);
 
-            comp.$nextTick().then(() => {
-                expect(comp.confirmVisible).toBe(false);
-                expect(comp.confirmAccepted).toBe(true);
-                expect(comp.state).toBe('success');
-            });
+            await wait();
+
+            expect(comp.confirmVisible).toBe(false);
+            // It is no longer accepted;
+            expect(comp.confirmAccepted).toBe(false);
+            expect(comp.state).toBe('success');
+            expect(mockSubmit).toBeCalledTimes(1);
         });
 
-        it('should reset when it has been cancelled', async() => {
+        it('should reset when it has been cancelled', async () => {
             expect(comp.confirmVisible).toBe(true);
-            comp.resetConfirm();
+            expect(mockSubmit).toBeCalledTimes(0);
+            comp.resetConfirm(true);
 
-            comp.$nextTick().then(() => {
-                expect(comp.confirmVisible).toBe(false);
-                expect(comp.confirmAccepted).toBe(false);
-                expect(comp.state).toBe('default');
-            });
+            await wait();
+
+            expect(comp.confirmVisible).toBe(false);
+            expect(comp.confirmAccepted).toBe(false);
+            expect(comp.state).toBe('default');
+            expect(mockSubmit).toBeCalledTimes(0);
         });
     });
 });

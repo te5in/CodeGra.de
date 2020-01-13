@@ -1,6 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import moment from 'moment';
-import * as assignmentState from '@/store/assignment-states';
 import { getLanguage, highlight } from 'highlightjs';
 import { visualizeWhitespace } from './visualize';
 
@@ -21,6 +20,12 @@ export function htmlEscape(inputString) {
         return string.replace(reUnescapedHtml, ent => htmlEscapes[ent]);
     }
     return string;
+}
+
+export function coerceToString(obj) {
+    if (obj == null) return '';
+    else if (typeof obj === 'string') return obj;
+    return `${obj}`;
 }
 
 export function formatGrade(grade) {
@@ -55,7 +60,9 @@ export function cmpOneNull(first, second) {
 }
 
 export function cmpNoCase(first, second) {
-    return first.toLocaleLowerCase().localeCompare(second.toLocaleLowerCase());
+    return coerceToString(first).localeCompare(coerceToString(second), undefined, {
+        sensitivity: 'base',
+    });
 }
 
 /**
@@ -71,16 +78,22 @@ export function parseBool(value, dflt = true) {
     return dflt;
 }
 
+function toMoment(date) {
+    if (moment.isMoment(date)) {
+        return date.clone();
+    } else {
+        return moment.utc(date, moment.ISO_8601);
+    }
+}
+
 export function formatDate(date) {
-    return moment
-        .utc(date, moment.ISO_8601)
+    return toMoment(date)
         .local()
         .format('YYYY-MM-DDTHH:mm');
 }
 
 export function readableFormatDate(date) {
-    return moment
-        .utc(date, moment.ISO_8601)
+    return toMoment(date)
         .local()
         .format('YYYY-MM-DD HH:mm');
 }
@@ -199,6 +212,8 @@ export function getOtherAssignmentPlagiarismDesc(item, index) {
     }" of "${item.assignments[index].course.name}"`;
 
     if (item.submissions != null) {
+        // These submissions are not yet submission object, so we don't have
+        // `createdAt` property.
         const date = moment
             .utc(item.submissions[index].created_at, moment.ISO_8601)
             .local()
@@ -211,6 +226,7 @@ export function getOtherAssignmentPlagiarismDesc(item, index) {
 
 export function nameOfUser(user) {
     if (!user) return '';
+    else if (user.readableName) return user.readableName;
     else if (user.group) return `Group "${user.group.name}"`;
     else return user.name || '';
 }
@@ -221,6 +237,8 @@ export function groupMembers(user) {
 }
 
 export function userMatches(user, filter) {
+    // The given user might not be an actual user object, as this function is
+    // also used by the plagiarism list.
     return [nameOfUser(user), ...groupMembers(user)].some(
         name => name.toLocaleLowerCase().indexOf(filter) > -1,
     );
@@ -253,6 +271,23 @@ export function getProps(object, defaultValue, ...props) {
         res = defaultValue;
     }
     return res;
+}
+
+export function setProps(object, value, ...props) {
+    if (object == null) {
+        throw new Error('Given object to set props on is null');
+    }
+    const lastProp = props.pop();
+    let inner = object;
+
+    for (let i = 0; i < props.length; ++i) {
+        if (inner[props[i]] == null) {
+            inner[props[i]] = {};
+        }
+        inner = inner[props[i]];
+    }
+
+    inner[lastProp] = value;
 }
 
 export const getUniqueId = (() => {
@@ -367,56 +402,6 @@ export function safeDivide(a, b, dfl) {
     return b === 0 ? dfl : a / b;
 }
 
-export function deadlinePassed(assignment, now) {
-    return now.isAfter(assignment.deadline);
-}
-
-export function canUploadWork(assignment, now) {
-    const perms = assignment.course.permissions;
-
-    if (!(perms.can_submit_own_work || perms.can_submit_others_work)) {
-        return false;
-    } else if (assignment.state === assignmentState.HIDDEN) {
-        return false;
-    } else if (
-        assignment.deadline == null ||
-        (deadlinePassed(assignment, now) && !perms.can_upload_after_deadline)
-    ) {
-        return false;
-    } else {
-        return true;
-    }
-}
-
-export function canSeeFeedbackType(assignment, type) {
-    const perm = {
-        grade: 'can_see_grade_before_open',
-        linter: 'can_see_linter_feedback_before_done',
-        user: 'can_see_user_feedback_before_done',
-    }[type];
-
-    if (assignment == null || perm == null) {
-        return false;
-    }
-
-    return (
-        assignment.state === assignmentState.DONE ||
-        getProps(assignment.course, false, 'permissions', perm)
-    );
-}
-
-export function canSeeGrade(assignment) {
-    return canSeeFeedbackType(assignment, 'grade');
-}
-
-export function canSeeUserFeedback(assignment) {
-    return canSeeFeedbackType(assignment, 'user');
-}
-
-export function canSeeLinterFeedback(assignment) {
-    return canSeeFeedbackType(assignment, 'linter');
-}
-
 export function autoTestHasCheckpointAfterHiddenStep(autoTest) {
     let testHasHiddenStep = false;
 
@@ -453,3 +438,22 @@ export function autoTestHasCheckpointAfterHiddenStep(autoTest) {
 
     return false;
 }
+
+export function snakeToCamelCase(val) {
+    return val.replace(/[-_]([a-z])/gi, inner => inner[1].toUpperCase());
+}
+
+/**
+ * Get the `prop` from the first object in `objs` where `objs[i][prop]` is not
+ * `null`.
+ */
+export function getNoNull(prop, ...objs) {
+    for (let i = 0; i < objs.length; ++i) {
+        if (objs[i] && objs[i][prop] != null) {
+            return objs[i][prop];
+        }
+    }
+    return null;
+}
+
+export const UNSET_SENTINEL = {};

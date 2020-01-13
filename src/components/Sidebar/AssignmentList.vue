@@ -65,7 +65,6 @@
 
 <script>
 import { mapActions, mapGetters } from 'vuex';
-import moment from 'moment';
 
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/gear';
@@ -138,9 +137,8 @@ export default {
 
         topAssignments() {
             const lookup = this.assignments.reduce((res, cur) => {
-                const deadline = cur.deadline;
-                if (deadline) {
-                    res[cur.id] = Math.abs(moment(deadline).diff(this.$root.$now));
+                if (cur.hasDeadline) {
+                    res[cur.id] = Math.abs(cur.deadline.diff(this.$root.$now));
                 }
                 return res;
             }, {});

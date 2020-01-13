@@ -82,6 +82,9 @@ const actions = {
             commit(`courses/${types.CLEAR_COURSES}`, null, { root: true }),
             commit(`rubrics/${types.CLEAR_RUBRIC_RESULTS}`, null, { root: true }),
             commit(`autotest/${types.CLEAR_AUTO_TESTS}`, null, { root: true }),
+            commit(`users/${types.CLEAR_USERS}`, null, { root: true }),
+            commit(`fileTrees/${types.DELETE_ALL_FILETREES}`, null, { root: true }),
+            commit(`feedback/${types.DELETE_ALL_FEEDBACKS}`, null, { root: true }),
             commit(types.LOGOUT),
         ]);
     },
@@ -90,13 +93,22 @@ const actions = {
         return new Promise((resolve, reject) => {
             axios
                 .get('/api/v1/login?type=extended&with_permissions')
-                .then(response => {
+                .then(async response => {
                     // We are already logged in. Update state to logged in state
                     commit(types.LOGIN, {
                         access_token: state.jwtToken,
                         user: response.data,
                     });
-                    resolve();
+                    await dispatch(
+                        'users/addOrUpdateUser',
+                        {
+                            user: response.data,
+                        },
+                        {
+                            root: true,
+                        },
+                    );
+                    resolve(response);
                 })
                 .catch(() => {
                     dispatch('logout').then(reject, reject);
@@ -104,7 +116,7 @@ const actions = {
         });
     },
 
-    updateUserInfo({ commit }, {
+    updateUserInfo({ commit, dispatch }, {
         name, email, oldPw, newPw,
     }) {
         return axios
@@ -114,8 +126,18 @@ const actions = {
                 old_password: oldPw,
                 new_password: newPw,
             })
-            .then(() => {
+            .then(async response => {
                 commit(types.UPDATE_USER_INFO, { name, email });
+                await dispatch(
+                    'users/addOrUpdateUser',
+                    {
+                        user: response.data,
+                    },
+                    {
+                        root: true,
+                    },
+                );
+                return response;
             });
     },
 

@@ -55,6 +55,7 @@
                                   v-if="$userConfig.features.linters && linterFeedback[i - 1] != null"/>
 
             <feedback-area
+                :key="i"
                 :editing="editing[i - 1]"
                 :feedback="feedback[i - 1 + lineFeedbackOffset].msg"
                 :author="feedback[i - 1 + lineFeedbackOffset].author"
@@ -67,7 +68,7 @@
                 :submission="submission"
                 @editFeedback="editFeedback"
                 @feedbackChange="feedbackChange"
-                v-if="showFeedback && $utils.getProps(feedback, null, i - 1 + lineFeedbackOffset, 'msg') !== null"/>
+                v-if="showFeedback && $utils.getProps(feedback, null, i - 1 + lineFeedbackOffset) != null"/>
         </li>
         <li class="empty-file"
             v-if="innerCodeLines.length === 1 && innerCodeLines[0] === ''">
@@ -223,7 +224,7 @@ export default {
 
     computed: {
         ...mapGetters('user', {
-            currentUserName: 'name',
+            myId: 'id',
         }),
 
         ...mapGetters('pref', ['fontSize']),
@@ -303,8 +304,8 @@ export default {
     },
 
     methods: {
-        ...mapActions('submissions', {
-            storeAddFeedbackLine: 'addSubmissionFeedbackLine',
+        ...mapActions('feedback', {
+            storeAddFeedbackLine: 'addFeedbackLine',
         }),
 
         removeDragHandler() {
@@ -332,7 +333,7 @@ export default {
                     submissionId: this.submission.id,
                     fileId: this.fileId,
                     line: feedbackLine,
-                    author: { name: this.currentUserName },
+                    author: { id: this.myId },
                 });
             }
             this.$set(this.editing, line, true);

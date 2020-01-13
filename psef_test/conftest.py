@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 import os
+import re
 import sys
 import copy
 import json
@@ -273,9 +274,14 @@ def assert_similar():
         is_list = isinstance(tree, list)
         i = 0
         allowed_extra = False
+        not_allowed_extra = set()
+
         for k, value in enumerate(tree) if is_list else tree.items():
+
             if k == '__allow_extra__' and value:
                 allowed_extra = True
+                if not isinstance(value, bool):
+                    not_allowed_extra = set(value)
                 continue
             elif not is_list and k[0] == '?' and k[-1] == '?':
                 k = k[1:-1]
@@ -294,6 +300,13 @@ def assert_similar():
                 else:
                     assert 0 <= k < len(vals)
                 checker(vals[k], value, cur_path + [str(k)])
+            elif isinstance(value, re.Pattern):
+                assert value.search(vals[k]), (
+                    "Wrong value for key '{}', expected something to match"
+                    " with '{}', got '{}'"
+                ).format(
+                    '.'.join(cur_path + [str(k)]), value.pattern, vals[k]
+                )
             else:
                 assert vals[k] == value, (
                     "Wrong value for key '{}', expected '{}', got '{}'"
@@ -308,6 +321,11 @@ def assert_similar():
             assert len(vals) == i, 'Difference in keys: {}'.format(
                 set(vals) ^ set(tree)
             )
+        else:
+            gotten_disallowed_keys = (set(vals.keys()) & not_allowed_extra)
+            assert not gotten_disallowed_keys, (
+                'Got disallowed keys: {}'
+            ).format(gotten_disallowed_keys)
 
     yield lambda val, result: checker({'top': val}, {'top': result}, [])
 

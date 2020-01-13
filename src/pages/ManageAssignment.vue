@@ -59,7 +59,7 @@
                 <b-form-fieldset v-if="canEditDeadline">
                     <b-input-group>
                         <b-input-group-prepend is-text slot="prepend"
-                                               :class="{ 'warning': assignment.deadline === null }">
+                                               :class="{ 'warning': !assignment.hasDeadline }">
                             Deadline
 
                             <description-popover placement="top">
@@ -80,7 +80,6 @@
                                          placeholder="None set"/>
                         <b-input-group-append>
                             <submit-button :submit="submitDeadline"
-                                           @success="updateDeadline"
                                            ref="updateDeadline"/>
                         </b-input-group-append>
                     </b-input-group>
@@ -305,7 +304,6 @@
 <script>
 import { mapActions, mapGetters } from 'vuex';
 
-import { convertToUTC, readableFormatDate } from '@/utils';
 import ltiProviders from '@/lti_providers';
 
 import {
@@ -353,7 +351,7 @@ export default {
         ...mapGetters('courses', ['assignments']),
 
         formattedDeadline() {
-            return (this.assignment && this.assignment.formatted_deadline) || '';
+            return (this.assignment && this.assignment.getFormattedDeadline()) || '';
         },
 
         assignmentId() {
@@ -519,7 +517,12 @@ export default {
     },
 
     methods: {
-        ...mapActions('courses', ['updateAssignment', 'loadCourses', 'reloadCourses']),
+        ...mapActions('courses', [
+            'updateAssignment',
+            'loadCourses',
+            'reloadCourses',
+            'updateAssignmentDeadline',
+        ]),
         ...mapActions('submissions', ['forceLoadSubmissions']),
 
         async loadData() {
@@ -527,7 +530,7 @@ export default {
                 if (this.loading) {
                     this.permissions = this.assignment.course.permissions;
                     this.assignmentTempName = this.assignment.name;
-                    this.assignmentTempDeadline = this.assignment.deadline;
+                    this.assignmentTempDeadline = this.assignment.getDeadlineAsString();
                     this.loading = false;
                 }
             };
@@ -579,18 +582,9 @@ export default {
         },
 
         submitDeadline() {
-            return this.$http.patch(this.assignmentUrl, {
-                deadline: convertToUTC(this.assignmentTempDeadline),
-            });
-        },
-
-        updateDeadline() {
-            this.updateAssignment({
+            return this.updateAssignmentDeadline({
                 assignmentId: this.assignment.id,
-                assignmentProps: {
-                    deadline: this.assignmentTempDeadline,
-                    formatted_deadline: readableFormatDate(this.assignmentTempDeadline),
-                },
+                deadline: this.assignmentTempDeadline,
             });
         },
 

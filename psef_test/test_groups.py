@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 import os
+import re
 import uuid
 
 import pytest
@@ -121,6 +122,14 @@ def test_create_simple_group(
                 'id': int,
                 'members': list,
                 'name': str,
+                'created_at': str,
+                'group_set_id': group_set['id'],
+                'virtual_user': {
+                    'id': int,
+                    'name': re.compile(r'^Virtual - GROUP_'),
+                    'username': re.compile(r'^VIRTUAL_USER_'),
+                    '__allow_extra__': {'group'},
+                },
             }
         )
         if not has_err:
@@ -175,6 +184,9 @@ def test_create_extended_group(
                 'id': int,
                 'name': str,
                 'members': list,
+                'virtual_user': dict,
+                'created_at': str,
+                'group_set_id': group_set['id'],
             }
         )
 
@@ -191,6 +203,9 @@ def test_create_extended_group(
                 'id': int,
                 'name': str,
                 'members': list,
+                'virtual_user': dict,
+                'created_at': str,
+                'group_set_id': group_set['id'],
             }
         )
         if not has_err:

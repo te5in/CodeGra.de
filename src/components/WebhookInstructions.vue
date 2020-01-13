@@ -288,7 +288,6 @@
 
 <script>
 import { mapActions, mapGetters } from 'vuex';
-import moment from 'moment';
 
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/arrow-left';
@@ -322,14 +321,14 @@ export default {
 
     computed: {
         ...mapGetters('courses', ['assignments']),
-        ...mapGetters('submissions', ['latestSubmissions']),
+        ...mapGetters('submissions', ['getLatestSubmissions']),
 
         assignmentId() {
             return this.data.assignment_id;
         },
 
         courseId() {
-            return this.assignments[this.assignmentId].course.id;
+            return this.assignments[this.assignmentId].courseId;
         },
 
         userId() {
@@ -437,9 +436,8 @@ export default {
                 assignmentId: this.assignmentId,
                 userId: this.userId,
             }).then(() => {
-                this.latestSubmission = this.latestSubmissions[this.assignmentId].find(
-                    s => s.user.id === this.userId,
-                );
+                const latestSubmissions = this.getLatestSubmissions(this.assignmentId);
+                this.latestSubmission = latestSubmissions.find(s => s.userId === this.userId);
             });
         },
 
@@ -447,10 +445,7 @@ export default {
             // Get the latest submission of the user for the current webhook
             // and check if it is a git submission.
 
-            const latestDate = moment.utc(
-                this.$utils.getProps(this.latestSubmission, '1970-01-01', 'created_at'),
-                moment.ISO_8601,
-            );
+            const latestDate = this.latestSubmission.createdAt;
 
             return this.storeLoadSubmissionsByUser({
                 assignmentId: this.assignmentId,
@@ -460,7 +455,7 @@ export default {
                 const latestGitSubmission = (subs || []).find(
                     s =>
                         (s.origin === 'github' || s.origin === 'gitlab') &&
-                        moment.utc(s.created_at, moment.ISO_8601).isAfter(latestDate),
+                        s.createdAt.isAfter(latestDate),
                 );
 
                 this.checkLatestResults = {

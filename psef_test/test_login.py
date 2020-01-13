@@ -338,9 +338,8 @@ def test_update_user_info(
         test_client.req(
             'patch',
             '/api/v1/login',
-            error or 204,
+            error or 200,
             data=data,
-            result=None,
         )
         new_user = m.User.query.get(user_id)
         if not error:
@@ -406,7 +405,7 @@ def test_update_user_info_permissions(
         test_client.req(
             'patch',
             '/api/v1/login',
-            204,
+            200,
             data={
                 'name': 'NEW_USER', 'email': 'a@a.nl', 'old_password': 'a',
                 'new_password': 'b@#@#AA!!!SSDSD2342340?'
@@ -432,7 +431,7 @@ def test_update_user_info_permissions(
         test_client.req(
             'patch',
             '/api/v1/login',
-            204,
+            200,
             data={
                 'name': 'new_name1',
                 'email': 'a@a.nl',

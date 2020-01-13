@@ -75,4 +75,6 @@ if (Object.hasOwnProperty.call(userConfig.AutoTest, 'auto_test_max_time_command'
     config.autoTest.auto_test_max_command_time = Number(userConfig.AutoTest.auto_test_max_time_command);
 }
 
+config.isProduction = process.env.NODE_ENV === 'production';
+
 module.exports = config;

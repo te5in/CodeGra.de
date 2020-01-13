@@ -356,6 +356,7 @@ export default {
 
             if (snippet == null) {
                 this.saveConfirmMessage = '';
+                return;
             }
 
             const dup = this.getSnippetWithSameKey(snippet);

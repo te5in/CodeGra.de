@@ -127,7 +127,7 @@
                 This assignment is a group assignment. Each group should have at
                 least {{ assignment.group_set.minimum_size }} members.
 
-                <span v-if="currentGroup">
+                <span v-if="currentGroup != null">
                     <span v-if="differentAuthor">{{ currentAuthor.name }} is</span>
                     <span v-else>You are</span>
                     currently member of a group with
@@ -154,12 +154,11 @@
                 <groups-management :assignment="assignment"
                                    :course="assignment.course"
                                    :group-set="assignment.group_set"
-                                   :filter="currentGroup ? ((group) => currentGroup.id == group.id) : (() => true)"
+                                   :filter="filterGroups"
                                    :show-lti-progress="currentGroup && assignment.is_lti ?
                                                        ((group) => currentGroup.id === group.id) :
                                                        (() => false)"
-                                   @groups-changed="groupsChanged"
-                                   :show-add-button="!currentGroup"/>
+                                   :show-add-button="currentGroup == null"/>
             </div>
         </div>
 
@@ -170,7 +169,7 @@
             </b-button>
 
             <submit-button label="Try again"
-                           :disabled="groupSubmitPossible"
+                           :disabled="groupSubmitNotPossible"
                            :submit="trySubmitAgain"
                            @success="afterTrySubmitAgain"
                            @error="trySubmitAgainError"
@@ -277,7 +276,6 @@
 
 <script>
 import { mapGetters, mapActions } from 'vuex';
-import moment from 'moment';
 
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/times';
@@ -329,16 +327,17 @@ export default {
     },
 
     computed: {
-        ...mapGetters('user', { myUsername: 'username', myName: 'name' }),
+        ...mapGetters('user', { myUsername: 'username', myName: 'name', myId: 'id' }),
+        ...mapGetters('users', ['getGroupInGroupSetOfUser']),
 
         defaultAuthor() {
-            return { name: this.myName, username: this.myUsername };
+            return { name: this.myName, username: this.myUsername, id: this.myId };
         },
 
-        groupSubmitPossible() {
-            return (
-                !this.currentGroup ||
-                this.currentGroup.members.length < this.assignment.group_set.minimum_size
+        groupSubmitNotPossible() {
+            return !(
+                this.currentGroup != null &&
+                this.currentGroup.members.length >= this.assignment.group_set.minimum_size
             );
         },
 
@@ -420,7 +419,11 @@ export default {
         },
 
         readableDeadline() {
-            return moment(this.assignment.deadline).from(this.$root.$now);
+            const assig = this.assignment;
+            if (assig.hasDeadline) {
+                return assig.deadline.from(this.$root.$now);
+            }
+            return '';
         },
 
         authorDisabledPopover() {
@@ -433,6 +436,18 @@ export default {
             return this.disabled || this.author
                 ? 'You cannot select both an author and upload as a test submission.'
                 : '';
+        },
+
+        currentGroup() {
+            const groupSetId = this.$utils.getProps(this.assignment, null, 'group_set', 'id');
+            return this.$utils.getProps(
+                this.getGroupInGroupSetOfUser(
+                    groupSetId,
+                    this.$utils.getProps(this.currentAuthor, null, 'id'),
+                ),
+                null,
+                'group',
+            );
         },
     },
 
@@ -452,7 +467,6 @@ export default {
             showWrongFileModal: false,
             showGroupModal: false,
             ignored: 'error',
-            currentGroup: null,
             ruleCache: {},
             files: [],
             isTestSubmission: false,
@@ -477,6 +491,7 @@ export default {
 
     methods: {
         ...mapActions('submissions', ['addSubmission']),
+        ...mapActions('users', ['addOrUpdateUser']),
 
         getRequestData() {
             const data = new FormData();
@@ -527,18 +542,6 @@ export default {
             this.$emit('created', submission);
         },
 
-        groupsChanged(newGroups) {
-            for (let index = 0; index < newGroups.length; ++index) {
-                const group = newGroups[index];
-                const needle = this.currentAuthor.username;
-                if (group.members.some(user => user.username === needle)) {
-                    this.currentGroup = group;
-                    return;
-                }
-            }
-            this.currentGroup = null;
-        },
-
         isArchiveError(err) {
             const { code } = err.response.data;
             return code === 'INVALID_FILE_IN_ARCHIVE';
@@ -571,7 +574,9 @@ export default {
                 await this.$nextTick();
                 this.$root.$emit('bv::show::modal', 'wrong-files-modal');
             } else if (this.isGroupError(err)) {
-                this.currentGroup = data.group;
+                if (data.group) {
+                    this.addOrUpdateUser({ user: data.group });
+                }
                 this.showGroupModal = true;
                 await this.$nextTick();
                 this.$root.$emit('bv::show::modal', 'group-manage-modal');
@@ -628,6 +633,13 @@ export default {
                     this.loadingWebhookError = err;
                 },
             );
+        },
+
+        filterGroups(group) {
+            if (this.currentGroup) {
+                return group.id === this.currentGroup.id;
+            }
+            return true;
         },
     },
 

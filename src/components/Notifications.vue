@@ -57,16 +57,12 @@
     </b-collapse>
 
     <submit-button ref="updateReminder"
-                   :submit="updateReminder"
-                   @success="afterUpdateReminder"/>
+                   :submit="updateReminder" />
 </div>
 </template>
 
 <script>
 import { mapActions } from 'vuex';
-import moment from 'moment';
-
-import { convertToUTC } from '@/utils';
 
 import SubmitButton from './SubmitButton';
 import DescriptionPopover from './DescriptionPopover';
@@ -88,8 +84,8 @@ export default {
 
     data() {
         return {
-            graders: this.assignment.has_reminder_time,
-            reminderTime: this.assignment.reminder_time,
+            graders: this.assignment.reminderTime.isValid(),
+            reminderTime: this.$utils.formatDate(this.assignment.getReminderTimeOrDefault()),
             finished: this.assignment.done_email != null,
             doneEmail: this.assignment.done_email,
             doneType: this.assignment.done_type,
@@ -125,7 +121,7 @@ divided or because they were assigned work manually.`,
     },
 
     methods: {
-        ...mapActions('courses', ['updateAssignment']),
+        ...mapActions('courses', ['updateAssignmentReminder']),
 
         updateReminder() {
             if ((this.graders || this.finished) && !this.doneType) {
@@ -138,35 +134,11 @@ divided or because they were assigned work manually.`,
                 throw new Error(msg);
             }
 
-            const props = {
-                done_type: this.doneType,
-                done_email: this.finished ? this.doneEmail : null,
-                reminder_time: this.graders ? convertToUTC(this.reminderTime) : null,
-            };
-
-            return this.$http.patch(this.assignmentUrl, props);
-        },
-
-        afterUpdateReminder() {
-            const time = this.graders ? convertToUTC(this.reminderTime) : null;
-            const email = this.finished ? this.doneEmail : null;
-
-            const props = {
-                done_type: this.doneType,
-                done_email: email,
-                reminder_time: time,
-            };
-
-            if (this.graders || this.finished) {
-                props.reminder_time = moment
-                    .utc(time)
-                    .local()
-                    .format('YYYY-MM-DDTHH:mm');
-            }
-
-            this.updateAssignment({
+            return this.updateAssignmentReminder({
                 assignmentId: this.assignment.id,
-                assignmentProps: props,
+                doneType: this.doneType,
+                doneEmail: this.finished ? this.doneEmail : null,
+                reminderTime: this.graders ? this.reminderTime : null,
             });
         },
     },

@@ -146,7 +146,7 @@ export default {
             },
         },
 
-        assignment: {
+        assignmentId: {
             immediate: true,
             handler() {
                 this.storeLoadRubric(this.assignment.id);
@@ -164,6 +164,7 @@ export default {
             handler() {
                 this.storeLoadRubricResult({
                     submissionId: this.submission.id,
+                    assignmentId: this.assignment.id,
                 });
 
                 if (this.autoTestConfigId) {
@@ -359,6 +360,10 @@ export default {
                 return acc;
             }, {});
         },
+
+        assignmentId() {
+            return this.assignment.id;
+        },
     },
 
     mounted() {
@@ -429,6 +434,7 @@ export default {
 
             return this.storeUpdateRubricItems({
                 submissionId: this.submission.id,
+                assignmentId: this.assignment.id,
                 selected,
             }).then(() => {
                 this.$emit('change', this.currentResult);
@@ -442,6 +448,7 @@ export default {
 
             return this.storeUpdateRubricItems({
                 submissionId: this.submission.id,
+                assignmentId: this.assignment.id,
                 selected: this.currentResult.selected,
             });
         },
@@ -462,6 +469,7 @@ export default {
                     req.then(() =>
                         this.storeToggleRubricItem({
                             submissionId: this.submission.id,
+                            assignmentId: this.assignment.id,
                             row,
                             item,
                         }),

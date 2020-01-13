@@ -9,6 +9,8 @@ ls -hl frontend-unit-coverage
 ls -hl frontend-integration-coverage
 ls -hl coverage/
 
+sed -i "s@^SF:$PWD/@SF:@g" "$OUT"
+
 RUN=./.github/scripts/run_cc_test_reporter.bash
 $RUN format-coverage "$OUT" -t lcov
 $RUN upload-coverage
@@ -22,4 +24,4 @@ else
     export GIT_BRANCH="${GITHUB_REF/refs\/heads\//}"
 fi
 
-"$(npm bin)/codacy-coverage" -c "$GIT_COMMIT_SHA" -v -p . < "$OUT"
+"$(npm bin)/codacy-coverage" -c "$GIT_COMMIT_SHA" -v < "$OUT"

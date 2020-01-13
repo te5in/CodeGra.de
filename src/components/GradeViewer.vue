@@ -264,10 +264,14 @@ export default {
         submissionGrade() {
             return this.submission.grade;
         },
+
+        assignmentId() {
+            return this.assignment.id;
+        },
     },
 
     watch: {
-        assignment: {
+        assignmentId: {
             immediate: true,
             handler() {
                 this.storeLoadRubric(this.assignment.id);
@@ -286,6 +290,7 @@ export default {
                 }
                 this.storeLoadRubricResult({
                     submissionId: this.submission.id,
+                    assignmentId: this.assignment.id,
                 });
             },
         },

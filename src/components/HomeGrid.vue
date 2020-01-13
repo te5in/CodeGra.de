@@ -55,8 +55,8 @@
                                     <td>
                                         <span>{{ assig.name }}</span><br>
 
-                                        <small v-if="assig.deadline">
-                                            Due {{ moment(assig.deadline).from($root.$now) }}
+                                        <small v-if="assig.hasDeadline">
+                                            Due {{ assig.deadline.from($root.$now) }}
                                         </small>
                                         <small v-else class="text-muted font-italic">
                                             No deadline
@@ -133,7 +133,6 @@ export default {
         return {
             loadingCourses: true,
             UserConfig,
-            moment,
             searchString: '',
         };
     },

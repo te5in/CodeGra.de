@@ -122,7 +122,7 @@
 
             <template slot-scope="{}">
                 <b-card-body class="p-3">
-                    <b-alert v-if="singleResult && (result.isFinal === false || !$utils.canSeeGrade(assignment))"
+                    <b-alert v-if="singleResult && (result.isFinal === false || !assignment.canSeeGrade())"
                              variant="warning"
                              dismissible
                              show>
@@ -873,6 +873,7 @@ export default {
                 this.storeLoadRubric(this.assignmentId),
                 this.storeLoadRubricResult({
                     submissionId: this.submissionId,
+                    assignmentId: this.assignmentId,
                     force,
                 }),
             ]);

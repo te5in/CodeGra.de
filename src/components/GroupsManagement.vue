@@ -1,20 +1,22 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div class="groups-management">
-    <loader v-if="loading"/>
+    <b-alert variant="error" show v-if="error != null">
+        {{ $utils.getErrorMessage(error) }}
+    </b-alert>
+    <loader v-else-if="loading"/>
     <div v-else>
-        <transition-group v-if="groups.length > 0"
+        <transition-group v-if="filteredVirtualUsers.length > 0"
                           :name="doAnimations ? 'fade' : ''"
                           tag="div">
-            <group-management v-for="group, i in groups"
-                              :value="groups[i]"
-                              @input="(val) => changedGroup(val, i)"
-                              v-if="filter(group, i)"
-                              :show-lti-progress="showLtiProgress(group, i)"
+            <group-management v-for="virtualUser, i in filteredVirtualUsers"
+                              :virtual-user="virtualUser"
+                              v-if="filter == null || filter(virtualUser.group, i, virtualUser)"
+                              :show-lti-progress="showLtiProgress(virtualUser.group, i)"
                               :can-edit-own="canEdit.own"
                               :can-edit-others="canEdit.others"
                               :selected-members="selectedMembers"
-                              :key="`assignment-group-${group.id}`"
+                              :key="`assignment-group-${virtualUser.id}`"
                               :assignment="assignment"
                               :course="course"
                               :group-set="groupSet"/>
@@ -46,15 +48,14 @@
 
         <div class="button-wrapper" v-if="showAddButton && canCreate">
             <submit-button label="Create new group"
-                           :submit="addGroup"
-                           @success="afterAddGroup"/>
+                           :submit="addGroup" />
         </div>
     </div>
 </div>
 </template>
 
 <script>
-import { mapGetters } from 'vuex';
+import { mapGetters, mapActions } from 'vuex';
 
 import UserSelector from '@/components/UserSelector';
 import GroupManagement from '@/components/GroupManagement';
@@ -85,7 +86,7 @@ export default {
 
         filter: {
             type: Function,
-            default: () => true,
+            default: null,
         },
 
         showLtiProgress: {
@@ -101,9 +102,9 @@ export default {
 
     data() {
         return {
-            groups: [],
             loading: true,
             doAnimations: false,
+            error: null,
             canEdit: {
                 own: false,
                 others: false,
@@ -114,15 +115,35 @@ export default {
 
     computed: {
         ...mapGetters('user', { myId: 'id' }),
+        ...mapGetters('users', ['getGroupsOfGroupSet', 'getGroupInGroupSetOfUser']),
+
+        virtualUsers() {
+            return this.getGroupsOfGroupSet(this.groupSet.id);
+        },
+
+        filteredVirtualUsers() {
+            if (this.filter == null && this.course.isStudent && this.currentUserInGroup) {
+                return [this.currentUsersGroup];
+            }
+            return this.virtualUsers;
+        },
+
+        groups() {
+            return this.virtualUsers.map(user => user.group);
+        },
 
         selectedMembers() {
             const res = new Set();
-            this.groups.forEach(group => group.members.forEach(user => res.add(user.id)));
+            this.groups.forEach(group => group.memberIds.forEach(id => res.add(id)));
             return res;
         },
 
+        currentUsersGroup() {
+            return this.getGroupInGroupSetOfUser(this.groupSet.id, this.myId);
+        },
+
         currentUserInGroup() {
-            return this.groups.some(group => group.members.some(user => user.id === this.myId));
+            return this.currentUsersGroup != null;
         },
     },
 
@@ -141,44 +162,34 @@ export default {
             await this.$nextTick();
             this.doAnimations = true;
         },
-
-        groups: {
-            immediate: true,
-            handler() {
-                this.$emit('groups-changed', [...this.groups]);
-            },
-        },
     },
 
     methods: {
+        ...mapActions('users', ['loadGroupsOfGroupSet', 'createNewGroup']),
+
         loadData() {
             this.doAnimations = false;
-            this.groups = [];
             this.loading = true;
-            return Promise.all([this.getGroups(), this.getPermissions()]).then(() => {
-                this.loading = false;
-                this.$nextTick(() => {
-                    this.doAnimations = true;
+            this.error = null;
+
+            return Promise.all([
+                this.loadGroupsOfGroupSet({ groupSetId: this.groupSet.id, force: true }),
+                this.getPermissions(),
+            ])
+                .then(() => {
+                    this.loading = false;
+                    this.$nextTick(() => {
+                        this.doAnimations = true;
+                    });
+                })
+                .catch(err => {
+                    this.error = err;
+                    throw err;
                 });
-            });
         },
 
         addGroup() {
-            return this.$http.post(`/api/v1/group_sets/${this.groupSet.id}/group`, {
-                member_ids: [],
-            });
-        },
-
-        afterAddGroup(response) {
-            this.groups.push(response.data);
-        },
-
-        getGroups() {
-            return this.$http
-                .get(`/api/v1/group_sets/${this.groupSet.id}/groups/`)
-                .then(({ data }) => {
-                    this.groups = [...data] || [];
-                });
+            return this.createNewGroup({ groupSetId: this.groupSet.id });
         },
 
         getPermissions() {
@@ -189,15 +200,6 @@ export default {
                 this.canEdit = { own, others };
                 this.canCreate = create;
             });
-        },
-
-        async changedGroup(group, index) {
-            if (group === undefined) {
-                this.groups.splice(index, 1);
-                this.groups = this.groups;
-            } else {
-                this.$set(this.groups, index, group);
-            }
         },
     },
 

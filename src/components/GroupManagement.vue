@@ -27,7 +27,7 @@
                 </span>
                 <div class="pencil"
                      v-if="canEdit"
-                     @click="editingGroup = true;"
+                     @click="startEditTitle"
                      v-b-popover.top.hover="'Edit or delete group'"
                      >
                     <icon name="pencil"/>
@@ -52,8 +52,7 @@
                 <submit-button v-if="canEdit && (myId === user.id || canEditOthers)"
                                class="delete"
                                :delay="3000"
-                               :submit="() => removeUser(i)"
-                               @after-success="afterRemoveUser"
+                               :submit="() => removeUser(user)"
                                :confirm="`Are you sure you want to remove ${myId
                                          === user.id ? 'yourself' : user.name} from this group?`"
                                v-b-popover.top.hover="'Remove from group'">
@@ -62,7 +61,7 @@
             </div>
         </masonry>
         <span class="outer-block no-user-placeholder"
-              v-if="group.members.length <= 0">
+              v-if="group.members.length === 0">
             No members
         </span>
         <!-- Use a show so the ref is always available -->
@@ -75,8 +74,7 @@
                                variant="danger"
                                confirm="Are you sure you want to delete this group?"
                                class="full-width-button"
-                               :submit="deleteGroup"
-                               @after-success="afterDeleteGroup"/>
+                               :submit="deleteGroup" />
             </b-input-group>
         </div>
         <div v-b-popover.top.hover="groupFull ? 'This group is full' : ''"
@@ -92,7 +90,7 @@
                     <submit-button label="Add"
                                    :disabled="groupFull || !newAuthor"
                                    :submit="() => addUser(newAuthor.username)"
-                                   @success="afterAddUser"/>
+                                   @after-success="afterAddUser"/>
                 </template>
             </b-input-group>
             <submit-button v-else-if="canEditOwn && !selectedMembers.has(myId)"
@@ -100,7 +98,7 @@
                            :disabled="groupFull"
                            class="full-width-button"
                            :submit="() => addUser(myUsername)"
-                           @success="afterAddUser">
+                           @after-success="afterAddUser">
                 Join
             </submit-button>
         </div>
@@ -109,7 +107,7 @@
 </template>
 
 <script>
-import { mapGetters } from 'vuex';
+import { mapGetters, mapActions } from 'vuex';
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/times';
 import 'vue-awesome/icons/check';
@@ -124,7 +122,7 @@ const timeoutTime = 10000;
 
 export default {
     props: {
-        value: {
+        virtualUser: {
             type: Object,
             required: true,
         },
@@ -166,15 +164,10 @@ export default {
     },
 
     data() {
-        const group = Object.assign({}, this.value);
-        group.members = group.members.map(o => Object.assign({}, o));
-        group.user_states = Object.assign({}, group.user_states);
-
         return {
-            group,
             newAuthor: null,
             editingGroup: false,
-            newTitle: group.name,
+            newTitle: null,
             compDestroyed: false,
             updateStates: null,
             memberStates: {},
@@ -205,6 +198,11 @@ export default {
 
     computed: {
         ...mapGetters('user', { myId: 'id', myUsername: 'username' }),
+        ...mapGetters('users', ['getUserById']),
+
+        group() {
+            return this.virtualUser.group;
+        },
 
         groupFull() {
             return this.group.members.length >= this.groupSet.maximum_size;
@@ -234,34 +232,40 @@ action is required.${divEnd}`;
 
         canEdit() {
             let own = false;
-            if (this.group.members.some(m => m.id === this.myId)) {
+            if (this.group.memberIds.some(id => id === this.myId)) {
                 own = this.canEditOwn;
             }
             return own || this.canEditOthers;
         },
 
         deleteGroupDisabled() {
-            return !this.canEdit || (this.group.members.length > 1 && !this.canEditOthers);
+            return !this.canEdit || (this.group.memberIds.length > 1 && !this.canEditOthers);
         },
     },
 
     methods: {
+        ...mapActions('users', {
+            storeUpdateGroupTitle: 'updateGroupTitle',
+            storeAddUserToGroup: 'addUserToGroup',
+            storeRemoveUserFromGroup: 'removeUserFromGroup',
+            storeDeleteGroup: 'deleteGroup',
+        }),
+
         reloadGroupStates() {
             // setInterval is not used as this might cause a large load on the
             // server. Now we know there is `timeoutTime` between each request.
-            this.$http
-                .get(
-                    `/api/v1/assignments/${this.assignment.id}/groups/${
-                        this.group.id
-                    }/member_states/`,
-                )
-                .then(({ data }) => {
-                    this.memberStates = data;
-                    this.updateStates = null;
-                    if (this.showLtiProgress && !this.compDestroyed) {
-                        this.updateStates = setTimeout(this.reloadGroupStates, timeoutTime);
-                    }
-                });
+            return this.group.getMemberState(this.assignment.id).then(({ data }) => {
+                this.memberStates = data;
+                this.updateStates = null;
+                if (this.showLtiProgress && !this.compDestroyed) {
+                    this.updateStates = setTimeout(this.reloadGroupStates, timeoutTime);
+                }
+            });
+        },
+
+        startEditTitle() {
+            this.newTitle = this.group.name;
+            this.editingGroup = true;
         },
 
         cancelEditTitle() {
@@ -271,26 +275,22 @@ action is required.${divEnd}`;
         },
 
         updateTitle() {
-            return this.$http.post(`/api/v1/groups/${this.group.id}/name`, {
-                name: this.newTitle,
+            return this.storeUpdateGroupTitle({
+                virtualUserId: this.virtualUser.id,
+                newTitle: this.newTitle,
             });
         },
 
-        afterUpdateTitle(response) {
+        afterUpdateTitle() {
             this.editingGroup = false;
-            this.group = response.data;
             this.newTitle = this.group.name;
-            this.$emit('input', this.group);
         },
 
-        removeUser(i) {
-            const user = this.group.members[i];
-            return this.$http.delete(`/api/v1/groups/${this.group.id}/members/${user.id}`);
-        },
-
-        afterRemoveUser(response) {
-            this.group = response.data;
-            this.$emit('input', this.group);
+        removeUser(user) {
+            return this.storeRemoveUserFromGroup({
+                virtualUserId: this.virtualUser.id,
+                toRemoveUserId: user.id,
+            });
         },
 
         filterMembers(user) {
@@ -298,22 +298,20 @@ action is required.${divEnd}`;
         },
 
         addUser(username) {
-            return this.$http.post(`/api/v1/groups/${this.group.id}/member`, { username });
+            return this.storeAddUserToGroup({
+                virtualUserId: this.virtualUser.id,
+                newUsername: username,
+            });
         },
 
-        afterAddUser(response) {
+        afterAddUser() {
             this.newAuthor = null;
-            this.group = response.data;
-            this.$emit('input', this.group);
         },
 
         deleteGroup() {
-            return this.$http.delete(`/api/v1/groups/${this.group.id}`);
-        },
-
-        afterDeleteGroup() {
-            this.group = undefined;
-            this.$emit('input', undefined);
+            return this.storeDeleteGroup({
+                virtualUserId: this.virtualUser.id,
+            });
         },
     },
 

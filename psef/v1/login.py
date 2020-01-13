@@ -191,8 +191,8 @@ def self_information(
 
 
 @api.route('/login', methods=['PATCH'])
-def get_user_update(
-) -> t.Union[EmptyResponse, JSONResponse[t.Mapping[str, str]]]:
+def get_user_update() -> t.Union[EmptyResponse, JSONResponse[
+    t.Mapping[str, str]], JSONResponse[models.User]]:
     """Change data of the current :class:`.models.User` and handle passsword
         resets.
 
@@ -307,7 +307,7 @@ def user_patch_handle_reset_on_lti() -> EmptyResponse:
     return make_empty_response()
 
 
-def user_patch_handle_change_user_data() -> EmptyResponse:
+def user_patch_handle_change_user_data() -> JSONResponse[models.User]:
     """Handle the PATCH login route when no ``type`` is given.
 
     :returns: An empty response.
@@ -363,4 +363,4 @@ def user_patch_handle_change_user_data() -> EmptyResponse:
         current_user.name = name
 
     db.session.commit()
-    return make_empty_response()
+    return jsonify(current_user)

@@ -13,36 +13,53 @@ const loaders = {
 };
 
 const actions = {
-    loadResult({ commit, state }, { submissionId, force }) {
+    loadResult({ commit, state, dispatch }, { assignmentId, submissionId, force }) {
         if (state.results[submissionId] && !force) {
             return Promise.resolve();
         }
 
         if (!loaders.results[submissionId]) {
-            loaders.results[submissionId] = axios
-                .get(`/api/v1/submissions/${submissionId}/rubrics/`)
-                .then(
-                    ({ data: result }) => {
-                        delete loaders.results[submissionId];
-                        commit('setResult', { submissionId, result });
-                    },
-                    err => {
-                        delete loaders.results[submissionId];
-                        throw err;
-                    },
-                );
+            loaders.results[submissionId] = Promise.all([
+                axios.get(`/api/v1/submissions/${submissionId}/rubrics/`),
+                dispatch(
+                    'submissions/loadSingleSubmission',
+                    { assignmentId, submissionId },
+                    { root: true },
+                ),
+            ]).then(
+                ([response]) => {
+                    delete loaders.results[submissionId];
+                    commit('setResult', { submissionId, result: response.data });
+                    return response;
+                },
+                err => {
+                    delete loaders.results[submissionId];
+                    throw err;
+                },
+            );
         }
 
         return loaders.results[submissionId];
     },
 
-    clearResult({ commit, state }, { submissionId }) {
-        if (state.results[submissionId]) {
-            commit('clearResult', { submissionId });
+    clearResult({ commit, state }, { submissionId, submissionIds }) {
+        let ids = submissionIds;
+        if (submissionIds == null) {
+            ids = [submissionId];
         }
+        ids.forEach(id => {
+            if (state.results[id]) {
+                commit('clearResult', { submissionId: id });
+            }
+        });
     },
 
-    updateRubricItems({ commit, state }, { submissionId, selected }) {
+    async updateRubricItems({ commit, state, dispatch }, { submissionId, selected, assignmentId }) {
+        await dispatch(
+            'submissions/loadSingleSubmission',
+            { assignmentId, submissionId },
+            { root: true },
+        );
         const result = state.results[submissionId];
 
         return axios
@@ -52,10 +69,17 @@ const actions = {
             .then(() => commit('setSelected', { result, selected, submissionId }));
     },
 
-    toggleRubricItem({ commit, state }, { submissionId, row, item }) {
+    async toggleRubricItem({ commit, state, dispatch }, {
+        submissionId, row, item, assignmentId,
+    }) {
         if (row.locked) {
             throw new Error('Rubric row is locked');
         }
+        await dispatch(
+            'submissions/loadSingleSubmission',
+            { assignmentId, submissionId },
+            { root: true },
+        );
 
         const result = state.results[submissionId];
         const isSelected = result.selected.find(x => x.id === item.id);

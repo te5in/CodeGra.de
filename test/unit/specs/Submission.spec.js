@@ -2,7 +2,9 @@
 import Submission from '@/pages/Submission';
 import * as assignmentState from '@/store/assignment-states';
 import { FileTree, Feedback } from '@/models/submission';
+import axios from 'axios';
 
+import { store } from '@/store';
 import { shallowMount, createLocalVue } from '@vue/test-utils';
 import VueRouter from 'vue-router';
 import Vuex from 'vuex';
@@ -22,14 +24,13 @@ function jsonCopy(src) {
 }
 
 describe('Submission.vue', () => {
-    let store;
     let courses;
     let submissions;
     let autoTests;
-    let mockLoadSubs;
+    let subsLoadedAmount;
     let mockLoadSub;
-    let mockLoadTree;
-    let mockLoadFeedback;
+    let treeLoadedAmount;
+    let feedbackLoadedAmount;
     let wrapper;
     let comp;
     let tree1;
@@ -40,14 +41,32 @@ describe('Submission.vue', () => {
     let $router;
     let mockGet;
     let rubric = {};
-    let feedback = {
-        general: {},
-        authors: {},
-        user: {},
-        linter: {},
-    };
+    let feedback;
 
-    beforeEach(() => {
+    async function wait(amount = 10) {
+        await comp.$afterRerender();
+        for (let i = 0; i < amount; ++i) {
+            await comp.$nextTick();
+        }
+        await comp.$afterRerender();
+    }
+
+    function setFeedback(newFeedback) {
+        feedback = newFeedback;
+        store.dispatch('feedback/loadFeedback', {
+            assignmentId: comp.assignmentId,
+            submissionId: comp.submissionId,
+            force: true,
+        });
+    }
+
+    beforeEach(async () => {
+        feedback = {
+            general: {},
+            authors: {},
+            user: {},
+            linter: {},
+        };
         tree1 = {
             name: 'root1',
             id: 1,
@@ -86,26 +105,29 @@ describe('Submission.vue', () => {
             id: 8,
         });
 
-        const user = { id: 1000 };
         submissions = [
-            { id: 1, user, grade: null, feedback: null, fileTree: null },
-            { id: 2, user, grade: null, feedback: null, fileTree: null },
-            { id: 3, user, grade: null, feedback: null, fileTree: null },
-            { id: 4, user, grade: null, feedback: null, fileTree: null },
+            { id: 1, user: { id: 101 }, grade: null, feedback: null, fileTree: null },
+            { id: 2, user: { id: 102 }, grade: null, feedback: null, fileTree: null },
+            { id: 3, user: { id: 103 }, grade: null, feedback: null, fileTree: null },
+            { id: 4, user: { id: 104 }, grade: null, feedback: null, fileTree: null },
+            { id: 5, user: { id: 105 }, grade: null, feedback: null, fileTree: null },
         ];
-        courses = {
-            1: {
-                assignments: [{
-                    id: 2,
-                    submissions,
-                }],
-                permissions: {
-                    can_see_grade_before_done: true,
-                },
-                is_lti: false,
+        courses = [{
+            id: 1,
+            assignments: [{
+                id: 2,
+                state: 'open',
+                auto_test_id: null,
+            }, {
+                id: 100,
+                state: 'done',
+                auto_test_id: null,
+            }],
+            is_lti: false,
+            permissions: {
+                can_see_grade_before_done: true,
             },
-        };
-        courses[1].assignments.forEach(assig => { assig.course = courses[1]; });
+        }];
 
         autoTests = {
             1: {
@@ -116,102 +138,59 @@ describe('Submission.vue', () => {
             },
         };
 
-        mockGet = jest.fn(async (path, opts) => new Promise((resolve) => {
+        mockGet = jest.fn(async (path, opts) => new Promise((resolve, reject) => {
             let res;
             if (/^.api.v1.submissions.[0-9]+.files./.test(path)) {
                 if (opts && opts.params.owner === 'teacher') {
+                    treeLoadedAmount.teacher++;
                     res = jsonCopy(tree2);
                 } else {
+                    treeLoadedAmount.student++;
                     res = jsonCopy(tree1);
                 }
             } else if (/^.api.v1.submissions.[0-9]+.rubrics./.test(path)) {
                 res = rubric;
             } else if (/^.api.v1.submissions.[0-9]+.feedbacks./.test(path)) {
+                feedbackLoadedAmount++;
                 res = feedback;
+            } else if (/^.api.v1.assignments.([0-9]+|NaN).submissions./.test(path)) {
+                subsLoadedAmount++;
+                if (/assignments.2/.test(path)) {
+                    res = submissions.map(s => Object.assign({}, s)).slice(0, -1);
+                } else {
+                    res = submissions.map(s => Object.assign({}, s)).slice(-1);
+                }
+            } else if (/^.api.v1.courses./.test(path)) {
+                res = courses;
+            } else if (/^.api.v1.permissions.*type=course/.test(path)) {
+                res = {};
+            } else if (/^.api.v1.auto_tests.1/.test(path)) {
+                res = {
+                    sets: [],
+                    runs: [{
+                        results: submissions.map(sub => ({
+                            id: sub.id,
+                            work_id: sub.id,
+                        })),
+                    }],
+                    id: 1,
+                };
+            } else if (/^.api.v1.submissions.[0-9]+$/.test(path)) {
+                const parts = path.split('/')
+                const id = Number(parts[parts.length - 1]);
+                res = Object.assign({}, submissions.find(s => s.id === id));
+            } else if (/^.api.v1.assignments.*rubrics\/$/.test(path)) {
+                res = [];
+            } else {
+                return reject({ status: 403 });
             }
             resolve({ data: res });
         }));
 
-        mockLoadSubs = jest.fn(() => Promise.resolve(true));
-        mockLoadSub = jest.fn((context, { submissionId }) =>
-            Promise.resolve(submissions.find(s => s.id === submissionId)),
-        );
-        mockLoadTree = jest.fn((context, { submissionId }) => {
-            return Promise.all([
-                mockGet(`/api/v1/submissions/${submissionId}/files/`),
-                mockGet(`/api/v1/submissions/${submissionId}/files/`, {
-                    params: { owner: 'teacher' },
-                }),
-            ]).then(([student, teacher]) => {
-                const sub = submissions.find(x => x.id === submissionId);
-                sub.fileTree = new FileTree(student.data, teacher.data);
-            });
-        });
-        mockLoadFeedback = jest.fn((context, { submissionId }) =>
-            mockGet(`/api/v1/submissions/${submissionId}/feedbacks/`).then(({ data }) => {
-                const sub = submissions.find(x => x.id === submissionId);
-                sub.feedback = new Feedback(data);
-            }),
-        );
-
-        store = new Vuex.Store({
-            modules: {
-                autotest: {
-                    state: {
-                        tests: autoTests,
-                        results: {
-                            1: {},
-                        },
-                    },
-                    getters: {
-                        tests: state => state.tests,
-                        results: state => state.results,
-                    },
-                    actions: {
-                        loadAutoTest: jest.fn((context, { autoTestId }) => {
-                            return Promise.resolve(autoTests[autoTestId]);
-                        }),
-                    },
-                    namespaced: true,
-                },
-                courses: {
-                    state: {
-                        courses,
-                    },
-                    getters: {
-                        courses: () => courses,
-                        assignments: () => ({ 2: courses[1].assignments[0] }),
-                    },
-                    namespaced: true,
-                },
-                submissions: {
-                    state: {
-                        submissions: { 2: submissions },
-                        latestSubmissions: { 2: submissions },
-                        groupSubmissionUsers: {},
-                    },
-                    getters: {
-                        latestSubmissions: state => state.latestSubmissions,
-                        getSingleSubmission: state =>
-                            (assigId, id) => (state.submissions[assigId] || []).find(s => s.id === id) || null,
-                        usersWithGroupSubmission: state => state.groupSubmissionUsers,
-                    },
-                    actions: {
-                        loadSubmissions: mockLoadSubs,
-                        loadSingleSubmission: mockLoadSub,
-                        loadSubmissionFileTree: mockLoadTree,
-                        loadSubmissionFeedback: mockLoadFeedback,
-                    },
-                    namespaced: true,
-                },
-                user: {
-                    getters: {
-                        id: () => -1,
-                    },
-                    namespaced: true,
-                },
-            },
-        });
+        axios.get = mockGet;
+        subsLoadedAmount = 0;
+        feedbackLoadedAmount = 0;
+        treeLoadedAmount = { student: 0, teacher: 0 };
 
         $route = {
             query: {
@@ -248,42 +227,37 @@ describe('Submission.vue', () => {
             },
         });
         comp = wrapper.vm;
+        await wait();
+    });
+
+    afterEach(() => {
+        wrapper.destroy();
+        store.dispatch('user/logout');
     });
 
     describe('Computed', () => {
-        it('ids should be numbers or NaN', () => {
+        it('ids should be numbers', () => {
             expect(typeof comp.courseId).toBe('number');
             expect(typeof comp.assignmentId).toBe('number');
             expect(typeof comp.submissionId).toBe('number');
             expect(comp.courseId).toBe(1);
             expect(comp.assignmentId).toBe(2);
             expect(comp.submissionId).toBe(3);
-
-            $route.params.assignmentId = 'hello';
-            $route.params.courseId = 'hello';
-            $route.params.submissionId = 'hello';
-
-            expect(comp.courseId).toBeNaN();
-            expect(comp.assignmentId).toBeNaN();
-            expect(comp.submissionId).toBeNaN();
         });
 
         it('objects should be retrieved from the store or default', async () => {
-            expect(comp.assignment).toBe(courses[1].assignments[0]);
+            await wait();
+
+            expect(comp.assignment.id).toBe(courses[0].assignments[0].id);
             expect(comp.assignment.id).toBe(2);
 
-            expect(comp.latestSubmissions).toBe(submissions);
-            expect(comp.submission).toBe(submissions[2]);
+            await wait();
+            expect(comp.latestSubmissions.map(
+                x => x.id,
+            )).toEqual(submissions.slice(0, -1).map(x => x.id));
+
+            expect(comp.submission.id).toBe(submissions[2].id);
             expect(comp.submission.id).toBe(3);
-
-            $route.params.assignmentId = 'hello';
-            $route.params.courseId = 'hello';
-            $route.params.submissionId = 'hello';
-
-            await comp.$nextTick();
-
-            expect(comp.assignment).toBeNull();
-            expect(comp.submission).toBeNull();
         });
 
         describe('prefFileId', () => {
@@ -324,62 +298,118 @@ describe('Submission.vue', () => {
         });
 
         describe('defaultCat', () => {
-            it('should be "Code" when the assignment is not done and there is no Continuous Feedback', () => {
-                comp.$set(comp.assignment, 'state', assignmentState.SUBMITTINT);
-                comp.$set(comp.assignment, 'auto_test_id', null);
+            it('should be "Code" when the assignment is not done and there is no Continuous Feedback', async () => {
+                store.dispatch('courses/updateAssignment', {
+                    assignmentId: comp.assignmentId,
+                    assignmentProps: {
+                        state: assignmentState.SUBMITTING,
+                        auto_test_id: null,
+                    },
+                });
 
+                await wait();
                 expect(comp.defaultCat).toBe('code');
             });
 
             it('should be "Feedback Overview" when the assignment is done and the submission has feedback', async () => {
                 await comp.loadData();
 
-                comp.$set(comp.assignment, 'state', assignmentState.DONE);
-                comp.$set(comp.feedback, 'general', 'abc');
+                store.dispatch('courses/updateAssignment', {
+                    assignmentId: comp.assignmentId,
+                    assignmentProps: {
+                        state: assignmentState.DONE,
+                    },
+                });
+                setFeedback({
+                    general: 'abc',
+                    user: {},
+                });
+                await wait();
 
                 expect(comp.defaultCat).toBe('feedback-overview');
 
-                comp.$set(comp.feedback, 'general', '');
-                comp.$set(comp.feedback.user, '1', 'abc');
+                setFeedback({
+                    general: '',
+                    user: {
+                        1: {
+                            4: 'abc',
+                        },
+                    },
+                })
+                await wait();
 
                 expect(comp.defaultCat).toBe('feedback-overview');
             });
 
-            it('should be "Feedback Overview" when the assignment is done and there is no feedback and no AutoTest', () => {
-                comp.$set(comp.assignment, 'auto_test_id', null);
-                comp.$set(comp.assignment, 'state', assignmentState.DONE);
-                comp.$set(comp.submission, 'feedback', {
+            it('should be "Feedback Overview" when the assignment is done and there is no feedback and no AutoTest', async () => {
+                store.dispatch('courses/updateAssignment', {
+                    assignmentId: comp.assignmentId,
+                    assignmentProps: {
+                        state: assignmentState.DONE,
+                        auto_test_id: null,
+                    },
+                });
+                setFeedback({
                     general: '',
                     user: {},
                 });
+                await wait();
 
                 expect(comp.defaultCat).toBe('feedback-overview');
             });
 
             it('should be "AutoTest" when the assignment is done and has an AutoTest but the submission does not have feedback', async () => {
-                comp.$set(comp.assignment, 'auto_test_id', 1);
-                comp.$set(comp.assignment, 'state', assignmentState.DONE);
-                comp.$set(comp.submission, 'feedback', {
+                store.dispatch('courses/updateAssignment', {
+                    assignmentId: comp.assignmentId,
+                    assignmentProps: {
+                        state: assignmentState.DONE,
+                        auto_test_id: 1,
+                    },
+                });
+                setFeedback({
                     general: '',
                     user: {},
+                    linter: {},
                 });
 
+                await wait(100);
                 expect(comp.defaultCat).toBe('auto-test');
             });
 
-            it('should be "Code" when a submission is not graded or the user cannot view the feedback', () => {
+            it('should be "Code" when a submission is not graded or the user cannot view the feedback', async () => {
                 comp.canSeeFeedback = false;
-                comp.submission.grade = null;
+                store.dispatch('submissions/updateSubmission', {
+                    assignmentId: comp.assignmentId,
+                    submissionId: comp.submissionId,
+                    submissionProps: {
+                        grade: null,
+                    },
+                });
+                await wait();
 
                 expect(comp.defaultCat).toBe('code');
 
                 for (let i = 0; i <= 10; i++) {
-                    comp.submission.grade = i;
+                    store.dispatch('submissions/updateSubmission', {
+                        assignmentId: comp.assignmentId,
+                        submissionId: comp.submissionId,
+                        submissionProps: {
+                            grade: i,
+                        },
+                    });
+                    await wait(2);
                     expect(comp.defaultCat).toBe('code');
                 }
 
                 comp.canSeeFeedback = true;
-                comp.submission.grade = null;
+                store.dispatch('submissions/updateSubmission', {
+                    assignmentId: comp.assignmentId,
+                    submissionId: comp.submissionId,
+                    submissionProps: {
+                        grade: null,
+                    },
+                });
+                await wait();
 
                 expect(comp.defaultCat).toBe('code');
             });
@@ -387,24 +417,30 @@ describe('Submission.vue', () => {
     });
 
     describe('Watchers', () => {
-        it('should reload submissions when assignmentId changes', () => {
-            expect(mockLoadSubs).toBeCalledTimes(1);
-            $route.params.assignmentId = '100';
-            expect(mockLoadSubs).toBeCalledTimes(2);
+        it('should reload submissions when assignmentId changes', async () => {
+            await wait();
+            expect(subsLoadedAmount).toBe(1);
+
+            $route.params = Object.assign({}, $router.params, {
+                submissionId: 5,
+                assignmentId: 100,
+            });
+            await wait();
+            expect(comp.assignmentId).toBe(100);
+            expect(subsLoadedAmount).toBe(2);
         });
 
         it('should reload submission data when submissionId changes', async () => {
-            expect(mockLoadTree).toBeCalledTimes(1);
-            expect(mockLoadFeedback).toBeCalledTimes(1);
+            expect(treeLoadedAmount).toEqual({ student: 1, teacher: 1 });
+            expect(feedbackLoadedAmount).toBe(1);
 
-            mockLoadTree.mockClear()
-            mockLoadFeedback.mockClear()
+            treeLoadedAmount = { teacher: 0, student: 0 };
+            feedbackLoadedAmount = 0;
             comp.$set(comp.$route.params, 'submissionId', '4');
-            await comp.$nextTick();
-            await comp.$nextTick();
+            await wait();
 
-            expect(mockLoadTree).toBeCalled();
-            expect(mockLoadFeedback).toBeCalled();
+            expect(treeLoadedAmount).toEqual({ student: 1, teacher: 1 });
+            expect(feedbackLoadedAmount).toBe(1);
         });
     });
 });

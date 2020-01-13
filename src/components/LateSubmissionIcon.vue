@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template functional>
-<span v-if="props.submission.formatted_created_at > props.assignment.formatted_deadline"
+<span v-if="props.submission.isLate()"
       class="late-submission-icon active">
     <component
         :is="injections.components.Icon"
@@ -14,9 +14,10 @@
 </template>
 
 <script>
-import moment from 'moment';
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/clock-o';
+
+import { Assignment } from '@/models';
 
 export default {
     name: 'late-submission-icon',
@@ -36,7 +37,7 @@ export default {
         },
 
         assignment: {
-            type: Object,
+            type: Assignment,
             required: true,
         },
 
@@ -53,8 +54,8 @@ export default {
         getHandedInLateText: {
             type: Function,
             default: props => {
-                const diff = moment(props.submission.formatted_created_at, moment.ISO_8601).from(
-                    moment(props.assignment.formatted_deadline, moment.ISO_8601),
+                const diff = props.submission.createdAt.from(
+                    props.assignment.deadline,
                     true, // Only get time string, not the 'in' before.
                 );
                 return `This submission was submitted ${diff} after the deadline.`;

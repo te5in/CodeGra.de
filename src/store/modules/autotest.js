@@ -289,7 +289,7 @@ const actions = {
             await dispatch('loadAutoTestRunByUser', {
                 autoTestId,
                 autoTestRunId: run.id,
-                userId: submission && submission.user.id,
+                userId: submission && submission.userId,
             });
 
             run = getRun(autoTest, autoTestRunId);
@@ -317,7 +317,7 @@ const actions = {
 
                         if (Object.keys(data.suite_files).length > 0) {
                             return dispatch(
-                                'submissions/updateAutoTestTree',
+                                'fileTrees/updateAutoTestTree',
                                 {
                                     assignmentId: autoTest.assignment_id,
                                     submissionId,
@@ -454,6 +454,7 @@ const mutations = {
                     );
                 }, 0);
             },
+            enumerable: true,
         });
 
         autoTest.runs = autoTest.runs.map(run => new AutoTestRun(run, autoTest));

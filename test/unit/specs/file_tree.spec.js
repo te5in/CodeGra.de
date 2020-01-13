@@ -52,7 +52,7 @@ describe('The submission file tree', () => {
                 },
             ],
         };
-        fileTree = new FileTree(mockStudentTree, mockTeacherTree);
+        fileTree = FileTree.fromServerData(mockStudentTree, mockTeacherTree);
     });
 
     describe('constructor', () => {
@@ -75,7 +75,7 @@ describe('The submission file tree', () => {
 
         it('should accept null for the teacher tree', () => {
             expect(() => {
-                fileTree = new FileTree(mockStudentTree, null);
+                fileTree = FileTree.fromServerData(mockStudentTree, null);
             }).not.toThrow();
             expect(fileTree.teacher).toBe(null);
 
@@ -207,7 +207,7 @@ describe('The submission file tree', () => {
         });
 
         it('should work with two identical trees', () => {
-            const fileTree = new FileTree(tree1, tree1);
+            const fileTree = FileTree.fromServerData(tree1, tree1);
 
             expect(fileTree.diff).toEqual({
                 name: 'root1',
@@ -228,7 +228,7 @@ describe('The submission file tree', () => {
         });
 
         it('should work with a modified tree', () => {
-            const fileTree = new FileTree(tree1, tree2);
+            const fileTree = FileTree.fromServerData(tree1, tree2);
 
             expect(fileTree.diff).toEqual({
                 name: 'root1',
@@ -259,7 +259,7 @@ describe('The submission file tree', () => {
         });
 
         it('should work with a inserted directory', () => {
-            const fileTree = new FileTree(tree1, tree3);
+            const fileTree = FileTree.fromServerData(tree1, tree3);
 
             expect(fileTree.diff).toEqual({
                 name: 'root1',
@@ -281,7 +281,7 @@ describe('The submission file tree', () => {
         });
 
         it('should work when replacing a directory with a file', () => {
-            const fileTree = new FileTree(tree1, tree4);
+            const fileTree = FileTree.fromServerData(tree1, tree4);
 
             expect(fileTree.diff).toEqual({
                 name: 'root1',
@@ -309,7 +309,7 @@ describe('The submission file tree', () => {
         });
 
         it('should work when replacing a file with a directory', () => {
-            const fileTree = new FileTree(tree4, tree1);
+            const fileTree = FileTree.fromServerData(tree4, tree1);
 
             expect(fileTree.diff).toEqual({
                 name: 'root1',

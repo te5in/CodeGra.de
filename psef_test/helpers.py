@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 import io
 import os
+import re
 import json
 import uuid
 import datetime
@@ -241,7 +242,19 @@ def create_group(test_client, group_set_id, member_ids):
         f'/api/v1/group_sets/{get_id(group_set_id)}/group',
         data={'member_ids': list(map(get_id, member_ids))},
         status_code=200,
-        result={'id': int, 'name': str, 'members': list},
+        result={
+            'id': int,
+            'name': str,
+            'members': list,
+            'created_at': str,
+            'group_set_id': get_id(group_set_id),
+            'virtual_user': {
+                'id': int,
+                'name': re.compile(r'^Virtual - GROUP_'),
+                'username': re.compile(r'^VIRTUAL_USER_'),
+                '__allow_extra__': {'group'},
+            },
+        },
     )
 
 

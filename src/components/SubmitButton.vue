@@ -64,7 +64,7 @@
                   class="hide-button"
                   @click.native="hideWarning"/>
 
-            <span v-if="warning">
+            <span v-if="warning && warning.length > 0">
                 <slot name="warning" :warning="warning[0].text" :warning-array="warning">
                     <template v-if="warning.length > 1">
                         <ul class="p-0 text-left pl-3 m-0">
@@ -302,15 +302,31 @@ export default {
             promise.then(() => this.resetConfirm(false), () => this.resetConfirm(false));
         },
 
+        maybeCall(data, prop) {
+            if (data == null) {
+                if (!UserConfig.isProduction) {
+                    // eslint-disable-next-line
+                    console.warn('A null object was returned from the :submit function');
+                }
+            } else if (typeof data[prop] === 'function') {
+                data[prop]();
+            } else if (!UserConfig.isProduction && Object.hasOwnProperty.call(data, prop)) {
+                // eslint-disable-next-line
+                console.warn(`The property ${prop} was found on ${data}, but was not a function`);
+            }
+        },
+
         onSuccess(data, fromWarning = false) {
             if (!fromWarning && data && data.headers && data.headers.warning) {
                 this.onWarning(data);
                 return;
             }
 
+            this.maybeCall(data, 'onSuccess');
             this.$emit('success', data);
 
             const done = () => {
+                this.maybeCall(data, 'onAfterSuccess');
                 this.$emit('after-success', data);
                 this.state = 'default';
             };
@@ -324,6 +340,7 @@ export default {
         },
 
         onWarning(data) {
+            this.maybeCall(data, 'onWarning');
             this.$emit('warning', data);
             this.state = 'warning';
             this.warning = parseWarningHeader(data.headers.warning);
@@ -346,11 +363,13 @@ export default {
 
         onError(err) {
             if (err === SubmitButtonCancelled) {
+                this.maybeCall(err, 'onCancel');
                 this.$emit('cancel', err);
                 this.state = 'default';
                 return;
             }
 
+            this.maybeCall(err, 'onError');
             this.$emit('error', err);
             this.state = 'error';
             this.error = err;

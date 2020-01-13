@@ -506,21 +506,24 @@ class Work(Base):
             'created_at': self.created_at.isoformat(),
             'origin': self.origin.name,
             'extra_info': self.extra_info,
+            'grade': None,
+            'grade_overridden': False,
+            'assignee': None,
         }
 
         try:
             auth.ensure_permission(
                 CoursePermission.can_see_assignee, self.assignment.course_id
             )
-            item['assignee'] = self.assignee
         except PermissionException:
-            item['assignee'] = None
+            pass
+        else:
+            item['assignee'] = self.assignee
 
         try:
             auth.ensure_can_see_grade(self)
         except PermissionException:
-            item['grade'] = None
-            item['grade_overridden'] = False
+            pass
         else:
             item['grade'] = self.grade
             item['grade_overridden'] = (

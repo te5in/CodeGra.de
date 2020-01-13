@@ -354,7 +354,7 @@ class User(NotEqualMixin, Base):
             CoursePermission.can_see_hidden_assignments
         )
 
-    def __to_json__(self) -> t.Mapping[str, t.Any]:
+    def __to_json__(self) -> t.MutableMapping[str, t.Any]:
         """Creates a JSON serializable representation of this object.
 
         This object will look like this:
