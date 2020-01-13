@@ -8,6 +8,9 @@
   "env": {
     "test": {
       "presets": ["env", "stage-2"]
+    },
+    "integration_testing": {
+      "plugins": [ "istanbul" ]
     }
   }
 }

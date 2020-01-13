@@ -9,7 +9,7 @@ if grep -r '\.only(' ./cypress; then
 fi
 
 make privacy_statement
-make start_dev_npm &
+npm run start_integration > /dev/null 2>&1  &
 
 DBNAME="ci_test"
 export SQLALCHEMY_DATABASE_URI="postgresql://postgres:postgres@localhost:5432/${DBNAME}"
@@ -38,7 +38,7 @@ PGPASSWORD=postgres psql -h localhost -p 5432 -U postgres -c "create database $D
 ./manage.py db upgrade
 ./manage.py test_data
 
-celery worker --app=runcelery:celery -E &
+celery worker --app=runcelery:celery -E > /dev/null &
 python run.py > /dev/null &
 
 ./node_modules/wait-on/bin/wait-on http://localhost:8080/api/v1/about -l

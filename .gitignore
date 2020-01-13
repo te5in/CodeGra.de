@@ -28,3 +28,4 @@ PRIVACY_STATEMENT.md
 /celerybeat-schedule
 /cypress/screenshots
 /cypress/videos
+/.nyc_output/

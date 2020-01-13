@@ -12,12 +12,76 @@ name: "Front-end tests"
       - stable
 
 jobs:
-  build:
+  unit:
+    name: unit
     runs-on: ubuntu-latest
     strategy:
-      max-parallel: 4
       matrix:
         python-version: [3.7]
+
+    steps:
+      - name: "Checkout code"
+        uses: actions/checkout@v1
+
+      - name: "Set up Python ${{ matrix.python-version }}"
+        uses: actions/setup-python@v1
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: cache for npm
+        uses: actions/cache@v1
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-lint-node-${{ hashFiles('npm-shrinkwrap.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      - name: Install dependencies
+        run: ./.github/scripts/install.bash skip_pip
+
+      - name: Install cc-test-reporter
+        run: ./.github/scripts/install_cc_test_reporter.bash
+
+      - name: Make needed directories
+        run: |
+          mkdir -p /tmp/psef/uploads
+          mkdir -p /tmp/psef/mirror_uploads
+
+      - name: Notify start of build
+        run: ./.github/scripts/run_cc_test_reporter.bash before-build
+
+      - name: Test front-end code
+        run: ./.github/scripts/run_frontend_tests.bash
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v1
+        if: success()
+        with:
+          name: frontend-unit-coverage
+          path: coverage/lcov.info
+
+  integration:
+    name: integration
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.7]
+
+    services:
+      redis:
+        image: redis
+        ports:
+          - 6379:6379
+      postgres:
+        image: postgres:9.6
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_DB: travis_ci_test
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        # needed because the postgres container does not provide a healthcheck
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
 
     steps:
       - name: "Checkout code"
@@ -35,17 +99,107 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-node-
 
+      - name: cache for python
+        uses: actions/cache@v1
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}-${{ hashFiles('broker_requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
       - name: Install dependencies
-        run: ./.github/scripts/install.bash skip_pip
+        run: ./.github/scripts/install.bash
+
+      - name: Install cc-test-reporter
+        run: ./.github/scripts/install_cc_test_reporter.bash
+
+      - name: Install xfvb
+        run: sudo apt-get install xvfb
 
       - name: Make needed directories
         run: |
           mkdir -p /tmp/psef/uploads
           mkdir -p /tmp/psef/mirror_uploads
 
-      - name: Test front-end code & publish code coverage
-        uses: paambaati/codeclimate-action@v2.3.0
+      - name: Run test
+        run: ./.github/scripts/run_integration.bash
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v1
+        if: success()
+        with:
+          name: frontend-integration-coverage-report
+          path: coverage
+
+      - name: Create lcov for codeclimate
+        run: |
+          rm -r coverage
+          $(npm bin)/nyc report --reporter=lcov
+          sed -i "s@^SF:@SF:$PWD/@g" coverage/lcov.info
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v1
+        if: success()
+        with:
+          name: frontend-integration-coverage
+          path: coverage/lcov.info
+
+      - name: Upload screenshots
+        uses: actions/upload-artifact@v1
+        if: failure()
+        with:
+          name: test-screenshots
+          path: /home/runner/work/CodeGra.de/CodeGra.de/cypress/screenshots/
+
+      - name: Upload screen casts
+        uses: actions/upload-artifact@v1
+        if: failure()
+        with:
+          name: test-videos
+          path: /home/runner/work/CodeGra.de/CodeGra.de/cypress/videos/
+
+
+  upload_coverage:
+    name: upload_coverage
+    needs:
+      - unit
+      - integration
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.7]
+
+    steps:
+      - name: "Checkout code"
+        uses: actions/checkout@v1
+
+      - name: Install lcov-merger
+        run: |
+          rm package.json npm-shrinkwrap.json
+          npm install git+https://git@github.com/CodeGra-de/lcov-result-merger.git codacy-coverage
+
+      - name: Install cc-test-reporter
+        run: ./.github/scripts/install_cc_test_reporter.bash
+
+      - name: Download frontend unit test coverage
+        uses: actions/download-artifact@v1
+        with:
+          name: frontend-unit-coverage
+
+      - name: Download frontend integration test coverage
+        uses: actions/download-artifact@v1
+        with:
+          name: frontend-integration-coverage
+
+      - name: Upload combined coverage
+        run: ./.github/scripts/merge_and_upload_coverage.bash
         env:
           CC_TEST_REPORTER_ID: ${{ secrets.CC_TEST_REPORTER_ID }}
+          CODACY_PROJECT_TOKEN: ${{ secrets.CODACY_ACCOUNT_TOKEN }}
+
+      - name: Upload total coverage
+        uses: actions/upload-artifact@v1
+        if: success()
         with:
-          coverageCommand: ./.github/scripts/run_frontend_tests.bash
+          name: frontend-total-coverage
+          path: coverage

@@ -258,7 +258,6 @@ def _wait_for_pid(pid: int, timeout: float) -> t.Tuple[int, float]:
     CommandTimeoutException
 
     >>> pid = Popen('exit 32', shell=True).pid
-    >>> time.sleep(0.1)
     >>> _wait_for_pid(pid, 4)[0]
     32
 

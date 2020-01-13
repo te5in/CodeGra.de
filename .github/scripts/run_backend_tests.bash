@@ -16,12 +16,24 @@ for i in $(seq 0 5); do
     create_db "$i" &
 done
 
+wait
+
+rm package.json
+rm npm-shrinkwrap.json
+
 sudo chown -R "$USER":"$(id -gn "$USER")" ~/.config
-sudo npm install -g eslint@6 eslint-plugin-{standard,node,promise,import} eslint-config-standard
+sudo npm install -g eslint@6.8.0 \
+     eslint-plugin-standard@4.0.1 \
+     eslint-plugin-node@11.0.0 \
+     eslint-plugin-promise@4.2.1 \
+     eslint-plugin-import@2.19.1 \
+     eslint-module-utils@2.4.1 \
+     eslint-import-resolver-node@0.3.2 \
+     eslint-config-standard@14.1.0
+
+sudo npm list
 sudo chown -R "$USER":"$(id -gn "$USER")" "$(npm root -g)"
 sudo chown -R "$USER":"$(id -gn "$USER")" ~/.config
-
-wait
 
 export BASE_DATABASE_URI='postgresql://postgres:postgres@localhost:5432/ci_test_'
 

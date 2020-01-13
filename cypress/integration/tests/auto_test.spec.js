@@ -140,14 +140,17 @@ context('Manage assignment page', () => {
                 context = cy.get(context);
                 btnClass = `.submit-button${btnClass}`;
 
-                return (btnText ?  context.contains(btnClass, btnText) : context.find(btnClass))
+                (btnText ?  context.contains(btnClass, btnText) : context.find(btnClass))
                     .submit('default', {
                         hasConfirm: true,
                         waitForState: false,
                     });
+
+                (btnText ?  context.contains(btnClass, btnText) : context.find(btnClass)).should('not.exist')
             }
 
             submit('.modal-dialog', '', '.delete-step');
+            cy.get('.modal-dialog .auto-test-step').should('not.exist')
             submit('.modal-dialog', 'Delete');
             submit('.auto-test', 'Delete level');
             submit('.auto-test', 'Delete');
