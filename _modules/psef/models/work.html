@@ -704,21 +704,24 @@
             <span class="s1">&#39;created_at&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">created_at</span><span class="o">.</span><span class="n">isoformat</span><span class="p">(),</span>
             <span class="s1">&#39;origin&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">origin</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
             <span class="s1">&#39;extra_info&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">extra_info</span><span class="p">,</span>
+            <span class="s1">&#39;grade&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="s1">&#39;grade_overridden&#39;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+            <span class="s1">&#39;assignee&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
         <span class="p">}</span>
 
         <span class="k">try</span><span class="p">:</span>
             <span class="n">auth</span><span class="o">.</span><span class="n">ensure_permission</span><span class="p">(</span>
                 <span class="n">CoursePermission</span><span class="o">.</span><span class="n">can_see_assignee</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">assignment</span><span class="o">.</span><span class="n">course_id</span>
             <span class="p">)</span>
-            <span class="n">item</span><span class="p">[</span><span class="s1">&#39;assignee&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">assignee</span>
         <span class="k">except</span> <span class="n">PermissionException</span><span class="p">:</span>
-            <span class="n">item</span><span class="p">[</span><span class="s1">&#39;assignee&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">pass</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">item</span><span class="p">[</span><span class="s1">&#39;assignee&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">assignee</span>
 
         <span class="k">try</span><span class="p">:</span>
             <span class="n">auth</span><span class="o">.</span><span class="n">ensure_can_see_grade</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
         <span class="k">except</span> <span class="n">PermissionException</span><span class="p">:</span>
-            <span class="n">item</span><span class="p">[</span><span class="s1">&#39;grade&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
-            <span class="n">item</span><span class="p">[</span><span class="s1">&#39;grade_overridden&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="k">pass</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">item</span><span class="p">[</span><span class="s1">&#39;grade&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">grade</span>
             <span class="n">item</span><span class="p">[</span><span class="s1">&#39;grade_overridden&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
