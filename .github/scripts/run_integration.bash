@@ -46,7 +46,28 @@ curl http://localhost:8080
 
 sleep 4
 
-NO_COLOR=1 xvfb-run --server-args="-screen 0 1600x1024x24" --auto-servernum npm run e2e
+FILES=$(python - <<PYTHON
+import os
+import sys
+base='cypress/integration/tests/'
+
+def sort_key(test):
+    if test == 'plagiarism.spec.js':
+        return sys.maxsize
+    elif test == 'submissions.spec.js':
+        return sys.maxsize - 1
+
+    return os.path.getsize(base + test)
+
+tests = [base + test for test in sorted(os.listdir(base), key=sort_key)]
+print(','.join(tests[$RUNNER_NUM::$RUNNER_AMOUNT]))
+PYTHON
+     )
+
+
+PATH="$PATH:$(npm bin)"
+export PATH
+NO_COLOR=1 xvfb-run --server-args="-screen 0 1600x1024x24" --auto-servernum cypress run --spec "$FILES"
 res="$?"
 
 exit "$res"

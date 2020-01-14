@@ -5,8 +5,7 @@ mkdir coverage
 OUT=coverage/lcov.info
 "$(npm bin)"/lcov-result-merger 'frontend-*/lcov.info' "$OUT"
 
-ls -hl frontend-unit-coverage
-ls -hl frontend-integration-coverage
+ls -hl frontend-*
 ls -hl coverage/
 
 sed -i "s@^SF:$PWD/@SF:@g" "$OUT"
