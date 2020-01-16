@@ -83,6 +83,16 @@ export default {
         ...mapGetters('pref', ['fontSize']),
         ...mapGetters('feedback', ['getFeedback']),
 
+        canSeeAssignee() {
+            return this.$utils.getProps(
+                this.assignment,
+                false,
+                'course',
+                'permissions',
+                'can_see_assignee',
+            );
+        },
+
         feedbackEditable() {
             return this.editable && this.studentMode;
         },
@@ -162,22 +172,15 @@ export default {
         return {
             selectedLanguage: 'Default',
             languages,
-            canSeeAssignee: false,
         };
     },
 
-    mounted() {
-        Promise.all([
-            this.loadSettings(),
-            this.$hasPermission('can_see_assignee', this.assignment.course.id),
-        ]).then(([, assignee]) => {
-            this.canSeeAssignee = assignee;
-        });
-    },
-
     watch: {
-        fileId() {
-            this.loadSettings();
+        fileId: {
+            immediate: true,
+            handler() {
+                this.loadSettings();
+            },
         },
 
         language(lang) {
@@ -194,7 +197,7 @@ export default {
     methods: {
         loadSettings() {
             this.selectedLanguage = null;
-            return this.$hlanguageStore.getItem(`${this.file.id}`).then(lang => {
+            return this.$hlanguageStore.getItem(this.fileId).then(lang => {
                 if (lang !== null) {
                     this.$emit('language', lang);
                     this.selectedLanguage = lang;
