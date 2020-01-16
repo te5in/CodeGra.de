@@ -126,15 +126,12 @@ export default {
                         }?not_as_attachment&mime=application/pdf`;
                     },
                     err => {
-                        this.$emit(
-                            'error',
-                            {
-                                error: `An error occured while loading the PDF: ${this.$utils.getErrorMessage(
-                                    err,
-                                )}.`,
-                                fileId,
-                            },
-                        );
+                        this.$emit('error', {
+                            error: `An error occured while loading the PDF: ${this.$utils.getErrorMessage(
+                                err,
+                            )}.`,
+                            fileId,
+                        });
                     },
                 );
             } else if (this.fileContent == null) {

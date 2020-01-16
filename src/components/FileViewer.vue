@@ -181,9 +181,9 @@ export default {
         showEmptyFileMessage() {
             return (
                 !this.loading &&
-                    this.fileData &&
-                    this.fileContent &&
-                    this.fileContent.byteLength === 0
+                this.fileData &&
+                this.fileContent &&
+                this.fileContent.byteLength === 0
             );
         },
 
@@ -237,14 +237,16 @@ export default {
         dataAvailable() {
             return (
                 this.fileData &&
-                    !this.loading &&
-                    (this.fileContent != null || !this.fileData.needsContent)
+                !this.loading &&
+                (this.fileContent != null || !this.fileData.needsContent)
             );
         },
 
         showError() {
-            return this.error ||
-                (this.fileData && this.showDiff(this.file) && !this.fileData.supportsDiff);
+            return (
+                this.error ||
+                (this.fileData && this.showDiff(this.file) && !this.fileData.supportsDiff)
+            );
         },
     },
 
@@ -280,10 +282,11 @@ export default {
                             callback = () => this.onLoad(newVal);
                         }
                     } catch (e) {
-                        callback = () => this.onError({
-                            error: e,
-                            fileId: newVal,
-                        });
+                        callback = () =>
+                            this.onError({
+                                error: e,
+                                fileId: newVal,
+                            });
                     }
 
                     if (newVal === this.fileId) {
