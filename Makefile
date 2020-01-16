@@ -152,6 +152,11 @@ create_permission:
 docs:
 	$(MAKE) -C docs html
 
+.PHONY: hotreload_docs
+hotreload_docs:
+	pip install sphinx-reload
+	sphinx-reload docs/ --watch 'docs/**/*.rst' --watch 'docs/**/*.py'
+
 .PHONY: clean
 clean:
 	$(MAKE) -C docs clean
