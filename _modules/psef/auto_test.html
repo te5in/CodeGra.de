@@ -879,25 +879,8 @@
     <span class="n">yield_core</span><span class="p">:</span> <span class="n">YieldCoreCallback</span></div>
 
 
-<span class="k">def</span> <span class="nf">init_app</span><span class="p">(</span><span class="n">app</span><span class="p">:</span> <span class="s1">&#39;psef.PsefFlask&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-    <span class="n">process_config</span><span class="p">(</span><span class="n">app</span><span class="o">.</span><span class="n">config</span><span class="p">)</span>
-
-
-<div class="viewcode-block" id="process_config"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auto_test.process_config">[docs]</a><span class="k">def</span> <span class="nf">process_config</span><span class="p">(</span><span class="n">config</span><span class="p">:</span> <span class="s1">&#39;psef.FlaskConfig&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-    <span class="sd">&quot;&quot;&quot;Process the AutoTest hosts config to the correct format.</span>
-
-<span class="sd">    :param config: The configuration that should be processed. This will be</span>
-<span class="sd">        modified in-place.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">res</span> <span class="o">=</span> <span class="p">{}</span>
-    <span class="k">for</span> <span class="n">ipaddr</span><span class="p">,</span> <span class="n">conf</span> <span class="ow">in</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;__S_AUTO_TEST_HOSTS&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">conf</span><span class="p">[</span><span class="s1">&#39;password&#39;</span><span class="p">],</span> <span class="nb">str</span><span class="p">)</span>
-        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">conf</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;container_url&#39;</span><span class="p">),</span> <span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="kc">None</span><span class="p">),</span> <span class="nb">str</span><span class="p">))</span>
-        <span class="n">res</span><span class="p">[</span><span class="n">ipaddr</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
-            <span class="s1">&#39;password&#39;</span><span class="p">:</span> <span class="n">conf</span><span class="p">[</span><span class="s1">&#39;password&#39;</span><span class="p">],</span>
-            <span class="s1">&#39;container_url&#39;</span><span class="p">:</span> <span class="n">conf</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;container_url&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
-        <span class="p">}</span>
-    <span class="n">config</span><span class="p">[</span><span class="s1">&#39;AUTO_TEST_HOSTS&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">res</span>  <span class="c1"># type: ignore</span></div>
+<span class="k">def</span> <span class="nf">init_app</span><span class="p">(</span><span class="n">_</span><span class="p">:</span> <span class="s1">&#39;psef.PsefFlask&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">pass</span>
 
 
 <span class="c1"># This wrapper function is needed for Python multiprocessing</span>
@@ -910,92 +893,130 @@
     <span class="n">cont</span><span class="o">.</span><span class="n">run_student</span><span class="p">(</span><span class="n">bc_name</span><span class="p">,</span> <span class="n">cores</span><span class="p">,</span> <span class="n">opts</span><span class="p">)</span>
 
 
-<div class="viewcode-block" id="start_polling"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auto_test.start_polling">[docs]</a><span class="k">def</span> <span class="nf">start_polling</span><span class="p">(</span><span class="n">config</span><span class="p">:</span> <span class="s1">&#39;psef.FlaskConfig&#39;</span><span class="p">,</span> <span class="n">repeat</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="k">def</span> <span class="nf">_try_to_run_job</span><span class="p">(</span>
+    <span class="n">broker_session</span><span class="p">:</span> <span class="s1">&#39;helpers.BrokerSession&#39;</span><span class="p">,</span>
+    <span class="n">runner_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">config</span><span class="p">:</span> <span class="s1">&#39;psef.FlaskConfig&#39;</span><span class="p">,</span>
+    <span class="n">cont</span><span class="p">:</span> <span class="s1">&#39;StartedContainer&#39;</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">get_url</span><span class="p">(</span><span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">URL</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">URL</span><span class="p">(</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;AUTO_TEST_RUNNER_CONTAINER_URL&#39;</span><span class="p">]</span> <span class="ow">or</span> <span class="n">url</span><span class="p">)</span>
+
+    <span class="k">with</span> <span class="n">broker_session</span> <span class="k">as</span> <span class="n">ses</span><span class="p">:</span>
+        <span class="n">items</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="n">ses</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s1">&#39;/api/v1/runners/</span><span class="si">{runner_id}</span><span class="s1">/jobs/&#39;</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="n">_REQUEST_TIMEOUT</span>
+            <span class="p">)</span>
+            <span class="n">response</span><span class="o">.</span><span class="n">raise_for_status</span><span class="p">()</span>
+        <span class="k">except</span><span class="p">:</span>  <span class="c1"># pylint: disable=bare-except</span>
+            <span class="c1"># pragma: no cover</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Tried to get jobs from broker&#39;</span><span class="p">,</span> <span class="n">exc_info</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Got jobs from broker&#39;</span><span class="p">,</span> <span class="n">response</span><span class="o">=</span><span class="n">response</span><span class="p">)</span>
+            <span class="n">items</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+
+    <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">items</span><span class="p">:</span>
+        <span class="n">url</span> <span class="o">=</span> <span class="n">item</span><span class="p">[</span><span class="s1">&#39;url&#39;</span><span class="p">]</span>
+        <span class="n">headers</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;CG-Internal-Api-Password&#39;</span><span class="p">:</span>
+                <span class="n">config</span><span class="p">[</span><span class="s1">&#39;AUTO_TEST_RUNNER_INSTANCE_PASS&#39;</span><span class="p">],</span>
+        <span class="p">}</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">bind</span><span class="p">(</span><span class="n">server</span><span class="o">=</span><span class="n">url</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Checking next server&#39;</span><span class="p">)</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{url}</span><span class="s1">/api/v-internal/auto_tests/&#39;</span><span class="p">,</span>
+                <span class="n">params</span><span class="o">=</span><span class="p">{</span>
+                    <span class="s1">&#39;get&#39;</span><span class="p">:</span> <span class="s1">&#39;tests_to_run&#39;</span><span class="p">,</span>
+                <span class="p">},</span>
+                <span class="n">headers</span><span class="o">=</span><span class="n">headers</span><span class="p">,</span>
+                <span class="n">timeout</span><span class="o">=</span><span class="n">_REQUEST_TIMEOUT</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="n">response</span><span class="o">.</span><span class="n">raise_for_status</span><span class="p">()</span>
+        <span class="k">except</span> <span class="n">requests</span><span class="o">.</span><span class="n">exceptions</span><span class="o">.</span><span class="n">RequestException</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Failed to get server&#39;</span><span class="p">,</span> <span class="n">exc_info</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="k">continue</span>
+
+        <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">200</span><span class="p">:</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s1">&#39;Got test&#39;</span><span class="p">,</span>
+                <span class="n">response</span><span class="o">=</span><span class="n">response</span><span class="p">,</span>
+                <span class="n">auto_test_id</span><span class="o">=</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;auto_test_id&#39;</span><span class="p">)</span>
+            <span class="p">)</span>
+
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">AutoTestRunner</span><span class="p">(</span>
+                    <span class="n">URL</span><span class="p">(</span><span class="n">get_url</span><span class="p">(</span><span class="n">url</span><span class="p">)),</span>
+                    <span class="n">data</span><span class="p">,</span>
+                    <span class="n">config</span><span class="p">[</span><span class="s1">&#39;AUTO_TEST_RUNNER_INSTANCE_PASS&#39;</span><span class="p">],</span>
+                    <span class="n">config</span><span class="p">,</span>
+                <span class="p">)</span><span class="o">.</span><span class="n">run_test</span><span class="p">(</span><span class="n">cont</span><span class="p">)</span>
+            <span class="k">except</span><span class="p">:</span>  <span class="c1"># pylint: disable=bare-except</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Error while running tests&#39;</span><span class="p">,</span> <span class="n">exc_info</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;No tests found&#39;</span><span class="p">,</span> <span class="n">response</span><span class="o">=</span><span class="n">response</span><span class="p">)</span>
+    <span class="k">return</span> <span class="kc">False</span>
+
+
+<div class="viewcode-block" id="start_polling"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auto_test.start_polling">[docs]</a><span class="k">def</span> <span class="nf">start_polling</span><span class="p">(</span><span class="n">config</span><span class="p">:</span> <span class="s1">&#39;psef.FlaskConfig&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot;Start polling the configured CodeGrade instances.</span>
 
 <span class="sd">    :param config: The config of this AutoTest runner. This also determines</span>
 <span class="sd">        what servers will be polled.</span>
 <span class="sd">    :param repeat: Should we repeat the polling after running a single test.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">items</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;AUTO_TEST_HOSTS&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">())</span>
     <span class="n">sleep_time</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;AUTO_TEST_POLL_TIME&#39;</span><span class="p">]</span>
     <span class="n">broker_url</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;AUTO_TEST_BROKER_URL&#39;</span><span class="p">]</span>
 
-    <span class="k">def</span> <span class="nf">do_job</span><span class="p">(</span><span class="n">cont</span><span class="p">:</span> <span class="s1">&#39;StartedContainer&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-        <span class="n">random</span><span class="o">.</span><span class="n">shuffle</span><span class="p">(</span><span class="n">items</span><span class="p">)</span>
-        <span class="k">for</span> <span class="n">url</span><span class="p">,</span> <span class="n">url_config</span> <span class="ow">in</span> <span class="n">items</span><span class="p">:</span>
-            <span class="n">headers</span> <span class="o">=</span> <span class="p">{</span>
-                <span class="s1">&#39;CG-Internal-Api-Password&#39;</span><span class="p">:</span> <span class="n">url_config</span><span class="p">[</span><span class="s2">&quot;password&quot;</span><span class="p">],</span>
-            <span class="p">}</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">try_unbind</span><span class="p">(</span><span class="s1">&#39;server&#39;</span><span class="p">)</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">bind</span><span class="p">(</span><span class="n">server</span><span class="o">=</span><span class="n">url</span><span class="p">)</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Checking next server&#39;</span><span class="p">)</span>
+    <span class="n">runner_pass_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="vm">__file__</span><span class="p">),</span> <span class="s1">&#39;..&#39;</span><span class="p">,</span> <span class="s1">&#39;..&#39;</span><span class="p">,</span> <span class="s1">&#39;.runner-pass&#39;</span><span class="p">)</span>
+    <span class="p">)</span>
+    <span class="n">runner_pass</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">runner_pass_file</span><span class="p">):</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">runner_pass_file</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">runner_pass</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">unlink</span><span class="p">(</span><span class="n">runner_pass_file</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+            <span class="s1">&#39;Could not find runner pass file&#39;</span><span class="p">,</span>
+            <span class="n">runner_pass_file</span><span class="o">=</span><span class="n">runner_pass_file</span>
+        <span class="p">)</span>
 
-            <span class="k">try</span><span class="p">:</span>
-                <span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
-                    <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{url}</span><span class="s1">/api/v-internal/auto_tests/&#39;</span><span class="p">,</span>
-                    <span class="n">params</span><span class="o">=</span><span class="p">{</span>
-                        <span class="s1">&#39;get&#39;</span><span class="p">:</span> <span class="s1">&#39;tests_to_run&#39;</span><span class="p">,</span>
-                    <span class="p">},</span>
-                    <span class="n">headers</span><span class="o">=</span><span class="n">headers</span><span class="p">,</span>
-                    <span class="n">timeout</span><span class="o">=</span><span class="n">_REQUEST_TIMEOUT</span><span class="p">,</span>
-                <span class="p">)</span>
-                <span class="n">response</span><span class="o">.</span><span class="n">raise_for_status</span><span class="p">()</span>
-            <span class="k">except</span> <span class="n">requests</span><span class="o">.</span><span class="n">exceptions</span><span class="o">.</span><span class="n">RequestException</span><span class="p">:</span>
-                <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Failed to get server&#39;</span><span class="p">,</span> <span class="n">exc_info</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-                <span class="k">continue</span>
+    <span class="k">def</span> <span class="nf">get_broker_session</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">helpers</span><span class="o">.</span><span class="n">BrokerSession</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">helpers</span><span class="o">.</span><span class="n">BrokerSession</span><span class="p">(</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">broker_url</span><span class="p">,</span> <span class="n">runner_pass</span><span class="p">)</span>
 
-            <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">200</span><span class="p">:</span>
-                <span class="n">data</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
-                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
-                    <span class="s1">&#39;Got test&#39;</span><span class="p">,</span>
-                    <span class="n">response</span><span class="o">=</span><span class="n">response</span><span class="p">,</span>
-                    <span class="n">auto_test_id</span><span class="o">=</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;auto_test_id&#39;</span><span class="p">)</span>
-                <span class="p">)</span>
+    <span class="n">_STOP_CONTAINERS</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
 
+    <span class="k">with</span> <span class="n">_get_base_container</span><span class="p">(</span><span class="n">config</span><span class="p">)</span><span class="o">.</span><span class="n">started_container</span><span class="p">()</span> <span class="k">as</span> <span class="n">cont</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;AUTO_TEST_TEMPLATE_CONTAINER&#39;</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">cont</span><span class="o">.</span><span class="n">run_command</span><span class="p">([</span><span class="s1">&#39;apt&#39;</span><span class="p">,</span> <span class="s1">&#39;update&#39;</span><span class="p">])</span>
+            <span class="n">cont</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span>
+                <span class="p">[</span><span class="s1">&#39;apt&#39;</span><span class="p">,</span> <span class="s1">&#39;install&#39;</span><span class="p">,</span> <span class="s1">&#39;-y&#39;</span><span class="p">,</span> <span class="s1">&#39;wget&#39;</span><span class="p">,</span> <span class="s1">&#39;curl&#39;</span><span class="p">,</span> <span class="s1">&#39;unzip&#39;</span><span class="p">],</span>
+                <span class="n">retry_amount</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span>
+            <span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">helpers</span><span class="o">.</span><span class="n">retry_loop</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">maxsize</span><span class="p">,</span> <span class="n">sleep_time</span><span class="o">=</span><span class="n">_REQUEST_TIMEOUT</span><span class="p">):</span>
+            <span class="k">with</span> <span class="n">get_broker_session</span><span class="p">()</span> <span class="k">as</span> <span class="n">ses</span><span class="p">:</span>
                 <span class="k">try</span><span class="p">:</span>
-                    <span class="n">AutoTestRunner</span><span class="p">(</span>
-                        <span class="n">URL</span><span class="p">(</span><span class="n">url_config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;container_url&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">url</span><span class="p">),</span> <span class="n">data</span><span class="p">,</span>
-                        <span class="n">url_config</span><span class="p">[</span><span class="s1">&#39;password&#39;</span><span class="p">],</span> <span class="n">config</span>
-                    <span class="p">)</span><span class="o">.</span><span class="n">run_test</span><span class="p">(</span><span class="n">cont</span><span class="p">)</span>
+                    <span class="n">response</span> <span class="o">=</span> <span class="n">ses</span><span class="o">.</span><span class="n">post</span><span class="p">(</span>
+                        <span class="s1">&#39;/api/v1/alive/&#39;</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="n">_REQUEST_TIMEOUT</span>
+                    <span class="p">)</span>
+                    <span class="n">response</span><span class="o">.</span><span class="n">raise_for_status</span><span class="p">()</span>
                 <span class="k">except</span><span class="p">:</span>  <span class="c1"># pylint: disable=bare-except</span>
-                    <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Error while running tests&#39;</span><span class="p">,</span> <span class="n">exc_info</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-                <span class="k">return</span> <span class="kc">True</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;No tests found&#39;</span><span class="p">,</span> <span class="n">response</span><span class="o">=</span><span class="n">response</span><span class="p">)</span>
-        <span class="k">return</span> <span class="kc">False</span>
-
-    <span class="n">first</span> <span class="o">=</span> <span class="kc">True</span>
-    <span class="k">while</span> <span class="n">first</span> <span class="ow">or</span> <span class="n">repeat</span><span class="p">:</span>
-        <span class="n">first</span> <span class="o">=</span> <span class="kc">False</span>
-        <span class="n">_STOP_CONTAINERS</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
-
-        <span class="k">with</span> <span class="n">_get_base_container</span><span class="p">(</span><span class="n">config</span><span class="p">)</span><span class="o">.</span><span class="n">started_container</span><span class="p">()</span> <span class="k">as</span> <span class="n">cont</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;AUTO_TEST_TEMPLATE_CONTAINER&#39;</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="n">cont</span><span class="o">.</span><span class="n">run_command</span><span class="p">([</span><span class="s1">&#39;apt&#39;</span><span class="p">,</span> <span class="s1">&#39;update&#39;</span><span class="p">])</span>
-                <span class="n">cont</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span>
-                    <span class="p">[</span><span class="s1">&#39;apt&#39;</span><span class="p">,</span> <span class="s1">&#39;install&#39;</span><span class="p">,</span> <span class="s1">&#39;-y&#39;</span><span class="p">,</span> <span class="s1">&#39;wget&#39;</span><span class="p">,</span> <span class="s1">&#39;curl&#39;</span><span class="p">,</span> <span class="s1">&#39;unzip&#39;</span><span class="p">],</span>
-                    <span class="n">retry_amount</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span>
-                <span class="p">)</span>
-
-            <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">helpers</span><span class="o">.</span><span class="n">retry_loop</span><span class="p">(</span>
-                <span class="n">sys</span><span class="o">.</span><span class="n">maxsize</span><span class="p">,</span> <span class="n">sleep_time</span><span class="o">=</span><span class="n">_REQUEST_TIMEOUT</span>
-            <span class="p">):</span>
-                <span class="k">with</span> <span class="n">helpers</span><span class="o">.</span><span class="n">BrokerSession</span><span class="p">(</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">broker_url</span><span class="p">)</span> <span class="k">as</span> <span class="n">ses</span><span class="p">:</span>
-                    <span class="k">try</span><span class="p">:</span>
-                        <span class="n">ses</span><span class="o">.</span><span class="n">post</span><span class="p">(</span>
-                            <span class="s1">&#39;/api/v1/alive/&#39;</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="n">_REQUEST_TIMEOUT</span>
-                        <span class="p">)</span><span class="o">.</span><span class="n">raise_for_status</span><span class="p">()</span>
-                    <span class="k">except</span><span class="p">:</span>  <span class="c1"># pylint: disable=bare-except</span>
-                        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Did request to broker&#39;</span><span class="p">,</span> <span class="n">exc_info</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-                        <span class="k">continue</span>
-                    <span class="k">else</span><span class="p">:</span>
-                        <span class="k">break</span>
-
-            <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
-                <span class="k">if</span> <span class="n">do_job</span><span class="p">(</span><span class="n">cont</span><span class="p">):</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Did request to broker&#39;</span><span class="p">,</span> <span class="n">exc_info</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                    <span class="k">continue</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">runner_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span>
                     <span class="k">break</span>
-                <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">sleep_time</span><span class="p">)</span></div>
+
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">_try_to_run_job</span><span class="p">(</span><span class="n">get_broker_session</span><span class="p">(),</span> <span class="n">runner_id</span><span class="p">,</span> <span class="n">config</span><span class="p">,</span> <span class="n">cont</span><span class="p">):</span>
+                <span class="k">break</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">sleep_time</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="StartedContainer"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auto_test.StartedContainer">[docs]</a><span class="k">class</span> <span class="nc">StartedContainer</span><span class="p">:</span>

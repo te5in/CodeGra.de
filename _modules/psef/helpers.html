@@ -1497,12 +1497,14 @@
         <span class="n">broker_pass</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">external_url</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">broker_base</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">runner_pass</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">broker_base</span> <span class="o">=</span> <span class="p">(</span>
             <span class="n">broker_base</span> <span class="k">if</span> <span class="n">broker_base</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span>
             <span class="n">psef</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;AUTO_TEST_BROKER_URL&#39;</span><span class="p">]</span>
         <span class="p">)</span>
+
         <span class="bp">self</span><span class="o">.</span><span class="n">headers</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
             <span class="p">{</span>
                 <span class="s1">&#39;CG-Broker-Pass&#39;</span><span class="p">:</span>
@@ -1511,6 +1513,7 @@
                 <span class="s1">&#39;CG-Broker-Instance&#39;</span><span class="p">:</span>
                     <span class="n">external_url</span> <span class="k">if</span> <span class="n">external_url</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span>
                     <span class="n">psef</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;EXTERNAL_URL&#39;</span><span class="p">],</span>
+                <span class="s1">&#39;CG-Broker-Runner-Pass&#39;</span><span class="p">:</span> <span class="n">runner_pass</span> <span class="ow">or</span> <span class="s1">&#39;&#39;</span><span class="p">,</span>
             <span class="p">}</span>
         <span class="p">)</span>
 

@@ -2382,7 +2382,7 @@ directory.</td>
 <p>SPDX-License-Identifier: AGPL-3.0-only</p>
 <dl class="class">
 <dt id="psef.helpers.BrokerSession">
-<em class="property">class </em><code class="descclassname">psef.helpers.</code><code class="descname">BrokerSession</code><span class="sig-paren">(</span><em>self</em>, <em>broker_pass: str = None</em>, <em>external_url: str = None</em>, <em>broker_base: str = None</em><span class="sig-paren">)</span> &#x2192; None<a class="reference internal" href="../_modules/psef/helpers.html#BrokerSession"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.helpers.BrokerSession" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="descclassname">psef.helpers.</code><code class="descname">BrokerSession</code><span class="sig-paren">(</span><em>self</em>, <em>broker_pass: str = None</em>, <em>external_url: str = None</em>, <em>broker_base: str = None</em>, <em>runner_pass: str = None</em><span class="sig-paren">)</span> &#x2192; None<a class="reference internal" href="../_modules/psef/helpers.html#BrokerSession"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.helpers.BrokerSession" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">requests.sessions.Session</span></code></p>
 <p>A session to use when doing requests to the AutoTest broker.</p>
 <dl class="method">
@@ -12711,23 +12711,8 @@ running.</p>
 </dd></dl>
 
 <dl class="function">
-<dt id="psef.auto_test.process_config">
-<code class="descclassname">psef.auto_test.</code><code class="descname">process_config</code><span class="sig-paren">(</span><em>config: psef.FlaskConfig</em><span class="sig-paren">)</span> &#x2192; None<a class="reference internal" href="../_modules/psef/auto_test.html#process_config"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.auto_test.process_config" title="Permalink to this definition">¶</a></dt>
-<dd><p>Process the AutoTest hosts config to the correct format.</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>config</strong> – The configuration that should be processed. This will be
-modified in-place.</td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
-
-<dl class="function">
 <dt id="psef.auto_test.start_polling">
-<code class="descclassname">psef.auto_test.</code><code class="descname">start_polling</code><span class="sig-paren">(</span><em>config: psef.FlaskConfig</em>, <em>repeat: bool = True</em><span class="sig-paren">)</span> &#x2192; None<a class="reference internal" href="../_modules/psef/auto_test.html#start_polling"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.auto_test.start_polling" title="Permalink to this definition">¶</a></dt>
+<code class="descclassname">psef.auto_test.</code><code class="descname">start_polling</code><span class="sig-paren">(</span><em>config: psef.FlaskConfig</em><span class="sig-paren">)</span> &#x2192; None<a class="reference internal" href="../_modules/psef/auto_test.html#start_polling"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.auto_test.start_polling" title="Permalink to this definition">¶</a></dt>
 <dd><p>Start polling the configured CodeGrade instances.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
