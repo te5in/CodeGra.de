@@ -31,8 +31,6 @@
 </template>
 
 <script>
-import { mapActions } from 'vuex';
-
 import FloatingFeedbackButton from './FloatingFeedbackButton';
 
 export default {
@@ -67,6 +65,9 @@ export default {
             type: Boolean,
             default: true,
         },
+        fileContent: {
+            required: true,
+        },
     },
 
     data() {
@@ -76,11 +77,17 @@ export default {
     },
 
     watch: {
-        id: {
+        fileContent: {
             immediate: true,
             handler() {
-                this.embedPdf();
+                this.embedPdf(this.id);
             },
+        },
+
+        id() {
+            if (this.$root.isEdge) {
+                this.embedPdf(this.id);
+            }
         },
     },
 
@@ -106,46 +113,41 @@ export default {
     },
 
     methods: {
-        ...mapActions('code', {
-            storeLoadCode: 'loadCode',
-        }),
-
-        async embedPdf() {
+        embedPdf(fileId) {
             this.pdfURL = '';
-            await this.$afterRerender();
 
-            if (this.revision === 'diff') {
-                this.$emit('error', 'The pdf viewer is not available in diff mode');
-                return;
-            }
+            let pdfURL;
 
-            let prom;
             if (this.$root.isEdge) {
-                prom = this.$http.get(`/api/v1/code/${this.id}?type=file-url`).then(({ data }) => {
-                    this.pdfURL = `/api/v1/files/${
-                        data.name
-                    }?not_as_attachment&mime=application/pdf`;
-                });
+                this.$http.get(`/api/v1/code/${this.id}?type=file-url`).then(
+                    ({ data }) => {
+                        pdfURL = `/api/v1/files/${
+                            data.name
+                        }?not_as_attachment&mime=application/pdf`;
+                    },
+                    err => {
+                        this.$emit(
+                            'error',
+                            {
+                                error: `An error occured while loading the PDF: ${this.$utils.getErrorMessage(
+                                    err,
+                                )}.`,
+                                fileId,
+                            },
+                        );
+                    },
+                );
+            } else if (this.fileContent == null) {
+                return;
             } else {
-                prom = this.storeLoadCode(this.id).then(buffer => {
-                    const blob = new Blob([buffer], { type: 'application/pdf' });
-                    this.pdfURL = `${URL.createObjectURL(blob)}`;
-                });
+                const blob = new Blob([this.fileContent], { type: 'application/pdf' });
+                pdfURL = this.$utils.coerceToString(URL.createObjectURL(blob));
             }
 
-            prom.then(
-                () => {
-                    this.$emit('load');
-                },
-                err => {
-                    this.$emit(
-                        'error',
-                        `An error occured while loading the PDF: ${this.$utils.getErrorMessage(
-                            err,
-                        )}.`,
-                    );
-                },
-            );
+            if (this.id === fileId) {
+                this.pdfURL = pdfURL;
+                this.$emit('load', fileId);
+            }
         },
     },
 

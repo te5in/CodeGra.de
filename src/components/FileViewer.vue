@@ -1,14 +1,19 @@
 <template>
 <div class="file-viewer"
      :class="dynamicClasses">
-    <b-alert v-if="error"
+    <b-alert v-if="showError"
              show
              variant="danger"
              class="error mb-0">
-        {{ error }}
+        <template v-if="(fileData && showDiff(file) && !fileData.supportsDiff)">
+            The diff for files of this type is not supported.
+        </template>
+        <template v-else>
+            {{ error }}
+        </template>
     </b-alert>
 
-    <loader v-else-if="loading"
+    <loader v-else-if="!dataAvailable"
             page-loader />
 
     <b-alert v-else-if="forcedFileComponent != null"
@@ -22,15 +27,21 @@
     </b-alert>
 
     <div class="wrapper"
-         :class="{ scroller: fileData && fileData.scroller }">
-        <template v-if="fileData">
-            <component v-show="!loading"
+         :class="{ scroller: fileData && fileData.scroller }"
+         v-if="!showError">
+        <div v-if="showEmptyFileMessage"
+             class="wrapper px-3 py-1 text-muted">
+            <small>This file is empty.</small>
+        </div>
+        <template v-else-if="fileData">
+            <component v-show="dataAvailable"
                        :is="fileData.component"
                        class="inner-viewer"
                        :assignment="assignment"
                        :submission="submission"
                        :file="file"
                        :file-id="fileId"
+                       :file-content="fileContent"
                        :revision="revision"
                        :show-whitespace="showWhitespace"
                        :show-inline-feedback="showInlineFeedback"
@@ -47,6 +58,8 @@
 </template>
 
 <script>
+import { mapActions } from 'vuex';
+
 import {
     CodeViewer,
     DiffViewer,
@@ -106,6 +119,7 @@ export default {
             loading: true,
             error: '',
             forcedFileComponent: null,
+            fileContent: undefined,
             fileTypes: [
                 {
                     cond: () =>
@@ -121,42 +135,58 @@ export default {
                     component: PdfViewer,
                     showLanguage: false,
                     scroller: false,
+                    needsContent: !this.$root.isEdge,
                 },
                 {
                     cond: () => this.hasExtension('gif', 'jpg', 'jpeg', 'png', 'svg'),
                     component: ImageViewer,
                     showLanguage: false,
                     scroller: false,
-                },
-                {
-                    cond: f => f.ids && f.ids[0] !== f.ids[1],
-                    component: DiffViewer,
-                    showLanguage: false,
-                    scroller: true,
+                    needsContent: true,
                 },
                 {
                     cond: () => this.hasExtension('ipynb'),
                     component: IpythonViewer,
                     showLanguage: false,
                     scroller: true,
+                    needsContent: true,
+                },
+                {
+                    cond: this.showDiff,
+                    component: DiffViewer,
+                    showLanguage: false,
+                    scroller: true,
+                    needsContent: false,
+                    supportsDiff: true,
                 },
                 {
                     cond: () => this.hasExtension('md', 'markdown'),
                     component: MarkdownViewer,
                     showLanguage: false,
                     scroller: false,
+                    needsContent: true,
                 },
                 {
-                    cond: () => !this.error,
+                    cond: () => true,
                     component: CodeViewer,
                     showLanguage: true,
                     scroller: true,
+                    needsContent: true,
                 },
             ],
         };
     },
 
     computed: {
+        showEmptyFileMessage() {
+            return (
+                !this.loading &&
+                    this.fileData &&
+                    this.fileContent &&
+                    this.fileContent.byteLength === 0
+            );
+        },
+
         fileExtension() {
             const parts = this.file.name.split('.');
 
@@ -181,9 +211,11 @@ export default {
         },
 
         dynamicClasses() {
-            if (this.fileData) {
+            if (this.showEmptyFileMessage) {
+                return 'empty-file-wrapper form-control';
+            } else if (this.fileData) {
                 return `${this.fileData.component.name} border rounded ${
-                    this.loading ? 'loading' : ''
+                    this.fileContent ? '' : 'no-data'
                 }`;
             } else {
                 return '';
@@ -191,18 +223,36 @@ export default {
         },
 
         fileId() {
-            if (!this.file) {
-                return null;
-            } else {
-                return String(this.file.id || this.file.ids[0] || this.file.ids[1]);
+            let id = null;
+            if (this.file) {
+                id = this.file.id;
+                if (this.file.ids) {
+                    id = this.file.ids.find(x => x);
+                }
             }
+
+            return this.$utils.coerceToString(id);
+        },
+
+        dataAvailable() {
+            return (
+                this.fileData &&
+                    !this.loading &&
+                    (this.fileContent != null || !this.fileData.needsContent)
+            );
+        },
+
+        showError() {
+            return this.error ||
+                (this.fileData && this.showDiff(this.file) && !this.fileData.supportsDiff);
         },
     },
 
     watch: {
         fileId: {
-            handler(newVal, oldVal) {
-                if (oldVal && newVal && oldVal === newVal) {
+            immediate: true,
+            async handler(newVal, oldVal) {
+                if (!newVal || oldVal === newVal) {
                     return;
                 }
 
@@ -211,22 +261,64 @@ export default {
                 // has not been set yet.
                 if (!this.file && this.$route.params.fileId) {
                     this.onError('File not found!');
-                } else {
-                    this.error = '';
-                    this.loading = true;
+                    return;
+                }
+
+                this.fileContent = null;
+                this.error = '';
+                this.loading = true;
+                if (this.fileData.needsContent) {
+                    let callback = () => {};
+                    let content = null;
+
+                    try {
+                        [content] = await Promise.all([
+                            this.storeLoadCode(newVal),
+                            this.$afterRerender(),
+                        ]);
+                        if (content.byteLength === 0) {
+                            callback = () => this.onLoad(newVal);
+                        }
+                    } catch (e) {
+                        callback = () => this.onError({
+                            error: e,
+                            fileId: newVal,
+                        });
+                    }
+
+                    if (newVal === this.fileId) {
+                        if (content) {
+                            this.fileContent = content;
+                        }
+                        callback();
+                    }
                 }
             },
         },
     },
 
     methods: {
-        onLoad() {
+        ...mapActions('code', {
+            storeLoadCode: 'loadCode',
+        }),
+
+        onLoad(fileId) {
+            if (this.fileId !== fileId) {
+                return;
+            }
             this.loading = false;
             this.error = '';
         },
 
         onError(err) {
-            this.error = this.$utils.getErrorMessage(err);
+            if (err.fileId) {
+                if (err.fileId !== this.fileId) {
+                    return;
+                }
+                this.error = this.$utils.getErrorMessage(err.error);
+            } else {
+                this.error = this.$utils.getErrorMessage(err);
+            }
             this.loading = false;
         },
 
@@ -241,6 +333,10 @@ export default {
             return exts.some(
                 ext => this.fileExtension === ext || this.fileExtension === ext.toUpperCase(),
             );
+        },
+
+        showDiff(file) {
+            return this.revision === 'diff' && file.ids && file.ids[0] !== file.ids[1];
         },
     },
 
@@ -257,10 +353,10 @@ export default {
     display: flex;
     flex-direction: column;
 
-    &.html-viewer:not(.loading) {
+    &.html-viewer:not(.no-data) {
         height: 100%;
     }
-    &.pdf-viewer {
+    &.pdf-viewer:not(.no-data) {
         height: 100%;
         flex: 1 1 100%;
     }
