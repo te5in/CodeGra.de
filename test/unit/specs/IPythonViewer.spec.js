@@ -5,6 +5,8 @@ import VueRouter from 'vue-router';
 import Vuex from 'vuex';
 import BootstrapVue from 'bootstrap-vue';
 import * as utils from '@/utils';
+import * as decode from '@/utils/decode'
+import * as ipythonUtils from '@/utils/ipython'
 import axios from 'axios';
 import util from 'util';
 
@@ -58,9 +60,9 @@ describe('IPythonViewer.vue', () => {
         await comp.$afterRerender();
     };
 
-    beforeEach(() => {
-        utils.highlightCode = jest.fn(a => a);
-        fileId = `$(Math.random())`;
+    beforeEach(async () => {
+        jest.spyOn(utils, 'highlightCode').mockImplementation(x => x);
+        fileId = `${Math.random()}`;
 
         curId = Math.round(Math.random() * 1000);
         assignment = { id: curId++ };
@@ -84,7 +86,7 @@ describe('IPythonViewer.vue', () => {
             resolve({ data: res });
         }));
 
-        axios.get = mockGet;
+        jest.spyOn(axios, 'get').mockImplementation(mockGet);
 
         wrapper = shallowMount(IPythonViewer, {
             localVue,
@@ -131,7 +133,7 @@ describe('IPythonViewer.vue', () => {
     });
 
     afterEach(() => {
-        utils.highlightCode.mockRestore();
+        jest.restoreAllMocks();
     });
 
     describe('outputCells', () => {
@@ -233,20 +235,46 @@ describe('IPythonViewer.vue', () => {
     });
 
     describe('loadCode', () => {
-        let emitMock;
-
-        beforeEach(() => {
-            const oldEmit = comp.$emit;
-            emitMock = jest.fn(err => oldEmit.call(comp, err));
-            comp.$emit = emitMock;
-        });
-
         it('should work when the api returns invalid JSON', async () => {
             await setData('THIS IS NOT JSON');
-            expect(emitMock).toBeCalledWith('error', {
+            expect(wrapper.emitted().error).toEqual([[{
                 error: comp.invalidJsonMessage,
                 fileId: fileId,
-            });
+            }]]);
+        });
+
+        it('should work when the buffer cannot be decoded', async () => {
+            const err = Math.random();
+            const error = new Error(err)
+            jest.spyOn(decode, 'default').mockImplementation(
+                () => { throw error; },
+            )
+            wrapper.setProps({ fileContent: 'AAH' });
+
+            await comp.$nextTick();
+            await comp.$nextTick();
+            await comp.$nextTick();
+
+            expect(decode.default).toBeCalledWith('AAH');
+            expect(wrapper.emitted().error).toEqual([[{
+                error,
+                fileId: fileId,
+            }]]);
+        });
+
+        it('should work when getOutputCells errors', async () => {
+            const err = Math.random();
+            const error = new Error(err)
+            jest.spyOn(ipythonUtils, 'getOutputCells')
+                .mockImplementation(() => { throw error; });
+
+            await setData('{"val": "AAAH"}');
+
+            expect(ipythonUtils.getOutputCells).toBeCalledWith({ val: 'AAAH' });
+            expect(wrapper.emitted().error).toEqual([[{
+                error,
+                fileId: fileId,
+            }]]);
         });
     });
 
