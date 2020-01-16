@@ -133,11 +133,7 @@ def app(request):
         'MIN_PASSWORD_SCORE': 3,
         'AUTO_TEST_PASSWORD': auto_test_password,
         'AUTO_TEST_CF_EXTRA_AMOUNT': 2,
-        '__S_AUTO_TEST_HOSTS': {
-            f'http://127.0.0.1:{LIVE_SERVER_PORT}': {
-                'password': auto_test_password, 'type': 'simple_runner'
-            }
-        },
+        'AUTO_TEST_RUNNER_INSTANCE_PASS': auto_test_password,
         'AUTO_TEST_DISABLE_ORIGIN_CHECK': True,
         'AUTO_TEST_MAX_TIME_COMMAND': 3,
         'ADMIN_USER': None,
@@ -674,7 +670,12 @@ def assignment_real_works(
 
 
 @pytest.fixture
-def live_server(app):
+def live_server_url():
+    yield f'http://localhost:{LIVE_SERVER_PORT}'
+
+
+@pytest.fixture
+def live_server(app, live_server_url):
     p = None
 
     def stop():
@@ -701,7 +702,7 @@ def live_server(app):
 
         p = multiprocessing.Process(target=_inner)
         p.start()
-        url = f'http://localhost:{LIVE_SERVER_PORT}'
+        url = live_server_url
 
         for _ in range(15):
             try:

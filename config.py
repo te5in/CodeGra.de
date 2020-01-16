@@ -58,7 +58,6 @@ FlaskConfig = TypedDict(
         'FEATURES': t.Mapping['psef.features.Feature', bool],
         '__S_FEATURES': t.Mapping[str, bool],
         'IS_AUTO_TEST_RUNNER': bool,
-        'AUTO_TEST_HOSTS': AutoTestHosts,
         'AUTO_TEST_PASSWORD': str,
         'AUTO_TEST_DISABLE_ORIGIN_CHECK': bool,
         'AUTO_TEST_MAX_TIME_COMMAND': int,
@@ -77,8 +76,9 @@ FlaskConfig = TypedDict(
         'AUTO_TEST_MAX_JOBS_PER_RUNNER': int,
         'AUTO_TEST_MAX_OUTPUT_TAIL': int,
         'AUTO_TEST_MAX_CONCURRENT_BATCH_RUNS': int,
+        'AUTO_TEST_RUNNER_INSTANCE_PASS': str,
+        'AUTO_TEST_RUNNER_CONTAINER_URL': t.Optional[str],
         'TESTING': bool,
-        '__S_AUTO_TEST_HOSTS': t.Mapping[str, t.Any],
         'Celery': CeleryConfig,
         'LTI Consumer keys': t.Mapping[str, str],
         'DEBUG': bool,
@@ -587,9 +587,6 @@ if celery_parser.read(config_file) and 'Celery' in celery_parser:
 else:
     CONFIG['CELERY_CONFIG'] = {}
 
-val = json.loads(auto_test_ops.get('auto_test_hosts', '{}'))
-assert isinstance(val, dict)
-CONFIG['__S_AUTO_TEST_HOSTS'] = val
 
 set_bool(CONFIG, auto_test_ops, 'IS_AUTO_TEST_RUNNER', False)
 
@@ -614,6 +611,9 @@ set_int(CONFIG, auto_test_ops, 'AUTO_TEST_MAX_CONCURRENT_BATCH_RUNS', 3)
 
 set_float(CONFIG, auto_test_ops, 'AUTO_TEST_CF_SLEEP_TIME', 5.0)
 set_int(CONFIG, auto_test_ops, 'AUTO_TEST_CF_EXTRA_AMOUNT', 20)
+
+set_str(CONFIG, auto_test_ops, 'AUTO_TEST_RUNNER_INSTANCE_PASS', '')
+set_str(CONFIG, auto_test_ops, 'AUTO_TEST_RUNNER_CONTAINER_URL', None)
 
 if CONFIG['IS_AUTO_TEST_RUNNER']:
     assert CONFIG['SQLALCHEMY_DATABASE_URI'] == 'postgresql:///codegrade_dev'

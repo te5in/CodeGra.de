@@ -4,6 +4,7 @@
 
 SPDX-License-Identifier: AGPL-3.0-only
 """
+import uuid
 import typing as t
 import secrets
 from datetime import datetime, timedelta
@@ -257,7 +258,7 @@ def register_runner_for_job(job_id: str) -> EmptyResponse:
 
 
 @api.route('/alive/', methods=['POST'])
-def mark_runner_as_alive() -> EmptyResponse:
+def mark_runner_as_alive() -> cg_json.JSONResponse[models.Runner]:
     """Emit log lines for a runner.
     """
     runner = db.session.query(models.Runner).filter(
@@ -268,13 +269,51 @@ def mark_runner_as_alive() -> EmptyResponse:
         ])
     ).with_for_update().one_or_none()
     if runner is None:
+        logger.info('Could not find runner', runner_ip=request.remote_addr)
         raise NotFoundException
+
+    if isinstance(runner, models.AWSRunner):
+        runner_pass = request.headers.get('CG-Broker-Runner-Pass', '')
+        if not runner.is_pass_valid(runner_pass):
+            logger.warning('Got wrong password', found_password=runner_pass)
+            raise NotFoundException
 
     runner.state = models.RunnerState.started
     runner.started_at = datetime.utcnow()
     db.session.commit()
 
-    return EmptyResponse.make()
+    return cg_json.jsonify(runner)
+
+
+@api.route('/runners/<uuid:public_runner_id>/jobs/', methods=['GET'])
+def get_jobs_for_runner(public_runner_id: uuid.UUID
+                        ) -> cg_json.JSONResponse[t.List[t.Mapping[str, str]]]:
+    """Get jobs for a runner"""
+    runner = db.session.query(models.Runner).filter(
+        models.Runner.ipaddr == request.remote_addr,
+        models.Runner.public_id == public_runner_id,
+    ).one_or_none()
+    if runner is None:
+        raise NotFoundException
+
+    if isinstance(runner, models.AWSRunner):
+        runner_pass = request.headers.get('CG-Broker-Runner-Pass', '')
+        if not runner.is_pass_valid(runner_pass):
+            logger.warning('Got wrong password', found_password=runner_pass)
+            raise NotFoundException
+
+    urls = set(
+        url for url, in db.session.query(
+            t.cast(DbColumn[str], models.Job.cg_url),
+        ).filter(
+            ~t.cast(
+                DbColumn[models.JobState],
+                models.Job.state,
+            ).in_(models.JobState.get_finished_states())
+        )
+    )
+
+    return cg_json.jsonify([{'url': url} for url in urls])
 
 
 @api.route('/about', methods=['GET'])

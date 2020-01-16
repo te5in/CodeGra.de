@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 import io
 import os
+import re
 import sys
 import copy
 import json
@@ -141,9 +142,10 @@ def monkeypatch_for_run(
 
 
 @pytest.fixture
-def monkeypatch_broker(monkeypatch):
+def monkeypatch_broker(monkeypatch, live_server_url):
     ses = requests_stubs.Session()
     raised = True
+    runner_id = str(uuid.uuid4())
 
     def raise_next(get_ses=False):
         if get_ses:
@@ -159,7 +161,26 @@ def monkeypatch_broker(monkeypatch):
         raised = True
         raise requests.RequestException()
 
+    orig_get = ses.get
+    orig_post = ses.post
+
+    def stub_post(path, *args, **kwargs):
+        res = orig_post(path, *args, **kwargs)
+        if re.match('/api/v1/alive/', path):
+            res.json = lambda *args: {'id': runner_id}
+        return res
+
+    def stub_get(path, *args, **kwargs):
+        res = orig_get(path, *args, **kwargs)
+        if f'/api/v1/runners/{runner_id}/jobs/' == path:
+            res.json = lambda *args: [{'url': live_server_url}]
+        else:
+            print(path)
+        return res
+
     monkeypatch.setattr(ses.Response, 'raise_for_status', raise_once)
+    monkeypatch.setattr(ses, 'get', stub_get)
+    monkeypatch.setattr(ses, 'post', stub_post)
     monkeypatch.setattr(psef.helpers, 'BrokerSession', lambda *_: ses)
     yield raise_next
 
@@ -772,7 +793,7 @@ def test_run_auto_test(
         monkeypatch_broker()
         live_server_url, stop_server = live_server(get_stop=True)
         thread = threading.Thread(
-            target=psef.auto_test.start_polling, args=(app.config, False)
+            target=psef.auto_test.start_polling, args=(app.config, )
         )
         thread.start()
         thread.join()
@@ -1740,7 +1761,7 @@ def test_output_dir(
         monkeypatch_broker()
         live_server_url, stop_server = live_server(get_stop=True)
         thread = threading.Thread(
-            target=psef.auto_test.start_polling, args=(app.config, False)
+            target=psef.auto_test.start_polling, args=(app.config, )
         )
         thread.start()
         thread.join()
@@ -1938,12 +1959,10 @@ def test_copy_auto_test(
 def test_failing_attach(
     monkeypatch_celery, basic, test_client, logged_in, describe, live_server,
     lxc_stub, monkeypatch, app, session, stub_function_class, assert_similar,
-    monkeypatch_for_run
+    monkeypatch_for_run, monkeypatch_broker
 ):
     with describe('setup'):
         course, assig_id, teacher, student = basic
-        ses = requests_stubs.Session()
-        monkeypatch.setattr(psef.helpers, 'BrokerSession', lambda *_: ses)
 
         with logged_in(teacher):
             test = helpers.create_auto_test_from_dict(
@@ -1977,7 +1996,7 @@ def test_failing_attach(
         # It should throw an attach somewhere in the code, which should not
         # make the tests stuck. So the tests pass when this function returns
         # and the result is not finished.
-        psef.auto_test.start_polling(app.config, False)
+        psef.auto_test.start_polling(app.config)
 
         res = session.query(m.AutoTestResult).filter_by(work_id=work['id']
                                                         ).one()

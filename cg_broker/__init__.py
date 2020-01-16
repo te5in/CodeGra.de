@@ -40,6 +40,7 @@ BrokerConfig = TypedDict(  # pylint: disable=invalid-name
         'OLD_JOB_AGE': int,
         'SLOW_STARTING_AGE': int,
         'HEALTH_KEY': t.Optional[str],
+        'RUNNER_CONFIG_DIR': str,
         'VERSION': str,
     }
 )
@@ -138,6 +139,10 @@ class BrokerFlask(flask.Flask):
         self.config['ADMIN_PASSWORD'] = _parser['General']['ADMIN_PASSWORD']
 
         self.config['HEALTH_KEY'] = _parser['General'].get('HEALTH_KEY', None)
+
+        self.config['RUNNER_CONFIG_DIR'] = _parser['General'].get(
+            'RUNNER_CONFIG_DIR', ''
+        )
 
         try:
             self.config['VERSION'] = subprocess.check_output([

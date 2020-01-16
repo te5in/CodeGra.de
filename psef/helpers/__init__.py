@@ -1299,12 +1299,14 @@ class BrokerSession(requests.Session):
         broker_pass: str = None,
         external_url: str = None,
         broker_base: str = None,
+        runner_pass: str = None,
     ) -> None:
         super().__init__()
         self.broker_base = (
             broker_base if broker_base is not None else
             psef.app.config['AUTO_TEST_BROKER_URL']
         )
+
         self.headers.update(
             {
                 'CG-Broker-Pass':
@@ -1313,6 +1315,7 @@ class BrokerSession(requests.Session):
                 'CG-Broker-Instance':
                     external_url if external_url is not None else
                     psef.app.config['EXTERNAL_URL'],
+                'CG-Broker-Runner-Pass': runner_pass or '',
             }
         )
 
