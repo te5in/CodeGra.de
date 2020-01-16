@@ -28,6 +28,7 @@ describe('IPythonViewer.vue', () => {
     let assignment;
     let submission;
     let file;
+    let fileId;
     let mockIPython = JSON.stringify({
         metadata: {
             language_info: { name: 'python' },
@@ -51,7 +52,7 @@ describe('IPythonViewer.vue', () => {
         }
 
         mockIPython = (new util.TextEncoder()).encode(str);
-        wrapper.setProps({ fileId: String(curId++), file: { id: String(curId) } });
+        wrapper.setProps({ fileContent: mockIPython });
 
         await comp.loadCode();
         await comp.$afterRerender();
@@ -59,6 +60,7 @@ describe('IPythonViewer.vue', () => {
 
     beforeEach(() => {
         utils.highlightCode = jest.fn(a => a);
+        fileId = `$(Math.random())`;
 
         curId = Math.round(Math.random() * 1000);
         assignment = { id: curId++ };
@@ -71,13 +73,11 @@ describe('IPythonViewer.vue', () => {
                 linter: {},
             },
         };
-        file = { id: curId++ };
+        file = { id: fileId };
 
         mockGet = jest.fn(async (path, opts) => new Promise((resolve, reject) => {
             let res;
-            if (/^.api.v1.code.[0-9]+$/.test(path)) {
-                res = mockIPython;
-            } else if (/^.api.v1.code.[0-9]+.type=feedback$/.test(path)) {
+            if (/^.api.v1.code.[0-9]+.type=feedback$/.test(path)) {
                 reject();
                 return;
             }
@@ -98,11 +98,12 @@ describe('IPythonViewer.vue', () => {
                 assignment,
                 submission,
                 file,
-                fileId: '0',
                 editable: true,
                 fontSize: 12,
                 showWhitespace: true,
                 canUseSnippets: true,
+                fileContent: null,
+                fileId,
             },
             store: new Vuex.Store({
                 modules: {
@@ -240,19 +241,12 @@ describe('IPythonViewer.vue', () => {
             comp.$emit = emitMock;
         });
 
-        it('should work when the api fails', async () => {
-            const errMsg = `WAAA A ERROR!!!${Math.random()}`;
-            const err = {}
-            mockGet.mockImplementation(() => new Promise((_, reject) => reject(err)));
-
-            await setData([]);
-
-            expect(emitMock).toBeCalledWith('error', err);
-        });
-
         it('should work when the api returns invalid JSON', async () => {
             await setData('THIS IS NOT JSON');
-            expect(emitMock).toBeCalledWith('error', comp.invalidJsonMessage);
+            expect(emitMock).toBeCalledWith('error', {
+                error: comp.invalidJsonMessage,
+                fileId: fileId,
+            });
         });
     });
 

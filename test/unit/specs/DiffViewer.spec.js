@@ -46,6 +46,7 @@ describe('diffCode in DiffViewer.vue', () => {
         },
         propsData: {
             file: { ids: [] },
+            fileId: `${Math.random()}`,
         },
         store: new Vuex.Store({
             modules: {

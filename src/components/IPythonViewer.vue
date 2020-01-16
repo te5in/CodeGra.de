@@ -81,13 +81,13 @@ export default {
                 return [];
             }
 
-            function error(err) {
+            const error = err => {
                 this.$emit('error', {
                     error: err,
                     fileId: this.fileId,
                 });
                 return [];
-            }
+            };
 
             let jsonString;
             try {
