@@ -1,3 +1,5 @@
+import html
+
 from docutils import nodes
 from sphinx.locale import _
 from docutils.nodes import Element, Admonition
@@ -5,9 +7,33 @@ from sphinx.util.docutils import SphinxDirective
 from docutils.parsers.rst.roles import set_classes
 from docutils.parsers.rst.directives.admonitions import BaseAdmonition
 
+EXAMPLE_NUMBER = 0
+EXAMPLE_MAPPING = set()
+
 
 class example(nodes.Admonition, nodes.Element):
-    pass
+    def __init__(self, text, title, **kwargs):
+        super().__init__(text, **kwargs)
+        global EXAMPLE_NUMBER
+        EXAMPLE_NUMBER += 1
+
+        if title:
+            self.title_text = html.escape(f'Example: {title}')
+        else:
+            self.title_text = 'Example'
+
+        if title:
+            link_id = title.replace(' ', '-')
+        else:
+            link_id = '-'.join(text.split(' ')[:5])
+
+        link_id = 'Example-' + html.escape(link_id).lower()
+        if link_id in EXAMPLE_MAPPING:
+            link_id += f'-{EXAMPLE_NUMBER}'
+        else:
+            EXAMPLE_MAPPING.add(link_id)
+
+        self.link_id = link_id
 
 
 class ExampleDirective(BaseAdmonition):
@@ -18,30 +44,41 @@ class ExampleDirective(BaseAdmonition):
         set_classes(self.options)
         self.assert_has_content()
         text = '\n'.join(self.content)
-        admonition_node = self.node_class(text, **self.options)
-        self.add_name(admonition_node)
         if self.arguments:
-            title_text = 'Example: ' + self.arguments[0]
+            title_text = self.arguments[0]
         else:
-            title_text = 'Example'
+            title_text = ''
+        admonition_node = self.node_class(text, title_text, **self.options)
+        self.add_name(admonition_node)
 
-        textnodes, messages = self.state.inline_text(title_text,
-                                                        self.lineno)
-        title = nodes.title(title_text, '', *textnodes)
-        title.source, title.line = (
-                self.state_machine.get_source_and_line(self.lineno))
-        admonition_node += title
-        admonition_node += messages
-
-        self.state.nested_parse(self.content, self.content_offset,
-                                admonition_node)
+        self.state.nested_parse(
+            self.content, self.content_offset, admonition_node
+        )
         return [admonition_node]
 
 
-
 def visit_example_node(self, node):
-    self.body.append(self.starttag(
-        node, 'div', CLASS=('admonition example-directive')))
+    self.body.append(
+        self.starttag(node, 'div', CLASS=('admonition example-directive'))
+    )
+
+    node.insert(
+        0,
+        nodes.raw(
+            '',
+            (
+                f'<p class="first admonition-title" id="{node.link_id}">' + (
+                    f'{node.title_text}' + (
+                        f'<a class="headerlink" href="#{node.link_id}"'
+                        f' title="Permalink to this'
+                        f' example">{self.permalink_text}</a>'
+                    )
+                ) + '<p>'
+            ),
+            format='html',
+        )
+    )
+
     self.set_first_last(node)
 
 

@@ -45,10 +45,12 @@ The available course permissions can be found in the
 
   Roles can only be removed if no current users act in that role in the course.
 
-.. note::
+.. example:: allow late submissions by creating a new role
 
-  Tip: create a *late student* role to temporarily assign to students that are
-  allowed to hand in late submissions.
+  To temporarily allow late submissions by some students, you can create a *Late
+  Student* role with the permission "Upload after deadline". Now if you want to
+  allow late submissions by a student, you can change the role of this student
+  to *Late Student*.
 
 .. csv-table:: Course permissions
    :file: ../course_permissions.csv
