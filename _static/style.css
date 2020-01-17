@@ -55,3 +55,12 @@
 .rst-content .example-directive .admonition-title::before {
     content: "";
 }
+
+.admonition-title .headerlink {
+    padding-left: 0.5em;
+    display: none;
+}
+
+.admonition-title:hover .headerlink {
+    display: inline;
+}
