@@ -152,6 +152,10 @@ def create_submission(
     if is_test_submission:
         path += '?is_test_submission'
     elif for_user is not None:
+        if isinstance(for_user, dict):
+            for_user = for_user['username']
+        elif hasattr(for_user, 'username'):
+            for_user = for_user.username
         path += f'?author={for_user}'
 
     return test_client.req(

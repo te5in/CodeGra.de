@@ -312,11 +312,23 @@ describe('actions', () => {
 
     describe('update assignment', () => {
         it('should simply work', async () => {
-            const obj1 = {};
-            await actions.updateAssignment(context, obj1);
+            const obj1 = { assignmentId: 5, assignmentProps: {} };
+            const obj2 = {};
+            const obj3 = {};
+
+            const res = await actions.updateAssignment(Object.assign({}, context, {
+                getters: {
+                    assignments: {
+                        5: obj2,
+                        6: obj3,
+                    },
+                },
+            }), obj1);
 
             expect(mockCommit).toBeCalledTimes(1);
             expect(mockCommit).toBeCalledWith(types.UPDATE_ASSIGNMENT, obj1);
+            // Should return the found assignment.
+            expect(res).toBe(obj2);
         });
     });
 

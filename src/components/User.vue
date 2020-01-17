@@ -1,14 +1,16 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template functional>
-<span v-if="props.user.group" class="user"
+<span v-if="props.user.group"
+      class="user"
       :title="props.showTitle ? props.getNameOfUser(props.user) : undefined">
-    Group "{{ props.user.group.name }}"
+    {{ props.beforeGroup }} "{{ props.user.group.name }}"
     <component :is="injections.components.DescriptionPopover"
-                triggers="click"
-                span-title="Click to show the users of this group"
-                boundary="window"
-                title="Group members"
-                icon="user-plus">
+               triggers="click"
+               hug-text
+               span-title="Click to show the users of this group"
+               boundary="window"
+               title="Group members"
+               icon="user-plus">
         <template slot="description" v-if="props.user.group.members.length">
             <ul class="users-list">
                 <li v-for="member in props.user.group.members">
@@ -22,7 +24,7 @@
     </component>
 </span>
 <span v-else class="user" :title="props.showTitle ? props.getNameOfUser(props.user) : undefined">
-    {{ props.user.name }}
+    {{ props.user.name || props.user.username }}
     <span v-if="props.user.is_test_student">
         <component
             :is="injections.components.Icon"
@@ -56,6 +58,10 @@ export default {
         user: {
             type: Object,
             required: true,
+        },
+        beforeGroup: {
+            type: String,
+            default: 'Group',
         },
         showTitle: {
             type: Boolean,

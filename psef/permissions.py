@@ -7,7 +7,7 @@
 
 SPDX-License-Identifier: AGPL-3.0-only
 """
-# pylint: disable=line-too-long
+# pylint: skip-file
 # flake8: noqa=E501
 # yapf: disable
 
@@ -35,9 +35,9 @@ def init_app(app: t.Any, skip_perm_check: bool) -> None:
 def database_permissions_sanity_check(app: t.Any) -> None:
     """Check if database has all the correct permissions.
     """
-    from . import models  # pylint: disable=import-outside-toplevel
+    from . import models
     with app.app_context():
-        import structlog  # pylint: disable=import-outside-toplevel
+        import structlog
 
         logger = structlog.get_logger()
 
@@ -184,6 +184,7 @@ class CoursePermission(BasePermission):
     :ivar can_view_autotest_fixture: Users with this permission are allowed to see non hidden AutoTest fixtures
     :ivar can_view_autotest_output_files_before_done: Users with this permission can view output files created during an AutoTest before the assignment state is "done"
     :ivar can_delete_assignments: Users with this permission can delete assignments within this course.
+    :ivar can_override_submission_limiting: Users with this permission can create new submissions, even if the maximum amount of submissions has been reacher, or if a cool-off period is in effect.
     :ivar can_see_linter_feedback_before_done: Users with this permission can see the output of linters before an assignment is set to "done"
     :ivar can_see_user_feedback_before_done: Users with this permission can see feedback before an assignment is set to "done"
     """
@@ -239,7 +240,8 @@ class CoursePermission(BasePermission):
     can_view_autotest_fixture = _PermissionValue(item=44, default_value=True)
     can_view_autotest_output_files_before_done = _PermissionValue(item=45, default_value=False)
     can_delete_assignments = _PermissionValue(item=46, default_value=False)
-    can_see_linter_feedback_before_done = _PermissionValue(item=47, default_value=False)
-    can_see_user_feedback_before_done = _PermissionValue(item=48, default_value=False)
+    can_override_submission_limiting = _PermissionValue(item=47, default_value=False)
+    can_see_linter_feedback_before_done = _PermissionValue(item=48, default_value=False)
+    can_see_user_feedback_before_done = _PermissionValue(item=49, default_value=False)
 
 # yapf: enable

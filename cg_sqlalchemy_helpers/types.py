@@ -8,7 +8,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 import enum
 import typing as t
-from datetime import datetime
+from datetime import datetime, timedelta
 
 T = t.TypeVar('T')
 Z = t.TypeVar('Z')
@@ -33,6 +33,9 @@ class Comparator:  # pragma: no cover
 
 class MySession:  # pragma: no cover
     def bulk_save_objects(self, objs: t.Sequence['Base']) -> None:
+        ...
+
+    def execute(self, query: object) -> object:
         ...
 
     @t.overload
@@ -143,6 +146,7 @@ class MyDb:  # pragma: no cover
     ForeignKey: t.Callable
     String: t.Callable[[DbSelf, int], DbType[str]]
     LargeBinary: DbType[bytes]
+    Interval: DbType[timedelta]
     init_app: t.Callable
     engine: t.Any
 
@@ -327,7 +331,23 @@ class MyNonOrderableQuery(t.Generic[T], t.Iterable):  # pragma: no cover
     def group_by(self: QuerySelf, arg: t.Any) -> 'QuerySelf':
         ...
 
-    def with_entities(self, arg: DbColumn[Z]) -> 'MyQueryTuple[Z]':
+    @t.overload
+    def with_entities(self, __arg: DbColumn[Z]) -> 'MyQueryTuple[Z]':
+        ...
+
+    @t.overload
+    def with_entities(
+        self, __arg1: DbColumn[Z], __arg2: DbColumn[Y]
+    ) -> 'MyQuery[t.Tuple[Z, Y]]':
+        ...
+
+    @t.overload
+    def with_entities(
+        self, __arg1: DbColumn[Z], __arg2: DbColumn[Y], __arg3: DbColumn[U]
+    ) -> 'MyQuery[t.Tuple[Z, Y,U]]':
+        ...
+
+    def with_entities(self, *args: t.Any) -> 'MyQuery[t.Any]':
         ...
 
 
@@ -343,6 +363,9 @@ class MyQuery(t.Generic[T], MyNonOrderableQuery[T]):
 
 class MyQueryTuple(t.Generic[T], MyQuery[t.Tuple[T]]):
     def scalar(self) -> t.Optional[T]:
+        ...
+
+    def label(self, name: str) -> 'DbColumn[T]':
         ...
 
 

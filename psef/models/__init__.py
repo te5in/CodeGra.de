@@ -150,7 +150,8 @@ if True:  # pylint: disable=using-constant-test
     from .course import Course, CourseSnippet, CourseRegistrationLink
     from .assignment import (
         Assignment, AssignmentLinter, AssignmentResult, AssignmentDoneType,
-        AssignmentGraderDone, AssignmentAssignedGrader, _AssignmentStateEnum
+        AssignmentGraderDone, AssignmentAssignedGrader, _AssignmentStateEnum,
+        AssignmentAmbiguousSettingTag
     )
     from .permission import Permission
     from .user import User

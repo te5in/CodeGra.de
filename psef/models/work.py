@@ -911,8 +911,12 @@ class Work(Base):
         """
         # TODO: Check why we need to pass both user_id and user.
         self = cls(assignment=assignment, user_id=author.id, user=author)
-        if created_at is not None:
+
+        if created_at is None:
+            self.created_at = helpers.get_request_start_time()
+        else:
             self.created_at = created_at
+
         self.divide_new_work()
 
         self.add_file_tree(tree)

@@ -863,6 +863,9 @@ def test_add_assignment(
                 'auto_test_id': None,
                 'files_upload_enabled': True,
                 'webhook_upload_enabled': False,
+                'cool_off_period': 0.0,
+                'amount_in_cool_off_period': 1,
+                'max_submissions': None,
             }
         )
 

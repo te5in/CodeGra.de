@@ -22,7 +22,7 @@ HEADER = """\"\"\"This file contains all permissions used by CodeGrade in a pyth
 
 SPDX-License-Identifier: AGPL-3.0-only
 \"\"\"
-# pylint: disable=line-too-long
+# pylint: skip-file
 # flake8: noqa=E501
 # yapf: disable
 

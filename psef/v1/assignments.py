@@ -286,6 +286,13 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
     :<json bool files_upload_enabled: Should students be allowed to upload work
         directly using files and/or archives. This is always possible for users
         with the ``can_submit_others_work``.
+    :<json int max_submissions: The maximum amount of submissions a user may
+        create. This value cannot be lower than 1.
+    :<json float cool_off_period: The amount of time in seconds there should be
+        between ``amount_in_cool_off_period + 1`` submissions.
+    :<json int amount_in_cool_off_period: The maximum amount of submissions
+        that can be made within ``cool_off_period`` seconds. This should be
+        higher than or equal to 1.
 
     If any of ``done_type``, ``done_email`` or ``reminder_time`` is given all
     the other values should be given too.
@@ -298,6 +305,7 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
         models.Assignment, assignment_id, also_error=lambda a: a.deleted
     )
     content = ensure_json_dict(request.get_json())
+    warning_tags = set()
 
     lti_class: t.Optional[t.Type[psef.lti.LTI]]
     lms_name: t.Optional[str]
@@ -363,6 +371,7 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
         assig.deadline = parsers.parse_datetime(deadline)
 
     if 'ignore' in content:
+        warning_tags.add(models.AssignmentAmbiguousSettingTag.cgignore)
         auth.ensure_permission(CPerm.can_edit_cgignore, assig.course_id)
         ignore_version = helpers.get_key_from_dict(
             content, 'ignore_version', 'IgnoreFilterManager'
@@ -376,7 +385,6 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
                 ), APICodes.OBJECT_NOT_FOUND, 404
             )
         assig.cgignore = filter_type.parse(t.cast(JSONType, content['ignore']))
-        assig.maybe_add_webhook_ignore_combination_warning()
 
     if 'max_grade' in content:
         if lti_class is not None and not lti_class.supports_max_points():
@@ -434,6 +442,7 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
             assig.files_upload_enabled = get('files_upload_enabled', bool)
 
     if 'webhook_upload_enabled' in content:
+        warning_tags.add(models.AssignmentAmbiguousSettingTag.webhook)
         auth.ensure_permission(CPerm.can_edit_assignment_info, assig.course_id)
         with get_from_map_transaction(content) as [get, _]:
             assig.webhook_upload_enabled = get('webhook_upload_enabled', bool)
@@ -445,14 +454,72 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
                 ), APIWarnings.EXISTING_WEBHOOKS_EXIST
             )
 
-        assig.maybe_add_webhook_ignore_combination_warning()
-
     if not any([assig.webhook_upload_enabled, assig.files_upload_enabled]):
         raise APIException(
             'At least one way of uploading needs to be enabled',
             'It is not possible to disable both webhook and files uploads',
             APICodes.INVALID_STATE, 400
         )
+
+    if 'max_submissions' in content:
+        warning_tags.add(models.AssignmentAmbiguousSettingTag.max_submissions)
+        auth.ensure_permission(CPerm.can_edit_assignment_info, assig.course_id)
+        with get_from_map_transaction(content) as [get, _]:
+            max_submissions = get('max_submissions', (int, type(None)))
+
+        if helpers.handle_none(max_submissions, 1) <= 0:
+            raise APIException(
+                'You have to allow at least one submission',
+                'The set maximum amount of submissions is too low',
+                APICodes.INVALID_PARAM, 400
+            )
+
+        if max_submissions is not None and db.session.query(
+            assig.get_not_deleted_submissions().group_by(
+                models.Work.user_id
+            ).having(sql.func.count() > max_submissions).exists()
+        ).scalar():
+            helpers.add_warning(
+                (
+                    'There are already users with more submission than the'
+                    ' set max submissions amount'
+                ),
+                APIWarnings.LIMIT_ALREADY_EXCEEDED,
+            )
+
+        assig.max_submissions = max_submissions
+
+    if 'cool_off_period' in content:
+        warning_tags.add(models.AssignmentAmbiguousSettingTag.cool_off)
+        auth.ensure_permission(CPerm.can_edit_assignment_info, assig.course_id)
+        with get_from_map_transaction(content) as [get, _]:
+            assig.cool_off_period = datetime.timedelta(
+                seconds=get('cool_off_period', (int, float))
+            )
+
+    if 'amount_in_cool_off_period' in content:
+        auth.ensure_permission(CPerm.can_edit_assignment_info, assig.course_id)
+        with get_from_map_transaction(content) as [get, _]:
+            amount = get('amount_in_cool_off_period', int)
+
+        if amount < 1:
+            raise APIException(
+                (
+                    'The minimum amount of submissions that can be done in a'
+                    ' cool of period should be at least one'
+                ), (
+                    f'The given amount ${amount} is too low for'
+                    ' `amount_in_cool_off_period`'
+                ), APICodes.INVALID_PARAM, 400
+            )
+
+        assig.amount_in_cool_off_period = amount
+
+    for warning in assig.get_all_ambiguous_combinations():
+        if warning.tags & warning_tags:
+            helpers.add_warning(
+                warning.message, APIWarnings.AMBIGUOUS_COMBINATION
+            )
 
     db.session.commit()
 

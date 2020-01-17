@@ -355,7 +355,10 @@ class _GitWebhook(WebhookBase):
             # otherwise we raise the last exception.
             try:
                 auth.ensure_can_submit_work(
-                    self.assignment, user, current_user=user
+                    self.assignment,
+                    author=self.user,
+                    for_user=user,
+                    current_user=user,
                 )
             except exceptions.PermissionException as e:
                 logger.info('User cannot submit work', exc_info=True)

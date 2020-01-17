@@ -12,6 +12,7 @@ import dataclasses
 from collections import defaultdict
 
 import pytest
+from freezegun import freeze_time
 
 import psef
 import helpers
@@ -138,6 +139,9 @@ def test_get_assignment(
                 'auto_test_id': None,
                 'webhook_upload_enabled': False,
                 'files_upload_enabled': True,
+                'cool_off_period': 0.0,
+                'amount_in_cool_off_period': 1,
+                'max_submissions': None,
             }
         else:
             res = error_template
@@ -4729,3 +4733,269 @@ def test_delete_assignment(
             'get', f'/api/v1/assignments/{assig}/submissions/', 404
         )
         test_client.req('get', f'/api/v1/submissions/{sub1["id"]}', 404)
+
+
+def test_limiting_submissions(
+    test_client, admin_user, describe, session, logged_in, assert_similar
+):
+    with describe('setup'), logged_in(admin_user):
+        course = helpers.create_course(test_client)
+        assig = helpers.create_assignment(
+            test_client, course, 'open', 'tomorrow'
+        )['id']
+        stud = helpers.create_user_with_role(session, 'Student', [course])
+        teacher = helpers.create_user_with_role(session, 'Teacher', [course])
+        limited_ta = helpers.create_user_with_perms(
+            session, [CPerm.can_submit_others_work], [course]
+        )
+
+    with describe('Only teachers can set max submissions'):
+        for user, code in [(stud, 403), (teacher, 200)]:
+            with logged_in(user):
+                res, rv = test_client.req(
+                    'patch',
+                    f'/api/v1/assignments/{assig}',
+                    code,
+                    data={'max_submissions': 2},
+                    include_response=True,
+                )
+                if code == 200:
+                    assert 'Warning' not in rv.headers
+                    assert_similar(
+                        res, {'__allow_extra__': True, 'max_submissions': 2}
+                    )
+
+    with describe('Can submit once'), logged_in(stud):
+        helpers.create_submission(test_client, assig)
+
+    with describe('Cannot submit after limit'), logged_in(stud):
+        # Limit is two, exactly the limit is possible
+        helpers.create_submission(test_client, assig)
+
+        err = helpers.create_submission(test_client, assig, err=403)
+        assert 'reached the maximum amount of 2' in err['message']
+
+    with describe('Teacher can submit after the limit'), logged_in(teacher):
+        helpers.create_submission(test_client, assig)
+
+    with describe('We can unset the limit again'):
+        with logged_in(teacher):
+            _, rv = test_client.req(
+                'patch',
+                f'/api/v1/assignments/{assig}',
+                200,
+                data={'max_submissions': None},
+                include_response=True,
+                result={
+                    '__allow_extra__': True,
+                    'max_submissions': None,
+                }
+            )
+            assert 'Warning' not in rv.headers
+
+        with logged_in(stud):
+            helpers.create_submission(test_client, assig)
+
+    with describe('When we lower the limit a warning is displayed'
+                  ), logged_in(teacher):
+        _, rv = test_client.req(
+            'patch',
+            f'/api/v1/assignments/{assig}',
+            200,
+            data={'max_submissions': 1},
+            include_response=True,
+            result={
+                '__allow_extra__': True,
+                'max_submissions': 1,
+            }
+        )
+
+        assert 'Warning' in rv.headers
+        assert 'with more submission than the' in rv.headers['Warning']
+
+        _, rv = test_client.req(
+            'patch',
+            f'/api/v1/assignments/{assig}',
+            200,
+            data={'max_submissions': 10},
+            include_response=True,
+            result={
+                '__allow_extra__': True,
+                'max_submissions': 10,
+            }
+        )
+        assert 'Warning' not in rv.headers
+
+    with describe('Enabling webhooks gives a warning'), logged_in(teacher):
+        _, rv = test_client.req(
+            'patch',
+            f'/api/v1/assignments/{assig}',
+            200,
+            data={'webhook_upload_enabled': True},
+            include_response=True,
+        )
+        assert 'Warning' in rv.headers
+        assert 'combining a limit on submissions and webhooks' in rv.headers[
+            'Warning']
+
+    with describe('Cannot set amount to <= 0'), logged_in(teacher):
+        test_client.req(
+            'patch',
+            f'/api/v1/assignments/{assig}',
+            400,
+            data={'max_submissions': 0},
+        )
+
+    with describe('limits apply to the group, not user'):
+        with logged_in(teacher):
+            test_client.req(
+                'patch',
+                f'/api/v1/assignments/{assig}',
+                200,
+                data={'max_submissions': 2},
+            )
+
+        with logged_in(stud):
+            helpers.create_submission(test_client, assig, err=403)
+
+        with logged_in(teacher):
+            gset = helpers.create_group_set(test_client, course, 1, 2, [assig])
+            group = helpers.create_group(test_client, gset, [stud])
+
+        with logged_in(stud):
+            new_sub = helpers.create_submission(test_client, assig)
+            assert new_sub['user']['id'] == group['virtual_user']['id']
+
+            helpers.create_submission(test_client, assig)
+
+            # Reached maximum
+            helpers.create_submission(test_client, assig, err=403)
+
+        # TA without permission can also not submit
+        with logged_in(limited_ta):
+            err = helpers.create_submission(
+                test_client, assig, for_user=stud, err=403
+            )
+            assert f'The group "{group["name"]}" has reached the maximum' in err[
+                'message']
+
+
+def test_cool_off_period(
+    test_client, admin_user, describe, session, logged_in, assert_similar
+):
+    with describe('setup'), logged_in(admin_user):
+        course = helpers.create_course(test_client)
+        assig = helpers.create_assignment(
+            test_client, course, 'open', 'tomorrow'
+        )['id']
+        assig2 = helpers.create_assignment(
+            test_client, course, 'open', 'tomorrow'
+        )['id']
+        stud = helpers.create_user_with_role(session, 'Student', [course])
+        teacher = helpers.create_user_with_role(session, 'Teacher', [course])
+        submit_time = datetime.datetime.utcnow()
+
+    with describe('Only teachers can set cool off period'):
+        for user, code in [(stud, 403), (teacher, 200)]:
+            with logged_in(user):
+                res, rv = test_client.req(
+                    'patch',
+                    f'/api/v1/assignments/{assig}',
+                    code,
+                    data={'cool_off_period': 15},
+                    include_response=True,
+                )
+                assert 'Warning' not in rv.headers
+                if code == 200:
+                    assert_similar(
+                        res,
+                        {'__allow_extra__': True, 'cool_off_period': 15.0}
+                    )
+
+    with freeze_time(submit_time):
+        with describe('Cannot submit again within cool off period'):
+            with logged_in(teacher):
+                helpers.create_submission(test_client, assig, for_user=stud)
+
+            with logged_in(stud):
+                err = helpers.create_submission(test_client, assig, err=403)
+
+            assert 'submit again yet' in err['message']
+
+        with describe('Teacher can submit again within period'):
+            with logged_in(teacher):
+                helpers.create_submission(test_client, assig, for_user=stud)
+
+    with freeze_time(submit_time + datetime.timedelta(seconds=16)):
+        with describe('Can submit after cool off period'), logged_in(stud):
+            helpers.create_submission(test_client, assig)
+
+    with describe('Enabling webhooks gives a warning'), logged_in(teacher):
+        test_client.req(
+            'patch',
+            f'/api/v1/assignments/{assig2}',
+            200,
+            data={'webhook_upload_enabled': True},
+        )
+        _, rv = test_client.req(
+            'patch',
+            f'/api/v1/assignments/{assig2}',
+            200,
+            data={'cool_off_period': 5.5},
+            include_response=True,
+        )
+        assert 'Warning' in rv.headers
+        assert 'combining a cool off period' in rv.headers['Warning']
+
+
+def test_cool_off_period_larger_amount(
+    test_client, admin_user, describe, session, logged_in, assert_similar
+):
+    with describe('setup'), logged_in(admin_user):
+        course = helpers.create_course(test_client)
+        assig = helpers.create_assignment(
+            test_client, course, 'open', 'tomorrow'
+        )['id']
+        stud = helpers.create_user_with_role(session, 'Student', [course])
+
+        first_submit_time = datetime.datetime.utcnow()
+        next_submit_time = first_submit_time + datetime.timedelta(minutes=5)
+        final_submit_time = first_submit_time + datetime.timedelta(minutes=10)
+
+        test_client.req(
+            'patch',
+            f'/api/v1/assignments/{assig}',
+            200,
+            data={
+                'cool_off_period': 15 * 60,
+                'amount_in_cool_off_period': 2,
+            }
+        )
+
+    with describe('Can submit twice very fast'):
+        with freeze_time(first_submit_time), logged_in(stud):
+            helpers.create_submission(test_client, assig)
+
+        with freeze_time(next_submit_time), logged_in(stud):
+            helpers.create_submission(test_client, assig)
+
+    with describe('Cannot submit for a third time'
+                  ), freeze_time(final_submit_time), logged_in(stud):
+        err = helpers.create_submission(test_client, assig, err=403)
+        assert 'you have to wait at least 5 minutes' in err['message']
+
+    with describe('The minimum amount should be one'), logged_in(admin_user):
+        test_client.req(
+            'patch',
+            f'/api/v1/assignments/{assig}',
+            400,
+            data={'amount_in_cool_off_period': 0}
+        )
+
+    with describe('Students cannot change the amount'), logged_in(stud):
+        test_client.req(
+            'patch',
+            f'/api/v1/assignments/{assig}',
+            403,
+            data={'amount_in_cool_off_period': 1}
+        )

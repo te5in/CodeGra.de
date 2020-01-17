@@ -271,6 +271,11 @@ localforage.defineDriver(memoryStorageDriver).then(() => {
                 this.screenWidth = window.innerWidth;
             });
 
+            this.$on('cg::root::update-now', () => {
+                this.epoch = getUTCEpoch();
+                this.now = moment();
+            });
+
             setInterval(() => {
                 this.now = moment();
             }, 60000);

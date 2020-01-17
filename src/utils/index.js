@@ -457,3 +457,17 @@ export function getNoNull(prop, ...objs) {
 }
 
 export const UNSET_SENTINEL = {};
+
+export function numberToTimes(number) {
+    if (typeof number !== 'number') {
+        throw new Error('The given argument should be a number');
+    }
+
+    if (number === 1) {
+        return 'once';
+    } else if (number === 2) {
+        return 'twice';
+    } else {
+        return `${number} times`;
+    }
+}

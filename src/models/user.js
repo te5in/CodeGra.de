@@ -50,6 +50,14 @@ export class User {
         return !!this.is_test_student;
     }
 
+    isMemberOf(group) {
+        if (!group) {
+            return false;
+        }
+
+        return group.memberIds.some(memberId => memberId === this.id);
+    }
+
     getGroupMembers() {
         if (!this.isGroup) return [];
         return this.group.members;

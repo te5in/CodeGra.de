@@ -31,6 +31,7 @@ class APIWarnings(IntEnum):
     WEBHOOKS_DISABLED = 12
     ALREADY_EXPIRED = 13
     DANGEROUS_ROLE = 14
+    LIMIT_ALREADY_EXCEEDED = 15
 
 
 @unique
@@ -78,6 +79,8 @@ class APICodes(IntEnum):
     WEBHOOK_UNKNOWN_REQUEST = 38
     WEBHOOK_DISABLED = 39
     OBJECT_EXPIRED = 40
+    TOO_MANY_SUBMISSIONS = 41
+    COOL_OFF_PERIOD_ACTIVE = 42
 
 
 class InvalidAssignmentState(TypeError):

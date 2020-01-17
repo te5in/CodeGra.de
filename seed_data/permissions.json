@@ -332,6 +332,12 @@
     "long_description": "Users with this permission can delete assignments within this course.",
     "warning": "With this permission a user can delete assignments which cannot be reverted."
   },
+  "can_override_submission_limiting": {
+    "default_value": false,
+    "course_permission": true,
+    "short_description": "Override submission limiting",
+    "long_description": "Users with this permission can create new submissions, even if the maximum amount of submissions has been reacher, or if a cool-off period is in effect."
+  },
   "can_see_linter_feedback_before_done": {
     "default_value": false,
     "course_permission": true,

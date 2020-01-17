@@ -20,6 +20,7 @@ import {
     setProps,
     coerceToString,
     getNoNull,
+    numberToTimes,
 } from '@/utils';
 
 import * as assignmentState from '@/store/assignment-states';
@@ -671,6 +672,21 @@ describe('utils.js', () => {
         });
         it('should return null if it is not found', () => {
             expect(getNoNull('c', {a: obj1}, null, {b: obj2})).toBe(null);
+        });
+    });
+
+    describe('numberToTimes', () => {
+        it('should work with 1', () => expect(numberToTimes(1)).toBe('once'));
+
+        it('should work with 2', () => expect(numberToTimes(2)).toBe('twice'));
+
+        it('should work with other numbers', () => {
+            expect(numberToTimes(3)).toBe('3 times');
+            expect(numberToTimes(15)).toBe('15 times');
+        });
+
+        it('should throw for non numbers', () => {
+            expect(() => numberToTimes('five')).toThrow();
         });
     });
 });

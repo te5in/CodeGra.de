@@ -59,6 +59,74 @@ context('Manage Assignment', () => {
             });
         });
 
+        it('should be possible to set the max amount of submissions', () => {
+            cy.get('.max-submissions input').type('5');
+            cy.get('.max-submissions .submit-button').submit('success');
+            cy.get('.max-submissions input').should('have.value', '5');
+
+            for (let i = 0; i < 2; ++i) {
+                cy.get('.submission-uploader .submission-limiting')
+                    .find('.loader')
+                    .should('not.exist');
+                cy.get('.submission-uploader .submission-limiting')
+                    .text()
+                    .should('contain', '5 submissions left out of 5.');
+
+                // Should be the same after a reload
+                if (i == 0) {
+                    cy.reload();
+                }
+            }
+
+            cy.get('.max-submissions input').clear().type('{ctrl}{enter}');
+            cy.get('.submission-uploader')
+                .find('.submission-limiting')
+                .should('not.exist');
+            cy.get('.max-submissions input').should('have.value', '');
+
+            cy.get('.max-submissions input').clear().type('-10');
+            cy.get('.max-submissions .submit-button').submit('error', {
+                popoverMsg: 'higher than or equal to 0',
+            });
+        });
+
+        it('should be possible to update the cool off period', () => {
+            cy.get('input.amount-in-cool-off-period').clear().type('5');
+            cy.get('input.cool-off-period').clear().type('2');
+            cy.get('.cool-off-period-wrapper .submit-button').submit('success');
+
+            for (let i = 0; i < 2; ++i) {
+                cy.get('.submission-uploader .submission-limiting')
+                    .find('.loader')
+                    .should('not.exist');
+                cy.get('.submission-uploader .submission-limiting')
+                    .text()
+                    .should('contain', '5 times every 2 minutes');
+
+                // Should be the same after a reload
+                if (i == 0) {
+                    cy.reload();
+                }
+            }
+
+            cy.get('input.cool-off-period').clear().type('0{ctrl}{enter}');
+            cy.get('.submission-uploader')
+                .find('.submission-limiting')
+                .should('not.exist');
+            cy.get('input.cool-off-period').should('have.value', '0');
+
+            cy.get('input.cool-off-period').clear().type('-1')
+            cy.get('.cool-off-period-wrapper .submit-button').submit('error', {
+                popoverMsg: 'higher or equal to 0',
+            });
+
+            cy.get('input.cool-off-period').clear().type('1')
+            cy.get('input.amount-in-cool-off-period').clear().type('0')
+            cy.get('.cool-off-period-wrapper .submit-button').submit('error', {
+                popoverMsg: 'higher or equal to 1',
+            });
+        });
+
         it('should be possible to delete an assignment', () => {
             cy.get('.sidebar .sidebar-top a:nth-child(1)').click();
             cy.get('.sidebar .sidebar-top a:nth-child(2)').click();
@@ -84,6 +152,6 @@ context('Manage Assignment', () => {
             cy.get('.sidebar .sidebar-top a:nth-child(2)').click();
             cy.get('.course-list').contains(course.name).click();
             cy.get('.assignment-list').should('not.contain', assignment.name);
-        })
+        });
     });
 });

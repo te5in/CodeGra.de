@@ -158,6 +158,41 @@ directory and can be handled and assessed that way automatically.
 More information on setting up Git uploading can be found in the
 :ref:`step-by-step guide <guide_git_uploads>`.
 
+Limiting the amount of submissions
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+By setting the maximum amount of submissions, and the *cool off period* you can
+limit the number of times students can hand-in.
+
+Maximum submissions
+###################
+
+By setting the maximum amount of submissions you can limit how many submissions
+a student can make in total for an assignment. If you set this to value to
+anything higher than 0 this is the total amount of submissions the student can
+make. They will be informed of this limit when they create a new submission. You
+can disable this limit by setting the limit to "0" or "infinite".
+
+Cool off period
+####################
+
+The cool off period allows for a more advanced way of limiting the amount of
+submissions a student can create. Instead of setting a limit for the entire
+assignment, you can set a limit for a certain time frame in an assignment. This
+allows you to effectively set an amount of submissions a student may create in a
+certain time period.
+
+.. example::
+
+    When the cool off period is set to "2 submissions every 10 minutes", and a
+    student submits at 10:00, and at 10:05 it will be impossible for this
+    student to submit again before 10:10. If the student submits again at 10:11,
+    it will now be impossible to submit again before 10:15.
+
+You can combine the *cool off period* with a maximum amount of submissions. This
+could allow you, for example, to enforce a small wait period between two
+submissions, but also enforce a total amount of submissions.
+
 Hand-in Requirements
 ++++++++++++++++++++++
 The hand-in requirements make it possible to set up strict rules to the

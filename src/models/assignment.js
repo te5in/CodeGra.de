@@ -25,6 +25,8 @@ const SERVER_PROPS = new Set([
     'auto_test_id',
     'files_upload_enabled',
     'webhook_upload_enabled',
+    'max_submissions',
+    'amount_in_cool_off_period',
 ]);
 
 const ALLOWED_UPDATE_PROPS = new Set([
@@ -44,12 +46,15 @@ const ALLOWED_UPDATE_PROPS = new Set([
     'auto_test_id',
     'files_upload_enabled',
     'webhook_upload_enabled',
+    'max_submissions',
+    'amount_in_cool_off_period',
 
     // Special properties that also may be set.
     'reminderTime',
     'deadline',
     'graders',
     'rubric',
+    'cool_off_period',
 ]);
 
 // eslint-disable-next-line
@@ -72,6 +77,8 @@ export class Assignment {
         props.deadline = moment.utc(serverData.deadline, moment.ISO_8601);
         props.createdAt = moment.utc(serverData.created_at, moment.ISO_8601);
         props.reminderTime = moment.utc(serverData.reminder_time, moment.ISO_8601);
+
+        props.coolOffPeriod = moment.duration(serverData.cool_off_period, 'seconds');
 
         return new Assignment(props);
     }
@@ -220,6 +227,8 @@ export class Assignment {
                             throw new Error(`${key} can only be set as moment`);
                         }
                         acc[key] = value;
+                    } else if (key === 'cool_off_period') {
+                        acc.coolOffPeriod = moment.duration(value, 'seconds');
                     } else {
                         acc[key] = value;
                     }

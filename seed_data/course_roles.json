@@ -38,6 +38,7 @@
       "can_view_autotest_step_details",
       "can_view_autotest_fixture",
       "can_view_autotest_output_files_before_done",
+      "can_override_submission_limiting",
       "can_see_linter_feedback_before_done",
       "can_see_user_feedback_before_done"
     ],
@@ -93,6 +94,7 @@
       "can_view_autotest_fixture",
       "can_view_autotest_output_files_before_done",
       "can_delete_assignments",
+      "can_override_submission_limiting",
       "can_see_linter_feedback_before_done",
       "can_see_user_feedback_before_done"
     ],

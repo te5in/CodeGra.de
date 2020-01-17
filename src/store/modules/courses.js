@@ -146,9 +146,10 @@ export const actions = {
         commit(types.UPDATE_COURSE, data);
     },
 
-    async updateAssignment({ commit, dispatch }, data) {
-        await dispatch('loadCourses');
-        commit(types.UPDATE_ASSIGNMENT, data);
+    async updateAssignment(context, data) {
+        await context.dispatch('loadCourses');
+        context.commit(types.UPDATE_ASSIGNMENT, data);
+        return context.getters.assignments[data.assignmentId];
     },
 
     async updateAssignmentReminder(
