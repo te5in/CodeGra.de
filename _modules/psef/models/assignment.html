@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>psef.models.assignment &mdash; CodeGrade v1.17.4 documentation</title>
+  <title>psef.models.assignment &mdash; CodeGrade v1.18.0 documentation</title>
   
 
   
@@ -65,7 +65,7 @@
             
             
               <div class="version">
-                v1.17.4
+                v1.18.0
               </div>
             
           
@@ -206,6 +206,7 @@
 <span class="kn">import</span> <span class="nn">uuid</span>
 <span class="kn">import</span> <span class="nn">typing</span> <span class="k">as</span> <span class="nn">t</span>
 <span class="kn">import</span> <span class="nn">datetime</span>
+<span class="kn">import</span> <span class="nn">dataclasses</span>
 <span class="kn">from</span> <span class="nn">random</span> <span class="kn">import</span> <span class="n">shuffle</span>
 <span class="kn">from</span> <span class="nn">operator</span> <span class="kn">import</span> <span class="n">itemgetter</span>
 <span class="kn">from</span> <span class="nn">itertools</span> <span class="kn">import</span> <span class="n">cycle</span>
@@ -231,8 +232,7 @@
 <span class="kn">from</span> <span class="nn">.role</span> <span class="kn">import</span> <span class="n">CourseRole</span>
 <span class="kn">from</span> <span class="nn">.permission</span> <span class="kn">import</span> <span class="n">Permission</span>
 <span class="kn">from</span> <span class="nn">..exceptions</span> <span class="kn">import</span> <span class="p">(</span>
-    <span class="n">APICodes</span><span class="p">,</span> <span class="n">APIWarnings</span><span class="p">,</span> <span class="n">APIException</span><span class="p">,</span> <span class="n">PermissionException</span><span class="p">,</span>
-    <span class="n">InvalidAssignmentState</span>
+    <span class="n">APICodes</span><span class="p">,</span> <span class="n">APIException</span><span class="p">,</span> <span class="n">PermissionException</span><span class="p">,</span> <span class="n">InvalidAssignmentState</span>
 <span class="p">)</span>
 <span class="kn">from</span> <span class="nn">.link_tables</span> <span class="kn">import</span> <span class="p">(</span>
     <span class="n">user_course</span><span class="p">,</span> <span class="n">users_groups</span><span class="p">,</span> <span class="n">work_rubric_item</span><span class="p">,</span> <span class="n">course_permissions</span>
@@ -254,6 +254,24 @@
 <span class="n">Z</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">TypeVar</span><span class="p">(</span><span class="s1">&#39;Z&#39;</span><span class="p">)</span>
 
 <span class="n">logger</span> <span class="o">=</span> <span class="n">structlog</span><span class="o">.</span><span class="n">get_logger</span><span class="p">()</span>
+
+
+<div class="viewcode-block" id="AssignmentAmbiguousSettingTag"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.assignment.AssignmentAmbiguousSettingTag">[docs]</a><span class="k">class</span> <span class="nc">AssignmentAmbiguousSettingTag</span><span class="p">(</span><span class="n">enum</span><span class="o">.</span><span class="n">Enum</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;All items that can contribute to a ambiguous assignment setting.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">webhook</span> <span class="o">=</span> <span class="n">enum</span><span class="o">.</span><span class="n">auto</span><span class="p">()</span>
+    <span class="n">cgignore</span> <span class="o">=</span> <span class="n">enum</span><span class="o">.</span><span class="n">auto</span><span class="p">()</span>
+    <span class="n">max_submissions</span> <span class="o">=</span> <span class="n">enum</span><span class="o">.</span><span class="n">auto</span><span class="p">()</span>
+    <span class="n">cool_off</span> <span class="o">=</span> <span class="n">enum</span><span class="o">.</span><span class="n">auto</span><span class="p">()</span></div>
+
+
+<span class="nd">@dataclasses</span><span class="o">.</span><span class="n">dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">_AssignmentAmbiguousSetting</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;A class representing a ambiguous setting for an assignment.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;message&#39;</span><span class="p">,</span> <span class="s1">&#39;tags&#39;</span><span class="p">]</span>
+    <span class="n">message</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">tags</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Set</span><span class="p">[</span><span class="n">AssignmentAmbiguousSettingTag</span><span class="p">]</span>
 
 
 <span class="nd">@enum</span><span class="o">.</span><span class="n">unique</span>
@@ -697,11 +715,31 @@
         <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
     <span class="p">)</span>
 
+    <span class="n">_cool_off_period</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">datetime</span><span class="o">.</span><span class="n">timedelta</span><span class="p">]</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+        <span class="s1">&#39;cool_off_period&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Interval</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">True</span>
+    <span class="p">)</span>
+
+    <span class="n">amount_in_cool_off_period</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+        <span class="s1">&#39;amount_in_cool_off_period&#39;</span><span class="p">,</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span>
+        <span class="n">default</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+        <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">server_default</span><span class="o">=</span><span class="s1">&#39;1&#39;</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="n">max_submissions</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+        <span class="s1">&#39;max_amount_of_submissions&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">True</span>
+    <span class="p">)</span>
+
     <span class="n">__table_args__</span> <span class="o">=</span> <span class="p">(</span>
         <span class="n">db</span><span class="o">.</span><span class="n">CheckConstraint</span><span class="p">(</span>
             <span class="s2">&quot;files_upload_enabled or webhook_upload_enabled&quot;</span><span class="p">,</span>
             <span class="n">name</span><span class="o">=</span><span class="s1">&#39;upload_methods_check&#39;</span><span class="p">,</span>
         <span class="p">),</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">CheckConstraint</span><span class="p">(</span>
+            <span class="s1">&#39;amount_in_cool_off_period &gt;= 1&#39;</span><span class="p">,</span>
+            <span class="n">name</span><span class="o">=</span><span class="s1">&#39;amount_in_cool_off_period_check&#39;</span>
+        <span class="p">)</span>
     <span class="p">)</span>
 
     <span class="k">def</span> <span class="fm">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="nb">object</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
@@ -756,6 +794,19 @@
     <span class="k">def</span> <span class="nf">cgignore</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">:</span> <span class="n">ignore</span><span class="o">.</span><span class="n">SubmissionFilter</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_cgignore_version</span> <span class="o">=</span> <span class="n">ignore</span><span class="o">.</span><span class="n">filter_handlers</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">val</span><span class="p">),</span> <span class="kc">None</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_cgignore</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">val</span><span class="o">.</span><span class="n">export</span><span class="p">())</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">cool_off_period</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">datetime</span><span class="o">.</span><span class="n">timedelta</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;The minimum amount of time there should be between two submissions</span>
+<span class="sd">            from the same user.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cool_off_period</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">datetime</span><span class="o">.</span><span class="n">timedelta</span><span class="p">(</span><span class="n">seconds</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cool_off_period</span>
+
+    <span class="nd">@cool_off_period</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">cool_off_period</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">delta</span><span class="p">:</span> <span class="n">datetime</span><span class="o">.</span><span class="n">timedelta</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cool_off_period</span> <span class="o">=</span> <span class="n">delta</span>
 
     <span class="c1"># We don&#39;t use property.setter because in that case `new_val` could only be</span>
     <span class="c1"># a `float` because of https://github.com/python/mypy/issues/220</span>
@@ -1114,6 +1165,18 @@
 <span class="sd">                                    # this value is 12 a user can score 2</span>
 <span class="sd">                                    # additional bonus points. If this value is</span>
 <span class="sd">                                    # `null` it is unset and regarded as a 10.</span>
+<span class="sd">                &#39;max_submissions&#39;: t.Optional[int], # The maximum amount of</span>
+<span class="sd">                    # submission a student may create, inclusive. The value</span>
+<span class="sd">                    # ``null`` indicates that there is no limit.</span>
+
+
+<span class="sd">                # These two values determine the maximum submissions in an</span>
+<span class="sd">                # amount of time by a user. A user can submit at most</span>
+<span class="sd">                # `amount_in_cool_off_period` submissions in `cool_off_period`</span>
+<span class="sd">                # seconds. `amount_in_cool_off_period` is always &gt;= 1, so this</span>
+<span class="sd">                # check is disabled if `cool_off_period == 0`.</span>
+<span class="sd">                &#39;cool_off_period&#39;: float,</span>
+<span class="sd">                &#39;amount_in_cool_off_period&#39;: int,</span>
 <span class="sd">            }</span>
 
 <span class="sd">        :returns: An object as described above.</span>
@@ -1146,6 +1209,9 @@
             <span class="s1">&#39;auto_test_id&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">auto_test_id</span><span class="p">,</span>
             <span class="s1">&#39;files_upload_enabled&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">files_upload_enabled</span><span class="p">,</span>
             <span class="s1">&#39;webhook_upload_enabled&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">webhook_upload_enabled</span><span class="p">,</span>
+            <span class="s1">&#39;max_submissions&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_submissions</span><span class="p">,</span>
+            <span class="s1">&#39;cool_off_period&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">cool_off_period</span><span class="o">.</span><span class="n">total_seconds</span><span class="p">(),</span>
+            <span class="s1">&#39;amount_in_cool_off_period&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">amount_in_cool_off_period</span><span class="p">,</span>
         <span class="p">}</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">course</span><span class="o">.</span><span class="n">lti_provider</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
@@ -1192,6 +1258,29 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">InvalidAssignmentState</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{state}</span><span class="s1"> is not a valid state&#39;</span><span class="p">)</span></div>
 
+<div class="viewcode-block" id="Assignment.get_not_deleted_submissions"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.assignment.Assignment.get_not_deleted_submissions">[docs]</a>    <span class="k">def</span> <span class="nf">get_not_deleted_submissions</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">MyQuery</span><span class="p">[</span><span class="s1">&#39;work_models.Work&#39;</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;Get a query returning all not deleted submissions to this</span>
+<span class="sd">            assignment.</span>
+
+<span class="sd">        This method returns a faster query than just filtering submissions on</span>
+<span class="sd">        not deleted and an assignment, as it checks the state of the assignment</span>
+<span class="sd">        itself separately.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">base_query</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span>
+            <span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="p">,</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+            <span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="o">.</span><span class="n">assignment_id</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+            <span class="c1"># We don&#39;t need the intelligent `deleted` attribute here from the</span>
+            <span class="c1"># Work models, which also checks if the assignment is deleted, as</span>
+            <span class="c1"># we already check this at the start of the function.</span>
+            <span class="o">~</span><span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="o">.</span><span class="n">_deleted</span><span class="p">,</span>  <span class="c1"># pylint: disable=protected-access</span>
+        <span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">deleted</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">base_query</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">sqlalchemy</span><span class="o">.</span><span class="n">sql</span><span class="o">.</span><span class="n">false</span><span class="p">())</span>
+
+        <span class="k">return</span> <span class="n">base_query</span></div>
+
 <div class="viewcode-block" id="Assignment.get_latest_submission_for_user"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.assignment.Assignment.get_latest_submission_for_user">[docs]</a>    <span class="k">def</span> <span class="nf">get_latest_submission_for_user</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">user</span><span class="p">:</span> <span class="s1">&#39;user_models.User&#39;</span><span class="p">,</span>
@@ -1211,12 +1300,7 @@
 <span class="sd">        :returns: A query that should not be reordered that contains the latest</span>
 <span class="sd">            submission for the given user.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">base_query</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span>
-            <span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="p">,</span>
-        <span class="p">)</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="o">.</span><span class="n">assignment_id</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
-
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">deleted</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">base_query</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">sqlalchemy</span><span class="o">.</span><span class="n">sql</span><span class="o">.</span><span class="n">false</span><span class="p">())</span>
+        <span class="n">base_query</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_not_deleted_submissions</span><span class="p">()</span>
 
         <span class="n">user_ids</span> <span class="o">=</span> <span class="p">[</span><span class="n">user</span><span class="o">.</span><span class="n">id</span><span class="p">]</span>
         <span class="n">order_bys</span> <span class="o">=</span> <span class="p">[</span>
@@ -1252,11 +1336,6 @@
 
         <span class="k">return</span> <span class="n">base_query</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
             <span class="n">t</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">DbColumn</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="o">.</span><span class="n">user_id</span><span class="p">)</span><span class="o">.</span><span class="n">in_</span><span class="p">(</span><span class="n">user_ids</span><span class="p">),</span>
-            <span class="c1"># We don&#39;t need the intelligent `deleted` attribute here from</span>
-            <span class="c1"># the Work models, which also checks if the assignment is</span>
-            <span class="c1"># deleted, as we already check this at the start of the</span>
-            <span class="c1"># function.</span>
-            <span class="o">~</span><span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="o">.</span><span class="n">_deleted</span><span class="p">,</span>  <span class="c1"># pylint: disable=protected-access</span>
         <span class="p">)</span><span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="o">*</span><span class="n">order_bys</span><span class="p">)</span><span class="o">.</span><span class="n">limit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span></div>
 
     <span class="nd">@t</span><span class="o">.</span><span class="n">overload</span>
@@ -1825,52 +1904,83 @@
                 <span class="n">also_error</span><span class="o">=</span><span class="k">lambda</span> <span class="n">user</span><span class="p">:</span> <span class="n">user</span><span class="o">.</span><span class="n">is_test_student</span><span class="p">,</span>
             <span class="p">)</span>
 
-        <span class="n">auth</span><span class="o">.</span><span class="n">ensure_can_submit_work</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">author</span><span class="p">)</span>
-
-        <span class="n">group</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">group_set</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">author</span><span class="o">.</span><span class="n">is_test_student</span><span class="p">:</span>
             <span class="n">group</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">group_set</span><span class="o">.</span><span class="n">get_valid_group_for_user</span><span class="p">(</span><span class="n">author</span><span class="p">)</span>
-
-        <span class="k">if</span> <span class="n">group</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">author</span> <span class="o">=</span> <span class="n">group</span><span class="o">.</span><span class="n">virtual_user</span>
-            <span class="n">members</span> <span class="o">=</span> <span class="n">group</span><span class="o">.</span><span class="n">members</span>
+            <span class="n">resulting_author</span> <span class="o">=</span> <span class="n">author</span> <span class="k">if</span> <span class="n">group</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">group</span><span class="o">.</span><span class="n">virtual_user</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">members</span> <span class="o">=</span> <span class="p">[</span><span class="n">author</span><span class="p">]</span>
+            <span class="n">resulting_author</span> <span class="o">=</span> <span class="n">author</span>
 
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_lti</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">is_test_submission</span> <span class="ow">and</span> <span class="nb">any</span><span class="p">(</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">member</span><span class="o">.</span><span class="n">assignment_results</span> <span class="k">for</span> <span class="n">member</span> <span class="ow">in</span> <span class="n">members</span>
-        <span class="p">):</span>
-            <span class="n">lms</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">course</span><span class="o">.</span><span class="n">lti_provider</span><span class="o">.</span><span class="n">lms_name</span>
-            <span class="k">raise</span> <span class="n">APIException</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;Some authors haven&#39;t opened the assignment in </span><span class="si">{lms}</span><span class="s2"> yet&quot;</span><span class="p">,</span>
-                <span class="s1">&#39;No assignment_results found for some authors in the group&#39;</span><span class="p">,</span>
-                <span class="n">APICodes</span><span class="o">.</span><span class="n">ASSIGNMENT_RESULT_GROUP_NOT_READY</span><span class="p">,</span>
-                <span class="mi">400</span><span class="p">,</span>
-                <span class="n">group</span><span class="o">=</span><span class="n">group</span><span class="p">,</span>
-                <span class="n">author</span><span class="o">=</span><span class="n">author</span><span class="p">,</span>
-            <span class="p">)</span>
+        <span class="n">auth</span><span class="o">.</span><span class="n">ensure_can_submit_work</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span> <span class="n">author</span><span class="o">=</span><span class="n">resulting_author</span><span class="p">,</span> <span class="n">for_user</span><span class="o">=</span><span class="n">author</span>
+        <span class="p">)</span>
 
-        <span class="k">return</span> <span class="n">author</span></div>
+        <span class="k">return</span> <span class="n">resulting_author</span></div>
 
     <span class="k">def</span> <span class="nf">has_webhooks</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span>
             <span class="n">psef</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">WebhookBase</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">filter_by</span><span class="p">(</span><span class="n">assignment</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span>
         <span class="p">)</span><span class="o">.</span><span class="n">scalar</span><span class="p">()</span> <span class="ow">or</span> <span class="kc">False</span>
 
-<div class="viewcode-block" id="Assignment.maybe_add_webhook_ignore_combination_warning"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.assignment.Assignment.maybe_add_webhook_ignore_combination_warning">[docs]</a>    <span class="k">def</span> <span class="nf">maybe_add_webhook_ignore_combination_warning</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="sd">&quot;&quot;&quot;Maybe add a warning to this request that warns the user for a</span>
-<span class="sd">            ambiguous combination of webhooks and a ignore file.</span>
+<div class="viewcode-block" id="Assignment.get_all_ambiguous_combinations"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.assignment.Assignment.get_all_ambiguous_combinations">[docs]</a>    <span class="k">def</span> <span class="nf">get_all_ambiguous_combinations</span><span class="p">(</span>
+        <span class="bp">self</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Sequence</span><span class="p">[</span><span class="n">_AssignmentAmbiguousSetting</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;Get all ambiguous settings for an assignment.</span>
+
+<span class="sd">        :returns: A list of ambiguous settings.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="p">[]</span>
+
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">cgignore</span><span class="p">,</span> <span class="p">(</span><span class="n">ignore</span><span class="o">.</span><span class="n">EmptySubmissionFilter</span><span class="p">,</span> <span class="nb">type</span><span class="p">(</span><span class="kc">None</span><span class="p">))</span>
         <span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">webhook_upload_enabled</span><span class="p">:</span>
-            <span class="n">helpers</span><span class="o">.</span><span class="n">add_warning</span><span class="p">(</span>
-                <span class="p">(</span>
-                    <span class="s1">&#39;Hand-in requirements are currently ignored when handing&#39;</span>
-                    <span class="s1">&#39; in using Git&#39;</span>
-                <span class="p">),</span>
-                <span class="n">APIWarnings</span><span class="o">.</span><span class="n">AMBIGUOUS_COMBINATION</span><span class="p">,</span>
-            <span class="p">)</span></div></div>
+            <span class="n">res</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="n">_AssignmentAmbiguousSetting</span><span class="p">(</span>
+                    <span class="n">tags</span><span class="o">=</span><span class="p">{</span>
+                        <span class="n">AssignmentAmbiguousSettingTag</span><span class="o">.</span><span class="n">webhook</span><span class="p">,</span>
+                        <span class="n">AssignmentAmbiguousSettingTag</span><span class="o">.</span><span class="n">cgignore</span>
+                    <span class="p">},</span>
+                    <span class="n">message</span><span class="o">=</span><span class="p">(</span>
+                        <span class="s1">&#39;Hand-in requirements are currently ignored when&#39;</span>
+                        <span class="s1">&#39; handing in using Git&#39;</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+
+        <span class="k">if</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cool_off_period</span><span class="o">.</span><span class="n">total_seconds</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">webhook_upload_enabled</span>
+        <span class="p">):</span>
+            <span class="n">res</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="n">_AssignmentAmbiguousSetting</span><span class="p">(</span>
+                    <span class="n">tags</span><span class="o">=</span><span class="p">{</span>
+                        <span class="n">AssignmentAmbiguousSettingTag</span><span class="o">.</span><span class="n">webhook</span><span class="p">,</span>
+                        <span class="n">AssignmentAmbiguousSettingTag</span><span class="o">.</span><span class="n">cool_off</span><span class="p">,</span>
+                    <span class="p">},</span>
+                    <span class="n">message</span><span class="o">=</span><span class="p">(</span>
+                        <span class="s1">&#39;When combining a cool off period with webhooks &#39;</span>
+                        <span class="s1">&#39; submissions can be silently ignored when students&#39;</span>
+                        <span class="s1">&#39; push too quickly.&#39;</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_submissions</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">webhook_upload_enabled</span><span class="p">:</span>
+            <span class="n">res</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="n">_AssignmentAmbiguousSetting</span><span class="p">(</span>
+                    <span class="n">tags</span><span class="o">=</span><span class="p">{</span>
+                        <span class="n">AssignmentAmbiguousSettingTag</span><span class="o">.</span><span class="n">webhook</span><span class="p">,</span>
+                        <span class="n">AssignmentAmbiguousSettingTag</span><span class="o">.</span><span class="n">max_submissions</span><span class="p">,</span>
+                    <span class="p">},</span>
+                    <span class="n">message</span><span class="o">=</span><span class="p">(</span>
+                        <span class="s1">&#39;When combining a limit on submissions and webhooks&#39;</span>
+                        <span class="s1">&#39; submissions can be silently dropped, as the student&#39;</span>
+                        <span class="s1">&#39; might not check if a push results in a new&#39;</span>
+                        <span class="s1">&#39; submission.&#39;</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">res</span></div></div>
 </pre></div>
 
            </div>

@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Index &mdash; CodeGrade v1.17.4 documentation</title>
+  <title>Index &mdash; CodeGrade v1.18.0 documentation</title>
   
 
   
@@ -66,7 +66,7 @@
             
             
               <div class="version">
-                v1.17.4
+                v1.18.0
               </div>
             
           
@@ -310,6 +310,8 @@
         <li><a href="psef_api/psef.html#psef.lti.LTI.assignment_state">(psef.lti.LTI attribute)</a>
 </li>
       </ul></li>
+      <li><a href="psef_api/psef.html#psef.models.assignment.AssignmentAmbiguousSettingTag">AssignmentAmbiguousSettingTag (class in psef.models.assignment)</a>
+</li>
       <li><a href="psef_api/psef.html#psef.models.assignment.AssignmentAssignedGrader">AssignmentAssignedGrader (class in psef.models.assignment)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.models.assignment.AssignmentDoneType">AssignmentDoneType (class in psef.models.assignment)</a>
@@ -442,6 +444,8 @@
         <li><a href="psef_api/psef.html#psef.ignore.SubmissionValidator.can_override_ignore_filter">(psef.ignore.SubmissionValidator attribute)</a>
 </li>
       </ul></li>
+      <li><a href="psef_api/psef.html#psef.permissions.CoursePermission.can_override_submission_limiting">can_override_submission_limiting (psef.permissions.CoursePermission attribute)</a>
+</li>
       <li><a href="psef_api/psef.html#psef.permissions.CoursePermission.can_run_autotest">can_run_autotest (psef.permissions.CoursePermission attribute)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.permissions.GlobalPermission.can_search_users">can_search_users (psef.permissions.GlobalPermission attribute)</a>
@@ -494,10 +498,10 @@
 </li>
       <li><a href="psef_api/psef.html#psef.permissions.CoursePermission.can_view_hidden_fixtures">can_view_hidden_fixtures (psef.permissions.CoursePermission attribute)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="psef_api/psef.html#psef.permissions.CoursePermission.can_view_others_groups">can_view_others_groups (psef.permissions.CoursePermission attribute)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="psef_api/psef.html#psef.permissions.CoursePermission.can_view_own_teacher_files">can_view_own_teacher_files (psef.permissions.CoursePermission attribute)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.permissions.CoursePermission.can_view_plagiarism">can_view_plagiarism (psef.permissions.CoursePermission attribute)</a>
@@ -548,7 +552,13 @@
 </li>
       <li><a href="psef_api/psef.html#psef.extract_tree.ExtractFileTree.contains_file">contains_file (psef.extract_tree.ExtractFileTree attribute)</a>
 </li>
+      <li><a href="psef_api/psef.html#psef.models.user.User.contains_user">contains_user() (psef.models.user.User method)</a>
+</li>
       <li><a href="psef_api/psef.html#psef.models.group.Group.contains_users">contains_users() (psef.models.group.Group class method)</a>
+</li>
+      <li><a href="psef_api/psef.html#psef.models.assignment.Assignment.cool_off_period">cool_off_period (psef.models.assignment.Assignment attribute)</a>
+</li>
+      <li><a href="psef_api/psef.html#psef.exceptions.APICodes.COOL_OFF_PERIOD_ACTIVE">COOL_OFF_PERIOD_ACTIVE (psef.exceptions.APICodes attribute)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.models.auto_test.AutoTest.copy">copy() (psef.models.auto_test.AutoTest method)</a>
 
@@ -918,6 +928,8 @@
       </ul></li>
       <li><a href="psef_api/psef.html#psef.models.role.CourseRole.get_admin_role">get_admin_role() (psef.models.role.CourseRole class method)</a>
 </li>
+      <li><a href="psef_api/psef.html#psef.models.assignment.Assignment.get_all_ambiguous_combinations">get_all_ambiguous_combinations() (psef.models.assignment.Assignment method)</a>
+</li>
       <li><a href="psef_api/psef.html#psef.models.work.Work.get_all_authors">get_all_authors() (psef.models.work.Work method)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.extract_tree.ExtractFileTreeDirectory.get_all_children">get_all_children() (psef.extract_tree.ExtractFileTreeDirectory method)</a>
@@ -1053,6 +1065,8 @@
       <li><a href="psef_api/psef.html#psef.models.permission.Permission.get_name_column">get_name_column() (psef.models.permission.Permission class method)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.extract_tree.ExtractFileTreeBase.get_name_list">get_name_list() (psef.extract_tree.ExtractFileTreeBase method)</a>
+</li>
+      <li><a href="psef_api/psef.html#psef.models.assignment.Assignment.get_not_deleted_submissions">get_not_deleted_submissions() (psef.models.assignment.Assignment method)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.plagiarism.PlagiarismProvider.get_options">get_options() (psef.plagiarism.PlagiarismProvider static method)</a>
 
@@ -1332,6 +1346,8 @@
 </li>
       <li><a href="psef_api/psef.html#psef.helpers.FloatHelpers.leq">leq() (psef.helpers.FloatHelpers class method)</a>
 </li>
+      <li><a href="psef_api/psef.html#psef.exceptions.APIWarnings.LIMIT_ALREADY_EXCEEDED">LIMIT_ALREADY_EXCEEDED (psef.exceptions.APIWarnings attribute)</a>
+</li>
       <li><a href="psef_api/psef.html#psef.models.work.Work.limit_to_user_submissions">limit_to_user_submissions() (psef.models.work.Work static method)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.limiter_key_func">limiter_key_func() (in module psef)</a>
@@ -1366,10 +1382,10 @@
 </li>
       <li><a href="psef_api/psef.html#psef.auto_test.LockableValue">LockableValue (class in psef.auto_test)</a>
 </li>
-      <li><a href="psef_api/psef.html#psef.models.rubric.RubricRow.locked">locked (psef.models.rubric.RubricRow attribute)</a>
-</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="psef_api/psef.html#psef.models.rubric.RubricRow.locked">locked (psef.models.rubric.RubricRow attribute)</a>
+</li>
       <li><a href="psef_api/psef.html#psef.models.assignment.Assignment.locked_rubric_rows">locked_rubric_rows (psef.models.assignment.Assignment attribute)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.exceptions.APICodes.LOCKED_UPDATE">LOCKED_UPDATE (psef.exceptions.APICodes attribute)</a>
@@ -1449,8 +1465,6 @@
       <li><a href="psef_api/psef.html#psef.models.assignment.Assignment.max_rubric_points">max_rubric_points (psef.models.assignment.Assignment attribute)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.PsefFlask.max_single_file_size">max_single_file_size (psef.PsefFlask attribute)</a>
-</li>
-      <li><a href="psef_api/psef.html#psef.models.assignment.Assignment.maybe_add_webhook_ignore_combination_warning">maybe_add_webhook_ignore_combination_warning() (psef.models.assignment.Assignment method)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.helpers.maybe_apply_sql_slice">maybe_apply_sql_slice() (in module psef.helpers)</a>
 </li>
@@ -2029,6 +2043,8 @@
       <li><a href="psef_api/psef.html#psef.lti.LTIResultDataType.text">text (psef.lti.LTIResultDataType attribute)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.helpers.MissingType.token">token (psef.helpers.MissingType attribute)</a>
+</li>
+      <li><a href="psef_api/psef.html#psef.exceptions.APICodes.TOO_MANY_SUBMISSIONS">TOO_MANY_SUBMISSIONS (psef.exceptions.APICodes attribute)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>

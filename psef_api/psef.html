@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Source code documentation of psef &mdash; CodeGrade v1.17.4 documentation</title>
+  <title>Source code documentation of psef &mdash; CodeGrade v1.18.0 documentation</title>
   
 
   
@@ -66,7 +66,7 @@
             
             
               <div class="version">
-                v1.17.4
+                v1.18.0
               </div>
             
           
@@ -613,7 +613,7 @@ cases.</li>
 
 <dl class="function">
 <dt id="psef.auth.ensure_can_submit_work">
-<code class="descclassname">psef.auth.</code><code class="descname">ensure_can_submit_work</code><span class="sig-paren">(</span><em>assig: psef.models.assignment.Assignment</em>, <em>author: psef.models.user.User</em>, <em>*</em>, <em>current_user: Optional[psef.models.User] = None</em><span class="sig-paren">)</span> &#x2192; None<a class="reference internal" href="../_modules/psef/auth.html#ensure_can_submit_work"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.auth.ensure_can_submit_work" title="Permalink to this definition">¶</a></dt>
+<code class="descclassname">psef.auth.</code><code class="descname">ensure_can_submit_work</code><span class="sig-paren">(</span><em>assig: psef.models.assignment.Assignment</em>, <em>author: psef.models.user.User</em>, <em>*</em>, <em>for_user: psef.models.user.User</em>, <em>current_user: Optional[psef.models.User] = None</em><span class="sig-paren">)</span> &#x2192; None<a class="reference internal" href="../_modules/psef/auth.html#ensure_can_submit_work"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.auth.ensure_can_submit_work" title="Permalink to this definition">¶</a></dt>
 <dd><p>Check if the current user can submit for the given assignment as the given
 author.</p>
 <div class="admonition note">
@@ -628,6 +628,13 @@ this is the case it makes sure the <code class="docutils literal notranslate"><s
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
 <li><strong>assig</strong> (<a class="reference internal" href="#psef.models.assignment.Assignment" title="psef.models.assignment.Assignment"><code class="xref py py-class docutils literal notranslate"><span class="pre">Assignment</span></code></a>) – The assignment that should be submitted to.</li>
 <li><strong>author</strong> (<a class="reference internal" href="#psef.models.user.User" title="psef.models.user.User"><code class="xref py py-class docutils literal notranslate"><span class="pre">User</span></code></a>) – The author of the submission.</li>
+<li><strong>for_user</strong> (<a class="reference internal" href="#psef.models.user.User" title="psef.models.user.User"><code class="xref py py-class docutils literal notranslate"><span class="pre">User</span></code></a>) – The user that is submitting, this should be equal to
+<code class="docutils literal notranslate"><span class="pre">author</span></code>, except when <code class="docutils literal notranslate"><span class="pre">author</span></code> is a group, in that case it should
+be one of the members of that group. This should be a user of an actual
+person, it can for example not be a group.</li>
+<li><strong>current_user</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code></a>[<a class="reference internal" href="#psef.models.user.User" title="psef.models.user.User"><code class="xref py py-class docutils literal notranslate"><span class="pre">User</span></code></a>]) – The current user, this is the user that should have
+the permission to hand-in. This default to the currently logged in
+user.</li>
 </ul>
 </td>
 </tr>
@@ -990,6 +997,11 @@ codes.</p>
 <dd></dd></dl>
 
 <dl class="attribute">
+<dt id="psef.exceptions.APICodes.COOL_OFF_PERIOD_ACTIVE">
+<code class="descname">COOL_OFF_PERIOD_ACTIVE</code><em class="property"> = 42</em><a class="headerlink" href="#psef.exceptions.APICodes.COOL_OFF_PERIOD_ACTIVE" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
 <dt id="psef.exceptions.APICodes.DISABLED_FEATURE">
 <code class="descname">DISABLED_FEATURE</code><em class="property"> = 15</em><a class="headerlink" href="#psef.exceptions.APICodes.DISABLED_FEATURE" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
@@ -1117,6 +1129,11 @@ codes.</p>
 <dl class="attribute">
 <dt id="psef.exceptions.APICodes.ROUTE_NOT_FOUND">
 <code class="descname">ROUTE_NOT_FOUND</code><em class="property"> = 22</em><a class="headerlink" href="#psef.exceptions.APICodes.ROUTE_NOT_FOUND" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="psef.exceptions.APICodes.TOO_MANY_SUBMISSIONS">
+<code class="descname">TOO_MANY_SUBMISSIONS</code><em class="property"> = 41</em><a class="headerlink" href="#psef.exceptions.APICodes.TOO_MANY_SUBMISSIONS" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="attribute">
@@ -1252,6 +1269,11 @@ from this class.</li>
 <dl class="attribute">
 <dt id="psef.exceptions.APIWarnings.IN_USE_RUBRIC_ROW">
 <code class="descname">IN_USE_RUBRIC_ROW</code><em class="property"> = 9</em><a class="headerlink" href="#psef.exceptions.APIWarnings.IN_USE_RUBRIC_ROW" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="psef.exceptions.APIWarnings.LIMIT_ALREADY_EXCEEDED">
+<code class="descname">LIMIT_ALREADY_EXCEEDED</code><em class="property"> = 15</em><a class="headerlink" href="#psef.exceptions.APIWarnings.LIMIT_ALREADY_EXCEEDED" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="attribute">
@@ -1618,7 +1640,7 @@ directory it is the sum of the space of all its children.</p>
 
 <dl class="class">
 <dt id="psef.extract_tree.ExtractFileTreeFile">
-<em class="property">class </em><code class="descclassname">psef.extract_tree.</code><code class="descname">ExtractFileTreeFile</code><span class="sig-paren">(</span><em>self, name: str, parent: Optional[ExtractFileTreeDirectory], disk_name: str, size: psef.archive.FileSize</em><span class="sig-paren">)</span> &#x2192; None<a class="reference internal" href="../_modules/psef/extract_tree.html#ExtractFileTreeFile"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.extract_tree.ExtractFileTreeFile" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="descclassname">psef.extract_tree.</code><code class="descname">ExtractFileTreeFile</code><span class="sig-paren">(</span><em>self, name: str, parent: Optional[ExtractFileTreeDirectory], disk_name: str, size: NewType.&lt;locals&gt;.new_type</em><span class="sig-paren">)</span> &#x2192; None<a class="reference internal" href="../_modules/psef/extract_tree.html#ExtractFileTreeFile"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.extract_tree.ExtractFileTreeFile" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <a class="reference internal" href="#psef.extract_tree.ExtractFileTreeBase" title="psef.extract_tree.ExtractFileTreeBase"><code class="xref py py-class docutils literal notranslate"><span class="pre">psef.extract_tree.ExtractFileTreeBase</span></code></a></p>
 <p>Type used to represent a file in an extracted file tree.</p>
 <table class="docutils field-list" frame="void" rules="none">
@@ -1682,7 +1704,7 @@ directory it is the sum of the space of all its children.</p>
 
 <dl class="class">
 <dt id="psef.extract_tree.ExtractFileTreeSpecialFile">
-<em class="property">class </em><code class="descclassname">psef.extract_tree.</code><code class="descname">ExtractFileTreeSpecialFile</code><span class="sig-paren">(</span><em>self, name: str, parent: Optional[ExtractFileTreeDirectory], disk_name: str, size: psef.archive.FileSize</em><span class="sig-paren">)</span> &#x2192; None<a class="reference internal" href="../_modules/psef/extract_tree.html#ExtractFileTreeSpecialFile"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.extract_tree.ExtractFileTreeSpecialFile" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="descclassname">psef.extract_tree.</code><code class="descname">ExtractFileTreeSpecialFile</code><span class="sig-paren">(</span><em>self, name: str, parent: Optional[ExtractFileTreeDirectory], disk_name: str, size: NewType.&lt;locals&gt;.new_type</em><span class="sig-paren">)</span> &#x2192; None<a class="reference internal" href="../_modules/psef/extract_tree.html#ExtractFileTreeSpecialFile"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.extract_tree.ExtractFileTreeSpecialFile" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <a class="reference internal" href="#psef.extract_tree.ExtractFileTreeFile" title="psef.extract_tree.ExtractFileTreeFile"><code class="xref py py-class docutils literal notranslate"><span class="pre">psef.extract_tree.ExtractFileTreeFile</span></code></a></p>
 <p>Type used to represent a special file.</p>
 <p>This is exactly the same as a normal file, only we allow these files to
@@ -1841,10 +1863,10 @@ extracting and abstracting the structures of directories and archives.</p>
 <col class="field-body" />
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
-<li><strong>name</strong> – The logicial name of the file, this is not the name of the
+<li><strong>name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>) – The logicial name of the file, this is not the name of the
 file on disk.</li>
-<li><strong>id</strong> – The id of the file in the database.</li>
-<li><strong>entries</strong> – If not <code class="docutils literal notranslate"><span class="pre">None</span></code> this file is a directory, and contains
+<li><strong>id</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">T</span></code>) – The id of the file in the database.</li>
+<li><strong>entries</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Sequence</span></code></a>[<a class="reference internal" href="#psef.files.FileTree" title="psef.files.FileTree"><code class="xref py py-class docutils literal notranslate"><span class="pre">FileTree</span></code></a>[<code class="xref py py-class docutils literal notranslate"><span class="pre">T</span></code>]]]) – If not <code class="docutils literal notranslate"><span class="pre">None</span></code> this file is a directory, and contains
 these files as direct children.</li>
 </ul>
 </td>
@@ -6819,6 +6841,21 @@ unassigned.</td>
 </dd></dl>
 
 <dl class="attribute">
+<dt id="psef.models.assignment.Assignment.cool_off_period">
+<code class="descname">cool_off_period</code><a class="headerlink" href="#psef.models.assignment.Assignment.cool_off_period" title="Permalink to this definition">¶</a></dt>
+<dd><p>The minimum amount of time there should be between two submissions
+from the same user.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><a class="reference external" href="https://docs.python.org/3/library/datetime.html#datetime.timedelta" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">timedelta</span></code></a></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
 <dt id="psef.models.assignment.Assignment.deadline_expired">
 <code class="descname">deadline_expired</code><a class="headerlink" href="#psef.models.assignment.Assignment.deadline_expired" title="Permalink to this definition">¶</a></dt>
 <dd><p>Has the deadline of this assignment expired.</p>
@@ -6862,6 +6899,22 @@ assigned to a single user.</td>
 <tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body"><code class="docutils literal notranslate"><span class="pre">None</span></code></td>
 </tr>
 <tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">Nothing.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="psef.models.assignment.Assignment.get_all_ambiguous_combinations">
+<code class="descname">get_all_ambiguous_combinations</code><span class="sig-paren">(</span><em>self</em><span class="sig-paren">)</span> &#x2192; Sequence[psef.models.assignment._AssignmentAmbiguousSetting]<a class="reference internal" href="../_modules/psef/models/assignment.html#Assignment.get_all_ambiguous_combinations"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.assignment.Assignment.get_all_ambiguous_combinations" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get all ambiguous settings for an assignment.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Sequence</span></code></a>[<code class="xref py py-class docutils literal notranslate"><span class="pre">_AssignmentAmbiguousSetting</span></code>]</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">A list of ambiguous settings.</td>
 </tr>
 </tbody>
 </table>
@@ -7091,6 +7144,26 @@ submission for the given user.</td>
 </dd></dl>
 
 <dl class="method">
+<dt id="psef.models.assignment.Assignment.get_not_deleted_submissions">
+<code class="descname">get_not_deleted_submissions</code><span class="sig-paren">(</span><em>self</em><span class="sig-paren">)</span> &#x2192; cg_sqlalchemy_helpers.types.MyQuery[psef.models.work.Work][psef.models.work.Work]<a class="reference internal" href="../_modules/psef/models/assignment.html#Assignment.get_not_deleted_submissions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.assignment.Assignment.get_not_deleted_submissions" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="docutils">
+<dt>Get a query returning all not deleted submissions to this</dt>
+<dd>assignment.</dd>
+</dl>
+<p>This method returns a faster query than just filtering submissions on
+not deleted and an assignment, as it checks the state of the assignment
+itself separately.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><code class="xref py py-class docutils literal notranslate"><span class="pre">MyQuery</span></code>[<a class="reference internal" href="#psef.models.work.Work" title="psef.models.work.Work"><code class="xref py py-class docutils literal notranslate"><span class="pre">Work</span></code></a>]</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
 <dt id="psef.models.assignment.Assignment.graders_are_done">
 <code class="descname">graders_are_done</code><span class="sig-paren">(</span><em>self</em><span class="sig-paren">)</span> &#x2192; bool<a class="reference internal" href="../_modules/psef/models/assignment.html#Assignment.graders_are_done"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.assignment.Assignment.graders_are_done" title="Permalink to this definition">¶</a></dt>
 <dd><p>Check if the graders of this assignment are done.</p>
@@ -7250,21 +7323,6 @@ locked. Ids not in this mapping are not locked.</td>
 <tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></a>]</td>
 </tr>
 <tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">The maximum amount of points.</td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
-
-<dl class="method">
-<dt id="psef.models.assignment.Assignment.maybe_add_webhook_ignore_combination_warning">
-<code class="descname">maybe_add_webhook_ignore_combination_warning</code><span class="sig-paren">(</span><em>self</em><span class="sig-paren">)</span> &#x2192; None<a class="reference internal" href="../_modules/psef/models/assignment.html#Assignment.maybe_add_webhook_ignore_combination_warning"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.assignment.Assignment.maybe_add_webhook_ignore_combination_warning" title="Permalink to this definition">¶</a></dt>
-<dd><p>Maybe add a warning to this request that warns the user for a
-ambiguous combination of webhooks and a ignore file.</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><code class="docutils literal notranslate"><span class="pre">None</span></code></td>
 </tr>
 </tbody>
 </table>
@@ -7430,6 +7488,13 @@ has the permission <code class="docutils literal notranslate"><span class="pre">
 </table>
 </dd></dl>
 
+</dd></dl>
+
+<dl class="class">
+<dt id="psef.models.assignment.AssignmentAmbiguousSettingTag">
+<em class="property">class </em><code class="descclassname">psef.models.assignment.</code><code class="descname">AssignmentAmbiguousSettingTag</code><a class="reference internal" href="../_modules/psef/models/assignment.html#AssignmentAmbiguousSettingTag"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.assignment.AssignmentAmbiguousSettingTag" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/enum.html#enum.Enum" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">enum.Enum</span></code></a></p>
+<p>All items that can contribute to a ambiguous assignment setting.</p>
 </dd></dl>
 
 <dl class="class">
@@ -9366,6 +9431,27 @@ next LTI launch.</li>
 <col class="field-body" />
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="psef.models.user.User.contains_user">
+<code class="descname">contains_user</code><span class="sig-paren">(</span><em>self</em>, <em>possible_member: psef.models.user.User</em><span class="sig-paren">)</span> &#x2192; bool<a class="reference internal" href="../_modules/psef/models/user.html#User.contains_user"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.user.User.contains_user" title="Permalink to this definition">¶</a></dt>
+<dd><p>Check if given user is part of this user.</p>
+<p>A user <code class="docutils literal notranslate"><span class="pre">A</span></code> is part of a user <code class="docutils literal notranslate"><span class="pre">B</span></code> if either <code class="docutils literal notranslate"><span class="pre">A</span> <span class="pre">==</span> <span class="pre">B</span></code> or
+<code class="docutils literal notranslate"><span class="pre">B.is_group</span> <span class="pre">and</span> <span class="pre">A</span> <span class="pre">in</span> <span class="pre">B.group.members</span></code></p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>possible_member</strong> (<a class="reference internal" href="#psef.models.user.User" title="psef.models.user.User"><code class="xref py py-class docutils literal notranslate"><span class="pre">User</span></code></a>) – The user to check for if it is part of
+<code class="docutils literal notranslate"><span class="pre">self</span></code>.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a></td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">A bool indicating if <code class="docutils literal notranslate"><span class="pre">self</span></code> contains <code class="docutils literal notranslate"><span class="pre">possible_member</span></code>.</td>
 </tr>
 </tbody>
 </table>
@@ -11596,6 +11682,7 @@ trees.</li>
 <li><a class="reference internal" href="#psef.permissions.CoursePermission.can_view_autotest_fixture" title="psef.permissions.CoursePermission.can_view_autotest_fixture"><strong>can_view_autotest_fixture</strong></a> – Users with this permission are allowed to see non hidden AutoTest fixtures</li>
 <li><a class="reference internal" href="#psef.permissions.CoursePermission.can_view_autotest_output_files_before_done" title="psef.permissions.CoursePermission.can_view_autotest_output_files_before_done"><strong>can_view_autotest_output_files_before_done</strong></a> – Users with this permission can view output files created during an AutoTest before the assignment state is “done”</li>
 <li><a class="reference internal" href="#psef.permissions.CoursePermission.can_delete_assignments" title="psef.permissions.CoursePermission.can_delete_assignments"><strong>can_delete_assignments</strong></a> – Users with this permission can delete assignments within this course.</li>
+<li><a class="reference internal" href="#psef.permissions.CoursePermission.can_override_submission_limiting" title="psef.permissions.CoursePermission.can_override_submission_limiting"><strong>can_override_submission_limiting</strong></a> – Users with this permission can create new submissions, even if the maximum amount of submissions has been reacher, or if a cool-off period is in effect.</li>
 <li><a class="reference internal" href="#psef.permissions.CoursePermission.can_see_linter_feedback_before_done" title="psef.permissions.CoursePermission.can_see_linter_feedback_before_done"><strong>can_see_linter_feedback_before_done</strong></a> – Users with this permission can see the output of linters before an assignment is set to “done”</li>
 <li><a class="reference internal" href="#psef.permissions.CoursePermission.can_see_user_feedback_before_done" title="psef.permissions.CoursePermission.can_see_user_feedback_before_done"><strong>can_see_user_feedback_before_done</strong></a> – Users with this permission can see feedback before an assignment is set to “done”</li>
 </ul>
@@ -11714,6 +11801,11 @@ trees.</li>
 <dd></dd></dl>
 
 <dl class="attribute">
+<dt id="psef.permissions.CoursePermission.can_override_submission_limiting">
+<code class="descname">can_override_submission_limiting</code><em class="property"> = _PermissionValue(item=47, default_value=False)</em><a class="headerlink" href="#psef.permissions.CoursePermission.can_override_submission_limiting" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
 <dt id="psef.permissions.CoursePermission.can_run_autotest">
 <code class="descname">can_run_autotest</code><em class="property"> = _PermissionValue(item=38, default_value=False)</em><a class="headerlink" href="#psef.permissions.CoursePermission.can_run_autotest" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
@@ -11745,7 +11837,7 @@ trees.</li>
 
 <dl class="attribute">
 <dt id="psef.permissions.CoursePermission.can_see_linter_feedback_before_done">
-<code class="descname">can_see_linter_feedback_before_done</code><em class="property"> = _PermissionValue(item=47, default_value=False)</em><a class="headerlink" href="#psef.permissions.CoursePermission.can_see_linter_feedback_before_done" title="Permalink to this definition">¶</a></dt>
+<code class="descname">can_see_linter_feedback_before_done</code><em class="property"> = _PermissionValue(item=48, default_value=False)</em><a class="headerlink" href="#psef.permissions.CoursePermission.can_see_linter_feedback_before_done" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="attribute">
@@ -11755,7 +11847,7 @@ trees.</li>
 
 <dl class="attribute">
 <dt id="psef.permissions.CoursePermission.can_see_user_feedback_before_done">
-<code class="descname">can_see_user_feedback_before_done</code><em class="property"> = _PermissionValue(item=48, default_value=False)</em><a class="headerlink" href="#psef.permissions.CoursePermission.can_see_user_feedback_before_done" title="Permalink to this definition">¶</a></dt>
+<code class="descname">can_see_user_feedback_before_done</code><em class="property"> = _PermissionValue(item=49, default_value=False)</em><a class="headerlink" href="#psef.permissions.CoursePermission.can_see_user_feedback_before_done" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="attribute">

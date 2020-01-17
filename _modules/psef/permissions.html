@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>psef.permissions &mdash; CodeGrade v1.17.4 documentation</title>
+  <title>psef.permissions &mdash; CodeGrade v1.18.0 documentation</title>
   
 
   
@@ -65,7 +65,7 @@
             
             
               <div class="version">
-                v1.17.4
+                v1.18.0
               </div>
             
           
@@ -205,7 +205,7 @@
 
 <span class="sd">SPDX-License-Identifier: AGPL-3.0-only</span>
 <span class="sd">&quot;&quot;&quot;</span>
-<span class="c1"># pylint: disable=line-too-long</span>
+<span class="c1"># pylint: skip-file</span>
 <span class="c1"># flake8: noqa=E501</span>
 <span class="c1"># yapf: disable</span>
 
@@ -233,9 +233,9 @@
 <div class="viewcode-block" id="database_permissions_sanity_check"><a class="viewcode-back" href="../../psef_api/psef.html#psef.permissions.database_permissions_sanity_check">[docs]</a><span class="k">def</span> <span class="nf">database_permissions_sanity_check</span><span class="p">(</span><span class="n">app</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot;Check if database has all the correct permissions.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">models</span>  <span class="c1"># pylint: disable=import-outside-toplevel</span>
+    <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">models</span>
     <span class="k">with</span> <span class="n">app</span><span class="o">.</span><span class="n">app_context</span><span class="p">():</span>
-        <span class="kn">import</span> <span class="nn">structlog</span>  <span class="c1"># pylint: disable=import-outside-toplevel</span>
+        <span class="kn">import</span> <span class="nn">structlog</span>
 
         <span class="n">logger</span> <span class="o">=</span> <span class="n">structlog</span><span class="o">.</span><span class="n">get_logger</span><span class="p">()</span>
 
@@ -382,6 +382,7 @@
 <span class="sd">    :ivar can_view_autotest_fixture: Users with this permission are allowed to see non hidden AutoTest fixtures</span>
 <span class="sd">    :ivar can_view_autotest_output_files_before_done: Users with this permission can view output files created during an AutoTest before the assignment state is &quot;done&quot;</span>
 <span class="sd">    :ivar can_delete_assignments: Users with this permission can delete assignments within this course.</span>
+<span class="sd">    :ivar can_override_submission_limiting: Users with this permission can create new submissions, even if the maximum amount of submissions has been reacher, or if a cool-off period is in effect.</span>
 <span class="sd">    :ivar can_see_linter_feedback_before_done: Users with this permission can see the output of linters before an assignment is set to &quot;done&quot;</span>
 <span class="sd">    :ivar can_see_user_feedback_before_done: Users with this permission can see feedback before an assignment is set to &quot;done&quot;</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -437,8 +438,9 @@
     <span class="n">can_view_autotest_fixture</span> <span class="o">=</span> <span class="n">_PermissionValue</span><span class="p">(</span><span class="n">item</span><span class="o">=</span><span class="mi">44</span><span class="p">,</span> <span class="n">default_value</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
     <span class="n">can_view_autotest_output_files_before_done</span> <span class="o">=</span> <span class="n">_PermissionValue</span><span class="p">(</span><span class="n">item</span><span class="o">=</span><span class="mi">45</span><span class="p">,</span> <span class="n">default_value</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
     <span class="n">can_delete_assignments</span> <span class="o">=</span> <span class="n">_PermissionValue</span><span class="p">(</span><span class="n">item</span><span class="o">=</span><span class="mi">46</span><span class="p">,</span> <span class="n">default_value</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-    <span class="n">can_see_linter_feedback_before_done</span> <span class="o">=</span> <span class="n">_PermissionValue</span><span class="p">(</span><span class="n">item</span><span class="o">=</span><span class="mi">47</span><span class="p">,</span> <span class="n">default_value</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-    <span class="n">can_see_user_feedback_before_done</span> <span class="o">=</span> <span class="n">_PermissionValue</span><span class="p">(</span><span class="n">item</span><span class="o">=</span><span class="mi">48</span><span class="p">,</span> <span class="n">default_value</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></div>
+    <span class="n">can_override_submission_limiting</span> <span class="o">=</span> <span class="n">_PermissionValue</span><span class="p">(</span><span class="n">item</span><span class="o">=</span><span class="mi">47</span><span class="p">,</span> <span class="n">default_value</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">can_see_linter_feedback_before_done</span> <span class="o">=</span> <span class="n">_PermissionValue</span><span class="p">(</span><span class="n">item</span><span class="o">=</span><span class="mi">48</span><span class="p">,</span> <span class="n">default_value</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">can_see_user_feedback_before_done</span> <span class="o">=</span> <span class="n">_PermissionValue</span><span class="p">(</span><span class="n">item</span><span class="o">=</span><span class="mi">49</span><span class="p">,</span> <span class="n">default_value</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></div>
 
 <span class="c1"># yapf: enable</span>
 </pre></div>

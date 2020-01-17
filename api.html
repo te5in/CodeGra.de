@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>CodeGrade API &mdash; CodeGrade v1.17.4 documentation</title>
+  <title>CodeGrade API &mdash; CodeGrade v1.18.0 documentation</title>
   
 
   
@@ -67,7 +67,7 @@
             
             
               <div class="version">
-                v1.17.4
+                v1.18.0
               </div>
             
           
@@ -999,6 +999,13 @@ webhooks.</li>
 <li><strong>files_upload_enabled</strong> (<em>bool</em>) – Should students be allowed to upload work
 directly using files and/or archives. This is always possible for users
 with the <code class="docutils literal notranslate"><span class="pre">can_submit_others_work</span></code>.</li>
+<li><strong>max_submissions</strong> (<em>int</em>) – The maximum amount of submissions a user may
+create. This value cannot be lower than 1.</li>
+<li><strong>cool_off_period</strong> (<em>float</em>) – The amount of time in seconds there should be
+between <code class="docutils literal notranslate"><span class="pre">amount_in_cool_off_period</span> <span class="pre">+</span> <span class="pre">1</span></code> submissions.</li>
+<li><strong>amount_in_cool_off_period</strong> (<em>int</em>) – The maximum amount of submissions
+that can be made within <code class="docutils literal notranslate"><span class="pre">cool_off_period</span></code> seconds. This should be
+higher than or equal to 1.</li>
 </ul>
 </td>
 </tr>

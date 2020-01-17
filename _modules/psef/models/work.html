@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>psef.models.work &mdash; CodeGrade v1.17.4 documentation</title>
+  <title>psef.models.work &mdash; CodeGrade v1.18.0 documentation</title>
   
 
   
@@ -65,7 +65,7 @@
             
             
               <div class="version">
-                v1.17.4
+                v1.18.0
               </div>
             
           
@@ -1109,8 +1109,12 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c1"># TODO: Check why we need to pass both user_id and user.</span>
         <span class="bp">self</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">(</span><span class="n">assignment</span><span class="o">=</span><span class="n">assignment</span><span class="p">,</span> <span class="n">user_id</span><span class="o">=</span><span class="n">author</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">user</span><span class="o">=</span><span class="n">author</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">created_at</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+
+        <span class="k">if</span> <span class="n">created_at</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">created_at</span> <span class="o">=</span> <span class="n">helpers</span><span class="o">.</span><span class="n">get_request_start_time</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">created_at</span> <span class="o">=</span> <span class="n">created_at</span>
+
         <span class="bp">self</span><span class="o">.</span><span class="n">divide_new_work</span><span class="p">()</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">add_file_tree</span><span class="p">(</span><span class="n">tree</span><span class="p">)</span>

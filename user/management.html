@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Course and Assignment Management &mdash; CodeGrade v1.17.4 documentation</title>
+  <title>Course and Assignment Management &mdash; CodeGrade v1.18.0 documentation</title>
   
 
   
@@ -67,7 +67,7 @@
             
             
               <div class="version">
-                v1.17.4
+                v1.18.0
               </div>
             
           
@@ -127,6 +127,7 @@
 <li class="toctree-l3"><a class="reference internal" href="#assignment-state">Assignment State</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#general">General</a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#upload-types">Upload types</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#limiting-the-amount-of-submissions">Limiting the amount of submissions</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#hand-in-requirements">Hand-in Requirements</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#group-assignment">Group assignment</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#uploading-submissions">Uploading Submissions</a></li>
@@ -372,6 +373,37 @@ information in the <code class="docutils literal notranslate"><span class="pre">
 </div>
 <p>More information on setting up Git uploading can be found in the
 <a class="reference internal" href="../guides/setting-up-git-uploads.html#guide-git-uploads"><span class="std std-ref">step-by-step guide</span></a>.</p>
+</div>
+</div>
+<div class="section" id="limiting-the-amount-of-submissions">
+<h4>Limiting the amount of submissions<a class="headerlink" href="#limiting-the-amount-of-submissions" title="Permalink to this headline">¶</a></h4>
+<p>By setting the maximum amount of submissions, and the <em>cool off period</em> you can
+limit the number of times students can hand-in.</p>
+<div class="section" id="maximum-submissions">
+<h5>Maximum submissions<a class="headerlink" href="#maximum-submissions" title="Permalink to this headline">¶</a></h5>
+<p>By setting the maximum amount of submissions you can limit how many submissions
+a student can make in total for an assignment. If you set this to value to
+anything higher than 0 this is the total amount of submissions the student can
+make. They will be informed of this limit when they create a new submission. You
+can disable this limit by setting the limit to “0” or “infinite”.</p>
+</div>
+<div class="section" id="cool-off-period">
+<h5>Cool off period<a class="headerlink" href="#cool-off-period" title="Permalink to this headline">¶</a></h5>
+<p>The cool off period allows for a more advanced way of limiting the amount of
+submissions a student can create. Instead of setting a limit for the entire
+assignment, you can set a limit for a certain time frame in an assignment. This
+allows you to effectively set an amount of submissions a student may create in a
+certain time period.</p>
+<div class="admonition example-directive">
+<p class="first admonition-title">Example</p>
+<p class="last">When the cool off period is set to “2 submissions every 10 minutes”, and a
+student submits at 10:00, and at 10:05 it will be impossible for this
+student to submit again before 10:10. If the student submits again at 10:11,
+it will now be impossible to submit again before 10:15.</p>
+</div>
+<p>You can combine the <em>cool off period</em> with a maximum amount of submissions. This
+could allow you, for example, to enforce a small wait period between two
+submissions, but also enforce a total amount of submissions.</p>
 </div>
 </div>
 <div class="section" id="hand-in-requirements">

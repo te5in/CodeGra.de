@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>psef.auth &mdash; CodeGrade v1.17.4 documentation</title>
+  <title>psef.auth &mdash; CodeGrade v1.18.0 documentation</title>
   
 
   
@@ -65,7 +65,7 @@
             
             
               <div class="version">
-                v1.17.4
+                v1.18.0
               </div>
             
           
@@ -201,11 +201,16 @@
 <span class="sd">SPDX-License-Identifier: AGPL-3.0-only</span>
 <span class="sd">&quot;&quot;&quot;</span>
 <span class="kn">import</span> <span class="nn">typing</span> <span class="k">as</span> <span class="nn">t</span>
+<span class="kn">import</span> <span class="nn">datetime</span>
 <span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">wraps</span>
 
 <span class="kn">import</span> <span class="nn">oauth2</span>
+<span class="kn">import</span> <span class="nn">structlog</span>
+<span class="kn">import</span> <span class="nn">sqlalchemy</span>
+<span class="kn">import</span> <span class="nn">humanfriendly</span>
 <span class="kn">import</span> <span class="nn">flask_jwt_extended</span> <span class="k">as</span> <span class="nn">flask_jwt</span>
 <span class="kn">from</span> <span class="nn">flask</span> <span class="kn">import</span> <span class="n">_app_ctx_stack</span>  <span class="c1"># type: ignore</span>
+<span class="kn">from</span> <span class="nn">sqlalchemy</span> <span class="kn">import</span> <span class="n">sql</span>
 <span class="kn">from</span> <span class="nn">werkzeug.local</span> <span class="kn">import</span> <span class="n">LocalProxy</span>
 <span class="kn">from</span> <span class="nn">mypy_extensions</span> <span class="kn">import</span> <span class="n">NoReturn</span>
 
@@ -214,8 +219,11 @@
 <span class="kn">from</span> <span class="nn">psef.helpers</span> <span class="kn">import</span> <span class="n">readable_join</span>
 <span class="kn">from</span> <span class="nn">psef.exceptions</span> <span class="kn">import</span> <span class="n">APICodes</span><span class="p">,</span> <span class="n">APIException</span><span class="p">,</span> <span class="n">PermissionException</span>
 
+<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">helpers</span>
 <span class="kn">from</span> <span class="nn">.permissions</span> <span class="kn">import</span> <span class="n">CoursePermission</span> <span class="k">as</span> <span class="n">CPerm</span>
 <span class="kn">from</span> <span class="nn">.permissions</span> <span class="kn">import</span> <span class="n">GlobalPermission</span> <span class="k">as</span> <span class="n">GPerm</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">structlog</span><span class="o">.</span><span class="n">get_logger</span><span class="p">()</span>
 
 <span class="n">jwt</span> <span class="o">=</span> <span class="n">flask_jwt</span><span class="o">.</span><span class="n">JWTManager</span><span class="p">()</span>  <span class="c1"># pylint: disable=invalid-name</span>
 
@@ -351,10 +359,127 @@
     <span class="n">_app_ctx_stack</span><span class="o">.</span><span class="n">top</span><span class="o">.</span><span class="n">jwt_user</span> <span class="o">=</span> <span class="n">user</span></div>
 
 
+<span class="k">def</span> <span class="nf">_ensure_submission_limits_not_exceeded</span><span class="p">(</span>
+    <span class="n">assig</span><span class="p">:</span> <span class="s1">&#39;psef.models.Assignment&#39;</span><span class="p">,</span> <span class="n">author</span><span class="p">:</span> <span class="s1">&#39;psef.models.User&#39;</span><span class="p">,</span>
+    <span class="n">current_user</span><span class="p">:</span> <span class="s1">&#39;psef.models.User&#39;</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">current_user</span><span class="o">.</span><span class="n">has_permission</span><span class="p">(</span>
+        <span class="n">CPerm</span><span class="o">.</span><span class="n">can_override_submission_limiting</span><span class="p">,</span> <span class="n">assig</span><span class="o">.</span><span class="n">course_id</span>
+    <span class="p">)</span> <span class="ow">or</span> <span class="n">author</span><span class="o">.</span><span class="n">is_test_student</span><span class="p">:</span>
+        <span class="k">return</span>
+    <span class="k">elif</span> <span class="p">(</span>
+        <span class="n">assig</span><span class="o">.</span><span class="n">max_submissions</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span>
+        <span class="n">assig</span><span class="o">.</span><span class="n">cool_off_period</span><span class="o">.</span><span class="n">total_seconds</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span>
+    <span class="p">):</span>
+        <span class="k">return</span>
+
+    <span class="c1"># Create a lock for the current assignment and author combination so we</span>
+    <span class="c1"># make sure that you cannot exceed the limits, even when submitting</span>
+    <span class="c1"># concurrently.</span>
+    <span class="n">psef</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+        <span class="n">sqlalchemy</span><span class="o">.</span><span class="n">select</span><span class="p">(</span>
+            <span class="p">[</span><span class="n">sql</span><span class="o">.</span><span class="n">func</span><span class="o">.</span><span class="n">pg_advisory_xact_lock</span><span class="p">(</span><span class="n">assig</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">author</span><span class="o">.</span><span class="n">id</span><span class="p">)]</span>
+        <span class="p">)</span>
+    <span class="p">)</span>
+
+    <span class="n">Work</span> <span class="o">=</span> <span class="n">psef</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">Work</span>
+    <span class="n">base_sql</span> <span class="o">=</span> <span class="n">assig</span><span class="o">.</span><span class="n">get_not_deleted_submissions</span><span class="p">()</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+        <span class="n">Work</span><span class="o">.</span><span class="n">user_id</span> <span class="o">==</span> <span class="n">author</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">now</span> <span class="o">=</span> <span class="n">helpers</span><span class="o">.</span><span class="n">get_request_start_time</span><span class="p">()</span>
+    <span class="n">cool_off_cutoff</span> <span class="o">=</span> <span class="n">now</span> <span class="o">-</span> <span class="n">assig</span><span class="o">.</span><span class="n">cool_off_period</span>
+
+    <span class="k">if</span> <span class="n">assig</span><span class="o">.</span><span class="n">max_submissions</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">query_amount</span><span class="p">:</span> <span class="n">psef</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">DbColumn</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="n">sql</span><span class="o">.</span><span class="n">literal</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">label</span><span class="p">(</span>
+            <span class="s1">&#39;amount&#39;</span>
+        <span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">query_amount</span> <span class="o">=</span> <span class="n">sql</span><span class="o">.</span><span class="n">func</span><span class="o">.</span><span class="n">count</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="n">assig</span><span class="o">.</span><span class="n">cool_off_period</span><span class="o">.</span><span class="n">total_seconds</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">query_since_cool_off</span><span class="p">:</span> <span class="n">psef</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">DbColumn</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="n">sql</span><span class="o">.</span><span class="n">func</span><span class="o">.</span><span class="n">count</span><span class="p">(</span>
+            <span class="n">sqlalchemy</span><span class="o">.</span><span class="n">case</span><span class="p">(</span>
+                <span class="p">[(</span><span class="n">Work</span><span class="o">.</span><span class="n">created_at</span> <span class="o">&gt;=</span> <span class="n">cool_off_cutoff</span><span class="p">,</span> <span class="mi">1</span><span class="p">)],</span>
+                <span class="n">else_</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+        <span class="n">query_oldest_in_period</span><span class="p">:</span> <span class="n">psef</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">DbColumn</span><span class="p">[</span>
+            <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="p">]</span>
+        <span class="p">]</span> <span class="o">=</span> <span class="n">base_sql</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">Work</span><span class="o">.</span><span class="n">created_at</span> <span class="o">&gt;=</span> <span class="n">cool_off_cutoff</span><span class="p">)</span><span class="o">.</span><span class="n">with_entities</span><span class="p">(</span>
+            <span class="n">sql</span><span class="o">.</span><span class="n">func</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">Work</span><span class="o">.</span><span class="n">created_at</span><span class="p">)</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">label</span><span class="p">(</span><span class="s1">&#39;oldest&#39;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">query_since_cool_off</span> <span class="o">=</span> <span class="n">sql</span><span class="o">.</span><span class="n">literal</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">label</span><span class="p">(</span><span class="s1">&#39;since_cool_off&#39;</span><span class="p">)</span>
+        <span class="n">query_oldest_in_period</span> <span class="o">=</span> <span class="n">sql</span><span class="o">.</span><span class="n">literal</span><span class="p">(</span><span class="n">now</span><span class="p">)</span><span class="o">.</span><span class="n">label</span><span class="p">(</span><span class="s1">&#39;oldest&#39;</span><span class="p">)</span>
+
+    <span class="n">query</span> <span class="o">=</span> <span class="n">base_sql</span><span class="o">.</span><span class="n">with_entities</span><span class="p">(</span>
+        <span class="n">query_amount</span><span class="p">,</span>
+        <span class="n">query_since_cool_off</span><span class="p">,</span>
+        <span class="n">query_oldest_in_period</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">amount_subs</span><span class="p">,</span> <span class="n">since_cool_off</span><span class="p">,</span> <span class="n">oldest_since_cool_off</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">one</span><span class="p">()</span>
+
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+        <span class="s1">&#39;Checking submission limits&#39;</span><span class="p">,</span>
+        <span class="n">cool_off_period</span><span class="o">=</span><span class="n">assig</span><span class="o">.</span><span class="n">cool_off_period</span><span class="o">.</span><span class="n">total_seconds</span><span class="p">(),</span>
+        <span class="n">amount_since_cool_off</span><span class="o">=</span><span class="n">since_cool_off</span><span class="p">,</span>
+        <span class="n">total_amount_submissions</span><span class="o">=</span><span class="n">amount_subs</span><span class="p">,</span>
+        <span class="n">oldest_since_cool_off</span><span class="o">=</span><span class="n">oldest_since_cool_off</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="k">if</span> <span class="p">(</span>
+        <span class="n">assig</span><span class="o">.</span><span class="n">max_submissions</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span>
+        <span class="n">assig</span><span class="o">.</span><span class="n">max_submissions</span> <span class="o">&lt;=</span> <span class="n">amount_subs</span>
+    <span class="p">):</span>
+        <span class="k">if</span> <span class="n">author</span><span class="o">.</span><span class="n">contains_user</span><span class="p">(</span><span class="n">current_user</span><span class="p">):</span>
+            <span class="n">you_text</span> <span class="o">=</span> <span class="s1">&#39;Your group has&#39;</span> <span class="k">if</span> <span class="n">author</span><span class="o">.</span><span class="n">group</span> <span class="k">else</span> <span class="s1">&#39;You have&#39;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">you_text</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="sa">f</span><span class="s1">&#39;The group &quot;</span><span class="si">{author.group.name}</span><span class="s1">&quot;&#39;</span>
+                <span class="k">if</span> <span class="n">author</span><span class="o">.</span><span class="n">group</span> <span class="k">else</span> <span class="n">author</span><span class="o">.</span><span class="n">name</span>
+            <span class="p">)</span> <span class="o">+</span> <span class="s1">&#39; has&#39;</span>
+
+        <span class="n">submissions_text</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="s1">&#39;submissions&#39;</span> <span class="k">if</span> <span class="n">assig</span><span class="o">.</span><span class="n">max_submissions</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="k">else</span> <span class="s1">&#39;submission&#39;</span>
+        <span class="p">)</span>
+
+        <span class="k">raise</span> <span class="n">PermissionException</span><span class="p">(</span>
+            <span class="p">(</span>
+                <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{you_text}</span><span class="s1"> reached the maximum amount of&#39;</span>
+                <span class="sa">f</span><span class="s1">&#39; </span><span class="si">{assig.max_submissions}</span><span class="s1"> </span><span class="si">{submissions_text}</span><span class="s1"> for this&#39;</span>
+                <span class="s1">&#39; assignment.&#39;</span>
+            <span class="p">),</span>
+            <span class="p">(</span>
+                <span class="sa">f</span><span class="s1">&#39;The user </span><span class="si">{author.id}</span><span class="s1"> has </span><span class="si">{amount_subs}</span><span class="s1"> which is too&#39;</span>
+                <span class="sa">f</span><span class="s1">&#39; much, as the limit is </span><span class="si">{assig.max_submissions}</span><span class="s1">.&#39;</span>
+            <span class="p">),</span>
+            <span class="n">APICodes</span><span class="o">.</span><span class="n">TOO_MANY_SUBMISSIONS</span><span class="p">,</span>
+            <span class="mi">403</span><span class="p">,</span>
+        <span class="p">)</span>
+    <span class="k">elif</span> <span class="n">since_cool_off</span> <span class="o">&gt;=</span> <span class="n">assig</span><span class="o">.</span><span class="n">amount_in_cool_off_period</span><span class="p">:</span>
+        <span class="c1"># The name `oldest_since_cool_off` is `None` when there are no</span>
+        <span class="c1"># submissions. However, in that case `since_cool_off` should also</span>
+        <span class="c1"># always be 0. However, we limit `amount_in_cool_off_period` to be &gt;=</span>
+        <span class="c1"># 1, so the check never passes.</span>
+        <span class="k">if</span> <span class="n">oldest_since_cool_off</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
+            <span class="n">oldest_since_cool_off</span> <span class="o">=</span> <span class="n">now</span>
+        <span class="n">wait_time</span> <span class="o">=</span> <span class="n">assig</span><span class="o">.</span><span class="n">cool_off_period</span> <span class="o">-</span> <span class="p">(</span><span class="n">now</span> <span class="o">-</span> <span class="n">oldest_since_cool_off</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="n">PermissionException</span><span class="p">(</span>
+            <span class="p">(</span>
+                <span class="s1">&#39;You cannot submit again yet, you have to wait at least </span><span class="si">{}</span><span class="s1">&#39;</span>
+                <span class="s1">&#39; before you can upload again&#39;</span>
+            <span class="p">)</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">humanfriendly</span><span class="o">.</span><span class="n">format_timespan</span><span class="p">(</span><span class="n">wait_time</span><span class="p">)),</span>
+            <span class="sa">f</span><span class="s1">&#39;The user </span><span class="si">{author.id}</span><span class="s1"> submitted too early to try again&#39;</span><span class="p">,</span>
+            <span class="n">APICodes</span><span class="o">.</span><span class="n">COOL_OFF_PERIOD_ACTIVE</span><span class="p">,</span>
+            <span class="mi">403</span><span class="p">,</span>
+        <span class="p">)</span>
+
+
 <div class="viewcode-block" id="ensure_can_submit_work"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auth.ensure_can_submit_work">[docs]</a><span class="k">def</span> <span class="nf">ensure_can_submit_work</span><span class="p">(</span>
     <span class="n">assig</span><span class="p">:</span> <span class="s1">&#39;psef.models.Assignment&#39;</span><span class="p">,</span>
     <span class="n">author</span><span class="p">:</span> <span class="s1">&#39;psef.models.User&#39;</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
+    <span class="n">for_user</span><span class="p">:</span> <span class="s1">&#39;psef.models.User&#39;</span><span class="p">,</span>
     <span class="n">current_user</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="s1">&#39;psef.models.User&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot;Check if the current user can submit for the given assignment as the given</span>
@@ -367,20 +492,33 @@
 
 <span class="sd">    :param assig: The assignment that should be submitted to.</span>
 <span class="sd">    :param author: The author of the submission.</span>
+<span class="sd">    :param for_user: The user that is submitting, this should be equal to</span>
+<span class="sd">        ``author``, except when ``author`` is a group, in that case it should</span>
+<span class="sd">        be one of the members of that group. This should be a user of an actual</span>
+<span class="sd">        person, it can for example not be a group.</span>
+<span class="sd">    :param current_user: The current user, this is the user that should have</span>
+<span class="sd">        the permission to hand-in. This default to the currently logged in</span>
+<span class="sd">        user.</span>
 
 <span class="sd">    :raises PermissionException: If the current user cannot submit for the</span>
 <span class="sd">        given author.</span>
 <span class="sd">    :raises APIException: If the LTI state if wrong.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">assert</span> <span class="n">author</span><span class="o">.</span><span class="n">contains_user</span><span class="p">(</span><span class="n">for_user</span><span class="p">)</span>
+
+    <span class="c1"># The for_user argument should be the actual real-life user.</span>
+    <span class="k">assert</span> <span class="n">for_user</span><span class="o">.</span><span class="n">group</span> <span class="ow">is</span> <span class="kc">None</span>
+    <span class="k">assert</span> <span class="n">for_user</span><span class="o">.</span><span class="n">active</span>
+    <span class="k">assert</span> <span class="ow">not</span> <span class="n">for_user</span><span class="o">.</span><span class="n">virtual</span>
+
     <span class="k">if</span> <span class="n">current_user</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">ensure_logged_in</span><span class="p">()</span>
         <span class="n">current_user</span> <span class="o">=</span> <span class="n">psef</span><span class="o">.</span><span class="n">current_user</span>
 
-    <span class="k">if</span> <span class="n">author</span><span class="o">.</span><span class="n">group</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="c1"># Group users aren&#39;t enrolled in a course.</span>
-        <span class="n">ensure_enrolled</span><span class="p">(</span><span class="n">assig</span><span class="o">.</span><span class="n">course_id</span><span class="p">,</span> <span class="n">author</span><span class="p">)</span>
+    <span class="c1"># Group users aren&#39;t enrolled in a course.</span>
+    <span class="n">ensure_enrolled</span><span class="p">(</span><span class="n">assig</span><span class="o">.</span><span class="n">course_id</span><span class="p">,</span> <span class="n">for_user</span><span class="p">)</span>
 
-    <span class="n">submit_self</span> <span class="o">=</span> <span class="n">current_user</span><span class="o">.</span><span class="n">id</span> <span class="o">==</span> <span class="n">author</span><span class="o">.</span><span class="n">id</span>
+    <span class="n">submit_self</span> <span class="o">=</span> <span class="n">author</span><span class="o">.</span><span class="n">contains_user</span><span class="p">(</span><span class="n">current_user</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="n">submit_self</span><span class="p">:</span>
         <span class="n">ensure_permission</span><span class="p">(</span>
@@ -405,26 +543,47 @@
             <span class="n">user</span><span class="o">=</span><span class="n">current_user</span>
         <span class="p">)</span>
 
-    <span class="k">if</span> <span class="n">assig</span><span class="o">.</span><span class="n">is_lti</span> <span class="ow">and</span> <span class="ow">not</span> <span class="p">(</span>
-        <span class="c1"># We do not passback test student grades, so we do not need them to</span>
-        <span class="c1"># be present in the assignment_results</span>
-        <span class="n">author</span><span class="o">.</span><span class="n">is_test_student</span> <span class="ow">or</span> <span class="n">assig</span><span class="o">.</span><span class="n">id</span> <span class="ow">in</span> <span class="n">author</span><span class="o">.</span><span class="n">assignment_results</span>
-    <span class="p">):</span>
-        <span class="n">lms_name</span> <span class="o">=</span> <span class="n">assig</span><span class="o">.</span><span class="n">course</span><span class="o">.</span><span class="n">lti_provider</span><span class="o">.</span><span class="n">lms_name</span>
-        <span class="k">raise</span> <span class="n">APIException</span><span class="p">(</span>
-            <span class="p">(</span>
-                <span class="sa">f</span><span class="s1">&#39;This is a </span><span class="si">{lms_name}</span><span class="s1"> assignment and it seems we do not have &#39;</span>
-                <span class="s1">&#39;the possibility to pass back the grade. Please </span><span class="si">{}</span><span class="s1">visit the &#39;</span>
-                <span class="sa">f</span><span class="s1">&#39;assignment again on </span><span class="si">{lms_name}</span><span class="s1">. If this issue persists, &#39;</span>
-                <span class="s1">&#39;please contact your system administrator.&#39;</span>
-            <span class="p">)</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="s1">&#39;ask the given author to &#39;</span> <span class="k">if</span> <span class="n">submit_self</span> <span class="k">else</span> <span class="s1">&#39;&#39;</span><span class="p">),</span>
-            <span class="p">(</span>
-                <span class="sa">f</span><span class="s1">&#39;The assignment </span><span class="si">{assig.id}</span><span class="s1"> is not present in the &#39;</span>
-                <span class="sa">f</span><span class="s1">&#39;user </span><span class="si">{author.id}</span><span class="s1"> `assignment_results`&#39;</span>
-            <span class="p">),</span>
-            <span class="n">APICodes</span><span class="o">.</span><span class="n">INVALID_STATE</span><span class="p">,</span>
-            <span class="mi">400</span><span class="p">,</span>
-        <span class="p">)</span></div>
+    <span class="n">_ensure_submission_limits_not_exceeded</span><span class="p">(</span><span class="n">assig</span><span class="p">,</span> <span class="n">author</span><span class="p">,</span> <span class="n">current_user</span><span class="p">)</span>
+
+    <span class="c1"># We do not passback test student grades, so we do not need them to</span>
+    <span class="c1"># be present in the assignment_results</span>
+    <span class="k">if</span> <span class="n">assig</span><span class="o">.</span><span class="n">is_lti</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">author</span><span class="o">.</span><span class="n">is_test_student</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">author</span><span class="o">.</span><span class="n">group</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">members</span> <span class="o">=</span> <span class="n">author</span><span class="o">.</span><span class="n">group</span><span class="o">.</span><span class="n">members</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">members</span> <span class="o">=</span> <span class="p">[</span><span class="n">author</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="nb">any</span><span class="p">(</span>
+            <span class="n">assig</span><span class="o">.</span><span class="n">id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">member</span><span class="o">.</span><span class="n">assignment_results</span> <span class="k">for</span> <span class="n">member</span> <span class="ow">in</span> <span class="n">members</span>
+        <span class="p">):</span>
+            <span class="n">lms</span> <span class="o">=</span> <span class="n">assig</span><span class="o">.</span><span class="n">course</span><span class="o">.</span><span class="n">lti_provider</span><span class="o">.</span><span class="n">lms_name</span>
+            <span class="k">if</span> <span class="n">author</span><span class="o">.</span><span class="n">group</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">APIException</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Some authors haven&#39;t opened the assignment in </span><span class="si">{lms}</span><span class="s2"> yet&quot;</span><span class="p">,</span>
+                    <span class="p">(</span>
+                        <span class="s1">&#39;No assignment_results found for some authors in the&#39;</span>
+                        <span class="s1">&#39; group&#39;</span>
+                    <span class="p">),</span>
+                    <span class="n">APICodes</span><span class="o">.</span><span class="n">ASSIGNMENT_RESULT_GROUP_NOT_READY</span><span class="p">,</span>
+                    <span class="mi">400</span><span class="p">,</span>
+                    <span class="n">group</span><span class="o">=</span><span class="n">author</span><span class="o">.</span><span class="n">group</span><span class="p">,</span>
+                    <span class="n">author</span><span class="o">=</span><span class="n">for_user</span><span class="p">,</span>
+                <span class="p">)</span>
+
+            <span class="k">raise</span> <span class="n">APIException</span><span class="p">(</span>
+                <span class="p">(</span>
+                    <span class="sa">f</span><span class="s1">&#39;This is a </span><span class="si">{lms}</span><span class="s1"> assignment and it seems we do not have&#39;</span>
+                    <span class="s1">&#39; the possibility to pass back the grade. Please </span><span class="si">{}</span><span class="s1">visit&#39;</span>
+                    <span class="sa">f</span><span class="s1">&#39; the assignment again on </span><span class="si">{lms}</span><span class="s1">. If this issue persists,&#39;</span>
+                    <span class="s1">&#39; please contact your system administrator.&#39;</span>
+                <span class="p">)</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="s1">&#39;ask the given author to &#39;</span> <span class="k">if</span> <span class="n">submit_self</span> <span class="k">else</span> <span class="s1">&#39;&#39;</span><span class="p">),</span>
+                <span class="p">(</span>
+                    <span class="sa">f</span><span class="s1">&#39;The assignment </span><span class="si">{assig.id}</span><span class="s1"> is not present in the &#39;</span>
+                    <span class="sa">f</span><span class="s1">&#39;user </span><span class="si">{author.id}</span><span class="s1"> `assignment_results`&#39;</span>
+                <span class="p">),</span>
+                <span class="n">APICodes</span><span class="o">.</span><span class="n">INVALID_STATE</span><span class="p">,</span>
+                <span class="mi">400</span><span class="p">,</span>
+            <span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="ensure_can_see_grade"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auth.ensure_can_see_grade">[docs]</a><span class="nd">@login_required</span>
