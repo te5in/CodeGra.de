@@ -206,6 +206,11 @@
 # The external URL the server runs on.
 # external_url = http://localhost:8080
 
+
+# The external proxy url should be a safe url that proxies every request to
+# "$external_url"/api/v1/proxy
+# external_proxy_url =
+
 # Path to the java runtime executable. May also be just the name of the
 # executable, if it is in a directory in the PATH environment variable.
 # java_path = java

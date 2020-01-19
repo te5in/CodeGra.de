@@ -52,6 +52,19 @@ export class FileTree {
             diff = FileTree.matchFiles(studentTree, studentTree);
         }
 
+        const todo = [studentTree];
+
+        studentTree.parent = null;
+        for (let i = 0; todo.length > i; ++i) {
+            const child = todo[i];
+            child.entries.forEach(f => {
+                f.parent = child;
+                if (f.entries) {
+                    todo.push(f);
+                }
+            });
+        }
+
         const flattened = FileTree.flatten(diff);
         return new FileTree(studentTree, teacherTree, diff, flattened);
     }

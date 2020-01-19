@@ -9,6 +9,7 @@ import shutil
 import typing as t
 from collections import defaultdict
 
+import structlog
 from flask import current_app
 from sqlalchemy import event
 from sqlalchemy_utils import UUIDType
@@ -21,6 +22,8 @@ from . import Base, db, _MyQuery
 from .. import auth, helpers
 from ..exceptions import APICodes, APIException
 from ..permissions import CoursePermission
+
+logger = structlog.get_logger()
 
 if t.TYPE_CHECKING and getattr(t, 'SPHINX', False):  # pragma: no cover
     # pylint: disable=unused-import
@@ -73,6 +76,35 @@ class FileMixin(t.Generic[T]):
         """Is this file a directory.
         """
         raise NotImplementedError
+
+    def open(self) -> t.BinaryIO:
+        """Open this file.
+
+        This file checks if this file can be opened.
+
+        :returns: The contents of the file with newlines.
+        """
+        if self.is_directory:
+            raise APIException(
+                'Cannot display this file as it is a directory.',
+                f'The selected file with id {self.id} is a directory.',
+                APICodes.OBJECT_WRONG_TYPE, 400
+            )
+
+        filename = self.get_diskname()
+        if os.path.islink(filename):  # pragma: no cover
+            # This should not be possible as we replace symlinks with regular
+            # files on submission.
+            logger.error(
+                'Symlink found in uploads directory',
+                filename=filename,
+            )
+            raise APIException(
+                f'This file is a symlink to `{os.readlink(filename)}`.',
+                'The file {} is a symlink'.format(self.id),
+                APICodes.INVALID_STATE, 410
+            )
+        return open(filename, 'rb')
 
     def delete_from_disk(self) -> None:
         """Delete the file from disk if it is not a directory.

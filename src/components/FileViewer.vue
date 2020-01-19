@@ -24,6 +24,7 @@
                    @language="$emit('language', $event)"
                    :language="language"
                    :can-use-snippets="canUseSnippets"
+                   @force-viewer="setForcedFileComponent"
                    @load="onLoad"
                    @error="onError" />
     </div>
@@ -38,6 +39,7 @@ import {
     IpythonViewer,
     MarkdownViewer,
     PdfViewer,
+    HtmlViewer,
 } from '@/components';
 
 import Loader from './Loader';
@@ -88,7 +90,14 @@ export default {
         return {
             loading: true,
             error: '',
+            forcedFileComponent: null,
             fileTypes: [
+                {
+                    cond: f => f.name.endsWith('.html'),
+                    component: HtmlViewer,
+                    showLanguage: false,
+                    scroller: false,
+                },
                 {
                     cond: () => this.fileExtension === 'pdf',
                     component: PdfViewer,
@@ -145,12 +154,17 @@ export default {
             // eslint-disable-next-line
             const _ = this.fileId;
 
-            return this.file ? this.fileTypes.find(ft => ft.cond(this.file)) : null;
+            if (!this.file) {
+                return null;
+            } else if (this.forcedFileComponent) {
+                return this.fileTypes.find(ft => ft.component === this.forcedFileComponent);
+            }
+            return this.fileTypes.find(ft => ft.cond(this.file));
         },
 
         dynamicClasses() {
             if (this.fileData) {
-                return `${this.fileData.component.name} form-control`;
+                return `${this.fileData.component.name} form-control ${this.loading ? 'loading' : ''}`;
             } else {
                 return '';
             }
@@ -172,6 +186,7 @@ export default {
                     return;
                 }
 
+                this.forcedFileComponent = null;
                 // Do not throw an error while the submission page is loading, i.e. the fileId
                 // has not been set yet.
                 if (!this.file && this.$route.params.fileId) {
@@ -194,6 +209,13 @@ export default {
             this.error = this.$utils.getErrorMessage(err);
             this.loading = false;
         },
+
+        async setForcedFileComponent(fc) {
+            this.loading = true;
+            this.error = '';
+            await this.$afterRerender();
+            this.forcedFileComponent = fc;
+        },
     },
 
     components: {
@@ -209,6 +231,9 @@ export default {
     display: flex;
     flex-direction: column;
 
+    &.html-viewer:not(.loading) {
+        height: 100%;
+    }
     &.pdf-viewer {
         height: 100%;
         flex: 1 1 100%;

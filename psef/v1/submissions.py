@@ -988,3 +988,36 @@ def get_dir_contents(
         )
 
     return jsonify(file.list_contents(exclude_owner))
+
+
+@api.route('/submissions/<int:submission_id>/proxy', methods=['POST'])
+def create_proxy(submission_id: int) -> JSONResponse[models.Proxy]:
+    submission = helpers.filter_single_or_404(
+        models.Work, models.Work.id == submission_id, ~models.Work.deleted
+    )
+    with helpers.get_from_map_transaction(
+        helpers.get_json_dict_from_request()
+    ) as [get, _]:
+        allow_remote_resources = get('allow_remote_resources', bool)
+        allow_remote_scripts = get('allow_remote_scripts', bool)
+        teacher_revision = get('teacher_revision', bool)
+
+    exclude_owner = (
+        models.FileOwner.student
+        if teacher_revision else models.FileOwner.teacher
+    )
+    base_file = models.File.query.filter(
+        models.File.work == submission,
+        models.File.fileowner != exclude_owner,
+        t.cast(models.DbColumn[int], models.File.parent_id).is_(None),
+    ).one()
+
+    proxy = models.Proxy(
+        base_work_file=base_file,
+        excluding_fileowner=exclude_owner,
+        allow_remote_resources=allow_remote_resources,
+        allow_remote_scripts=allow_remote_scripts,
+    )
+    db.session.add(proxy)
+    db.session.commit()
+    return jsonify(proxy)

@@ -68,3 +68,4 @@ export { default as AssignmentSubmitTypes } from './AssignmentSubmitTypes';
 export { default as CgLogo } from './CgLogo';
 export { default as WebhookInstructions } from './WebhookInstructions';
 export { default as LateSubmissionIcon } from './LateSubmissionIcon';
+export { default as HtmlViewer } from './HtmlViewer';

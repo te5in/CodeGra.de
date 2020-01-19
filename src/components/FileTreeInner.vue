@@ -26,10 +26,11 @@
         v-if="!isCollapsed || depth < 2">
         <li v-for="f in tree.entries"
             class="file"
-            :class="{ directory: f.entries, faded: fadeFile(f), active: fileIsSelected(f) }">
+            :class="{ directory: f.entries, faded: fadeFile(f), active: fileIsSelected(f), 'fade-active': fadeSelected }">
             <file-tree-inner v-if="f.entries"
                              :file-tree="fileTree"
                              :tree="f"
+                             :fade-selected="fadeSelected"
                              :revision="revision"
                              :collapsed="shouldCollapseTree(f)"
                              :collapse-function="collapseFunction"
@@ -125,6 +126,10 @@ export default {
         icon: {
             type: String,
             default: '',
+        },
+        fadeSelected: {
+            type: Boolean,
+            default: false,
         },
     },
 
@@ -361,6 +366,10 @@ export default {
         &.active > .label {
             opacity: 1;
             font-weight: bold;
+        }
+
+        &.active.fade-active > .label {
+            opacity: 0.6;
         }
     }
 

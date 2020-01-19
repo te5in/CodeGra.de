@@ -141,8 +141,7 @@ def get_auto_test_output_file(
             CPerm.can_view_autotest_output_files_before_done, assig.course_id
         )
 
-    contents = files.get_file_contents(f)
-    res: 'werkzeug.wrappers.Response' = make_response(contents)
+    res = make_response(f.open())
     res.headers['Content-Type'] = 'application/octet-stream'
     return res
 
