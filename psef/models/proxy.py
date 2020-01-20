@@ -53,7 +53,6 @@ class Proxy(Base, UUIDMixin, TimestampMixin):
         query: t.ClassVar[MyQuery['Proxy']]
     __tablename__ = 'proxy'
 
-    deleted = db.Column('deleted', db.Boolean, default=False, nullable=False)
     max_age = db.Column(
         'max_age',
         db.Interval,
@@ -72,8 +71,8 @@ class Proxy(Base, UUIDMixin, TimestampMixin):
     base_at_result_file_id = db.Column(
         'base_at_result_file_id',
         UUIDType,
-        db.ForeignKey('auto_test_output_file.id'),
-        nullable=True
+        db.ForeignKey('auto_test_output_file.id', ondelete='CASCADE'),
+        nullable=True,
     )
     base_at_result_file = db.relationship(
         'AutoTestOutputFile', foreign_keys=base_at_result_file_id
@@ -151,6 +150,14 @@ class Proxy(Base, UUIDMixin, TimestampMixin):
             allow_remote_resources=allow_remote_resources,
             allow_remote_scripts=allow_remote_scripts
         )
+
+    @property
+    def deleted(self) -> bool:
+        """Is this proxy deleted
+        """
+        if self.base_work_file is None:
+            return False
+        return self.base_work_file.work.deleted
 
     @property
     def csp_header(self) -> str:

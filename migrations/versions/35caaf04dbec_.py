@@ -1,17 +1,17 @@
-"""Add proxy table
+"""Add proxy tables
 
-Revision ID: 9222d614d4bf
+Revision ID: 35caaf04dbec
 Revises: 027757394f6c
-Create Date: 2020-01-19 23:58:21.665034
+Create Date: 2020-01-20 16:59:43.804484
 
 """
-from sqlalchemy.dialects.postgresql import ENUM
 from alembic import op
+from sqlalchemy.dialects.postgresql import ENUM
 import sqlalchemy as sa
 import sqlalchemy_utils
 
 # revision identifiers, used by Alembic.
-revision = '9222d614d4bf'
+revision = '35caaf04dbec'
 down_revision = '027757394f6c'
 branch_labels = None
 depends_on = None
@@ -23,7 +23,6 @@ def upgrade():
     sa.Column('id', sqlalchemy_utils.types.uuid.UUIDType(), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('updated_at', sa.DateTime(), nullable=False),
-    sa.Column('deleted', sa.Boolean(), nullable=False),
     sa.Column('max_age', sa.Interval(), nullable=False),
     sa.Column('base_work_file_id', sa.Integer(), nullable=True),
     sa.Column('base_at_result_file_id', sqlalchemy_utils.types.uuid.UUIDType(), nullable=True),
@@ -33,7 +32,7 @@ def upgrade():
     sa.CheckConstraint('(base_at_result_file_id is NULL) != (base_work_file_id is NULL)', name='either_at_result_file_or_work_file'),
     sa.CheckConstraint('(base_at_result_file_id is NULL) or (excluding_fileowner is NULL)', name='fileowner_null_iff_work_file_id_null'),
     sa.CheckConstraint('allow_remote_resources or not allow_remote_scripts', name='remote_scripts_only_true_when_remote_resources_true'),
-    sa.ForeignKeyConstraint(['base_at_result_file_id'], ['auto_test_output_file.id'], ),
+    sa.ForeignKeyConstraint(['base_at_result_file_id'], ['auto_test_output_file.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['base_work_file_id'], ['File.id'], ),
     sa.PrimaryKeyConstraint('id')
     )

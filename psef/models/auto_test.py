@@ -78,7 +78,7 @@ class AutoTestSuite(Base, TimestampMixin, IdMixin):
     auto_test_set_id: int = db.Column(
         'auto_test_set_id',
         db.Integer,
-        db.ForeignKey('AutoTestSet.id'),
+        db.ForeignKey('AutoTestSet.id', ondelete='CASCADE'),
         nullable=False
     )
 
@@ -93,7 +93,6 @@ class AutoTestSuite(Base, TimestampMixin, IdMixin):
     steps = db.relationship(
         "AutoTestStepBase",
         back_populates="suite",
-        cascade='all,delete,delete-orphan',
         order_by='AutoTestStepBase.order'
     )  # type: t.MutableSequence[auto_test_step_models.AutoTestStepBase]
 
@@ -196,7 +195,7 @@ class AutoTestSet(Base, TimestampMixin, IdMixin):
     auto_test_id: int = db.Column(
         'auto_test_id',
         db.Integer,
-        db.ForeignKey('AutoTest.id'),
+        db.ForeignKey('AutoTest.id', ondelete='CASCADE'),
         nullable=False
     )
 
@@ -211,7 +210,6 @@ class AutoTestSet(Base, TimestampMixin, IdMixin):
     suites = db.relationship(
         "AutoTestSuite",
         back_populates="auto_test_set",
-        cascade='all,delete,delete-orphan',
         order_by='AutoTestSuite.created_at'
     )  # type: t.MutableSequence[AutoTestSuite]
 
@@ -252,7 +250,7 @@ class AutoTestResult(Base, TimestampMixin, IdMixin, NotEqualMixin):
     auto_test_run_id: int = db.Column(
         'auto_test_run_id',
         db.Integer,
-        db.ForeignKey('AutoTestRun.id'),
+        db.ForeignKey('AutoTestRun.id', ondelete='CASCADE'),
         nullable=False
     )
 
@@ -267,7 +265,7 @@ class AutoTestResult(Base, TimestampMixin, IdMixin, NotEqualMixin):
     auto_test_runner_id: t.Optional[uuid.UUID] = db.Column(
         'auto_test_runner_id',
         UUIDType,
-        db.ForeignKey('AutoTestRunner.id'),
+        db.ForeignKey('AutoTestRunner.id', ondelete='CASCADE'),
         nullable=True,
     )
 
@@ -300,7 +298,6 @@ class AutoTestResult(Base, TimestampMixin, IdMixin, NotEqualMixin):
     step_results = db.relationship(
         'AutoTestStepResult',
         back_populates='result',
-        cascade='all,delete,delete-orphan',
         order_by='AutoTestStepResult.created_at',
         lazy='selectin',
     )  # type: t.MutableSequence[auto_test_step_models.AutoTestStepResult]
@@ -582,7 +579,7 @@ class AutoTestRunner(Base, TimestampMixin, UUIDMixin, NotEqualMixin):
     run_id: t.Optional[int] = db.Column(
         'run_id',
         db.Integer,
-        db.ForeignKey('AutoTestRun.id'),
+        db.ForeignKey('AutoTestRun.id', ondelete='CASCADE'),
         nullable=True,
         default=None,
     )
@@ -658,7 +655,7 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
     auto_test_id: int = db.Column(
         'auto_test_id',
         db.Integer,
-        db.ForeignKey('AutoTest.id'),
+        db.ForeignKey('AutoTest.id', ondelete='CASCADE'),
         nullable=False
     )
 
@@ -693,7 +690,6 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
     results = db.relationship(
         'AutoTestResult',
         back_populates='run',
-        cascade='all,delete',
         order_by='AutoTestResult.created_at'
     )  # type: t.MutableSequence[AutoTestResult]
 
@@ -1138,14 +1134,12 @@ class AutoTest(Base, TimestampMixin, IdMixin):
     sets = db.relationship(
         "AutoTestSet",
         back_populates="auto_test",
-        cascade='all,delete,delete-orphan',
         order_by='AutoTestSet.created_at'
     )  # type: t.MutableSequence[AutoTestSet]
 
     _runs = db.relationship(
         "AutoTestRun",
         back_populates="auto_test",
-        cascade='all,delete,delete-orphan',
         order_by='AutoTestRun.created_at'
     )  # type: t.MutableSequence[AutoTestRun]
 
