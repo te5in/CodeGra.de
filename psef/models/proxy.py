@@ -15,6 +15,7 @@ from . import (
     Base, File, MyQuery, FileOwner, NestedFileMixin, AutoTestOutputFile, db
 )
 from .. import helpers
+from ..exceptions import APICodes, APIException
 
 T = t.TypeVar('T')
 
@@ -110,9 +111,65 @@ class Proxy(Base, UUIDMixin, TimestampMixin):
         ),
     )
 
+    @t.overload
+    def __init__(
+        self,
+        *,
+        base_at_result_file: AutoTestOutputFile,
+        allow_remote_resources: bool,
+        allow_remote_scripts: bool,
+    ) -> None:  # pragma: no cover
+        pass
+
+    @t.overload
+    def __init__(
+        self,
+        *,
+        base_work_file: File,
+        excluding_fileowner: FileOwner,
+        allow_remote_resources: bool,
+        allow_remote_scripts: bool,
+    ) -> None:  # pragma: no cover
+        pass
+
+    def __init__(
+        self, *, allow_remote_resources: bool, allow_remote_scripts: bool,
+        **kwargs: object
+    ) -> None:
+        if allow_remote_scripts and not allow_remote_resources:
+            raise APIException(
+                (
+                    'The value "allow_remote_scripts" can only be true if'
+                    ' "allow_remote_resources" is true.'
+                ), (
+                    'Invalid combination of remote_scripts and'
+                    ' remote_resources found'
+                ), APICodes.INVALID_PARAM, 400
+            )
+        super().__init__(
+            **kwargs,
+            allow_remote_resources=allow_remote_resources,
+            allow_remote_scripts=allow_remote_scripts
+        )
+
     @property
     def csp_header(self) -> str:
         """Get the csp header for this proxy.
+
+        >>> strict = Proxy(allow_remote_resources=False,
+        ...  allow_remote_scripts=False)
+        >>> liberal = Proxy(allow_remote_resources=True,
+        ...  allow_remote_scripts=False)
+        >>> open = Proxy(allow_remote_resources=True,
+        ...  allow_remote_scripts=True)
+        >>> strict.csp_header == "default-src 'self' 'unsafe-inline'"
+        True
+        >>> open.csp_header == "default-src * 'unsafe-eval' 'unsafe-inline'"
+        True
+        >>> liberal.csp_header != open.csp_header
+        True
+        >>> liberal.csp_header != strict.csp_header
+        True
         """
         if not self.allow_remote_resources:
             return "default-src 'self' 'unsafe-inline'"

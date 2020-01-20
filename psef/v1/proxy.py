@@ -35,15 +35,12 @@ def get_proxy_file(
             400,
         )
 
-    path, is_dir = files.split_path(os.path.normpath(path_str))
-    if not path or is_dir:
-        raise APIException(
-            'The given path is empty or a directory.',
-            f'The path "{path_str}" is not a normal file.',
-            APICodes.OBJECT_NOT_FOUND, 404
-        )
+    path, _ = files.split_path(os.path.normpath(path_str))
+    # Flask should not match this route if path is empty
+    assert path
+
     found_file = proxy.get_file(path)
-    if found_file is None:
+    if found_file is None or found_file.is_directory:
         raise APIException(
             'The given file could not be found.',
             f'The path "{path_str}" was not found in this proxy.',
