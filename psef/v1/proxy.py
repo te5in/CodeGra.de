@@ -50,7 +50,7 @@ def get_proxy_file(
             APICodes.OBJECT_NOT_FOUND, 404
         )
 
-    ctype, encoding = mimetypes.guess_type(path_str)
+    ctype, _ = mimetypes.guess_type(path_str)
     res = flask.Response(found_file.open(), mimetype=ctype)
     res.headers['Content-Security-Policy'] = proxy.csp_header
     return res
