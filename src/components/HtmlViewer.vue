@@ -54,15 +54,16 @@
         <a href="#" @click.capture.prevent.stop="rejectWarning">click here</a> to
         show the source.
     </b-alert>
-    <loader v-if="!loaded" page-loader />
+    <loader v-if="!loaded" class="pt-3"/>
 
     <iframe :src="iframeSrc"
             ref="iframe"
             class="border-0"
+            v-if="proxyId"
             :class=" loaded ? 'flex-grow-1' : ''"
             :style="{ opacity: loaded ? 1 : 0 }"
             @load="onLoad"
-            :csp="iframeCsp"
+            @loading="log"
             referrer="no-referrer"
             :sandbox="allowScripts ? 'allow-scripts allow-popups' : 'allow-popups'"/>
 </div>
@@ -133,11 +134,14 @@ export default {
             handler() {
                 this.setDefaultOptions();
 
+                this.$emit('load');
                 if (this.isMyFile) {
-                    this.$emit('load');
-                    this.getIframeSrc().then(this.afterGetIframeSrc, err => this.$emit('error', err));
-                } else {
-                    this.$emit('load');
+                    this.getIframeSrc().then(
+                        data => {
+                            this.afterGetIframeSrc(data);
+                        },
+                        err => this.$emit('error', err),
+                    );
                 }
             },
         },
@@ -204,10 +208,6 @@ export default {
             }
         },
 
-        iframeCsp() {
-            return "default-src 'self'";
-        },
-
         hasFeedback() {
             if (!this.showInlineFeedback || this.revision !== 'student') {
                 return false;
@@ -267,17 +267,20 @@ export default {
                 }
                 const suiteId = curFile.autoTestSuiteId;
                 const resultId = this.autoTestRun.findResultBySubId(this.submission.id).id;
-                url = `/api/v1/auto_tests/${this.assignment.auto_test_id}/runs/${this.autoTestRun.id}/results/${resultId}/suites/${suiteId}/proxy`;
+                url = `/api/v1/auto_tests/${this.assignment.auto_test_id}/runs/${
+                    this.autoTestRun.id
+                }/results/${resultId}/suites/${suiteId}/proxy`;
             } else {
                 url = `/api/v1/submissions/${this.submission.id}/proxy`;
             }
 
-            return this.$http.post(url, {
-                allow_remote_resources: this.allowRemoteResources,
-                allow_remote_scripts: this.allowRemoteScripts,
-                teacher_revision: this.revision === 'teacher',
-            }).catch(
-                err => {
+            return this.$http
+                .post(url, {
+                    allow_remote_resources: this.allowRemoteResources,
+                    allow_remote_scripts: this.allowRemoteScripts,
+                    teacher_revision: this.revision === 'teacher',
+                })
+                .catch(err => {
                     if (this.isMyFile) {
                         this.$emit(
                             'error',
@@ -287,8 +290,7 @@ export default {
                         );
                     }
                     throw err;
-                },
-            );
+                });
         },
 
         afterGetIframeSrc({ data }) {
@@ -304,6 +306,8 @@ export default {
         onLoad() {
             this.loaded = true;
         },
+
+        log: console.log,
     },
 
     components: {

@@ -1,4 +1,5 @@
 import { FileTree } from '@/models/submission';
+import * as utils from '@/utils';
 
 describe('The submission file tree', () => {
     let mockStudentTree;
@@ -82,11 +83,7 @@ describe('The submission file tree', () => {
             for (let i = 0; i < fileTree.diff.entries.length; i++) {
                 const e = fileTree.diff.entries[i];
 
-                if (e.entries) {
-                    expect(e.ids).not.toBeDefined();
-                } else {
-                    expect(e.ids[0]).toBe(e.ids[1]);
-                }
+                expect(e.ids[0]).toBe(e.ids[1]);
             }
         });
     });
@@ -146,11 +143,12 @@ describe('The submission file tree', () => {
         });
 
         it('should find the item whose revision\'s id is equal to the requested id', () => {
+            // The revision of file with id 5 has id 1
             const f1 = fileTree.search('student', 5);
+            expect(f1.id).toBe(1);
+
             const d1 = fileTree.search('diff', 1);
             const d5 = fileTree.search('diff', 5);
-
-            expect(f1.id).toBe(1);
             expect(d1.ids).toEqual([1, 5]);
             expect(d5.ids).toEqual([1, 5]);
         });
@@ -211,6 +209,7 @@ describe('The submission file tree', () => {
 
             expect(fileTree.diff).toEqual({
                 name: 'root1',
+                ids: [1, 1],
                 entries: [
                     {
                         name: 'file1',
@@ -219,12 +218,13 @@ describe('The submission file tree', () => {
                     {
                         name: 'sub1',
                         entries: [{ name: 'file2', ids: [4, 4] }],
+                        ids: [3, 3]
                     },
                 ],
             });
 
             // No revision should be added
-            expect(fileTree.student.entries[0].revision).toBe(undefined);
+            expect(fileTree.hasRevision(fileTree.student.entries[0])).toBe(false);
         });
 
         it('should work with a modified tree', () => {
@@ -232,6 +232,7 @@ describe('The submission file tree', () => {
 
             expect(fileTree.diff).toEqual({
                 name: 'root1',
+                ids: [1, 1],
                 entries: [
                     {
                         name: 'file1',
@@ -239,6 +240,7 @@ describe('The submission file tree', () => {
                     },
                     {
                         name: 'sub1',
+                        ids: [3, 3],
                         entries: [
                             { name: 'file2', ids: [4, 5] },
                             { name: 'file3', ids: [null, 6] },
@@ -246,16 +248,8 @@ describe('The submission file tree', () => {
                     },
                 ],
             });
-            expect(tree1.entries[0]).toEqual({
-                name: 'file1',
-                id: 2,
-                revision: null,
-            });
-            expect(tree1.entries[1]).toEqual({
-                entries: [{ name: 'file2', id: 4, revision: expect.any(Object) }],
-                name: 'sub1',
-                id: 3,
-            });
+            expect(fileTree.hasRevision(tree1.entries[0])).toBe(true);
+            expect(fileTree.getRevisionId(tree1.entries[0])).toBe(null);
         });
 
         it('should work with a inserted directory', () => {
@@ -263,6 +257,7 @@ describe('The submission file tree', () => {
 
             expect(fileTree.diff).toEqual({
                 name: 'root1',
+                ids: [1, 1],
                 entries: [
                     {
                         name: 'file1',
@@ -270,10 +265,12 @@ describe('The submission file tree', () => {
                     },
                     {
                         name: 'sub1',
+                        ids: [3, 3],
                         entries: [{ name: 'file2', ids: [4, 4] }],
                     },
                     {
                         name: 'sub2',
+                        ids: [null, 4],
                         entries: [{ name: 'file4', ids: [null, 7] }],
                     },
                 ],
@@ -285,6 +282,7 @@ describe('The submission file tree', () => {
 
             expect(fileTree.diff).toEqual({
                 name: 'root1',
+                ids: [1, 1],
                 entries: [
                     {
                         name: 'file1',
@@ -292,6 +290,7 @@ describe('The submission file tree', () => {
                     },
                     {
                         name: 'sub1',
+                        ids: [3, null],
                         entries: [{ name: 'file2', ids: [4, null] }],
                     },
                     {
@@ -300,12 +299,7 @@ describe('The submission file tree', () => {
                     },
                 ],
             });
-            expect(tree1.entries[1]).toEqual({
-                entries: expect.any(Array),
-                name: 'sub1',
-                revision: expect.any(Object),
-                id: 3,
-            });
+            expect(fileTree.hasRevision(tree1.entries[1])).toBe(true);
         });
 
         it('should work when replacing a file with a directory', () => {
@@ -313,6 +307,7 @@ describe('The submission file tree', () => {
 
             expect(fileTree.diff).toEqual({
                 name: 'root1',
+                ids: [1, 1],
                 entries: [
                     {
                         name: 'file1',
@@ -320,6 +315,7 @@ describe('The submission file tree', () => {
                     },
                     {
                         name: 'sub1',
+                        ids: [null, 3],
                         entries: [{ name: 'file2', ids: [null, 4] }],
                     },
                     {
@@ -328,11 +324,12 @@ describe('The submission file tree', () => {
                     },
                 ],
             });
-            expect(tree4.entries[1]).toEqual({
-                name: 'sub1',
-                revision: expect.any(Object),
-                id: 8,
-            });
+            expect(fileTree.hasRevision(tree4.entries[1])).toBe(true);
+            expect(fileTree.hasRevision(tree1.entries[1])).toBe(true);
+
+            // They don't have a equivalent, as they are of different types.
+            expect(fileTree.getRevisionId(tree4.entries[1])).toBe(null);
+            expect(fileTree.getRevisionId(tree1.entries[1])).toBe(null);
         });
     });
 });

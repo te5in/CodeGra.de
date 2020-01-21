@@ -93,7 +93,7 @@ export default {
             forcedFileComponent: null,
             fileTypes: [
                 {
-                    cond: f => f.name.endsWith('.html'),
+                    cond: f => f.name.endsWith('.html') && this.revision !== 'diff',
                     component: HtmlViewer,
                     showLanguage: false,
                     scroller: false,
@@ -164,7 +164,9 @@ export default {
 
         dynamicClasses() {
             if (this.fileData) {
-                return `${this.fileData.component.name} form-control ${this.loading ? 'loading' : ''}`;
+                return `${this.fileData.component.name} form-control ${
+                    this.loading ? 'loading' : ''
+                }`;
             } else {
                 return '';
             }
