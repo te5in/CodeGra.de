@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>psef.lti &mdash; CodeGrade v1.18.0 documentation</title>
+  <title>psef.lti &mdash; CodeGrade v1.18.3 documentation</title>
   
 
   
@@ -65,7 +65,7 @@
             
             
               <div class="version">
-                v1.18.0
+                v1.18.3
               </div>
             
           
@@ -226,7 +226,7 @@
 <span class="kn">from</span> <span class="nn">.auth</span> <span class="kn">import</span> <span class="n">_user_active</span>
 <span class="kn">from</span> <span class="nn">.models</span> <span class="kn">import</span> <span class="n">db</span>
 <span class="kn">from</span> <span class="nn">.helpers</span> <span class="kn">import</span> <span class="n">register</span>
-<span class="kn">from</span> <span class="nn">.exceptions</span> <span class="kn">import</span> <span class="n">APICodes</span><span class="p">,</span> <span class="n">APIException</span>
+<span class="kn">from</span> <span class="nn">.exceptions</span> <span class="kn">import</span> <span class="n">APICodes</span><span class="p">,</span> <span class="n">APIWarnings</span><span class="p">,</span> <span class="n">APIException</span>
 
 <span class="n">logger</span> <span class="o">=</span> <span class="n">structlog</span><span class="o">.</span><span class="n">get_logger</span><span class="p">()</span>
 
@@ -253,9 +253,11 @@
 
 <span class="sd">    :ivar internal: The name the property should be names in the launch params.</span>
 <span class="sd">    :ivar external: The external name of the property.</span>
+<span class="sd">    :ivar error_on_missing: This is considered a essential property.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">internal</span><span class="p">:</span> <span class="nb">str</span>
-    <span class="n">external</span><span class="p">:</span> <span class="nb">str</span></div>
+    <span class="n">external</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">error_on_missing</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span></div>
 
 
 <div class="viewcode-block" id="LTIRoleException"><a class="viewcode-back" href="../../psef_api/psef.html#psef.lti.LTIRoleException">[docs]</a><span class="k">class</span> <span class="nc">LTIRoleException</span><span class="p">(</span><span class="n">APIException</span><span class="p">):</span>
@@ -517,7 +519,9 @@
         <span class="n">lms</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s1">&#39;custom_lms_name&#39;</span><span class="p">]</span>
         <span class="bp">cls</span> <span class="o">=</span> <span class="n">lti_classes</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">lms</span><span class="p">)</span>
         <span class="k">assert</span> <span class="bp">cls</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
-        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">params</span><span class="p">)</span></div>
+        <span class="n">res</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
+        <span class="n">res</span><span class="o">.</span><span class="n">ensure_lti_data_correct</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">res</span></div>
 
 <div class="viewcode-block" id="LTI.get_lti_properties"><a class="viewcode-back" href="../../psef_api/psef.html#psef.lti.LTI.get_lti_properties">[docs]</a>    <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">get_lti_properties</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="n">LTIProperty</span><span class="p">]:</span>
@@ -648,6 +652,14 @@
     <span class="k">def</span> <span class="nf">global_roles</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Sequence</span><span class="p">[</span><span class="n">LTIGlobalRole</span><span class="p">]:</span>
         <span class="sd">&quot;&quot;&quot;The global roles of the user doing the launch.&quot;&quot;&quot;</span>
         <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+
+<div class="viewcode-block" id="LTI.ensure_lti_data_correct"><a class="viewcode-back" href="../../psef_api/psef.html#psef.lti.LTI.ensure_lti_data_correct">[docs]</a>    <span class="k">def</span> <span class="nf">ensure_lti_data_correct</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>  <span class="c1"># pylint: disable=no-self-use</span>
+        <span class="sd">&quot;&quot;&quot;Make sure the lti data is correct.</span>
+
+<span class="sd">        This is the place were you can do some sanity checks, and make sure the</span>
+<span class="sd">        setup of the assignment was done correct.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span></div>
 
     <span class="k">def</span> <span class="nf">_roles</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
                <span class="n">role_type</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Type</span><span class="p">[</span><span class="n">T_LTI_ROLE</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Sequence</span><span class="p">[</span><span class="n">T_LTI_ROLE</span><span class="p">]:</span>
@@ -783,6 +795,25 @@
 
         <span class="k">return</span> <span class="n">course</span></div>
 
+<div class="viewcode-block" id="LTI.create_and_add_assignment"><a class="viewcode-back" href="../../psef_api/psef.html#psef.lti.LTI.create_and_add_assignment">[docs]</a>    <span class="k">def</span> <span class="nf">create_and_add_assignment</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">course</span><span class="p">:</span> <span class="n">models</span><span class="o">.</span><span class="n">Course</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">models</span><span class="o">.</span><span class="n">Assignment</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Create a new assignment in the database from the launch parameters.</span>
+
+<span class="sd">        This function also adds the created assignment to the current session.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">assignment</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">Assignment</span><span class="p">(</span>
+            <span class="n">name</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">assignment_name</span><span class="p">,</span>
+            <span class="n">state</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">assignment_state</span><span class="p">,</span>
+            <span class="n">course</span><span class="o">=</span><span class="n">course</span><span class="p">,</span>
+            <span class="n">deadline</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">get_assignment_deadline</span><span class="p">(),</span>
+            <span class="n">lti_assignment_id</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">assignment_id</span><span class="p">,</span>
+            <span class="n">description</span><span class="o">=</span><span class="s1">&#39;&#39;</span>
+        <span class="p">)</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">assignment</span><span class="p">)</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">assignment</span></div>
+
 <div class="viewcode-block" id="LTI.get_assignment"><a class="viewcode-back" href="../../psef_api/psef.html#psef.lti.LTI.get_assignment">[docs]</a>    <span class="k">def</span> <span class="nf">get_assignment</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span> <span class="n">user</span><span class="p">:</span> <span class="n">models</span><span class="o">.</span><span class="n">User</span><span class="p">,</span> <span class="n">course</span><span class="p">:</span> <span class="n">models</span><span class="o">.</span><span class="n">Course</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">models</span><span class="o">.</span><span class="n">Assignment</span><span class="p">:</span>
@@ -792,16 +823,7 @@
             <span class="n">lti_assignment_id</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">assignment_id</span><span class="p">,</span>
         <span class="p">)</span><span class="o">.</span><span class="n">first</span><span class="p">()</span>
         <span class="k">if</span> <span class="n">assignment</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">assignment</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">Assignment</span><span class="p">(</span>
-                <span class="n">name</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">assignment_name</span><span class="p">,</span>
-                <span class="n">state</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">assignment_state</span><span class="p">,</span>
-                <span class="n">course</span><span class="o">=</span><span class="n">course</span><span class="p">,</span>
-                <span class="n">deadline</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">get_assignment_deadline</span><span class="p">(),</span>
-                <span class="n">lti_assignment_id</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">assignment_id</span><span class="p">,</span>
-                <span class="n">description</span><span class="o">=</span><span class="s1">&#39;&#39;</span>
-            <span class="p">)</span>
-            <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">assignment</span><span class="p">)</span>
-            <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
+            <span class="n">assignment</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_and_add_assignment</span><span class="p">(</span><span class="n">course</span><span class="o">=</span><span class="n">course</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">assignment</span><span class="o">.</span><span class="n">deleted</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">APIException</span><span class="p">(</span>
@@ -811,12 +833,15 @@
             <span class="p">)</span>
 
         <span class="k">if</span> <span class="n">assignment</span><span class="o">.</span><span class="n">course</span> <span class="o">!=</span> <span class="n">course</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
-                <span class="s1">&#39;Assignment changed course!&#39;</span><span class="p">,</span>
-                <span class="n">assignment</span><span class="o">=</span><span class="n">assignment</span><span class="p">,</span>
-                <span class="n">course</span><span class="o">=</span><span class="n">course</span><span class="p">,</span>
+            <span class="k">raise</span> <span class="n">APIException</span><span class="p">(</span>
+                <span class="p">(</span>
+                    <span class="s1">&#39;The assignment was previously connected to a different&#39;</span>
+                    <span class="s1">&#39; course.&#39;</span>
+                <span class="p">),</span> <span class="p">(</span>
+                    <span class="sa">f</span><span class="s1">&#39;The assignment </span><span class="si">{self.assignment_id}</span><span class="s1"> was previously&#39;</span>
+                    <span class="sa">f</span><span class="s1">&#39; connected to </span><span class="si">{course.id}</span><span class="s1">&#39;</span>
+                <span class="p">),</span> <span class="n">APICodes</span><span class="o">.</span><span class="n">INVALID_STATE</span><span class="p">,</span> <span class="mi">400</span>
             <span class="p">)</span>
-            <span class="n">assignment</span><span class="o">.</span><span class="n">course</span> <span class="o">=</span> <span class="n">course</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_result_sourcedid</span><span class="p">():</span>
             <span class="k">if</span> <span class="n">assignment</span><span class="o">.</span><span class="n">id</span> <span class="ow">in</span> <span class="n">user</span><span class="o">.</span><span class="n">assignment_results</span><span class="p">:</span>
@@ -1088,6 +1113,22 @@
         <span class="sd">&quot;&quot;&quot;Canvas supports common cartridges&quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="kc">True</span></div>
 
+<div class="viewcode-block" id="CanvasLTI.ensure_lti_data_correct"><a class="viewcode-back" href="../../psef_api/psef.html#psef.lti.CanvasLTI.ensure_lti_data_correct">[docs]</a>    <span class="k">def</span> <span class="nf">ensure_lti_data_correct</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">ensure_lti_data_correct</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">lti_prop</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_lti_properties</span><span class="p">():</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">lti_prop</span><span class="o">.</span><span class="n">error_on_missing</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">launch_params</span><span class="p">[</span><span class="n">lti_prop</span><span class="o">.</span><span class="n">internal</span><span class="p">]</span> <span class="o">==</span> <span class="n">lti_prop</span><span class="o">.</span><span class="n">external</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">APIException</span><span class="p">(</span>
+                    <span class="p">(</span>
+                        <span class="s1">&#39;It seems that CodeGrade was not added correctly as an&#39;</span>
+                        <span class="s1">&#39; assignment to this module, are you sure you did not&#39;</span>
+                        <span class="s1">&#39; add CodeGrade directly as an external tool?&#39;</span>
+                    <span class="p">),</span>
+                    <span class="sa">f</span><span class="s2">&quot;The property </span><span class="si">{lti_prop.external}</span><span class="s2"> didn&#39;t have a value.&quot;</span><span class="p">,</span>
+                    <span class="n">APICodes</span><span class="o">.</span><span class="n">MISSING_REQUIRED_PARAM</span><span class="p">,</span> <span class="mi">400</span>
+                <span class="p">)</span></div>
+
 <div class="viewcode-block" id="CanvasLTI.get_lti_properties"><a class="viewcode-back" href="../../psef_api/psef.html#psef.lti.CanvasLTI.get_lti_properties">[docs]</a>    <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">get_lti_properties</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="n">LTIProperty</span><span class="p">]:</span>
         <span class="sd">&quot;&quot;&quot;All extension properties used by Canvas.</span>
@@ -1097,31 +1138,35 @@
         <span class="k">return</span> <span class="p">[</span>
             <span class="n">LTIProperty</span><span class="p">(</span>
                 <span class="n">internal</span><span class="o">=</span><span class="s1">&#39;custom_canvas_course_name&#39;</span><span class="p">,</span>
-                <span class="n">external</span><span class="o">=</span><span class="s1">&#39;$Canvas.course.name&#39;</span>
+                <span class="n">external</span><span class="o">=</span><span class="s1">&#39;$Canvas.course.name&#39;</span><span class="p">,</span>
+                <span class="n">error_on_missing</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
             <span class="p">),</span>
             <span class="n">LTIProperty</span><span class="p">(</span>
                 <span class="n">internal</span><span class="o">=</span><span class="s1">&#39;custom_canvas_course_id&#39;</span><span class="p">,</span>
-                <span class="n">external</span><span class="o">=</span><span class="s1">&#39;$Canvas.course.id&#39;</span>
+                <span class="n">external</span><span class="o">=</span><span class="s1">&#39;$Canvas.course.id&#39;</span><span class="p">,</span>
+                <span class="n">error_on_missing</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
             <span class="p">),</span>
             <span class="n">LTIProperty</span><span class="p">(</span>
                 <span class="n">internal</span><span class="o">=</span><span class="s1">&#39;custom_canvas_assignment_id&#39;</span><span class="p">,</span>
-                <span class="n">external</span><span class="o">=</span><span class="s1">&#39;$Canvas.assignment.id&#39;</span>
+                <span class="n">external</span><span class="o">=</span><span class="s1">&#39;$Canvas.assignment.id&#39;</span><span class="p">,</span>
+                <span class="n">error_on_missing</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
             <span class="p">),</span>
             <span class="n">LTIProperty</span><span class="p">(</span>
                 <span class="n">internal</span><span class="o">=</span><span class="s1">&#39;custom_canvas_assignment_title&#39;</span><span class="p">,</span>
-                <span class="n">external</span><span class="o">=</span><span class="s1">&#39;$Canvas.assignment.title&#39;</span>
+                <span class="n">external</span><span class="o">=</span><span class="s1">&#39;$Canvas.assignment.title&#39;</span><span class="p">,</span>
+                <span class="n">error_on_missing</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
             <span class="p">),</span>
             <span class="n">LTIProperty</span><span class="p">(</span>
                 <span class="n">internal</span><span class="o">=</span><span class="s1">&#39;custom_canvas_assignment_due_at&#39;</span><span class="p">,</span>
-                <span class="n">external</span><span class="o">=</span><span class="s1">&#39;$Canvas.assignment.dueAt.iso8601&#39;</span>
+                <span class="n">external</span><span class="o">=</span><span class="s1">&#39;$Canvas.assignment.dueAt.iso8601&#39;</span><span class="p">,</span>
             <span class="p">),</span>
             <span class="n">LTIProperty</span><span class="p">(</span>
                 <span class="n">internal</span><span class="o">=</span><span class="s1">&#39;custom_canvas_assignment_published&#39;</span><span class="p">,</span>
-                <span class="n">external</span><span class="o">=</span><span class="s1">&#39;$Canvas.assignment.published&#39;</span>
+                <span class="n">external</span><span class="o">=</span><span class="s1">&#39;$Canvas.assignment.published&#39;</span><span class="p">,</span>
             <span class="p">),</span>
             <span class="n">LTIProperty</span><span class="p">(</span>
                 <span class="n">internal</span><span class="o">=</span><span class="s1">&#39;custom_canvas_points_possible&#39;</span><span class="p">,</span>
-                <span class="n">external</span><span class="o">=</span><span class="s1">&#39;$Canvas.assignment.pointsPossible&#39;</span>
+                <span class="n">external</span><span class="o">=</span><span class="s1">&#39;$Canvas.assignment.pointsPossible&#39;</span><span class="p">,</span>
             <span class="p">),</span>
         <span class="p">]</span></div>
 
@@ -1175,6 +1220,22 @@
 
 <div class="viewcode-block" id="CanvasLTI.has_result_sourcedid"><a class="viewcode-back" href="../../psef_api/psef.html#psef.lti.CanvasLTI.has_result_sourcedid">[docs]</a>    <span class="k">def</span> <span class="nf">has_result_sourcedid</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
         <span class="k">return</span> <span class="s1">&#39;lis_result_sourcedid&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">launch_params</span></div>
+
+<div class="viewcode-block" id="CanvasLTI.create_and_add_assignment"><a class="viewcode-back" href="../../psef_api/psef.html#psef.lti.CanvasLTI.create_and_add_assignment">[docs]</a>    <span class="k">def</span> <span class="nf">create_and_add_assignment</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">course</span><span class="p">:</span> <span class="n">models</span><span class="o">.</span><span class="n">Course</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">models</span><span class="o">.</span><span class="n">Assignment</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_outcome_service_url</span><span class="p">():</span>
+            <span class="n">helpers</span><span class="o">.</span><span class="n">add_warning</span><span class="p">(</span>
+                <span class="p">(</span>
+                    <span class="s1">&#39;It seems that CodeGrade was added directly to this module&#39;</span>
+                    <span class="s1">&#39; as an external tool, rather than as a CodeGrade&#39;</span>
+                    <span class="s1">&#39; assignment. Because of this we do not have the&#39;</span>
+                    <span class="s1">&#39; possibility to pass back grades. Make sure to first&#39;</span>
+                    <span class="s1">&#39; create a CodeGrade assignment and then connect that&#39;</span>
+                    <span class="s1">&#39; assignment to the module.&#39;</span>
+                <span class="p">),</span> <span class="n">APIWarnings</span><span class="o">.</span><span class="n">POSSIBLE_LTI_SETUP_ERROR</span>
+            <span class="p">)</span>
+        <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">create_and_add_assignment</span><span class="p">(</span><span class="n">course</span><span class="o">=</span><span class="n">course</span><span class="p">)</span></div>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">assignment_state</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">models</span><span class="o">.</span><span class="n">_AssignmentStateEnum</span><span class="p">:</span>

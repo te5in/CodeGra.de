@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Source code documentation of psef &mdash; CodeGrade v1.18.0 documentation</title>
+  <title>Source code documentation of psef &mdash; CodeGrade v1.18.3 documentation</title>
   
 
   
@@ -66,7 +66,7 @@
             
             
               <div class="version">
-                v1.18.0
+                v1.18.3
               </div>
             
           
@@ -1274,6 +1274,11 @@ from this class.</li>
 <dl class="attribute">
 <dt id="psef.exceptions.APIWarnings.LIMIT_ALREADY_EXCEEDED">
 <code class="descname">LIMIT_ALREADY_EXCEEDED</code><em class="property"> = 15</em><a class="headerlink" href="#psef.exceptions.APIWarnings.LIMIT_ALREADY_EXCEEDED" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="psef.exceptions.APIWarnings.POSSIBLE_LTI_SETUP_ERROR">
+<code class="descname">POSSIBLE_LTI_SETUP_ERROR</code><em class="property"> = 16</em><a class="headerlink" href="#psef.exceptions.APIWarnings.POSSIBLE_LTI_SETUP_ERROR" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="attribute">
@@ -5467,6 +5472,37 @@ launch.</li>
 </dd></dl>
 
 <dl class="method">
+<dt id="psef.lti.CanvasLTI.create_and_add_assignment">
+<code class="descname">create_and_add_assignment</code><span class="sig-paren">(</span><em>self</em>, <em>course: psef.models.course.Course</em><span class="sig-paren">)</span> &#x2192; psef.models.assignment.Assignment<a class="reference internal" href="../_modules/psef/lti.html#CanvasLTI.create_and_add_assignment"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.lti.CanvasLTI.create_and_add_assignment" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create a new assignment in the database from the launch parameters.</p>
+<p>This function also adds the created assignment to the current session.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><a class="reference internal" href="#psef.models.assignment.Assignment" title="psef.models.assignment.Assignment"><code class="xref py py-class docutils literal notranslate"><span class="pre">Assignment</span></code></a></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="psef.lti.CanvasLTI.ensure_lti_data_correct">
+<code class="descname">ensure_lti_data_correct</code><span class="sig-paren">(</span><em>self</em><span class="sig-paren">)</span> &#x2192; None<a class="reference internal" href="../_modules/psef/lti.html#CanvasLTI.ensure_lti_data_correct"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.lti.CanvasLTI.ensure_lti_data_correct" title="Permalink to this definition">¶</a></dt>
+<dd><p>Make sure the lti data is correct.</p>
+<p>This is the place were you can do some sanity checks, and make sure the
+setup of the assignment was done correct.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><code class="docutils literal notranslate"><span class="pre">None</span></code></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
 <dt id="psef.lti.CanvasLTI.get_assignment_deadline">
 <code class="descname">get_assignment_deadline</code><span class="sig-paren">(</span><em>self</em>, <em>default: datetime.datetime = None</em><span class="sig-paren">)</span> &#x2192; Optional[datetime.datetime]<a class="reference internal" href="../_modules/psef/lti.html#CanvasLTI.get_assignment_deadline"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.lti.CanvasLTI.get_assignment_deadline" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get the deadline of the current LTI assignment.</p>
@@ -5812,6 +5848,21 @@ supported or if the data is not present.</td>
 </table>
 </dd></dl>
 
+<dl class="method">
+<dt id="psef.lti.LTI.create_and_add_assignment">
+<code class="descname">create_and_add_assignment</code><span class="sig-paren">(</span><em>self</em>, <em>course: psef.models.course.Course</em><span class="sig-paren">)</span> &#x2192; psef.models.assignment.Assignment<a class="reference internal" href="../_modules/psef/lti.html#LTI.create_and_add_assignment"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.lti.LTI.create_and_add_assignment" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create a new assignment in the database from the launch parameters.</p>
+<p>This function also adds the created assignment to the current session.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><a class="reference internal" href="#psef.models.assignment.Assignment" title="psef.models.assignment.Assignment"><code class="xref py py-class docutils literal notranslate"><span class="pre">Assignment</span></code></a></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
 <dl class="staticmethod">
 <dt id="psef.lti.LTI.create_from_launch_params">
 <em class="property">static </em><code class="descname">create_from_launch_params</code><span class="sig-paren">(</span><em>params: Mapping[str, str]</em><span class="sig-paren">)</span> &#x2192; psef.lti.LTI<a class="reference internal" href="../_modules/psef/lti.html#LTI.create_from_launch_params"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.lti.LTI.create_from_launch_params" title="Permalink to this definition">¶</a></dt>
@@ -5847,6 +5898,22 @@ parameters. So this request should be from an LTI launch.</p>
 <tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body"><a class="reference internal" href="#psef.lti.LTI" title="psef.lti.LTI"><code class="xref py py-class docutils literal notranslate"><span class="pre">LTI</span></code></a></td>
 </tr>
 <tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">A fresh LTI instance.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="psef.lti.LTI.ensure_lti_data_correct">
+<code class="descname">ensure_lti_data_correct</code><span class="sig-paren">(</span><em>self</em><span class="sig-paren">)</span> &#x2192; None<a class="reference internal" href="../_modules/psef/lti.html#LTI.ensure_lti_data_correct"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.lti.LTI.ensure_lti_data_correct" title="Permalink to this definition">¶</a></dt>
+<dd><p>Make sure the lti data is correct.</p>
+<p>This is the place were you can do some sanity checks, and make sure the
+setup of the assignment was done correct.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><code class="docutils literal notranslate"><span class="pre">None</span></code></td>
 </tr>
 </tbody>
 </table>
@@ -6380,7 +6447,7 @@ changing the max points.</td>
 
 <dl class="class">
 <dt id="psef.lti.LTIProperty">
-<em class="property">class </em><code class="descclassname">psef.lti.</code><code class="descname">LTIProperty</code><span class="sig-paren">(</span><em>self</em>, <em>internal: str</em>, <em>external: str</em><span class="sig-paren">)</span> &#x2192; None<a class="reference internal" href="../_modules/psef/lti.html#LTIProperty"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.lti.LTIProperty" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="descclassname">psef.lti.</code><code class="descname">LTIProperty</code><span class="sig-paren">(</span><em>self</em>, <em>internal: str</em>, <em>external: str</em>, <em>error_on_missing: bool = False</em><span class="sig-paren">)</span> &#x2192; None<a class="reference internal" href="../_modules/psef/lti.html#LTIProperty"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.lti.LTIProperty" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
 <p>An LTI property.</p>
 <table class="docutils field-list" frame="void" rules="none">
@@ -6390,11 +6457,17 @@ changing the max points.</td>
 <tr class="field-odd field"><th class="field-name">Variables:</th><td class="field-body"><ul class="first last simple">
 <li><strong>internal</strong> – The name the property should be names in the launch params.</li>
 <li><strong>external</strong> – The external name of the property.</li>
+<li><a class="reference internal" href="#psef.lti.LTIProperty.error_on_missing" title="psef.lti.LTIProperty.error_on_missing"><strong>error_on_missing</strong></a> – This is considered a essential property.</li>
 </ul>
 </td>
 </tr>
 </tbody>
 </table>
+<dl class="attribute">
+<dt id="psef.lti.LTIProperty.error_on_missing">
+<code class="descname">error_on_missing</code><em class="property"> = False</em><a class="headerlink" href="#psef.lti.LTIProperty.error_on_missing" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
 </dd></dl>
 
 <dl class="class">
