@@ -17,7 +17,6 @@ const SERVER_PROPS = new Set([
     'whitespace_linter',
     'done_type',
     'done_email',
-    'reminder_time',
     'fixed_max_rubric_points',
     'max_grade',
     'group_set',
@@ -27,6 +26,7 @@ const SERVER_PROPS = new Set([
     'webhook_upload_enabled',
     'max_submissions',
     'amount_in_cool_off_period',
+    'lms_name',
 ]);
 
 const ALLOWED_UPDATE_PROPS = new Set([

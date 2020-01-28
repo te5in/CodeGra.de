@@ -1001,25 +1001,27 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
             'cgignore': None if cgignore is None else cgignore.export(),
             'cgignore_version': self._cgignore_version,
             'whitespace_linter': self.whitespace_linter,
-            'done_type': None,
-            'done_email': None,
-            'reminder_time': None,
             'fixed_max_rubric_points': self.fixed_max_rubric_points,
             'max_grade': self._max_grade,
             'group_set': self.group_set,
-            'division_parent_id': None,
             'auto_test_id': self.auto_test_id,
             'files_upload_enabled': self.files_upload_enabled,
             'webhook_upload_enabled': self.webhook_upload_enabled,
             'max_submissions': self.max_submissions,
             'cool_off_period': self.cool_off_period.total_seconds(),
             'amount_in_cool_off_period': self.amount_in_cool_off_period,
+
+            # These are all filled in based on permissions and data
+            # availability.
+            'reminder_time': None,
+            'lms_name': None,
+            'done_type': None,
+            'done_email': None,
+            'division_parent_id': None,
         }
 
         if self.course.lti_provider is not None:
             res['lms_name'] = self.course.lti_provider.lms_name
-        else:
-            res['lms_name'] = None
 
         if psef.current_user.has_permission(
             CPerm.can_grade_work,
