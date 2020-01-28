@@ -26,7 +26,7 @@ from psef.helpers import (
 
 from . import api
 from .. import limiter, parsers, features
-from ..lti import LTI_COURSEROLE_LOOKUPS
+from ..lti import LTICourseRole
 from ..permissions import CoursePermMap
 from ..permissions import CoursePermission as CPerm
 from ..permissions import GlobalPermission as GPerm
@@ -72,7 +72,7 @@ def delete_role(course_id: int, role_id: int) -> EmptyResponse:
     )
 
     if course.lti_provider is not None:
-        if any(r == role.name for r in LTI_COURSEROLE_LOOKUPS.values()):
+        if LTICourseRole.codegrade_role_name_used(role.name):
             lms = course.lti_provider.lms_name
             raise APIException(
                 f'You cannot delete default {lms} roles', (

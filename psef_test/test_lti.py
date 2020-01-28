@@ -3,6 +3,7 @@ import os
 import uuid
 import urllib
 import datetime
+import itertools
 import xml.etree.ElementTree as ET
 
 import oauth2
@@ -2100,19 +2101,19 @@ def test_lti_roles(
             do_lti_launch(roles, crole='New LTI Role')
 
     with describe('standard roles are mapped correctly'):
-        for srole in lti.LTI_SYSROLE_LOOKUPS:
+        for srole, (wanted, _) in lti.LTIGlobalRole._LOOKUP.items():
             do_lti_launch(
                 f'urn:lti:sysrole:ims/lis/{srole}',
-                srole=lti.LTI_SYSROLE_LOOKUPS[srole],
+                srole=wanted,
             )
             do_lti_launch(
                 f'urn:lti:instrole:ims/lis/{srole}',
-                srole=lti.LTI_SYSROLE_LOOKUPS[srole],
+                srole=wanted,
             )
-        for crole in lti.LTI_COURSEROLE_LOOKUPS:
+        for crole, (wanted, _) in lti.LTICourseRole._LOOKUP.items():
             do_lti_launch(
                 f'urn:lti:role:ims/lis/{crole}',
-                crole=lti.LTI_COURSEROLE_LOOKUPS[crole],
+                crole=wanted,
             )
 
     with describe('it works when garbage roles are passed'):
@@ -2149,7 +2150,7 @@ def test_lti_roles(
     with describe(
         'it interprets Moodle\'s roles without a urn: prefix correctly',
     ):
-        for srole in lti.LTI_SYSROLE_LOOKUPS:
+        for srole in lti.LTIGlobalRole._LOOKUP:
             do_lti_launch(
                 f'urn:lti:instrole:ims/lis/{srole},Learner',
                 crole='Student',
@@ -2165,11 +2166,11 @@ def test_lti_roles(
         'it interprets Brightspace roles as both sysroles and course roles '
         'when only sysroles are given',
     ):
-        for srole in lti.LTI_SYSROLE_LOOKUPS:
-            if srole in lti.LTI_COURSEROLE_LOOKUPS:
+        for srole in lti.LTIGlobalRole._LOOKUP:
+            if srole in lti.LTICourseRole._LOOKUP:
                 do_lti_launch(
                     f'urn:lti:instrole:ims/lis/{srole}',
-                    crole=lti.LTI_COURSEROLE_LOOKUPS[srole],
+                    crole=lti.LTICourseRole._LOOKUP[srole][0],
                     oauth_key='brightspace_lti',
                 )
 
@@ -2177,12 +2178,35 @@ def test_lti_roles(
         'it interprets Brightspace roles correctly when both sysroles and '
         'course roles are given',
     ):
-        for srole in lti.LTI_SYSROLE_LOOKUPS:
+        for srole, (wanted, _) in lti.LTIGlobalRole._LOOKUP.items():
             do_lti_launch(
                 # Use TeachingAssistant role because it is one of the few
                 # that do not exist as standard sysrole.
-                f'urn:lti:instrole:ims/lis/{srole},urn:lti:role:ims/lis/TeachingAssistant',
-                srole=lti.LTI_SYSROLE_LOOKUPS[srole],
+                (
+                    f'urn:lti:instrole:ims/lis/{srole},'
+                    'urn:lti:role:ims/lis/TeachingAssistant'
+                ),
+                srole=wanted,
                 crole='TA',
+                oauth_key='brightspace_lti',
+            )
+
+    with describe(
+        'When both teacher and student are present it should choose the one'
+        ' with the most permissions'
+    ):
+        for roles in itertools.product(
+            [
+                'urn:lti:role:ims/lis/Member',
+                'urn:lti:role:ims/lis/TeachingAssistant',
+                'urn:lti:role:ims/lis/Instructor',
+            ],
+            repeat=3,
+        ):
+            if len(set(roles)) != 3:
+                continue
+            do_lti_launch(
+                ','.join(roles),
+                crole='Teacher',
                 oauth_key='brightspace_lti',
             )
