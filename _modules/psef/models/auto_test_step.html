@@ -859,7 +859,7 @@
     <span class="p">}</span>
 
     <span class="n">_MATCH_GROUP_NAME</span> <span class="o">=</span> <span class="s1">&#39;amount_of_points&#39;</span>
-    <span class="n">_FLOAT_REGEX</span> <span class="o">=</span> <span class="sa">r</span><span class="s1">&#39;(?P&lt;</span><span class="si">{}</span><span class="s1">&gt;(?:-\s*)?(?:1\.0*|0\.\d*|(?:\.\d+)))&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+    <span class="n">_FLOAT_REGEX</span> <span class="o">=</span> <span class="sa">r</span><span class="s1">&#39;(?P&lt;</span><span class="si">{}</span><span class="s1">&gt;-?(?:1\.0*|0\.\d*|\.\d+))&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
         <span class="n">_MATCH_GROUP_NAME</span>
     <span class="p">)</span>
 
