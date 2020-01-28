@@ -32,6 +32,7 @@ class APIWarnings(IntEnum):
     ALREADY_EXPIRED = 13
     DANGEROUS_ROLE = 14
     LIMIT_ALREADY_EXCEEDED = 15
+    POSSIBLE_LTI_SETUP_ERROR = 16
 
 
 @unique

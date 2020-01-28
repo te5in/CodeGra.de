@@ -28,7 +28,7 @@ from . import app, auth, models, helpers, features, current_user
 from .auth import _user_active
 from .models import db
 from .helpers import register
-from .exceptions import APICodes, APIException
+from .exceptions import APICodes, APIWarnings, APIException
 
 logger = structlog.get_logger()
 
@@ -55,9 +55,11 @@ class LTIProperty:
 
     :ivar internal: The name the property should be names in the launch params.
     :ivar external: The external name of the property.
+    :ivar error_on_missing: This is considered a essential property.
     """
     internal: str
     external: str
+    error_on_missing: bool = False
 
 
 class LTIRoleException(APIException):
@@ -319,7 +321,9 @@ class LTI:  # pylint: disable=too-many-public-methods
         lms = params['custom_lms_name']
         cls = lti_classes.get(lms)
         assert cls is not None
-        return cls(params)
+        res = cls(params)
+        res.ensure_lti_data_correct()
+        return res
 
     @staticmethod
     def get_lti_properties() -> t.List[LTIProperty]:
@@ -450,6 +454,14 @@ class LTI:  # pylint: disable=too-many-public-methods
     def global_roles(self) -> t.Sequence[LTIGlobalRole]:
         """The global roles of the user doing the launch."""
         raise NotImplementedError
+
+    def ensure_lti_data_correct(self) -> None:  # pylint: disable=no-self-use
+        """Make sure the lti data is correct.
+
+        This is the place were you can do some sanity checks, and make sure the
+        setup of the assignment was done correct.
+        """
+        return
 
     def _roles(self, key: str,
                role_type: t.Type[T_LTI_ROLE]) -> t.Sequence[T_LTI_ROLE]:
@@ -585,6 +597,25 @@ class LTI:  # pylint: disable=too-many-public-methods
 
         return course
 
+    def create_and_add_assignment(
+        self, course: models.Course
+    ) -> models.Assignment:
+        """Create a new assignment in the database from the launch parameters.
+
+        This function also adds the created assignment to the current session.
+        """
+        assignment = models.Assignment(
+            name=self.assignment_name,
+            state=self.assignment_state,
+            course=course,
+            deadline=self.get_assignment_deadline(),
+            lti_assignment_id=self.assignment_id,
+            description=''
+        )
+        db.session.add(assignment)
+        db.session.flush()
+        return assignment
+
     def get_assignment(
         self, user: models.User, course: models.Course
     ) -> models.Assignment:
@@ -594,16 +625,7 @@ class LTI:  # pylint: disable=too-many-public-methods
             lti_assignment_id=self.assignment_id,
         ).first()
         if assignment is None:
-            assignment = models.Assignment(
-                name=self.assignment_name,
-                state=self.assignment_state,
-                course=course,
-                deadline=self.get_assignment_deadline(),
-                lti_assignment_id=self.assignment_id,
-                description=''
-            )
-            db.session.add(assignment)
-            db.session.flush()
+            assignment = self.create_and_add_assignment(course=course)
 
         if assignment.deleted:
             raise APIException(
@@ -613,12 +635,15 @@ class LTI:  # pylint: disable=too-many-public-methods
             )
 
         if assignment.course != course:  # pragma: no cover
-            logger.warning(
-                'Assignment changed course!',
-                assignment=assignment,
-                course=course,
+            raise APIException(
+                (
+                    'The assignment was previously connected to a different'
+                    ' course.'
+                ), (
+                    f'The assignment {self.assignment_id} was previously'
+                    f' connected to {course.id}'
+                ), APICodes.INVALID_STATE, 400
             )
-            assignment.course = course
 
         if self.has_result_sourcedid():
             if assignment.id in user.assignment_results:
@@ -890,6 +915,22 @@ class CanvasLTI(LTI):
         """Canvas supports common cartridges"""
         return True
 
+    def ensure_lti_data_correct(self) -> None:
+        super().ensure_lti_data_correct()
+        for lti_prop in self.get_lti_properties():
+            if not lti_prop.error_on_missing:
+                continue
+            if self.launch_params[lti_prop.internal] == lti_prop.external:
+                raise APIException(
+                    (
+                        'It seems that CodeGrade was not added correctly as an'
+                        ' assignment to this module, are you sure you did not'
+                        ' add CodeGrade directly as an external tool?'
+                    ),
+                    f"The property {lti_prop.external} didn't have a value.",
+                    APICodes.MISSING_REQUIRED_PARAM, 400
+                )
+
     @staticmethod
     def get_lti_properties() -> t.List[LTIProperty]:
         """All extension properties used by Canvas.
@@ -899,31 +940,35 @@ class CanvasLTI(LTI):
         return [
             LTIProperty(
                 internal='custom_canvas_course_name',
-                external='$Canvas.course.name'
+                external='$Canvas.course.name',
+                error_on_missing=True,
             ),
             LTIProperty(
                 internal='custom_canvas_course_id',
-                external='$Canvas.course.id'
+                external='$Canvas.course.id',
+                error_on_missing=True,
             ),
             LTIProperty(
                 internal='custom_canvas_assignment_id',
-                external='$Canvas.assignment.id'
+                external='$Canvas.assignment.id',
+                error_on_missing=True,
             ),
             LTIProperty(
                 internal='custom_canvas_assignment_title',
-                external='$Canvas.assignment.title'
+                external='$Canvas.assignment.title',
+                error_on_missing=True,
             ),
             LTIProperty(
                 internal='custom_canvas_assignment_due_at',
-                external='$Canvas.assignment.dueAt.iso8601'
+                external='$Canvas.assignment.dueAt.iso8601',
             ),
             LTIProperty(
                 internal='custom_canvas_assignment_published',
-                external='$Canvas.assignment.published'
+                external='$Canvas.assignment.published',
             ),
             LTIProperty(
                 internal='custom_canvas_points_possible',
-                external='$Canvas.assignment.pointsPossible'
+                external='$Canvas.assignment.pointsPossible',
             ),
         ]
 
@@ -977,6 +1022,22 @@ class CanvasLTI(LTI):
 
     def has_result_sourcedid(self) -> bool:
         return 'lis_result_sourcedid' in self.launch_params
+
+    def create_and_add_assignment(
+        self, course: models.Course
+    ) -> models.Assignment:
+        if not self.has_outcome_service_url():
+            helpers.add_warning(
+                (
+                    'It seems that CodeGrade was added directly to this module'
+                    ' as an external tool, rather than as a CodeGrade'
+                    ' assignment. Because of this we do not have the'
+                    ' possibility to pass back grades. Make sure to first'
+                    ' create a CodeGrade assignment and then connect that'
+                    ' assignment to the module.'
+                ), APIWarnings.POSSIBLE_LTI_SETUP_ERROR
+            )
+        return super().create_and_add_assignment(course=course)
 
     @property
     def assignment_state(self) -> models._AssignmentStateEnum:

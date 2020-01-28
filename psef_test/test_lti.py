@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 import os
+import re
 import uuid
 import urllib
 import datetime
@@ -2210,3 +2211,99 @@ def test_lti_roles(
                 crole='Teacher',
                 oauth_key='brightspace_lti',
             )
+
+
+@pytest.mark.parametrize('include_service_url', [True, False])
+def test_canvas_new_assignment_without_outcoume_service_url(
+    test_client, app, logged_in, session, include_service_url
+):
+    due_at = datetime.datetime.utcnow() + datetime.timedelta(
+        days=1, hours=1, minutes=2
+    )
+    due_at = due_at.replace(second=0, microsecond=0)
+
+    email = 'thomas@example.com'
+    name = 'A the A-er'
+    lti_id = 'USER_ID'
+    published = 'false'
+    username = 'a-the-a-er'
+    due = None
+
+    with app.app_context():
+        due_date = due or due_at.isoformat() + 'Z'
+        data = {
+            'custom_canvas_course_name': 'NEW_COURSE',
+            'custom_canvas_course_id': 'MY_COURSE_ID',
+            'custom_canvas_assignment_id': 'MY_ASSIG_ID',
+            'custom_canvas_assignment_title': 'MY_ASSIG_TITLE',
+            'ext_roles': 'urn:lti:role:ims/lis/Instructor',
+            'custom_canvas_user_login_id': username,
+            'custom_canvas_assignment_due_at': due_date,
+            'custom_canvas_assignment_published': published,
+            'user_id': lti_id,
+            'lis_person_contact_email_primary': email,
+            'lis_person_name_full': name,
+            'context_id': 'NO_CONTEXT',
+            'context_title': 'WRONG_TITLE',
+            'oauth_consumer_key': 'my_lti',
+        }
+        if include_service_url:
+            data['lis_outcome_service_url'] = 'https://example.com'
+
+        res = test_client.post('/api/v1/lti/launch/1', data=data)
+        url = urllib.parse.urlparse(res.headers['Location'])
+        blob_id = urllib.parse.parse_qs(url.query)['blob_id'][0]
+        _, rv = test_client.req(
+            'post',
+            '/api/v1/lti/launch/2',
+            200,
+            data={'blob_id': blob_id},
+            include_response=True,
+        )
+        if include_service_url:
+            assert 'Warning' not in rv.headers
+        else:
+            assert 'Warning' in rv.headers
+            assert 'possibility to pass back grades' in rv.headers['Warning']
+
+
+def test_canvas_missing_required_params(
+    test_client, app, logged_in, session, tomorrow
+):
+    email = 'thomas@example.com'
+    name = 'A the A-er'
+    lti_id = 'USER_ID'
+    published = 'false'
+    username = 'a-the-a-er'
+
+    with app.app_context():
+        data = {
+            'custom_canvas_course_name': 'NEW_COURSE',
+            'custom_canvas_course_id': 'MY_COURSE_ID',
+            'custom_canvas_assignment_id': 'MY_ASSIG_ID',
+            'custom_canvas_assignment_title': '$Canvas.assignment.title',
+            'ext_roles': 'urn:lti:role:ims/lis/Instructor',
+            'custom_canvas_user_login_id': username,
+            'custom_canvas_assignment_due_at': tomorrow.isoformat() + 'Z',
+            'custom_canvas_assignment_published': published,
+            'user_id': lti_id,
+            'lis_person_contact_email_primary': email,
+            'lis_person_name_full': name,
+            'context_id': 'NO_CONTEXT',
+            'context_title': 'WRONG_TITLE',
+            'oauth_consumer_key': 'my_lti',
+        }
+        res = test_client.post('/api/v1/lti/launch/1', data=data)
+        assert res.status_code == 302
+        url = urllib.parse.urlparse(res.headers['Location'])
+        blob_id = urllib.parse.parse_qs(url.query)['blob_id'][0]
+        test_client.req(
+            'post',
+            '/api/v1/lti/launch/2',
+            400,
+            data={'blob_id': blob_id},
+            result={
+                '__allow_extra__': True,
+                'message': re.compile(r'.*not added correctly.*'),
+            },
+        )
