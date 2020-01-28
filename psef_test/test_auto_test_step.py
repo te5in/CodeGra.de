@@ -441,12 +441,15 @@ def test_execute_custom_output(
         stub_container = stub_container_class(
             0, 'SHOULD NOT BE USED', 'asdf', 5, '0.5\n'
         )
+        context = monkeypatch.context
 
     def step():
-        return o.execute_step(
+        res = o.execute_step(
             stub_container,
             ExecuteOptions(stub_update_result, o.get_instructions(), 1, None)
         )
+        print(res, stub_update_result.all_args[-1])
+        return res
 
     with describe('the outputted number should be used'):
         res = step()
@@ -457,8 +460,7 @@ def test_execute_custom_output(
         assert last_update[1]['exit_code'] == 0
         assert last_update[1]['points'] == 0.5
 
-    with describe('non matching regex the test should fail'
-                  ), monkeypatch.context() as m:
+    with describe('non matching regex the test should fail'), context() as m:
         m.setitem(data, 'regex', '(a)')
 
         res = step()
@@ -470,7 +472,7 @@ def test_execute_custom_output(
         assert last_update[1]['points'] == 0
 
     with describe('regex matching not integer should fail test'
-                  ), monkeypatch.context() as m:
+                  ), context() as m:
         m.setitem(data, 'regex', '\\f?')
         m.setattr(stub_container, 'tail', '.NOT_A_FLOAT')
 
@@ -483,7 +485,7 @@ def test_execute_custom_output(
         assert last_update[1]['points'] == 0
 
     with describe('regex matching number starting with . should pass'
-                  ), monkeypatch.context() as m:
+                  ), context() as m:
         m.setitem(data, 'regex', '\\f')
         m.setattr(stub_container, 'tail', '.14')
 
@@ -495,8 +497,7 @@ def test_execute_custom_output(
         assert last_update[1]['exit_code'] == 0
         assert last_update[1]['points'] == 0.14
 
-    with describe('number lower than 0 should be capped'
-                  ), monkeypatch.context() as m:
+    with describe('number lower than 0 should be capped'), context() as m:
         for val, expected in [(-1.0, 0), (-0.5, 0), (-0.0, 0)]:
             m.setattr(stub_container, 'tail', str(val))
 
@@ -506,7 +507,7 @@ def test_execute_custom_output(
             last_update = stub_update_result.all_args[-1]
             assert last_update[0].name == 'passed'
 
-    with describe('0.1 should work correctly'), monkeypatch.context() as m:
+    with describe('0.1 should work correctly'), context() as m:
         m.setattr(stub_container, 'tail', '0.1')
 
         res = step()
@@ -515,7 +516,7 @@ def test_execute_custom_output(
         last_update = stub_update_result.all_args[-1]
         assert last_update[0].name == 'passed'
 
-    with describe('crashing command should fail'), monkeypatch.context() as m:
+    with describe('crashing command should fail'), context() as m:
         m.setattr(stub_container, 'code', 1)
         res = step()
         assert res == 0
@@ -524,7 +525,7 @@ def test_execute_custom_output(
         assert last_update[0].name == 'failed'
         assert last_update[1]['points'] == 0
 
-    with describe('slow regex should fail'), monkeypatch.context() as m:
+    with describe('slow regex should fail'), context() as m:
 
         def raise_():
             raise TimeoutError
@@ -538,6 +539,31 @@ def test_execute_custom_output(
         assert last_update[1]['points'] == 0
         assert last_update[1]['exit_code'] == -3
         assert 'regex took too long' in last_update[1]['stderr']
+
+    with describe('Should return 0 with a negative number'), context() as m:
+        m.setitem(data, 'regex', '\\f')
+        m.setattr(stub_container, 'tail', '-0.96')
+
+        res = step()
+        last_update = stub_update_result.all_args[-1]
+
+        assert last_update[0].name == 'passed'
+        assert last_update[1]['exit_code'] == 0
+        assert last_update[1]['points'] == 0
+        assert res == 0
+
+    with describe('Should pass with a dashed line before the number'
+                  ), context() as m:
+        m.setitem(data, 'regex', '\\f')
+        m.setattr(stub_container, 'tail', '------\n0.96')
+
+        res = step()
+        last_update = stub_update_result.all_args[-1]
+
+        assert last_update[0].name == 'passed'
+        assert last_update[1]['exit_code'] == 0
+        assert last_update[1]['points'] == 0.96
+        assert res == 0.96 * o.weight
 
 
 def test_execute_check_points(
