@@ -3,6 +3,7 @@
 SPDX-License-Identifier: AGPL-3.0-only
 """
 import uuid
+import random
 import typing as t
 import datetime
 
@@ -34,6 +35,16 @@ def maybe_kill_unneeded_runner(runner_hex_id: str) -> None:
 
     :param runner_hex_id: The hex id of the runner to maybe kill.
     """
+    # One interesting thing to consider here is how to deal with the
+    # minimum amount of extra runners setting here. You could say that if
+    # killing this runner brings us under this setting we shouldn't kill
+    # the runner. However, that might mean that runners will live for very
+    # long, and that might have unforeseen complications. So we do want to
+    # kill runners after some time, but that might mean we kill every
+    # extra runner at the same time, which would mean that for a minute or
+    # so we do not have enough runners at all. To prevent that we have a
+    # random element to when runners are killed.
+
     # TODO: If a runner goes from unassigned, to assigned, to unassigned we
     # might kill it too soon. As we start a job to kill it for the first time
     # it is unassigned, and this job might be executed while it is unassigned
@@ -47,18 +58,26 @@ def maybe_kill_unneeded_runner(runner_hex_id: str) -> None:
         if runner is None:
             logger.warning('Runner was deleted')
             return
-        elif not runner.is_before_run:
+
+        should_run_date = runner.created_at + datetime.timedelta(
+            minutes=(
+                app.config['RUNNER_MAX_TIME_ALIVE'] + random.randint(0, 15)
+            )
+        )
+        if not runner.is_before_run:
             logger.info(
                 'Runner has already finished running',
                 runner_state=runner.state
             )
             return
+        elif utils.maybe_delay_current_task(should_run_date):
+            return
         elif runner.job_id is not None:
             logger.info('Runner is needed', job_of_runner=runner.job_id)
             return
 
-        logger.error('Runner is still not doing anything')
-        runner.kill(maybe_start_new=False, shutdown_only=False)
+        logger.info('Runner is still not doing anything')
+        runner.kill(maybe_start_new=True, shutdown_only=False)
 
 
 @celery.task
@@ -68,6 +87,10 @@ def maybe_start_more_runners() -> None:
     This assigns all unassigned runners if possible, and if needed it also
     starts new runners.
     """
+    # We might change the amount of unassigned runners during this task, so
+    # maybe we need to start more.
+    callback_after_this_request(start_needed_unassigned_runners.delay)
+
     # Do not use count so we can lock all these runners, this makes sure we
     # will not create new runners while we are counting.
     active_jobs = {
@@ -126,6 +149,22 @@ def maybe_start_more_runners() -> None:
 
 
 @celery.task
+def start_needed_unassigned_runners() -> None:
+    wanted_amount = models.Setting.get(
+        models.PossibleSetting.minimum_amount_extra_runners
+    )
+    if wanted_amount < 1:
+        return
+
+    unassigned_runners = models.Runner.get_before_active_unassigned_runners(
+    ).with_for_update().all()
+    to_start = wanted_amount - len(unassigned_runners)
+
+    if to_start > 0:
+        start_unassigned_runner(amount=to_start)
+
+
+@celery.task
 def start_unassigned_runner(amount: int = 1) -> None:
     """Unconditionally start an unassigned runner.
 
@@ -134,10 +173,11 @@ def start_unassigned_runner(amount: int = 1) -> None:
     to_start = []
     for _ in range(amount):
         if not models.Runner.can_start_more_runners():
-            return
+            break
 
         runner = models.Runner.create_of_type(app.config['AUTO_TEST_TYPE'])
         db.session.add(runner)
+        db.session.flush()
         to_start.append(runner)
 
     db.session.commit()

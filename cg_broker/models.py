@@ -7,6 +7,7 @@ import time
 import uuid
 import typing as t
 import secrets
+import dataclasses
 from datetime import timedelta
 
 import boto3
@@ -36,6 +37,8 @@ else:
 logger = structlog.get_logger()
 
 db: cgs.types.MyDb = cgs.make_db()
+
+T = t.TypeVar('T')
 
 
 def init_app(flask_app: BrokerFlask) -> None:
@@ -704,9 +707,16 @@ class Job(Base, mixins.TimestampMixin, mixins.IdMixin):
         :param startable: The amount of runners we may start.
         :returns: The amount of new runners started.
         """
-        needed = self.wanted_runners - len(self.get_active_runners())
-        to_start = []
-        created = []
+        needed = max(0, self.wanted_runners - len(self.get_active_runners()))
+        to_start: t.List[uuid.UUID] = []
+        created: t.List[Runner] = []
+
+        if needed > 0 and unassigned_runners:
+            # We will assign runner that were previously unassigned, so we
+            # might need to start some extra runners.
+            callback_after_this_request(
+                cg_broker.tasks.start_needed_unassigned_runners.delay
+            )
 
         for _ in range(needed):
             if unassigned_runners:
@@ -723,12 +733,68 @@ class Job(Base, mixins.TimestampMixin, mixins.IdMixin):
         db.session.flush()
 
         for runner in created:
-            to_start.append(runner.id.hex)
+            to_start.append(runner.id)
 
         def start_runners() -> None:
             for runner_id in to_start:
-                cg_broker.tasks.start_runner.delay(runner_id)
+                cg_broker.tasks.start_runner.delay(runner_id.hex)
 
         callback_after_this_request(start_runners)
 
         return len(created)
+
+
+@dataclasses.dataclass(frozen=True)
+class _PossibleSetting(t.Generic[T]):
+    default_value: T
+    type_convert: t.Callable[[str], T]
+    input_type: str
+    after_update: t.Callable[[], None]
+
+
+def _after_update_minimum_amount_extra_runners() -> None:
+    callback_after_this_request(
+        cg_broker.tasks.start_needed_unassigned_runners.delay
+    )
+
+
+@enum.unique
+class PossibleSetting(enum.Enum):
+    minimum_amount_extra_runners = _PossibleSetting(
+        default_value=0,
+        type_convert=int,
+        input_type='number',
+        after_update=_after_update_minimum_amount_extra_runners,
+    )
+
+
+class Setting(Base, mixins.TimestampMixin):
+    setting = db.Column(
+        'settting', db.Enum(PossibleSetting), nullable=False, primary_key=True
+    )
+    value: object = db.Column('value', JSON, nullable=False)
+
+    # Unfortunately it is not yet possible to create generic enums:
+    # https://github.com/python/typing/issues/535
+    @classmethod
+    def get(cls, setting: PossibleSetting) -> t.Any:
+        found = db.session.query(cls).filter_by(setting=setting).one_or_none()
+        if found is None:
+            return setting.value.default_value
+        return found.value
+
+    @classmethod
+    def set(cls, setting: PossibleSetting, value: object) -> None:
+        assert isinstance(value, type(setting.value.default_value))
+        found = db.session.query(cls).filter_by(setting=setting).one_or_none()
+
+        # This can lead to an integrity error when two users create the same
+        # setting for the first time. But as the broker is only used internally
+        # that is not really a problem.
+        if found is not None:
+            found.value = value
+        else:
+            new_setting = cls(setting=setting, value=value)
+            db.session.add(new_setting)
+
+        setting.value.after_update()

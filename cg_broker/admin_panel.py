@@ -244,3 +244,32 @@ def create_runner() -> Response:
             tasks.start_unassigned_runner.delay(amount)
 
     return redirect(url_for('.show_all_runners'))
+
+
+@admin.route('/settings/', methods=['GET'])
+@login_required
+def show_settings() -> str:
+    lookup = {
+        setting.setting: setting.value
+        for setting in models.Setting.query.all()
+    }
+    all_settings = [(item, lookup.get(item, item.value.default_value))
+                    for item in models.PossibleSetting]
+    return render_template(
+        'settings.j2',
+        all_settings=all_settings,
+    )
+
+
+@admin.route('/settings/', methods=['POST'])
+@login_required
+def update_setting() -> Response:
+    setting_name = request.form['setting']
+    setting_value = request.form['value']
+
+    setting = models.PossibleSetting[setting_name]
+    value = setting.value.type_convert(setting_value)
+    models.Setting.set(setting, value)
+    db.session.commit()
+
+    return redirect(url_for('.show_settings'))
