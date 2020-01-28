@@ -13,8 +13,7 @@ else
         sudo apt-get install -y lxc lxc-dev lxcfs libvirt0 libssl-dev postgresql-client &&
         python -m pip install --upgrade pip &&
         pip install 'celery[redis]' coveralls pytest-cov codecov &&
-        pip install -r requirements.txt &&
-        pip install -r broker_requirements.txt;
+        pip install -r requirements.txt;
     ) &
 fi
 

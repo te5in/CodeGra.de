@@ -65,7 +65,7 @@ context('Manage Course', () => {
         });
 
         cy.get('.flatpickr-calendar .flatpickr-next-month').click();
-        cy.get('.flatpickr-calendar .flatpickr-day').first().click();
+        cy.get('.flatpickr-calendar .flatpickr-day').last().click();
         cy.get('.flatpickr-calendar .flatpickr-confirm').click();
 
         cy.get('.registration-links .submit-button').first().submit('success');
