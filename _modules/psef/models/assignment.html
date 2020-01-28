@@ -1199,25 +1199,27 @@
             <span class="s1">&#39;cgignore&#39;</span><span class="p">:</span> <span class="kc">None</span> <span class="k">if</span> <span class="n">cgignore</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">cgignore</span><span class="o">.</span><span class="n">export</span><span class="p">(),</span>
             <span class="s1">&#39;cgignore_version&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cgignore_version</span><span class="p">,</span>
             <span class="s1">&#39;whitespace_linter&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">whitespace_linter</span><span class="p">,</span>
-            <span class="s1">&#39;done_type&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
-            <span class="s1">&#39;done_email&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
-            <span class="s1">&#39;reminder_time&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
             <span class="s1">&#39;fixed_max_rubric_points&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">fixed_max_rubric_points</span><span class="p">,</span>
             <span class="s1">&#39;max_grade&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_max_grade</span><span class="p">,</span>
             <span class="s1">&#39;group_set&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">group_set</span><span class="p">,</span>
-            <span class="s1">&#39;division_parent_id&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
             <span class="s1">&#39;auto_test_id&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">auto_test_id</span><span class="p">,</span>
             <span class="s1">&#39;files_upload_enabled&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">files_upload_enabled</span><span class="p">,</span>
             <span class="s1">&#39;webhook_upload_enabled&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">webhook_upload_enabled</span><span class="p">,</span>
             <span class="s1">&#39;max_submissions&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_submissions</span><span class="p">,</span>
             <span class="s1">&#39;cool_off_period&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">cool_off_period</span><span class="o">.</span><span class="n">total_seconds</span><span class="p">(),</span>
             <span class="s1">&#39;amount_in_cool_off_period&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">amount_in_cool_off_period</span><span class="p">,</span>
+
+            <span class="c1"># These are all filled in based on permissions and data</span>
+            <span class="c1"># availability.</span>
+            <span class="s1">&#39;reminder_time&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="s1">&#39;lms_name&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="s1">&#39;done_type&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="s1">&#39;done_email&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="s1">&#39;division_parent_id&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
         <span class="p">}</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">course</span><span class="o">.</span><span class="n">lti_provider</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">res</span><span class="p">[</span><span class="s1">&#39;lms_name&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">course</span><span class="o">.</span><span class="n">lti_provider</span><span class="o">.</span><span class="n">lms_name</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">res</span><span class="p">[</span><span class="s1">&#39;lms_name&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
 
         <span class="k">if</span> <span class="n">psef</span><span class="o">.</span><span class="n">current_user</span><span class="o">.</span><span class="n">has_permission</span><span class="p">(</span>
             <span class="n">CPerm</span><span class="o">.</span><span class="n">can_grade_work</span><span class="p">,</span>
