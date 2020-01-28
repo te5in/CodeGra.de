@@ -246,41 +246,6 @@
 
 <span class="n">T_LTI_ROLE</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">TypeVar</span><span class="p">(</span><span class="s1">&#39;T_LTI_ROLE&#39;</span><span class="p">,</span> <span class="n">bound</span><span class="o">=</span><span class="s1">&#39;LTIRole&#39;</span><span class="p">)</span>  <span class="c1"># pylint: disable=invalid-name</span>
 
-<span class="n">LTI_SYSROLE_LOOKUPS</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
-    <span class="c1"># LIS standard System Roles</span>
-    <span class="s1">&#39;SysAdmin&#39;</span><span class="p">:</span> <span class="s1">&#39;Staff&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;SysSupport&#39;</span><span class="p">:</span> <span class="s1">&#39;Staff&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;Creator&#39;</span><span class="p">:</span> <span class="s1">&#39;Staff&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;AccountAdmin&#39;</span><span class="p">:</span> <span class="s1">&#39;Staff&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;User&#39;</span><span class="p">:</span> <span class="s1">&#39;Student&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;Administrator&#39;</span><span class="p">:</span> <span class="s1">&#39;Staff&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;None&#39;</span><span class="p">:</span> <span class="s1">&#39;Nobody&#39;</span><span class="p">,</span>
-    <span class="c1"># LIS standard Institution Roles</span>
-    <span class="s1">&#39;Student&#39;</span><span class="p">:</span> <span class="s1">&#39;Student&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;Faculty&#39;</span><span class="p">:</span> <span class="s1">&#39;Staff&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;Member&#39;</span><span class="p">:</span> <span class="s1">&#39;Student&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;Learner&#39;</span><span class="p">:</span> <span class="s1">&#39;Student&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;Instructor&#39;</span><span class="p">:</span> <span class="s1">&#39;Staff&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;Mentor&#39;</span><span class="p">:</span> <span class="s1">&#39;Staff&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;Staff&#39;</span><span class="p">:</span> <span class="s1">&#39;Staff&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;Alumni&#39;</span><span class="p">:</span> <span class="s1">&#39;Student&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;ProspectiveStudent&#39;</span><span class="p">:</span> <span class="s1">&#39;Student&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;Guest&#39;</span><span class="p">:</span> <span class="s1">&#39;Student&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;Other&#39;</span><span class="p">:</span> <span class="s1">&#39;Student&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;Observer&#39;</span><span class="p">:</span> <span class="s1">&#39;Student&#39;</span><span class="p">,</span>
-<span class="p">}</span>
-
-<span class="n">LTI_COURSEROLE_LOOKUPS</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
-    <span class="c1"># LIS standard Context Roles</span>
-    <span class="s1">&#39;Learner&#39;</span><span class="p">:</span> <span class="s1">&#39;Student&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;Instructor&#39;</span><span class="p">:</span> <span class="s1">&#39;Teacher&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;ContentDeveloper&#39;</span><span class="p">:</span> <span class="s1">&#39;Designer&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;Member&#39;</span><span class="p">:</span> <span class="s1">&#39;Student&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;Mentor&#39;</span><span class="p">:</span> <span class="s1">&#39;TA&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;Administrator&#39;</span><span class="p">:</span> <span class="s1">&#39;Teacher&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;TeachingAssistant&#39;</span><span class="p">:</span> <span class="s1">&#39;TA&#39;</span><span class="p">,</span>
-<span class="p">}</span>
-
 
 <div class="viewcode-block" id="LTIProperty"><a class="viewcode-back" href="../../psef_api/psef.html#psef.lti.LTIProperty">[docs]</a><span class="nd">@dataclass</span>
 <span class="k">class</span> <span class="nc">LTIProperty</span><span class="p">:</span>
@@ -298,45 +263,71 @@
 <span class="sd">    &quot;&quot;&quot;</span></div>
 
 
-<div class="viewcode-block" id="LTIRoleKind"><a class="viewcode-back" href="../../psef_api/psef.html#psef.lti.LTIRoleKind">[docs]</a><span class="k">class</span> <span class="nc">LTIRoleKind</span><span class="p">(</span><span class="n">enum</span><span class="o">.</span><span class="n">Enum</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Kind of an LTI role.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">system</span> <span class="o">=</span> <span class="n">enum</span><span class="o">.</span><span class="n">auto</span><span class="p">()</span>
-    <span class="n">institution</span> <span class="o">=</span> <span class="n">enum</span><span class="o">.</span><span class="n">auto</span><span class="p">()</span>
-    <span class="n">course</span> <span class="o">=</span> <span class="n">enum</span><span class="o">.</span><span class="n">auto</span><span class="p">()</span>
-
-<div class="viewcode-block" id="LTIRoleKind.get_kind"><a class="viewcode-back" href="../../psef_api/psef.html#psef.lti.LTIRoleKind.get_kind">[docs]</a>    <span class="nd">@classmethod</span>
-    <span class="k">def</span> <span class="nf">get_kind</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">lti_kind</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;LTIRoleKind&#39;</span><span class="p">:</span>
-        <span class="sd">&quot;&quot;&quot;Get the LTIRoleKind for a kind passed by the LTI provider.</span>
-
-<span class="sd">        :param lti_kind: Kind passed by the LTI provider.</span>
-<span class="sd">        :returns: The LTIRoleKind corresponding to the passed in kind.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="k">return</span> <span class="p">{</span>
-                <span class="s1">&#39;sysrole&#39;</span><span class="p">:</span> <span class="bp">cls</span><span class="o">.</span><span class="n">system</span><span class="p">,</span>
-                <span class="s1">&#39;instrole&#39;</span><span class="p">:</span> <span class="bp">cls</span><span class="o">.</span><span class="n">institution</span><span class="p">,</span>
-                <span class="s1">&#39;role&#39;</span><span class="p">:</span> <span class="bp">cls</span><span class="o">.</span><span class="n">course</span><span class="p">,</span>
-            <span class="p">}[</span><span class="n">lti_kind</span><span class="p">]</span>
-        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="n">LTIRoleException</span><span class="p">(</span>
-                <span class="s1">&#39;The given role could not be parsed as an LTI role.&#39;</span><span class="p">,</span>
-                <span class="sa">f</span><span class="s1">&#39;The role kind </span><span class="si">{lti_kind}</span><span class="s1"> is invalid.&#39;</span><span class="p">,</span>
-                <span class="n">APICodes</span><span class="o">.</span><span class="n">INVALID_PARAM</span><span class="p">,</span> <span class="mi">400</span>
-            <span class="p">)</span></div></div>
-
-
-<div class="viewcode-block" id="LTIRole"><a class="viewcode-back" href="../../psef_api/psef.html#psef.lti.LTIRole">[docs]</a><span class="k">class</span> <span class="nc">LTIRole</span><span class="p">:</span>
+<div class="viewcode-block" id="LTIRole"><a class="viewcode-back" href="../../psef_api/psef.html#psef.lti.LTIRole">[docs]</a><span class="k">class</span> <span class="nc">LTIRole</span><span class="p">(</span><span class="n">abc</span><span class="o">.</span><span class="n">ABC</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;LTI role, parsed from a role urn. The urn must be of the form</span>
 <span class="sd">    urn:lti:{kind}:ims/lis/{name}/{subname}.</span>
 
-<span class="sd">    :ivar kind: Kind of the role.</span>
 <span class="sd">    :ivar ~.LTIRole.name: Primary role name.</span>
 <span class="sd">    :ivar subnames: Secondary role names.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">_LOOKUP</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">ClassVar</span><span class="p">[</span><span class="n">t</span><span class="o">.</span><span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">t</span><span class="o">.</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]]</span>
 
 <div class="viewcode-block" id="LTIRole.parse"><a class="viewcode-back" href="../../psef_api/psef.html#psef.lti.LTIRole.parse">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
     <span class="k">def</span> <span class="nf">parse</span><span class="p">(</span><span class="bp">cls</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Type</span><span class="p">[</span><span class="n">T_LTI_ROLE</span><span class="p">],</span> <span class="n">urn</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T_LTI_ROLE</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Parse the given ``urn`` to a role.</span>
+
+<span class="sd">        :param urn: The urn to parse.</span>
+<span class="sd">        :returns: The parsed role.</span>
+<span class="sd">        :raises LTIRoleException: If the role is not valid.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span></div>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">codegrade_role_name</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;If not ``None`` this role should be mapped to a CodeGrade role with</span>
+<span class="sd">        this name.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_LOOKUP</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_LOOKUP</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+<div class="viewcode-block" id="LTIRole.codegrade_role_name_used"><a class="viewcode-back" href="../../psef_api/psef.html#psef.lti.LTIRole.codegrade_role_name_used">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">codegrade_role_name_used</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Is the given name used for any known LTI role as CodeGrade role</span>
+<span class="sd">            name.</span>
+
+<span class="sd">        This is true if there is any role ``l`` for which</span>
+<span class="sd">        ``l.codegrade_role_name == name``.</span>
+
+<span class="sd">        :param name: The CodeGrade role name to check.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">any</span><span class="p">(</span><span class="n">cg_name</span> <span class="o">==</span> <span class="n">name</span> <span class="k">for</span> <span class="n">cg_name</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_LOOKUP</span><span class="o">.</span><span class="n">values</span><span class="p">())</span></div>
+
+    <span class="k">def</span> <span class="nf">_get_sort_key</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_LOOKUP</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="p">(</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">))[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="fm">__lt__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="nb">object</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Check if this item is less than the other item.</span>
+
+<span class="sd">        &gt;&gt;&gt; a = LTICourseRole(name=&#39;Mentor&#39;, subnames=[&#39;c&#39;])</span>
+<span class="sd">        &gt;&gt;&gt; b = LTICourseRole(name=&#39;Learner&#39;, subnames=[&#39;c&#39;])</span>
+<span class="sd">        &gt;&gt;&gt; c = LTIGlobalRole(name=&#39;Mentor&#39;, subnames=[&#39;c&#39;])</span>
+<span class="sd">        &gt;&gt;&gt; a &lt; b</span>
+<span class="sd">        False</span>
+<span class="sd">        &gt;&gt;&gt; a &gt; b</span>
+<span class="sd">        True</span>
+<span class="sd">        &gt;&gt;&gt; a.__lt__(c)</span>
+<span class="sd">        NotImplemented</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)):</span>
+            <span class="k">return</span> <span class="bp">NotImplemented</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_sort_key</span><span class="p">()</span> <span class="o">&lt;</span> <span class="n">other</span><span class="o">.</span><span class="n">_get_sort_key</span><span class="p">()</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">_parse</span><span class="p">(</span>
+        <span class="bp">cls</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Type</span><span class="p">[</span><span class="n">T_LTI_ROLE</span><span class="p">],</span> <span class="n">urn</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">wanted_kind</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Collection</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T_LTI_ROLE</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Parse a LTI role from a IMS urn.</span>
 
 <span class="sd">        :param urn: The string to parse.</span>
@@ -355,7 +346,7 @@
         <span class="n">role_assert</span><span class="p">(</span><span class="n">urn</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;urn:lti:&#39;</span><span class="p">))</span>
         <span class="n">_</span><span class="p">,</span> <span class="n">__</span><span class="p">,</span> <span class="o">*</span><span class="n">rest</span> <span class="o">=</span> <span class="n">urn</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;:&#39;</span><span class="p">)</span>
         <span class="n">role_assert</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">rest</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">2</span><span class="p">)</span>
-        <span class="n">kind</span> <span class="o">=</span> <span class="n">LTIRoleKind</span><span class="o">.</span><span class="n">get_kind</span><span class="p">(</span><span class="n">rest</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">role_assert</span><span class="p">(</span><span class="n">rest</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">in</span> <span class="n">wanted_kind</span><span class="p">)</span>
 
         <span class="n">path</span> <span class="o">=</span> <span class="n">rest</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
         <span class="n">role_assert</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;ims/lis/&#39;</span><span class="p">))</span>
@@ -363,19 +354,70 @@
         <span class="n">role_assert</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">names</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span>
         <span class="n">name</span> <span class="o">=</span> <span class="n">names</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
         <span class="n">subnames</span> <span class="o">=</span> <span class="n">names</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
-        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">kind</span><span class="o">=</span><span class="n">kind</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">subnames</span><span class="o">=</span><span class="n">subnames</span><span class="p">)</span></div>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">subnames</span><span class="o">=</span><span class="n">subnames</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
-        <span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">kind</span><span class="p">:</span> <span class="n">LTIRoleKind</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">subnames</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">kind</span> <span class="o">=</span> <span class="n">kind</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">subnames</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">subnames</span> <span class="o">=</span> <span class="n">subnames</span>
 
     <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-        <span class="n">kind</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">kind</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+        <span class="n">kind</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
         <span class="n">name</span> <span class="o">=</span> <span class="s1">&#39;/&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">subnames</span><span class="p">])</span>
         <span class="k">return</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{kind}</span><span class="s1">:</span><span class="si">{name}</span><span class="s1">&#39;</span></div>
+
+
+<div class="viewcode-block" id="LTICourseRole"><a class="viewcode-back" href="../../psef_api/psef.html#psef.lti.LTICourseRole">[docs]</a><span class="k">class</span> <span class="nc">LTICourseRole</span><span class="p">(</span><span class="n">LTIRole</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;A class representing a course LTI role.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">_LOOKUP</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="c1"># LIS standard Context Roles</span>
+        <span class="s1">&#39;Learner&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;Student&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="s1">&#39;Instructor&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;Teacher&#39;</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span>
+        <span class="s1">&#39;ContentDeveloper&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;Designer&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+        <span class="s1">&#39;Member&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;Student&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="s1">&#39;Mentor&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;TA&#39;</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span>
+        <span class="s1">&#39;Administrator&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;Teacher&#39;</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span>
+        <span class="s1">&#39;TeachingAssistant&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;TA&#39;</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span>
+    <span class="p">}</span>
+
+<div class="viewcode-block" id="LTICourseRole.parse"><a class="viewcode-back" href="../../psef_api/psef.html#psef.lti.LTICourseRole.parse">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">parse</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">urn</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;LTICourseRole&#39;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_parse</span><span class="p">(</span><span class="n">urn</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;role&#39;</span><span class="p">})</span></div></div>
+
+
+<div class="viewcode-block" id="LTIGlobalRole"><a class="viewcode-back" href="../../psef_api/psef.html#psef.lti.LTIGlobalRole">[docs]</a><span class="k">class</span> <span class="nc">LTIGlobalRole</span><span class="p">(</span><span class="n">LTIRole</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;A class representing a global LTI role.</span>
+
+<span class="sd">    This class represents both roles of type ``sysrole`` and of type</span>
+<span class="sd">    ``instrole``, as CodeGrade handles those both the same way.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">_LOOKUP</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="c1"># LIS standard System Roles,</span>
+        <span class="s1">&#39;SysAdmin&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;Staff&#39;</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span>
+        <span class="s1">&#39;SysSupport&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;Staff&#39;</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span>
+        <span class="s1">&#39;Creator&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;Staff&#39;</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span>
+        <span class="s1">&#39;AccountAdmin&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;Staff&#39;</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span>
+        <span class="s1">&#39;User&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;Student&#39;</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span>
+        <span class="s1">&#39;Administrator&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;Staff&#39;</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span>
+        <span class="s1">&#39;None&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;Nobody&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+        <span class="c1"># LIS standard Institution Roles,</span>
+        <span class="s1">&#39;Student&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;Student&#39;</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span>
+        <span class="s1">&#39;Faculty&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;Staff&#39;</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span>
+        <span class="s1">&#39;Member&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;Student&#39;</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span>
+        <span class="s1">&#39;Learner&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;Student&#39;</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span>
+        <span class="s1">&#39;Instructor&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;Staff&#39;</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span>
+        <span class="s1">&#39;Mentor&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;Staff&#39;</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span>
+        <span class="s1">&#39;Staff&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;Staff&#39;</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span>
+        <span class="s1">&#39;Alumni&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;Student&#39;</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span>
+        <span class="s1">&#39;ProspectiveStudent&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;Student&#39;</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span>
+        <span class="s1">&#39;Guest&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;Student&#39;</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span>
+        <span class="s1">&#39;Other&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;Student&#39;</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span>
+        <span class="s1">&#39;Observer&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;Student&#39;</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span>
+    <span class="p">}</span>
+
+<div class="viewcode-block" id="LTIGlobalRole.parse"><a class="viewcode-back" href="../../psef_api/psef.html#psef.lti.LTIGlobalRole.parse">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">parse</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">urn</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;LTIGlobalRole&#39;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_parse</span><span class="p">(</span><span class="n">urn</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;sysrole&#39;</span><span class="p">,</span> <span class="s1">&#39;instrole&#39;</span><span class="p">})</span></div></div>
 
 
 <span class="n">T_LTI</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">TypeVar</span><span class="p">(</span><span class="s1">&#39;T_LTI&#39;</span><span class="p">,</span> <span class="n">bound</span><span class="o">=</span><span class="s1">&#39;LTI&#39;</span><span class="p">)</span>  <span class="c1"># pylint: disable=invalid-name</span>
@@ -598,17 +640,31 @@
         <span class="k">raise</span> <span class="ne">NotImplementedError</span>
 
     <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">roles</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Iterable</span><span class="p">[</span><span class="n">LTIRole</span><span class="p">]:</span>
-        <span class="sd">&quot;&quot;&quot;The normalized roles of the current LTI user.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">course_roles</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Sequence</span><span class="p">[</span><span class="n">LTICourseRole</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;The course roles of the user doing the launch.&quot;&quot;&quot;</span>
         <span class="k">raise</span> <span class="ne">NotImplementedError</span>
 
-    <span class="k">def</span> <span class="nf">_roles</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Iterable</span><span class="p">[</span><span class="n">LTIRole</span><span class="p">]:</span>
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">global_roles</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Sequence</span><span class="p">[</span><span class="n">LTIGlobalRole</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;The global roles of the user doing the launch.&quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+
+    <span class="k">def</span> <span class="nf">_roles</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+               <span class="n">role_type</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Type</span><span class="p">[</span><span class="n">T_LTI_ROLE</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Sequence</span><span class="p">[</span><span class="n">T_LTI_ROLE</span><span class="p">]:</span>
+        <span class="n">roles</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_unsorted_roles</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">role_type</span><span class="p">)</span>
+        <span class="n">roles</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">roles</span>
+
+    <span class="k">def</span> <span class="nf">_get_unsorted_roles</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">role_type</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Type</span><span class="p">[</span><span class="n">T_LTI_ROLE</span><span class="p">]</span>
+                            <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="n">T_LTI_ROLE</span><span class="p">]:</span>
+        <span class="n">roles</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">for</span> <span class="n">role</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">launch_params</span><span class="p">[</span><span class="n">key</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;,&#39;</span><span class="p">):</span>
             <span class="k">try</span><span class="p">:</span>
-                <span class="k">yield</span> <span class="n">LTIRole</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">role</span><span class="p">)</span>
+                <span class="n">roles</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">role_type</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">role</span><span class="p">))</span>
             <span class="k">except</span> <span class="n">LTIRoleException</span><span class="p">:</span>
                 <span class="k">pass</span>
+
+        <span class="k">return</span> <span class="n">roles</span>
 
 <div class="viewcode-block" id="LTI.get_assignment_deadline"><a class="viewcode-back" href="../../psef_api/psef.html#psef.lti.LTI.get_assignment_deadline">[docs]</a>    <span class="k">def</span> <span class="nf">get_assignment_deadline</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">default</span><span class="p">:</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span> <span class="o">=</span> <span class="kc">None</span>
                                 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="p">]:</span>
@@ -814,14 +870,17 @@
 <span class="sd">        :rtype: None</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">user</span><span class="o">.</span><span class="n">role</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">for</span> <span class="n">role</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">roles</span><span class="p">:</span>
-                <span class="c1"># Ignore course roles.</span>
-                <span class="k">if</span> <span class="n">role</span><span class="o">.</span><span class="n">kind</span> <span class="o">==</span> <span class="n">LTIRoleKind</span><span class="o">.</span><span class="n">course</span><span class="p">:</span>
+            <span class="n">global_roles</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_roles</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s1">&#39;Checking global roles&#39;</span><span class="p">,</span> <span class="n">given_global_roles</span><span class="o">=</span><span class="n">global_roles</span>
+            <span class="p">)</span>
+
+            <span class="k">for</span> <span class="n">role</span> <span class="ow">in</span> <span class="n">global_roles</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">role</span><span class="o">.</span><span class="n">codegrade_role_name</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
                     <span class="k">continue</span>
-                <span class="n">role_lookup</span> <span class="o">=</span> <span class="n">LTI_SYSROLE_LOOKUPS</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">role</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
-                <span class="k">if</span> <span class="n">role_lookup</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-                    <span class="k">continue</span>
-                <span class="n">user</span><span class="o">.</span><span class="n">role</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">Role</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">filter_by</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">role_lookup</span><span class="p">)</span><span class="o">.</span><span class="n">one</span><span class="p">()</span>
+                <span class="n">user</span><span class="o">.</span><span class="n">role</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">Role</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">filter_by</span><span class="p">(</span>
+                    <span class="n">name</span><span class="o">=</span><span class="n">role</span><span class="o">.</span><span class="n">codegrade_role_name</span>
+                <span class="p">)</span><span class="o">.</span><span class="n">one</span><span class="p">()</span>
                 <span class="k">return</span>
             <span class="n">user</span><span class="o">.</span><span class="n">role</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">Role</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">filter_by</span><span class="p">(</span>
                 <span class="n">name</span><span class="o">=</span><span class="n">app</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;DEFAULT_ROLE&#39;</span><span class="p">]</span>
@@ -841,17 +900,18 @@
 <span class="sd">        :returns: True if a new role was created.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">course</span><span class="o">.</span><span class="n">id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">user</span><span class="o">.</span><span class="n">courses</span><span class="p">:</span>
-            <span class="n">unkown_roles</span> <span class="o">=</span> <span class="p">[]</span>
-            <span class="k">for</span> <span class="n">role</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">roles</span><span class="p">:</span>
-                <span class="c1"># Ignore system roles.</span>
-                <span class="k">if</span> <span class="n">role</span><span class="o">.</span><span class="n">kind</span> <span class="o">!=</span> <span class="n">LTIRoleKind</span><span class="o">.</span><span class="n">course</span><span class="p">:</span>
-                    <span class="k">continue</span>
-                <span class="n">role_lookup</span> <span class="o">=</span> <span class="n">LTI_COURSEROLE_LOOKUPS</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">role</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
-                <span class="k">if</span> <span class="n">role_lookup</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">unkown_roles</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">course_roles</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">course_roles</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s1">&#39;Checking course roles&#39;</span><span class="p">,</span>
+                <span class="n">given_course_roles</span><span class="o">=</span><span class="n">course_roles</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="k">for</span> <span class="n">role</span> <span class="ow">in</span> <span class="n">course_roles</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">role</span><span class="o">.</span><span class="n">codegrade_role_name</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
                     <span class="n">unkown_roles</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">role</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
                     <span class="k">continue</span>
                 <span class="n">crole</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">CourseRole</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">filter_by</span><span class="p">(</span>
-                    <span class="n">course_id</span><span class="o">=</span><span class="n">course</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">role_lookup</span>
+                    <span class="n">course_id</span><span class="o">=</span><span class="n">course</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">role</span><span class="o">.</span><span class="n">codegrade_role_name</span>
                 <span class="p">)</span><span class="o">.</span><span class="n">one</span><span class="p">()</span>
                 <span class="n">user</span><span class="o">.</span><span class="n">courses</span><span class="p">[</span><span class="n">course</span><span class="o">.</span><span class="n">id</span><span class="p">]</span> <span class="o">=</span> <span class="n">crole</span>
                 <span class="k">return</span> <span class="kc">False</span>
@@ -860,7 +920,7 @@
                 <span class="k">raise</span> <span class="n">APIException</span><span class="p">(</span>
                     <span class="s1">&#39;The given LTI role could not be found or was not valid. &#39;</span>
                     <span class="s1">&#39;Please ask your instructor or site administrator.&#39;</span><span class="p">,</span>
-                    <span class="sa">f</span><span class="s1">&#39;No role in &quot;{list(self.roles)}&quot; is a known LTI role&#39;</span><span class="p">,</span>
+                    <span class="sa">f</span><span class="s1">&#39;No role in &quot;{list(self.course_roles)}&quot; is a known LTI role&#39;</span><span class="p">,</span>
                     <span class="n">APICodes</span><span class="o">.</span><span class="n">INVALID_STATE</span><span class="p">,</span> <span class="mi">400</span>
                 <span class="p">)</span>
 
@@ -1125,8 +1185,12 @@
             <span class="k">return</span> <span class="n">models</span><span class="o">.</span><span class="n">_AssignmentStateEnum</span><span class="o">.</span><span class="n">hidden</span>
 
     <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">roles</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Iterable</span><span class="p">[</span><span class="n">LTIRole</span><span class="p">]:</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_roles</span><span class="p">(</span><span class="s1">&#39;ext_roles&#39;</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">course_roles</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Sequence</span><span class="p">[</span><span class="n">LTICourseRole</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_roles</span><span class="p">(</span><span class="s1">&#39;ext_roles&#39;</span><span class="p">,</span> <span class="n">LTICourseRole</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">global_roles</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Sequence</span><span class="p">[</span><span class="n">LTIGlobalRole</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_roles</span><span class="p">(</span><span class="s1">&#39;ext_roles&#39;</span><span class="p">,</span> <span class="n">LTIGlobalRole</span><span class="p">)</span>
 
 <div class="viewcode-block" id="CanvasLTI.get_assignment_deadline"><a class="viewcode-back" href="../../psef_api/psef.html#psef.lti.CanvasLTI.get_assignment_deadline">[docs]</a>    <span class="k">def</span> <span class="nf">get_assignment_deadline</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">default</span><span class="p">:</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span> <span class="o">=</span> <span class="kc">None</span>
                                 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="p">]:</span>
@@ -1233,8 +1297,12 @@
         <span class="k">return</span> <span class="n">models</span><span class="o">.</span><span class="n">_AssignmentStateEnum</span><span class="o">.</span><span class="n">open</span>
 
     <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">roles</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Iterable</span><span class="p">[</span><span class="n">LTIRole</span><span class="p">]:</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_roles</span><span class="p">(</span><span class="s1">&#39;roles&#39;</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">course_roles</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Sequence</span><span class="p">[</span><span class="n">LTICourseRole</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_roles</span><span class="p">(</span><span class="s1">&#39;roles&#39;</span><span class="p">,</span> <span class="n">LTICourseRole</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">global_roles</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Sequence</span><span class="p">[</span><span class="n">LTIGlobalRole</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_roles</span><span class="p">(</span><span class="s1">&#39;roles&#39;</span><span class="p">,</span> <span class="n">LTIGlobalRole</span><span class="p">)</span>
 
 <div class="viewcode-block" id="BareBonesLTIProvider.get_assignment_deadline"><a class="viewcode-back" href="../../psef_api/psef.html#psef.lti.BareBonesLTIProvider.get_assignment_deadline">[docs]</a>    <span class="k">def</span> <span class="nf">get_assignment_deadline</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">default</span><span class="p">:</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span> <span class="o">=</span> <span class="kc">None</span>
                                 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="p">]:</span>
@@ -1308,15 +1376,24 @@
         <span class="sd">&quot;&quot;&quot;Moodle supports common cartridges&quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="kc">True</span></div>
 
-    <span class="k">def</span> <span class="nf">_roles</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Iterable</span><span class="p">[</span><span class="n">LTIRole</span><span class="p">]:</span>
+    <span class="k">def</span> <span class="nf">_get_unsorted_roles</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">role_type</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Type</span><span class="p">[</span><span class="n">T_LTI_ROLE</span><span class="p">]</span>
+                            <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="n">T_LTI_ROLE</span><span class="p">]:</span>
+        <span class="n">roles</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="n">T_LTI_ROLE</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+
         <span class="k">for</span> <span class="n">role</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">launch_params</span><span class="p">[</span><span class="n">key</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;,&#39;</span><span class="p">):</span>
             <span class="c1"># Moodle is strange, it gives these two roles as course roles</span>
-            <span class="k">if</span> <span class="n">role</span> <span class="ow">in</span> <span class="p">{</span><span class="s1">&#39;Instructor&#39;</span><span class="p">,</span> <span class="s1">&#39;Learner&#39;</span><span class="p">}:</span>
-                <span class="k">yield</span> <span class="n">LTIRole</span><span class="p">(</span><span class="n">kind</span><span class="o">=</span><span class="n">LTIRoleKind</span><span class="o">.</span><span class="n">course</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">role</span><span class="p">,</span> <span class="n">subnames</span><span class="o">=</span><span class="p">[])</span>
+            <span class="k">if</span> <span class="n">role</span> <span class="ow">in</span> <span class="p">{</span>
+                <span class="s1">&#39;Instructor&#39;</span><span class="p">,</span> <span class="s1">&#39;Learner&#39;</span>
+            <span class="p">}</span> <span class="ow">and</span> <span class="n">role_type</span> <span class="o">==</span> <span class="n">LTICourseRole</span><span class="p">:</span>
+                <span class="n">roles</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="n">t</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">T_LTI_ROLE</span><span class="p">,</span> <span class="n">LTICourseRole</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">role</span><span class="p">,</span> <span class="n">subnames</span><span class="o">=</span><span class="p">[]))</span>
+                <span class="p">)</span>
             <span class="k">try</span><span class="p">:</span>
-                <span class="k">yield</span> <span class="n">LTIRole</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">role</span><span class="p">)</span>
+                <span class="n">roles</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">role_type</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">role</span><span class="p">))</span>
             <span class="k">except</span> <span class="n">LTIRoleException</span><span class="p">:</span>
                 <span class="k">pass</span>
+
+        <span class="k">return</span> <span class="n">roles</span>
 
 <div class="viewcode-block" id="MoodleLTI.passback_grade"><a class="viewcode-back" href="../../psef_api/psef.html#psef.lti.MoodleLTI.passback_grade">[docs]</a>    <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">passback_grade</span><span class="p">(</span>
@@ -1371,34 +1448,29 @@
     <span class="k">def</span> <span class="nf">username</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">launch_params</span><span class="p">[</span><span class="s1">&#39;ext_d2l_username&#39;</span><span class="p">]</span>
 
-    <span class="k">def</span> <span class="nf">_roles</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Iterable</span><span class="p">[</span><span class="n">LTIRole</span><span class="p">]:</span>
-        <span class="c1"># Some Brightspace instances pass all roles as instrole. In those</span>
-        <span class="c1"># cases we yield the role twice, once as instrole and once as</span>
-        <span class="c1"># course role, because we cannot determine whether a role was meant</span>
-        <span class="c1"># to be an instrole or a course role. If any of the roles already</span>
-        <span class="c1"># is a course role, we simply continue with the next one.</span>
-
-        <span class="n">roles</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="n">LTIRole</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">def</span> <span class="nf">_get_unsorted_roles</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">role_kind</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Type</span><span class="p">[</span><span class="n">T_LTI_ROLE</span><span class="p">]</span>
+                            <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="n">T_LTI_ROLE</span><span class="p">]:</span>
+        <span class="n">roles</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="n">T_LTI_ROLE</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">for</span> <span class="n">role</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">launch_params</span><span class="p">[</span><span class="n">key</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;,&#39;</span><span class="p">):</span>
             <span class="k">try</span><span class="p">:</span>
-                <span class="n">roles</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">LTIRole</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">role</span><span class="p">))</span>
+                <span class="n">roles</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">role_kind</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">role</span><span class="p">))</span>
             <span class="k">except</span> <span class="n">LTIRoleException</span><span class="p">:</span>
                 <span class="k">continue</span>
 
-        <span class="k">if</span> <span class="nb">any</span><span class="p">(</span>
-            <span class="n">parsed_role</span><span class="o">.</span><span class="n">kind</span> <span class="o">==</span> <span class="n">LTIRoleKind</span><span class="o">.</span><span class="n">course</span> <span class="k">for</span> <span class="n">parsed_role</span> <span class="ow">in</span> <span class="n">roles</span>
-        <span class="p">):</span>
-            <span class="k">yield from</span> <span class="n">roles</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">for</span> <span class="n">parsed_role</span> <span class="ow">in</span> <span class="n">roles</span><span class="p">:</span>
-                <span class="k">yield</span> <span class="n">parsed_role</span>
+        <span class="k">if</span> <span class="n">role_kind</span> <span class="o">!=</span> <span class="n">LTIGlobalRole</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">roles</span><span class="p">:</span>
+            <span class="c1"># Some Brightspace instances pass all roles as instrole (global</span>
+            <span class="c1"># role). In those cases we yield each global role also as a course</span>
+            <span class="c1"># role, because we cannot determine whether a role was meant to be</span>
+            <span class="c1"># a global or a course role.</span>
+            <span class="k">for</span> <span class="n">global_role</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_roles</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">LTIGlobalRole</span><span class="p">):</span>
+                <span class="n">roles</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="n">role_kind</span><span class="p">(</span>
+                        <span class="n">name</span><span class="o">=</span><span class="n">global_role</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                        <span class="n">subnames</span><span class="o">=</span><span class="n">global_role</span><span class="o">.</span><span class="n">subnames</span><span class="p">,</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
 
-                <span class="k">if</span> <span class="n">parsed_role</span><span class="o">.</span><span class="n">name</span> <span class="ow">in</span> <span class="n">LTI_COURSEROLE_LOOKUPS</span><span class="p">:</span>
-                    <span class="k">yield</span> <span class="n">LTIRole</span><span class="p">(</span>
-                        <span class="n">kind</span><span class="o">=</span><span class="n">LTIRoleKind</span><span class="o">.</span><span class="n">course</span><span class="p">,</span>
-                        <span class="n">name</span><span class="o">=</span><span class="n">parsed_role</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
-                        <span class="n">subnames</span><span class="o">=</span><span class="n">parsed_role</span><span class="o">.</span><span class="n">subnames</span><span class="p">,</span>
-                    <span class="p">)</span></div>
+        <span class="k">return</span> <span class="n">roles</span></div>
 
 
 <span class="c1">#####################################</span>

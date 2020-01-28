@@ -500,12 +500,12 @@
 </li>
       <li><a href="psef_api/psef.html#psef.permissions.CoursePermission.can_view_others_groups">can_view_others_groups (psef.permissions.CoursePermission attribute)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="psef_api/psef.html#psef.permissions.CoursePermission.can_view_own_teacher_files">can_view_own_teacher_files (psef.permissions.CoursePermission attribute)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.permissions.CoursePermission.can_view_plagiarism">can_view_plagiarism (psef.permissions.CoursePermission attribute)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="psef_api/psef.html#psef.helpers.RepeatedTimer.cancel">cancel() (psef.helpers.RepeatedTimer method)</a>
 
       <ul>
@@ -535,6 +535,10 @@
       <li><a href="psef_api/psef.html#psef.models.auto_test.AutoTestResult.clear_rubric">clear_rubric() (psef.models.auto_test.AutoTestResult method)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.auto_test.AutoTestContainer.clone">clone() (psef.auto_test.AutoTestContainer method)</a>
+</li>
+      <li><a href="psef_api/psef.html#psef.lti.LTIRole.codegrade_role_name">codegrade_role_name (psef.lti.LTIRole attribute)</a>
+</li>
+      <li><a href="psef_api/psef.html#psef.lti.LTIRole.codegrade_role_name_used">codegrade_role_name_used() (psef.lti.LTIRole class method)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.helpers.coerce_json_value_to_typeddict">coerce_json_value_to_typeddict() (in module psef.helpers)</a>
 </li>
@@ -570,8 +574,6 @@
 </li>
       <li><a href="psef_api/psef.html#psef.models.course.Course">Course (class in psef.models.course)</a>
 </li>
-      <li><a href="psef_api/psef.html#psef.lti.LTIRoleKind.course">course (psef.lti.LTIRoleKind attribute)</a>
-</li>
       <li><a href="psef_api/psef.html#psef.lti.BareBonesLTIProvider.course_id">course_id (psef.lti.BareBonesLTIProvider attribute)</a>
 
       <ul>
@@ -586,6 +588,14 @@
         <li><a href="psef_api/psef.html#psef.lti.CanvasLTI.course_name">(psef.lti.CanvasLTI attribute)</a>
 </li>
         <li><a href="psef_api/psef.html#psef.lti.LTI.course_name">(psef.lti.LTI attribute)</a>
+</li>
+      </ul></li>
+      <li><a href="psef_api/psef.html#psef.lti.BareBonesLTIProvider.course_roles">course_roles (psef.lti.BareBonesLTIProvider attribute)</a>
+
+      <ul>
+        <li><a href="psef_api/psef.html#psef.lti.CanvasLTI.course_roles">(psef.lti.CanvasLTI attribute)</a>
+</li>
+        <li><a href="psef_api/psef.html#psef.lti.LTI.course_roles">(psef.lti.LTI attribute)</a>
 </li>
       </ul></li>
       <li><a href="psef_api/psef.html#psef.permissions.CoursePermission">CoursePermission (class in psef.permissions)</a>
@@ -1022,10 +1032,10 @@
 </li>
       <li><a href="psef_api/psef.html#psef.extract_tree.ExtractFileTreeBase.get_full_name">get_full_name() (psef.extract_tree.ExtractFileTreeBase method)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="psef_api/psef.html#psef.helpers.get_in_or_error">get_in_or_error() (in module psef.helpers)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="psef_api/psef.html#psef.models.role.CourseRole.get_initial_course_role">get_initial_course_role() (psef.models.role.CourseRole class method)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.models.auto_test.AutoTestRun.get_instructions">get_instructions() (psef.models.auto_test.AutoTestRun method)</a>
@@ -1039,8 +1049,6 @@
       <li><a href="psef_api/psef.html#psef.helpers.get_json_dict_from_request">get_json_dict_from_request() (in module psef.helpers)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.helpers.get_key_from_dict">get_key_from_dict() (in module psef.helpers)</a>
-</li>
-      <li><a href="psef_api/psef.html#psef.lti.LTIRoleKind.get_kind">get_kind (psef.lti.LTIRoleKind attribute)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.models.assignment.Assignment.get_latest_submission_for_user">get_latest_submission_for_user() (psef.models.assignment.Assignment method)</a>
 </li>
@@ -1122,6 +1130,14 @@
 </li>
       <li><a href="psef_api/psef.html#psef.models.group.GroupSet.get_valid_group_for_user">get_valid_group_for_user() (psef.models.group.GroupSet method)</a>
 </li>
+      <li><a href="psef_api/psef.html#psef.lti.BareBonesLTIProvider.global_roles">global_roles (psef.lti.BareBonesLTIProvider attribute)</a>
+
+      <ul>
+        <li><a href="psef_api/psef.html#psef.lti.CanvasLTI.global_roles">(psef.lti.CanvasLTI attribute)</a>
+</li>
+        <li><a href="psef_api/psef.html#psef.lti.LTI.global_roles">(psef.lti.LTI attribute)</a>
+</li>
+      </ul></li>
       <li><a href="psef_api/psef.html#psef.permissions.GlobalPermission">GlobalPermission (class in psef.permissions)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.models.work.Work.grade">grade (psef.models.work.Work attribute)</a>
@@ -1240,8 +1256,6 @@
         <li><a href="psef_api/psef.html#psef.plagiarism_providers.init_app">(in module psef.plagiarism_providers)</a>
 </li>
       </ul></li>
-      <li><a href="psef_api/psef.html#psef.lti.LTIRoleKind.institution">institution (psef.lti.LTIRoleKind attribute)</a>
-</li>
       <li><a href="psef_api/psef.html#psef.exceptions.APICodes.INSUFFICIENT_GROUP_SIZE">INSUFFICIENT_GROUP_SIZE (psef.exceptions.APICodes attribute)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.exceptions.APIWarnings.INTERNAL_API">INTERNAL_API (psef.exceptions.APIWarnings attribute)</a>
@@ -1382,10 +1396,10 @@
 </li>
       <li><a href="psef_api/psef.html#psef.auto_test.LockableValue">LockableValue (class in psef.auto_test)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="psef_api/psef.html#psef.models.rubric.RubricRow.locked">locked (psef.models.rubric.RubricRow attribute)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="psef_api/psef.html#psef.models.assignment.Assignment.locked_rubric_rows">locked_rubric_rows (psef.models.assignment.Assignment attribute)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.exceptions.APICodes.LOCKED_UPDATE">LOCKED_UPDATE (psef.exceptions.APICodes attribute)</a>
@@ -1402,7 +1416,11 @@
 </li>
       <li><a href="psef_api/psef.html#psef.lti.LTIResultDataType.lti_launch_url">lti_launch_url (psef.lti.LTIResultDataType attribute)</a>
 </li>
+      <li><a href="psef_api/psef.html#psef.lti.LTICourseRole">LTICourseRole (class in psef.lti)</a>
+</li>
       <li><a href="psef_api/psef.html#psef.lti.LTIDeleteResultOperation">LTIDeleteResultOperation (class in psef.lti)</a>
+</li>
+      <li><a href="psef_api/psef.html#psef.lti.LTIGlobalRole">LTIGlobalRole (class in psef.lti)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.lti.LTIInitalReplaceResultOperation">LTIInitalReplaceResultOperation (class in psef.lti)</a>
 </li>
@@ -1423,8 +1441,6 @@
       <li><a href="psef_api/psef.html#psef.lti.LTIRole">LTIRole (class in psef.lti)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.lti.LTIRoleException">LTIRoleException</a>
-</li>
-      <li><a href="psef_api/psef.html#psef.lti.LTIRoleKind">LTIRoleKind (class in psef.lti)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.auto_test.LXCProcessError">LXCProcessError</a>
 </li>
@@ -1579,6 +1595,10 @@
 </li>
         <li><a href="psef_api/psef.html#psef.ignore.SubmissionValidator.parse">(psef.ignore.SubmissionValidator class method)</a>
 </li>
+        <li><a href="psef_api/psef.html#psef.lti.LTICourseRole.parse">(psef.lti.LTICourseRole class method)</a>
+</li>
+        <li><a href="psef_api/psef.html#psef.lti.LTIGlobalRole.parse">(psef.lti.LTIGlobalRole class method)</a>
+</li>
         <li><a href="psef_api/psef.html#psef.lti.LTIRole.parse">(psef.lti.LTIRole class method)</a>
 </li>
       </ul></li>
@@ -1644,10 +1664,10 @@
 </li>
       <li><a href="psef_api/psef.html#psef.plagiarism.process_output_csv">process_output_csv() (in module psef.plagiarism)</a>
 </li>
-      <li><a href="psef_api/psef.html#psef.ignore.SubmissionFilter.process_submission">process_submission() (psef.ignore.SubmissionFilter method)</a>
-</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="psef_api/psef.html#psef.ignore.SubmissionFilter.process_submission">process_submission() (psef.ignore.SubmissionFilter method)</a>
+</li>
       <li><a href="psef_api/psef.html#psef.models.plagiarism.PlagiarismRun.provider_name">provider_name (psef.models.plagiarism.PlagiarismRun attribute)</a>
 </li>
       <li><a href="psef_api/psef.html#module-psef">psef (module)</a>
@@ -1792,6 +1812,8 @@
 </li>
       <li><a href="psef_api/psef.html#psef.files.restore_directory_structure">restore_directory_structure() (in module psef.files)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="psef_api/psef.html#psef.lti.BareBonesLTIProvider.result_sourcedid">result_sourcedid (psef.lti.BareBonesLTIProvider attribute)</a>
 
       <ul>
@@ -1800,20 +1822,10 @@
         <li><a href="psef_api/psef.html#psef.lti.LTI.result_sourcedid">(psef.lti.LTI attribute)</a>
 </li>
       </ul></li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="psef_api/psef.html#psef.helpers.retry_loop">retry_loop() (in module psef.helpers)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.models.role.Role">Role (class in psef.models.role)</a>
 </li>
-      <li><a href="psef_api/psef.html#psef.lti.BareBonesLTIProvider.roles">roles (psef.lti.BareBonesLTIProvider attribute)</a>
-
-      <ul>
-        <li><a href="psef_api/psef.html#psef.lti.CanvasLTI.roles">(psef.lti.CanvasLTI attribute)</a>
-</li>
-        <li><a href="psef_api/psef.html#psef.lti.LTI.roles">(psef.lti.LTI attribute)</a>
-</li>
-      </ul></li>
       <li><a href="psef_api/psef.html#psef.exceptions.APICodes.ROUTE_NOT_FOUND">ROUTE_NOT_FOUND (psef.exceptions.APICodes attribute)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.models.rubric.RubricItem">RubricItem (class in psef.models.rubric)</a>
@@ -2027,8 +2039,6 @@
 </li>
       </ul></li>
       <li><a href="psef_api/psef.html#psef.exceptions.APIWarnings.SYMLINK_IN_ARCHIVE">SYMLINK_IN_ARCHIVE (psef.exceptions.APIWarnings attribute)</a>
-</li>
-      <li><a href="psef_api/psef.html#psef.lti.LTIRoleKind.system">system (psef.lti.LTIRoleKind attribute)</a>
 </li>
   </ul></td>
 </tr></table>

@@ -5163,6 +5163,20 @@ supported or if the data is not present.</td>
 </table>
 </dd></dl>
 
+<dl class="attribute">
+<dt id="psef.lti.BareBonesLTIProvider.course_roles">
+<code class="descname">course_roles</code><a class="headerlink" href="#psef.lti.BareBonesLTIProvider.course_roles" title="Permalink to this definition">¶</a></dt>
+<dd><p>The course roles of the user doing the launch.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Sequence</span></code></a>[<a class="reference internal" href="#psef.lti.LTICourseRole" title="psef.lti.LTICourseRole"><code class="xref py py-class docutils literal notranslate"><span class="pre">LTICourseRole</span></code></a>]</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
 <dl class="method">
 <dt id="psef.lti.BareBonesLTIProvider.get_assignment_deadline">
 <code class="descname">get_assignment_deadline</code><span class="sig-paren">(</span><em>self</em>, <em>default: datetime.datetime = None</em><span class="sig-paren">)</span> &#x2192; Optional[datetime.datetime]<a class="reference internal" href="../_modules/psef/lti.html#BareBonesLTIProvider.get_assignment_deadline"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.lti.BareBonesLTIProvider.get_assignment_deadline" title="Permalink to this definition">¶</a></dt>
@@ -5178,6 +5192,20 @@ plus 365 days is used.</td>
 <tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/datetime.html#datetime.datetime" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">datetime</span></code></a>]</td>
 </tr>
 <tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">The deadline of the assignment as a datetime.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="psef.lti.BareBonesLTIProvider.global_roles">
+<code class="descname">global_roles</code><a class="headerlink" href="#psef.lti.BareBonesLTIProvider.global_roles" title="Permalink to this definition">¶</a></dt>
+<dd><p>The global roles of the user doing the launch.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Sequence</span></code></a>[<a class="reference internal" href="#psef.lti.LTIGlobalRole" title="psef.lti.LTIGlobalRole"><code class="xref py py-class docutils literal notranslate"><span class="pre">LTIGlobalRole</span></code></a>]</td>
 </tr>
 </tbody>
 </table>
@@ -5272,20 +5300,6 @@ launch.</li>
 <col class="field-body" />
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a></td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
-
-<dl class="attribute">
-<dt id="psef.lti.BareBonesLTIProvider.roles">
-<code class="descname">roles</code><a class="headerlink" href="#psef.lti.BareBonesLTIProvider.roles" title="Permalink to this definition">¶</a></dt>
-<dd><p>The normalized roles of the current LTI user.</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Iterable" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Iterable</span></code></a>[<a class="reference internal" href="#psef.lti.LTIRole" title="psef.lti.LTIRole"><code class="xref py py-class docutils literal notranslate"><span class="pre">LTIRole</span></code></a>]</td>
 </tr>
 </tbody>
 </table>
@@ -5438,6 +5452,20 @@ launch.</li>
 </table>
 </dd></dl>
 
+<dl class="attribute">
+<dt id="psef.lti.CanvasLTI.course_roles">
+<code class="descname">course_roles</code><a class="headerlink" href="#psef.lti.CanvasLTI.course_roles" title="Permalink to this definition">¶</a></dt>
+<dd><p>The course roles of the user doing the launch.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Sequence</span></code></a>[<a class="reference internal" href="#psef.lti.LTICourseRole" title="psef.lti.LTICourseRole"><code class="xref py py-class docutils literal notranslate"><span class="pre">LTICourseRole</span></code></a>]</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
 <dl class="method">
 <dt id="psef.lti.CanvasLTI.get_assignment_deadline">
 <code class="descname">get_assignment_deadline</code><span class="sig-paren">(</span><em>self</em>, <em>default: datetime.datetime = None</em><span class="sig-paren">)</span> &#x2192; Optional[datetime.datetime]<a class="reference internal" href="../_modules/psef/lti.html#CanvasLTI.get_assignment_deadline"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.lti.CanvasLTI.get_assignment_deadline" title="Permalink to this definition">¶</a></dt>
@@ -5485,6 +5513,20 @@ plus 365 days is used.</td>
 <tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code>[<a class="reference internal" href="#psef.lti.LTIProperty" title="psef.lti.LTIProperty"><code class="xref py py-class docutils literal notranslate"><span class="pre">LTIProperty</span></code></a>]</td>
 </tr>
 <tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">The extension properties needed.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="psef.lti.CanvasLTI.global_roles">
+<code class="descname">global_roles</code><a class="headerlink" href="#psef.lti.CanvasLTI.global_roles" title="Permalink to this definition">¶</a></dt>
+<dd><p>The global roles of the user doing the launch.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Sequence</span></code></a>[<a class="reference internal" href="#psef.lti.LTIGlobalRole" title="psef.lti.LTIGlobalRole"><code class="xref py py-class docutils literal notranslate"><span class="pre">LTIGlobalRole</span></code></a>]</td>
 </tr>
 </tbody>
 </table>
@@ -5579,20 +5621,6 @@ launch.</li>
 <col class="field-body" />
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a></td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
-
-<dl class="attribute">
-<dt id="psef.lti.CanvasLTI.roles">
-<code class="descname">roles</code><a class="headerlink" href="#psef.lti.CanvasLTI.roles" title="Permalink to this definition">¶</a></dt>
-<dd><p>The normalized roles of the current LTI user.</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Iterable" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Iterable</span></code></a>[<a class="reference internal" href="#psef.lti.LTIRole" title="psef.lti.LTIRole"><code class="xref py py-class docutils literal notranslate"><span class="pre">LTIRole</span></code></a>]</td>
 </tr>
 </tbody>
 </table>
@@ -5765,6 +5793,20 @@ supported or if the data is not present.</td>
 <col class="field-body" />
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="psef.lti.LTI.course_roles">
+<code class="descname">course_roles</code><a class="headerlink" href="#psef.lti.LTI.course_roles" title="Permalink to this definition">¶</a></dt>
+<dd><p>The course roles of the user doing the launch.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Sequence</span></code></a>[<a class="reference internal" href="#psef.lti.LTICourseRole" title="psef.lti.LTICourseRole"><code class="xref py py-class docutils literal notranslate"><span class="pre">LTICourseRole</span></code></a>]</td>
 </tr>
 </tbody>
 </table>
@@ -5944,6 +5986,20 @@ plus 365 days is used.</td>
 </table>
 </dd></dl>
 
+<dl class="attribute">
+<dt id="psef.lti.LTI.global_roles">
+<code class="descname">global_roles</code><a class="headerlink" href="#psef.lti.LTI.global_roles" title="Permalink to this definition">¶</a></dt>
+<dd><p>The global roles of the user doing the launch.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Sequence</span></code></a>[<a class="reference internal" href="#psef.lti.LTIGlobalRole" title="psef.lti.LTIGlobalRole"><code class="xref py py-class docutils literal notranslate"><span class="pre">LTIGlobalRole</span></code></a>]</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
 <dl class="method">
 <dt id="psef.lti.LTI.has_outcome_service_url">
 <code class="descname">has_outcome_service_url</code><span class="sig-paren">(</span><em>self</em><span class="sig-paren">)</span> &#x2192; bool<a class="reference internal" href="../_modules/psef/lti.html#LTI.has_outcome_service_url"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.lti.LTI.has_outcome_service_url" title="Permalink to this definition">¶</a></dt>
@@ -6033,20 +6089,6 @@ launch.</li>
 <col class="field-body" />
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a></td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
-
-<dl class="attribute">
-<dt id="psef.lti.LTI.roles">
-<code class="descname">roles</code><a class="headerlink" href="#psef.lti.LTI.roles" title="Permalink to this definition">¶</a></dt>
-<dd><p>The normalized roles of the current LTI user.</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Iterable" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Iterable</span></code></a>[<a class="reference internal" href="#psef.lti.LTIRole" title="psef.lti.LTIRole"><code class="xref py py-class docutils literal notranslate"><span class="pre">LTIRole</span></code></a>]</td>
 </tr>
 </tbody>
 </table>
@@ -6224,6 +6266,33 @@ changing the max points.</td>
 </dd></dl>
 
 <dl class="class">
+<dt id="psef.lti.LTICourseRole">
+<em class="property">class </em><code class="descclassname">psef.lti.</code><code class="descname">LTICourseRole</code><span class="sig-paren">(</span><em>self, *, name: str, subnames: Sequence[str]</em><span class="sig-paren">)</span> &#x2192; None<a class="reference internal" href="../_modules/psef/lti.html#LTICourseRole"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.lti.LTICourseRole" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#psef.lti.LTIRole" title="psef.lti.LTIRole"><code class="xref py py-class docutils literal notranslate"><span class="pre">psef.lti.LTIRole</span></code></a></p>
+<p>A class representing a course LTI role.</p>
+<dl class="classmethod">
+<dt id="psef.lti.LTICourseRole.parse">
+<em class="property">classmethod </em><code class="descname">parse</code><span class="sig-paren">(</span><em>urn: str</em><span class="sig-paren">)</span> &#x2192; psef.lti.LTICourseRole<a class="reference internal" href="../_modules/psef/lti.html#LTICourseRole.parse"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.lti.LTICourseRole.parse" title="Permalink to this definition">¶</a></dt>
+<dd><p>Parse the given <code class="docutils literal notranslate"><span class="pre">urn</span></code> to a role.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>urn</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>) – The urn to parse.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body"><a class="reference internal" href="#psef.lti.LTICourseRole" title="psef.lti.LTICourseRole"><code class="xref py py-class docutils literal notranslate"><span class="pre">LTICourseRole</span></code></a></td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">The parsed role.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Raises:</th><td class="field-body"><a class="reference internal" href="#psef.lti.LTIRoleException" title="psef.lti.LTIRoleException"><strong>LTIRoleException</strong></a> – If the role is not valid.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
 <dt id="psef.lti.LTIDeleteResultOperation">
 <em class="property">class </em><code class="descclassname">psef.lti.</code><code class="descname">LTIDeleteResultOperation</code><a class="reference internal" href="../_modules/psef/lti.html#LTIDeleteResultOperation"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.lti.LTIDeleteResultOperation" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <a class="reference internal" href="#psef.lti.LTIOperation" title="psef.lti.LTIOperation"><code class="xref py py-class docutils literal notranslate"><span class="pre">psef.lti.LTIOperation</span></code></a></p>
@@ -6238,6 +6307,35 @@ changing the max points.</td>
 <col class="field-body" />
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="psef.lti.LTIGlobalRole">
+<em class="property">class </em><code class="descclassname">psef.lti.</code><code class="descname">LTIGlobalRole</code><span class="sig-paren">(</span><em>self, *, name: str, subnames: Sequence[str]</em><span class="sig-paren">)</span> &#x2192; None<a class="reference internal" href="../_modules/psef/lti.html#LTIGlobalRole"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.lti.LTIGlobalRole" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#psef.lti.LTIRole" title="psef.lti.LTIRole"><code class="xref py py-class docutils literal notranslate"><span class="pre">psef.lti.LTIRole</span></code></a></p>
+<p>A class representing a global LTI role.</p>
+<p>This class represents both roles of type <code class="docutils literal notranslate"><span class="pre">sysrole</span></code> and of type
+<code class="docutils literal notranslate"><span class="pre">instrole</span></code>, as CodeGrade handles those both the same way.</p>
+<dl class="classmethod">
+<dt id="psef.lti.LTIGlobalRole.parse">
+<em class="property">classmethod </em><code class="descname">parse</code><span class="sig-paren">(</span><em>urn: str</em><span class="sig-paren">)</span> &#x2192; psef.lti.LTIGlobalRole<a class="reference internal" href="../_modules/psef/lti.html#LTIGlobalRole.parse"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.lti.LTIGlobalRole.parse" title="Permalink to this definition">¶</a></dt>
+<dd><p>Parse the given <code class="docutils literal notranslate"><span class="pre">urn</span></code> to a role.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>urn</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>) – The urn to parse.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body"><a class="reference internal" href="#psef.lti.LTIGlobalRole" title="psef.lti.LTIGlobalRole"><code class="xref py py-class docutils literal notranslate"><span class="pre">LTIGlobalRole</span></code></a></td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">The parsed role.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Raises:</th><td class="field-body"><a class="reference internal" href="#psef.lti.LTIRoleException" title="psef.lti.LTIRoleException"><strong>LTIRoleException</strong></a> – If the role is not valid.</td>
 </tr>
 </tbody>
 </table>
@@ -6356,8 +6454,8 @@ user got for the assignment.</p>
 
 <dl class="class">
 <dt id="psef.lti.LTIRole">
-<em class="property">class </em><code class="descclassname">psef.lti.</code><code class="descname">LTIRole</code><span class="sig-paren">(</span><em>self, *, kind: psef.lti.LTIRoleKind, name: str, subnames: Sequence[str]</em><span class="sig-paren">)</span> &#x2192; None<a class="reference internal" href="../_modules/psef/lti.html#LTIRole"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.lti.LTIRole" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<em class="property">class </em><code class="descclassname">psef.lti.</code><code class="descname">LTIRole</code><span class="sig-paren">(</span><em>self, *, name: str, subnames: Sequence[str]</em><span class="sig-paren">)</span> &#x2192; None<a class="reference internal" href="../_modules/psef/lti.html#LTIRole"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.lti.LTIRole" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/abc.html#abc.ABC" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">abc.ABC</span></code></a></p>
 <p>LTI role, parsed from a role urn. The urn must be of the form
 <a class="reference external" href="urn:lti">urn:lti</a>:{kind}:ims/lis/{name}/{subname}.</p>
 <table class="docutils field-list" frame="void" rules="none">
@@ -6365,7 +6463,6 @@ user got for the assignment.</p>
 <col class="field-body" />
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Variables:</th><td class="field-body"><ul class="first last simple">
-<li><strong>kind</strong> – Kind of the role.</li>
 <li><strong>name</strong> – Primary role name.</li>
 <li><strong>subnames</strong> – Secondary role names.</li>
 </ul>
@@ -6373,19 +6470,55 @@ user got for the assignment.</p>
 </tr>
 </tbody>
 </table>
-<dl class="classmethod">
-<dt id="psef.lti.LTIRole.parse">
-<em class="property">classmethod </em><code class="descname">parse</code><span class="sig-paren">(</span><em>urn: str</em><span class="sig-paren">)</span> &#x2192; T_LTI_ROLE<a class="reference internal" href="../_modules/psef/lti.html#LTIRole.parse"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.lti.LTIRole.parse" title="Permalink to this definition">¶</a></dt>
-<dd><p>Parse a LTI role from a IMS urn.</p>
+<dl class="attribute">
+<dt id="psef.lti.LTIRole.codegrade_role_name">
+<code class="descname">codegrade_role_name</code><a class="headerlink" href="#psef.lti.LTIRole.codegrade_role_name" title="Permalink to this definition">¶</a></dt>
+<dd><p>If not <code class="docutils literal notranslate"><span class="pre">None</span></code> this role should be mapped to a CodeGrade role with
+this name.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>urn</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>) – The string to parse.</td>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>]</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="classmethod">
+<dt id="psef.lti.LTIRole.codegrade_role_name_used">
+<em class="property">classmethod </em><code class="descname">codegrade_role_name_used</code><span class="sig-paren">(</span><em>name: str</em><span class="sig-paren">)</span> &#x2192; bool<a class="reference internal" href="../_modules/psef/lti.html#LTIRole.codegrade_role_name_used"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.lti.LTIRole.codegrade_role_name_used" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="docutils">
+<dt>Is the given name used for any known LTI role as CodeGrade role</dt>
+<dd>name.</dd>
+</dl>
+<p>This is true if there is any role <code class="docutils literal notranslate"><span class="pre">l</span></code> for which
+<code class="docutils literal notranslate"><span class="pre">l.codegrade_role_name</span> <span class="pre">==</span> <span class="pre">name</span></code>.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>) – The CodeGrade role name to check.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="classmethod">
+<dt id="psef.lti.LTIRole.parse">
+<em class="property">classmethod </em><code class="descname">parse</code><span class="sig-paren">(</span><em>urn: str</em><span class="sig-paren">)</span> &#x2192; T_LTI_ROLE<a class="reference internal" href="../_modules/psef/lti.html#LTIRole.parse"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.lti.LTIRole.parse" title="Permalink to this definition">¶</a></dt>
+<dd><p>Parse the given <code class="docutils literal notranslate"><span class="pre">urn</span></code> to a role.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>urn</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>) – The urn to parse.</td>
 </tr>
 <tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body"><code class="xref py py-class docutils literal notranslate"><span class="pre">T_LTI_ROLE</span></code></td>
 </tr>
-<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">The parsed LTI role.</td>
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">The parsed role.</td>
 </tr>
 <tr class="field-even field"><th class="field-name">Raises:</th><td class="field-body"><a class="reference internal" href="#psef.lti.LTIRoleException" title="psef.lti.LTIRoleException"><strong>LTIRoleException</strong></a> – If the role is not valid.</td>
 </tr>
@@ -6400,33 +6533,6 @@ user got for the assignment.</p>
 <em class="property">exception </em><code class="descclassname">psef.lti.</code><code class="descname">LTIRoleException</code><span class="sig-paren">(</span><em>self</em>, <em>message: str</em>, <em>description: str</em>, <em>api_code: psef.exceptions.APICodes</em>, <em>status_code: int</em>, <em>**rest</em><span class="sig-paren">)</span> &#x2192; None<a class="reference internal" href="../_modules/psef/lti.html#LTIRoleException"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.lti.LTIRoleException" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <a class="reference internal" href="#psef.exceptions.APIException" title="psef.exceptions.APIException"><code class="xref py py-class docutils literal notranslate"><span class="pre">psef.exceptions.APIException</span></code></a></p>
 <p>Thrown when a role could not be parsed.</p>
-</dd></dl>
-
-<dl class="class">
-<dt id="psef.lti.LTIRoleKind">
-<em class="property">class </em><code class="descclassname">psef.lti.</code><code class="descname">LTIRoleKind</code><a class="reference internal" href="../_modules/psef/lti.html#LTIRoleKind"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.lti.LTIRoleKind" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/enum.html#enum.Enum" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">enum.Enum</span></code></a></p>
-<p>Kind of an LTI role.</p>
-<dl class="attribute">
-<dt id="psef.lti.LTIRoleKind.course">
-<code class="descname">course</code><em class="property"> = 3</em><a class="headerlink" href="#psef.lti.LTIRoleKind.course" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="attribute">
-<dt id="psef.lti.LTIRoleKind.get_kind">
-<code class="descname">get_kind</code><span class="sig-paren">(</span><em>lti_kind: str</em><span class="sig-paren">)</span> &#x2192; psef.lti.LTIRoleKind<em class="property"> = &lt;bound method LTIRoleKind.get_kind of &lt;enum 'LTIRoleKind'&gt;&gt;</em><a class="reference internal" href="../_modules/psef/lti.html#LTIRoleKind.get_kind"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.lti.LTIRoleKind.get_kind" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="attribute">
-<dt id="psef.lti.LTIRoleKind.institution">
-<code class="descname">institution</code><em class="property"> = 2</em><a class="headerlink" href="#psef.lti.LTIRoleKind.institution" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="attribute">
-<dt id="psef.lti.LTIRoleKind.system">
-<code class="descname">system</code><em class="property"> = 1</em><a class="headerlink" href="#psef.lti.LTIRoleKind.system" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
 </dd></dl>
 
 <dl class="class">
