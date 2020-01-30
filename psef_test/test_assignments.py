@@ -13,6 +13,7 @@ from collections import defaultdict
 
 import pytest
 from freezegun import freeze_time
+from sqlalchemy.sql import func as sql_func
 
 import psef
 import helpers
@@ -58,6 +59,7 @@ def rubric(
                 'id': int,
                 'items': list,
                 'locked': False,
+                'type': 'normal',
             }]
         )
 
@@ -460,17 +462,12 @@ def test_update_rubric_item(
 
 
 @pytest.mark.parametrize(
-    'item_description',
-    [err400(None), 'You did well', err400(5)]
+    'row_type',
+    [err404(None), 'normal', err404('unknown')]
 )
-@pytest.mark.parametrize(
-    'item_header',
-    [err400(None), 'You very well', err400(5)]
-)
-@pytest.mark.parametrize(
-    'item_points',
-    [err400(None), 5.3, 5, 11, err400('Wow')]
-)
+@pytest.mark.parametrize('item_description', [err400(None), 'You did well'])
+@pytest.mark.parametrize('item_header', [err400(None), 'You very well'])
+@pytest.mark.parametrize('item_points', [err400(None), 5.3, 5, err400('Wow')])
 @pytest.mark.parametrize(
     'row_description',
     [err400(None), 'A row desc', err400(5)]
@@ -481,9 +478,10 @@ def test_update_rubric_item(
 )
 def test_get_and_add_rubric_row(
     item_description, item_points, row_description, row_header, assignment,
-    teacher_user, logged_in, test_client, error_template, request, item_header
+    teacher_user, logged_in, test_client, error_template, request, item_header,
+    row_type
 ):
-    row = {}
+    row = {'type': row_type}
     if row_header is not None:
         row['header'] = row_header
     if row_description is not None:
@@ -511,6 +509,7 @@ def test_get_and_add_rubric_row(
                 'points': item['points'],
             }],
             'locked': False,
+            'type': row['type'],
         }] if marker is None else error_template
         res = res if marker is None else error_template
 
@@ -1048,6 +1047,7 @@ def test_upload_files(
                         'assignment_id': assignment.id,
                         'origin': 'uploaded_files',
                         'extra_info': None,
+                        'rubric_result': None,
                     }
                 )
 
@@ -1842,6 +1842,7 @@ def test_get_all_submissions(
                         None if no_grade or not work.comment else dict
                     )
                     res[-1]['assignment_id'] = int
+                    res[-1]['rubric_result'] = None
         else:
             code = marker.kwargs['error']
 
@@ -4000,6 +4001,7 @@ def test_duplicating_rubric(
                 'id': int,
                 'items': list,
                 'locked': False,
+                'type': 'normal',
             }]
         )
         test_client.req(
@@ -4667,6 +4669,7 @@ def test_upload_test_submission(
                     'assignment_id': assig_id,
                     'extra_info': None,
                     'origin': 'uploaded_files',
+                    'rubric_result': None,
                 }
             )
 
@@ -4733,6 +4736,167 @@ def test_delete_assignment(
             'get', f'/api/v1/assignments/{assig}/submissions/', 404
         )
         test_client.req('get', f'/api/v1/submissions/{sub1["id"]}', 404)
+
+
+def test_continuous_rubrics(
+    test_client, admin_user, describe, session, logged_in
+):
+    with describe('setup'), logged_in(admin_user):
+        course = helpers.create_course(test_client)
+        assig = helpers.create_assignment(
+            test_client, course, 'open', 'tomorrow'
+        )['id']
+        stud1 = helpers.create_user_with_role(session, 'Student', [course])
+        with logged_in(stud1):
+            sub1 = helpers.create_submission(test_client, assig)['id']
+
+    with describe('cannot create continuous with multiple items rubrics'
+                  ), logged_in(admin_user):
+        test_client.req(
+            'put',
+            f'/api/v1/assignments/{assig}/rubrics/',
+            409,
+            data={
+                'rows': [{
+                    'header': 'My header', 'description': 'My description',
+                    'type': 'continuous', 'items': []
+                }]
+            }
+        )
+
+        test_client.req(
+            'put',
+            f'/api/v1/assignments/{assig}/rubrics/',
+            409,
+            data={
+                'rows': [{
+                    'header': 'My header',
+                    'description': 'My description',
+                    'type': 'continuous',
+                    'items': [
+                        {
+                            'description': 'item description',
+                            'header': 'header',
+                            'points': 4,
+                        },
+                        {
+                            'description': 'item description',
+                            'header': 'header',
+                            'points': 5,
+                        },
+                    ],
+                }]
+            }
+        )
+
+    with describe('unknown rubric types are rejected'), logged_in(admin_user):
+        test_client.req(
+            'put',
+            f'/api/v1/assignments/{assig}/rubrics/',
+            404,
+            data={
+                'rows': [{
+                    'header': 'My header', 'description': 'My description',
+                    'type': 'unknown', 'items': []
+                }]
+            }
+        )
+
+    with describe('can create continuous rubrics with one item'
+                  ), logged_in(admin_user):
+        # yapf: disable
+        rubric = test_client.req(
+            'put',
+            f'/api/v1/assignments/{assig}/rubrics/',
+            200,
+            data={
+                'rows': [
+                    {
+                        'header': 'My header',
+                        'description': 'My description',
+                        'type': 'normal',
+                        'items': [{
+                            'description': 'item description',
+                            'header': 'header',
+                            'points': 4,
+                        }, {
+                            'description': 'item description',
+                            'header': 'header',
+                            'points': 5,
+                        }],
+                    }, {
+                        'header': 'My cont',
+                        'description': 'continuous',
+                        'type': 'continuous',
+                        'items': [{
+                            'description': 'item description',
+                            'header': 'header',
+                            'points': 8,
+                        }],
+                    }]
+            }
+        )
+        # yapf: enable
+
+    with describe('can grade with continuous rubrics'), logged_in(admin_user):
+        # yapf: disable
+        expected_rubric_result = {
+            'rubrics': rubric,
+            'selected': [{
+                'id': rubric[0]['items'][0]['id'],
+                'achieved_points': 4,
+                'points': 4,
+                '__allow_extra__': True,
+            }, {
+                'id': rubric[1]['items'][-1]['id'],
+                'achieved_points': 0.8,
+                'points': 8,
+                '__allow_extra__': True,
+            }],
+            'points': {
+                'max': 13,
+                'selected': 4 + 0.8,
+            }
+        }
+        # yapf: enable
+
+        test_client.req(
+            'patch',
+            f'/api/v1/submissions/{sub1}/rubricitems/',
+            200,
+            data={
+                'items': [
+                    {
+                        'row_id': rubric[0]['id'],
+                        'item_id': rubric[0]['items'][0]['id'],
+                        # Default multiplier should be 1
+                    },
+                    {
+                        'row_id': rubric[1]['id'],
+                        'item_id': rubric[1]['items'][-1]['id'],
+                        'multiplier': 0.1,
+                    }
+                ]
+            },
+            result={
+                '__allow_extra__': True,
+                # Brackets are important for rounding here.
+                'grade': 10 * ((4 + 0.8) / 13),
+                'rubric_result': expected_rubric_result,
+            },
+        )
+        test_client.req(
+            'get',
+            f'/api/v1/submissions/{sub1}/rubrics/',
+            200,
+            result=expected_rubric_result,
+        )
+
+    with describe('the points attribute should also work in sql'):
+        assert len(
+            session.query(m.WorkRubricItem
+                          ).filter_by(work_id=sub1, points=0.8).all()
+        ) == 1
 
 
 def test_limiting_submissions(

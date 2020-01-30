@@ -77,6 +77,7 @@
                             </description-popover>
                         </b-input-group-prepend>
                         <datetime-picker v-model="assignmentTempDeadline"
+                                         class="assignment-deadline"
                                          placeholder="None set"/>
                         <b-input-group-append>
                             <submit-button :submit="submitDeadline"
@@ -362,17 +363,16 @@
 
         <div class="cat-wrapper" :class="{hidden: selectedCat !== 'rubric'}">
             <b-card header="Rubric" v-if="canUseRubrics">
-                <!-- TODO: Properfix instead of :key hack -->
+                <!-- TODO: Proper fix instead of :key hack -->
                 <rubric-editor :key="assignment.id"
-                               :assignment="assignment"
                                :hidden="selectedCat !== 'rubric'"
-                               ref="rubricEditor"
-                               editable/>
+                               editable
+                               :assignment="assignment" />
             </b-card>
         </div>
 
         <div class="cat-wrapper" :class="{hidden: selectedCat !== 'auto-test'}">
-            <!-- TODO: Properfix instead of :key hack -->
+            <!-- TODO: Proper fix instead of :key hack -->
             <auto-test :key="assignment.id"
                        :assignment="assignment"
                        :hidden="selectedCat !== 'auto-test'"

@@ -55,4 +55,13 @@ export const NO_LOGIN_REQUIRED_ROUTES = new Set([
     'login_and_redirect',
 ]);
 
-export const RUBRIC_BADGE_AT = '<div class="ml-1 badge badge-primary" title="AutoTest">AT</div>';
+// Indicates an object in the store that has been requested but not returned by
+// the server, e.g. if it does not exist or the user has no permission to see
+// the object.
+export const NONEXISTENT = {};
+
+// Indicates that a value has not yet been set (e.g. in a model cache).
+export const UNSET_SENTINEL = {};
+
+export const RUBRIC_BADGE_AT =
+    '<div class="ml-1 badge badge-primary" title="This is an AutoTest category">AT</div>';

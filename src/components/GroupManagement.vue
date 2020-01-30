@@ -42,14 +42,17 @@
                  :key="`assignment-group-${group.id}-member-${user.id}`">
                 <div style="display: flex">
                     <span>{{ user.name }} ({{ user.username }})</span>
-                    <span class="lti-progress" style="" v-if="showLtiProgress">
-                        <div  v-b-popover.top.hover.html="ltiTexts.done(user)" v-if="memberStates[user.id]">
+                    <span class="lti-progress" v-if="showLtiProgress"
+                          :class="canRemoveUser(user) ? 'pr-3' : ''">
+                        <div v-b-popover.top.hover.html="ltiTexts.done(user)"
+                             v-if="memberStates[user.id]"
+                             class="d-flex align-items-center">
                             <icon style="margin-top: 1px" name="check"/>
                         </div>
                         <loader :scale="1" v-b-popover.top.hover.html="ltiTexts.loading(user)" v-else/>
                     </span>
                 </div>
-                <submit-button v-if="canEdit && (myId === user.id || canEditOthers)"
+                <submit-button v-if="canRemoveUser(user)"
                                class="delete"
                                :delay="3000"
                                :submit="() => removeUser(user)"
@@ -174,17 +177,14 @@ export default {
         };
     },
 
-    mounted() {
-        if (this.showLtiProgress) {
-            this.reloadGroupStates();
-        }
-    },
-
     watch: {
-        showLtiProgress(newVal) {
-            if (newVal) {
-                this.updateStates = setTimeout(this.reloadGroupStates, timeoutTime);
-            }
+        showLtiProgress: {
+            immediate: true,
+            handler(newVal) {
+                if (newVal) {
+                    this.reloadGroupStates();
+                }
+            },
         },
     },
 
@@ -254,13 +254,17 @@ action is required.${divEnd}`;
         reloadGroupStates() {
             // setInterval is not used as this might cause a large load on the
             // server. Now we know there is `timeoutTime` between each request.
-            return this.group.getMemberState(this.assignment.id).then(({ data }) => {
+            const cont = data => {
                 this.memberStates = data;
                 this.updateStates = null;
                 if (this.showLtiProgress && !this.compDestroyed) {
-                    this.updateStates = setTimeout(this.reloadGroupStates, timeoutTime);
+                    this.updateStates = setTimeout(() => this.reloadGroupStates(), timeoutTime);
                 }
-            });
+            };
+
+            this.group
+                .getMemberStates(this.assignment.id)
+                .then(({ data }) => cont(data), ({ data }) => cont(data));
         },
 
         startEditTitle() {
@@ -312,6 +316,10 @@ action is required.${divEnd}`;
             return this.storeDeleteGroup({
                 virtualUserId: this.virtualUser.id,
             });
+        },
+
+        canRemoveUser(user) {
+            return this.canEdit && (this.myId === user.id || this.canEditOthers);
         },
     },
 

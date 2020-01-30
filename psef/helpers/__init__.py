@@ -26,7 +26,7 @@ import structlog
 import mypy_extensions
 from flask import g, request
 from mypy_extensions import Arg
-from typing_extensions import Protocol
+from typing_extensions import Literal, Protocol
 from werkzeug.datastructures import FileStorage
 from sqlalchemy.sql.expression import or_
 
@@ -66,6 +66,7 @@ T_TypedDict = t.TypeVar(  # pylint: disable=invalid-name
     'T_TypedDict',
     bound=t.Mapping,
 )
+T_Hashable = t.TypeVar('T_Hashable', bound='Hashable')  # pylint: disable=invalid-name
 
 IsInstanceType = t.Union[t.Type, t.Tuple[t.Type, ...]]  # pylint: disable=invalid-name
 
@@ -114,13 +115,15 @@ def add_warning(warning: str, code: psef.exceptions.APIWarnings) -> None:
     g.request_warnings.append(psef.errors.make_warning(warning, code))
 
 
-def handle_none(value: t.Optional[T], default: T) -> T:
+def handle_none(value: t.Optional[T], default: Z) -> t.Union[T, Z]:
     """Get the given ``value`` or ``default`` if ``value`` is ``None``.
 
     >>> handle_none(None, 5)
     5
     >>> handle_none(5, 6)
     5
+    >>> handle_none(5.5, 6)
+    5.5
     """
     return default if value is None else value
 
@@ -150,7 +153,16 @@ class Dividable(Protocol):  # pragma: no cover
 
     @abc.abstractmethod
     def __truediv__(self: T, other: T) -> T:
-        ...  # pylint: disable=W0104
+        ...
+
+
+class Hashable(Protocol):  # pragma: no cover
+    """A protocol for hashable values.
+    """
+
+    @abc.abstractmethod
+    def __hash__(self) -> int:
+        ...
 
 
 class Comparable(Protocol):  # pragma: no cover
@@ -162,11 +174,11 @@ class Comparable(Protocol):  # pragma: no cover
 
     @abc.abstractmethod
     def __eq__(self, other: t.Any) -> bool:
-        ...  # pylint: disable=W0104
+        ...
 
     @abc.abstractmethod
     def __lt__(self: Z, other: Z) -> bool:
-        ...  # pylint: disable=W0104
+        ...
 
     def __gt__(self: Z, other: Z) -> bool:
         return (not self < other) and self != other
@@ -390,12 +402,40 @@ class LockType(enum.Enum):
     read = 2
 
 
+@t.overload
 def get_in_or_error(
     model: t.Type[Y],
     in_column: DbColumn[T],
     in_values: t.List[T],
     options: t.Optional[t.List[t.Any]] = None,
+    *,
+    as_map: Literal[True],
+) -> t.Dict[T, Y]:
+    # pylint: disable=missing-function-docstring
+    ...
+
+
+@t.overload
+def get_in_or_error(
+    model: t.Type[Y],
+    in_column: DbColumn[T],
+    in_values: t.List[T],
+    options: t.Optional[t.List[t.Any]] = None,
+    *,
+    as_map: Literal[False] = False,
 ) -> t.List[Y]:
+    # pylint: disable=missing-function-docstring
+    ...
+
+
+def get_in_or_error(
+    model: t.Type[Y],
+    in_column: DbColumn[T],
+    in_values: t.List[T],
+    options: t.Optional[t.List[t.Any]] = None,
+    *,
+    as_map: bool = False,
+) -> t.Union[t.Dict[T, Y], t.List[Y]]:
     """Get object by doing an ``IN`` query.
 
     This method protects against empty ``in_values``, and will return an empty
@@ -408,21 +448,23 @@ def get_in_or_error(
         empty sequence, which is handled without doing a query.
     :param options: A list of options to give to the executed query. This can
         be used to undefer or eagerly load some columns or relations.
+    :param as_map: Should the return value be returned as mapping between the
+        `in_column` and the received item from the database.
     :returns: A list of objects with the same length as ``in_values``.
 
     :raises APIException: If on of the items in ``in_values`` was not found.
     """
+    res: t.List[t.Tuple[T, Y]]
     if not in_values:
-        return []
+        res = []
+    else:
+        query = psef.models.db.session.query(in_column, model).filter(
+            in_column.in_(in_values)
+        )
+        if options is not None:
+            query = query.options(*options)
+        res = query.all()
 
-    query = psef.models.db.session.query(model).filter(
-        in_column.in_(in_values)
-    )
-
-    if options is not None:
-        query = query.options(*options)
-
-    res = query.all()
     if len(res) != len(in_values):
         raise psef.errors.APIException(
             f'Not all requested {model.__name__.lower()} could be found', (
@@ -430,7 +472,10 @@ def get_in_or_error(
                 ' found'
             ), psef.errors.APICodes.OBJECT_ID_NOT_FOUND, 404
         )
-    return res
+
+    if as_map:
+        return dict(res)
+    return [item[1] for item in res]
 
 
 def _filter_or_404(
@@ -1480,3 +1525,27 @@ def maybe_wrap_in_list(maybe_lst: t.Union[t.List[T], T]) -> t.List[T]:
     if isinstance(maybe_lst, list):
         return maybe_lst
     return [maybe_lst]
+
+
+def contains_duplicate(it_to_check: t.Iterator[T_Hashable]) -> bool:
+    """Check if a sequence contains duplicate values.
+
+    >>> contains_duplicate(range(10))
+    False
+    >>> contains_duplicate([object(), object()])
+    False
+    >>> contains_duplicate([object, object])
+    True
+    >>> contains_duplicate(list(range(10)) + list(range(10)))
+    True
+
+    :param it_to_check: The sequence to check for duplicate values.
+    :returns: If it contains any duplicate values.
+    """
+    seen: t.Set[T_Hashable] = set()
+    for item in it_to_check:
+        if item in seen:
+            return True
+        seen.add(item)
+
+    return False

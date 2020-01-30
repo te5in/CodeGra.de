@@ -38,7 +38,14 @@ export function formatTimePart(num) {
 }
 
 export function toMaxNDecimals(num, n) {
+    if (num == null) {
+        return null;
+    }
+
     let str = num.toFixed(n);
+    if (n === 0) {
+        return str;
+    }
     while (str[str.length - 1] === '0') {
         str = str.slice(0, -1);
     }
@@ -104,42 +111,102 @@ export function convertToUTC(timeStr) {
         .format('YYYY-MM-DDTHH:mm');
 }
 
-export function parseWarningHeader(warningStr) {
-    let startIndex = 0;
-    const res = [];
-    const len = warningStr.length;
-    function consume(part) {
-        const arr = part.split(' ');
-
-        const code = parseFloat(arr[0]);
-        const agent = arr[1];
-        const text = arr
-            .slice(2)
-            .join(' ')
-            .replace(/\\(.)/g, '$1')
-            .slice(1, -1);
-
-        return { code, agent, text };
+export function getProps(object, defaultValue, ...props) {
+    let res = object;
+    for (let i = 0; res != null && i < props.length; ++i) {
+        res = res[props[i]];
     }
-
-    for (let i = 0, seenQuote = false; i < len; ++i) {
-        const cur = warningStr.charAt(i);
-        if (cur === '"') {
-            if (seenQuote) {
-                res.push(consume(warningStr.slice(startIndex, i + 1)));
-                // Next char is a comma and then a space
-                startIndex = i + 3;
-                seenQuote = false;
-            } else {
-                seenQuote = true;
-            }
-        } else if (cur === '\\') {
-            // Skip next char
-            i++;
-        }
+    if (res == null) {
+        res = defaultValue;
     }
-
     return res;
+}
+
+export function setProps(object, value, ...props) {
+    if (object == null) {
+        throw new Error('Given object to set props on is null');
+    }
+    const lastProp = props.pop();
+    let inner = object;
+
+    for (let i = 0; i < props.length; ++i) {
+        if (inner[props[i]] == null) {
+            inner[props[i]] = {};
+        }
+        inner = inner[props[i]];
+    }
+
+    inner[lastProp] = value;
+}
+
+export class WarningHeader {
+    static fromWarningStr(warningStr) {
+        if (warningStr instanceof WarningHeader) {
+            return warningStr;
+        } else if (!warningStr) {
+            return new WarningHeader([]);
+        }
+
+        let startIndex = 0;
+        const res = [];
+        const len = warningStr.length;
+
+        function consume(part) {
+            const arr = part.split(' ');
+
+            const code = parseFloat(arr[0]);
+            const agent = arr[1];
+            const text = arr
+                .slice(2)
+                .join(' ')
+                .replace(/\\(.)/g, '$1')
+                .slice(1, -1);
+
+            return { code, agent, text };
+        }
+
+        for (let i = 0, seenQuote = false; i < len; ++i) {
+            const cur = warningStr.charAt(i);
+            if (cur === '"') {
+                if (seenQuote) {
+                    res.push(consume(warningStr.slice(startIndex, i + 1)));
+                    // Next char is a comma and then a space
+                    startIndex = i + 3;
+                    seenQuote = false;
+                } else {
+                    seenQuote = true;
+                }
+            } else if (cur === '\\') {
+                // Skip next char
+                i++;
+            }
+        }
+
+        return new WarningHeader(res);
+    }
+
+    static fromResponse(response) {
+        const warningStr = getProps(response, null, 'headers', 'warning');
+
+        return WarningHeader.fromWarningStr(warningStr);
+    }
+
+    constructor(warnings) {
+        this.messages = Object.freeze(warnings);
+        Object.freeze(this);
+    }
+
+    merge(obj) {
+        let other;
+        if (other instanceof WarningHeader) {
+            other = obj;
+        } else if (obj.headers) {
+            other = WarningHeader.fromResponse(obj);
+        } else {
+            other = WarningHeader.fromWarningStr(obj);
+        }
+        return new WarningHeader(this.messages.concat(other.messages));
+    }
 }
 
 export function waitAtLeast(time, ...promises) {
@@ -260,34 +327,6 @@ export function highlightCode(sourceArr, language, maxLen = 5000) {
         state = top;
         return visualizeWhitespace(value);
     });
-}
-
-export function getProps(object, defaultValue, ...props) {
-    let res = object;
-    for (let i = 0; res != null && i < props.length; ++i) {
-        res = res[props[i]];
-    }
-    if (res == null) {
-        res = defaultValue;
-    }
-    return res;
-}
-
-export function setProps(object, value, ...props) {
-    if (object == null) {
-        throw new Error('Given object to set props on is null');
-    }
-    const lastProp = props.pop();
-    let inner = object;
-
-    for (let i = 0; i < props.length; ++i) {
-        if (inner[props[i]] == null) {
-            inner[props[i]] = {};
-        }
-        inner = inner[props[i]];
-    }
-
-    inner[lastProp] = value;
 }
 
 export const getUniqueId = (() => {
@@ -456,7 +495,9 @@ export function getNoNull(prop, ...objs) {
     return null;
 }
 
-export const UNSET_SENTINEL = {};
+export function setXor(A, B) {
+    return new Set([...A, ...B].filter(el => A.has(el) ^ B.has(el)));
+}
 
 export function numberToTimes(number) {
     if (typeof number !== 'number') {
@@ -470,4 +511,8 @@ export function numberToTimes(number) {
     } else {
         return `${number} times`;
     }
+}
+
+export function ensureArray(obj) {
+    return Array.isArray(obj) ? obj : [obj];
 }

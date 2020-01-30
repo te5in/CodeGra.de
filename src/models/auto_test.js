@@ -401,6 +401,16 @@ export class AutoTestResult {
         Vue.set(this, 'stepResults', stepResults);
         Vue.set(this, 'suiteResults', suiteResults);
         Vue.set(this, 'setResults', setResults);
+
+        // Store a result per rubric row id for in the RubricViewer.
+        Vue.set(
+            this,
+            'rubricResults',
+            Object.values(suiteResults).reduce((acc, suiteResult) => {
+                acc[suiteResult.suite.rubricRow.id] = suiteResult;
+                return acc;
+            }, {}),
+        );
     }
 }
 

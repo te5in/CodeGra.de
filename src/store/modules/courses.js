@@ -23,10 +23,6 @@ const getters = {
     },
 };
 
-const loaders = {
-    rubrics: {},
-};
-
 function getAssignment(state, assignmentId) {
     const assignment = getters.assignments(state)[assignmentId];
 
@@ -46,14 +42,6 @@ export const actions = {
         return state.currentCourseLoader;
     },
 
-    async setRubric({ commit, dispatch }, { assignmentId, rubric, maxPoints }) {
-        await dispatch('loadCourses');
-        commit(types.UPDATE_ASSIGNMENT, {
-            assignmentId,
-            assignmentProps: { rubric, fixed_max_rubric_points: maxPoints },
-        });
-    },
-
     async forceLoadGraders({ commit, dispatch }, assignmentId) {
         await dispatch('loadCourses');
         const graders = await axios
@@ -63,37 +51,6 @@ export const actions = {
             assignmentId,
             assignmentProps: { graders },
         });
-    },
-
-    async loadRubric(context, assignmentId) {
-        await context.dispatch('loadCourses');
-
-        const assig = getAssignment(context.state, assignmentId);
-        if (assig.rubric) {
-            return;
-        }
-
-        await context.dispatch('forceLoadRubric', assignmentId);
-    },
-
-    async forceLoadRubric({ commit, dispatch }, assignmentId) {
-        await dispatch('loadCourses');
-
-        if (!loaders.rubrics[assignmentId]) {
-            loaders.rubrics[assignmentId] = new Promise(async resolve => {
-                const rubric = await axios
-                    .get(`/api/v1/assignments/${assignmentId}/rubrics/`)
-                    .then(({ data }) => data, () => null);
-                commit(types.UPDATE_ASSIGNMENT, {
-                    assignmentId,
-                    assignmentProps: { rubric },
-                });
-                delete loaders.rubrics[assignmentId];
-                resolve();
-            });
-        }
-
-        return loaders.rubrics[assignmentId];
     },
 
     async reloadCourses({ commit }) {
@@ -165,7 +122,9 @@ export const actions = {
         const props = {
             done_type: doneType,
             done_email: doneEmail,
-            reminder_time: newReminderTime.format('YYYY-MM-DDTHH:mm'),
+            reminder_time: newReminderTime.isValid()
+                ? newReminderTime.format('YYYY-MM-DDTHH:mm')
+                : null,
         };
 
         return axios.patch(`/api/v1/assignments/${assig.id}`, props).then(response => {
@@ -233,7 +192,6 @@ const mutations = {
     [types.CLEAR_COURSES](state) {
         state.courses = {};
         state.currentCourseLoader = null;
-        loaders.rubrics = {};
     },
 
     [types.UPDATE_COURSE](state, { courseId, courseProps }) {
@@ -258,7 +216,6 @@ const mutations = {
 
     [types.UPDATE_ASSIGNMENT](state, { assignmentId, assignmentProps }) {
         const assignment = getAssignment(state, assignmentId).update(assignmentProps);
-
         const assigs = state.courses[assignment.courseId].assignments;
         const assigindex = assigs.findIndex(x => x.id === assignment.id);
         Vue.set(assigs, assigindex, assignment);

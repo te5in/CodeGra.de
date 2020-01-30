@@ -318,12 +318,21 @@ export default {
             }
 
             const el = event.target.closest('li.line');
-            if (!el) return;
+            if (!el) {
+                return;
+            }
 
             const line = Number(el.getAttribute('data-line')) - 1;
             const feedbackLine = line + this.lineFeedbackOffset;
 
-            if (this.editing[line]) {
+            // We can never be editing this line when there is no feedback to
+            // edit. So this mapping is simply outdated. This happens because we
+            // do not reset the editing back to `false` when deleting
+            // feedback. We do not do this because when deleting a line of
+            // feedback, the line is deleted from the store. This means the
+            // component will stop existing, so it is impossible for it to emit
+            // a `deleted` event.
+            if (this.editing[line] && this.feedback[feedbackLine] != null) {
                 return;
             }
 
@@ -347,7 +356,7 @@ export default {
         },
 
         feedbackChange(line) {
-            this.$set(this.editing, line - this.lineFeedbackOffset, undefined);
+            this.$delete(this.editing, line - this.lineFeedbackOffset);
         },
 
         editFeedback(line) {

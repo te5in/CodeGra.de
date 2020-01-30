@@ -16,11 +16,13 @@ import {
     groupMembers,
     autoTestHasCheckpointAfterHiddenStep,
     safeDivide,
-    parseWarningHeader,
+    WarningHeader,
     setProps,
     coerceToString,
     getNoNull,
     numberToTimes,
+    deepCopy,
+    toMaxNDecimals,
 } from '@/utils';
 
 import * as assignmentState from '@/store/assignment-states';
@@ -563,38 +565,121 @@ describe('utils.js', () => {
         });
     });
 
-    describe('parseWarningHeader', () => {
-        it('should work for simple single warnings', () => {
-            expect(parseWarningHeader('14 C "Hello warning"')).toEqual([{
-                code: 14,
-                agent: 'C',
-                text: 'Hello warning',
-            }]);
+    describe('WarningHeader', () => {
+        describe('.fromWarningStr', () => {
+            it('should work for simple single warnings', () => {
+                expect(WarningHeader.fromWarningStr('14 C "Hello warning"')).toEqual({
+                    messages: [{
+                        code: 14,
+                        agent: 'C',
+                        text: 'Hello warning',
+                    }],
+                });
+            });
+
+            it('should work for multiple simple warnings', () => {
+                expect(WarningHeader.fromWarningStr('14 C "Hello warning", 15 C "W2"')).toEqual({
+                    messages: [{
+                        code: 14,
+                        agent: 'C',
+                        text: 'Hello warning',
+                    }, {
+                        code: 15,
+                        agent: 'C',
+                        text: 'W2',
+                    }],
+                });
+            });
+
+            it('should work for difficult warnings', () => {
+                const warningStr = '14 C_C ",\\"WARN\\\\ING\\\\", 14 C ",,"';
+                expect(WarningHeader.fromWarningStr(warningStr)).toEqual({
+                    messages: [{
+                        code: 14,
+                        agent: 'C_C',
+                        text: ',"WARN\\ING\\',
+                    }, {
+                        code: 14,
+                        agent: 'C',
+                        text: ',,',
+                    }],
+                });
+            });
+
+            it('should return the same if passed a WarningHeader', () => {
+                const res = WarningHeader.fromWarningStr('14 C "?asdfasd"');
+                expect(WarningHeader.fromWarningStr(res)).toBe(res);
+            });
+        })
+
+        describe('.fromResponse', () => {
+            it('should work when passed null', () => {
+                expect(WarningHeader.fromResponse(null)).toEqual({
+                    messages: [],
+                });
+            });
+
+            it('should work when a response', () => {
+                expect(WarningHeader.fromResponse({ headers: { warning: '14 c "d"'}})).toEqual({
+                    messages: [{
+                        code: 14,
+                        agent: 'c',
+                        text: 'd',
+                    }],
+                });
+            });
         });
 
-        it('should work for multiple simple warnings', () => {
-            expect(parseWarningHeader('14 C "Hello warning", 15 C "W2"')).toEqual([{
-                code: 14,
-                agent: 'C',
-                text: 'Hello warning',
-            }, {
-                code: 15,
-                agent: 'C',
-                text: 'W2',
-            }]);
-        });
+        describe('.merge', () => {
+            const base = WarningHeader.fromWarningStr('14 c "d"');
 
-        it('should work for difficult warnings', () => {
-            const warningStr = '14 C_C ",\\"WARN\\\\ING\\\\", 14 C ",,"';
-            expect(parseWarningHeader(warningStr)).toEqual([{
-                code: 14,
-                agent: 'C_C',
-                text: ',"WARN\\ING\\',
-            }, {
-                code: 14,
-                agent: 'C',
-                text: ',,',
-            }]);
+            it('should work when passed a string', () => {
+                expect(base.merge('15 d "c"')).toEqual({
+                    messages: [{
+                        code: 14,
+                        agent: 'c',
+                        text: 'd'
+                    }, {
+                        code: 15,
+                        agent: 'd',
+                        text: 'c'
+                    }],
+                });
+            });
+
+            it('should work when passed a WarningHeader', () => {
+                expect(base.merge(WarningHeader.fromWarningStr('15 d "c"'))).toEqual({
+                    messages: [{
+                        code: 14,
+                        agent: 'c',
+                        text: 'd'
+                    }, {
+                        code: 15,
+                        agent: 'd',
+                        text: 'c'
+                    }],
+                });
+            });
+
+            it('should work when passed a response', () => {
+                expect(base.merge({ headers: { warning: '14 c "c"' } })).toEqual({
+                    messages: [{
+                        code: 14,
+                        agent: 'c',
+                        text: 'd'
+                    }, {
+                        code: 14,
+                        agent: 'c',
+                        text: 'c'
+                    }],
+                });
+            });
+
+            it('should create a new object every time', () => {
+                const msgs = deepCopy(base.messages);
+                base.merge(base);
+                expect(base.messages).toEqual(msgs);
+            });
         });
     });
 
@@ -688,5 +773,21 @@ describe('utils.js', () => {
         it('should throw for non numbers', () => {
             expect(() => numberToTimes('five')).toThrow();
         });
+    });
+
+    describe('toMaxNDecimals', () => {
+        it('should work', () => {
+            [
+                [0.5, 2, '0.5'],
+                [0.025, 3, '0.025'],
+                [0.25, 1, '0.3'],
+                [0.5, 0, '1'],
+                [150, 0, '150'],
+                [150, 50, '150'],
+                [null, 0, null],
+            ].forEach(([input, n, result]) => {
+                expect(toMaxNDecimals(input, n)).toBe(result);
+            })
+        })
     });
 });

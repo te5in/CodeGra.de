@@ -81,6 +81,7 @@ const actions = {
             }),
             commit(`courses/${types.CLEAR_COURSES}`, null, { root: true }),
             commit(`rubrics/${types.CLEAR_RUBRIC_RESULTS}`, null, { root: true }),
+            commit(`rubrics/${types.CLEAR_RUBRICS}`, null, { root: true }),
             commit(`autotest/${types.CLEAR_AUTO_TESTS}`, null, { root: true }),
             commit(`users/${types.CLEAR_USERS}`, null, { root: true }),
             commit(`fileTrees/${types.DELETE_ALL_FILETREES}`, null, { root: true }),

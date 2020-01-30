@@ -4,8 +4,6 @@ import { store } from '@/store';
 import * as utils from '@/utils';
 import * as assignmentState from '@/store/assignment-states';
 
-import { Rubric } from '@/models/rubric';
-
 const SERVER_PROPS = new Set([
     'id',
     'state',
@@ -61,7 +59,6 @@ const ALLOWED_UPDATE_PROPS = new Set([
 export class Assignment {
     constructor(props) {
         Object.assign(this, props);
-        this._cache = Object.seal({ rubricModel: utils.UNSET_SENTINEL });
         Object.freeze(this);
     }
 
@@ -184,19 +181,8 @@ export class Assignment {
         return this._canSeeFeedbackType('linter');
     }
 
-    get rubricModel() {
-        if (this._cache.rubricModel === utils.UNSET_SENTINEL) {
-            this._setCachedRubricModel();
-        }
-        return this._cache.rubricModel;
-    }
-
-    _setCachedRubricModel() {
-        if (this.rubric) {
-            this._cache.rubricModel = new Rubric(this.rubric, this);
-        } else {
-            this._cache.rubricModel = null;
-        }
+    get rubric() {
+        return store.getters['rubrics/rubrics'][this.id];
     }
 
     update(newProps) {

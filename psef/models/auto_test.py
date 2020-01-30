@@ -61,8 +61,8 @@ class AutoTestSuite(Base, TimestampMixin, IdMixin):
         db.ForeignKey('RubricRow.id'),
         nullable=False
     )
-    rubric_row: 'rubric_models.RubricRow' = db.relationship(
-        'RubricRow',
+    rubric_row: 'rubric_models.RubricRowBase' = db.relationship(
+        'RubricRowBase',
         foreign_keys=rubric_row_id,
         innerjoin=True,
     )
@@ -427,7 +427,7 @@ class AutoTestResult(Base, TimestampMixin, IdMixin, NotEqualMixin):
 
         work.selected_items = [
             i for i in work.selected_items
-            if i.rubricrow_id not in own_rubric_rows
+            if i.rubric_item.rubricrow_id not in own_rubric_rows
         ]
         work.set_grade(grade_origin=work_models.GradeOrigin.auto_test)
 
@@ -440,15 +440,20 @@ class AutoTestResult(Base, TimestampMixin, IdMixin, NotEqualMixin):
         # Lock the work we want to update,
         work = self.get_locked_work()
         old_selected_items = set(work.selected_items)
-        new_items = {i.rubricrow_id: i for i in work.selected_items}
+        new_items = {
+            i.rubric_item.rubricrow_id: i
+            for i in work.selected_items
+        }
         changed_item = False
 
         for suite in self.run.auto_test.all_suites:
             got, possible = self.get_amount_points_in_suites(suite)
             percentage = got / possible
-            items = suite.rubric_row.items
             assert self.run.auto_test.grade_calculator is not None
-            new_item = self.run.auto_test.grade_calculator(items, percentage)
+
+            new_item = suite.rubric_row.make_work_rubric_item_for_auto_test(
+                work, percentage, self.run.auto_test.grade_calculator
+            )
 
             if new_item not in old_selected_items:
                 new_items[suite.rubric_row_id] = new_item
@@ -590,6 +595,20 @@ class AutoTestRunner(Base, TimestampMixin, UUIDMixin, NotEqualMixin):
         return hash(self.id)
 
     def __eq__(self, other: object) -> bool:
+        """Check if two AutoTestRunners are equal.
+
+        >>> first = AutoTestRunner(id=1)
+        >>> second = AutoTestRunner(id=1)
+        >>> third = AutoTestRunner(id=2)
+        >>> first == first
+        True
+        >>> first == second
+        True
+        >>> first == third
+        False
+        >>> first == object()
+        False
+        """
         if not isinstance(other, AutoTestRunner):
             return NotImplemented
         return self.id == other.id
@@ -1387,7 +1406,8 @@ class AutoTest(Base, TimestampMixin, IdMixin):
     def copy(
         self,
         rubric_mapping: (
-            t.Mapping['rubric_models.RubricRow', 'rubric_models.RubricRow']
+            t.Mapping['rubric_models.RubricRowBase',
+                      'rubric_models.RubricRowBase']
         ),
     ) -> 'AutoTest':
         """Copy this AutoTest configuration.

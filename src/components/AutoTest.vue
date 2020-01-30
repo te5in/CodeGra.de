@@ -552,6 +552,7 @@ import 'vue-awesome/icons/circle-o-notch';
 import 'vue-awesome/icons/clock-o';
 import 'vue-awesome/icons/check';
 
+import { NONEXISTENT } from '@/constants';
 import decodeBuffer from '@/utils/decode';
 import { visualizeWhitespace } from '@/utils/visualize';
 
@@ -643,7 +644,7 @@ export default {
                 const { assignmentId, submissionId } = newValue;
 
                 const isCorrect = sub =>
-                    sub && sub.id === submissionId && sub.assignment_id === assignmentId;
+                    sub && sub.id === submissionId && sub.assignmentId === assignmentId;
 
                 if (assignmentId == null || submissionId == null) {
                     this.resultSubmissionLoading = false;
@@ -718,12 +719,11 @@ export default {
         }),
 
         ...mapActions('courses', {
-            storeLoadRubric: 'loadRubric',
-            storeForceLoadRubric: 'forceLoadRubric',
             storeUpdateAssignment: 'updateAssignment',
         }),
 
         ...mapActions('rubrics', {
+            storeLoadRubric: 'loadRubric',
             storeLoadRubricResult: 'loadResult',
         }),
 
@@ -744,8 +744,6 @@ export default {
             if (starting) {
                 this.setPollingTimer(this.loadAutoTestRun);
             }
-
-            this.$root.$emit('cg::rubric-editor::reload');
         },
 
         collapseConfig(collapsed) {
@@ -764,15 +762,17 @@ export default {
             return Promise.all([
                 this.storeLoadSubmissions(this.assignmentId),
 
+                this.storeLoadRubric({
+                    assignmentId: this.assignmentId,
+                }),
+
                 this.storeLoadAutoTest({
                     autoTestId: this.autoTestId,
                 }).then(
                     () => {
                         this.message = null;
                         this.configCollapsed = !!this.currentRun && !this.singleResult;
-                        return this.singleResult
-                            ? this.loadSingleResult(true)
-                            : this.loadAutoTestRun();
+                        return this.singleResult ? this.loadSingleResult() : this.loadAutoTestRun();
                     },
                     err => {
                         switch (this.$utils.getProps(err, null, 'response', 'status')) {
@@ -793,9 +793,16 @@ export default {
                         }
                     },
                 ),
-            ]).then(() => {
-                this.loading = false;
-            });
+            ]).then(
+                () => {
+                    this.loading = false;
+                },
+                () => {
+                    // TODO: when a request other than loading the AutoTest fails,
+                    // we do not display those error messages.
+                    this.loading = false;
+                },
+            );
         },
 
         loadAutoTestRun() {
@@ -818,24 +825,18 @@ export default {
             );
         },
 
-        loadSingleResult(force = false) {
+        loadSingleResult() {
             if (!this.singleResult) {
                 return null;
             }
 
             const promises = [
                 this.storeLoadAutoTestResult({
-                    force,
                     autoTestId: this.autoTestId,
                     submissionId: this.submissionId,
                     autoTestRunId: this.$utils.getProps(this.currentRun, undefined, 'id'),
                 }),
             ];
-
-            // Load rubric on first load.
-            if (!this.result) {
-                promises.push(this.loadRubric());
-            }
 
             return Promise.all(promises).then(
                 () => {
@@ -851,7 +852,6 @@ export default {
                                 submissionId: this.submissionId,
                                 force: true,
                             });
-                            this.loadRubric(true);
                         }
                     } else {
                         this.setPollingTimer(this.loadSingleResult);
@@ -866,17 +866,6 @@ export default {
                     };
                 },
             );
-        },
-
-        loadRubric(force = false) {
-            return Promise.all([
-                this.storeLoadRubric(this.assignmentId),
-                this.storeLoadRubricResult({
-                    submissionId: this.submissionId,
-                    assignmentId: this.assignmentId,
-                    force,
-                }),
-            ]);
         },
 
         submitProp(prop) {
@@ -1018,8 +1007,8 @@ export default {
             return this.storeDeleteAutoTest(this.autoTestId);
         },
 
-        async afterDeleteAutoTest({ callback }) {
-            await callback();
+        async afterDeleteAutoTest() {
+            clearTimeout(this.pollingTimer);
             await this.$nextTick();
             this.configCollapsed = false;
         },
@@ -1062,22 +1051,20 @@ export default {
 
         importAutoTest() {
             const url = `/api/v1/auto_tests/${this.importAssignment.auto_test_id}/copy`;
-            return this.$http
-                .post(url, {
-                    assignment_id: this.assignmentId,
-                })
-                .then(async response => {
-                    await Promise.all([
-                        this.storeForceLoadSubmissions(this.assignmentId),
-                        this.storeForceLoadRubric(this.assignmentId),
-                    ]);
-                    return response;
-                });
+            return this.$http.post(url, {
+                assignment_id: this.assignmentId,
+            });
         },
 
-        async afterImportAutoTest(payload) {
-            this.$root.$emit('cg::rubric-editor::reload');
-            await this.afterCreateAutoTest(payload);
+        afterImportAutoTest(payload) {
+            // TODO: Show error messages to user if any of the requests belo fail.
+            this.importAssignment = null;
+            this.storeForceLoadSubmissions(this.assignmentId);
+            this.storeLoadRubric({
+                assignmentId: this.assignmentId,
+                force: true,
+            });
+            this.afterCreateAutoTest(payload);
         },
     },
 
@@ -1087,6 +1074,14 @@ export default {
             storeResults: 'results',
         }),
         ...mapGetters('courses', ['assignments']),
+        ...mapGetters('rubrics', {
+            storeRubrics: 'rubrics',
+        }),
+
+        rubric() {
+            const rubric = this.storeRubrics[this.assignmentId];
+            return rubric === NONEXISTENT ? null : rubric;
+        },
 
         permissions() {
             return this.$utils.getProps(this, {}, 'assignment', 'course', 'permissions');
@@ -1164,7 +1159,7 @@ export default {
         createAutoTestPopover() {
             if (!this.permissions.can_edit_autotest) {
                 return 'You do not have permission to create an AutoTest configuration.';
-            } else if (this.assignment.rubric == null) {
+            } else if (this.rubric == null) {
                 return 'You cannot create an AutoTest for this assignment because it does not have a rubric.';
             } else {
                 return '';
@@ -1235,7 +1230,7 @@ export default {
         },
 
         cannotCreateAutoTest() {
-            return !this.permissions.can_edit_autotest || this.assignment.rubric == null;
+            return !this.permissions.can_edit_autotest || this.rubric == null;
         },
 
         canDeleteAutoTest() {
@@ -1277,7 +1272,7 @@ export default {
         },
 
         importConfirmMessage() {
-            if (this.assignment.rubric == null) {
+            if (this.rubric == null) {
                 return '';
             }
             return 'This assignment already has a rubric. Importing an AutoTest configuration will also import the rubric of the other assignment and delete the current rubric. Any grade given using the existing rubric will be cleared. Are you sure you want to continue?';

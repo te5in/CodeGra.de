@@ -212,7 +212,8 @@ def test_client(app, session, assert_similar):
         setattr(ctx_stack.top, 'jwt_user', None)
         if real_data is None:
             data = json.dumps(data) if data is not None else None
-            kwargs['content_type'] = 'application/json'
+            if data:
+                kwargs['content_type'] = 'application/json'
         else:
             data = real_data
         rv = getattr(client, method)(

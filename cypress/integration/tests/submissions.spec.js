@@ -195,7 +195,7 @@ context('Submissions page', () => {
                 assig => cy.joinGroup(assig.group_set.id, 'student1'),
             );
             cy.createSubmission(assigId, 'test_submissions/hello.py', { author: 'student1' })
-                .its('response').its('body').then(sub => {
+                .then(sub => {
                     cy.log('submission', sub);
                     cy.reload().then(() => {
                         // Can't use getStudent('Student1') here because it may find
@@ -428,6 +428,45 @@ context('Submissions page', () => {
                     } else {
                         cy.get('.submission-nav-bar .btn.next').should('be.disabled');
                     }
+                });
+            });
+
+            it('should sort based on creation date correct', () => {
+                cy.createSubmission(
+                    assignments.withSubs.id,
+                    'test_submissions/hello.py',
+                    { author: 'student2' },
+                ).then(() => {
+                    return cy.createSubmission(
+                        assignments.withSubs.id,
+                        'test_submissions/hello.py',
+                        { author: 'student1' });
+                }).then(() => {
+                    cy.get('.local-header .submit-button[name="refresh-button"]').click();
+
+                    // TODO: Don't sort oldest first when clicking the label the
+                    // first time.
+                    cy.get('.submissions-table thead').contains('Created at').click();
+                    cy.get('.submissions-table thead').contains('Created at').click();
+                    cy.get('tbody tr:first-child').contains('Student1');
+                    cy.get('tbody tr:nth-child(2)').contains('Student2');
+
+                    cy.get('.submissions-table thead').contains('Created at').click();
+                    cy.get('tbody tr:last-child').contains('Student1');
+                    cy.get('tbody tr:nth-last-child(2)').contains('Student2');
+
+                    // This should become the new latest submission, so it
+                    // should be last in the list.
+                    return cy.createSubmission(
+                        assignments.withSubs.id,
+                        'test_submissions/hello.py',
+                        { author: 'student4' });
+                }).then(() => {
+                    cy.get('.local-header .submit-button[name="refresh-button"]').click();
+                    cy.get('tbody tr:last-child').contains('Student4');
+                    // Show be the same after a reload
+                    cy.reload();
+                    cy.get('tbody tr:last-child').contains('Student4');
                 });
             });
         });

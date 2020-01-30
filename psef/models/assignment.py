@@ -36,9 +36,7 @@ from .permission import Permission
 from ..exceptions import (
     APICodes, APIException, PermissionException, InvalidAssignmentState
 )
-from .link_tables import (
-    user_course, users_groups, work_rubric_item, course_permissions
-)
+from .link_tables import user_course, users_groups, course_permissions
 from ..permissions import CoursePermission as CPerm
 
 if t.TYPE_CHECKING:  # pragma: no cover
@@ -456,11 +454,11 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         nullable=True,
     )
     rubric_rows = db.relationship(
-        'RubricRow',
+        'RubricRowBase',
         back_populates='assignment',
         cascade='delete-orphan, delete, save-update',
-        order_by="RubricRow.created_at"
-    )  # type: t.MutableSequence['rubric_models.RubricRow']
+        order_by="RubricRowBase.created_at"
+    )  # type: t.MutableSequence['rubric_models.RubricRowBase']
 
     group_set_id: t.Optional[int] = db.Column(
         'group_set_id',
@@ -753,12 +751,12 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         sql = latest.filter(
             work_models.Work.assigned_to == user_id,
         ).join(
-            work_rubric_item,
-            work_rubric_item.c.work_id == work_models.Work.id,
+            rubric_models.WorkRubricItem,
+            rubric_models.WorkRubricItem.work_id == work_models.Work.id,
             isouter=True
         ).having(
             and_(
-                func.count(work_rubric_item.c.rubricitem_id) == 0,
+                func.count(rubric_models.WorkRubricItem.rubricitem_id) == 0,
                 # We access _grade here directly as we need it to do this query
                 t.cast(DbColumn[t.Optional[int]],
                        work_models.Work._grade).is_(None)  # pylint: disable=protected-access
@@ -830,11 +828,10 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         sub = db.session.query(
             func.max(rubric_models.RubricItem.points).label('max_val')
         ).join(
-            rubric_models.RubricRow,
-            rubric_models.RubricRow.id == rubric_models.RubricItem.rubricrow_id
-        ).filter(rubric_models.RubricRow.assignment_id == self.id).group_by(
-            rubric_models.RubricRow.id
-        ).subquery('sub')
+            rubric_models.RubricRowBase, rubric_models.RubricRowBase.id ==
+            rubric_models.RubricItem.rubricrow_id
+        ).filter(rubric_models.RubricRowBase.assignment_id == self.id
+                 ).group_by(rubric_models.RubricRowBase.id).subquery('sub')
         return db.session.query(func.sum(sub.c.max_val)).scalar()
 
     @property

@@ -20,7 +20,16 @@ function getSubmission(state, submissionId, throwNotFound = true) {
 }
 
 const getters = {
-    getSingleSubmission: state => (_, submissionId) => getSubmission(state, submissionId, false),
+    getSingleSubmission: state => (assignmentId, submissionId) => {
+        // TODO: Get rid of the assignmentId argument.
+        let id;
+        if (submissionId === undefined && assignmentId !== undefined) {
+            id = assignmentId;
+        } else {
+            id = submissionId;
+        }
+        return getSubmission(state, id, false);
+    },
     getLatestSubmissions: state => assignmentId =>
         utils
             .getProps(state.latestSubmissions, [], assignmentId, 'array')
@@ -98,6 +107,10 @@ function getLatestSubmissions(subs) {
         );
 }
 
+function commitRubricResult(commit, submissionId, result) {
+    commit(`rubrics/${types.SET_RUBRIC_RESULT}`, { submissionId, result }, { root: true });
+}
+
 const actions = {
     async loadSubmissionsByUser(context, { assignmentId, userId, force }) {
         await context.dispatch('loadSubmissions', assignmentId);
@@ -119,6 +132,9 @@ const actions = {
                     );
                     submissions.forEach(sub => {
                         context.commit(types.ADD_SINGLE_SUBMISSION, { submission: sub });
+                        if (sub.rubric_result != null) {
+                            commitRubricResult(context.commit, sub.id, sub.rubric_result);
+                        }
                     });
                 });
             context.commit(types.SET_SUBMISSIONS_BY_USER_PROMISE, {
@@ -165,6 +181,9 @@ const actions = {
         const promise = axios.get(`/api/v1/submissions/${submissionId}`).then(({ data }) => {
             const sub = Submission.fromServerData(data, assignmentId);
             context.commit(types.ADD_SINGLE_SUBMISSION, { submission: sub });
+            if (data.rubric_result != null) {
+                commitRubricResult(context.commit, submission.id, data.rubric_result);
+            }
             return sub;
         });
 
@@ -183,9 +202,12 @@ const actions = {
     },
 
     addSubmission({ commit }, { submission, assignmentId }) {
-        return commit(types.ADD_SINGLE_SUBMISSION, {
+        commit(types.ADD_SINGLE_SUBMISSION, {
             submission: Submission.fromServerData(submission, assignmentId),
         });
+        if (submission.rubric_result != null) {
+            commitRubricResult(commit, submission.id, submission.rubric_result);
+        }
     },
 
     async deleteSubmission({ dispatch }, { assignmentId }) {
@@ -218,10 +240,14 @@ const actions = {
             await Promise.all([
                 axios
                     .get(`/api/v1/assignments/${assignmentId}/submissions/?extended&latest_only`)
-                    .then(({ data: submissions }) =>
-                        submissions.map(s => Submission.fromServerData(s, assignmentId)),
-                    ),
-                context.dispatch('courses/loadRubric', assignmentId, { root: true }),
+                    .then(({ data: submissions }) => {
+                        submissions.forEach(sub => {
+                            if (sub.rubric_result != null) {
+                                commitRubricResult(context.commit, sub.id, sub.rubric_result);
+                            }
+                        });
+                        return submissions.map(s => Submission.fromServerData(s, assignmentId));
+                    }),
                 // TODO: Maybe not force load the graders here?
                 context.dispatch('courses/forceLoadGraders', assignmentId, { root: true }),
             ]).then(([submissions]) => {

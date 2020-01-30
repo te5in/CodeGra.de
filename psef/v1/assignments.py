@@ -16,7 +16,7 @@ import werkzeug
 import structlog
 import sqlalchemy.sql as sql
 from flask import request
-from sqlalchemy.orm import undefer, joinedload, selectinload
+from sqlalchemy.orm import joinedload, selectinload
 
 import psef
 import psef.files
@@ -609,6 +609,7 @@ def delete_rubric(assignment_id: int) -> EmptyResponse:
         )
 
     assig.rubric_rows = []
+    assig.fixed_max_rubric_points = None
 
     db.session.commit()
 
@@ -678,21 +679,18 @@ def add_assignment_rubric(assignment_id: int
 
     :>json array rows: An array of rows. Each row should be an object that
         should contain a ``header`` mapping to a string, a ``description`` key
-        mapping to a string, an ``items`` key mapping to an array and it may
-        contain an ``id`` key mapping to the current id of this row. The items
+        mapping to a string, an ``items`` key mapping to an array, it may
+        contain an ``id`` key mapping to the current id of this row, and it may
+        ``type`` key mapping to a string (this defaults to 'normal'). The items
         array should contain objects with a ``description`` (string),
-        ``header`` (string) and ``points`` (number) and optionally an ``id`` if
+        ``header`` (string), ``points`` (number) and optionally an ``id`` if
         you are modifying an existing item in an existing row.
     :>json number max_points: Optionally override the maximum amount of points
         you can get for this rubric. By passing ``null`` you reset this value,
         by not passing it you keep its current value. (OPTIONAL)
 
     :param int assignment_id: The id of the assignment
-    :returns: An empty response with return code 204
-
-    :raises PermissionException: If there is no logged in user. (NOT_LOGGED_IN)
-    :raises PermissionException: If the user is not allowed to manage rubrics.
-                                (INCORRECT_PERMISSION)
+    :returns: The updated or created rubric.
     """
     assig = helpers.get_or_404(
         models.Assignment, assignment_id, also_error=lambda a: a.deleted
@@ -777,7 +775,11 @@ def process_rubric_row(row: JSONType) -> models.RubricRow:
     """
     row = ensure_json_dict(row)
     ensure_keys_in_dict(
-        row, [('description', str), ('header', str), ('items', list)]
+        row, [
+            ('description', str),
+            ('header', str),
+            ('items', list),
+        ]
     )
     header = t.cast(str, row['header'])
     desc = t.cast(str, row['description'])
@@ -792,6 +794,16 @@ def process_rubric_row(row: JSONType) -> models.RubricRow:
             )
         ) for it in t.cast(list, row['items'])
     ]
+    row_type = registry.rubric_row_types.get(
+        t.cast(str, row.get('type', 'normal'))
+    )
+
+    if row_type is None:
+        raise APIException(
+            'The specified row type was not found',
+            f'The row type {row["type"]} is not known',
+            APICodes.OBJECT_NOT_FOUND, 404
+        )
 
     if not header:
         raise APIException(
@@ -802,14 +814,16 @@ def process_rubric_row(row: JSONType) -> models.RubricRow:
     if 'id' in row:
         ensure_keys_in_dict(row, [('id', int)])
         row_id = t.cast(int, row['id'])
-        rubric_row = helpers.get_or_404(models.RubricRow, row_id)
+        # This ensures the type is never changed.
+        rubric_row = helpers.get_or_404(row_type, row_id)
         rubric_row.update_from_json(header, desc, items)
         return rubric_row
     else:
-        return models.RubricRow.create_from_json(header, desc, items)
+        return row_type.create_from_json(header, desc, items)
 
 
 @api.route('/assignments/<int:assignment_id>/submission', methods=['POST'])
+@auth.login_required
 def upload_work(assignment_id: int) -> ExtendedJSONResponse[models.Work]:
     """Upload one or more files as :class:`.models.Work` to the given
     :class:`.models.Assignment`.
@@ -1275,8 +1289,10 @@ def get_all_works_by_user_for_assignment(
         auth.ensure_permission(CPerm.can_see_others_work, assignment.course_id)
 
     return extended_jsonify(
-        models.Work.query.filter_by(
-            assignment_id=assignment_id, user_id=user.id, deleted=False
+        models.Work.update_query_for_extended_jsonify(
+            models.Work.query.filter_by(
+                assignment_id=assignment_id, user_id=user.id, deleted=False
+            )
         ).order_by(
             t.cast(models.DbColumn[object], models.Work.created_at).desc()
         ).all(),
@@ -1328,27 +1344,9 @@ def get_all_works_for_assignment(
             assignment_id=assignment_id, deleted=False
         )
 
-    obj = obj.options(
-        joinedload(
-            models.Work.selected_items,
-        ),
-        # We want to load all users directly. We do this by loading the user,
-        # which might be a group. For such groups we also load all users.
-        # The users in this group will never be a group, so the last
-        # `selectinload` here might be seen as strange. However, during the
-        # serialization of a group we access `User.group`, which checks if a
-        # user is really not a group. To prevent these last queries the last
-        # `selectinload` is needed here.
-        selectinload(
-            models.Work.user,
-        ).selectinload(
-            models.User.group,
-        ).selectinload(
-            models.Group.members,
-        ).selectinload(
-            models.User.group,
-        )
-    ).order_by(t.cast(t.Any, models.Work.created_at).desc())
+    obj = models.Work.update_query_for_extended_jsonify(obj).order_by(
+        t.cast(t.Any, models.Work.created_at).desc()
+    )
 
     if not current_user.has_permission(
         CPerm.can_see_others_work, course_id=assignment.course_id
@@ -1356,7 +1354,6 @@ def get_all_works_for_assignment(
         obj = models.Work.limit_to_user_submissions(obj, current_user)
 
     if helpers.extended_requested():
-        obj = obj.options(undefer(models.Work.comment))
         return extended_jsonify(
             obj.all(),
             use_extended=models.Work,

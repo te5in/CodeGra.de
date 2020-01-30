@@ -283,7 +283,7 @@
     <div v-if="showSubmissionLimiting" class="submission-limiting border-top p-2">
         <loader :scale="1" v-if="loadingUserSubmissions || loadingGroups" />
         <template v-else>
-            <template v-if="currentResultingAuthor.id == myId">
+            <template v-if="currentResultingAuthorId === myId">
                 You have
             </template>
             <template v-else>
@@ -473,7 +473,7 @@ export default {
         },
 
         currentResultingAuthorId() {
-            return this.currentResultingAuthor.id;
+            return this.$utils.getProps(this.currentResultingAuthor, null, 'id');
         },
 
         confirmationMessage() {
@@ -566,7 +566,7 @@ export default {
         },
 
         currentGroup() {
-            if (this.currentResultingAuthor.isGroup) {
+            if (this.currentResultingAuthor && this.currentResultingAuthor.isGroup) {
                 return this.currentResultingAuthor.group;
             }
             return null;
@@ -591,7 +591,8 @@ export default {
             if (
                 !this.showSubmissionLimiting ||
                 this.coolOffPeriod.asMilliseconds() === 0 ||
-                this.loadingUserSubmissions
+                this.loadingUserSubmissions ||
+                this.currentResultingAuthor == null
             ) {
                 return '';
             }

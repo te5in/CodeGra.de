@@ -82,7 +82,7 @@ export default {
                     {
                         name: 'Id',
                         enabled: false,
-                        getter: submission => submission.user.id,
+                        getter: submission => submission.userId,
                     },
                     {
                         name: 'Username',
@@ -112,14 +112,14 @@ export default {
                     {
                         name: 'General feedback',
                         enabled: false,
-                        getter: submission =>
-                            this.$utils.getProps(submission, '', 'feedback', 'general'),
+                        getter: (submission, feedback) =>
+                            this.$utils.getProps(feedback, '', 'general'),
                     },
                     {
                         name: 'Line feedback',
                         enabled: false,
-                        getter: submission =>
-                            this.$utils.getProps(submission, [], 'feedback', 'user').join('\n'),
+                        getter: (submission, feedback) =>
+                            this.$utils.getProps(feedback, [], 'user').join('\n'),
                     },
                 ];
 
@@ -127,8 +127,8 @@ export default {
                     cols.push({
                         name: 'Linter feedback',
                         enabled: false,
-                        getter: submission =>
-                            this.$utils.getProps(submission, [], 'feedback', 'linter').join('\n'),
+                        getter: (submission, feedback) =>
+                            this.$utils.getProps(feedback, [], 'linter').join('\n'),
                     });
                 }
 
@@ -172,15 +172,14 @@ export default {
                 cont = this.$http.get(`/api/v1/assignments/${this.assignmentId}/feedbacks/`);
             }
 
-            return cont.then(({ data: feedback }) => {
+            return cont.then(({ data: allFeedback }) => {
                 for (let i = 0; i < this.items.length; i += 1) {
-                    const item = Object.assign({}, this.items[i], {
-                        feedback: feedback[this.items[i].id],
-                    });
+                    const submission = this.items[i];
+                    const feedback = allFeedback[submission.id];
                     const row = {};
                     for (let j = 0; j < idx.length; j += 1) {
                         const col = this.enabledColumns[idx[j]];
-                        row[col.name] = col.getter(item);
+                        row[col.name] = col.getter(submission, feedback);
                     }
                     data.push(row);
                 }

@@ -47,9 +47,10 @@ export function sortSubmissions(a, b, sortBy) {
     } else if (sortBy === 'user') {
         return cmpNoCase(first.readableName, second.readableName);
     } else if (
+        sortBy === 'formattedCreatedAt' ||
+        sortBy === 'createdAt' ||
         sortBy === 'formatted_created_at' ||
-        sortBy === 'created_at' ||
-        sortBy === 'createdAt'
+        sortBy === 'created_at'
     ) {
         return a.createdAt.valueOf() - b.createdAt.valueOf();
     } else if (sortBy === 'grade') {

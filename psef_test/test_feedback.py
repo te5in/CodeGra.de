@@ -432,10 +432,10 @@ def test_get_all_feedback(
         r'\n'
         r'\n'
         r'Comments:\n'
-        r'test.py:0:0: for line 0\n'
-        r'test.py:1:0: for line - 1\n'
+        r'test.py:1:1: for line 0\n'
+        r'test.py:2:1: for line - 1\n'
         r'\nLinter comments:\n'
-        r'(test.py:1:0: \(Flake8 .*\) .*\n)+\n*'
+        r'(test.py:2:1: \(Flake8 .*\) .*\n)+\n*'
     )
 
     with logged_in(named_user):
@@ -583,7 +583,7 @@ def test_get_assignment_all_feedback(
 
     def match_res(res):
         general = 'Niet zo goed'
-        user = ['test.py:0:0: for line 0', 'test.py:1:0: for line - 1']
+        user = ['test.py:1:1: for line 0', 'test.py:2:1: for line - 1']
         assert len(res) == 1 if only_own_subs else 3
         linter = None
 

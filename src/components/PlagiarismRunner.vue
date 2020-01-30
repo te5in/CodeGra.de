@@ -531,7 +531,7 @@ export default {
 
             const { data: runs } = await this.$http
                 .get(`/api/v1/assignments/${this.assignment.id}/plagiarism/`)
-                .catch(() => []);
+                .catch(() => ({ data: [] }));
             runs.forEach(run => {
                 run.formatted_created_at = readableFormatDate(run.created_at);
             });

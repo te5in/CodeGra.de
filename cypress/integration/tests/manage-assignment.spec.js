@@ -51,6 +51,26 @@ context('Manage Assignment', () => {
             });
         });
 
+        it('should use the correct deadline after updating it', () => {
+            cy.get('.assignment-deadline')
+                .click({ force: true });
+            cy.get('.flatpickr-calendar .flatpickr-day:not(.prevMonthDay):not(.nextMonthDay).today')
+                .click();
+            cy.get('.flatpickr-calendar input.flatpickr-hour:visible')
+                .clear()
+                .type('23');
+            cy.get('.flatpickr-calendar input.flatpickr-minute:visible')
+                .clear()
+                .type('59{enter}');
+            cy.get('.assignment-deadline ~ .input-group-append .submit-button')
+                .submit('success');
+            cy.reload();
+
+            cy.get('.local-header h4')
+                .should('contain', (new Date()).toISOString().slice(0, 10))
+                .should('contain', '23:59');
+        });
+
         it('should be possible to upload a BB zip', () => {
             cy.get('.blackboard-zip-uploader').within(() => {
                 cy.get('input[type=file]').uploadFixture('test_blackboard/bb.zip', 'application/zip');

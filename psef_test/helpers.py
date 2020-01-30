@@ -146,6 +146,7 @@ def create_submission(
         'assignment_id': get_id(assignment_id),
         'extra_info': None,
         'origin': 'uploaded_files',
+        'rubric_result': object,
     } if err is None else err_t)
 
     path = f'/api/v1/assignments/{get_id(assignment_id)}/submission'
@@ -503,15 +504,29 @@ def create_auto_test_from_dict(test_client, assig, at_dict):
     rubric_data = []
     for at_set in at_dict['sets']:
         for at_suite in at_set['suites']:
-            rubric_data.append({
+            rubric_type = at_suite.pop('rubric_type', 'normal')
+            row = {
                 'header': at_suite.get('rubric_header', 'My header'),
                 'description': at_suite.get('rubric_desc', 'My description'),
-                'items': [{
+                'type': rubric_type,
+            }
+            if rubric_type == 'normal':
+                row['items'] = ([{
+                    'description': 'initial item', 'header': 'zero points',
+                    'points': 0
+                }] + [{
                     'description': 'item description',
                     'header': item['name'],
                     'points': idx + 1,
-                } for idx, item in enumerate(at_suite['steps'])],
-            })
+                } for idx, item in enumerate(at_suite['steps'])])
+            else:
+                row['items'] = [{
+                    'description': 'item description',
+                    'header': 'continuous rubric header',
+                    'points':
+                        sum(s.get('weight', 1) for s in at_suite['steps']),
+                }]
+            rubric_data.append(row)
 
     assert rubric_data, 'You need at least one suite'
     rubric = test_client.req(
@@ -524,11 +539,17 @@ def create_auto_test_from_dict(test_client, assig, at_dict):
     def prepare_steps(steps):
         res = []
         for step in steps:
-            if 'type' not in step:
+            if 'type' not in step and 'run_p' in step:
                 step = {
                     'type': 'run_program',
-                    'data': {'program': step['run_p']},
-                    'name': step['name'],
+                    'data': {'program': step.pop('run_p')},
+                    **step,
+                }
+            elif 'type' not in step and 'run_c' in step:
+                step = {
+                    'type': 'custom_output',
+                    'data': {'program': step.pop('run_c'), 'regex': r'\f'},
+                    **step,
                 }
             res.append({'weight': 1, 'hidden': False, **step})
         return res

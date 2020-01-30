@@ -700,9 +700,7 @@ def random_file_path(use_mirror_dir: bool = False) -> t.Tuple[str, str]:
     while True:
         name = str(uuid.uuid4())
         candidate = safe_join(root, name)
-        if os.path.exists(candidate):  # pragma: no cover
-            continue
-        else:
+        if not os.path.exists(candidate):  # pragma: no cover
             break
     return candidate, name
 

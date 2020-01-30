@@ -64,15 +64,18 @@
                   class="hide-button"
                   @click.native="hideWarning"/>
 
-            <span v-if="warning && warning.length > 0">
-                <slot name="warning" :warning="warning[0].text" :warning-array="warning">
-                    <template v-if="warning.length > 1">
+            <span v-if="warning && warning.messages.length > 0">
+                <slot name="warning" :warning="warning">
+                    <template v-if="isWarningHeader(warning) && warning.messages.length > 1">
                         <ul class="p-0 text-left pl-3 m-0">
-                            <li v-for="w in warning">{{ w.text }}</li>
+                            <li v-for="w in warning.messages">{{ w.text }}</li>
                         </ul>
                     </template>
+                    <template v-else-if="isWarningHeader(warning)">
+                        {{ warning.messages[0].text }}
+                    </template>
                     <template v-else>
-                        {{ warning[0].text }}
+                        {{ warning.messages }}
                     </template>
                 </slot>
             </span>
@@ -82,7 +85,6 @@
     <template>
         <b-modal v-if="confirmInModal"
                  style="pointer: initial;"
-                 ref="modal"
                  class="submit-button-confirm-modal"
                  title="Are you sure?"
                  @hide="$nextTick(() => resetConfirm(true))"
@@ -91,6 +93,7 @@
             <div class="text-left text-wrap">
                 {{ confirm }}
             </div>
+
             <template slot="modal-footer">
                 <div class="d-flex justify-content-between" style="width: 100%">
                     <b-btn variant="outline-danger"
@@ -105,7 +108,7 @@
             </template>
         </b-modal>
 
-        <b-popover v-else-if="confirm.length > 0"
+        <b-popover v-else-if="confirm && confirm.length > 0"
                    :placement="popoverPlacement"
                    :container="container"
                    :show="confirmVisible"
@@ -146,11 +149,19 @@ import 'vue-awesome/icons/times';
 import 'vue-awesome/icons/check';
 import 'vue-awesome/icons/warning';
 
-import { getErrorMessage, parseWarningHeader, waitAtLeast } from '@/utils';
+import { getErrorMessage, WarningHeader, waitAtLeast } from '@/utils';
 
 import Loader from './Loader';
 
 export const SubmitButtonCancelled = Object.create(Error);
+
+export class SubmitButtonWarning {
+    constructor(warning, data) {
+        this.name = 'SubmitButtonWarning';
+        this.warning = warning;
+        this.data = data;
+    }
+}
 
 let i = 0;
 
@@ -282,7 +293,7 @@ export default {
                 return;
             }
 
-            if (this.confirm) {
+            if (this.confirm && this.confirm.length > 0) {
                 this.showConfirm();
             } else {
                 this.doSubmit();
@@ -317,9 +328,12 @@ export default {
         },
 
         onSuccess(data, fromWarning = false) {
-            if (!fromWarning && data && data.headers && data.headers.warning) {
-                this.onWarning(data);
-                return;
+            if (!fromWarning) {
+                const dataArr = this.$utils.ensureArray(data);
+                if (dataArr.some(el => el && el.headers && el.headers.warning)) {
+                    this.onWarning(dataArr, data);
+                    return;
+                }
             }
 
             this.maybeCall(data, 'onSuccess');
@@ -339,11 +353,20 @@ export default {
             }
         },
 
-        onWarning(data) {
+        onWarning(warning, data) {
             this.maybeCall(data, 'onWarning');
-            this.$emit('warning', data);
+            this.$emit('warning', { warning, data });
             this.state = 'warning';
-            this.warning = parseWarningHeader(data.headers.warning);
+
+            if (warning instanceof SubmitButtonWarning) {
+                this.warning = warning.warning;
+            } else {
+                this.warning = warning.reduce(
+                    (acc, w) => acc.merge(w),
+                    WarningHeader.fromWarningStr(''),
+                );
+            }
+
             this.response = data;
         },
 
@@ -366,6 +389,9 @@ export default {
                 this.maybeCall(err, 'onCancel');
                 this.$emit('cancel', err);
                 this.state = 'default';
+                return;
+            } else if (err instanceof SubmitButtonWarning) {
+                this.onWarning(err, err.data);
                 return;
             }
 
@@ -402,6 +428,10 @@ export default {
             this.confirmVisible = false;
             this.confirmAccepted = true;
             this.doSubmit();
+        },
+
+        isWarningHeader(warning) {
+            return warning instanceof WarningHeader;
         },
     },
 

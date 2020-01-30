@@ -33,6 +33,7 @@
                 </b-button>
 
                 <submit-button :wait-at-least="500"
+                               name="refresh-button"
                                :submit="submitForceLoadSubmissions"
                                v-b-popover.bottom.hover="'Reload submissions'">
                     <icon name="refresh"/>
@@ -117,7 +118,7 @@
                     </div>
                 </template>
 
-                <div v-if="assignment.rubric != null"
+                <div v-if="rubric != null"
                      class="action-button m-2 m-md-3 rounded text-center"
                      @click="openCategory('rubric')">
                     <div class="content-wrapper border rounded p-3 pt-4">
@@ -233,15 +234,8 @@
 
             <div v-if="selectedCat === 'rubric'"
                  class="flex-grow-1">
-                <rubric-editor v-if="assignment.rubric != null"
-                               :editable="false"
-                               :default-rubric="rubric"
-                               :assignment="assignment"
+                <rubric-editor :assignment="assignment"
                                grow />
-
-                <div class="text-muted font-italic mb-3" v-else>
-                    There is no rubric for this assignment.
-                </div>
             </div>
 
             <div v-if="selectedCat === 'hand-in-instructions'"
@@ -294,6 +288,7 @@ import 'vue-awesome/icons/code-fork';
 import 'vue-awesome/icons/git';
 
 import ltiProviders from '@/lti_providers';
+import { NONEXISTENT } from '@/constants';
 import * as assignmentState from '@/store/assignment-states';
 import GroupsManagement from '@/components/GroupsManagement';
 import {
@@ -334,6 +329,7 @@ export default {
         ...mapGetters('user', { userId: 'id' }),
         ...mapGetters('pref', ['darkMode']),
         ...mapGetters('courses', ['assignments']),
+        ...mapGetters('rubrics', { allRubrics: 'rubrics' }),
         ...mapGetters('submissions', ['getLatestSubmissions']),
         ...mapGetters('users', ['getGroupInGroupSetOfUser']),
 
@@ -411,7 +407,8 @@ export default {
         },
 
         rubric() {
-            return (this.assignment && this.assignment.rubric) || null;
+            const rubric = this.allRubrics[this.assignmentId];
+            return rubric === NONEXISTENT ? null : rubric;
         },
 
         graders() {
@@ -636,6 +633,10 @@ export default {
             forceLoadSubmissions: 'forceLoadSubmissions',
         }),
 
+        ...mapActions('rubrics', {
+            storeLoadRubric: 'loadRubric',
+        }),
+
         async loadData() {
             this.error = null;
 
@@ -652,7 +653,11 @@ export default {
             this.loading = false;
             this.loadingInner = true;
 
-            const promises = [this.loadSubmissions(this.assignmentId), this.$afterRerender()];
+            const promises = [
+                this.loadSubmissions(this.assignmentId),
+                this.loadRubric(),
+                this.$afterRerender(),
+            ];
 
             // This uses the hash because this.selectedCat may still be unset on page load.
             if (this.$route.hash === '#git') {
@@ -691,6 +696,16 @@ export default {
                         throw err;
                     },
                 );
+        },
+
+        loadRubric() {
+            return this.storeLoadRubric({
+                assignmentId: this.assignmentId,
+            }).catch(err => {
+                if (this.$utils.getProps(err, 500, 'response', 'status') !== 404) {
+                    throw err;
+                }
+            });
         },
 
         submitForceLoadSubmissions() {

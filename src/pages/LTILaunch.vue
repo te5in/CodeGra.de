@@ -72,13 +72,11 @@ export default {
                             this.clearPlagiarismCases();
                         }
 
-                        this.$utils
-                            .parseWarningHeader(
-                                this.$utils.getProps(response, '', 'headers', 'warning'),
-                            )
-                            .forEach(warning => {
+                        this.$utils.WarningHeader.fromResponse(response).messages.forEach(
+                            warning => {
                                 this.$toasted.info(warning.text, getToastOptions());
-                            });
+                            },
+                        );
 
                         this.$ltiProvider = ltiProviders[data.custom_lms_name];
                         this.$LTIAssignmentId = data.assignment.id;

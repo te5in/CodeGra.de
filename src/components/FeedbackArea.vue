@@ -511,12 +511,6 @@ export default {
             }
         },
 
-        afterDeleteFeedback() {
-            this.feedbackDisabled = false;
-
-            this.$emit('feedbackChange', this.line);
-        },
-
         deleteFeedbackError() {
             this.feedbackDisabled = false;
         },

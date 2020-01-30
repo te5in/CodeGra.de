@@ -7,7 +7,6 @@ import * as types from '@/store/mutation-types';
 import * as utils from '@/utils';
 import Vuex from 'vuex';
 import Vue from 'vue';
-import { Rubric } from '@/models/rubric';
 import { Assignment } from '@/models/assignment';
 import axios from 'axios';
 
@@ -20,11 +19,9 @@ const initialCourses = [
         assignments: [{
             id: 2,
             name: '2',
-            fixed_max_rubric_points: null,
         }, {
             id: 3,
             name: '3',
-            fixed_max_rubric_points: null,
         }],
         name: 'hello',
         id: 1,
@@ -32,7 +29,6 @@ const initialCourses = [
         assignments: [{
             id: 5,
             name: '5',
-            fixed_max_rubric_points: null,
         }],
         name: 'bye',
         id: 4,
@@ -88,7 +84,6 @@ describe('getters', () => {
                 2: {
                     id: 2,
                     name: '2',
-                    fixed_max_rubric_points: null,
                     course: {
                         id: 1,
                     }
@@ -96,7 +91,6 @@ describe('getters', () => {
                 3: {
                     id: 3,
                     name: '3',
-                    fixed_max_rubric_points: null,
                     course: {
                         id: 1,
                     }
@@ -104,7 +98,6 @@ describe('getters', () => {
                 5: {
                     id: 5,
                     name: '5',
-                    fixed_max_rubric_points: null,
                     course: {
                         id: 4,
                     }
@@ -241,7 +234,6 @@ describe('mutations', () => {
 describe('actions', () => {
     let mockDispatch;
     let mockCommit;
-    let mockRubric;
     let context;
 
     beforeEach(() => {
@@ -256,24 +248,6 @@ describe('actions', () => {
                 courses: {},
             },
         };
-        mockRubric = [
-            {
-                id: 0,
-                items: [
-                    { id: 0, points: 0 },
-                    { id: 1, points: 1 },
-                    { id: 2, points: 2 },
-                ],
-            },
-            {
-                id: 1,
-                items: [
-                    { id: 3, points: 4 },
-                    { id: 4, points: 8 },
-                    { id: 5, points: 16 },
-                ],
-            },
-        ];
     });
 
     describe('load courses', () => {
@@ -329,133 +303,6 @@ describe('actions', () => {
             expect(mockCommit).toBeCalledWith(types.UPDATE_ASSIGNMENT, obj1);
             // Should return the found assignment.
             expect(res).toBe(obj2);
-        });
-    });
-
-    describe('setRubric', () => {
-        beforeEach(() => {
-            store.commit(`courses/${types.SET_COURSES_PROMISE}`, {});
-        });
-
-        let assignmentId = 5;
-        function getAssig(assignmentId) {
-            return store.getters['courses/assignments'][`${assignmentId}`];
-        }
-
-        it('should store null if null is passed', async () => {
-            await store.dispatch('courses/setRubric', {
-                assignmentId,
-                rubric: null,
-                maxPoints: null,
-            });
-
-            expect(getAssig(assignmentId).rubric).toBeNull();
-        });
-
-        it('should store a new Rubric model', async () => {
-            await store.dispatch('courses/setRubric', {
-                assignmentId,
-                rubric: mockRubric,
-            });
-
-            expect(getAssig(assignmentId).rubricModel).toBeInstanceOf(Rubric);
-        });
-
-        it('should calculate the max number of points in the rubric', async () => {
-            await store.dispatch('courses/setRubric', {
-                assignmentId,
-                rubric: [],
-                maxPoints: null,
-            });
-            expect(getAssig(assignmentId).fixed_max_rubric_points).toBeNull();
-            expect(getAssig(assignmentId).rubricModel.maxPoints).toBe(0);
-
-            await store.dispatch('courses/setRubric', {
-                assignmentId,
-                rubric: mockRubric,
-                maxPoints: null,
-            });
-            expect(getAssig(assignmentId).fixed_max_rubric_points).toBeNull();
-            expect(getAssig(assignmentId).rubricModel.maxPoints).toBe(18);
-
-            await store.dispatch('courses/setRubric', {
-                assignmentId,
-                rubric: mockRubric,
-                maxPoints: 5,
-            });
-            expect(getAssig(assignmentId).fixed_max_rubric_points).toBe(5);
-            expect(getAssig(assignmentId).rubricModel.maxPoints).toBe(5);
-
-            await store.dispatch('courses/setRubric', {
-                assignmentId,
-                rubric: mockRubric,
-                maxPoints: 0,
-            });
-            expect(getAssig(assignmentId).fixed_max_rubric_points).toBe(0);
-            expect(getAssig(assignmentId).rubricModel.maxPoints).toBe(0);
-        });
-
-        it('should commit something', async () => {
-            const rubric = mockRubric;
-            const maxPoints = {};
-            const assignmentId = {};
-            const data = {
-                other: {},
-                rubric,
-                maxPoints,
-                assignmentId,
-            };
-
-            await actions.setRubric(context, data);
-
-            expect(mockCommit).toBeCalledTimes(1);
-            expect(mockCommit).toBeCalledWith(types.UPDATE_ASSIGNMENT, {
-                assignmentId,
-                assignmentProps: {
-                    rubric,
-                    fixed_max_rubric_points: maxPoints,
-                },
-            });
-        });
-    });
-
-    describe('force force rubric', () => {
-        it('should work when api succeeds', async () => {
-            const single1 = {};
-            const single2 = {};
-            mockAxiosGet.mockClear();
-            mockAxiosGet.mockReturnValueOnce(Promise.resolve({data: single2}));
-
-            await actions.forceLoadRubric(context, single2);
-
-            expect(axios.get).toBeCalledTimes(1);
-            expect(axios.get).toBeCalledWith(`/api/v1/assignments/${single2}/rubrics/`);
-            expect(mockCommit).toBeCalledTimes(1);
-            expect(mockCommit).toBeCalledWith(types.UPDATE_ASSIGNMENT, {
-                assignmentId: single2,
-                assignmentProps: {
-                    rubric: single2,
-                },
-            });
-        });
-
-        it('should clear when api fails', async () => {
-            const single1 = {};
-            const single2 = {};
-            mockAxiosGet.mockClear();
-            mockAxiosGet.mockReturnValueOnce(Promise.reject({data: single2}));
-
-            await actions.forceLoadRubric(context, single2);
-
-            expect(axios.get).toBeCalledTimes(1);
-            expect(axios.get).toBeCalledWith(`/api/v1/assignments/${single2}/rubrics/`);
-            expect(mockCommit).toBeCalledTimes(1);
-            expect(mockCommit).toBeCalledWith(types.UPDATE_ASSIGNMENT, {
-                assignmentId: single2,
-                assignmentProps: {
-                    rubric: null,
-                },
-            });
         });
     });
 });

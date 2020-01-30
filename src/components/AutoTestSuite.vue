@@ -14,7 +14,7 @@
         <b-input-group prepend="Rubric category">
             <b-dropdown :text="internalValue.rubricRow.header || 'Select a rubric category'"
                         class="category-dropdown">
-                <b-dropdown-item v-for="cat in assignment.rubric"
+                <b-dropdown-item v-for="cat in rubric.rows"
                                  :key="cat.id"
                                  :disabled="!!disabledCategories[cat.id]"
                                  @click="setRubricRow(cat)"
@@ -172,7 +172,7 @@
             <span class="title">
                 <a v-if="result"
                    href="#"
-                   @click.capture.prevent.stop="$root.$emit('open-rubric-category', value.rubricRow.id)">
+                   @click.capture.prevent.stop="$root.$emit('cg::rubric-viewer::open-category', value.rubricRow.id)">
                     {{ value.rubricRow.header }}
                 </a>
                 <template v-else>
@@ -255,7 +255,7 @@
 </template>
 
 <script>
-import { mapActions } from 'vuex';
+import { mapActions, mapGetters } from 'vuex';
 import { SlickList, SlickItem, HandleDirective } from 'vue-slicksort';
 
 import Icon from 'vue-awesome/components/Icon';
@@ -328,6 +328,14 @@ export default {
     },
 
     computed: {
+        ...mapGetters('rubrics', {
+            storeRubrics: 'rubrics',
+        }),
+
+        rubric() {
+            return this.storeRubrics[this.assignment.id];
+        },
+
         permissions() {
             return this.$utils.getProps(this, {}, 'assignment', 'course', 'permissions');
         },
@@ -392,6 +400,11 @@ export default {
         ...mapActions('autotest', {
             storeDeleteAutoTestSuite: 'deleteAutoTestSuite',
             storeUpdateAutoTestSuite: 'updateAutoTestSuite',
+        }),
+
+        ...mapActions('rubrics', {
+            storeLoadRubric: 'loadRubric',
+            storeLoadRubricResult: 'loadResult',
         }),
 
         async createTestStep(type) {
@@ -462,10 +475,16 @@ export default {
         },
 
         deleteSuite() {
-            return this.storeDeleteAutoTestSuite({
-                autoTestId: this.autoTestId,
-                autoTestSuite: this.internalValue,
-            });
+            return Promise.all([
+                this.storeDeleteAutoTestSuite({
+                    autoTestId: this.autoTestId,
+                    autoTestSuite: this.internalValue,
+                }),
+                this.storeLoadRubric({
+                    assignmentId: this.assignment.id,
+                    force: true,
+                }),
+            ]);
         },
 
         setRubricRow(cat) {

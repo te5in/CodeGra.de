@@ -70,8 +70,8 @@ In this way, the category will stop testing if the Run Program step fails.
     files from method 2 are lost after the category finishes executing.
 
 
-How to use weights and set rubric points?
----------------------------------------------
+How to use weights and set rubric points when using a discrete rubric category?
+--------------------------------------------------------------------------------
 
 The final grade of an AutoTest run is not defined by the weights you set in
 AutoTest, but by the amount of points a rubric level in a category has that is reached
