@@ -132,6 +132,7 @@
 <li class="toctree-l1 current"><a class="reference internal" href="about.html">About CodeGrade</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="whatis.html">What is CodeGrade?</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">Changelog</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#version-1-19-0-knoet-2">Version 1.19.0 (Knoet.2)</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#version-1-17-0-knoet-1">Version 1.17.0 (Knoet.1)</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#version-1-16-2-knoet">Version 1.16.2 (Knoet)</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#version-1-13-0-junglejoy-4">Version 1.13.0 (JungleJoy.4)</a></li>
@@ -238,6 +239,49 @@
             
   <div class="section" id="changelog">
 <h1>Changelog<a class="headerlink" href="#changelog" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="version-1-19-0-knoet-2">
+<h2>Version 1.19.0 (Knoet.2)<a class="headerlink" href="#version-1-19-0-knoet-2" title="Permalink to this headline">¶</a></h2>
+<p><strong>Released</strong>: January 30th, 2020</p>
+<p>You can now add Continuous Rubric Categories, which can score anywhere on a
+continuous scale and work great with AutoTest. You can also now set student
+submission limits and a cool off period.</p>
+<p><strong>Features</strong></p>
+<ul class="simple">
+<li>Continuous rubric categories <a class="reference external" href="https://github.com/CodeGra-de/CodeGra.de/pull/1235">(#1235)</a>: this new type of
+rubric category can be used to give points anywhere on a scale from 0 to a
+configurable amount of points. This behavior maps better to certain types of
+AutoTest categories, such as categories containing only “capture points”
+steps. Rubrics can contain a mix of discrete and continuous categories and
+both can still be used for AutoTest.</li>
+<li>Make it possible to limit the amount of submissions <a class="reference external" href="https://github.com/CodeGra-de/CodeGra.de/pull/1237">(#1237)</a>: the amount of
+submissions can be limited in two ways:<ol class="arabic">
+<li>A maximum total amount of submissions for an assignment.</li>
+<li>A cool-off period: an amount of time a student must wait before they can
+submit again.</li>
+</ol>
+</li>
+<li>Separate feedback permissions <a class="reference external" href="https://github.com/CodeGra-de/CodeGra.de/pull/1234">(#1234)</a>: the
+<cite>can_see_grade_before_done</cite> permission was used for all types of feedback
+students would get. New <cite>can_see_user_feedback_before_done</cite> and
+<cite>can_see_linter_feedback_before_done</cite> permissions make it possible to show
+these types of feedback before an assignment is set to done while still
+hiding others.</li>
+</ul>
+<p><strong>Minor updates</strong></p>
+<ul class="simple">
+<li>Add warning when creating a wrong external tool link in Canvas <a class="reference external" href="https://github.com/CodeGra-de/CodeGra.de/pull/1248">(#1248)</a>: Canvas has multiple
+ways to integrate external tools, some of which leave CodeGrade unable to
+communicate correctly with it. This update displays a message when this
+happens.</li>
+</ul>
+<p><strong>Fixes</strong></p>
+<ul class="simple">
+<li>Use the most privileged LTI role available
+<a class="reference external" href="https://github.com/CodeGra-de/CodeGra.de/pull/1248">(#1248)</a>.</li>
+<li>Fix float matching for AutoTest capture points test
+<a class="reference external" href="https://github.com/CodeGra-de/CodeGra.de/pull/1251">(#1251)</a>.</li>
+</ul>
+</div>
 <div class="section" id="version-1-17-0-knoet-1">
 <h2>Version 1.17.0 (Knoet.1)<a class="headerlink" href="#version-1-17-0-knoet-1" title="Permalink to this headline">¶</a></h2>
 <p><strong>Released</strong>: December 20th, 2019</p>
