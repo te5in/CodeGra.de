@@ -27,6 +27,7 @@
         <script type="text/javascript" src="../_static/underscore.js"></script>
         <script type="text/javascript" src="../_static/doctools.js"></script>
         <script type="text/javascript" src="../_static/language_data.js"></script>
+        <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
     
     <script type="text/javascript" src="../_static/js/theme.js"></script>
 
@@ -2603,6 +2604,13 @@ directory.</td>
 </dd></dl>
 
 <dl class="class">
+<dt id="psef.helpers.Hashable">
+<em class="property">class </em><code class="descclassname">psef.helpers.</code><code class="descname">Hashable</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/psef/helpers.html#Hashable"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.helpers.Hashable" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">typing_extensions.Protocol</span></code></p>
+<p>A protocol for hashable values.</p>
+</dd></dl>
+
+<dl class="class">
 <dt id="psef.helpers.LockType">
 <em class="property">class </em><code class="descclassname">psef.helpers.</code><code class="descname">LockType</code><a class="reference internal" href="../_modules/psef/helpers.html#LockType"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.helpers.LockType" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/enum.html#enum.Enum" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">enum.Enum</span></code></a></p>
@@ -2894,6 +2902,34 @@ valid.</p>
 </tr>
 <tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">The given value <code class="docutils literal notranslate"><span class="pre">obj</span></code>.</p>
 </td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="psef.helpers.contains_duplicate">
+<code class="descclassname">psef.helpers.</code><code class="descname">contains_duplicate</code><span class="sig-paren">(</span><em>it_to_check: Iterator[T_Hashable]</em><span class="sig-paren">)</span> &#x2192; bool<a class="reference internal" href="../_modules/psef/helpers.html#contains_duplicate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.helpers.contains_duplicate" title="Permalink to this definition">¶</a></dt>
+<dd><p>Check if a sequence contains duplicate values.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">contains_duplicate</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">))</span>
+<span class="go">False</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">contains_duplicate</span><span class="p">([</span><span class="nb">object</span><span class="p">(),</span> <span class="nb">object</span><span class="p">()])</span>
+<span class="go">False</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">contains_duplicate</span><span class="p">([</span><span class="nb">object</span><span class="p">,</span> <span class="nb">object</span><span class="p">])</span>
+<span class="go">True</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">contains_duplicate</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">))</span> <span class="o">+</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">)))</span>
+<span class="go">True</span>
+</pre></div>
+</div>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>it_to_check</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Iterator" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Iterator</span></code></a>[<code class="xref py py-class docutils literal notranslate"><span class="pre">T_Hashable</span></code>]) – The sequence to check for duplicate values.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a></td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">If it contains any duplicate values.</td>
 </tr>
 </tbody>
 </table>
@@ -3287,7 +3323,7 @@ returned.</p>
 
 <dl class="function">
 <dt id="psef.helpers.get_in_or_error">
-<code class="descclassname">psef.helpers.</code><code class="descname">get_in_or_error</code><span class="sig-paren">(</span><em>model: Type[Y], in_column: cg_sqlalchemy_helpers.types.DbColumn[~T][T], in_values: List[T], options: Optional[List[Any]] = None</em><span class="sig-paren">)</span> &#x2192; List[Y]<a class="reference internal" href="../_modules/psef/helpers.html#get_in_or_error"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.helpers.get_in_or_error" title="Permalink to this definition">¶</a></dt>
+<code class="descclassname">psef.helpers.</code><code class="descname">get_in_or_error</code><span class="sig-paren">(</span><em>model: Type[Y], in_column: cg_sqlalchemy_helpers.types.DbColumn[~T][T], in_values: List[T], options: Optional[List[Any]] = None, *, as_map: bool = False</em><span class="sig-paren">)</span> &#x2192; Union[Dict[T, Y], List[Y]]<a class="reference internal" href="../_modules/psef/helpers.html#get_in_or_error"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.helpers.get_in_or_error" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get object by doing an <code class="docutils literal notranslate"><span class="pre">IN</span></code> query.</p>
 <p>This method protects against empty <code class="docutils literal notranslate"><span class="pre">in_values</span></code>, and will return an empty
 list in that case. If not all items from the <code class="docutils literal notranslate"><span class="pre">in_values</span></code> this function
@@ -3303,10 +3339,12 @@ will raise an exception.</p>
 empty sequence, which is handled without doing a query.</li>
 <li><strong>options</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code></a>[<code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code></a>]]) – A list of options to give to the executed query. This can
 be used to undefer or eagerly load some columns or relations.</li>
+<li><strong>as_map</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>) – Should the return value be returned as mapping between the
+<cite>in_column</cite> and the received item from the database.</li>
 </ul>
 </td>
 </tr>
-<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body"><p class="first"><code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">Y</span></code>]</p>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body"><p class="first"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code></a>[<code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code>[<a class="reference internal" href="#psef.helpers.T" title="psef.helpers.T"><code class="xref py py-class docutils literal notranslate"><span class="pre">T</span></code></a>, <code class="xref py py-class docutils literal notranslate"><span class="pre">Y</span></code>], <code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">Y</span></code>]]</p>
 </td>
 </tr>
 <tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">A list of objects with the same length as <code class="docutils literal notranslate"><span class="pre">in_values</span></code>.</p>
@@ -3425,19 +3463,21 @@ found.</li>
 
 <dl class="function">
 <dt id="psef.helpers.handle_none">
-<code class="descclassname">psef.helpers.</code><code class="descname">handle_none</code><span class="sig-paren">(</span><em>value: Optional[T], default: T</em><span class="sig-paren">)</span> &#x2192; T<a class="reference internal" href="../_modules/psef/helpers.html#handle_none"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.helpers.handle_none" title="Permalink to this definition">¶</a></dt>
+<code class="descclassname">psef.helpers.</code><code class="descname">handle_none</code><span class="sig-paren">(</span><em>value: Optional[T], default: Z</em><span class="sig-paren">)</span> &#x2192; Union[T, Z]<a class="reference internal" href="../_modules/psef/helpers.html#handle_none"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.helpers.handle_none" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get the given <code class="docutils literal notranslate"><span class="pre">value</span></code> or <code class="docutils literal notranslate"><span class="pre">default</span></code> if <code class="docutils literal notranslate"><span class="pre">value</span></code> is <code class="docutils literal notranslate"><span class="pre">None</span></code>.</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">handle_none</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="mi">5</span><span class="p">)</span>
 <span class="go">5</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">handle_none</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">6</span><span class="p">)</span>
 <span class="go">5</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">handle_none</span><span class="p">(</span><span class="mf">5.5</span><span class="p">,</span> <span class="mi">6</span><span class="p">)</span>
+<span class="go">5.5</span>
 </pre></div>
 </div>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><a class="reference internal" href="#psef.helpers.T" title="psef.helpers.T"><code class="xref py py-class docutils literal notranslate"><span class="pre">T</span></code></a></td>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code></a>[<a class="reference internal" href="#psef.helpers.T" title="psef.helpers.T"><code class="xref py py-class docutils literal notranslate"><span class="pre">T</span></code></a>, <code class="xref py py-class docutils literal notranslate"><span class="pre">Z</span></code>]</td>
 </tr>
 </tbody>
 </table>
@@ -9352,7 +9392,7 @@ the course.</td>
 <em class="property">class </em><code class="descclassname">psef.models.rubric.</code><code class="descname">RubricItem</code><span class="sig-paren">(</span><em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/psef/models/rubric.html#RubricItem"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.rubric.RubricItem" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <a class="reference internal" href="#psef.helpers.NotEqualMixin" title="psef.helpers.NotEqualMixin"><code class="xref py py-class docutils literal notranslate"><span class="pre">psef.helpers.NotEqualMixin</span></code></a>, <code class="xref py py-class docutils literal notranslate"><span class="pre">sqlalchemy.ext.declarative.api.Model</span></code></p>
 <p>This class holds the information about a single option/item in a
-<a class="reference internal" href="#psef.models.rubric.RubricRow" title="psef.models.rubric.RubricRow"><code class="xref py py-class docutils literal notranslate"><span class="pre">RubricRow</span></code></a>.</p>
+<a class="reference internal" href="#psef.models.rubric.RubricRowBase" title="psef.models.rubric.RubricRowBase"><code class="xref py py-class docutils literal notranslate"><span class="pre">RubricRowBase</span></code></a>.</p>
 <dl class="class">
 <dt id="psef.models.rubric.RubricItem.JSONBaseSerialization">
 <em class="property">class </em><code class="descname">JSONBaseSerialization</code><a class="reference internal" href="../_modules/psef/models/rubric.html#RubricItem.JSONBaseSerialization"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.rubric.RubricItem.JSONBaseSerialization" title="Permalink to this definition">¶</a></dt>
@@ -9376,8 +9416,8 @@ the course.</td>
 </dd></dl>
 
 <dl class="class">
-<dt id="psef.models.rubric.RubricRow">
-<em class="property">class </em><code class="descclassname">psef.models.rubric.</code><code class="descname">RubricRow</code><span class="sig-paren">(</span><em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/psef/models/rubric.html#RubricRow"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.rubric.RubricRow" title="Permalink to this definition">¶</a></dt>
+<dt id="psef.models.rubric.RubricRowBase">
+<em class="property">class </em><code class="descclassname">psef.models.rubric.</code><code class="descname">RubricRowBase</code><span class="sig-paren">(</span><em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/psef/models/rubric.html#RubricRowBase"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.rubric.RubricRowBase" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <a class="reference internal" href="#psef.helpers.NotEqualMixin" title="psef.helpers.NotEqualMixin"><code class="xref py py-class docutils literal notranslate"><span class="pre">psef.helpers.NotEqualMixin</span></code></a>, <code class="xref py py-class docutils literal notranslate"><span class="pre">sqlalchemy.ext.declarative.api.Model</span></code></p>
 <p>Describes a row of some rubric.</p>
 <p>This class forms the link between <a class="reference internal" href="#psef.models.assignment.Assignment" title="psef.models.assignment.Assignment"><code class="xref py py-class docutils literal notranslate"><span class="pre">Assignment</span></code></a> and
@@ -9386,14 +9426,14 @@ the course.</td>
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Variables:</th><td class="field-body"><strong>assignment_id</strong> – The assignment id of the assignment that
-belows to this rubric row.</td>
+<tr class="field-odd field"><th class="field-name">Variables:</th><td class="field-body"><strong>assignment_id</strong> – The assignment id of the assignment
+that belows to this rubric row.</td>
 </tr>
 </tbody>
 </table>
 <dl class="classmethod">
-<dt id="psef.models.rubric.RubricRow.create_from_json">
-<em class="property">classmethod </em><code class="descname">create_from_json</code><span class="sig-paren">(</span><em>header: str, description: str, items: List[psef.models.rubric.RubricItem.JSONBaseSerialization]</em><span class="sig-paren">)</span> &#x2192; psef.models.rubric.RubricRow<a class="reference internal" href="../_modules/psef/models/rubric.html#RubricRow.create_from_json"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.rubric.RubricRow.create_from_json" title="Permalink to this definition">¶</a></dt>
+<dt id="psef.models.rubric.RubricRowBase.create_from_json">
+<em class="property">classmethod </em><code class="descname">create_from_json</code><span class="sig-paren">(</span><em>header: str, description: str, items: List[psef.models.rubric.RubricItem.JSONBaseSerialization]</em><span class="sig-paren">)</span> &#x2192; psef.models.rubric.RubricRowBase<a class="reference internal" href="../_modules/psef/models/rubric.html#RubricRowBase.create_from_json"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.rubric.RubricRowBase.create_from_json" title="Permalink to this definition">¶</a></dt>
 <dd><p>Create a new rubric row for an assignment.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -9404,11 +9444,11 @@ belows to this rubric row.</td>
 <li><strong>description</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>) – The description of the new rubric row.</li>
 <li><strong>items</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code>[<a class="reference internal" href="#psef.models.rubric.RubricItem.JSONBaseSerialization" title="psef.models.rubric.RubricItem.JSONBaseSerialization"><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONBaseSerialization</span></code></a>]) – The items that should be added to this row. The format is
 the same as the items passed to
-<a class="reference internal" href="#psef.models.rubric.RubricRow.update_items_from_json" title="psef.models.rubric.RubricRow.update_items_from_json"><code class="xref py py-meth docutils literal notranslate"><span class="pre">RubricRow.update_items_from_json()</span></code></a>.</li>
+<a class="reference internal" href="#psef.models.rubric.RubricRowBase.update_items_from_json" title="psef.models.rubric.RubricRowBase.update_items_from_json"><code class="xref py py-meth docutils literal notranslate"><span class="pre">RubricRowBase.update_items_from_json()</span></code></a>.</li>
 </ul>
 </td>
 </tr>
-<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body"><p class="first"><a class="reference internal" href="#psef.models.rubric.RubricRow" title="psef.models.rubric.RubricRow"><code class="xref py py-class docutils literal notranslate"><span class="pre">RubricRow</span></code></a></p>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body"><p class="first"><a class="reference internal" href="#psef.models.rubric.RubricRowBase" title="psef.models.rubric.RubricRowBase"><code class="xref py py-class docutils literal notranslate"><span class="pre">RubricRowBase</span></code></a></p>
 </td>
 </tr>
 <tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">The newly created row.</p>
@@ -9419,8 +9459,8 @@ the same as the items passed to
 </dd></dl>
 
 <dl class="method">
-<dt id="psef.models.rubric.RubricRow.is_selected">
-<code class="descname">is_selected</code><span class="sig-paren">(</span><em>self</em><span class="sig-paren">)</span> &#x2192; bool<a class="reference internal" href="../_modules/psef/models/rubric.html#RubricRow.is_selected"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.rubric.RubricRow.is_selected" title="Permalink to this definition">¶</a></dt>
+<dt id="psef.models.rubric.RubricRowBase.is_selected">
+<code class="descname">is_selected</code><span class="sig-paren">(</span><em>self</em><span class="sig-paren">)</span> &#x2192; bool<a class="reference internal" href="../_modules/psef/models/rubric.html#RubricRowBase.is_selected"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.rubric.RubricRowBase.is_selected" title="Permalink to this definition">¶</a></dt>
 <dd><p>Is this rubric row selected at least once.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -9433,8 +9473,8 @@ the same as the items passed to
 </dd></dl>
 
 <dl class="attribute">
-<dt id="psef.models.rubric.RubricRow.is_valid">
-<code class="descname">is_valid</code><a class="headerlink" href="#psef.models.rubric.RubricRow.is_valid" title="Permalink to this definition">¶</a></dt>
+<dt id="psef.models.rubric.RubricRowBase.is_valid">
+<code class="descname">is_valid</code><a class="headerlink" href="#psef.models.rubric.RubricRowBase.is_valid" title="Permalink to this definition">¶</a></dt>
 <dd><p>Check if the current row is valid.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -9450,8 +9490,8 @@ items is not &gt; 0.</td>
 </dd></dl>
 
 <dl class="attribute">
-<dt id="psef.models.rubric.RubricRow.locked">
-<code class="descname">locked</code><a class="headerlink" href="#psef.models.rubric.RubricRow.locked" title="Permalink to this definition">¶</a></dt>
+<dt id="psef.models.rubric.RubricRowBase.locked">
+<code class="descname">locked</code><a class="headerlink" href="#psef.models.rubric.RubricRowBase.locked" title="Permalink to this definition">¶</a></dt>
 <dd><p>Is this rubric row locked.</p>
 <p>If it is locked the reason is returned.</p>
 <table class="docutils field-list" frame="void" rules="none">
@@ -9465,8 +9505,55 @@ items is not &gt; 0.</td>
 </dd></dl>
 
 <dl class="method">
-<dt id="psef.models.rubric.RubricRow.update_from_json">
-<code class="descname">update_from_json</code><span class="sig-paren">(</span><em>self, header: str, description: str, items: List[psef.models.rubric.RubricItem.JSONBaseSerialization]</em><span class="sig-paren">)</span> &#x2192; None<a class="reference internal" href="../_modules/psef/models/rubric.html#RubricRow.update_from_json"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.rubric.RubricRow.update_from_json" title="Permalink to this definition">¶</a></dt>
+<dt id="psef.models.rubric.RubricRowBase.make_work_rubric_item">
+<code class="descname">make_work_rubric_item</code><span class="sig-paren">(</span><em>self, work: psef.models.work.Work, item_id: Union[int, psef.models.rubric.RubricItem], multiplier: float</em><span class="sig-paren">)</span> &#x2192; psef.models.rubric.WorkRubricItem<a class="reference internal" href="../_modules/psef/models/rubric.html#RubricRowBase.make_work_rubric_item"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.rubric.RubricRowBase.make_work_rubric_item" title="Permalink to this definition">¶</a></dt>
+<dd><p>Make a <a class="reference internal" href="#psef.models.rubric.WorkRubricItem" title="psef.models.rubric.WorkRubricItem"><code class="xref py py-class docutils literal notranslate"><span class="pre">WorkRubricItem</span></code></a> for a manual grade.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>work</strong> (<a class="reference internal" href="#psef.models.work.Work" title="psef.models.work.Work"><code class="xref py py-class docutils literal notranslate"><span class="pre">Work</span></code></a>) – The work to create the <a class="reference internal" href="#psef.models.rubric.WorkRubricItem" title="psef.models.rubric.WorkRubricItem"><code class="xref py py-class docutils literal notranslate"><span class="pre">WorkRubricItem</span></code></a> for.</li>
+<li><strong>item_id</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>, <a class="reference internal" href="#psef.models.rubric.RubricItem" title="psef.models.rubric.RubricItem"><code class="xref py py-class docutils literal notranslate"><span class="pre">RubricItem</span></code></a>]) – The item where the <a class="reference internal" href="#psef.models.rubric.WorkRubricItem" title="psef.models.rubric.WorkRubricItem"><code class="xref py py-class docutils literal notranslate"><span class="pre">WorkRubricItem</span></code></a> should be
+connected to.</li>
+<li><strong>multiplier</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></a>) – The multiplier to use, this should always be 1.0 for
+a normal rubric row.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last"><a class="reference internal" href="#psef.models.rubric.WorkRubricItem" title="psef.models.rubric.WorkRubricItem"><code class="xref py py-class docutils literal notranslate"><span class="pre">WorkRubricItem</span></code></a></p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="psef.models.rubric.RubricRowBase.make_work_rubric_item_for_auto_test">
+<code class="descname">make_work_rubric_item_for_auto_test</code><span class="sig-paren">(</span><em>self, work: psef.models.work.Work, percentage: float, grade_calculator: Callable[[Sequence[rubric_models.RubricItem], float], rubric_models.RubricItem]</em><span class="sig-paren">)</span> &#x2192; psef.models.rubric.WorkRubricItem<a class="reference internal" href="../_modules/psef/models/rubric.html#RubricRowBase.make_work_rubric_item_for_auto_test"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.rubric.RubricRowBase.make_work_rubric_item_for_auto_test" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create a <a class="reference internal" href="#psef.models.rubric.WorkRubricItem" title="psef.models.rubric.WorkRubricItem"><code class="xref py py-class docutils literal notranslate"><span class="pre">WorkRubricItem</span></code></a> for an AutoTest.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>work</strong> (<a class="reference internal" href="#psef.models.work.Work" title="psef.models.work.Work"><code class="xref py py-class docutils literal notranslate"><span class="pre">Work</span></code></a>) – The work to create the <a class="reference internal" href="#psef.models.rubric.WorkRubricItem" title="psef.models.rubric.WorkRubricItem"><code class="xref py py-class docutils literal notranslate"><span class="pre">WorkRubricItem</span></code></a> for.</li>
+<li><strong>percentage</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></a>) – The percentage achieved in the AT category.</li>
+<li><strong>grade_calculator</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Callable</span></code></a>[[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Sequence</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.ForwardRef" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">ForwardRef</span></code></a>], <a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></a>], <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.ForwardRef" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">ForwardRef</span></code></a>]) – The grade calculator to use, this is not used
+by continuous rubric rows.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last"><a class="reference internal" href="#psef.models.rubric.WorkRubricItem" title="psef.models.rubric.WorkRubricItem"><code class="xref py py-class docutils literal notranslate"><span class="pre">WorkRubricItem</span></code></a></p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="psef.models.rubric.RubricRowBase.update_from_json">
+<code class="descname">update_from_json</code><span class="sig-paren">(</span><em>self, header: str, description: str, items: List[psef.models.rubric.RubricItem.JSONBaseSerialization]</em><span class="sig-paren">)</span> &#x2192; None<a class="reference internal" href="../_modules/psef/models/rubric.html#RubricRowBase.update_from_json"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.rubric.RubricRowBase.update_from_json" title="Permalink to this definition">¶</a></dt>
 <dd><p>Update this rubric in place.</p>
 <div class="admonition warning">
 <p class="first admonition-title">Warning</p>
@@ -9482,7 +9569,7 @@ from the rubric row.</p>
 <li><strong>description</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>) – The new description of the row.</li>
 <li><strong>items</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code>[<a class="reference internal" href="#psef.models.rubric.RubricItem.JSONBaseSerialization" title="psef.models.rubric.RubricItem.JSONBaseSerialization"><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONBaseSerialization</span></code></a>]) – The items that should be in this row (see warning). The
 format is the same as the items passed to
-<a class="reference internal" href="#psef.models.rubric.RubricRow.update_items_from_json" title="psef.models.rubric.RubricRow.update_items_from_json"><code class="xref py py-meth docutils literal notranslate"><span class="pre">RubricRow.update_items_from_json()</span></code></a>.</li>
+<a class="reference internal" href="#psef.models.rubric.RubricRowBase.update_items_from_json" title="psef.models.rubric.RubricRowBase.update_items_from_json"><code class="xref py py-meth docutils literal notranslate"><span class="pre">RubricRowBase.update_items_from_json()</span></code></a>.</li>
 </ul>
 </td>
 </tr>
@@ -9497,8 +9584,8 @@ format is the same as the items passed to
 </dd></dl>
 
 <dl class="method">
-<dt id="psef.models.rubric.RubricRow.update_items_from_json">
-<code class="descname">update_items_from_json</code><span class="sig-paren">(</span><em>self, items: List[psef.models.rubric.RubricItem.JSONBaseSerialization]</em><span class="sig-paren">)</span> &#x2192; None<a class="reference internal" href="../_modules/psef/models/rubric.html#RubricRow.update_items_from_json"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.rubric.RubricRow.update_items_from_json" title="Permalink to this definition">¶</a></dt>
+<dt id="psef.models.rubric.RubricRowBase.update_items_from_json">
+<code class="descname">update_items_from_json</code><span class="sig-paren">(</span><em>self, items: List[psef.models.rubric.RubricItem.JSONBaseSerialization]</em><span class="sig-paren">)</span> &#x2192; None<a class="reference internal" href="../_modules/psef/models/rubric.html#RubricRowBase.update_items_from_json"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.rubric.RubricRowBase.update_items_from_json" title="Permalink to this definition">¶</a></dt>
 <dd><p>Update the items of this row in place.</p>
 <div class="admonition warning">
 <p class="first admonition-title">Warning</p>
@@ -9522,6 +9609,14 @@ of added.</td>
 </table>
 </dd></dl>
 
+</dd></dl>
+
+<dl class="class">
+<dt id="psef.models.rubric.WorkRubricItem">
+<em class="property">class </em><code class="descclassname">psef.models.rubric.</code><code class="descname">WorkRubricItem</code><span class="sig-paren">(</span><em>*</em>, <em>rubric_item</em>, <em>work</em>, <em>multiplier=1.0</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/psef/models/rubric.html#WorkRubricItem"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.rubric.WorkRubricItem" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#psef.helpers.NotEqualMixin" title="psef.helpers.NotEqualMixin"><code class="xref py py-class docutils literal notranslate"><span class="pre">psef.helpers.NotEqualMixin</span></code></a>, <code class="xref py py-class docutils literal notranslate"><span class="pre">sqlalchemy.ext.declarative.api.Model</span></code></p>
+<p>The association table between a <code class="xref py py-class docutils literal notranslate"><span class="pre">work_models.Work</span></code> and a
+<a class="reference internal" href="#psef.models.rubric.RubricItem" title="psef.models.rubric.RubricItem"><code class="xref py py-class docutils literal notranslate"><span class="pre">RubricItem</span></code></a>.</p>
 </dd></dl>
 
 </div>
@@ -10296,7 +10391,7 @@ leading and trailing slashes which do not have any meaning.</li>
 
 <dl class="method">
 <dt id="psef.models.work.Work.select_rubric_items">
-<code class="descname">select_rubric_items</code><span class="sig-paren">(</span><em>self, items: List[RubricItem], user: psef.models.user.User, override: bool = False</em><span class="sig-paren">)</span> &#x2192; None<a class="reference internal" href="../_modules/psef/models/work.html#Work.select_rubric_items"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.work.Work.select_rubric_items" title="Permalink to this definition">¶</a></dt>
+<code class="descname">select_rubric_items</code><span class="sig-paren">(</span><em>self, items: List[WorkRubricItem], user: psef.models.user.User, override: bool = False</em><span class="sig-paren">)</span> &#x2192; None<a class="reference internal" href="../_modules/psef/models/work.html#Work.select_rubric_items"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.work.Work.select_rubric_items" title="Permalink to this definition">¶</a></dt>
 <dd><p>Selects the given <a class="reference internal" href="#psef.models.rubric.RubricItem" title="psef.models.rubric.RubricItem"><code class="xref py py-class docutils literal notranslate"><span class="pre">RubricItem</span></code></a>.</p>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
@@ -10381,6 +10476,28 @@ this work.</p>
 </table>
 </dd></dl>
 
+<dl class="classmethod">
+<dt id="psef.models.work.Work.update_query_for_extended_jsonify">
+<em class="property">classmethod </em><code class="descname">update_query_for_extended_jsonify</code><span class="sig-paren">(</span><em>query: cg_sqlalchemy_helpers.types.MyQuery[ForwardRef('Work')][Work]</em><span class="sig-paren">)</span> &#x2192; cg_sqlalchemy_helpers.types.MyQuery[psef.models.work.Work][psef.models.work.Work]<a class="reference internal" href="../_modules/psef/models/work.html#Work.update_query_for_extended_jsonify"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.work.Work.update_query_for_extended_jsonify" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="docutils">
+<dt>Update the given query to load all attributes needed for an extended</dt>
+<dd>jsonify eagerly.</dd>
+</dl>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>query</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">MyQuery</span></code>[<a class="reference internal" href="#psef.models.work.Work" title="psef.models.work.Work"><code class="xref py py-class docutils literal notranslate"><span class="pre">Work</span></code></a>]) – The query to update.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body"><code class="xref py py-class docutils literal notranslate"><span class="pre">MyQuery</span></code>[<a class="reference internal" href="#psef.models.work.Work" title="psef.models.work.Work"><code class="xref py py-class docutils literal notranslate"><span class="pre">Work</span></code></a>]</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">The updated query, which now loads all attributes needed for
+an extended jsonify eagerly.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
 </dd></dl>
 
 <dl class="class">
@@ -10458,13 +10575,13 @@ commit is necessary in that case.</p>
 
 <dl class="method">
 <dt id="psef.models.auto_test.AutoTest.copy">
-<code class="descname">copy</code><span class="sig-paren">(</span><em>self, rubric_mapping: Mapping[rubric_models.RubricRow, rubric_models.RubricRow]</em><span class="sig-paren">)</span> &#x2192; psef.models.auto_test.AutoTest<a class="reference internal" href="../_modules/psef/models/auto_test.html#AutoTest.copy"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.auto_test.AutoTest.copy" title="Permalink to this definition">¶</a></dt>
+<code class="descname">copy</code><span class="sig-paren">(</span><em>self, rubric_mapping: Mapping[rubric_models.RubricRowBase, rubric_models.RubricRowBase]</em><span class="sig-paren">)</span> &#x2192; psef.models.auto_test.AutoTest<a class="reference internal" href="../_modules/psef/models/auto_test.html#AutoTest.copy"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.auto_test.AutoTest.copy" title="Permalink to this definition">¶</a></dt>
 <dd><p>Copy this AutoTest configuration.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>rubric_mapping</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Mapping</span></code></a>[<a class="reference internal" href="#psef.models.rubric.RubricRow" title="psef.models.rubric.RubricRow"><code class="xref py py-class docutils literal notranslate"><span class="pre">RubricRow</span></code></a>, <a class="reference internal" href="#psef.models.rubric.RubricRow" title="psef.models.rubric.RubricRow"><code class="xref py py-class docutils literal notranslate"><span class="pre">RubricRow</span></code></a>]) – The mapping how the rubric was copied, if suite
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>rubric_mapping</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Mapping</span></code></a>[<a class="reference internal" href="#psef.models.rubric.RubricRowBase" title="psef.models.rubric.RubricRowBase"><code class="xref py py-class docutils literal notranslate"><span class="pre">RubricRowBase</span></code></a>, <a class="reference internal" href="#psef.models.rubric.RubricRowBase" title="psef.models.rubric.RubricRowBase"><code class="xref py py-class docutils literal notranslate"><span class="pre">RubricRowBase</span></code></a>]) – The mapping how the rubric was copied, if suite
 <code class="docutils literal notranslate"><span class="pre">A</span></code> was copied to suite <code class="docutils literal notranslate"><span class="pre">B</span></code> then suite <code class="docutils literal notranslate"><span class="pre">B</span></code> is connected to
 rubric row <code class="docutils literal notranslate"><span class="pre">rubric_mapping[A.rubric_row]</span></code>.</td>
 </tr>

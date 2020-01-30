@@ -412,15 +412,37 @@ made in CodeGrade. A basic rubric consist of multiple categories that all have
 multiple levels and corresponding points. All components in a CodeGrade rubric
 can have a name and description.
 
-A new category can be created by clicking the :fa:`plus` button. A name and
-description can be given, furthermore a number of levels can be given. New
-levels are automatically added by typing in previous levels and levels can be
-removed by pressing the :fa:`times` button.
+A new category can be created by clicking the :fa:`plus` button. You can also
+import a rubric by clicking the :fa:`copy` button.
 
-Each level can be assigned a number of points (usually descending). The total number of points is automatically incremented by the given
-points but can be manually overridden if requested.
+After creating a new rubric or copying an existing rubric you can add categories
+by pressing the :fa:`plus` icon in the tab bar. After creating a category you
+have to select one of two types:
 
-.. note:: A rubric is only saved after pressing the 'Submit' button, it is recommended to occasionally save the rubric to prevent losing work.
+Discrete rubric categories
+++++++++++++++++++++++++++++
+
+Discrete rubric categories are rubric categories with multiple levels, each
+assigned a number of points, in them. When grading one level in a category can
+be selected. New levels can be created by clicking on the empty level with the
+large :fa:`plus` in it. You can remove levels by pressing the :fa:`times`
+button.
+
+Continuous rubric categories
+++++++++++++++++++++++++++++
+
+Besides the more traditional discrete categories, CodeGrade also offers
+continuous categories. Continuous categories are assigned a maximum amount of
+points (which should be higher than 0), and when grading any amount of points
+between 0 and the set maximum can be assigned for the category. This allows you,
+for example, to split your grade into multiple categories, while still allowing
+precise grading. Continuous rubric categories are also very useful for
+:ref:`AutoTest <autotest-overview>`.
+
+.. tip::
+
+    A rubric is only saved after pressing the 'Submit' button, it is recommended
+    to occasionally save the rubric to prevent losing work.
 
 
 Creating a new Assignment

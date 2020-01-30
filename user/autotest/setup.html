@@ -27,6 +27,7 @@
         <script type="text/javascript" src="../../_static/underscore.js"></script>
         <script type="text/javascript" src="../../_static/doctools.js"></script>
         <script type="text/javascript" src="../../_static/language_data.js"></script>
+        <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
     
     <script type="text/javascript" src="../../_static/js/theme.js"></script>
 
@@ -129,8 +130,8 @@
 <li class="toctree-l3"><a class="reference internal" href="#default-installed-software">Default Installed Software</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#result-visibility">Result visibility</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#rubric-calculation">Rubric calculation</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="#minimum">Minimum</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#maximum">Maximum</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#discrete-categories">Discrete Categories</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#continuous-categories">Continuous Categories</a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="#uploading-fixtures">Uploading fixtures</a><ul>
@@ -295,22 +296,38 @@ Before the deadline, hidden steps are never executed.</p>
 </div>
 </div>
 <div class="section" id="rubric-calculation">
-<h2>Rubric calculation<a class="headerlink" href="#rubric-calculation" title="Permalink to this headline">¶</a></h2>
-<p>There are two modes to fill in the rubric:</p>
-<div class="section" id="minimum">
-<h3>Minimum<a class="headerlink" href="#minimum" title="Permalink to this headline">¶</a></h3>
-<p>A category’s item will be chosen when the lower
-bound of this item is reached (e.g. when a category has 4 items and 75% of the
-tests succeed, the maximum item is filled in).</p>
-</div>
-<div class="section" id="maximum">
-<h3>Maximum<a class="headerlink" href="#maximum" title="Permalink to this headline">¶</a></h3>
-<p>A category’s item will be chosen when the upper bound of
-this item is reached (e.g. you need 100% passed tests to have the maximum item filled in).</p>
+<span id="autotest-setup-rubric-calculation"></span><h2>Rubric calculation<a class="headerlink" href="#rubric-calculation" title="Permalink to this headline">¶</a></h2>
+<p>The rubric calculation setting determines how (discrete) rubric categories will
+be filled-in.</p>
+<div class="section" id="discrete-categories">
+<h3>Discrete Categories<a class="headerlink" href="#discrete-categories" title="Permalink to this headline">¶</a></h3>
+<p>There are two modes to fill in discrete rubric categories:</p>
+<ol class="arabic simple">
+<li><strong>Minimum</strong>: A category’s item will be chosen when the lower bound of this
+item is reached (e.g. when a category has 4 items and 75% of the tests
+succeed, the maximum item is filled in).</li>
+<li><strong>Maximum</strong>: A category’s item will be chosen when the upper bound of this
+item is reached (e.g. you need 100% passed tests to have the maximum item
+filled in).</li>
+</ol>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
-<p class="last">The percentages of the items in a category are independent of the amount of points
-given to them. E.g. if you have 4 items, item 1 is always 0%-25%, item 2 is 25%-50% and so forth.</p>
+<p class="last">The percentages of the items in a category are independent of the amount of
+points given to them. E.g. if you have 4 items, item 1 is always 0%-25%,
+item 2 is 25%-50% and so forth.</p>
+</div>
+</div>
+<div class="section" id="continuous-categories">
+<h3>Continuous Categories<a class="headerlink" href="#continuous-categories" title="Permalink to this headline">¶</a></h3>
+<p>Continuous rubric categories are filled in one way, this means this setting will
+have no influence on rubric calculation for this type of rubric category. The
+percentage achieved in the AutoTest level will also be the percentage achieved
+in the continuous rubric category.</p>
+<div class="admonition example-directive">
+<div class="first"><p class="first admonition-title" id="Example-you-have-a-continuous-rubric">Example<a class="headerlink" href="#Example-you-have-a-continuous-rubric" title="Permalink to this example">¶</a><p></div><p class="last">You have a continuous rubric category with a maximum of 5 points, and an
+AutoTest level with a maximum of 10 points. If a user achieves 7 AutoTest
+points for this level, in the continuous rubric category the student will
+receive <span class="math notranslate nohighlight">\(5 \times \frac{7}{10} = 3.5\)</span> points.</p>
 </div>
 </div>
 </div>

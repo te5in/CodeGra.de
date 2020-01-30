@@ -27,6 +27,7 @@
         <script type="text/javascript" src="../../_static/underscore.js"></script>
         <script type="text/javascript" src="../../_static/doctools.js"></script>
         <script type="text/javascript" src="../../_static/language_data.js"></script>
+        <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
     
     <script type="text/javascript" src="../../_static/js/theme.js"></script>
 
@@ -215,12 +216,12 @@
   <div class="section" id="categories">
 <span id="autotest-categories"></span><h1>Categories<a class="headerlink" href="#categories" title="Permalink to this headline">¶</a></h1>
 <p>Within a <a class="reference internal" href="levels.html#autotest-levels"><span class="std std-ref">level</span></a> you can create a Category. Each Category
-has to be connected to a Rubric Category. By doing this, AutoTest is
-feedback oriented. We encourage teachers to create meaningful Rubric Categories
-and think about how to group their tests accordingly. By grouping tests into
-AutoTest Categories that are connected to a Rubric Category, this also means
-that students know where tests belong and how they got their grade for an
-assignment.</p>
+has to be connected to a Rubric Category (see <a class="reference internal" href="setup.html#autotest-setup-rubric-calculation"><span class="std std-ref">here</span></a> for information how this rubric will be
+filled in). By doing this, AutoTest is feedback oriented. We encourage teachers
+to create meaningful Rubric Categories and think about how to group their tests
+accordingly. By grouping tests into AutoTest Categories that are connected to a
+Rubric Category, this also means that students know where tests belong and how
+they got their grade for an assignment.</p>
 <div class="section" id="setup">
 <h2>Setup<a class="headerlink" href="#setup" title="Permalink to this headline">¶</a></h2>
 <p>Press the <strong>Add Category</strong> button inside a level to create a new Category within
@@ -235,9 +236,15 @@ Categories.</p>
 tests you can add to this.</p>
 <ul class="simple">
 <li><strong>IO Tests</strong> for simple input/output tests.</li>
-<li><strong>Run Program Tests</strong> to run a program and check if the program exited successfully.</li>
-<li><strong>Capture Points Tests</strong> to run a custom test program (such as a unit test) which captures a number between 0 and 1 and converts this to an amount of points.</li>
-<li><strong>Check Points</strong>, which check if the percentage of points gotten before this special test is high enough to continue with the tests after the Check Points test. This makes it possible to have certain tests only execute if tests before it were successful.</li>
+<li><strong>Run Program Tests</strong> to run a program and check if the program exited
+successfully.</li>
+<li><strong>Capture Points Tests</strong> to run a custom test program (such as a unit test)
+which captures a number between 0 and 1 and converts this to an amount of
+points.</li>
+<li><strong>Check Points</strong>, which check if the percentage of points gotten before this
+special test is high enough to continue with the tests after the Check Points
+test. This makes it possible to have certain tests only execute if tests
+before it were successful.</li>
 </ul>
 </div>
 <div class="section" id="running">

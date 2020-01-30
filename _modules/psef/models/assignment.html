@@ -27,6 +27,7 @@
         <script type="text/javascript" src="../../../_static/underscore.js"></script>
         <script type="text/javascript" src="../../../_static/doctools.js"></script>
         <script type="text/javascript" src="../../../_static/language_data.js"></script>
+        <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
     
     <script type="text/javascript" src="../../../_static/js/theme.js"></script>
 
@@ -234,9 +235,7 @@
 <span class="kn">from</span> <span class="nn">..exceptions</span> <span class="kn">import</span> <span class="p">(</span>
     <span class="n">APICodes</span><span class="p">,</span> <span class="n">APIException</span><span class="p">,</span> <span class="n">PermissionException</span><span class="p">,</span> <span class="n">InvalidAssignmentState</span>
 <span class="p">)</span>
-<span class="kn">from</span> <span class="nn">.link_tables</span> <span class="kn">import</span> <span class="p">(</span>
-    <span class="n">user_course</span><span class="p">,</span> <span class="n">users_groups</span><span class="p">,</span> <span class="n">work_rubric_item</span><span class="p">,</span> <span class="n">course_permissions</span>
-<span class="p">)</span>
+<span class="kn">from</span> <span class="nn">.link_tables</span> <span class="kn">import</span> <span class="n">user_course</span><span class="p">,</span> <span class="n">users_groups</span><span class="p">,</span> <span class="n">course_permissions</span>
 <span class="kn">from</span> <span class="nn">..permissions</span> <span class="kn">import</span> <span class="n">CoursePermission</span> <span class="k">as</span> <span class="n">CPerm</span>
 
 <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">TYPE_CHECKING</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
@@ -654,11 +653,11 @@
         <span class="n">nullable</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="n">rubric_rows</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
-        <span class="s1">&#39;RubricRow&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;RubricRowBase&#39;</span><span class="p">,</span>
         <span class="n">back_populates</span><span class="o">=</span><span class="s1">&#39;assignment&#39;</span><span class="p">,</span>
         <span class="n">cascade</span><span class="o">=</span><span class="s1">&#39;delete-orphan, delete, save-update&#39;</span><span class="p">,</span>
-        <span class="n">order_by</span><span class="o">=</span><span class="s2">&quot;RubricRow.created_at&quot;</span>
-    <span class="p">)</span>  <span class="c1"># type: t.MutableSequence[&#39;rubric_models.RubricRow&#39;]</span>
+        <span class="n">order_by</span><span class="o">=</span><span class="s2">&quot;RubricRowBase.created_at&quot;</span>
+    <span class="p">)</span>  <span class="c1"># type: t.MutableSequence[&#39;rubric_models.RubricRowBase&#39;]</span>
 
     <span class="n">group_set_id</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;group_set_id&#39;</span><span class="p">,</span>
@@ -951,12 +950,12 @@
         <span class="n">sql</span> <span class="o">=</span> <span class="n">latest</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
             <span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="o">.</span><span class="n">assigned_to</span> <span class="o">==</span> <span class="n">user_id</span><span class="p">,</span>
         <span class="p">)</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
-            <span class="n">work_rubric_item</span><span class="p">,</span>
-            <span class="n">work_rubric_item</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">work_id</span> <span class="o">==</span> <span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+            <span class="n">rubric_models</span><span class="o">.</span><span class="n">WorkRubricItem</span><span class="p">,</span>
+            <span class="n">rubric_models</span><span class="o">.</span><span class="n">WorkRubricItem</span><span class="o">.</span><span class="n">work_id</span> <span class="o">==</span> <span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
             <span class="n">isouter</span><span class="o">=</span><span class="kc">True</span>
         <span class="p">)</span><span class="o">.</span><span class="n">having</span><span class="p">(</span>
             <span class="n">and_</span><span class="p">(</span>
-                <span class="n">func</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="n">work_rubric_item</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">rubricitem_id</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">,</span>
+                <span class="n">func</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="n">rubric_models</span><span class="o">.</span><span class="n">WorkRubricItem</span><span class="o">.</span><span class="n">rubricitem_id</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">,</span>
                 <span class="c1"># We access _grade here directly as we need it to do this query</span>
                 <span class="n">t</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">DbColumn</span><span class="p">[</span><span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]],</span>
                        <span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="o">.</span><span class="n">_grade</span><span class="p">)</span><span class="o">.</span><span class="n">is_</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>  <span class="c1"># pylint: disable=protected-access</span>
@@ -1028,11 +1027,10 @@
         <span class="n">sub</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span>
             <span class="n">func</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">rubric_models</span><span class="o">.</span><span class="n">RubricItem</span><span class="o">.</span><span class="n">points</span><span class="p">)</span><span class="o">.</span><span class="n">label</span><span class="p">(</span><span class="s1">&#39;max_val&#39;</span><span class="p">)</span>
         <span class="p">)</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
-            <span class="n">rubric_models</span><span class="o">.</span><span class="n">RubricRow</span><span class="p">,</span>
-            <span class="n">rubric_models</span><span class="o">.</span><span class="n">RubricRow</span><span class="o">.</span><span class="n">id</span> <span class="o">==</span> <span class="n">rubric_models</span><span class="o">.</span><span class="n">RubricItem</span><span class="o">.</span><span class="n">rubricrow_id</span>
-        <span class="p">)</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">rubric_models</span><span class="o">.</span><span class="n">RubricRow</span><span class="o">.</span><span class="n">assignment_id</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span><span class="o">.</span><span class="n">group_by</span><span class="p">(</span>
-            <span class="n">rubric_models</span><span class="o">.</span><span class="n">RubricRow</span><span class="o">.</span><span class="n">id</span>
-        <span class="p">)</span><span class="o">.</span><span class="n">subquery</span><span class="p">(</span><span class="s1">&#39;sub&#39;</span><span class="p">)</span>
+            <span class="n">rubric_models</span><span class="o">.</span><span class="n">RubricRowBase</span><span class="p">,</span> <span class="n">rubric_models</span><span class="o">.</span><span class="n">RubricRowBase</span><span class="o">.</span><span class="n">id</span> <span class="o">==</span>
+            <span class="n">rubric_models</span><span class="o">.</span><span class="n">RubricItem</span><span class="o">.</span><span class="n">rubricrow_id</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">rubric_models</span><span class="o">.</span><span class="n">RubricRowBase</span><span class="o">.</span><span class="n">assignment_id</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span>
+                 <span class="p">)</span><span class="o">.</span><span class="n">group_by</span><span class="p">(</span><span class="n">rubric_models</span><span class="o">.</span><span class="n">RubricRowBase</span><span class="o">.</span><span class="n">id</span><span class="p">)</span><span class="o">.</span><span class="n">subquery</span><span class="p">(</span><span class="s1">&#39;sub&#39;</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="n">func</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">sub</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">max_val</span><span class="p">))</span><span class="o">.</span><span class="n">scalar</span><span class="p">()</span>
 
     <span class="nd">@property</span>

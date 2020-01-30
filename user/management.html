@@ -27,6 +27,7 @@
         <script type="text/javascript" src="../_static/underscore.js"></script>
         <script type="text/javascript" src="../_static/doctools.js"></script>
         <script type="text/javascript" src="../_static/language_data.js"></script>
+        <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
     
     <script type="text/javascript" src="../_static/js/theme.js"></script>
 
@@ -148,7 +149,11 @@
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="#plagiarism">Plagiarism</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#rubric">Rubric</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#rubric">Rubric</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#discrete-rubric-categories">Discrete rubric categories</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#continuous-rubric-categories">Continuous rubric categories</a></li>
+</ul>
+</li>
 <li class="toctree-l3"><a class="reference internal" href="#creating-a-new-assignment">Creating a new Assignment</a></li>
 </ul>
 </li>
@@ -609,15 +614,33 @@ can setup and edit the rubric of the assignment. Sophisticated rubrics can be
 made in CodeGrade. A basic rubric consist of multiple categories that all have
 multiple levels and corresponding points. All components in a CodeGrade rubric
 can have a name and description.</p>
-<p>A new category can be created by clicking the <em class="fa codegrade fa-plus"></em> button. A name and
-description can be given, furthermore a number of levels can be given. New
-levels are automatically added by typing in previous levels and levels can be
-removed by pressing the <em class="fa codegrade fa-times"></em> button.</p>
-<p>Each level can be assigned a number of points (usually descending). The total number of points is automatically incremented by the given
-points but can be manually overridden if requested.</p>
-<div class="admonition note">
-<p class="first admonition-title">Note</p>
-<p class="last">A rubric is only saved after pressing the ‘Submit’ button, it is recommended to occasionally save the rubric to prevent losing work.</p>
+<p>A new category can be created by clicking the <em class="fa codegrade fa-plus"></em> button. You can also
+import a rubric by clicking the <em class="fa codegrade fa-copy"></em> button.</p>
+<p>After creating a new rubric or copying an existing rubric you can add categories
+by pressing the <em class="fa codegrade fa-plus"></em> icon in the tab bar. After creating a category you
+have to select one of two types:</p>
+<div class="section" id="discrete-rubric-categories">
+<h4>Discrete rubric categories<a class="headerlink" href="#discrete-rubric-categories" title="Permalink to this headline">¶</a></h4>
+<p>Discrete rubric categories are rubric categories with multiple levels, each
+assigned a number of points, in them. When grading one level in a category can
+be selected. New levels can be created by clicking on the empty level with the
+large <em class="fa codegrade fa-plus"></em> in it. You can remove levels by pressing the <em class="fa codegrade fa-times"></em>
+button.</p>
+</div>
+<div class="section" id="continuous-rubric-categories">
+<h4>Continuous rubric categories<a class="headerlink" href="#continuous-rubric-categories" title="Permalink to this headline">¶</a></h4>
+<p>Besides the more traditional discrete categories, CodeGrade also offers
+continuous categories. Continuous categories are assigned a maximum amount of
+points (which should be higher than 0), and when grading any amount of points
+between 0 and the set maximum can be assigned for the category. This allows you,
+for example, to split your grade into multiple categories, while still allowing
+precise grading. Continuous rubric categories are also very useful for
+<a class="reference internal" href="autotest/overview.html#autotest-overview"><span class="std std-ref">AutoTest</span></a>.</p>
+<div class="admonition tip">
+<p class="first admonition-title">Tip</p>
+<p class="last">A rubric is only saved after pressing the ‘Submit’ button, it is recommended
+to occasionally save the rubric to prevent losing work.</p>
+</div>
 </div>
 </div>
 <div class="section" id="creating-a-new-assignment">

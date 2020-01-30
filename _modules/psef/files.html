@@ -27,6 +27,7 @@
         <script type="text/javascript" src="../../_static/underscore.js"></script>
         <script type="text/javascript" src="../../_static/doctools.js"></script>
         <script type="text/javascript" src="../../_static/language_data.js"></script>
+        <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
     
     <script type="text/javascript" src="../../_static/js/theme.js"></script>
 
@@ -898,9 +899,7 @@
     <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
         <span class="n">name</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">uuid</span><span class="o">.</span><span class="n">uuid4</span><span class="p">())</span>
         <span class="n">candidate</span> <span class="o">=</span> <span class="n">safe_join</span><span class="p">(</span><span class="n">root</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">candidate</span><span class="p">):</span>  <span class="c1"># pragma: no cover</span>
-            <span class="k">continue</span>
-        <span class="k">else</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">candidate</span><span class="p">):</span>  <span class="c1"># pragma: no cover</span>
             <span class="k">break</span>
     <span class="k">return</span> <span class="n">candidate</span><span class="p">,</span> <span class="n">name</span></div>
 

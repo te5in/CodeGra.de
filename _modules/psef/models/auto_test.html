@@ -27,6 +27,7 @@
         <script type="text/javascript" src="../../../_static/underscore.js"></script>
         <script type="text/javascript" src="../../../_static/doctools.js"></script>
         <script type="text/javascript" src="../../../_static/language_data.js"></script>
+        <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
     
     <script type="text/javascript" src="../../../_static/js/theme.js"></script>
 
@@ -259,8 +260,8 @@
         <span class="n">db</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="s1">&#39;RubricRow.id&#39;</span><span class="p">),</span>
         <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span>
     <span class="p">)</span>
-    <span class="n">rubric_row</span><span class="p">:</span> <span class="s1">&#39;rubric_models.RubricRow&#39;</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
-        <span class="s1">&#39;RubricRow&#39;</span><span class="p">,</span>
+    <span class="n">rubric_row</span><span class="p">:</span> <span class="s1">&#39;rubric_models.RubricRowBase&#39;</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
+        <span class="s1">&#39;RubricRowBase&#39;</span><span class="p">,</span>
         <span class="n">foreign_keys</span><span class="o">=</span><span class="n">rubric_row_id</span><span class="p">,</span>
         <span class="n">innerjoin</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
     <span class="p">)</span>
@@ -625,7 +626,7 @@
 
         <span class="n">work</span><span class="o">.</span><span class="n">selected_items</span> <span class="o">=</span> <span class="p">[</span>
             <span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">work</span><span class="o">.</span><span class="n">selected_items</span>
-            <span class="k">if</span> <span class="n">i</span><span class="o">.</span><span class="n">rubricrow_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">own_rubric_rows</span>
+            <span class="k">if</span> <span class="n">i</span><span class="o">.</span><span class="n">rubric_item</span><span class="o">.</span><span class="n">rubricrow_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">own_rubric_rows</span>
         <span class="p">]</span>
         <span class="n">work</span><span class="o">.</span><span class="n">set_grade</span><span class="p">(</span><span class="n">grade_origin</span><span class="o">=</span><span class="n">work_models</span><span class="o">.</span><span class="n">GradeOrigin</span><span class="o">.</span><span class="n">auto_test</span><span class="p">)</span></div>
 
@@ -638,15 +639,20 @@
         <span class="c1"># Lock the work we want to update,</span>
         <span class="n">work</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_locked_work</span><span class="p">()</span>
         <span class="n">old_selected_items</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">work</span><span class="o">.</span><span class="n">selected_items</span><span class="p">)</span>
-        <span class="n">new_items</span> <span class="o">=</span> <span class="p">{</span><span class="n">i</span><span class="o">.</span><span class="n">rubricrow_id</span><span class="p">:</span> <span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">work</span><span class="o">.</span><span class="n">selected_items</span><span class="p">}</span>
+        <span class="n">new_items</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">i</span><span class="o">.</span><span class="n">rubric_item</span><span class="o">.</span><span class="n">rubricrow_id</span><span class="p">:</span> <span class="n">i</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">work</span><span class="o">.</span><span class="n">selected_items</span>
+        <span class="p">}</span>
         <span class="n">changed_item</span> <span class="o">=</span> <span class="kc">False</span>
 
         <span class="k">for</span> <span class="n">suite</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">run</span><span class="o">.</span><span class="n">auto_test</span><span class="o">.</span><span class="n">all_suites</span><span class="p">:</span>
             <span class="n">got</span><span class="p">,</span> <span class="n">possible</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_amount_points_in_suites</span><span class="p">(</span><span class="n">suite</span><span class="p">)</span>
             <span class="n">percentage</span> <span class="o">=</span> <span class="n">got</span> <span class="o">/</span> <span class="n">possible</span>
-            <span class="n">items</span> <span class="o">=</span> <span class="n">suite</span><span class="o">.</span><span class="n">rubric_row</span><span class="o">.</span><span class="n">items</span>
             <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">run</span><span class="o">.</span><span class="n">auto_test</span><span class="o">.</span><span class="n">grade_calculator</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
-            <span class="n">new_item</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run</span><span class="o">.</span><span class="n">auto_test</span><span class="o">.</span><span class="n">grade_calculator</span><span class="p">(</span><span class="n">items</span><span class="p">,</span> <span class="n">percentage</span><span class="p">)</span>
+
+            <span class="n">new_item</span> <span class="o">=</span> <span class="n">suite</span><span class="o">.</span><span class="n">rubric_row</span><span class="o">.</span><span class="n">make_work_rubric_item_for_auto_test</span><span class="p">(</span>
+                <span class="n">work</span><span class="p">,</span> <span class="n">percentage</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">run</span><span class="o">.</span><span class="n">auto_test</span><span class="o">.</span><span class="n">grade_calculator</span>
+            <span class="p">)</span>
 
             <span class="k">if</span> <span class="n">new_item</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">old_selected_items</span><span class="p">:</span>
                 <span class="n">new_items</span><span class="p">[</span><span class="n">suite</span><span class="o">.</span><span class="n">rubric_row_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_item</span>
@@ -788,6 +794,20 @@
         <span class="k">return</span> <span class="nb">hash</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="fm">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="nb">object</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Check if two AutoTestRunners are equal.</span>
+
+<span class="sd">        &gt;&gt;&gt; first = AutoTestRunner(id=1)</span>
+<span class="sd">        &gt;&gt;&gt; second = AutoTestRunner(id=1)</span>
+<span class="sd">        &gt;&gt;&gt; third = AutoTestRunner(id=2)</span>
+<span class="sd">        &gt;&gt;&gt; first == first</span>
+<span class="sd">        True</span>
+<span class="sd">        &gt;&gt;&gt; first == second</span>
+<span class="sd">        True</span>
+<span class="sd">        &gt;&gt;&gt; first == third</span>
+<span class="sd">        False</span>
+<span class="sd">        &gt;&gt;&gt; first == object()</span>
+<span class="sd">        False</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">AutoTestRunner</span><span class="p">):</span>
             <span class="k">return</span> <span class="bp">NotImplemented</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">id</span>
@@ -1585,7 +1605,8 @@
 <div class="viewcode-block" id="AutoTest.copy"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.auto_test.AutoTest.copy">[docs]</a>    <span class="k">def</span> <span class="nf">copy</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">rubric_mapping</span><span class="p">:</span> <span class="p">(</span>
-            <span class="n">t</span><span class="o">.</span><span class="n">Mapping</span><span class="p">[</span><span class="s1">&#39;rubric_models.RubricRow&#39;</span><span class="p">,</span> <span class="s1">&#39;rubric_models.RubricRow&#39;</span><span class="p">]</span>
+            <span class="n">t</span><span class="o">.</span><span class="n">Mapping</span><span class="p">[</span><span class="s1">&#39;rubric_models.RubricRowBase&#39;</span><span class="p">,</span>
+                      <span class="s1">&#39;rubric_models.RubricRowBase&#39;</span><span class="p">]</span>
         <span class="p">),</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;AutoTest&#39;</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Copy this AutoTest configuration.</span>

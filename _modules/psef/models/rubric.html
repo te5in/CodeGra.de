@@ -27,6 +27,7 @@
         <script type="text/javascript" src="../../../_static/underscore.js"></script>
         <script type="text/javascript" src="../../../_static/doctools.js"></script>
         <script type="text/javascript" src="../../../_static/language_data.js"></script>
+        <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
     
     <script type="text/javascript" src="../../../_static/js/theme.js"></script>
 
@@ -200,24 +201,184 @@
 
 <span class="sd">SPDX-License-Identifier: AGPL-3.0-only</span>
 <span class="sd">&quot;&quot;&quot;</span>
-
 <span class="kn">import</span> <span class="nn">enum</span>
 <span class="kn">import</span> <span class="nn">typing</span> <span class="k">as</span> <span class="nn">t</span>
 <span class="kn">import</span> <span class="nn">numbers</span>
 <span class="kn">import</span> <span class="nn">datetime</span>
 
+<span class="kn">from</span> <span class="nn">sqlalchemy</span> <span class="kn">import</span> <span class="n">select</span>
 <span class="kn">from</span> <span class="nn">mypy_extensions</span> <span class="kn">import</span> <span class="n">TypedDict</span>
 
 <span class="kn">import</span> <span class="nn">cg_json</span>
 
-<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">Base</span><span class="p">,</span> <span class="n">db</span><span class="p">,</span> <span class="n">_MyQuery</span>
+<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">Base</span><span class="p">,</span> <span class="n">DbColumn</span><span class="p">,</span> <span class="n">db</span><span class="p">,</span> <span class="n">_MyQuery</span>
 <span class="kn">from</span> <span class="nn">..</span> <span class="kn">import</span> <span class="n">helpers</span>
+<span class="kn">from</span> <span class="nn">..registry</span> <span class="kn">import</span> <span class="n">rubric_row_types</span>
 <span class="kn">from</span> <span class="nn">..exceptions</span> <span class="kn">import</span> <span class="n">APICodes</span><span class="p">,</span> <span class="n">APIException</span>
-<span class="kn">from</span> <span class="nn">.link_tables</span> <span class="kn">import</span> <span class="n">work_rubric_item</span>
 
 <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">TYPE_CHECKING</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
-    <span class="c1"># pylint: disable=unused-import</span>
+    <span class="c1"># pylint: disable=unused-import, invalid-name</span>
     <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">assignment</span> <span class="k">as</span> <span class="n">assignment_models</span>
+    <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">work</span> <span class="k">as</span> <span class="n">work_models</span>
+    <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">auto_test</span> <span class="k">as</span> <span class="n">auto_test_models</span>
+    <span class="n">hybrid_property</span> <span class="o">=</span> <span class="nb">property</span>
+<span class="k">else</span><span class="p">:</span>
+    <span class="kn">from</span> <span class="nn">sqlalchemy.ext.hybrid</span> <span class="kn">import</span> <span class="n">hybrid_property</span>
+
+<span class="n">T</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">TypeVar</span><span class="p">(</span><span class="s1">&#39;T&#39;</span><span class="p">,</span> <span class="n">bound</span><span class="o">=</span><span class="n">t</span><span class="o">.</span><span class="n">Type</span><span class="p">[</span><span class="s1">&#39;RubricRowBase&#39;</span><span class="p">])</span>
+<span class="n">_ALL_RUBRIC_ROW_TYPES</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">([</span><span class="s1">&#39;normal&#39;</span><span class="p">,</span> <span class="s1">&#39;continuous&#39;</span><span class="p">])</span>
+
+
+<span class="k">def</span> <span class="nf">_register</span><span class="p">(</span><span class="bp">cls</span><span class="p">:</span> <span class="n">T</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="p">:</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">__mapper_args__</span><span class="p">[</span><span class="s1">&#39;polymorphic_identity&#39;</span><span class="p">]</span>
+
+    <span class="k">assert</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">_ALL_RUBRIC_ROW_TYPES</span>
+    <span class="k">assert</span> <span class="n">rubric_row_types</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">name</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">None</span>
+    <span class="n">rubric_row_types</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">name</span><span class="p">)(</span><span class="bp">cls</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="bp">cls</span>
+
+
+<div class="viewcode-block" id="WorkRubricItem"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.rubric.WorkRubricItem">[docs]</a><span class="k">class</span> <span class="nc">WorkRubricItem</span><span class="p">(</span><span class="n">helpers</span><span class="o">.</span><span class="n">NotEqualMixin</span><span class="p">,</span> <span class="n">Base</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;The association table between a :class:`.work_models.Work` and a</span>
+<span class="sd">    :class:`.RubricItem`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">TYPE_CHECKING</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
+        <span class="n">query</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">ClassVar</span><span class="p">[</span><span class="n">_MyQuery</span><span class="p">[</span><span class="s1">&#39;WorkRubricItem&#39;</span><span class="p">]]</span> <span class="o">=</span> <span class="n">Base</span><span class="o">.</span><span class="n">query</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">rubric_item</span><span class="p">:</span> <span class="s1">&#39;RubricItem&#39;</span><span class="p">,</span>
+        <span class="n">work</span><span class="p">:</span> <span class="s1">&#39;work_models.Work&#39;</span><span class="p">,</span>
+        <span class="n">multiplier</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">assert</span> <span class="n">rubric_item</span><span class="o">.</span><span class="n">id</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="k">assert</span> <span class="n">work</span><span class="o">.</span><span class="n">id</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">rubric_item</span><span class="o">=</span><span class="n">rubric_item</span><span class="p">,</span>
+            <span class="n">work</span><span class="o">=</span><span class="n">work</span><span class="p">,</span>
+            <span class="n">rubricitem_id</span><span class="o">=</span><span class="n">rubric_item</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+            <span class="n">work_id</span><span class="o">=</span><span class="n">work</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+            <span class="n">multiplier</span><span class="o">=</span><span class="n">multiplier</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="n">__tablename__</span> <span class="o">=</span> <span class="s1">&#39;work_rubric_item&#39;</span>
+    <span class="n">__table_args__</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">CheckConstraint</span><span class="p">(</span>
+            <span class="s1">&#39;multiplier &gt;= 0 AND multiplier &lt;= 1&#39;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;ck_multiplier_range&#39;</span>
+        <span class="p">),</span>
+    <span class="p">)</span>
+
+    <span class="n">work_id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+        <span class="s1">&#39;work_id&#39;</span><span class="p">,</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="s1">&#39;Work.id&#39;</span><span class="p">,</span> <span class="n">ondelete</span><span class="o">=</span><span class="s1">&#39;CASCADE&#39;</span><span class="p">),</span>
+        <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">primary_key</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">rubricitem_id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+        <span class="s1">&#39;rubricitem_id&#39;</span><span class="p">,</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="s1">&#39;RubricItem.id&#39;</span><span class="p">,</span> <span class="n">ondelete</span><span class="o">=</span><span class="s1">&#39;CASCADE&#39;</span><span class="p">),</span>
+        <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">primary_key</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">multiplier</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+        <span class="s1">&#39;multiplier&#39;</span><span class="p">,</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">Float</span><span class="p">,</span>
+        <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">default</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span>
+        <span class="n">server_default</span><span class="o">=</span><span class="s1">&#39;1.0&#39;</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="n">work</span><span class="p">:</span> <span class="s1">&#39;work_models.Work&#39;</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span><span class="s1">&#39;Work&#39;</span><span class="p">,</span> <span class="n">foreign_keys</span><span class="o">=</span><span class="n">work_id</span><span class="p">)</span>
+    <span class="n">rubric_item</span><span class="p">:</span> <span class="s1">&#39;RubricItem&#39;</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
+        <span class="s1">&#39;RubricItem&#39;</span><span class="p">,</span>
+        <span class="n">foreign_keys</span><span class="o">=</span><span class="n">rubricitem_id</span><span class="p">,</span>
+        <span class="n">lazy</span><span class="o">=</span><span class="s1">&#39;selectin&#39;</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="nb">object</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Check if this rubric item is equal to another one.</span>
+
+<span class="sd">        &gt;&gt;&gt; import psef</span>
+<span class="sd">        &gt;&gt;&gt; w1 = psef.models.Work(id=1)</span>
+<span class="sd">        &gt;&gt;&gt; w2 = psef.models.Work(id=2)</span>
+<span class="sd">        &gt;&gt;&gt; r1 = RubricItem(id=1)</span>
+<span class="sd">        &gt;&gt;&gt; r2 = RubricItem(id=1)</span>
+<span class="sd">        &gt;&gt;&gt; wr1 = WorkRubricItem(rubric_item=r1, work=w1, multiplier=0.3)</span>
+<span class="sd">        &gt;&gt;&gt; wr2 = WorkRubricItem(rubric_item=r1, work=w1, multiplier=0.3)</span>
+<span class="sd">        &gt;&gt;&gt; wr1 == wr2</span>
+<span class="sd">        True</span>
+<span class="sd">        &gt;&gt;&gt; wr1.multiplier = 0.1 + 0.2</span>
+<span class="sd">        &gt;&gt;&gt; wr1 == wr2</span>
+<span class="sd">        True</span>
+<span class="sd">        &gt;&gt;&gt; repr(wr1) == repr(wr2)  # Rounding is different</span>
+<span class="sd">        False</span>
+<span class="sd">        &gt;&gt;&gt; wr1 == object()</span>
+<span class="sd">        False</span>
+<span class="sd">        &gt;&gt;&gt; wr1.multiplier = 0.4</span>
+<span class="sd">        &gt;&gt;&gt; wr1 == wr2</span>
+<span class="sd">        False</span>
+<span class="sd">        &gt;&gt;&gt; wr1.multiplier = 0.3</span>
+<span class="sd">        &gt;&gt;&gt; wr1.work_id = 10</span>
+<span class="sd">        &gt;&gt;&gt; wr1 == wr2</span>
+<span class="sd">        False</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">WorkRubricItem</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">NotImplemented</span>
+        <span class="k">return</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">work_id</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">work_id</span> <span class="ow">and</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">rubricitem_id</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">rubricitem_id</span> <span class="ow">and</span>
+            <span class="n">helpers</span><span class="o">.</span><span class="n">FloatHelpers</span><span class="o">.</span><span class="n">eq</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">multiplier</span><span class="p">,</span> <span class="n">other</span><span class="o">.</span><span class="n">multiplier</span><span class="p">)</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__hash__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+        <span class="c1"># Note that `a == b` implies `hash(a) == hash(b)`, but that `hash(a) ==</span>
+        <span class="c1"># hash(b)` does not imply `a == b`. So this hash might be imperfect, it</span>
+        <span class="c1"># is correct.</span>
+        <span class="c1"># We do not use the multiplier, as this is a float, and thus it has</span>
+        <span class="c1"># rounding issues.</span>
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">rubricitem_id</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">work_id</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="k">return</span> <span class="nb">hash</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">rubricitem_id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">work_id</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s1">&#39;&lt;</span><span class="si">{}</span><span class="s1"> rubricitem_id=</span><span class="si">{}</span><span class="s1">, work_id=</span><span class="si">{}</span><span class="s1">, multiplier=</span><span class="si">{}</span><span class="s1">&gt;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">rubricitem_id</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">work_id</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">multiplier</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__to_json__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">rubric_item</span><span class="o">.</span><span class="n">__to_json__</span><span class="p">(),</span>
+            <span class="s1">&#39;achieved_points&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">points</span><span class="p">,</span>
+            <span class="s1">&#39;multiplier&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">multiplier</span><span class="p">,</span>
+        <span class="p">}</span>
+
+    <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">TYPE_CHECKING</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
+        <span class="n">points</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="k">else</span><span class="p">:</span>
+
+        <span class="nd">@hybrid_property</span>
+        <span class="k">def</span> <span class="nf">points</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+            <span class="sd">&quot;&quot;&quot;The amount of points achieved by the work.</span>
+<span class="sd">            &quot;&quot;&quot;</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">multiplier</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">rubric_item</span><span class="o">.</span><span class="n">points</span>
+
+        <span class="nd">@points</span><span class="o">.</span><span class="n">expression</span>
+        <span class="k">def</span> <span class="nf">points</span><span class="p">(</span><span class="bp">cls</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Type</span><span class="p">[</span><span class="s1">&#39;WorkRubricItem&#39;</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">object</span><span class="p">:</span>
+            <span class="sd">&quot;&quot;&quot;Same as above, but this returns an expression used by</span>
+<span class="sd">            sqlalchemy.</span>
+<span class="sd">            &quot;&quot;&quot;</span>
+            <span class="c1"># pylint: disable=no-self-argument</span>
+            <span class="k">return</span> <span class="n">select</span><span class="p">(</span>
+                <span class="p">[</span><span class="bp">cls</span><span class="o">.</span><span class="n">multiplier</span> <span class="o">*</span> <span class="n">RubricItem</span><span class="o">.</span><span class="n">points</span><span class="p">]</span>
+            <span class="p">)</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="n">rubricitem_id</span> <span class="o">==</span> <span class="n">RubricItem</span><span class="o">.</span><span class="n">id</span><span class="p">)</span><span class="o">.</span><span class="n">label</span><span class="p">(</span><span class="s1">&#39;points&#39;</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="RubricLockReason"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.rubric.RubricLockReason">[docs]</a><span class="k">class</span> <span class="nc">RubricLockReason</span><span class="p">(</span><span class="n">cg_json</span><span class="o">.</span><span class="n">SerializableEnum</span><span class="p">,</span> <span class="n">enum</span><span class="o">.</span><span class="n">Enum</span><span class="p">):</span>
@@ -226,7 +387,7 @@
 
 <div class="viewcode-block" id="RubricItem"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.rubric.RubricItem">[docs]</a><span class="k">class</span> <span class="nc">RubricItem</span><span class="p">(</span><span class="n">helpers</span><span class="o">.</span><span class="n">NotEqualMixin</span><span class="p">,</span> <span class="n">Base</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;This class holds the information about a single option/item in a</span>
-<span class="sd">    :class:`.RubricRow`.</span>
+<span class="sd">    :class:`.RubricRowBase`.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">TYPE_CHECKING</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
         <span class="n">query</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">ClassVar</span><span class="p">[</span><span class="n">_MyQuery</span><span class="p">[</span><span class="s1">&#39;RubricItem&#39;</span><span class="p">]]</span> <span class="o">=</span> <span class="n">Base</span><span class="o">.</span><span class="n">query</span>
@@ -242,8 +403,8 @@
     <span class="n">description</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;description&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">)</span>
     <span class="n">points</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;points&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Float</span><span class="p">)</span>
 
-    <span class="c1"># This variable is generated from the backref from RubricRow</span>
-    <span class="n">rubricrow</span><span class="p">:</span> <span class="s1">&#39;RubricRow&#39;</span>
+    <span class="c1"># This variable is generated from the backref from RubricRowBase</span>
+    <span class="n">rubricrow</span><span class="p">:</span> <span class="s1">&#39;RubricRowBase&#39;</span>
 
 <div class="viewcode-block" id="RubricItem.JSONBaseSerialization"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.rubric.RubricItem.JSONBaseSerialization">[docs]</a>    <span class="k">class</span> <span class="nc">JSONBaseSerialization</span><span class="p">(</span><span class="n">TypedDict</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;The base serialization of a rubric item.</span>
@@ -292,17 +453,17 @@
         <span class="k">return</span> <span class="nb">hash</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="RubricRow"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.rubric.RubricRow">[docs]</a><span class="k">class</span> <span class="nc">RubricRow</span><span class="p">(</span><span class="n">helpers</span><span class="o">.</span><span class="n">NotEqualMixin</span><span class="p">,</span> <span class="n">Base</span><span class="p">):</span>
+<div class="viewcode-block" id="RubricRowBase"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.rubric.RubricRowBase">[docs]</a><span class="k">class</span> <span class="nc">RubricRowBase</span><span class="p">(</span><span class="n">helpers</span><span class="o">.</span><span class="n">NotEqualMixin</span><span class="p">,</span> <span class="n">Base</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Describes a row of some rubric.</span>
 
 <span class="sd">    This class forms the link between :class:`.Assignment` and</span>
 <span class="sd">    :class:`.RubricItem` and holds information about the row.</span>
 
-<span class="sd">    :ivar ~.RubricRow.assignment_id: The assignment id of the assignment that</span>
-<span class="sd">        belows to this rubric row.</span>
+<span class="sd">    :ivar ~.RubricRowBase.assignment_id: The assignment id of the assignment</span>
+<span class="sd">        that belows to this rubric row.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">TYPE_CHECKING</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
-        <span class="n">query</span> <span class="o">=</span> <span class="n">Base</span><span class="o">.</span><span class="n">query</span>  <span class="c1"># type: t.ClassVar[_MyQuery[&#39;RubricRow&#39;]]</span>
+        <span class="n">query</span> <span class="o">=</span> <span class="n">Base</span><span class="o">.</span><span class="n">query</span>  <span class="c1"># type: t.ClassVar[_MyQuery[&#39;RubricRowBase&#39;]]</span>
     <span class="n">__tablename__</span> <span class="o">=</span> <span class="s1">&#39;RubricRow&#39;</span>
     <span class="nb">id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;id&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span> <span class="n">primary_key</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
     <span class="n">assignment_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
@@ -327,21 +488,69 @@
         <span class="n">lazy</span><span class="o">=</span><span class="s1">&#39;select&#39;</span><span class="p">,</span>
     <span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">copy</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;RubricRow&#39;</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">RubricRow</span><span class="p">(</span>
+    <span class="n">rubric_row_type</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+        <span class="s1">&#39;rubric_row_type&#39;</span><span class="p">,</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">Enum</span><span class="p">(</span><span class="o">*</span><span class="n">_ALL_RUBRIC_ROW_TYPES</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;rubricrowtype&#39;</span><span class="p">),</span>
+        <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">server_default</span><span class="o">=</span><span class="s1">&#39;normal&#39;</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="n">__mapper_args__</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;polymorphic_on&#39;</span><span class="p">:</span> <span class="n">rubric_row_type</span><span class="p">,</span>
+        <span class="s1">&#39;polymorphic_identity&#39;</span><span class="p">:</span> <span class="s1">&#39;non_existing&#39;</span>
+    <span class="p">}</span>
+
+    <span class="k">def</span> <span class="nf">_get_item</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">item_id</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">RubricItem</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">RubricItem</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Get an item from this row</span>
+
+<span class="sd">        &gt;&gt;&gt; item1 = RubricItem(id=1, rubricrow_id=4)</span>
+<span class="sd">        &gt;&gt;&gt; item2 = RubricItem(id=2, rubricrow_id=4)</span>
+<span class="sd">        &gt;&gt;&gt; item3 = RubricItem(id=3, rubricrow_id=10)</span>
+<span class="sd">        &gt;&gt;&gt; row = _NormalRubricRow(id=4, items=[item1, item2])</span>
+<span class="sd">        &gt;&gt;&gt; row._get_item(2) == item2</span>
+<span class="sd">        True</span>
+<span class="sd">        &gt;&gt;&gt; row._get_item(item2) == item2</span>
+<span class="sd">        True</span>
+<span class="sd">        &gt;&gt;&gt; row._get_item(10)</span>
+<span class="sd">        Traceback (most recent call last):</span>
+<span class="sd">        ...</span>
+<span class="sd">        APIException:</span>
+<span class="sd">        &gt;&gt;&gt; row._get_item(item3)</span>
+<span class="sd">        Traceback (most recent call last):</span>
+<span class="sd">        ...</span>
+<span class="sd">        APIException:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">item_id</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">items</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">item</span><span class="o">.</span><span class="n">id</span> <span class="o">==</span> <span class="n">item_id</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="n">item</span>
+        <span class="k">elif</span> <span class="n">item_id</span><span class="o">.</span><span class="n">rubricrow_id</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">item_id</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">item_id</span> <span class="o">=</span> <span class="n">item_id</span><span class="o">.</span><span class="n">id</span>
+
+        <span class="k">raise</span> <span class="n">APIException</span><span class="p">(</span>
+            <span class="s2">&quot;This rubric row doesn&#39;t contain the requested rubric item&quot;</span><span class="p">,</span>
+            <span class="sa">f</span><span class="s1">&#39;The item </span><span class="si">{item_id}</span><span class="s1"> is not in rubric row </span><span class="si">{self.id}</span><span class="s1">&#39;</span><span class="p">,</span>
+            <span class="n">APICodes</span><span class="o">.</span><span class="n">OBJECT_ID_NOT_FOUND</span><span class="p">,</span> <span class="mi">404</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">copy</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;RubricRowBase&#39;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">RubricRowBase</span><span class="p">(</span>
             <span class="n">created_at</span><span class="o">=</span><span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">(),</span>
             <span class="n">description</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">description</span><span class="p">,</span>
             <span class="n">header</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">header</span><span class="p">,</span>
             <span class="n">assignment_id</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">assignment_id</span><span class="p">,</span>
-            <span class="n">items</span><span class="o">=</span><span class="p">[</span><span class="n">item</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">items</span><span class="p">]</span>
+            <span class="n">items</span><span class="o">=</span><span class="p">[</span><span class="n">item</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">items</span><span class="p">],</span>
+            <span class="n">rubric_row_type</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rubric_row_type</span><span class="p">,</span>
         <span class="p">)</span>
 
-<div class="viewcode-block" id="RubricRow.is_selected"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.rubric.RubricRow.is_selected">[docs]</a>    <span class="k">def</span> <span class="nf">is_selected</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<div class="viewcode-block" id="RubricRowBase.is_selected"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.rubric.RubricRowBase.is_selected">[docs]</a>    <span class="k">def</span> <span class="nf">is_selected</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Is this rubric row selected at least once.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span>
-            <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="n">work_rubric_item</span><span class="p">)</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
-                <span class="n">work_rubric_item</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">rubricitem_id</span><span class="o">.</span><span class="n">in_</span><span class="p">(</span>
+            <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="n">WorkRubricItem</span><span class="p">)</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+                <span class="n">t</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">DbColumn</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="n">WorkRubricItem</span><span class="o">.</span><span class="n">rubricitem_id</span><span class="p">)</span><span class="o">.</span><span class="n">in_</span><span class="p">(</span>
                     <span class="p">[</span><span class="n">item</span><span class="o">.</span><span class="n">id</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">items</span><span class="p">]</span>
                 <span class="p">)</span>
             <span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span>
@@ -377,21 +586,10 @@
             <span class="s1">&#39;description&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">description</span><span class="p">,</span>
             <span class="s1">&#39;items&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">items</span><span class="p">,</span>
             <span class="s1">&#39;locked&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">locked</span><span class="p">,</span>
+            <span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">rubric_row_type</span><span class="p">,</span>
         <span class="p">}</span>
 
-    <span class="k">def</span> <span class="nf">_get_item</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">item_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="s1">&#39;RubricItem&#39;</span><span class="p">]:</span>
-        <span class="sd">&quot;&quot;&quot;Get a rubric item from this row by id.</span>
-
-<span class="sd">        :param item_id: The id of the item to get.</span>
-<span class="sd">        :returns: The item found or ``None`` if the row didn&#39;t contain any item</span>
-<span class="sd">            with the given id.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">items</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">item</span><span class="o">.</span><span class="n">id</span> <span class="o">==</span> <span class="n">item_id</span><span class="p">:</span>
-                <span class="k">return</span> <span class="n">item</span>
-        <span class="k">return</span> <span class="kc">None</span>
-
-<div class="viewcode-block" id="RubricRow.update_items_from_json"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.rubric.RubricRow.update_items_from_json">[docs]</a>    <span class="k">def</span> <span class="nf">update_items_from_json</span><span class="p">(</span>
+<div class="viewcode-block" id="RubricRowBase.update_items_from_json"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.rubric.RubricRowBase.update_items_from_json">[docs]</a>    <span class="k">def</span> <span class="nf">update_items_from_json</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span> <span class="n">items</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="n">RubricItem</span><span class="o">.</span><span class="n">JSONBaseSerialization</span><span class="p">]</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Update the items of this row in place.</span>
@@ -407,11 +605,6 @@
 <span class="sd">            of added.</span>
 <span class="sd">        :returns: Nothing.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="c1"># We store all new items in this list and not `self.items` as we need</span>
-        <span class="c1"># to search for items in `self.items` if a rubric item needs to be</span>
-        <span class="c1"># updated (instead of added).</span>
-        <span class="n">new_items</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="n">RubricItem</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
-
         <span class="k">if</span> <span class="p">(</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">locked</span> <span class="o">==</span> <span class="n">RubricLockReason</span><span class="o">.</span><span class="n">auto_test</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">assignment</span> <span class="ow">and</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">assignment</span><span class="o">.</span><span class="n">auto_test</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">assignment</span><span class="o">.</span><span class="n">auto_test</span><span class="o">.</span><span class="n">run</span>
@@ -430,6 +623,11 @@
                     <span class="p">),</span> <span class="n">APICodes</span><span class="o">.</span><span class="n">LOCKED_UPDATE</span><span class="p">,</span> <span class="mi">400</span>
                 <span class="p">)</span>
 
+        <span class="c1"># We store all new items in this list and not `self.items` as we need</span>
+        <span class="c1"># to search for items in `self.items` if a rubric item needs to be</span>
+        <span class="c1"># updated (instead of added).</span>
+        <span class="n">new_items</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="n">RubricItem</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+
         <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">items</span><span class="p">:</span>
             <span class="n">item_description</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">item</span><span class="p">[</span><span class="s1">&#39;description&#39;</span><span class="p">]</span>
             <span class="n">item_header</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">item</span><span class="p">[</span><span class="s1">&#39;header&#39;</span><span class="p">]</span>
@@ -439,13 +637,6 @@
                 <span class="n">helpers</span><span class="o">.</span><span class="n">ensure_keys_in_dict</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="p">[(</span><span class="s1">&#39;id&#39;</span><span class="p">,</span> <span class="nb">int</span><span class="p">)])</span>
                 <span class="n">item_id</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">item</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">])</span>  <span class="c1"># type: ignore</span>
                 <span class="n">rubric_item</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_item</span><span class="p">(</span><span class="n">item_id</span><span class="p">)</span>
-                <span class="k">if</span> <span class="n">rubric_item</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-                    <span class="k">raise</span> <span class="n">APIException</span><span class="p">(</span>
-                        <span class="s2">&quot;The requested rubric item is not present in this row&quot;</span><span class="p">,</span>
-                        <span class="sa">f</span><span class="s1">&#39;The row &quot;</span><span class="si">{self.id}</span><span class="s1">&quot; doesn</span><span class="se">\&#39;</span><span class="s1">t contain &quot;</span><span class="si">{item_id}</span><span class="s1">&quot;&#39;</span><span class="p">,</span>
-                        <span class="n">APICodes</span><span class="o">.</span><span class="n">OBJECT_NOT_FOUND</span><span class="p">,</span> <span class="mi">404</span>
-                    <span class="p">)</span>
-
                 <span class="n">rubric_item</span><span class="o">.</span><span class="n">header</span> <span class="o">=</span> <span class="n">item_header</span>
                 <span class="n">rubric_item</span><span class="o">.</span><span class="n">description</span> <span class="o">=</span> <span class="n">item_description</span>
                 <span class="n">rubric_item</span><span class="o">.</span><span class="n">points</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">points</span><span class="p">)</span>
@@ -461,7 +652,7 @@
 
         <span class="bp">self</span><span class="o">.</span><span class="n">items</span> <span class="o">=</span> <span class="n">new_items</span></div>
 
-<div class="viewcode-block" id="RubricRow.update_from_json"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.rubric.RubricRow.update_from_json">[docs]</a>    <span class="k">def</span> <span class="nf">update_from_json</span><span class="p">(</span>
+<div class="viewcode-block" id="RubricRowBase.update_from_json"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.rubric.RubricRowBase.update_from_json">[docs]</a>    <span class="k">def</span> <span class="nf">update_from_json</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span> <span class="n">header</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">description</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
         <span class="n">items</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="n">RubricItem</span><span class="o">.</span><span class="n">JSONBaseSerialization</span><span class="p">]</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
@@ -476,25 +667,25 @@
 <span class="sd">        :param description: The new description of the row.</span>
 <span class="sd">        :param items: The items that should be in this row (see warning). The</span>
 <span class="sd">            format is the same as the items passed to</span>
-<span class="sd">            :meth:`.RubricRow.update_items_from_json`.</span>
+<span class="sd">            :meth:`.RubricRowBase.update_items_from_json`.</span>
 <span class="sd">        :returns: Nothing.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">header</span> <span class="o">=</span> <span class="n">header</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">description</span> <span class="o">=</span> <span class="n">description</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">update_items_from_json</span><span class="p">(</span><span class="n">items</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="RubricRow.create_from_json"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.rubric.RubricRow.create_from_json">[docs]</a>    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="RubricRowBase.create_from_json"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.rubric.RubricRowBase.create_from_json">[docs]</a>    <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">create_from_json</span><span class="p">(</span>
-        <span class="bp">cls</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Type</span><span class="p">[</span><span class="s1">&#39;RubricRow&#39;</span><span class="p">],</span> <span class="n">header</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">description</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="bp">cls</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Type</span><span class="p">[</span><span class="s1">&#39;RubricRowBase&#39;</span><span class="p">],</span> <span class="n">header</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">description</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
         <span class="n">items</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="n">RubricItem</span><span class="o">.</span><span class="n">JSONBaseSerialization</span><span class="p">]</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;RubricRow&#39;</span><span class="p">:</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;RubricRowBase&#39;</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Create a new rubric row for an assignment.</span>
 
 <span class="sd">        :param header: The name of the new rubric row.</span>
 <span class="sd">        :param description: The description of the new rubric row.</span>
 <span class="sd">        :param items: The items that should be added to this row. The format is</span>
 <span class="sd">            the same as the items passed to</span>
-<span class="sd">            :meth:`.RubricRow.update_items_from_json`.</span>
+<span class="sd">            :meth:`.RubricRowBase.update_items_from_json`.</span>
 <span class="sd">        :returns: The newly created row.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">(</span><span class="n">header</span><span class="o">=</span><span class="n">header</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="n">description</span><span class="p">)</span>
@@ -505,19 +696,113 @@
     <span class="k">def</span> <span class="fm">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="nb">object</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Check if two rubric items are equal</span>
 
-<span class="sd">        &gt;&gt;&gt; RubricRow(id=5) == RubricRow(id=5)</span>
+<span class="sd">        &gt;&gt;&gt; RubricRowBase(id=5) == RubricRowBase(id=5)</span>
 <span class="sd">        True</span>
-<span class="sd">        &gt;&gt;&gt; RubricRow(id=6) == RubricRow(id=5)</span>
+<span class="sd">        &gt;&gt;&gt; RubricRowBase(id=6) == RubricRowBase(id=5)</span>
 <span class="sd">        False</span>
-<span class="sd">        &gt;&gt;&gt; RubricRow(id=6) == object()</span>
+<span class="sd">        &gt;&gt;&gt; RubricRowBase(id=6) == object()</span>
 <span class="sd">        False</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">RubricRow</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">RubricRowBase</span><span class="p">):</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">id</span>
         <span class="k">return</span> <span class="bp">NotImplemented</span>
 
     <span class="k">def</span> <span class="fm">__hash__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
-        <span class="k">return</span> <span class="nb">hash</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span></div>
+        <span class="k">return</span> <span class="nb">hash</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+
+<div class="viewcode-block" id="RubricRowBase.make_work_rubric_item"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.rubric.RubricRowBase.make_work_rubric_item">[docs]</a>    <span class="k">def</span> <span class="nf">make_work_rubric_item</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">work</span><span class="p">:</span> <span class="s1">&#39;work_models.Work&#39;</span><span class="p">,</span> <span class="n">item_id</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">RubricItem</span><span class="p">],</span>
+        <span class="n">multiplier</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">WorkRubricItem</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Make a :class:`.WorkRubricItem` for a manual grade.</span>
+
+<span class="sd">        :param work: The work to create the :class:`.WorkRubricItem` for.</span>
+<span class="sd">        :param item_id: The item where the :class:`.WorkRubricItem` should be</span>
+<span class="sd">            connected to.</span>
+<span class="sd">        :param multiplier: The multiplier to use, this should always be 1.0 for</span>
+<span class="sd">            a normal rubric row.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">WorkRubricItem</span><span class="p">(</span>
+            <span class="n">rubric_item</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_item</span><span class="p">(</span><span class="n">item_id</span><span class="p">),</span>
+            <span class="n">work</span><span class="o">=</span><span class="n">work</span><span class="p">,</span>
+            <span class="n">multiplier</span><span class="o">=</span><span class="n">multiplier</span>
+        <span class="p">)</span></div>
+
+<div class="viewcode-block" id="RubricRowBase.make_work_rubric_item_for_auto_test"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.rubric.RubricRowBase.make_work_rubric_item_for_auto_test">[docs]</a>    <span class="k">def</span> <span class="nf">make_work_rubric_item_for_auto_test</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">work</span><span class="p">:</span> <span class="s1">&#39;work_models.Work&#39;</span><span class="p">,</span>
+        <span class="n">percentage</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+        <span class="n">grade_calculator</span><span class="p">:</span> <span class="s1">&#39;auto_test_models.GradeCalculator&#39;</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">WorkRubricItem</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Create a :class:`.WorkRubricItem` for an AutoTest.</span>
+
+<span class="sd">        :param work: The work to create the :class:`.WorkRubricItem` for.</span>
+<span class="sd">        :param percentage: The percentage achieved in the AT category.</span>
+<span class="sd">        :param grade_calculator: The grade calculator to use, this is not used</span>
+<span class="sd">            by continuous rubric rows.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span></div></div>
+
+
+<span class="nd">@_register</span>
+<span class="k">class</span> <span class="nc">_NormalRubricRow</span><span class="p">(</span><span class="n">RubricRowBase</span><span class="p">):</span>
+    <span class="n">__mapper_args__</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;polymorphic_identity&#39;</span><span class="p">:</span> <span class="s1">&#39;normal&#39;</span><span class="p">}</span>
+
+    <span class="k">def</span> <span class="nf">make_work_rubric_item</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">work</span><span class="p">:</span> <span class="s1">&#39;work_models.Work&#39;</span><span class="p">,</span> <span class="n">item_id</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">RubricItem</span><span class="p">],</span>
+        <span class="n">multiplier</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">WorkRubricItem</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">multiplier</span> <span class="o">!=</span> <span class="mf">1.0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">APIException</span><span class="p">(</span>
+                <span class="s1">&#39;Normal rubric rows only support 1.0 as multiplier&#39;</span><span class="p">,</span>
+                <span class="sa">f</span><span class="s1">&#39;The rubric row </span><span class="si">{self.id}</span><span class="s1"> got a multiplier of </span><span class="si">{multiplier}</span><span class="s1">&#39;</span><span class="p">,</span>
+                <span class="n">APICodes</span><span class="o">.</span><span class="n">INVALID_PARAM</span><span class="p">,</span> <span class="mi">400</span>
+            <span class="p">)</span>
+
+        <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">make_work_rubric_item</span><span class="p">(</span><span class="n">work</span><span class="p">,</span> <span class="n">item_id</span><span class="p">,</span> <span class="n">multiplier</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">make_work_rubric_item_for_auto_test</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">work</span><span class="p">:</span> <span class="s1">&#39;work_models.Work&#39;</span><span class="p">,</span>
+        <span class="n">percentage</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+        <span class="n">grade_calculator</span><span class="p">:</span> <span class="s1">&#39;auto_test_models.GradeCalculator&#39;</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">WorkRubricItem</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">WorkRubricItem</span><span class="p">(</span>
+            <span class="n">work</span><span class="o">=</span><span class="n">work</span><span class="p">,</span>
+            <span class="n">rubric_item</span><span class="o">=</span><span class="n">grade_calculator</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">items</span><span class="p">,</span> <span class="n">percentage</span><span class="p">),</span>
+            <span class="n">multiplier</span><span class="o">=</span><span class="mf">1.0</span>
+        <span class="p">)</span>
+
+
+<span class="nd">@_register</span>
+<span class="k">class</span> <span class="nc">_ContinuousRubricRow</span><span class="p">(</span><span class="n">RubricRowBase</span><span class="p">):</span>
+    <span class="n">__mapper_args__</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;polymorphic_identity&#39;</span><span class="p">:</span> <span class="s1">&#39;continuous&#39;</span><span class="p">}</span>
+
+    <span class="k">def</span> <span class="nf">make_work_rubric_item_for_auto_test</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">work</span><span class="p">:</span> <span class="s1">&#39;work_models.Work&#39;</span><span class="p">,</span>
+        <span class="n">percentage</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+        <span class="n">grade_calculator</span><span class="p">:</span> <span class="s1">&#39;auto_test_models.GradeCalculator&#39;</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">WorkRubricItem</span><span class="p">:</span>
+        <span class="k">assert</span> <span class="mf">0.0</span> <span class="o">&lt;=</span> <span class="n">percentage</span> <span class="o">&lt;=</span> <span class="mf">1.0</span>
+        <span class="k">return</span> <span class="n">WorkRubricItem</span><span class="p">(</span>
+            <span class="n">work</span><span class="o">=</span><span class="n">work</span><span class="p">,</span>
+            <span class="n">rubric_item</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">items</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span>
+            <span class="n">multiplier</span><span class="o">=</span><span class="n">percentage</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">update_items_from_json</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">items</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="n">RubricItem</span><span class="o">.</span><span class="n">JSONBaseSerialization</span><span class="p">]</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">items</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">APIException</span><span class="p">(</span>
+                <span class="s1">&#39;Continuous rubric rows only support exactly one item.&#39;</span><span class="p">,</span>
+                <span class="sa">f</span><span class="s1">&#39;The row </span><span class="si">{self.id}</span><span class="s1"> was given {len(items)} item(s).&#39;</span><span class="p">,</span>
+                <span class="n">APICodes</span><span class="o">.</span><span class="n">INVALID_PARAM</span><span class="p">,</span>
+                <span class="mi">409</span><span class="p">,</span>
+            <span class="p">)</span>
+
+        <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">update_items_from_json</span><span class="p">(</span><span class="n">items</span><span class="p">)</span>
 </pre></div>
 
            </div>

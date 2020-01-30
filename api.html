@@ -27,6 +27,7 @@
         <script type="text/javascript" src="_static/underscore.js"></script>
         <script type="text/javascript" src="_static/doctools.js"></script>
         <script type="text/javascript" src="_static/language_data.js"></script>
+        <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
     
     <script type="text/javascript" src="_static/js/theme.js"></script>
 
@@ -1579,7 +1580,7 @@ imported, so the assignment with id <code class="docutils literal notranslate"><
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">rtype:</th><td class="field-body"><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Sequence</span></code></a>[<a class="reference internal" href="psef_api/psef.html#psef.models.rubric.RubricRow" title="psef.models.rubric.RubricRow"><code class="xref py py-class docutils literal notranslate"><span class="pre">RubricRow</span></code></a>]]</td>
+<tr class="field-odd field"><th class="field-name">rtype:</th><td class="field-body"><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Sequence</span></code></a>[<a class="reference internal" href="psef_api/psef.html#psef.models.rubric.RubricRowBase" title="psef.models.rubric.RubricRowBase"><code class="xref py py-class docutils literal notranslate"><span class="pre">RubricRowBase</span></code></a>]]</td>
 </tr>
 </tbody>
 </table>
@@ -1595,10 +1596,11 @@ imported, so the assignment with id <code class="docutils literal notranslate"><
 <tr class="field-odd field"><td>&#160;</td><td class="field-body"><ul class="first simple">
 <li><strong>rows</strong> (<em>array</em>) – An array of rows. Each row should be an object that
 should contain a <code class="docutils literal notranslate"><span class="pre">header</span></code> mapping to a string, a <code class="docutils literal notranslate"><span class="pre">description</span></code> key
-mapping to a string, an <code class="docutils literal notranslate"><span class="pre">items</span></code> key mapping to an array and it may
-contain an <code class="docutils literal notranslate"><span class="pre">id</span></code> key mapping to the current id of this row. The items
+mapping to a string, an <code class="docutils literal notranslate"><span class="pre">items</span></code> key mapping to an array, it may
+contain an <code class="docutils literal notranslate"><span class="pre">id</span></code> key mapping to the current id of this row, and it may
+<code class="docutils literal notranslate"><span class="pre">type</span></code> key mapping to a string (this defaults to ‘normal’). The items
 array should contain objects with a <code class="docutils literal notranslate"><span class="pre">description</span></code> (string),
-<code class="docutils literal notranslate"><span class="pre">header</span></code> (string) and <code class="docutils literal notranslate"><span class="pre">points</span></code> (number) and optionally an <code class="docutils literal notranslate"><span class="pre">id</span></code> if
+<code class="docutils literal notranslate"><span class="pre">header</span></code> (string), <code class="docutils literal notranslate"><span class="pre">points</span></code> (number) and optionally an <code class="docutils literal notranslate"><span class="pre">id</span></code> if
 you are modifying an existing item in an existing row.</li>
 <li><strong>max_points</strong> (<em>number</em>) – Optionally override the maximum amount of points
 you can get for this rubric. By passing <code class="docutils literal notranslate"><span class="pre">null</span></code> you reset this value,
@@ -1612,15 +1614,7 @@ by not passing it you keep its current value. (OPTIONAL)</li>
 </td>
 </tr>
 <tr class="field-odd field"><th class="field-name" colspan="2">Response JSON Object:</th></tr>
-<tr class="field-odd field"><td>&#160;</td><td class="field-body"><p class="first">An empty response with return code 204</p>
-</td>
-</tr>
-<tr class="field-even field"><th class="field-name" colspan="2">Possible error responses:</th></tr>
-<tr class="field-even field"><td>&#160;</td><td class="field-body"><ul class="first last simple">
-<li><a class="reference internal" href="psef_api/psef.html#psef.exceptions.PermissionException" title="psef.exceptions.PermissionException"><strong>PermissionException</strong></a> – If there is no logged in user. (NOT_LOGGED_IN)</li>
-<li><a class="reference internal" href="psef_api/psef.html#psef.exceptions.PermissionException" title="psef.exceptions.PermissionException"><strong>PermissionException</strong></a> – If the user is not allowed to manage rubrics.
-(INCORRECT_PERMISSION)</li>
-</ul>
+<tr class="field-odd field"><td>&#160;</td><td class="field-body"><p class="first last">The updated or created rubric.</p>
 </td>
 </tr>
 </tbody>
@@ -1631,7 +1625,7 @@ by not passing it you keep its current value. (OPTIONAL)</li>
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">rtype:</th><td class="field-body"><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Sequence</span></code></a>[<a class="reference internal" href="psef_api/psef.html#psef.models.rubric.RubricRow" title="psef.models.rubric.RubricRow"><code class="xref py py-class docutils literal notranslate"><span class="pre">RubricRow</span></code></a>]]</td>
+<tr class="field-odd field"><th class="field-name">rtype:</th><td class="field-body"><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Sequence</span></code></a>[<a class="reference internal" href="psef_api/psef.html#psef.models.rubric.RubricRowBase" title="psef.models.rubric.RubricRowBase"><code class="xref py py-class docutils literal notranslate"><span class="pre">RubricRowBase</span></code></a>]]</td>
 </tr>
 </tbody>
 </table>
@@ -1709,7 +1703,7 @@ rubric should be deleted.</li>
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">rtype:</th><td class="field-body"><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Sequence</span></code></a>[<a class="reference internal" href="psef_api/psef.html#psef.models.rubric.RubricRow" title="psef.models.rubric.RubricRow"><code class="xref py py-class docutils literal notranslate"><span class="pre">RubricRow</span></code></a>]]</td>
+<tr class="field-odd field"><th class="field-name">rtype:</th><td class="field-body"><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Sequence</span></code></a>[<a class="reference internal" href="psef_api/psef.html#psef.models.rubric.RubricRowBase" title="psef.models.rubric.RubricRowBase"><code class="xref py py-class docutils literal notranslate"><span class="pre">RubricRowBase</span></code></a>]]</td>
 </tr>
 </tbody>
 </table>
@@ -5079,7 +5073,7 @@ given id (INCORRECT_PERMISSION)</li>
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">rtype:</th><td class="field-body"><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference internal" href="psef_api/psef.html#psef.models.work.Work" title="psef.models.work.Work"><code class="xref py py-class docutils literal notranslate"><span class="pre">Work</span></code></a>]</td>
+<tr class="field-odd field"><th class="field-name">rtype:</th><td class="field-body"><code class="xref py py-class docutils literal notranslate"><span class="pre">ExtendedJSONResponse</span></code>[<a class="reference internal" href="psef_api/psef.html#psef.models.work.Work" title="psef.models.work.Work"><code class="xref py py-class docutils literal notranslate"><span class="pre">Work</span></code></a>]</td>
 </tr>
 </tbody>
 </table>
@@ -5328,16 +5322,27 @@ permission to grade this submission. (INCORRECT_PERMISSION)</li>
 </tr>
 <tr class="field-even field"><th class="field-name" colspan="2">Response JSON Object:</th></tr>
 <tr class="field-even field"><td>&#160;</td><td class="field-body"><ul class="first simple">
-<li><strong>items</strong> (<em>array</em>) – The ids of the rubric items you want to select.</li>
+<li><strong>items</strong> (<em>array</em>) – An array of objects, each object representing the item
+you want to select.</li>
 </ul>
 </td>
 </tr>
-<tr class="field-odd field"><th class="field-name" colspan="2">Response JSON Object:</th></tr>
-<tr class="field-odd field"><td>&#160;</td><td class="field-body"><p class="first">Nothing.</p>
+<tr class="field-odd field"><th class="field-name" colspan="2">Response JSON Array of Objects:</th></tr>
+<tr class="field-odd field"><td>&#160;</td><td class="field-body"><ul class="first simple">
+<li><strong>row_id</strong> (<em>int</em>) – The id of the row the item is in.</li>
+<li><strong>item_id</strong> (<em>int</em>) – The id of the item you want to select.</li>
+<li><strong>mutiplier</strong> (<em>float</em>) – The multiplier you want to use for this rubric
+item. This value defaults to 1.0, and can only be something other than
+1.0 for rubric rows with <code class="docutils literal notranslate"><span class="pre">type</span></code> ‘continuous’.</li>
+</ul>
 </td>
 </tr>
-<tr class="field-even field"><th class="field-name" colspan="2">Possible error responses:</th></tr>
-<tr class="field-even field"><td>&#160;</td><td class="field-body"><ul class="first last simple">
+<tr class="field-even field"><th class="field-name" colspan="2">Response JSON Object:</th></tr>
+<tr class="field-even field"><td>&#160;</td><td class="field-body"><p class="first">Nothing.</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name" colspan="2">Possible error responses:</th></tr>
+<tr class="field-odd field"><td>&#160;</td><td class="field-body"><ul class="first last simple">
 <li><a class="reference internal" href="psef_api/psef.html#psef.exceptions.APIException" title="psef.exceptions.APIException"><strong>APIException</strong></a> – If the assignment of a given item does not belong to
 the assignment of the given submission. of the submission
 (INVALID_PARAM).</li>
@@ -5354,7 +5359,7 @@ the assignment of the given submission. of the submission
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">rtype:</th><td class="field-body"><code class="xref py py-class docutils literal notranslate"><span class="pre">EmptyResponse</span></code></td>
+<tr class="field-odd field"><th class="field-name">rtype:</th><td class="field-body"><code class="xref py py-class docutils literal notranslate"><span class="pre">ExtendedJSONResponse</span></code>[<a class="reference internal" href="psef_api/psef.html#psef.models.work.Work" title="psef.models.work.Work"><code class="xref py py-class docutils literal notranslate"><span class="pre">Work</span></code></a>]</td>
 </tr>
 </tbody>
 </table>
@@ -5396,18 +5401,25 @@ the assignment of the given submission. of the submission
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<tr class="field-odd field"><th class="field-name" colspan="2">Response JSON Object:</th></tr>
+<tr class="field-odd field"><td>&#160;</td><td class="field-body"><ul class="first simple">
+<li><strong>multiplier</strong> (<em>float</em>) – The mutiplier that should be used for the rubric
+item.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
 <li><strong>submission_id</strong> (<em>int</em>) – The id of the submission</li>
 <li><strong>rubricitem_id</strong> (<em>int</em>) – The id of the rubric item</li>
 </ul>
 </td>
 </tr>
-<tr class="field-even field"><th class="field-name" colspan="2">Response JSON Object:</th></tr>
-<tr class="field-even field"><td>&#160;</td><td class="field-body"><p class="first">Nothing.</p>
+<tr class="field-odd field"><th class="field-name" colspan="2">Response JSON Object:</th></tr>
+<tr class="field-odd field"><td>&#160;</td><td class="field-body"><p class="first">Nothing.</p>
 </td>
 </tr>
-<tr class="field-odd field"><th class="field-name" colspan="2">Possible error responses:</th></tr>
-<tr class="field-odd field"><td>&#160;</td><td class="field-body"><ul class="first last simple">
+<tr class="field-even field"><th class="field-name" colspan="2">Possible error responses:</th></tr>
+<tr class="field-even field"><td>&#160;</td><td class="field-body"><ul class="first last simple">
 <li><a class="reference internal" href="psef_api/psef.html#psef.exceptions.APIException" title="psef.exceptions.APIException"><strong>APIException</strong></a> – If either the submission or rubric item with the
 given ids does not exist. (OBJECT_ID_NOT_FOUND)</li>
 <li><a class="reference internal" href="psef_api/psef.html#psef.exceptions.APIException" title="psef.exceptions.APIException"><strong>APIException</strong></a> – If the assignment of the rubric is not the assignment

@@ -78,27 +78,46 @@ either case if you have not created any hidden steps.
     within 30 minutes after the deadline, where the hidden steps are also executed.
     Before the deadline, hidden steps are never executed.
 
+.. _autotest-setup-rubric-calculation:
+
 Rubric calculation
 -------------------
 
-There are two modes to fill in the rubric:
+The rubric calculation setting determines how (discrete) rubric categories will
+be filled-in.
 
-Minimum
-~~~~~~~~~
+Discrete Categories
+~~~~~~~~~~~~~~~~~~~~
 
-A category's item will be chosen when the lower
-bound of this item is reached (e.g. when a category has 4 items and 75% of the
-tests succeed, the maximum item is filled in).
+There are two modes to fill in discrete rubric categories:
 
-Maximum
-~~~~~~~~
-
-A category's item will be chosen when the upper bound of
-this item is reached (e.g. you need 100% passed tests to have the maximum item filled in).
+1. **Minimum**: A category's item will be chosen when the lower bound of this
+   item is reached (e.g. when a category has 4 items and 75% of the tests
+   succeed, the maximum item is filled in).
+2. **Maximum**: A category's item will be chosen when the upper bound of this
+   item is reached (e.g. you need 100% passed tests to have the maximum item
+   filled in).
 
 .. note::
-    The percentages of the items in a category are independent of the amount of points
-    given to them. E.g. if you have 4 items, item 1 is always 0%-25%, item 2 is 25%-50% and so forth.
+
+    The percentages of the items in a category are independent of the amount of
+    points given to them. E.g. if you have 4 items, item 1 is always 0%-25%,
+    item 2 is 25%-50% and so forth.
+
+Continuous Categories
+~~~~~~~~~~~~~~~~~~~~~
+
+Continuous rubric categories are filled in one way, this means this setting will
+have no influence on rubric calculation for this type of rubric category. The
+percentage achieved in the AutoTest level will also be the percentage achieved
+in the continuous rubric category.
+
+.. example::
+
+   You have a continuous rubric category with a maximum of 5 points, and an
+   AutoTest level with a maximum of 10 points. If a user achieves 7 AutoTest
+   points for this level, in the continuous rubric category the student will
+   receive :math:`5 \times \frac{7}{10} = 3.5` points.
 
 Uploading fixtures
 --------------------
