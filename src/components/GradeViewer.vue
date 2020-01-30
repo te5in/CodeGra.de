@@ -10,11 +10,10 @@
                        :submission="submission"
                        :editable="realEditable"
                        :visible="rubricOpen"
-                       @change="rubricGradeChanged"
-                       @rubricUpdated="rubricResult = $event"
-                       @outOfSyncUpdated="outOfSyncItems = $event.size"
-                       ref="rubricViewer"
-                       class="mb-3"/>
+                       @load="rubricResult = $event"
+                       @input="rubricGradeChanged"
+                       @submit="() => $refs.submitButton.onClick()"
+                       class="mb-3" />
     </b-collapse>
 
     <b-form-fieldset class="mb-0">
@@ -24,7 +23,23 @@
                                class="submit-grade-btn"
                                v-if="realEditable"
                                :submit="putGrade"
-                               @success="gradeUpdated"/>
+                               @success="afterPutGrade">
+                    <template slot="error"
+                              slot-scope="scope"
+                              v-if="scope.error instanceof ValidationError">
+                        <p v-if="scope.error.multipliers.length > 0"
+                           class="text-justify">
+                            The following continuous categories have an invalid
+                            score, which must be between 0 and 100:
+
+                            <ul>
+                                <li v-for="msg in scope.error.multipliers">
+                                    {{ msg }}
+                                </li>
+                            </ul>
+                        </p>
+                    </template>
+                </submit-button>
                 <span class="input-group-text" v-else>Grade</span>
             </b-input-group-prepend>
 
@@ -37,11 +52,11 @@
                    :max="maxAllowedGrade"
                    :readonly="!realEditable"
                    :placeholder="editable ? 'Grade' : 'Not yet available'"
-                   @keydown.enter="$refs.submitButton.onClick"
+                   @keydown.enter="() => $refs.submitButton.onClick()"
                    @input="rubricOverridden = showRubric"
                    v-model="grade"/>
 
-            <b-input-group-append class="text-right rubric-score d-inline text-center"
+            <b-input-group-append class="rubric-score d-inline text-center"
                                   :class="{ warning: rubricOverridden, 'help-cursor': rubricOverridden }"
                                   v-if="showRubric"
                                   is-text>
@@ -62,14 +77,15 @@
                                variant="danger"
                                :disabled="!showDeleteButton"
                                :submit="deleteGrade"
-                               @success="afterDeleteGrade"
+                               @success="afterPutGrade"
                                :confirm="deleteConfirmText">
-                    <icon :name="rubricOverridden ? 'reply' : 'times'"/>
+                    <icon :name="rubricOverridden || submission.grade_overridden ? 'reply' : 'times'"/>
                 </submit-button>
             </b-input-group-append>
 
             <b-input-group-append v-if="showRubric">
                 <b-button variant="secondary"
+                          class="rubric-toggle"
                           v-b-popover.top.hover="'Toggle rubric'"
                           v-b-toggle.rubric-collapse>
                     <loader :scale="1" v-if="rubricResult == null" />
@@ -77,7 +93,7 @@
                 </b-button>
             </b-input-group-append>
 
-            <b-input-group-append class="text-right rubric-score warning help-cursor"
+            <b-input-group-append class="rubric-save-warning warning text-right help-cursor"
                                   v-if="isRubricChanged"
                                   is-text
                                   v-b-popover.hover.top="'Press the submit button to submit the changes.'">
@@ -97,10 +113,21 @@ import 'vue-awesome/icons/info';
 import 'vue-awesome/icons/refresh';
 import 'vue-awesome/icons/reply';
 import 'vue-awesome/icons/times';
+
+import { NONEXISTENT } from '@/constants';
+import { ValidationError } from '@/models/errors';
 import { formatGrade, isDecimalNumber } from '@/utils';
+
 import RubricViewer from './RubricViewer';
 import SubmitButton from './SubmitButton';
 import Loader from './Loader';
+
+const DeleteButtonState = Object.freeze({
+    DELETE_GRADE: {},
+    CLEAR_RUBRIC: {},
+    RUBRIC_CHANGED: {},
+    RUBRIC_CHANGED_AND_OVERRIDDEN: {},
+});
 
 export default {
     name: 'grade-viewer',
@@ -139,14 +166,16 @@ export default {
             grade: this.submission.grade,
             rubricOpen: this.rubricStartOpen && !this.notLatest,
             rubricOverridden: null,
-            outOfSyncItems: 0,
             rubricResult: null,
+
+            ValidationError,
         };
     },
 
     computed: {
         ...mapGetters('rubrics', {
-            allRubricResults: 'results',
+            storeRubrics: 'rubrics',
+            storeRubricResults: 'results',
         }),
 
         globalPopover() {
@@ -167,12 +196,21 @@ export default {
             return this.editable && !this.notLatest;
         },
 
+        storeResult() {
+            return this.storeRubricResults[this.submissionId];
+        },
+
         rubric() {
-            return this.assignment.rubricModel;
+            const rubric = this.storeRubrics[this.assignmentId];
+            return rubric === NONEXISTENT ? null : rubric;
         },
 
         rubricPoints() {
             return this.rubricResult && this.rubricResult.points;
+        },
+
+        rubricHasSelectedItems() {
+            return this.rubricPoints != null;
         },
 
         rubricGrade() {
@@ -180,54 +218,66 @@ export default {
                 return null;
             }
 
-            let grade;
-            if (this.rubricResult.selected.length === 0) {
-                grade = null;
-            } else {
-                grade = Math.max(0, this.rubricPoints / this.rubric.maxPoints * 10);
-                grade = Math.min(grade, this.maxAllowedGrade || 10);
-            }
+            let maxPoints = parseFloat(this.assignment.fixed_max_rubric_points);
+            maxPoints = Number.isNaN(maxPoints) ? this.rubric.maxPoints : maxPoints;
 
-            return formatGrade(grade);
+            return this.rubricResult.getGrade(maxPoints);
         },
 
         isRubricChanged() {
-            const incremental = UserConfig.features.incremental_rubric_submission;
-            const show = this.showRubric;
-            const outOfSync = this.outOfSyncItems;
+            if (!this.showRubric || this.storeResult == null || this.rubricResult == null) {
+                return false;
+            }
 
-            return !incremental && show && outOfSync > 0;
-        },
-
-        rubricHasSelectedItems() {
-            return (this.rubricResult && this.rubricResult.points) != null;
+            const diff = this.rubricResult.diffSelected(this.storeResult);
+            return diff.size !== 0;
         },
 
         maxAllowedGrade() {
             return (this.assignment && this.assignment.max_grade) || 10;
         },
 
-        deleteButtonText() {
+        deleteButtonState() {
             if (this.showRubric) {
                 if (this.rubricOverridden) {
-                    return 'Reset the grade to the grade from the rubric';
+                    return DeleteButtonState.RUBRIC_OVERRIDDEN;
+                } else if (this.submission.grade_overridden) {
+                    return DeleteButtonState.RUBRIC_CHANGED_AND_OVERRIDDEN;
                 } else {
-                    return 'Clear the rubric';
+                    return DeleteButtonState.CLEAR_RUBRIC;
                 }
             } else {
-                return 'Delete grade';
+                return DeleteButtonState.DELETE_GRADE;
+            }
+        },
+
+        deleteButtonText() {
+            switch (this.deleteButtonState) {
+                case DeleteButtonState.DELETE_GRADE:
+                    return 'Delete grade';
+                case DeleteButtonState.CLEAR_RUBRIC:
+                    return 'Clear the rubric';
+                case DeleteButtonState.RUBRIC_OVERRIDDEN:
+                    return 'Reset to the grade from the rubric';
+                case DeleteButtonState.RUBRIC_CHANGED_AND_OVERRIDDEN:
+                    return 'Discard changes to the rubric';
+                default:
+                    return '';
             }
         },
 
         deleteConfirmText() {
-            if (this.showRubric) {
-                if (this.rubricOverridden) {
-                    return 'Are you sure you want to reset the grade?';
-                } else {
+            switch (this.deleteButtonState) {
+                case DeleteButtonState.DELETE_GRADE:
+                    return 'Are you sure you want to clear the grade?';
+                case DeleteButtonState.CLEAR_RUBRIC:
                     return 'Are you sure you want to clear the rubric?';
-                }
-            } else {
-                return 'Are you sure you want to clear the grade?';
+                case DeleteButtonState.RUBRIC_OVERRIDDEN:
+                    return 'Are you sure you want to reset the grade?';
+                case DeleteButtonState.RUBRIC_CHANGED_AND_OVERRIDDEN:
+                    return 'Are you sure you want to discard changes to the rubric?';
+                default:
+                    return '';
             }
         },
 
@@ -250,10 +300,7 @@ export default {
         rubricScore() {
             const toFixed = val => {
                 const fval = parseFloat(val);
-                return fval
-                    .toFixed(10)
-                    .replace(/[.,]([0-9]*?)0*$/, '.$1')
-                    .replace(/\.$/, '');
+                return this.$utils.toMaxNDecimals(fval, 2);
             };
             const points = this.rubricPoints;
             const scored = points ? toFixed(points) : 0;
@@ -264,17 +311,31 @@ export default {
         submissionGrade() {
             return this.submission.grade;
         },
+
+        assignmentId() {
+            return this.assignment.id;
+        },
+
+        submissionId() {
+            return this.submission.id;
+        },
     },
 
     watch: {
-        assignment: {
+        assignmentId: {
             immediate: true,
             handler() {
-                this.storeLoadRubric(this.assignment.id);
+                this.storeLoadRubric({
+                    assignmentId: this.assignmentId,
+                }).catch(err => {
+                    if (this.$utils.getProps(err, 500, 'response', 'status') !== 404) {
+                        throw err;
+                    }
+                });
             },
         },
 
-        submission: {
+        submissionId: {
             immediate: true,
             handler() {
                 const grade = this.submission.grade;
@@ -285,7 +346,8 @@ export default {
                     this.grade = null;
                 }
                 this.storeLoadRubricResult({
-                    submissionId: this.submission.id,
+                    submissionId: this.submissionId,
+                    assignmentId: this.assignmentId,
                 });
             },
         },
@@ -313,25 +375,11 @@ export default {
             storeUpdateSubmission: 'updateSubmission',
         }),
 
-        ...mapActions('courses', {
-            storeLoadRubric: 'loadRubric',
-        }),
-
         ...mapActions('rubrics', {
+            storeLoadRubric: 'loadRubric',
             storeLoadRubricResult: 'loadResult',
+            storeUpdateRubricResult: 'updateRubricResult',
         }),
-
-        gradeUpdated(overridden) {
-            this.rubricOverridden = overridden;
-            this.storeUpdateSubmission({
-                assignmentId: this.assignment.id,
-                submissionId: this.submission.id,
-                submissionProps: {
-                    grade: this.grade,
-                    grade_overridden: overridden,
-                },
-            });
-        },
 
         rubricGradeChanged(rubricResult) {
             this.rubricResult = rubricResult;
@@ -339,36 +387,53 @@ export default {
             this.rubricOverridden = false;
         },
 
-        deleteGrade() {
-            if (this.showRubric && !this.rubricOverridden) {
-                return this.$refs.rubricViewer.clearSelected();
-            } else if (this.isRubricChanged) {
-                this.grade = this.rubricGrade;
-                return null;
-            } else {
-                return this.$http.patch(`/api/v1/submissions/${this.submission.id}`, {
-                    grade: null,
-                });
-            }
+        submitRubricItems() {
+            return this.storeUpdateRubricResult({
+                assignmentId: this.assignmentId,
+                submissionId: this.submissionId,
+                result: this.rubricResult,
+            });
         },
 
-        afterDeleteGrade(response) {
-            const grade = response && response.data && response.data.grade;
+        clearRubricItems() {
+            return this.storeUpdateRubricResult({
+                assignmentId: this.assignmentId,
+                submissionId: this.submissionId,
+                result: this.rubricResult.clearSelected(),
+            });
+        },
 
-            if (grade !== undefined) {
-                this.grade = formatGrade(grade) || null;
+        clearSubmissionGrade() {
+            return this.$http.patch(`/api/v1/submissions/${this.submissionId}`, { grade: null });
+        },
+
+        deleteGrade() {
+            switch (this.deleteButtonState) {
+                case DeleteButtonState.DELETE_GRADE:
+                case DeleteButtonState.RUBRIC_OVERRIDDEN:
+                    return this.clearSubmissionGrade();
+                case DeleteButtonState.CLEAR_RUBRIC:
+                    return this.clearRubricItems();
+                case DeleteButtonState.RUBRIC_CHANGED_AND_OVERRIDDEN:
+                    return {
+                        data: {
+                            grade: this.submission.grade,
+                            grade_overridden: true,
+                        },
+                    };
+                default:
+                    throw new TypeError('Invalid deleteButtonState');
             }
-
-            this.gradeUpdated(false);
         },
 
         putGrade() {
-            const grade = parseFloat(this.grade);
+            let grade = this.grade;
 
             if (grade != null && !isDecimalNumber(grade)) {
                 throw new Error('Grade must be a number');
             }
 
+            grade = parseFloat(grade);
             const overridden = this.rubricOverridden;
             const normalGrade = overridden || !this.showRubric;
 
@@ -380,25 +445,39 @@ export default {
                 throw new Error(`Grade must be between 0 and ${this.maxAllowedGrade}.`);
             }
 
-            let req = Promise.resolve();
+            let req = Promise.resolve([]);
 
+            // These requests must happen sequentially because the backend must receive
+            // the grade after the rubric to set grade_overridden correctly.
             if (this.showRubric) {
-                req = this.$refs.rubricViewer.submitAllItems().then(() => false);
+                req = req.then(responses =>
+                    this.submitRubricItems().then(res => responses.concat(res)),
+                );
             }
 
             if (!this.showRubric || overridden) {
-                req = req.then(() => this.submitNormalGrade(grade)).then(() => overridden);
+                req = req.then(responses =>
+                    this.$http
+                        .patch(`/api/v1/submissions/${this.submissionId}`, { grade })
+                        .then(res => responses.concat(res)),
+                );
             }
 
             return req;
         },
 
-        submitNormalGrade(grade) {
-            return this.$http
-                .patch(`/api/v1/submissions/${this.submission.id}`, { grade })
-                .then(() => {
-                    this.grade = formatGrade(grade);
-                });
+        afterPutGrade(responses) {
+            const res = this.$utils.ensureArray(responses);
+            const { data } = res[res.length - 1];
+            const grade = formatGrade(data.grade);
+
+            this.grade = grade;
+            this.rubricOverridden = data.grade_overridden;
+            this.storeUpdateSubmission({
+                assignmentId: this.assignmentId,
+                submissionId: this.submissionId,
+                submissionProps: { grade, grade_overridden: data.grade_overridden },
+            });
         },
     },
 

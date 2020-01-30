@@ -46,6 +46,8 @@ module.exports = {
 
         // allow vuex
         'no-param-reassign': ["error", { 'props': false }],
+
+        'no-underscore-dangle': ['error', { 'allowAfterThis': true, 'allowAfterSuper': true }],
     },
     globals: {
         'UserConfig': true,

@@ -30,7 +30,7 @@
              :items="filteredSubmissions"
              :fields="fields"
              :current-page="currentPage"
-             :sort-compare="sortSubmissions"
+             :sort-compare="(a, b, sortBy) => sortSubmissions(a.sub, b.sub, sortBy)"
              :sort-by="this.$route.query.sortBy || 'user'"
              :sort-desc="!parseBool(this.$route.query.sortAsc, true)"
              class="mb-0 border-bottom submissions-table">
@@ -39,40 +39,40 @@
            slot="user"
            slot-scope="item"
            @click.prevent>
-            <user :user="item.value"/>
-            <webhook-name :submission="item.item" />
+            <user :user="item.item.sub.user"/>
+            <webhook-name :submission="item.item.sub" />
             <icon name="exclamation-triangle"
                   class="text-warning ml-1"
                   style="margin-bottom: -1px;"
-                  v-b-popover.top.hover="`This user is member of the group ${quote}${usersInGroup[item.value.id].group.name}${quote}, which also created a submission.`"
-                  v-if="usersInGroup[item.value.id]"/>
+                  v-b-popover.top.hover="getOtherSubmissionPopover(item.item.sub)"
+                  v-if="!!getOtherSubmissionPopover(item.item.sub)"/>
         </a>
 
         <span slot="grade" slot-scope="item" class="submission-grade">
-            {{ formatGrade(item.value) || '-' }}
+            {{ item.item.sub.grade || '-' }}
         </span>
 
-        <template slot="formatted_created_at" slot-scope="item">
-            {{item.value ? item.value : '-'}}
+        <template slot="formattedCreatedAt" slot-scope="item">
+            {{item.item.sub.formattedCreatedAt }}
             <late-submission-icon
-                :submission="item.item"
+                :submission="item.item.sub"
                 :assignment="assignment" />
         </template>
 
         <span slot="assignee" slot-scope="item" class="assigned-to-grader">
             <span v-if="!canAssignGrader || graders == null">
-                <user :user="item.value"
-                      v-if="item.value"/>
+                <user :user="item.item.sub.assignee"
+                      v-if="item.item.sub.assignee"/>
                 <span v-else>-</span>
             </span>
             <loader :scale="1"
-                    v-else-if="assigneeUpdating[item.item.id]"/>
+                    v-else-if="assigneeUpdating[item.item.sub.id]"/>
             <div v-else
-                 v-b-popover.top.hover="item.item.user.is_test_student ? 'You cannot assign test students to graders.' : ''">
+                 v-b-popover.top.hover="item.item.sub.user.is_test_student ? 'You cannot assign test students to graders.' : ''">
                 <b-form-select :options="assignees"
-                               :disabled="!!(item.item.user.is_test_student || usersInGroup[item.item.user.id])"
-                               :value="item.value ? item.value.id : null"
-                               @input="updateAssignee($event, item)"
+                               :disabled="!!(item.item.sub.user.is_test_student || getOtherSubmissionPopover(item.item.sub))"
+                               :value="item.item.sub.assigneeId || null"
+                               @input="updateAssignee($event, item.item.sub)"
                                @click.native.stop
                                class="user-form-select"/>
             </div>
@@ -125,10 +125,6 @@ export default {
             type: Object,
             default: null,
         },
-        canDownload: {
-            type: Boolean,
-            default: false,
-        },
         rubric: {
             default: null,
         },
@@ -169,14 +165,10 @@ export default {
             userName: 'name',
         }),
 
-        ...mapGetters('submissions', ['latestSubmissions', 'usersWithGroupSubmission']),
+        ...mapGetters('submissions', ['getLatestSubmissions', 'getGroupSubmissionOfUser']),
 
         submissions() {
-            return this.latestSubmissions[this.assignment.id] || [];
-        },
-
-        usersInGroup() {
-            return this.usersWithGroupSubmission[this.assignment.id] || {};
+            return this.getLatestSubmissions(this.assignment.id);
         },
 
         fields() {
@@ -192,7 +184,7 @@ export default {
                     sortable: true,
                 },
                 {
-                    key: 'formatted_created_at',
+                    key: 'formattedCreatedAt',
                     label: 'Created at',
                     sortable: true,
                 },
@@ -219,18 +211,16 @@ export default {
             return filterSubmissions(this.submissions, this.mineOnly, this.userId, this.filter).map(
                 sub => {
                     let variant = null;
-                    if (sub.formatted_created_at > this.assignment.formatted_deadline) {
+                    if (sub.isLate()) {
                         variant = 'danger';
-                    } else if (this.usersInGroup[sub.user.id]) {
+                    } else if (this.getGroupSubmissionOfUser(this.assignment.id, sub.userId)) {
                         variant = 'warning';
                     }
 
-                    if (variant) {
-                        return Object.assign({}, sub, {
-                            _rowVariant: variant,
-                        });
-                    }
-                    return sub;
+                    return {
+                        sub,
+                        _rowVariant: variant,
+                    };
                 },
             );
         },
@@ -240,7 +230,7 @@ export default {
         },
 
         numFilteredStudents() {
-            return new Set(this.filteredSubmissions.map(sub => nameOfUser(sub.user))).size;
+            return new Set(this.filteredSubmissions.map(({ sub }) => sub.userId)).size;
         },
 
         assigneeCheckboxDisabled() {
@@ -259,7 +249,7 @@ export default {
             immediate: true,
             handler() {
                 this.$emit('filter', {
-                    submissions: this.filteredSubmissions,
+                    submissions: this.filteredSubmissions.map(s => s.sub),
                 });
             },
         },
@@ -287,7 +277,7 @@ export default {
         }
         if (this.mineOnly == null) {
             this.mineOnly = this.submissions.some(
-                s => s.user.id === this.userId || (s.assignee && s.assignee.id === this.userId),
+                s => s.userId === this.userId || (s.assignee && s.assigneeId === this.userId),
             );
         }
         if (!this.mineOnly) {
@@ -320,7 +310,7 @@ export default {
             });
         },
 
-        gotoSubmission(submission) {
+        gotoSubmission({ sub: submission }) {
             this.submit();
 
             this.$router.push({
@@ -359,8 +349,8 @@ export default {
             });
         },
 
-        updateAssignee(newId, { item: submission }) {
-            const oldId = submission.assignee ? submission.assignee.id : null;
+        updateAssignee(newId, submission) {
+            const oldId = submission.assigneeId || null;
             if (oldId === newId) {
                 return;
             }
@@ -402,6 +392,16 @@ export default {
 
         formatGrade,
         sortSubmissions,
+
+        getOtherSubmissionPopover(sub) {
+            const otherSub = this.getGroupSubmissionOfUser(this.assignment.id, sub.userId);
+            if (otherSub) {
+                return `This user is member of the group "${
+                    otherSub.user.group.name
+                }", which also created a submission.`;
+            }
+            return null;
+        },
     },
 
     components: {

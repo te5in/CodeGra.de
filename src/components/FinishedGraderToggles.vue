@@ -57,7 +57,7 @@ import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/times';
 import 'vue-awesome/icons/circle-o-notch';
 import 'vue-awesome/icons/exclamation-triangle';
-import { parseWarningHeader, waitAtLeast } from '@/utils';
+import { WarningHeader, waitAtLeast } from '@/utils';
 
 import Toggle from './Toggle';
 import User from './User';
@@ -131,11 +131,11 @@ export default {
                 .then(
                     res => {
                         if (res.headers.warning) {
-                            const warning = parseWarningHeader(res.headers.warning);
+                            const warning = WarningHeader.fromResponse(res);
                             this.$set(
                                 this.warningGraders,
                                 grader.id,
-                                warning.map(w => w.text).join(' '),
+                                warning.messages.map(w => w.text).join(' '),
                             );
                             this.$nextTick(() =>
                                 setTimeout(() => {

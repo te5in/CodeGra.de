@@ -3,19 +3,29 @@
 SPDX-License-Identifier: AGPL-3.0-only
 """
 import typing as t
+import datetime
 from functools import wraps
 
 import oauth2
+import structlog
+import sqlalchemy
+import humanfriendly
 import flask_jwt_extended as flask_jwt
 from flask import _app_ctx_stack  # type: ignore
+from sqlalchemy import sql
 from werkzeug.local import LocalProxy
 from mypy_extensions import NoReturn
 
 import psef
+from psef import features
+from psef.helpers import readable_join
 from psef.exceptions import APICodes, APIException, PermissionException
 
+from . import helpers
 from .permissions import CoursePermission as CPerm
 from .permissions import GlobalPermission as GPerm
+
+logger = structlog.get_logger()
 
 jwt = flask_jwt.JWTManager()  # pylint: disable=invalid-name
 
@@ -151,10 +161,127 @@ def set_current_user(user: 'psef.models.User') -> None:
     _app_ctx_stack.top.jwt_user = user
 
 
+def _ensure_submission_limits_not_exceeded(
+    assig: 'psef.models.Assignment', author: 'psef.models.User',
+    current_user: 'psef.models.User'
+) -> None:
+    if current_user.has_permission(
+        CPerm.can_override_submission_limiting, assig.course_id
+    ) or author.is_test_student:
+        return
+    elif (
+        assig.max_submissions is None and
+        assig.cool_off_period.total_seconds() == 0
+    ):
+        return
+
+    # Create a lock for the current assignment and author combination so we
+    # make sure that you cannot exceed the limits, even when submitting
+    # concurrently.
+    psef.models.db.session.execute(
+        sqlalchemy.select(
+            [sql.func.pg_advisory_xact_lock(assig.id, author.id)]
+        )
+    )
+
+    Work = psef.models.Work
+    base_sql = assig.get_not_deleted_submissions().filter(
+        Work.user_id == author.id,
+    )
+    now = helpers.get_request_start_time()
+    cool_off_cutoff = now - assig.cool_off_period
+
+    if assig.max_submissions is None:
+        query_amount: psef.models.DbColumn[int] = sql.literal(0).label(
+            'amount'
+        )
+    else:
+        query_amount = sql.func.count()
+
+    if assig.cool_off_period.total_seconds() > 0:
+        query_since_cool_off: psef.models.DbColumn[int] = sql.func.count(
+            sqlalchemy.case(
+                [(Work.created_at >= cool_off_cutoff, 1)],
+                else_=None,
+            )
+        )
+        query_oldest_in_period: psef.models.DbColumn[
+            t.Optional[datetime.datetime]
+        ] = base_sql.filter(Work.created_at >= cool_off_cutoff).with_entities(
+            sql.func.min(Work.created_at)
+        ).label('oldest')
+    else:
+        query_since_cool_off = sql.literal(0).label('since_cool_off')
+        query_oldest_in_period = sql.literal(now).label('oldest')
+
+    query = base_sql.with_entities(
+        query_amount,
+        query_since_cool_off,
+        query_oldest_in_period,
+    )
+    amount_subs, since_cool_off, oldest_since_cool_off = query.one()
+
+    logger.info(
+        'Checking submission limits',
+        cool_off_period=assig.cool_off_period.total_seconds(),
+        amount_since_cool_off=since_cool_off,
+        total_amount_submissions=amount_subs,
+        oldest_since_cool_off=oldest_since_cool_off,
+    )
+
+    if (
+        assig.max_submissions is not None and
+        assig.max_submissions <= amount_subs
+    ):
+        if author.contains_user(current_user):
+            you_text = 'Your group has' if author.group else 'You have'
+        else:
+            you_text = (
+                f'The group "{author.group.name}"'
+                if author.group else author.name
+            ) + ' has'
+
+        submissions_text = (
+            'submissions' if assig.max_submissions > 1 else 'submission'
+        )
+
+        raise PermissionException(
+            (
+                f'{you_text} reached the maximum amount of'
+                f' {assig.max_submissions} {submissions_text} for this'
+                ' assignment.'
+            ),
+            (
+                f'The user {author.id} has {amount_subs} which is too'
+                f' much, as the limit is {assig.max_submissions}.'
+            ),
+            APICodes.TOO_MANY_SUBMISSIONS,
+            403,
+        )
+    elif since_cool_off >= assig.amount_in_cool_off_period:
+        # The name `oldest_since_cool_off` is `None` when there are no
+        # submissions. However, in that case `since_cool_off` should also
+        # always be 0. However, we limit `amount_in_cool_off_period` to be >=
+        # 1, so the check never passes.
+        if oldest_since_cool_off is None:  # pragma: no cover
+            oldest_since_cool_off = now
+        wait_time = assig.cool_off_period - (now - oldest_since_cool_off)
+        raise PermissionException(
+            (
+                'You cannot submit again yet, you have to wait at least {}'
+                ' before you can upload again'
+            ).format(humanfriendly.format_timespan(wait_time)),
+            f'The user {author.id} submitted too early to try again',
+            APICodes.COOL_OFF_PERIOD_ACTIVE,
+            403,
+        )
+
+
 def ensure_can_submit_work(
     assig: 'psef.models.Assignment',
     author: 'psef.models.User',
     *,
+    for_user: 'psef.models.User',
     current_user: t.Optional['psef.models.User'] = None,
 ) -> None:
     """Check if the current user can submit for the given assignment as the given
@@ -167,20 +294,33 @@ def ensure_can_submit_work(
 
     :param assig: The assignment that should be submitted to.
     :param author: The author of the submission.
+    :param for_user: The user that is submitting, this should be equal to
+        ``author``, except when ``author`` is a group, in that case it should
+        be one of the members of that group. This should be a user of an actual
+        person, it can for example not be a group.
+    :param current_user: The current user, this is the user that should have
+        the permission to hand-in. This default to the currently logged in
+        user.
 
     :raises PermissionException: If the current user cannot submit for the
         given author.
     :raises APIException: If the LTI state if wrong.
     """
+    assert author.contains_user(for_user)
+
+    # The for_user argument should be the actual real-life user.
+    assert for_user.group is None
+    assert for_user.active
+    assert not for_user.virtual
+
     if current_user is None:
         ensure_logged_in()
         current_user = psef.current_user
 
-    if author.group is None:
-        # Group users aren't enrolled in a course.
-        ensure_enrolled(assig.course_id, author)
+    # Group users aren't enrolled in a course.
+    ensure_enrolled(assig.course_id, for_user)
 
-    submit_self = current_user.id == author.id
+    submit_self = author.contains_user(current_user)
 
     if submit_self:
         ensure_permission(
@@ -205,26 +345,47 @@ def ensure_can_submit_work(
             user=current_user
         )
 
-    if assig.is_lti and not (
-        # We do not passback test student grades, so we do not need them to
-        # be present in the assignment_results
-        author.is_test_student or assig.id in author.assignment_results
-    ):
-        lms_name = assig.course.lti_provider.lms_name
-        raise APIException(
-            (
-                f'This is a {lms_name} assignment and it seems we do not have '
-                'the possibility to pass back the grade. Please {}visit the '
-                f'assignment again on {lms_name}. If this issue persists, '
-                'please contact your system administrator.'
-            ).format('ask the given author to ' if submit_self else ''),
-            (
-                f'The assignment {assig.id} is not present in the '
-                f'user {author.id} `assignment_results`'
-            ),
-            APICodes.INVALID_STATE,
-            400,
-        )
+    _ensure_submission_limits_not_exceeded(assig, author, current_user)
+
+    # We do not passback test student grades, so we do not need them to
+    # be present in the assignment_results
+    if assig.is_lti and not author.is_test_student:
+        if author.group is not None:
+            members = author.group.members
+        else:
+            members = [author]
+
+        if any(
+            assig.id not in member.assignment_results for member in members
+        ):
+            lms = assig.course.lti_provider.lms_name
+            if author.group:
+                raise APIException(
+                    f"Some authors haven't opened the assignment in {lms} yet",
+                    (
+                        'No assignment_results found for some authors in the'
+                        ' group'
+                    ),
+                    APICodes.ASSIGNMENT_RESULT_GROUP_NOT_READY,
+                    400,
+                    group=author.group,
+                    author=for_user,
+                )
+
+            raise APIException(
+                (
+                    f'This is a {lms} assignment and it seems we do not have'
+                    ' the possibility to pass back the grade. Please {}visit'
+                    f' the assignment again on {lms}. If this issue persists,'
+                    ' please contact your system administrator.'
+                ).format('ask the given author to ' if submit_self else ''),
+                (
+                    f'The assignment {assig.id} is not present in the '
+                    f'user {author.id} `assignment_results`'
+                ),
+                APICodes.INVALID_STATE,
+                400,
+            )
 
 
 @login_required
@@ -245,6 +406,50 @@ def ensure_can_see_grade(work: 'psef.models.Work') -> None:
     if not work.assignment.is_done:
         ensure_permission(
             CPerm.can_see_grade_before_open, work.assignment.course_id
+        )
+
+
+@login_required
+def ensure_can_see_user_feedback(work: 'psef.models.Work') -> None:
+    """Ensure the current user can see the grade of the given work.
+
+    :param work: The work to check for.
+
+    :returns: Nothing
+
+    :raises PermissionException: If there is no logged in user. (NOT_LOGGED_IN)
+    :raises PermissionException: If the user can not see the grade.
+        (INCORRECT_PERMISSION)
+    """
+    if not work.has_as_author(psef.current_user):
+        ensure_permission(CPerm.can_see_others_work, work.assignment.course_id)
+
+    if not work.assignment.is_done:
+        ensure_permission(
+            CPerm.can_see_user_feedback_before_done, work.assignment.course_id
+        )
+
+
+@login_required
+@features.feature_required(features.Feature.LINTERS)
+def ensure_can_see_linter_feedback(work: 'psef.models.Work') -> None:
+    """Ensure the current user can see the grade of the given work.
+
+    :param work: The work to check for.
+
+    :returns: Nothing
+
+    :raises PermissionException: If there is no logged in user. (NOT_LOGGED_IN)
+    :raises PermissionException: If the user can not see the grade.
+        (INCORRECT_PERMISSION)
+    """
+    if not work.has_as_author(psef.current_user):
+        ensure_permission(CPerm.can_see_others_work, work.assignment.course_id)
+
+    if not work.assignment.is_done:
+        ensure_permission(
+            CPerm.can_see_linter_feedback_before_done,
+            work.assignment.course_id
         )
 
 
@@ -541,7 +746,8 @@ def ensure_can_edit_members_of_group(
 
 @login_required
 def ensure_any_of_permissions(
-    permissions: t.List[CPerm], course_id: int
+    permissions: t.List[CPerm],
+    course_id: int,
 ) -> None:
     """Make sure that the current user has at least one of the given
         permissions.
@@ -561,11 +767,12 @@ def ensure_any_of_permissions(
             continue
         else:
             return
-    # All checks raised a PermissionException
+    # All checks raised a PermissionException.
     raise PermissionException(
         'You do not have permission to do this.',
-        'None of the permissions "{}" are not enabled for user "{}"'.format(
-            ', '.join(p.name for p in permissions), psef.current_user.id
+        'None of the permissions "{}" are enabled for user "{}"'.format(
+            readable_join([p.name for p in permissions]),
+            psef.current_user.id,
         ), APICodes.INCORRECT_PERMISSION, 403
     )
 

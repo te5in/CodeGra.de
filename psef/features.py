@@ -11,7 +11,7 @@ import structlog
 
 import psef
 
-from .exceptions import APICodes, APIException
+from .exceptions import FeatureException
 
 logger = structlog.get_logger()
 
@@ -42,6 +42,11 @@ class Feature(enum.Enum):
     AUTO_TEST = enum.auto()
     COURSE_REGISTER = enum.auto()
 
+    def __to_json__(self) -> t.Mapping[str, str]:
+        return {
+            'name': self.name,
+        }
+
 
 def ensure_feature(feature: Feature) -> None:
     """Check if a certain feature is enabled.
@@ -49,15 +54,11 @@ def ensure_feature(feature: Feature) -> None:
     :param feature: The feature to check for.
     :returns: Nothing.
 
-    :raises APIException: If the feature is not enabled. (DISABLED_FEATURE)
+    :raises FeatureException: If the feature is not enabled. (DISABLED_FEATURE)
     """
     if not has_feature(feature):
         logger.warning('Tried to use disabled feature', feature=feature.name)
-        raise APIException(
-            'This feature is not enabled for this instance.',
-            f'The feature "{feature.name}" is not enabled.',
-            APICodes.DISABLED_FEATURE, 400
-        )
+        raise FeatureException(feature)
 
 
 def has_feature(feature: Feature) -> bool:
@@ -78,7 +79,7 @@ def feature_required(feature: Feature) -> t.Callable[[T_CAL], T_CAL]:
     :returns: The value of the decorated function if the given feature is
         enabled.
 
-    :raises APIException: If the feature is not enabled. (DISABLED_FEATURE)
+    :raises FeatureException: If the feature is not enabled. (DISABLED_FEATURE)
     """
 
     def __decorator(f: T_CAL) -> T_CAL:

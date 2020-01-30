@@ -217,6 +217,11 @@ export default {
             storeUpdateAutoTestSuite: 'updateAutoTestSuite',
         }),
 
+        ...mapActions('rubrics', {
+            storeLoadRubric: 'loadRubric',
+            storeLoadRubricResult: 'loadResult',
+        }),
+
         deleteSet() {
             return this.storeDeleteAutoTestSet({
                 autoTestId: this.autoTestId,
@@ -253,7 +258,10 @@ export default {
                 index,
                 suite,
             }).then(() => {
-                this.$root.$emit('cg::rubric-editor::reload');
+                this.storeLoadRubric({
+                    assignmentId: this.assignment.id,
+                    force: true,
+                });
             });
         },
     },

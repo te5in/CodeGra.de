@@ -84,7 +84,6 @@
                                :filter-error="deleteFilter"
                                :duration="300"
                                :confirm="internalFeedback ? 'Are you sure you want to delete this comment?' : ''"
-                               @after-success="afterDeleteFeedback"
                                @error="deleteFeedbackError"
                                variant="danger"
                                ref="deleteButton"
@@ -322,9 +321,9 @@ export default {
             updateSnippetInStore: 'updateSnippet',
         }),
 
-        ...mapActions('submissions', {
-            storeSubmitFeedbackLine: 'submitSubmissionFeedbackLine',
-            storeDeleteFeedbackLine: 'deleteSubmissionFeedbackLine',
+        ...mapActions('feedback', {
+            storeSubmitFeedbackLine: 'submitFeedbackLine',
+            storeDeleteFeedbackLine: 'deleteFeedbackLine',
         }),
 
         lastWhiteSpace(str, start) {
@@ -470,15 +469,13 @@ export default {
                 line: this.line,
                 data: feedback,
                 author: this.author,
-            }).then(() => feedback);
+            }).then(response => {
+                response.feedback = feedback;
+                return response;
+            });
         },
 
-        afterSubmitFeedback(feedback) {
-            if (typeof feedback === 'function') {
-                this.afterDeleteFeedback(feedback);
-                return;
-            }
-
+        afterSubmitFeedback({ feedback }) {
             this.serverFeedback = feedback;
             this.feedbackDisabled = false;
             this.snippetKey = '';
@@ -512,14 +509,6 @@ export default {
             } else {
                 throw err;
             }
-        },
-
-        afterDeleteFeedback(cont) {
-            this.feedbackDisabled = false;
-
-            if (cont) cont();
-
-            this.$emit('feedbackChange', this.line);
         },
 
         deleteFeedbackError() {

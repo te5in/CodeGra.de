@@ -5,14 +5,14 @@ functions are defined to get related objects and information.
 
 SPDX-License-Identifier: AGPL-3.0-only
 """
-
 import typing as t
 import numbers
 from collections import Counter, defaultdict
 
 import structlog
+import sqlalchemy.sql as sql
 from flask import request
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload, contains_eager
 from mypy_extensions import TypedDict
 
 import psef.files
@@ -27,6 +27,7 @@ from ..helpers import (
     ensure_json_dict, extended_jsonify, ensure_keys_in_dict,
     make_empty_response
 )
+from ..exceptions import PermissionException
 from ..permissions import CoursePermission as CPerm
 
 logger = structlog.get_logger()
@@ -94,7 +95,6 @@ def get_submission(
         )
         return extended_jsonify(get_zip(work, exclude_owner))
     elif request.args.get('type') == 'feedback':
-        auth.ensure_can_see_grade(work)
         return extended_jsonify(get_feedback(work))
     return extended_jsonify(work, use_extended=models.Work)
 
@@ -107,7 +107,31 @@ def get_feedback(work: models.Work) -> t.Mapping[str, str]:
         which can be given to ``GET - /api/v1/files/<name>`` and
         ``output_name`` which is the resulting file should be named.
     """
-    comments, linter_comments = work.get_all_feedback()
+    comments: t.Iterable[str]
+    linter_comments: t.Iterable[str]
+
+    try:
+        auth.ensure_can_see_grade(work)
+    except PermissionException:
+        grade = ''
+    else:
+        grade = str(work.grade or '')
+
+    try:
+        auth.ensure_can_see_user_feedback(work)
+    except PermissionException:
+        general_comment = ''
+        comments = []
+    else:
+        general_comment = work.comment or ''
+        comments = work.get_user_feedback()
+
+    try:
+        auth.ensure_can_see_linter_feedback(work)
+    except PermissionException:
+        linter_comments = []
+    else:
+        linter_comments = work.get_linter_feedback()
 
     filename = f'{work.assignment.name}-{work.user.name}-feedback.txt'
 
@@ -115,20 +139,17 @@ def get_feedback(work: models.Work) -> t.Mapping[str, str]:
 
     with open(path, 'w') as f:
         f.write(
-            'Assignment: {}\n'
-            'Grade: {}\n'
-            'General feedback:\n{}\n\n'
-            'Comments:\n'.format(
-                work.assignment.name, work.grade or '', work.comment or ''
-            )
+            f'Assignment: {work.assignment.name}\n'
+            f'Grade: {grade}\n'
+            f'General feedback:\n{general_comment}\n\n'
+            f'Comments:\n'
         )
         for comment in comments:
             f.write(f'{comment}\n')
 
-        if features.has_feature(features.Feature.LINTERS):
-            f.write('\nLinter comments:\n')
-            for lcomment in linter_comments:
-                f.write(f'{lcomment}\n')
+        f.write('\nLinter comments:\n')
+        for lcomment in linter_comments:
+            f.write(f'{lcomment}\n')
 
     return {'name': name, 'output_name': filename}
 
@@ -248,42 +269,54 @@ def get_feedback_from_submission(submission_id: int) -> JSONResponse[Feedback]:
     work = helpers.filter_single_or_404(
         models.Work, models.Work.id == submission_id, ~models.Work.deleted
     )
-    auth.ensure_can_see_grade(work)
-    can_view_author = current_user.has_permission(
-        CPerm.can_see_assignee, work.assignment.course_id
+    course_id = work.assignment.course_id
+    can_view_authors = current_user.has_permission(
+        CPerm.can_see_assignee,
+        course_id,
     )
 
-    # The authors dict gets filled if `can_view_authors` is set to `True`. This
-    # value is used so that `mypy` wont complain about indexing null values.
-    authors: t.MutableMapping[int, t.MutableMapping[int, models.
-                                                    User]] = defaultdict(dict)
     res: Feedback = {
-        'general': work.comment or '',
+        'general': '',
         'user': defaultdict(dict),
+        'authors': None,
         'linter': defaultdict(lambda: defaultdict(list)),
-        'authors': authors if can_view_author else None,
     }
 
-    comments = models.Comment.query.filter(
-        t.cast(DbColumn[models.File], models.Comment.file).has(work=work),
-    ).order_by(
-        t.cast(DbColumn[int], models.Comment.file_id).asc(),
-        t.cast(DbColumn[int], models.Comment.line).asc(),
-    )
+    try:
+        auth.ensure_can_see_user_feedback(work)
+    except PermissionException:
+        pass
+    else:
+        authors: t.MutableMapping[int, t.MutableMapping[int, models.User]
+                                  ] = defaultdict(dict)
 
-    for comment in comments:
-        res['user'][comment.file_id][comment.line] = comment.comment
-        if can_view_author:
-            authors[comment.file_id][comment.line] = comment.user
+        res['general'] = work.comment or ''
+        res['authors'] = authors if can_view_authors else None
 
-    linter_comments = models.LinterComment.query.filter(
-        t.cast(DbColumn[models.File],
-               models.LinterComment.file).has(work=work)
-    ).order_by(
-        t.cast(DbColumn[int], models.LinterComment.file_id).asc(),
-        t.cast(DbColumn[int], models.LinterComment.line).asc(),
-    )
-    if features.has_feature(features.Feature.LINTERS):
+        comments = models.Comment.query.filter(
+            t.cast(DbColumn[models.File], models.Comment.file).has(work=work),
+        ).order_by(
+            t.cast(DbColumn[int], models.Comment.file_id).asc(),
+            t.cast(DbColumn[int], models.Comment.line).asc(),
+        )
+
+        for comment in comments:
+            res['user'][comment.file_id][comment.line] = comment.comment
+            if can_view_authors:
+                authors[comment.file_id][comment.line] = comment.user
+
+    try:
+        auth.ensure_can_see_linter_feedback(work)
+    except PermissionException:
+        pass
+    else:
+        linter_comments = models.LinterComment.query.filter(
+            t.cast(DbColumn[models.File],
+                   models.LinterComment.file).has(work=work)
+        ).order_by(
+            t.cast(DbColumn[int], models.LinterComment.file_id).asc(),
+            t.cast(DbColumn[int], models.LinterComment.line).asc(),
+        )
         for lcomment in linter_comments:
             res['linter'][lcomment.file_id][lcomment.line].append(
                 (lcomment.linter_code, lcomment)
@@ -333,14 +366,21 @@ def get_rubric(submission_id: int) -> JSONResponse[t.Mapping[str, t.Any]]:
 
 @api.route('/submissions/<int:submission_id>/rubricitems/', methods=['PATCH'])
 @features.feature_required(features.Feature.RUBRICS)
-def select_rubric_items(submission_id: int) -> EmptyResponse:
+def select_rubric_items(submission_id: int
+                        ) -> ExtendedJSONResponse[models.Work]:
     """Select the given rubric items for the given submission.
 
     .. :quickref: Submission; Select multiple rubric items.
 
     :param submission_id: The submission to unselect the item for.
 
-    :>json array items: The ids of the rubric items you want to select.
+    :>json array items: An array of objects, each object representing the item
+        you want to select.
+    :>jsonarr int row_id: The id of the row the item is in.
+    :>jsonarr int item_id: The id of the item you want to select.
+    :>jsonarr float mutiplier: The multiplier you want to use for this rubric
+        item. This value defaults to 1.0, and can only be something other than
+        1.0 for rubric rows with ``type`` 'continuous'.
 
     :returns: Nothing.
 
@@ -357,34 +397,54 @@ def select_rubric_items(submission_id: int) -> EmptyResponse:
         with_for_update=True,
         with_for_update_of=models.Work,
     )
+    assig = submission.assignment
 
-    auth.ensure_permission(
-        CPerm.can_grade_work, submission.assignment.course_id
-    )
+    auth.ensure_permission(CPerm.can_grade_work, assig.course_id)
 
     content = ensure_json_dict(request.get_json())
     ensure_keys_in_dict(content, [('items', list)])
-    item_ids = t.cast(list, content['items'])
+    json_input = t.cast(t.List[helpers.JSONType], content['items'])
 
-    items = helpers.get_in_or_error(
-        models.RubricItem, t.cast(models.DbColumn[int], models.RubricItem.id),
-        item_ids
+    RowType = t.NamedTuple(
+        'RowType', [('row_id', int), ('item_id', int), ('multiplier', float)]
     )
+    sanitized_input: t.List[RowType] = []
+    copy_locked_items = helpers.request_arg_true('copy_locked_items')
 
-    if any(
-        item.rubricrow.assignment_id != submission.assignment_id
-        for item in items
-    ):
-        raise APIException(
-            'Selected rubric item is not coupled to the given submission',
-            f'A given item of "{", ".join(str(i) for i in item_ids)}"'
-            f' does not belong to assignment "{submission.assignment_id}"',
-            APICodes.INVALID_PARAM, 400
-        )
+    if json_input and isinstance(json_input[0], dict):
+        for json_row in json_input:
+            with helpers.get_from_map_transaction(
+                ensure_json_dict(json_row),
+            ) as [get, opt_get]:
+                row_id = get('row_id', int)
+                item_id = get('item_id', int)
+                multiplier = opt_get('multiplier', (float, int), 1.0)
 
-    row_ids = [item.rubricrow_id for item in items]
-    if len(row_ids) != len(set(row_ids)):
-        duplicates = [k for k, v in Counter(row_ids).items() if v > 1]
+            if multiplier > 1.0 or multiplier < 0.0:
+                raise APIException(
+                    'A multiplier has to be between 0.0 and 1.0.',
+                    f'The given multiplier of {multiplier} is illegal',
+                    APICodes.INVALID_PARAM, 400
+                )
+
+            sanitized_input.append(
+                RowType(row_id=row_id, item_id=item_id, multiplier=multiplier)
+            )
+    else:
+        sanitized_input = [
+            RowType(row_id=item.rubricrow_id, item_id=item.id, multiplier=1.0)
+            for item in helpers.get_in_or_error(
+                models.RubricItem,
+                t.cast(DbColumn[int], models.RubricItem.id),
+                t.cast(t.List[int], json_input),
+            )
+        ]
+
+    if helpers.contains_duplicate(item.row_id for item in sanitized_input):
+        duplicates = [
+            k for k, v in Counter(item.row_id
+                                  for item in sanitized_input).items() if v > 1
+        ]
         raise APIException(
             'Duplicate rows in selected items',
             'The rows "{}" had duplicate items'.format(
@@ -392,25 +452,74 @@ def select_rubric_items(submission_id: int) -> EmptyResponse:
             ), APICodes.INVALID_PARAM, 400
         )
 
-    if submission.assignment.auto_test is not None:
+    rows = helpers.get_in_or_error(
+        models.RubricRow,
+        t.cast(DbColumn[int], models.RubricRow.id),
+        [item.row_id for item in sanitized_input],
+        options=[selectinload(models.RubricRow.items)],
+        as_map=True,
+    )
+
+    if any(row.assignment_id != assig.id for row in rows.values()):
+        raise APIException(
+            'Selected rubric item is not coupled to the given submission', (
+                f'A given item'
+                f' of "{", ".join(str(i.item_id) for i in sanitized_input)}"'
+                f' does not belong to assignment "{assig.id}"'
+            ), APICodes.INVALID_PARAM, 400
+        )
+
+    items = [
+        rows[item.row_id].make_work_rubric_item(
+            work=submission, item_id=item.item_id, multiplier=item.multiplier
+        ) for item in sanitized_input
+    ]
+
+    if copy_locked_items:
+        for locked_item in db.session.query(models.WorkRubricItem).join(
+            models.RubricItem,
+            sql.expression.and_(
+                models.RubricItem.id == models.WorkRubricItem.rubricitem_id,
+                t.cast(DbColumn[int], models.RubricItem.rubricrow_id).in_(
+                    list(assig.locked_rubric_rows.keys())
+                ),
+            )
+        ).filter(models.WorkRubricItem.work == submission).options(
+            contains_eager(models.WorkRubricItem.rubric_item)
+        ).all():
+            items.append(locked_item)
+
+            row_id = locked_item.rubric_item.rubricrow_id
+            if row_id in rows:
+                raise APIException(
+                    (
+                        'You cannot specify locked rows when the option'
+                        " 'copy_locked_items' is given."
+                    ),
+                    f'The row {row_id} was given twice',
+                    APICodes.INVALID_PARAM,
+                    400,
+                )
+    elif assig.auto_test is not None:
         changed_items = set(items) ^ set(submission.selected_items)
-        rows = set(submission.assignment.locked_rubric_rows)
-        if any(item.rubricrow_id in rows for item in changed_items):
+        locked_row_ids = set(assig.locked_rubric_rows)
+        if any(
+            item.rubric_item.rubricrow_id in locked_row_ids
+            for item in changed_items
+        ):
             raise APIException(
                 (
                     'This rubric row is connected to an AutoTest category, so'
                     ' you cannot change it.'
                 ), 'An item is connected to one of these rows: "{}"'.format(
-                    ', '.join(
-                        map(str, submission.assignment.locked_rubric_rows)
-                    )
+                    ', '.join(map(str, assig.locked_rubric_rows))
                 ), APICodes.INVALID_PARAM, 400
             )
 
     submission.select_rubric_items(items, current_user, True)
     db.session.commit()
 
-    return make_empty_response()
+    return extended_jsonify(submission, use_extended=models.Work)
 
 
 @api.route(
@@ -439,7 +548,8 @@ def unselect_rubric_item(
     )
 
     new_items = [
-        item for item in submission.selected_items if item.id != rubric_item_id
+        item for item in submission.selected_items
+        if item.rubricitem_id != rubric_item_id
     ]
     if len(new_items) == len(submission.selected_items):
         raise APIException(
@@ -448,7 +558,7 @@ def unselect_rubric_item(
             APICodes.INVALID_PARAM, 400
         )
 
-    submission.selected_items = new_items
+    submission.select_rubric_items(new_items, current_user, True)
     db.session.commit()
 
     return make_empty_response()
@@ -467,6 +577,8 @@ def select_rubric_item(
 
     .. :quickref: Submission; Select a rubric item.
 
+    :>json float multiplier: The mutiplier that should be used for the rubric
+        item.
     :param int submission_id: The id of the submission
     :param int rubricitem_id: The id of the rubric item
     :returns: Nothing.
@@ -482,25 +594,34 @@ def select_rubric_item(
     work = helpers.filter_single_or_404(
         models.Work, models.Work.id == submission_id, ~models.Work.deleted
     )
-    rubric_item = helpers.get_or_404(models.RubricItem, rubricitem_id)
+    item = helpers.get_or_404(models.RubricItem, rubricitem_id)
+    row = item.rubricrow
+
+    json_data = request.get_json()
+    with helpers.get_from_map_transaction(ensure_json_dict(json_data or {})
+                                          ) as [_, opt_get]:
+        multiplier = opt_get('multiplier', (float, int), 1.0)
 
     auth.ensure_permission(CPerm.can_grade_work, work.assignment.course_id)
-    if rubric_item.rubricrow.assignment_id != work.assignment_id:
+    if row.assignment_id != work.assignment_id:
         raise APIException(
             'Rubric item selected does not match assignment',
-            'The rubric item with id {} does not match the assignment'.
-            format(rubricitem_id), APICodes.INVALID_PARAM, 400
+            f'The rubric item "{item.id}" does not match the assignment',
+            APICodes.INVALID_PARAM, 400
         )
 
-    work.remove_selected_rubric_item(rubric_item.rubricrow_id)
-    work.select_rubric_items([rubric_item], current_user, False)
+    work.remove_selected_rubric_item(row.id)
+    work.select_rubric_items(
+        [row.make_work_rubric_item(work, item, multiplier)], current_user,
+        False
+    )
     db.session.commit()
 
     return make_empty_response()
 
 
 @api.route("/submissions/<int:submission_id>", methods=['PATCH'])
-def patch_submission(submission_id: int) -> JSONResponse[models.Work]:
+def patch_submission(submission_id: int) -> ExtendedJSONResponse[models.Work]:
     """Update the given submission (:class:`.models.Work`) if it already
     exists.
 
@@ -558,7 +679,7 @@ def patch_submission(submission_id: int) -> JSONResponse[models.Work]:
         work.set_grade(grade, current_user)
 
     db.session.commit()
-    return jsonify(work)
+    return extended_jsonify(work, use_extended=models.Work)
 
 
 @api.route("/submissions/<int:submission_id>/grader", methods=['PATCH'])

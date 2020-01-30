@@ -9,7 +9,7 @@ if grep -r '\.only(' ./cypress; then
 fi
 
 make privacy_statement
-make start_dev_npm &
+npm run start_integration > /dev/null 2>&1  &
 
 DBNAME="ci_test"
 export SQLALCHEMY_DATABASE_URI="postgresql://postgres:postgres@localhost:5432/${DBNAME}"
@@ -38,7 +38,7 @@ PGPASSWORD=postgres psql -h localhost -p 5432 -U postgres -c "create database $D
 ./manage.py db upgrade
 ./manage.py test_data
 
-celery worker --app=runcelery:celery -E &
+celery worker --app=runcelery:celery -E > /dev/null &
 python run.py > /dev/null &
 
 ./node_modules/wait-on/bin/wait-on http://localhost:8080/api/v1/about -l
@@ -46,7 +46,28 @@ curl http://localhost:8080
 
 sleep 4
 
-NO_COLOR=1 xvfb-run --server-args="-screen 0 1600x1024x24" --auto-servernum npm run e2e
+FILES=$(python - <<PYTHON
+import os
+import sys
+base='cypress/integration/tests/'
+
+def sort_key(test):
+    if test == 'plagiarism.spec.js':
+        return sys.maxsize
+    elif test == 'submissions.spec.js':
+        return sys.maxsize - 1
+
+    return os.path.getsize(base + test)
+
+tests = [base + test for test in sorted(os.listdir(base), key=sort_key)]
+print(','.join(tests[$RUNNER_NUM::$RUNNER_AMOUNT]))
+PYTHON
+     )
+
+
+PATH="$PATH:$(npm bin)"
+export PATH
+NO_COLOR=1 xvfb-run --server-args="-screen 0 1600x1024x24" --auto-servernum cypress run --spec "$FILES"
 res="$?"
 
 exit "$res"

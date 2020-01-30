@@ -14,6 +14,7 @@ import psef
 import psef.models as m
 import psef.features as feats
 from helpers import create_marker
+from psef.permissions import CoursePermission as CPerm
 
 run_error = create_marker(pytest.mark.run_error)
 perm_error = create_marker(pytest.mark.perm_error)
@@ -199,10 +200,10 @@ ESLINT_STANDARD = open(
         (
             'test_pylint.tar.gz', [(
                 'Pylint', '', [
-                    (0, 'C0111'),
+                    (0, 'C0114'),
                     (0, 'C0103'),
                     (0, 'C0103'),
-                    (0, 'C0111'),
+                    (0, 'C0116'),
                     (0, 'W0613'),
                     (1, 'W0312'),
                     (1, 'C0326'),
@@ -823,3 +824,75 @@ def test_detail_of_linter(
                             ) == (inst['state'] == 'crashed')
 
         assert pylint_seen
+
+
+@pytest.mark.parametrize('filename', ['test_flake8.tar.gz'], indirect=True)
+@pytest.mark.parametrize('named_user', ['Thomas Schaper'], indirect=True)
+@pytest.mark.parametrize('perm_value', [True, False])
+def test_can_see_linter_feedback_before_done(
+    named_user, request, logged_in, test_client, assignment_real_works,
+    session, teacher_user, perm_value, monkeypatch_celery
+):
+    assignment, work = assignment_real_works
+    assig_id = assignment.id
+    perm_err = request.node.get_closest_marker('perm_error')
+    late_err = request.node.get_closest_marker('late_error')
+    list_err = request.node.get_closest_marker('list_error')
+
+    code_id = session.query(m.File.id).filter(
+        m.File.work_id == work['id'],
+        m.File.parent != None,  # NOQA
+        m.File.name != '__init__',
+    ).first()[0]
+
+    with logged_in(teacher_user):
+        data = {'name': 'Flake8', 'cfg': ''}
+        res = test_client.req(
+            'post',
+            f'/api/v1/assignments/{assig_id}/linter',
+            200,
+            data=data,
+        )
+
+        linter_id = res['id']
+        for i in range(60):
+            res = test_client.req(
+                'get',
+                f'/api/v1/linters/{linter_id}',
+                200,
+                data=data,
+            )
+            if res['done'] == 3:
+                assert res['crashed'] == 0
+                assert res['working'] == 0
+                break
+            time.sleep(0.1)
+        else:
+            assert False
+
+    assignment.state = m._AssignmentStateEnum.open
+
+    course = assignment.course
+    course_users = course.get_all_users_in_course(include_test_students=False
+                                                  ).all()
+    course_role = next(r for u, r in course_users if u.id == named_user.id)
+
+    course_role.set_permission(
+        CPerm.can_see_linter_feedback_before_done, perm_value
+    )
+
+    session.commit()
+
+    with logged_in(named_user):
+        if perm_value:
+            res = {'1': list}
+        else:
+            res = {}
+
+        test_client.req(
+            'get',
+            f'/api/v1/code/{code_id}',
+            200,
+            query={'type': 'linter-feedback'},
+            result=res
+        )

@@ -258,7 +258,6 @@ def _wait_for_pid(pid: int, timeout: float) -> t.Tuple[int, float]:
     CommandTimeoutException
 
     >>> pid = Popen('exit 32', shell=True).pid
-    >>> time.sleep(0.1)
     >>> _wait_for_pid(pid, 4)[0]
     32
 
@@ -558,7 +557,7 @@ def _start_container(
             if domain_or_systemd is None:
                 for _ in range(10):
                     try:
-                        res = subprocess.run(_SYSTEMD_WAIT_CMD, timeout=1)
+                        res = subprocess.run(_SYSTEMD_WAIT_CMD, timeout=1)  # pylint: disable=subprocess-run-check
                     except subprocess.TimeoutExpired:  # pragma: no cover
                         pass
                     else:
@@ -595,7 +594,7 @@ def _start_container(
 class StepInstructions(TypedDict, total=True):
     """Instructions on how to run a single AutoTest step.
 
-    :ivar id: The id of the step.
+    :ivar ~.StepInstructions.id: The id of the step.
     :ivar weight: The amount of points you can achieve with this step.
     :ivar test_type_name: The type of step this is.
     :ivar data: The data of this step, this contains stuff like which command
@@ -613,7 +612,7 @@ class StepInstructions(TypedDict, total=True):
 class SuiteInstructions(TypedDict, total=True):
     """Instructions on how to run a single AutoTest suite.
 
-    :ivar id: The id of the suite.
+    :ivar ~.StepInstructions.id: The id of the suite.
     :ivar steps: The steps of this suite.
     :ivar network_disabled: Should this suite be run with networking disabled.
     """
@@ -625,7 +624,7 @@ class SuiteInstructions(TypedDict, total=True):
 class SetInstructions(TypedDict, total=True):
     """Instructions for a single AutoTest set.
 
-    :ivar id: The id of this set.
+    :ivar ~.SetInstructions.id: The id of this set.
     :ivar suites: The suites of this set.
     :ivar stop_points: The minimum amount of points that we should have to be
         able to continue running sets.
@@ -682,25 +681,8 @@ class ExecuteOptions:
     yield_core: YieldCoreCallback
 
 
-def init_app(app: 'psef.PsefFlask') -> None:
-    process_config(app.config)
-
-
-def process_config(config: 'psef.FlaskConfig') -> None:
-    """Process the AutoTest hosts config to the correct format.
-
-    :param config: The configuration that should be processed. This will be
-        modified in-place.
-    """
-    res = {}
-    for ipaddr, conf in config['__S_AUTO_TEST_HOSTS'].items():
-        assert isinstance(conf['password'], str)
-        assert isinstance(conf.get('container_url'), (type(None), str))
-        res[ipaddr] = {
-            'password': conf['password'],
-            'container_url': conf.get('container_url', None),
-        }
-    config['AUTO_TEST_HOSTS'] = res  # type: ignore
+def init_app(_: 'psef.PsefFlask') -> None:
+    pass
 
 
 # This wrapper function is needed for Python multiprocessing
@@ -713,92 +695,130 @@ def _run_student(
     cont.run_student(bc_name, cores, opts)
 
 
-def start_polling(config: 'psef.FlaskConfig', repeat: bool = True) -> None:
+def _try_to_run_job(
+    broker_session: 'helpers.BrokerSession',
+    runner_id: str,
+    config: 'psef.FlaskConfig',
+    cont: 'StartedContainer',
+) -> bool:
+    def get_url(url: str) -> URL:
+        return URL(config['AUTO_TEST_RUNNER_CONTAINER_URL'] or url)
+
+    with broker_session as ses:
+        items = []
+        try:
+            response = ses.get(
+                f'/api/v1/runners/{runner_id}/jobs/', timeout=_REQUEST_TIMEOUT
+            )
+            response.raise_for_status()
+        except:  # pylint: disable=bare-except
+            # pragma: no cover
+            logger.info('Tried to get jobs from broker', exc_info=True)
+        else:
+            logger.info('Got jobs from broker', response=response)
+            items = response.json()
+
+    for item in items:
+        url = item['url']
+        headers = {
+            'CG-Internal-Api-Password':
+                config['AUTO_TEST_RUNNER_INSTANCE_PASS'],
+        }
+        logger.bind(server=url)
+        logger.info('Checking next server')
+
+        try:
+            response = requests.get(
+                f'{url}/api/v-internal/auto_tests/',
+                params={
+                    'get': 'tests_to_run',
+                },
+                headers=headers,
+                timeout=_REQUEST_TIMEOUT,
+            )
+            response.raise_for_status()
+        except requests.exceptions.RequestException:
+            logger.error('Failed to get server', exc_info=True)
+            continue
+
+        if response.status_code == 200:
+            data = response.json()
+            logger.info(
+                'Got test',
+                response=response,
+                auto_test_id=data.get('auto_test_id')
+            )
+
+            try:
+                AutoTestRunner(
+                    URL(get_url(url)),
+                    data,
+                    config['AUTO_TEST_RUNNER_INSTANCE_PASS'],
+                    config,
+                ).run_test(cont)
+            except:  # pylint: disable=bare-except
+                logger.error('Error while running tests', exc_info=True)
+            return True
+        else:
+            logger.info('No tests found', response=response)
+    return False
+
+
+def start_polling(config: 'psef.FlaskConfig') -> None:
     """Start polling the configured CodeGrade instances.
 
     :param config: The config of this AutoTest runner. This also determines
         what servers will be polled.
     :param repeat: Should we repeat the polling after running a single test.
     """
-    items = list(config['AUTO_TEST_HOSTS'].items())
     sleep_time = config['AUTO_TEST_POLL_TIME']
     broker_url = config['AUTO_TEST_BROKER_URL']
 
-    def do_job(cont: 'StartedContainer') -> bool:
-        random.shuffle(items)
-        for url, url_config in items:
-            headers = {
-                'CG-Internal-Api-Password': url_config["password"],
-            }
-            logger.try_unbind('server')
-            logger.bind(server=url)
-            logger.info('Checking next server')
+    runner_pass_file = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), '..', '..', '.runner-pass')
+    )
+    runner_pass = None
+    if os.path.isfile(runner_pass_file):
+        with open(runner_pass_file, 'r') as f:
+            runner_pass = f.read().strip()
+        os.unlink(runner_pass_file)
+    else:
+        logger.warning(
+            'Could not find runner pass file',
+            runner_pass_file=runner_pass_file
+        )
 
-            try:
-                response = requests.get(
-                    f'{url}/api/v-internal/auto_tests/',
-                    params={
-                        'get': 'tests_to_run',
-                    },
-                    headers=headers,
-                    timeout=_REQUEST_TIMEOUT,
-                )
-                response.raise_for_status()
-            except requests.exceptions.RequestException:
-                logger.error('Failed to get server', exc_info=True)
-                continue
+    def get_broker_session() -> helpers.BrokerSession:
+        return helpers.BrokerSession('', '', broker_url, runner_pass)
 
-            if response.status_code == 200:
-                data = response.json()
-                logger.info(
-                    'Got test',
-                    response=response,
-                    auto_test_id=data.get('auto_test_id')
-                )
+    _STOP_CONTAINERS.clear()
 
+    with _get_base_container(config).started_container() as cont:
+        if config['AUTO_TEST_TEMPLATE_CONTAINER'] is None:
+            cont.run_command(['apt', 'update'])
+            cont.run_command(
+                ['apt', 'install', '-y', 'wget', 'curl', 'unzip'],
+                retry_amount=4,
+            )
+
+        for _ in helpers.retry_loop(sys.maxsize, sleep_time=_REQUEST_TIMEOUT):
+            with get_broker_session() as ses:
                 try:
-                    AutoTestRunner(
-                        URL(url_config.get('container_url') or url), data,
-                        url_config['password'], config
-                    ).run_test(cont)
+                    response = ses.post(
+                        '/api/v1/alive/', timeout=_REQUEST_TIMEOUT
+                    )
+                    response.raise_for_status()
                 except:  # pylint: disable=bare-except
-                    logger.error('Error while running tests', exc_info=True)
-                return True
-            else:
-                logger.info('No tests found', response=response)
-        return False
-
-    first = True
-    while first or repeat:
-        first = False
-        _STOP_CONTAINERS.clear()
-
-        with _get_base_container(config).started_container() as cont:
-            if config['AUTO_TEST_TEMPLATE_CONTAINER'] is None:
-                cont.run_command(['apt', 'update'])
-                cont.run_command(
-                    ['apt', 'install', '-y', 'wget', 'curl', 'unzip'],
-                    retry_amount=4,
-                )
-
-            for _ in helpers.retry_loop(
-                sys.maxsize, sleep_time=_REQUEST_TIMEOUT
-            ):
-                with helpers.BrokerSession('', '', broker_url) as ses:
-                    try:
-                        ses.post(
-                            '/api/v1/alive/', timeout=_REQUEST_TIMEOUT
-                        ).raise_for_status()
-                    except:  # pylint: disable=bare-except
-                        logger.info('Did request to broker', exc_info=True)
-                        continue
-                    else:
-                        break
-
-            while True:
-                if do_job(cont):
+                    logger.info('Did request to broker', exc_info=True)
+                    continue
+                else:
+                    runner_id: str = response.json()['id']
                     break
-                time.sleep(sleep_time)
+
+        while True:
+            if _try_to_run_job(get_broker_session(), runner_id, config, cont):
+                break
+            time.sleep(sleep_time)
 
 
 class StartedContainer:
@@ -1364,14 +1384,13 @@ class StartedContainer:
         stdin: t.Union[None, bytes],
     ) -> t.Generator[t.Tuple[t.IO[bytes], t.BinaryIO, t.BinaryIO, threading.
                              Event, t.Callable[[float], None]], None, None]:
-        has_stdin = isinstance(stdin, bytes)
 
         with tempfile.TemporaryDirectory() as output_dir, (
-            tempfile.NamedTemporaryFile()
-            if has_stdin else open('/dev/null', 'rb')
+            open('/dev/null', 'rb')
+            if stdin is None else tempfile.NamedTemporaryFile()
         ) as stdin_file:
             local_logger = structlog.threadlocal.as_immutable(logger)
-            if has_stdin:
+            if stdin is not None:
                 os.chmod(stdin_file.name, 0o777)
                 stdin_file.write(stdin)
                 stdin_file.flush()

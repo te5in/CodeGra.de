@@ -82,7 +82,11 @@ def _verify_and_get_runner(
 
 
 def _verify_global_header_password() -> LocalRunner:
-    with get_from_map_transaction(request.headers) as [get, opt_get]:
+    with get_from_map_transaction(
+        # It seems that werkzeug `EnvironHeaders` is not considered a
+        # mapping: https://github.com/python/typeshed/issues/3569
+        t.cast(t.Mapping[str, object], request.headers)
+    ) as [get, opt_get]:
         global_password = get('CG-Internal-Api-Password', str)
         local_password = opt_get('CG-Internal-Api-Runner-Password', str, '')
     return _get_local_runner(global_password, local_password)
@@ -396,8 +400,8 @@ def update_step_result(auto_test_id: int, result_id: int
 
     if res_id is None:
         step_result = models.AutoTestStepResult(
-            step=get_or_404(  # type: ignore
-                models.AutoTestStepBase,
+            step=get_or_404(
+                models.AutoTestStepBase,  # type: ignore
                 auto_test_step_id
             ),
             result=result

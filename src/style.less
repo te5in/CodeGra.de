@@ -51,6 +51,11 @@ main {
     }
 }
 
+.bg-primary {
+    background-color: @color-primary !important;
+    color: white !important;
+}
+
 .btn-outline-primary {
     .primary-outline-button-color;
     background-image: none;
@@ -59,6 +64,11 @@ main {
 
 .btn {
     cursor: pointer;
+
+    &.disabled {
+        cursor: not-allowed;
+    }
+
     transition: transitioncolor 0.15s ease-in-out, background-color 0.15s ease-in-out,
         border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out, opacity 0.25s ease-in-out;
 
@@ -152,10 +162,6 @@ input[type='number'] {
     }
     -moz-appearance: textfield;
     appearance: textfield;
-}
-
-.btn.disabled {
-    cursor: not-allowed;
 }
 
 input:disabled,
@@ -479,12 +485,20 @@ textarea:disabled {
 }
 
 #app.dark {
-    .border,
-    .border-top,
-    .border-bottom,
-    .border-left,
-    .border-right {
+    .border {
         border-color: @color-primary-darker !important;
+    }
+    .border-top {
+        border-top-color: @color-primary-darker !important;
+    }
+    .border-bottom {
+        border-bottom-color: @color-primary-darker !important;
+    }
+    .border-left {
+        border-left-color: @color-primary-darker !important;
+    }
+    .border-right {
+        border-right-color: @color-primary-darker !important;
     }
 }
 
@@ -493,6 +507,26 @@ textarea:disabled {
 .rounded-left,
 .rounded-right {
     border-radius: 0;
+}
+
+.rounded-top-0,
+.rounded-left-0 {
+    border-top-left-radius: 0 !important;
+}
+
+.rounded-top-0,
+.rounded-right-0 {
+    border-top-right-radius: 0 !important;
+}
+
+.rounded-bottom-0,
+.rounded-left-0 {
+    border-bottom-left-radius: 0 !important;
+}
+
+.rounded-bottom-0,
+.rounded-right-0 {
+    border-bottom-right-radius: 0 !important;
 }
 
 .badge-primary {
@@ -522,4 +556,24 @@ textarea:disabled {
 
 .text-wrap {
     white-space: normal !important;
+}
+
+.text-wrap-pre {
+    white-space: pre-wrap;
+}
+
+.cursor-default {
+    cursor: default !important;
+}
+
+.cursor-pointer {
+    cursor: pointer !important;
+}
+
+.cursor-not-allowed {
+    cursor: not-allowed !important;
+}
+
+.cursor-help {
+    cursor: help !important;
 }

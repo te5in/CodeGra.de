@@ -1,120 +1,226 @@
 import Vue from 'vue';
 import axios from 'axios';
 
-import { RubricResult } from '@/models/rubric';
+import { NONEXISTENT } from '@/constants';
+import { Rubric, RubricResult } from '@/models/rubric';
 import * as types from '../mutation-types';
 
 const getters = {
+    rubrics: state => state.rubrics,
     results: state => state.results,
 };
 
 const loaders = {
+    rubrics: {},
     results: {},
 };
 
 const actions = {
-    loadResult({ commit, state }, { submissionId, force }) {
-        if (state.results[submissionId] && !force) {
-            return Promise.resolve();
+    async loadRubric({ commit, state }, { assignmentId, force }) {
+        if (state.rubrics[assignmentId] && !force) {
+            return Promise.resolve(state.rubrics[assignmentId]);
         }
 
-        if (!loaders.results[submissionId]) {
-            loaders.results[submissionId] = axios
-                .get(`/api/v1/submissions/${submissionId}/rubrics/`)
+        if (!Object.hasOwnProperty.call(loaders.rubrics, assignmentId)) {
+            loaders.rubrics[assignmentId] = axios
+                .get(`/api/v1/assignments/${assignmentId}/rubrics/`)
                 .then(
-                    ({ data: result }) => {
-                        delete loaders.results[submissionId];
-                        commit('setResult', { submissionId, result });
+                    response => {
+                        delete loaders.rubrics[assignmentId];
+                        commit(types.SET_RUBRIC, {
+                            assignmentId,
+                            rubric: response.data,
+                        });
+                        return response;
                     },
                     err => {
-                        delete loaders.results[submissionId];
+                        delete loaders.rubrics[assignmentId];
+                        commit(types.SET_RUBRIC, { assignmentId, rubric: NONEXISTENT });
                         throw err;
                     },
                 );
         }
 
+        return loaders.rubrics[assignmentId];
+    },
+
+    copyRubric({ commit }, { assignmentId, otherAssignmentId }) {
+        return axios
+            .post(`/api/v1/assignments/${assignmentId}/rubric`, {
+                old_assignment_id: otherAssignmentId,
+            })
+            .then(response => {
+                commit(types.SET_RUBRIC, {
+                    assignmentId,
+                    rubric: response.data,
+                });
+                return response;
+            });
+    },
+
+    updateRubric({ commit }, { assignmentId, rows, maxPoints }) {
+        return axios
+            .put(`/api/v1/assignments/${assignmentId}/rubrics/`, {
+                rows,
+                max_points: maxPoints,
+            })
+            .then(response => {
+                commit(types.SET_RUBRIC, {
+                    assignmentId,
+                    rubric: response.data,
+                });
+                commit(
+                    `courses/${types.UPDATE_ASSIGNMENT}`,
+                    {
+                        assignmentId,
+                        assignmentProps: {
+                            fixed_max_rubric_points: maxPoints,
+                        },
+                    },
+                    { root: true },
+                );
+                return response;
+            });
+    },
+
+    deleteRubric({ commit }, { assignmentId }) {
+        return axios.delete(`/api/v1/assignments/${assignmentId}/rubrics/`).then(response => {
+            response.onAfterSuccess = () =>
+                commit(types.SET_RUBRIC, { assignmentId, rubric: NONEXISTENT });
+            return response;
+        });
+    },
+
+    clearRubric({ commit, state }, { assignmentId }) {
+        if (Object.hasOwnProperty.call(state.rubrics, assignmentId)) {
+            commit(types.CLEAR_RUBRIC, { assignmentId });
+        }
+    },
+
+    loadResult({ commit, state, dispatch }, { assignmentId, submissionId, force }) {
+        if (state.results[submissionId] && !force) {
+            return Promise.resolve();
+        }
+
+        if (!Object.hasOwnProperty.call(loaders.results, submissionId)) {
+            loaders.results[submissionId] = Promise.all([
+                axios.get(`/api/v1/submissions/${submissionId}/rubrics/`),
+                dispatch(
+                    'submissions/loadSingleSubmission',
+                    { assignmentId, submissionId },
+                    { root: true },
+                ),
+            ]).then(
+                ([response]) => {
+                    delete loaders.results[submissionId];
+                    commit(types.SET_RUBRIC_RESULT, {
+                        submissionId,
+                        result: response.data,
+                    });
+                    return response;
+                },
+                err => {
+                    delete loaders.results[submissionId];
+                    commit(types.SET_RUBRIC_RESULT, {
+                        submissionId,
+                        result: NONEXISTENT,
+                    });
+                    throw err;
+                },
+            );
+        }
+
         return loaders.results[submissionId];
     },
 
-    clearResult({ commit, state }, { submissionId }) {
-        if (state.results[submissionId]) {
-            commit('clearResult', { submissionId });
+    clearResult({ commit, state }, { submissionId, submissionIds }) {
+        let ids = submissionIds;
+        if (submissionIds == null) {
+            ids = [submissionId];
         }
+        ids.forEach(id => {
+            if (Object.hasOwnProperty.call(state.results, id)) {
+                commit(types.CLEAR_RUBRIC_RESULT, { submissionId: id });
+            }
+        });
     },
 
-    updateRubricItems({ commit, state }, { submissionId, selected }) {
-        const result = state.results[submissionId];
+    async updateRubricResult({ commit, state, dispatch }, { assignmentId, submissionId, result }) {
+        await Promise.all([
+            dispatch(
+                'submissions/loadSingleSubmission',
+                { assignmentId, submissionId },
+                { root: true },
+            ),
+            dispatch('loadRubric', { assignmentId }),
+        ]);
+
+        const rubric = state.rubrics[assignmentId];
+        result.validate().throwOnError();
+
+        const selected = Object.assign({}, result.selected);
+        rubric.rows.forEach(row => {
+            if (row.locked) {
+                delete selected[row.id];
+            }
+        });
 
         return axios
-            .patch(`/api/v1/submissions/${submissionId}/rubricitems/`, {
-                items: selected.map(x => x.id),
+            .patch(`/api/v1/submissions/${submissionId}/rubricitems/?copy_locked_items`, {
+                items: Object.entries(selected).map(([rowId, item]) => ({
+                    row_id: Number(rowId),
+                    item_id: item.id,
+                    multiplier: item.multiplier,
+                })),
             })
-            .then(() => commit('setSelected', { result, selected, submissionId }));
-    },
-
-    toggleRubricItem({ commit, state }, { submissionId, row, item }) {
-        if (row.locked) {
-            throw new Error('Rubric row is locked');
-        }
-
-        const result = state.results[submissionId];
-        const isSelected = result.selected.find(x => x.id === item.id);
-        const commitProps = {
-            result,
-            row,
-            item,
-            submissionId,
-        };
-
-        if (!UserConfig.features.incremental_rubric_submission) {
-            commit(isSelected ? 'unselectItem' : 'selectItem', commitProps);
-            return Promise.resolve();
-        } else if (isSelected) {
-            return axios
-                .patch(`/api/v1/submissions/${submissionId}/rubricitems/${item.id}`)
-                .then(() => commit('selectItem', commitProps));
-        } else {
-            return axios
-                .delete(`/api/v1/submissions/${submissionId}/rubricitems/${item.id}`)
-                .then(() => commit('unselectItem', commitProps));
-        }
+            .then(response => {
+                commit(types.SET_RUBRIC_RESULT, {
+                    submissionId,
+                    result: response.data.rubric_result,
+                });
+                return response;
+            });
     },
 };
 
 export const mutations = {
-    setResult(state, { submissionId, result }) {
-        Vue.set(state.results, submissionId, new RubricResult(result));
+    [types.SET_RUBRIC](state, { assignmentId, rubric }) {
+        let rubricModel = rubric;
+        if (rubricModel !== NONEXISTENT && !(rubric instanceof Rubric)) {
+            rubricModel = Rubric.fromServerData(rubric);
+        }
+        Vue.set(state.rubrics, assignmentId, rubricModel);
     },
 
-    clearResult(state, { submissionId }) {
-        delete state.results[submissionId];
-        Vue.set(state, 'results', state.results);
+    [types.CLEAR_RUBRIC](state, { assignmentId }) {
+        Vue.delete(state.rubrics, assignmentId);
+    },
+
+    [types.CLEAR_RUBRICS](state) {
+        Vue.set(state, 'rubrics', {});
+    },
+
+    [types.SET_RUBRIC_RESULT](state, { submissionId, result }) {
+        let resultModel = result;
+        if (result !== NONEXISTENT && !(result instanceof RubricResult)) {
+            resultModel = RubricResult.fromServerData(submissionId, result);
+        }
+        Vue.set(state.results, submissionId, resultModel);
+    },
+
+    [types.CLEAR_RUBRIC_RESULT](state, { submissionId }) {
+        Vue.delete(state.results, submissionId);
     },
 
     [types.CLEAR_RUBRIC_RESULTS](state) {
         Vue.set(state, 'results', {});
-    },
-
-    setSelected(state, { result, selected, submissionId }) {
-        Vue.set(state.results, submissionId, result.setSelected(selected));
-    },
-
-    selectItem(state, {
-        result, row, item, submissionId,
-    }) {
-        Vue.set(state.results, submissionId, result.selectItem(row, item));
-    },
-
-    unselectItem(state, {
-        result, row, item, submissionId,
-    }) {
-        Vue.set(state.results, submissionId, result.unselectItem(row, item));
     },
 };
 
 export default {
     namespaced: true,
     state: {
+        rubrics: {},
         results: {},
     },
     getters,

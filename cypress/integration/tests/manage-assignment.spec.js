@@ -51,11 +51,99 @@ context('Manage Assignment', () => {
             });
         });
 
+        it('should use the correct deadline after updating it', () => {
+            cy.get('.assignment-deadline')
+                .click({ force: true });
+            cy.get('.flatpickr-calendar .flatpickr-day:not(.prevMonthDay):not(.nextMonthDay).today')
+                .click();
+            cy.get('.flatpickr-calendar input.flatpickr-hour:visible')
+                .clear()
+                .type('23');
+            cy.get('.flatpickr-calendar input.flatpickr-minute:visible')
+                .clear()
+                .type('59{enter}');
+            cy.get('.assignment-deadline ~ .input-group-append .submit-button')
+                .submit('success');
+            cy.reload();
+
+            cy.get('.local-header h4')
+                .should('contain', (new Date()).toISOString().slice(0, 10))
+                .should('contain', '23:59');
+        });
+
         it('should be possible to upload a BB zip', () => {
             cy.get('.blackboard-zip-uploader').within(() => {
                 cy.get('input[type=file]').uploadFixture('test_blackboard/bb.zip', 'application/zip');
                 // Wait for submit button to go back to default.
                 cy.get('.submit-button').submit('success');
+            });
+        });
+
+        it('should be possible to set the max amount of submissions', () => {
+            cy.get('.max-submissions input').type('5');
+            cy.get('.max-submissions .submit-button').submit('success');
+            cy.get('.max-submissions input').should('have.value', '5');
+
+            for (let i = 0; i < 2; ++i) {
+                cy.get('.submission-uploader .submission-limiting')
+                    .find('.loader')
+                    .should('not.exist');
+                cy.get('.submission-uploader .submission-limiting')
+                    .text()
+                    .should('contain', '5 submissions left out of 5.');
+
+                // Should be the same after a reload
+                if (i == 0) {
+                    cy.reload();
+                }
+            }
+
+            cy.get('.max-submissions input').clear().type('{ctrl}{enter}');
+            cy.get('.submission-uploader')
+                .find('.submission-limiting')
+                .should('not.exist');
+            cy.get('.max-submissions input').should('have.value', '');
+
+            cy.get('.max-submissions input').clear().type('-10');
+            cy.get('.max-submissions .submit-button').submit('error', {
+                popoverMsg: 'higher than or equal to 0',
+            });
+        });
+
+        it('should be possible to update the cool off period', () => {
+            cy.get('input.amount-in-cool-off-period').clear().type('5');
+            cy.get('input.cool-off-period').clear().type('2');
+            cy.get('.cool-off-period-wrapper .submit-button').submit('success');
+
+            for (let i = 0; i < 2; ++i) {
+                cy.get('.submission-uploader .submission-limiting')
+                    .find('.loader')
+                    .should('not.exist');
+                cy.get('.submission-uploader .submission-limiting')
+                    .text()
+                    .should('contain', '5 times every 2 minutes');
+
+                // Should be the same after a reload
+                if (i == 0) {
+                    cy.reload();
+                }
+            }
+
+            cy.get('input.cool-off-period').clear().type('0{ctrl}{enter}');
+            cy.get('.submission-uploader')
+                .find('.submission-limiting')
+                .should('not.exist');
+            cy.get('input.cool-off-period').should('have.value', '0');
+
+            cy.get('input.cool-off-period').clear().type('-1')
+            cy.get('.cool-off-period-wrapper .submit-button').submit('error', {
+                popoverMsg: 'higher or equal to 0',
+            });
+
+            cy.get('input.cool-off-period').clear().type('1')
+            cy.get('input.amount-in-cool-off-period').clear().type('0')
+            cy.get('.cool-off-period-wrapper .submit-button').submit('error', {
+                popoverMsg: 'higher or equal to 1',
             });
         });
 
@@ -84,6 +172,6 @@ context('Manage Assignment', () => {
             cy.get('.sidebar .sidebar-top a:nth-child(2)').click();
             cy.get('.course-list').contains(course.name).click();
             cy.get('.assignment-list').should('not.contain', assignment.name);
-        })
+        });
     });
 });

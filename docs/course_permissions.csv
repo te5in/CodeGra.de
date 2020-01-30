@@ -46,3 +46,6 @@ Name,Description
 **View non hidden AutoTest fixtures** \*,Users with this permission are allowed to see non hidden AutoTest fixtures
 **View AutoTest output files before done**,"Users with this permission can view output files created during an AutoTest before the assignment state is ""done"""
 **Delete assignments**,Users with this permission can delete assignments within this course.
+**Override submission limiting**,"Users with this permission can create new submissions, even if the maximum amount of submissions has been reacher, or if a cool-off period is in effect."
+**See linter feedback before done**,"Users with this permission can see the output of linters before an assignment is set to ""done"""
+**See feedback before done**,"Users with this permission can see feedback before an assignment is set to ""done"""

@@ -157,9 +157,11 @@ export default {
                         if (set.id === newSet.id) {
                             return newSet;
                         } else if (set.id === oldSet.id) {
-                            set.assignment_ids = set.assignment_ids.filter(
-                                id => id !== this.assignment.id,
-                            );
+                            return Object.assign({}, set, {
+                                assignment_ids: set.assignment_ids.filter(
+                                    id => id !== this.assignment.id,
+                                ),
+                            });
                         }
                         return set;
                     }),

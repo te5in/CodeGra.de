@@ -8,7 +8,7 @@
         <template slot="title" v-if="assignment && Object.keys(assignment).length">
             {{ assignment.name }}
 
-            <small v-if="assignment.formatted_deadline">- due {{ assignment.formatted_deadline }}</small>
+            <small v-if="assignment.hasDeadline">- due {{ assignment.getFormattedDeadline() }}</small>
             <small v-else class="text-muted"><i>- No deadline</i></small>
         </template>
 
@@ -33,6 +33,7 @@
                 </b-button>
 
                 <submit-button :wait-at-least="500"
+                               name="refresh-button"
                                :submit="submitForceLoadSubmissions"
                                v-b-popover.bottom.hover="'Reload submissions'">
                     <icon name="refresh"/>
@@ -117,7 +118,7 @@
                     </div>
                 </template>
 
-                <div v-if="assignment.rubric != null"
+                <div v-if="rubric != null"
                      class="action-button m-2 m-md-3 rounded text-center"
                      @click="openCategory('rubric')">
                     <div class="content-wrapper border rounded p-3 pt-4">
@@ -149,7 +150,6 @@
                  :class="selectedCat === 'hand-in' ? 'd-flex' : 'd-none'">
                 <submission-list v-if="!isStudent"
                                  :assignment="assignment"
-                                 :canDownload="canDownload"
                                  :rubric="rubric"
                                  :graders="graders"
                                  :can-see-assignee="canSeeAssignee"
@@ -175,7 +175,7 @@
                          variant="warning"
                          class="no-deadline-alert"
                          v-if="uploaderDisabled">
-                    <p v-if="!assignment.deadline">
+                    <p v-if="!assignment.hasDeadline">
                         The deadline for this assignment has not yet been set.
 
                         <span v-if="canEditDeadline && deadlineEditable">
@@ -234,15 +234,8 @@
 
             <div v-if="selectedCat === 'rubric'"
                  class="flex-grow-1">
-                <rubric-editor v-if="assignment.rubric != null"
-                               :editable="false"
-                               :default-rubric="rubric"
-                               :assignment="assignment"
+                <rubric-editor :assignment="assignment"
                                grow />
-
-                <div class="text-muted font-italic mb-3" v-else>
-                    There is no rubric for this assignment.
-                </div>
             </div>
 
             <div v-if="selectedCat === 'hand-in-instructions'"
@@ -264,10 +257,8 @@
                 <groups-management :assignment="assignment"
                                    :course="assignment.course"
                                    :group-set="assignment.group_set"
-                                   :filter="filterGroups"
                                    :show-lti-progress="showGroupLTIProgress"
-                                   :show-add-button="!currentGroup || !isStudent"
-                                   @groups-changed="groupsChanged" />
+                                   :show-add-button="showAddGroupButton" />
             </div>
 
             <div v-show="selectedCat === 'export'"
@@ -297,6 +288,7 @@ import 'vue-awesome/icons/code-fork';
 import 'vue-awesome/icons/git';
 
 import ltiProviders from '@/lti_providers';
+import { NONEXISTENT } from '@/constants';
 import * as assignmentState from '@/store/assignment-states';
 import GroupsManagement from '@/components/GroupsManagement';
 import {
@@ -328,7 +320,6 @@ export default {
             ltiProviders,
             selectedCat: '',
             filteredSubmissions: [],
-            currentGroup: null,
             gitData: null,
             error: null,
         };
@@ -338,7 +329,9 @@ export default {
         ...mapGetters('user', { userId: 'id' }),
         ...mapGetters('pref', ['darkMode']),
         ...mapGetters('courses', ['assignments']),
-        ...mapGetters('submissions', ['latestSubmissions']),
+        ...mapGetters('rubrics', { allRubrics: 'rubrics' }),
+        ...mapGetters('submissions', ['getLatestSubmissions']),
+        ...mapGetters('users', ['getGroupInGroupSetOfUser']),
 
         categories() {
             return [
@@ -375,7 +368,7 @@ export default {
                 {
                     id: 'export',
                     name: 'Export',
-                    enabled: this.canDownload,
+                    enabled: !this.isStudent,
                 },
             ];
         },
@@ -410,11 +403,12 @@ export default {
         },
 
         submissions() {
-            return this.latestSubmissions[this.assignmentId] || [];
+            return this.getLatestSubmissions(this.assignmentId);
         },
 
         rubric() {
-            return (this.assignment && this.assignment.rubric) || null;
+            const rubric = this.allRubrics[this.assignmentId];
+            return rubric === NONEXISTENT ? null : rubric;
         },
 
         graders() {
@@ -441,12 +435,9 @@ export default {
                 return 'you cannot submit work for this course.';
             } else if (assig.state === assignmentState.HIDDEN) {
                 return 'the assignment is hidden.';
-            } else if (assig.deadline == null) {
+            } else if (!assig.hasDeadline) {
                 return "the assignment's deadline has not yet been set.";
-            } else if (
-                this.$utils.deadlinePassed(assig, this.$root.$now) &&
-                !perms.can_upload_after_deadline
-            ) {
+            } else if (!perms.can_upload_after_deadline && assig.deadlinePassed(this.$root.$now)) {
                 return "the assignment's deadline has passed.";
             } else {
                 return '';
@@ -488,7 +479,7 @@ export default {
         },
 
         uploaderDisabled() {
-            return this.ltiUploadDisabledMessage || !this.assignment.deadline;
+            return !!(this.ltiUploadDisabledMessage || !this.assignment.hasDeadline);
         },
 
         deadlineEditable() {
@@ -508,7 +499,7 @@ export default {
                 return false;
             }
 
-            return this.latestSubmission.formatted_created_at > this.assignment.formatted_deadline;
+            return this.latestSubmission.isLate();
         },
 
         // It should not be possible that `assignment` is null. Still we use getProps below just in
@@ -591,22 +582,28 @@ export default {
         },
 
         canUpload() {
-            return this.$utils.canUploadWork(this.assignment, this.$root.$now);
+            return this.assignment.canUploadWork(this.$root.$now);
         },
 
         canSeeOthersWork() {
             return this.coursePermissions.can_see_others_work;
         },
 
-        canDownload() {
-            return (
-                this.assignment.state === assignmentState.DONE ||
-                this.coursePermissions.can_see_grade_before_open
-            );
-        },
-
         canEditDeadline() {
             return this.coursePermissions.can_edit_assignment_info;
+        },
+
+        currentGroup() {
+            const groupSetId = this.$utils.getProps(this.assignment, null, 'group_set', 'id');
+            return this.getGroupInGroupSetOfUser(groupSetId, this.userId);
+        },
+
+        showAddGroupButton() {
+            if (this.currentGroup == null) {
+                return true;
+            }
+            // When there is a group, only show the add button if you are not a student.
+            return !this.isStudent;
         },
     },
 
@@ -636,6 +633,10 @@ export default {
             forceLoadSubmissions: 'forceLoadSubmissions',
         }),
 
+        ...mapActions('rubrics', {
+            storeLoadRubric: 'loadRubric',
+        }),
+
         async loadData() {
             this.error = null;
 
@@ -652,7 +653,11 @@ export default {
             this.loading = false;
             this.loadingInner = true;
 
-            const promises = [this.loadSubmissions(this.assignmentId), this.$afterRerender()];
+            const promises = [
+                this.loadSubmissions(this.assignmentId),
+                this.loadRubric(),
+                this.$afterRerender(),
+            ];
 
             // This uses the hash because this.selectedCat may still be unset on page load.
             if (this.$route.hash === '#git') {
@@ -693,6 +698,16 @@ export default {
                 );
         },
 
+        loadRubric() {
+            return this.storeLoadRubric({
+                assignmentId: this.assignmentId,
+            }).catch(err => {
+                if (this.$utils.getProps(err, 500, 'response', 'status') !== 404) {
+                    throw err;
+                }
+            });
+        },
+
         submitForceLoadSubmissions() {
             return this.forceLoadSubmissions(this.assignment.id);
         },
@@ -720,22 +735,11 @@ export default {
             );
         },
 
-        filterGroups(group) {
-            if (this.isStudent && this.currentGroup) {
-                return this.currentGroup.id === group.id;
-            } else {
-                return true;
-            }
-        },
-
         showGroupLTIProgress(group) {
-            return this.currentGroup && this.assignment.is_lti
-                ? this.currentGroup.id === group.id
-                : false;
-        },
-
-        groupsChanged(groups) {
-            this.currentGroup = groups.find(g => g.members.find(m => m.id === this.userId));
+            if (this.assignment.is_lti && this.currentGroup && this.currentGroup.isGroup) {
+                return this.currentGroup.group.id === group.id;
+            }
+            return false;
         },
     },
 

@@ -127,7 +127,7 @@
                 This assignment is a group assignment. Each group should have at
                 least {{ assignment.group_set.minimum_size }} members.
 
-                <span v-if="currentGroup">
+                <span v-if="currentGroup != null">
                     <span v-if="differentAuthor">{{ currentAuthor.name }} is</span>
                     <span v-else>You are</span>
                     currently member of a group with
@@ -154,12 +154,11 @@
                 <groups-management :assignment="assignment"
                                    :course="assignment.course"
                                    :group-set="assignment.group_set"
-                                   :filter="currentGroup ? ((group) => currentGroup.id == group.id) : (() => true)"
+                                   :filter="filterGroups"
                                    :show-lti-progress="currentGroup && assignment.is_lti ?
                                                        ((group) => currentGroup.id === group.id) :
                                                        (() => false)"
-                                   @groups-changed="groupsChanged"
-                                   :show-add-button="!currentGroup"/>
+                                   :show-add-button="currentGroup == null"/>
             </div>
         </div>
 
@@ -170,7 +169,7 @@
             </b-button>
 
             <submit-button label="Try again"
-                           :disabled="groupSubmitPossible"
+                           :disabled="groupSubmitNotPossible"
                            :submit="trySubmitAgain"
                            @success="afterTrySubmitAgain"
                            @error="trySubmitAgainError"
@@ -181,15 +180,19 @@
     <div v-if="maybeShowGitInstructions && assignment.webhook_upload_enabled"
          class="border-bottom text-center p-3">
         <span class="position-relative">
-            <a href="#" @click.prevent="doGitSubmission" class="inline-link git-link"><u><b>
-                Click here for instructions on setting up Git
-                submissions<template v-if="isTestSubmission">
-                    as the test student.
-                </template><template v-else-if="author != null">
-                    as {{ author.name || author.username }}.
-                </template>
-                <template v-else>.</template>
-            </b></u></a>
+            <a href="#" @click.prevent="doGitSubmission" class="inline-link git-link">
+                <u>
+                    <b>
+                        Click here for instructions on setting up Git
+                        submissions<template v-if="isTestSubmission">
+                            as the test student.
+                        </template><template v-else-if="author != null">
+                            as {{ author.name || author.username }}.
+                        </template>
+                        <template v-else>.</template>
+                    </b>
+                </u>
+            </a>
 
             <span class="position-absolute pl-2" style="left: 100%;">
                 <loader :scale="1" :center="false" v-if="loadingWebhookData"/>
@@ -222,14 +225,17 @@
     <div v-else
          class="bg-light p-3">
         Uploading submissions through files is disabled for this assignment. You
-        can only hand-in submissions using git. <a href="#"
-        @click.prevent="doGitSubmission" class="inline-link underline">Click
-        here</a> for instructions on setting up Git submissions.
+        can only hand-in submissions using git.
+        <a href="#"
+           @click.prevent="doGitSubmission"
+           class="inline-link underline">Click here</a> for instructions on
+           setting up Git submissions.
     </div>
 
     <b-input-group class="submit-options border-top">
         <template v-if="forOthers">
             <div class="author-wrapper"
+                 :class="canListUsers ? '' : 'd-flex'"
                  v-b-popover.hover.top="authorDisabledPopover">
                 <user-selector v-if="forOthers"
                                v-model="author"
@@ -237,7 +243,7 @@
                                :disabled="disabled || isTestSubmission"
                                :base-url="`/api/v1/courses/${assignment.course.id}/users/`"
                                :use-selector="canListUsers"
-                               :placeholder="`${defaultAuthor.name} (${defaultAuthor.username})`"
+                               :placeholder="`${loggedInUser.name} (${loggedInUser.username})`"
                                no-border />
             </div>
 
@@ -245,7 +251,7 @@
                                    v-b-popover.hover.top="testSubmissionDisabledPopover">
                 <b-input-group-text class="border-0">
                     <b-form-checkbox v-model="isTestSubmission"
-                                    :disabled="disabled || !!author">
+                                     :disabled="disabled || !!author">
                         Test submission
                         <description-popover hug-text>
                             This submission will be uploaded by a special test student.
@@ -269,15 +275,41 @@
                        v-if="assignment.files_upload_enabled"
                        :confirm="confirmationMessage"
                        :submit="uploadFiles"
+                       :class="showSubmissionLimiting ? 'rounded-0' : ''"
                        :filter-error="handleUploadError"
                        @success="afterUploadFiles"/>
     </b-input-group>
+
+    <div v-if="showSubmissionLimiting" class="submission-limiting border-top p-2">
+        <loader :scale="1" v-if="loadingUserSubmissions || loadingGroups" />
+        <template v-else>
+            <template v-if="currentResultingAuthorId === myId">
+                You have
+            </template>
+            <template v-else>
+                <user :user="currentResultingAuthor"
+                      :before-group="loggedInUserIsInCurrentGroup ? 'Your group' :  'The group'"
+                      /> has
+            </template>
+            <template v-if="amountSubmissionsLeft !== Infinity">
+                <b>{{ amountSubmissionsLeft }}</b>
+                {{ amountSubmissionsLeft === 1 ? 'submission' : 'submissions' }}
+                left out of <b>{{ maxSubmissions }}</b>.
+            </template>
+            <template v-else>
+                {{ submissionsByResultingAuthor.length }}
+                {{ submissionsByResultingAuthor.length === 1 ? 'submission' : 'submissions'}}.
+            </template>
+            <span v-if="amountSubmissionsLeft !== 0 && coolOffPeriodText" v-html="coolOffPeriodText" />
+        </template>
+    </div>
 </div>
 </template>
 
 <script>
 import { mapGetters, mapActions } from 'vuex';
 import moment from 'moment';
+import * as utils from '@/utils';
 
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/times';
@@ -285,6 +317,7 @@ import 'vue-awesome/icons/times';
 import Loader from './Loader';
 import SubmitButton, { SubmitButtonCancelled } from './SubmitButton';
 import UserSelector from './UserSelector';
+import User from './User';
 import GroupManagement from './GroupManagement';
 import GroupsManagement from './GroupsManagement';
 import FileRule from './FileRule';
@@ -293,6 +326,77 @@ import FileTreeInner from './FileTreeInner';
 import MultipleFilesUploader from './MultipleFilesUploader';
 import DescriptionPopover from './DescriptionPopover';
 import WebhookInstructions from './WebhookInstructions';
+
+// We export this function so that we can unit test it.
+// Note that the `subs` parameter should be a list of submissions sorted by
+// created date, ascending.
+// This conflicts with prettier-eslint, so just ignore it for now
+// eslint-disable-next-line object-curly-newline
+export function getCoolOffPeriodText({ subs, author, loggedInUser, period, amountInPeriod, now }) {
+    const escape = utils.htmlEscape;
+    const bold = txt => `<b>${escape(txt)}</b>`;
+    const numberToTimes = (n, inBold = true) => (inBold ? bold : escape)(utils.numberToTimes(n));
+
+    let authorName;
+    let authorPossess;
+    let capitalize = utils.capitalize;
+
+    if (loggedInUser.id === author.id) {
+        authorName = 'you';
+        authorPossess = 'your';
+    } else if (author.isGroup && loggedInUser.isMemberOf(author.group)) {
+        authorName = 'your group';
+        authorPossess = "your group's";
+    } else if (author.isGroup) {
+        authorName = 'the group';
+        authorPossess = "the group's";
+    } else {
+        authorName = escape(author.readableName);
+        authorPossess = `${authorName}'s`;
+        capitalize = x => x;
+    }
+
+    const humanizedPeriod = period.humanize().replace(/^a /, '');
+    const cutoff = now.clone().subtract(period);
+    const lines = [
+        `You may submit <b>${numberToTimes(amountInPeriod, false)} every ${escape(
+            humanizedPeriod,
+        )}</b>.`,
+    ];
+    if (subs.length < amountInPeriod) {
+        return lines[0];
+    }
+    lines.push(' ');
+
+    const latestSubmissionDate = subs[subs.length - amountInPeriod].createdAt;
+    const diff = moment.duration(latestSubmissionDate.diff(now));
+    const waitTime = moment.duration(cutoff.diff(latestSubmissionDate));
+
+    if (amountInPeriod === 1) {
+        lines.push(
+            `${capitalize(authorPossess)} latest submission was ${escape(diff.humanize(true))}`,
+        );
+    } else {
+        lines.push(
+            `${capitalize(authorName)} submitted ${numberToTimes(
+                amountInPeriod,
+                false,
+            )} in the past ${escape(diff.humanize().replace(/^a /, ''))}`,
+        );
+    }
+    if (latestSubmissionDate.isAfter(cutoff)) {
+        let must;
+        if (loggedInUser.id === author.id) {
+            must = 'you must';
+        } else {
+            must = 'must';
+        }
+        lines.push(`, therefore ${must} wait for ${bold(waitTime.humanize())}.`);
+    } else {
+        lines.push('.');
+    }
+    return lines.join('');
+}
 
 export default {
     name: 'submission-uploader',
@@ -329,16 +433,22 @@ export default {
     },
 
     computed: {
-        ...mapGetters('user', { myUsername: 'username', myName: 'name' }),
+        ...mapGetters('user', { myId: 'id' }),
+        ...mapGetters('users', ['getGroupInGroupSetOfUser', 'getUser']),
+        ...mapGetters('submissions', ['getSubmissionsByUser']),
 
-        defaultAuthor() {
-            return { name: this.myName, username: this.myUsername };
+        loggedInUser() {
+            return this.getUser(this.myId);
         },
 
-        groupSubmitPossible() {
-            return (
-                !this.currentGroup ||
-                this.currentGroup.members.length < this.assignment.group_set.minimum_size
+        loggedInUserIsInCurrentGroup() {
+            return this.loggedInUser.isMemberOf(this.currentGroup);
+        },
+
+        groupSubmitNotPossible() {
+            return !(
+                this.currentGroup != null &&
+                this.currentGroup.members.length >= this.assignment.group_set.minimum_size
             );
         },
 
@@ -347,14 +457,30 @@ export default {
         },
 
         currentAuthor() {
-            return this.differentAuthor ? this.author : this.defaultAuthor;
+            return this.differentAuthor ? this.author : this.loggedInUser;
+        },
+
+        groupSetId() {
+            return this.$utils.getProps(this.assignment, null, 'group_set', 'id');
+        },
+
+        currentResultingAuthor() {
+            const virtUser = this.getGroupInGroupSetOfUser(
+                this.groupSetId,
+                this.$utils.getProps(this.currentAuthor, null, 'id'),
+            );
+            return virtUser || this.currentAuthor;
+        },
+
+        currentResultingAuthorId() {
+            return this.$utils.getProps(this.currentResultingAuthor, null, 'id');
         },
 
         confirmationMessage() {
             if (
                 this.forOthers &&
                 !this.isTestSubmission &&
-                (this.author == null || this.defaultAuthor.username === this.author.username)
+                (this.author == null || this.loggedInUser.username === this.author.username)
             ) {
                 return 'You are now submitting with yourself as author, are you sure you want to continue?';
             } else {
@@ -420,7 +546,11 @@ export default {
         },
 
         readableDeadline() {
-            return moment(this.assignment.deadline).from(this.$root.$now);
+            const assig = this.assignment;
+            if (assig.hasDeadline) {
+                return assig.deadline.from(this.$root.$now);
+            }
+            return '';
         },
 
         authorDisabledPopover() {
@@ -433,6 +563,64 @@ export default {
             return this.disabled || this.author
                 ? 'You cannot select both an author and upload as a test submission.'
                 : '';
+        },
+
+        currentGroup() {
+            if (this.currentResultingAuthor && this.currentResultingAuthor.isGroup) {
+                return this.currentResultingAuthor.group;
+            }
+            return null;
+        },
+
+        maxSubmissions() {
+            return this.assignment.max_submissions;
+        },
+
+        coolOffPeriod() {
+            return this.assignment.coolOffPeriod;
+        },
+
+        showSubmissionLimiting() {
+            if (this.isTestSubmission || this.currentResultingAuthorId == null) {
+                return false;
+            }
+            return this.maxSubmissions != null || this.coolOffPeriod.asMilliseconds() > 0;
+        },
+
+        coolOffPeriodText() {
+            if (
+                !this.showSubmissionLimiting ||
+                this.coolOffPeriod.asMilliseconds() === 0 ||
+                this.loadingUserSubmissions ||
+                this.currentResultingAuthor == null
+            ) {
+                return '';
+            }
+            return getCoolOffPeriodText({
+                subs: this.submissionsByResultingAuthor,
+                author: this.currentResultingAuthor,
+                loggedInUser: this.loggedInUser,
+                period: this.coolOffPeriod,
+                amountInPeriod: this.assignment.amount_in_cool_off_period,
+                now: this.$root.$now,
+            });
+        },
+
+        amountSubmissionsLeft() {
+            const max = this.maxSubmissions;
+            if (!this.showSubmissionLimiting || max == null) {
+                return Infinity;
+            }
+            return Math.max(0, max - this.submissionsByResultingAuthor.length);
+        },
+
+        submissionsByResultingAuthor() {
+            const author = this.currentResultingAuthor;
+            if (author.id == null) {
+                return [];
+            }
+
+            return this.getSubmissionsByUser(this.assignment.id, author.id);
         },
     },
 
@@ -452,7 +640,6 @@ export default {
             showWrongFileModal: false,
             showGroupModal: false,
             ignored: 'error',
-            currentGroup: null,
             ruleCache: {},
             files: [],
             isTestSubmission: false,
@@ -460,6 +647,9 @@ export default {
             gitData: null,
             loadingWebhookData: false,
             loadingWebhookError: null,
+
+            loadingUserSubmissions: false,
+            loadingGroups: true,
         };
     },
 
@@ -467,6 +657,40 @@ export default {
         wrongFileError() {
             this.ruleCache = {};
         },
+
+        coolOffPeriod() {
+            this.loadSubmissionsIfNeeded();
+        },
+
+        maxSubmissions() {
+            this.loadSubmissionsIfNeeded();
+        },
+
+        currentResultingAuthorId() {
+            this.loadSubmissionsIfNeeded();
+        },
+
+        groupSetId: {
+            immediate: true,
+            handler(newValue) {
+                if (newValue) {
+                    this.loadingGroups = true;
+                    this.loadGroupsOfGroupSet({
+                        groupSetId: newValue,
+                    }).then(() => {
+                        if (this.groupSetId === newValue) {
+                            this.loadingGroups = false;
+                        }
+                    });
+                } else {
+                    this.loadingGroups = false;
+                }
+            },
+        },
+    },
+
+    mounted() {
+        this.loadSubmissionsIfNeeded();
     },
 
     destroyed() {
@@ -476,7 +700,8 @@ export default {
     },
 
     methods: {
-        ...mapActions('submissions', ['addSubmission']),
+        ...mapActions('submissions', ['addSubmission', 'loadSubmissionsByUser']),
+        ...mapActions('users', ['addOrUpdateUser', 'loadGroupsOfGroupSet']),
 
         getRequestData() {
             const data = new FormData();
@@ -525,18 +750,7 @@ export default {
                 submission,
             });
             this.$emit('created', submission);
-        },
-
-        groupsChanged(newGroups) {
-            for (let index = 0; index < newGroups.length; ++index) {
-                const group = newGroups[index];
-                const needle = this.currentAuthor.username;
-                if (group.members.some(user => user.username === needle)) {
-                    this.currentGroup = group;
-                    return;
-                }
-            }
-            this.currentGroup = null;
+            this.$root.$emit('cg::root::update-now');
         },
 
         isArchiveError(err) {
@@ -571,7 +785,9 @@ export default {
                 await this.$nextTick();
                 this.$root.$emit('bv::show::modal', 'wrong-files-modal');
             } else if (this.isGroupError(err)) {
-                this.currentGroup = data.group;
+                if (data.group) {
+                    this.addOrUpdateUser({ user: data.group });
+                }
                 this.showGroupModal = true;
                 await this.$nextTick();
                 this.$root.$emit('bv::show::modal', 'group-manage-modal');
@@ -629,6 +845,32 @@ export default {
                 },
             );
         },
+
+        filterGroups(group) {
+            if (this.currentGroup) {
+                return group.id === this.currentGroup.id;
+            }
+            return true;
+        },
+
+        loadSubmissionsIfNeeded() {
+            if (!this.showSubmissionLimiting) {
+                return;
+            }
+
+            this.loadingUserSubmissions = true;
+            const authorId = this.currentResultingAuthorId;
+
+            this.loadSubmissionsByUser({
+                assignmentId: this.assignment.id,
+                userId: authorId,
+                force: false,
+            }).then(() => {
+                if (authorId === this.currentResultingAuthorId) {
+                    this.loadingUserSubmissions = false;
+                }
+            });
+        },
     },
 
     components: {
@@ -644,6 +886,7 @@ export default {
         MultipleFilesUploader,
         DescriptionPopover,
         WebhookInstructions,
+        User,
     },
 };
 </script>
@@ -813,6 +1056,13 @@ export default {
         display: flex;
         flex-direction: column;
         min-height: 0;
+    }
+
+    // See bug: https://github.com/vuejs/vue-loader/issues/1259
+    .submission-limiting {
+        .user {
+            display: inline;
+        }
     }
 }
 

@@ -1,32 +1,42 @@
+// We first need to import the main store, to prevent undefined errors.
+import * as _ from '@/store';
+import moment from 'moment';
 import store from '@/store/modules/submissions';
 import * as types from '@/store/mutation-types';
 import * as utils from '@/utils';
 import axios from 'axios';
+import { User, Submission } from '@/models';
+
+function now(minDays = 0) {
+    return moment.utc().add(minDays, 'days').toISOString();
+}
 
 function createState() {
     const user = { id: 1000 };
-    const submissions = {
-        2: [
-            { id: 1, user, assignment_id: 2 },
-            { id: 2, user, assignment_id: 2 },
-            { id: 3, user, assignment_id: 2 },
-            { id: 4, user, assignment_id: 2 },
-        ],
-    };
+    const submissions = [
+        { id: 1, user, assignment_id: 2, created_at: now() },
+        { id: 2, user, assignment_id: 2, created_at: now() },
+        { id: 3, user, assignment_id: 2, created_at: now() },
+        { id: 4, user, assignment_id: 2, created_at: now() },
+    ];
 
-    return {
-        submissions,
-        latestSubmissions: {
-            2: [submissions[2][0]],
-        },
-        submissionsByUser: {
-            2: {
-                1000: submissions[2].slice(),
-            },
-        },
+    const state = {
+        submissions: {},
+        latestSubmissions: {},
+        submissionsByUser: {},
+        submissionsByUserPromises: {},
         submissionsLoaders: {},
+        singleSubmissionLoaders: {},
         groupSubmissionUsers: {},
     };
+
+    submissions.forEach(sub => {
+        store.mutations[types.ADD_SINGLE_SUBMISSION](state, {
+            submission: Submission.fromServerData(sub, 1),
+        });
+    });
+
+    return state;
 };
 
 const mockFormatGrade = jest.fn();
@@ -61,63 +71,75 @@ describe('mutations', () => {
 
     describe('add submission', () => {
         it('should work and have correct order', () => {
-            const obj1 = {id: 1, user: { id: 1001 }, assignment_id: 2};
-            const obj2 = {id: 2, user: { id: 1001 }, assignment_id: 2};
-            const obj3 = {id: 3, user: { id: 1001 }, assignment_id: 2};
-            state.submissions[2] = [obj1, obj2];
+            const obj1 = {id: 1, user: { id: 1001 }, created_at: now(-1) };
+            const obj2 = {id: 2, user: { id: 1001 }, created_at: now(-2) };
+            const obj3 = {id: 3, user: { id: 1001 }, created_at: now(), assignee: { id: 5 } };
 
-            store.mutations[types.ADD_SINGLE_SUBMISSION](state, { assignmentId: 2, submission: obj3 });
-            expect(state.submissions[2]).toEqual([obj1, obj2, obj3]);
+            [obj1, obj2, obj3].forEach(obj => {
+                store.mutations[types.ADD_SINGLE_SUBMISSION](state, {
+                    submission: Submission.fromServerData(obj, 2),
+                });
+            });
+
+            delete obj3.created_at;
+            const latest = store.getters.getLatestSubmissions(state)(2)
+            expect(latest).toMatchObject([
+                Object.assign(obj3, { assignmentId: 2 })
+            ]);
+            expect(latest[0].user.id).toEqual(1001);
+            expect(latest[0].assignee.id).toEqual(5);
+            expect(latest[0].assignee.name).toEqual(null);
         });
 
         it('should work when assignment has no submissions', () => {
-            const obj = {id: 1, user: { id: 1001 }, assignment_id: 2};
-            delete state.submissions[2];
+            const obj = {id: 10, user: { id: 1001 }, created_at: now() };
 
-            store.mutations[types.ADD_SINGLE_SUBMISSION](state, { assignmentId: 2, submission: obj });
-            expect(state.submissions[2]).toEqual([obj]);
+            store.mutations[types.ADD_SINGLE_SUBMISSION](state, {
+                submission: Submission.fromServerData(obj, 10)
+            });
+            delete obj.created_at;
+            expect(store.getters.getLatestSubmissions(state)(10)).toMatchObject([
+                Object.assign(obj, { assignmentId: 10 })
+            ]);
         });
     });
 
     describe('update submission', () => {
-        it('should work for normal props', () => {
-            const obj1 = {id: 1, user: { id: 1001 }, assignment_id: 2};
-            const obj2 = {id: 2, user: { id: 1001 }, assignment_id: 2};
-            const obj3 = {id: 3, user: { id: 1001 }, assignment_id: 2};
-            state.submissions[2] = [obj1, obj2, obj3];
+        beforeEach(() => {
+            const obj1 = {id: 15, user: { id: 1001 }, created_at: now() };
+            const obj2 = {id: 25, user: { id: 1002 }, created_at: now() };
+            const obj3 = {id: 35, user: { id: 1003 }, created_at: now() };
 
-            store.mutations[types.UPDATE_SUBMISSION](state, {
-                assignmentId: 2,
-                submissionId: 2,
-                submissionProps: { feedback: 'xxx' },
+            [obj1, obj2, obj3].forEach(obj => {
+                store.mutations[types.ADD_SINGLE_SUBMISSION](state, {
+                    submission: Submission.fromServerData(obj, 15),
+                });
             });
-            expect(state.submissions[2]).toEqual([
-                obj1,
-                obj2,
-                obj3,
-            ]);
-            expect(obj2).toHaveProperty('feedback', 'xxx');
+        });
+        it('should work for normal props', () => {
+            store.mutations[types.UPDATE_SUBMISSION](state, {
+                submissionId: 25,
+                submissionProps: { origin: 'xxx' },
+            });
+            expect(state.submissions[25]).toHaveProperty('origin', 'xxx');
+            expect(store.getters.getLatestSubmissions(state)(15)[1].origin).toEqual('xxx');
         });
 
         it('should work for not unknown submissions', () => {
-            const obj1 = {id: 1, user: { id: 1001 }, assignment_id: 2};
-            const obj2 = {id: 2, user: { id: 1001 }, assignment_id: 2};
-            const obj3 = {id: 3, user: { id: 1001 }, assignment_id: 2};
-            state.submissions[2] = [obj1, obj2, obj3];
-
             expect(
-                () => store.mutations[types.UPDATE_SUBMISSION](state, { assignmentId: 2, submissionId: 'UNKNOWN', submissionProps: { name: 4 } }),
+                () => store.mutations[types.UPDATE_SUBMISSION](state, {
+                    submissionId: 'UNKNOWN',
+                    submissionProps: { name: 4 },
+                }),
             ).toThrow();
         });
 
         it('should work for not work for id', () => {
-            const obj1 = {id: 1, user: { id: 1001 }, assignment_id: 2};
-            const obj2 = {id: 2, user: { id: 1001 }, assignment_id: 2};
-            const obj3 = {id: 3, user: { id: 1001 }, assignment_id: 2};
-            state.submissions[2] = [obj1, obj2, obj3];
-
             expect(
-                () => store.mutations[types.UPDATE_SUBMISSION](state, { assignmentId: 2, submissionId: 2, submissionProps: { id: 4 } }),
+                () => store.mutations[types.UPDATE_SUBMISSION](state, {
+                    submissionId: 25,
+                    submissionProps: { id: 4 },
+                }),
             ).toThrow();
         });
 
@@ -127,18 +149,11 @@ describe('mutations', () => {
             const single2 = {};
             mockFormatGrade.mockReturnValueOnce(single2);
 
-            const obj1 = {id: 1, user: { id: 1001 }, assignment_id: 2};
-            const obj2 = {id: 2, user: { id: 1001 }, assignment_id: 2};
-            const obj3 = {id: 3, user: { id: 1001 }, assignment_id: 2};
-            state.submissions[2] = [obj1, obj2, obj3];
-
-            store.mutations[types.UPDATE_SUBMISSION](state, { assignmentId: 2, submissionId: 2, submissionProps: { grade: single1 } });
-            expect(state.submissions[2]).toEqual([
-                obj1,
-                obj2,
-                obj3,
-            ]);
-            expect(obj2).toHaveProperty('grade', single2);
+            store.mutations[types.UPDATE_SUBMISSION](state, {
+                submissionId: 25,
+                submissionProps: { grade: single1 },
+            });
+            expect(store.getters.getLatestSubmissions(state)(15)[1]).toHaveProperty('grade', single2);
 
             expect(mockFormatGrade).toBeCalledTimes(1);
             expect(mockFormatGrade).toBeCalledWith(single1);
@@ -215,6 +230,10 @@ describe('actions', () => {
             const props = {
                 grade: single1,
                 anything: 5,
+                user: {
+                    id: 100,
+                },
+                created_at: now(),
             };
             const data = {
                 assignmentId: 2,
@@ -227,11 +246,18 @@ describe('actions', () => {
 
             expect(mockCommit).toBeCalledTimes(1);
             expect(mockCommit).toBeCalledWith(types.ADD_SINGLE_SUBMISSION, {
-                submission: {
-                    formatted_created_at: expect.any(String),
+                submission: expect.any(Submission),
+            });
+            expect(mockCommit).toBeCalledWith(types.ADD_SINGLE_SUBMISSION, {
+                submission: expect.objectContaining({
+                    fullGrade: single1,
                     grade: single2,
-                    anything: 5,
-                },
+                    // `anything` should not be there
+                    assigneeId: null,
+                    commentAuthorId: null,
+                    userId: 100,
+                    assignmentId: 2,
+                }),
             });
             expect(mockFormatGrade).toBeCalledTimes(1);
             expect(mockFormatGrade).toBeCalledWith(single1);

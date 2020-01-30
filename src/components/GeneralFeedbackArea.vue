@@ -81,7 +81,6 @@ export default {
                 submissionProps: {
                     comment: this.feedback || '',
                     comment_author: {
-                        name: this.nameCurrentUser,
                         id: this.userId,
                     },
                 },

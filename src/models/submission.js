@@ -1,24 +1,62 @@
-import { cmpNoCase } from '@/utils';
+/* SPDX-License-Identifier: AGPL-3.0-only */
+import {
+    cmpNoCase,
+    getProps,
+    setProps,
+    formatGrade,
+    snakeToCamelCase,
+    readableFormatDate,
+    coerceToString,
+} from '@/utils';
+import moment from 'moment';
+import { store } from '@/store';
+import * as mutationTypes from '@/store/mutation-types';
 
 const REVISIONS = ['student', 'teacher'];
 
 // eslint-disable-next-line
 export class FileTree {
-    constructor(studentTree, teacherTree) {
-        this.student = studentTree;
-        this.teacher = teacherTree;
-
-        if (teacherTree) {
-            this.diff = this.matchFiles(studentTree, teacherTree);
-        } else {
-            this.diff = this.matchFiles(studentTree, studentTree);
-        }
-
-        this.flattened = this.flatten(this.diff);
-        this.revisionCache = {};
+    constructor(
+        studentTree,
+        teacherTree,
+        diff,
+        flattened,
+        revisionCache = {},
+        autoTestTree = null,
+    ) {
+        this.student = Object.freeze(studentTree);
+        this.teacher = Object.freeze(teacherTree);
+        this.diff = Object.freeze(diff);
+        this.flattened = Object.freeze(flattened);
+        this._revisionCache = revisionCache;
+        this.autotest = Object.freeze(autoTestTree);
+        Object.freeze(this);
     }
 
-    matchFiles(tree1, tree2) {
+    addAutoTestTree(autoTestTree) {
+        return new FileTree(
+            this.student,
+            this.teacher,
+            this.diff,
+            this.flattened,
+            this._revisionCache,
+            autoTestTree,
+        );
+    }
+
+    static fromServerData(studentTree, teacherTree) {
+        let diff;
+        if (teacherTree) {
+            diff = FileTree.matchFiles(studentTree, teacherTree);
+        } else {
+            diff = FileTree.matchFiles(studentTree, studentTree);
+        }
+
+        const flattened = FileTree.flatten(diff);
+        return new FileTree(studentTree, teacherTree, diff, flattened);
+    }
+
+    static matchFiles(tree1, tree2) {
         const diffTree = {
             name: tree1.name,
             entries: [],
@@ -50,13 +88,13 @@ export class FileTree {
             }
 
             if (self.entries && other.entries) {
-                diffTree.entries.push(this.matchFiles(self, other));
+                diffTree.entries.push(FileTree.matchFiles(self, other));
             } else if (self.entries == null && other.entries == null) {
                 diffTree.push([self.id, other.id], self.name);
             } else if (self.entries) {
                 diffTree.push([null, other.id], other.name);
                 diffTree.entries.push(
-                    this.matchFiles(self, {
+                    FileTree.matchFiles(self, {
                         name: self.name,
                         entries: [],
                     }),
@@ -64,7 +102,7 @@ export class FileTree {
             } else if (other.entries) {
                 diffTree.push([self.id, null], self.name);
                 diffTree.entries.push(
-                    this.matchFiles(
+                    FileTree.matchFiles(
                         {
                             name: other.name,
                             entries: [],
@@ -81,7 +119,7 @@ export class FileTree {
             }
             if (val.entries) {
                 diffTree.entries.push(
-                    this.matchFiles(
+                    FileTree.matchFiles(
                         {
                             name: val.name,
                             entries: [],
@@ -102,17 +140,17 @@ export class FileTree {
         });
 
         delete diffTree.push;
-        return diffTree;
+        return Object.freeze(diffTree);
     }
 
-    flatten(tree, prefix = []) {
+    static flatten(tree, prefix = []) {
         const filePaths = {};
         if (!tree || !tree.entries) {
             return {};
         }
         tree.entries.forEach(f => {
             if (f.entries) {
-                const dirPaths = this.flatten(f, prefix.concat(f.name));
+                const dirPaths = FileTree.flatten(f, prefix.concat(f.name));
                 Object.assign(filePaths, dirPaths);
             } else {
                 if (f.id != null) {
@@ -130,7 +168,7 @@ export class FileTree {
     }
 
     hasRevision(f) {
-        if (this.revisionCache[f.id] == null) {
+        if (this._revisionCache[f.id] == null) {
             let res;
             if (f.entries) {
                 res = this.dirHasRevision(f);
@@ -138,9 +176,9 @@ export class FileTree {
                 res = this.fileHasRevision(f);
             }
 
-            this.revisionCache[f.id] = res;
+            this._revisionCache[f.id] = res;
         }
-        return this.revisionCache[f.id];
+        return this._revisionCache[f.id];
     }
 
     // eslint-disable-next-line
@@ -224,18 +262,193 @@ export class FileTree {
     }
 }
 
-export class Feedback {
-    constructor(feedback) {
-        Object.assign(this, feedback);
+export class FeedbackLine {
+    constructor(fileId, line, message, author) {
+        // a fileId should never be a number.
+        this.fileId = coerceToString(fileId);
+        // A lineNumber should always be a number.
+        this.line = Number(line);
+        this.lineNumber = this.line;
 
-        Object.entries(this.user).forEach(([fileId, fileFeedback]) => {
-            Object.keys(fileFeedback).forEach(line => {
-                fileFeedback[line] = {
-                    line,
-                    msg: fileFeedback[line],
-                    author: this.authors ? this.authors[fileId][line] : null,
-                };
-            });
-        });
+        this.msg = message;
+        this.authorId = null;
+
+        if (author) {
+            this.authorId = author.id;
+            store.commit(`users/${mutationTypes.ADD_OR_UPDATE_USER}`, author);
+        }
+
+        Object.freeze(this);
+    }
+
+    get author() {
+        return store.getters['users/getUser'](this.authorId);
     }
 }
+
+export class Feedback {
+    constructor(general, linter, userLines) {
+        this.general = general;
+        this.linter = linter;
+        this.userLines = Object.freeze(userLines);
+        this.user = Object.freeze(
+            this.userLines.reduce((acc, line) => {
+                setProps(acc, line, line.fileId, line.lineNumber);
+                return acc;
+            }, {}),
+        );
+
+        Object.freeze(this);
+    }
+
+    static fromServerData(feedback) {
+        const authors = feedback.authors;
+
+        const general = getProps(feedback, null, 'general');
+        const linter = getProps(feedback, {}, 'linter');
+
+        const userLines = Object.entries(getProps(feedback, {}, 'user')).reduce(
+            (lines, [fileId, fileFeedback]) => {
+                lines.push(
+                    ...Object.entries(fileFeedback).map(([line, lineFeedback]) => {
+                        if (line instanceof FeedbackLine) {
+                            return line;
+                        } else {
+                            return new FeedbackLine(
+                                fileId,
+                                line,
+                                lineFeedback,
+                                getProps(authors, null, fileId, line),
+                            );
+                        }
+                    }),
+                );
+                return lines;
+            },
+            [],
+        );
+        return new Feedback(general, linter, userLines);
+    }
+
+    addFeedbackLine(line) {
+        if (!(line instanceof FeedbackLine)) {
+            throw new Error('The given line is not the correct class');
+        }
+
+        const newLines = [...this.userLines];
+        const oldLineIndex = this.userLines.findIndex(
+            l => l.lineNumber === line.lineNumber && l.fileId === line.fileId,
+        );
+        if (oldLineIndex < 0) {
+            newLines.push(line);
+        } else {
+            newLines[oldLineIndex] = line;
+        }
+
+        return new Feedback(this.general, this.linter, newLines);
+    }
+
+    removeFeedbackLine(fileId, lineNumber) {
+        return new Feedback(
+            this.general,
+            this.linter,
+            this.userLines.filter(l => !(l.lineNumber === lineNumber && l.fileId === fileId)),
+        );
+    }
+}
+
+const SUBMISSION_SERVER_PROPS = ['id', 'origin', 'extra_info', 'grade_overridden'];
+
+const USER_PROPERTIES = ['user', 'assignee', 'comment_author'].reduce((acc, cur) => {
+    acc[cur] = `${snakeToCamelCase(cur)}Id`;
+    return acc;
+}, {});
+
+export class Submission {
+    constructor(props) {
+        Object.assign(this, props);
+        this.grade = formatGrade(this.fullGrade);
+        this.formattedCreatedAt = readableFormatDate(this.createdAt);
+        Object.freeze(this);
+    }
+
+    static fromServerData(serverData, assignmentId) {
+        const props = {};
+        SUBMISSION_SERVER_PROPS.forEach(prop => {
+            props[prop] = serverData[prop];
+        });
+
+        props.assignmentId = assignmentId;
+        props.createdAt = moment.utc(serverData.created_at, moment.ISO_8601);
+        props.fullGrade = serverData.grade;
+
+        Object.entries(USER_PROPERTIES).forEach(([serverProp, idProp]) => {
+            const user = serverData[serverProp];
+            if (user != null) {
+                props[idProp] = user.id;
+                store.commit(`users/${mutationTypes.ADD_OR_UPDATE_USER}`, user);
+            } else {
+                props[idProp] = null;
+            }
+        });
+
+        return new Submission(props);
+    }
+
+    get fileTree() {
+        return store.getters['fileTrees/getFileTree'](this.assignmentId, this.id);
+    }
+
+    get feedback() {
+        return store.getters['feedback/getFeedback'](this.assignmentId, this.id);
+    }
+
+    update(newProps) {
+        return new Submission(
+            Object.assign(
+                {},
+                this,
+                Object.entries(newProps).reduce((acc, [key, val]) => {
+                    if (key === 'id') {
+                        throw TypeError(`Cannot set submission property: ${key}`);
+                    } else if (key === 'grade') {
+                        acc.fullGrade = val;
+                    } else if (USER_PROPERTIES[key] != null) {
+                        const prop = USER_PROPERTIES[key];
+
+                        if (val) {
+                            store.dispatch('users/addOrUpdateUser', { user: val });
+                            acc[prop] = val.id;
+                        } else {
+                            acc[prop] = null;
+                        }
+                    } else {
+                        acc[key] = val;
+                    }
+
+                    return acc;
+                }, {}),
+            ),
+        );
+    }
+
+    get assignment() {
+        return store.getters['courses/assignments'][this.assignmentId];
+    }
+
+    isLate() {
+        if (this.assignment == null) {
+            return false;
+        }
+        return this.createdAt.isAfter(this.assignment.deadline);
+    }
+}
+
+Object.entries(USER_PROPERTIES).forEach(([serverProp, idProp]) => {
+    Object.defineProperty(Submission.prototype, serverProp, {
+        get() {
+            return store.getters['users/getUser'](this[idProp]) || { id: null };
+        },
+        enumerable: false,
+    });
+});

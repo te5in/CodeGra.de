@@ -47,28 +47,28 @@
                         <table class="table table-hover assig-list"
                                v-if="course.assignments.length > 0">
                             <tbody>
-                                <router-link v-for="assig in getAssignments(course)"
-                                             :key="assig.id"
-                                             :to="submissionsRoute(assig)"
-                                             :class="assig.assignmentFiltered ? 'super-text-muted' : ''"
+                                <router-link v-for="{ assignment, filtered } in getAssignments(course)"
+                                             :key="assignment.id"
+                                             :to="submissionsRoute(assignment)"
+                                             :class="filtered ? 'super-text-muted' : ''"
                                              class="assig-list-item">
                                     <td>
-                                        <span>{{ assig.name }}</span><br>
+                                        <span>{{ assignment.name }}</span><br>
 
-                                        <small v-if="assig.deadline">
-                                            Due {{ moment(assig.deadline).from($root.$now) }}
+                                        <small v-if="assignment.hasDeadline">
+                                            Due {{ assignment.deadline.from($root.$now) }}
                                         </small>
                                         <small v-else class="text-muted font-italic">
                                             No deadline
                                         </small>
                                     </td>
                                     <td>
-                                        <assignment-state :assignment="assig"
+                                        <assignment-state :assignment="assignment"
                                                           :editable="false"
                                                           size="sm"/>
                                     </td>
-                                    <td v-if="assig.canManage">
-                                        <router-link :to="manageAssignmentRoute(assig)"
+                                    <td v-if="assignment.canManage">
+                                        <router-link :to="manageAssignmentRoute(assignment)"
                                                      v-b-popover.window.top.hover="'Manage assignment'">
                                             <icon name="gear" class="gear-icon"/>
                                         </router-link>
@@ -133,7 +133,6 @@ export default {
         return {
             loadingCourses: true,
             UserConfig,
-            moment,
             searchString: '',
         };
     },
@@ -183,11 +182,11 @@ export default {
 
         getAssignments(course) {
             if (!this.searchString) {
-                return course.assignments;
+                return course.assignments.map(a => ({ assignment: a, filtered: false }));
             }
             const filter = (this.searchString || '').toLowerCase().split(' ');
             if (filter.every(sub => course.name.toLowerCase().indexOf(sub) >= 0)) {
-                return course.assignments;
+                return course.assignments.map(a => ({ assignment: a, filtered: false }));
             }
 
             // Make sure the assignments the user is searching for appear at the
@@ -196,13 +195,15 @@ export default {
             const nonFiltered = [];
             course.assignments.forEach(a => {
                 if (filter.some(sub => a.name.toLowerCase().indexOf(sub) >= 0)) {
-                    nonFiltered.push(a);
+                    nonFiltered.push({
+                        assignment: a,
+                        filtered: false,
+                    });
                 } else {
-                    filtered.push(
-                        Object.assign({}, a, {
-                            assignmentFiltered: true,
-                        }),
-                    );
+                    filtered.push({
+                        assignment: a,
+                        filtered: true,
+                    });
                 }
             });
             return [...nonFiltered, ...filtered];

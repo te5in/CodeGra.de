@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 import io
 import os
+import re
 import sys
 import copy
 import json
@@ -141,9 +142,10 @@ def monkeypatch_for_run(
 
 
 @pytest.fixture
-def monkeypatch_broker(monkeypatch):
+def monkeypatch_broker(monkeypatch, live_server_url):
     ses = requests_stubs.Session()
     raised = True
+    runner_id = str(uuid.uuid4())
 
     def raise_next(get_ses=False):
         if get_ses:
@@ -159,7 +161,26 @@ def monkeypatch_broker(monkeypatch):
         raised = True
         raise requests.RequestException()
 
+    orig_get = ses.get
+    orig_post = ses.post
+
+    def stub_post(path, *args, **kwargs):
+        res = orig_post(path, *args, **kwargs)
+        if re.match('/api/v1/alive/', path):
+            res.json = lambda *args: {'id': runner_id}
+        return res
+
+    def stub_get(path, *args, **kwargs):
+        res = orig_get(path, *args, **kwargs)
+        if f'/api/v1/runners/{runner_id}/jobs/' == path:
+            res.json = lambda *args: [{'url': live_server_url}]
+        else:
+            print(path)
+        return res
+
     monkeypatch.setattr(ses.Response, 'raise_for_status', raise_once)
+    monkeypatch.setattr(ses, 'get', stub_get)
+    monkeypatch.setattr(ses, 'post', stub_post)
     monkeypatch.setattr(psef.helpers, 'BrokerSession', lambda *_: ses)
     yield raise_next
 
@@ -772,7 +793,7 @@ def test_run_auto_test(
         monkeypatch_broker()
         live_server_url, stop_server = live_server(get_stop=True)
         thread = threading.Thread(
-            target=psef.auto_test.start_polling, args=(app.config, False)
+            target=psef.auto_test.start_polling, args=(app.config, )
         )
         thread.start()
         thread.join()
@@ -1185,7 +1206,7 @@ def test_update_locked_rubric(
             test_client.req(
                 'patch',
                 f'/api/v1/submissions/{work["id"]}/rubricitems/',
-                204,
+                200,
                 data={'items': items}
             )
 
@@ -1211,12 +1232,12 @@ def test_update_locked_rubric(
             assert 'Warning' in res.headers
 
             # This does not fail as we post the same item
-            test_client.req(
+            server_items = test_client.req(
                 'patch',
                 f'/api/v1/submissions/{work["id"]}/rubricitems/',
-                204,
+                200,
                 data={'items': items}
-            )
+            )['rubric_result']['selected']
 
             items = [
                 row.items[1].id
@@ -1238,6 +1259,29 @@ def test_update_locked_rubric(
                 data={'items': []}
             )
 
+            # We can use the copy_locked_items function
+            test_client.req(
+                'patch',
+                f'/api/v1/submissions/{work["id"]}/rubricitems/?copy_locked_items',
+                200,
+                data={'items': []},
+                result={
+                    '__allow_extra__': True, 'rubric_result': {
+                        '__allow_extra__': True,
+                        'selected': server_items,
+                    }
+                }
+            )
+
+            # Cannot give items and use copy_locked_items
+            err = test_client.req(
+                'patch',
+                f'/api/v1/submissions/{work["id"]}/rubricitems/?copy_locked_items',
+                400,
+                data={'items': items}
+            )
+            assert 'You cannot specify locked rows' in err['message']
+
     with describe('cannot delete locked rubric rows'), logged_in(teacher):
         res = test_client.req(
             'put',
@@ -1258,7 +1302,6 @@ def test_update_locked_rubric(
 
     with describe('cannot delete items from locked rubric row after run'
                   ), logged_in(teacher):
-        print(rubric)
         rubric_data = {'rows': rubric}
         old_rubric_data = copy.deepcopy(rubric_data)
         rubric_data['rows'][0]['items'].pop()
@@ -1740,7 +1783,7 @@ def test_output_dir(
         monkeypatch_broker()
         live_server_url, stop_server = live_server(get_stop=True)
         thread = threading.Thread(
-            target=psef.auto_test.start_polling, args=(app.config, False)
+            target=psef.auto_test.start_polling, args=(app.config, )
         )
         thread.start()
         thread.join()
@@ -1938,12 +1981,10 @@ def test_copy_auto_test(
 def test_failing_attach(
     monkeypatch_celery, basic, test_client, logged_in, describe, live_server,
     lxc_stub, monkeypatch, app, session, stub_function_class, assert_similar,
-    monkeypatch_for_run
+    monkeypatch_for_run, monkeypatch_broker
 ):
     with describe('setup'):
         course, assig_id, teacher, student = basic
-        ses = requests_stubs.Session()
-        monkeypatch.setattr(psef.helpers, 'BrokerSession', lambda *_: ses)
 
         with logged_in(teacher):
             test = helpers.create_auto_test_from_dict(
@@ -1977,7 +2018,7 @@ def test_failing_attach(
         # It should throw an attach somewhere in the code, which should not
         # make the tests stuck. So the tests pass when this function returns
         # and the result is not finished.
-        psef.auto_test.start_polling(app.config, False)
+        psef.auto_test.start_polling(app.config)
 
         res = session.query(m.AutoTestResult).filter_by(work_id=work['id']
                                                         ).one()
@@ -2015,3 +2056,149 @@ def test_starting_at_run_without_submissions(
     with describe("Starting AT run doesn't notify broker"), logged_in(teacher):
         test_client.req('post', f'{url}/runs/', 200)
         assert not stub_notify.called
+
+
+@pytest.mark.parametrize('use_transaction', [False], indirect=True)
+def test_continuous_rubric(
+    monkeypatch_celery, monkeypatch_broker, basic, test_client, logged_in,
+    describe, live_server, lxc_stub, monkeypatch, app, session,
+    stub_function_class, assert_similar, monkeypatch_for_run
+):
+    with describe('setup'):
+        course, assig_id, teacher, student = basic
+
+        with logged_in(teacher):
+            # yapf: disable
+            test = helpers.create_auto_test_from_dict(
+                test_client, assig_id, {
+                    'sets': [{
+                        'suites': [{
+                            'steps': [{
+                                'run_c': 'echo 0.8',
+                                'name': 'Copy all files',
+                            }],
+                            'rubric_type': 'continuous',
+                        }, {
+                            'steps': [{
+                                'run_c': 'echo 0.75',
+                                'name': 'Much',
+                                'weight': 9,
+                            }, {
+                                'run_c': 'echo 1.0',
+                                'name': 'Few',
+                                'weight': 1,
+                            }],
+                            'rubric_type': 'continuous',
+                        }],
+                    }, {
+                        'suites': [{
+                            'steps': [{
+                                'run_c': 'echo 0.5',
+                                'name': 'normal rubric'
+                            }],
+                            'rubric_type': 'normal',
+                        }],
+                    }]
+                }
+            )
+            # yapf: enable
+        url = f'/api/v1/auto_tests/{test["id"]}'
+
+        with logged_in(teacher):
+            work = helpers.create_submission(
+                test_client, assig_id, for_user=student.username
+            )
+            rubric = test_client.req(
+                'get', f'/api/v1/submissions/{work["id"]}/rubrics/', 200
+            )
+        assert not rubric['selected']
+
+    with describe('start_auto_test'):
+        with logged_in(teacher):
+            run_id = test_client.req('post', f'{url}/runs/', 200)['id']
+            session.commit()
+
+        monkeypatch_broker()
+        live_server_url, stop_server = live_server(get_stop=True)
+        thread = threading.Thread(
+            target=psef.auto_test.start_polling, args=(app.config, )
+        )
+        thread.start()
+        thread.join()
+
+    with describe('Rubric should be filled in correctly'), logged_in(teacher):
+        rubric_result = test_client.req(
+            'get',
+            f'/api/v1/submissions/{work["id"]}/rubrics/',
+            200,
+            result={
+                **rubric,
+                'selected': [{
+                    '__allow_extra__': True,
+                    'achieved_points': 0.8,
+                }, {
+                    '__allow_extra__': True,
+                    'achieved_points': 7.75,
+                }, {
+                    '__allow_extra__': True,
+                    'achieved_points': 0,
+                }],
+                'points': {
+                    'max': rubric['points']['max'],
+                    'selected': 7.75 + 0.8,
+                },
+            }
+        )
+
+    with describe('Rubrics can be copied with copy_locked_items'
+                  ), logged_in(teacher):
+        test_client.req(
+            'patch',
+            f'/api/v1/submissions/{work["id"]}/rubricitems/?copy_locked_items',
+            200,
+            data={'items': []}
+        )
+        test_client.req(
+            'get',
+            f'/api/v1/submissions/{work["id"]}/rubrics/',
+            200,
+            result=rubric_result
+        )
+
+    with describe('Cannot copy and give rubric'), logged_in(teacher):
+        lookup = {
+            item['id']: row['id']
+            for row in rubric['rubrics'] for item in row['items']
+        }
+        patch_data = {
+            'items': [{
+                'item_id': item['id'],
+                'multiplier': item['multiplier'],
+                'row_id': lookup[item['id']],
+            } for item in rubric_result['selected']]
+        }
+
+        err = test_client.req(
+            'patch',
+            f'/api/v1/submissions/{work["id"]}/rubricitems/?copy_locked_items',
+            400,
+            data=patch_data
+        )
+        assert re.search(
+            r'You cannot specify locked rows.*copy_locked_items',
+            err['message']
+        )
+
+        # Can simply give all the values when not doing copy.
+        test_client.req(
+            'patch',
+            f'/api/v1/submissions/{work["id"]}/rubricitems/',
+            200,
+            data=patch_data
+        )
+        test_client.req(
+            'get',
+            f'/api/v1/submissions/{work["id"]}/rubrics/',
+            200,
+            result=rubric_result
+        )

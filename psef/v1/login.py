@@ -178,18 +178,21 @@ def self_information(
         )
 
     elif helpers.extended_requested() or args.get('type') == 'extended':
-        obj = current_user.__extended_to_json__()
+        obj: t.Union[t.MutableMapping[str, t.Any], models.User]
         if request_arg_true('with_permissions'):
+            obj = current_user.__extended_to_json__()
             obj['permissions'] = GPerm.create_map(
                 current_user.get_all_permissions()
             )
+        else:
+            obj = current_user
         return extended_jsonify(obj)
     return jsonify(current_user)
 
 
 @api.route('/login', methods=['PATCH'])
-def get_user_update(
-) -> t.Union[EmptyResponse, JSONResponse[t.Mapping[str, str]]]:
+def get_user_update() -> t.Union[EmptyResponse, JSONResponse[
+    t.Mapping[str, str]], JSONResponse[models.User]]:
     """Change data of the current :class:`.models.User` and handle passsword
         resets.
 
@@ -304,7 +307,7 @@ def user_patch_handle_reset_on_lti() -> EmptyResponse:
     return make_empty_response()
 
 
-def user_patch_handle_change_user_data() -> EmptyResponse:
+def user_patch_handle_change_user_data() -> JSONResponse[models.User]:
     """Handle the PATCH login route when no ``type`` is given.
 
     :returns: An empty response.
@@ -360,4 +363,4 @@ def user_patch_handle_change_user_data() -> EmptyResponse:
         current_user.name = name
 
     db.session.commit()
-    return make_empty_response()
+    return jsonify(current_user)

@@ -51,11 +51,11 @@ def get_diff(lock):
         thread.join()
 
     assert len(res) == t_amount
-    res = sum(abs(r1 - r2) for r1, r2 in zip(res, range(t_amount)))
-    print(lock, res)
+    res = sum(r1 != r2 for r1, r2 in zip(res, range(t_amount)))
+    print(res, res)
     return res
 
 
 def test_fairness():
     for _ in range(100):
-        assert get_diff(FairLock()) < 2
+        assert get_diff(FairLock()) < 4

@@ -24,7 +24,10 @@ from datetime import date
 
 import sphinx_fontawesome
 
+from sphinx.search import IndexBuilder
+
 sys.path.insert(0, os.path.abspath('../'))
+sys.path.append(os.path.abspath("./_ext"))
 
 # -- General configuration ------------------------------------------------
 
@@ -49,11 +52,11 @@ extensions = [
     'sphinxcontrib.autohttp.flaskqref',
     'sphinx_autodoc_typehints',
     'sphinx_fontawesome',
+    'example',
 ]
 
 # Don't show internal routes in the documenation
 http_index_ignore_prefixes = ['/api/v-internal']
-
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -77,9 +80,8 @@ author = 'CodeGrade Team'
 # built documents.
 #
 # The short X.Y version.
-version = subprocess.check_output(
-    ['git', 'describe', '--abbrev=0', '--tags']
-).decode('utf-8').strip()
+version = subprocess.check_output(['git', 'describe', '--abbrev=0',
+                                   '--tags']).decode('utf-8').strip()
 # The full version, including alpha/beta/rc tags.
 release = version
 
@@ -145,7 +147,8 @@ latex_elements = {
     # 'figure_align': 'htbp',
     'inputenc': '',
     'utf8extra': '',
-    'preamble': r'''
+    'preamble':
+        r'''
 \setcounter{tocdepth}{2}
 \usepackage{comment}
 \excludecomment{sphinxtheindex}
@@ -153,19 +156,18 @@ latex_elements = {
 ''',
 }
 
-
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
-latex_documents = [(master_doc, 'CodeGrade.tex', 'CodeGrade User Manual',
-                    author, 'manual'), ]
+latex_documents = [
+    (master_doc, 'CodeGrade.tex', 'CodeGrade User Manual', author, 'manual'),
+]
 
 # -- Options for manual page output ---------------------------------------
 
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
-man_pages = [(master_doc, 'codegrade', 'CodeGrade Manual', [author],
-              1)]
+man_pages = [(master_doc, 'codegrade', 'CodeGrade Manual', [author], 1)]
 
 # -- Options for Texinfo output -------------------------------------------
 
@@ -173,9 +175,11 @@ man_pages = [(master_doc, 'codegrade', 'CodeGrade Manual', [author],
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'CodeGrade', 'CodeGrade User Manual', author, 'CodeGrade',
-     'Codegrade is a blended learning tool that makes grading programming ' +
-     'assignments more intuitive.', 'Miscellaneous'),
+    (
+        master_doc, 'CodeGrade', 'CodeGrade User Manual', author, 'CodeGrade',
+        'Codegrade is a blended learning tool that makes grading programming '
+        + 'assignments more intuitive.', 'Miscellaneous'
+    ),
 ]
 
 todo_include_todos = True
@@ -193,3 +197,21 @@ html_logo = '_static/_images/logo.svg'
 html_theme_options = {
     'logo_only': True,
 }
+
+existing_feed = IndexBuilder.feed
+
+
+def new_feed(self, docname, filename, *args, **kwargs):
+    if filename in {
+        'running.rst',
+        'api.rst',
+        'building.rst',
+        'code.rst',
+        'developerdocs.rst',
+        'psef_api/psef.rst',
+    }:
+        return
+    return existing_feed(self, docname, filename, *args, **kwargs)
+
+
+IndexBuilder.feed = new_feed

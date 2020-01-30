@@ -109,7 +109,7 @@ export default {
 
     computed: {
         ...mapGetters('user', {
-            userName: 'name',
+            myId: 'id',
         }),
 
         hasFeedback() {
@@ -126,8 +126,8 @@ export default {
     },
 
     methods: {
-        ...mapActions('submissions', {
-            storeAddFeedbackLine: 'addSubmissionFeedbackLine',
+        ...mapActions('feedback', {
+            storeAddFeedbackLine: 'addFeedbackLine',
         }),
 
         feedbackChange() {
@@ -142,7 +142,7 @@ export default {
                     submissionId: this.submission.id,
                     fileId: this.fileId,
                     line: this.line,
-                    author: { name: this.userName },
+                    author: { id: this.myId },
                 });
             }
             this.$nextTick(() => {

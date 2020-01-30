@@ -145,20 +145,16 @@ describe('SnippetManager.vue', () => {
             expect(mockPatch).toBeCalledTimes(0);
         }
 
-        it('should fail when the key is empty', () => {
-            expectFail({ key: '', value: 'not empty' });
+        it('should fail when the key is empty', async () => {
+            await expectFail({ key: '', value: 'not empty' });
         });
 
-        it('should fail when the key contains whitespace', () => {
-            expectFail({ key: 'key with spaces', value: 'not empty' });
+        it('should fail when the key contains whitespace', async () => {
+            await expectFail({ key: 'key with spaces', value: 'not empty' });
         });
 
-        it('should fail when the key already exists', () => {
-            expectFail({ key: 'duplicate', value: 'not empty' });
-        });
-
-        it('should fail when the value is empty', () => {
-            expectFail({ key: 'key', value: '' });
+        it('should fail when the value is empty', async () => {
+            await expectFail({ key: 'key', value: '' });
         });
     });
 

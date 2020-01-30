@@ -21,9 +21,9 @@ if t.TYPE_CHECKING and getattr(
     from config import FlaskConfig
     from flask import Flask
 
-    current_app: 'psef.Flask'
+    current_app: 'PsefFlask'
 else:
-    from flask import Flask, current_app
+    from flask import Flask, current_app  # type: ignore
 
 
 class PsefFlask(Flask):
@@ -40,7 +40,7 @@ class PsefFlask(Flask):
     def max_single_file_size(self) -> 'psef.archive.FileSize':
         """The maximum allowed size for a single file.
         """
-        return self.config['MAX_FILE_SIZE']
+        return archive.FileSize(self.config['MAX_FILE_SIZE'])
 
     @property
     def max_file_size(self) -> 'psef.archive.FileSize':
@@ -48,7 +48,7 @@ class PsefFlask(Flask):
 
         .. note:: An individual file has a different limit!
         """
-        return self.config['MAX_NORMAL_UPLOAD_SIZE']
+        return archive.FileSize(self.config['MAX_NORMAL_UPLOAD_SIZE'])
 
     @property
     def max_large_file_size(self) -> 'psef.archive.FileSize':
@@ -56,7 +56,7 @@ class PsefFlask(Flask):
 
         .. note:: An individual file has a different limit!
         """
-        return self.config['MAX_LARGE_UPLOAD_SIZE']
+        return archive.FileSize(self.config['MAX_LARGE_UPLOAD_SIZE'])
 
     @property
     def do_sanity_checks(self) -> bool:
@@ -73,6 +73,8 @@ app: 'PsefFlask' = current_app  # pylint: disable=invalid-name
 
 _current_tester = None  # pylint: disable=invalid-name
 current_tester = LocalProxy(lambda: _current_tester)  # pylint: disable=invalid-name
+
+from . import archive  # isort:skip, pylint: disable=wrong-import-position
 
 
 def enable_testing() -> None:
@@ -114,6 +116,7 @@ def create_app(  # pylint: disable=too-many-statements
     :param skip_celery: Set to true to disable sanity checks for celery.
     :returns: A new psef app object.
     """
+    # pylint: disable=import-outside-toplevel
     import config as global_config
 
     resulting_app = PsefFlask(__name__)

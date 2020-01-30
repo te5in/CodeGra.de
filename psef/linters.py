@@ -61,7 +61,8 @@ def _run_command(cmd: t.List[str]) -> subprocess.CompletedProcess:
         except:  # pylint: disable=bare-except
             pass
 
-    return subprocess.run(
+    # The check for success is something we really don't want here.
+    return subprocess.run(  # pylint: disable=subprocess-run-check
         cmd,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,

@@ -101,6 +101,7 @@ context('Submission uploader', () => {
         cy.visit('/');
         cy.createCourse('SubmissionUploader', [
             { name: 'student1', role: 'Student' },
+            { name: 'student3', role: 'Student' },
             { name: 'robin', role: 'Teacher' },
         ]).then(res => {
             course = res;
@@ -298,6 +299,114 @@ context('Submission uploader', () => {
                 testSub: true,
             }).then(() => {
                 cy.get('.submission-nav-bar').should('contain', 'Test Student');
+            });
+        });
+
+        it('should show and update submission limits', () => {
+            let amount;
+            return cy.authRequest({
+                url: `/api/v1/assignments/${assignment.id}`,
+                method: 'PATCH',
+                body: {
+                    max_submissions: 10,
+                    cool_off_period: 0,
+                },
+            }).then(() => {
+                goToSubmissions();
+
+                cy.get('.submission-limiting')
+                    .find('.loader')
+                    .should('not.exist');
+
+                cy.get('.submission-limiting')
+                    .text()
+                    .then(($div) => {
+                        const $txt = $div.replace(/\n/g, ' ').replace(/  +/g, ' ');
+                        expect($txt).to.match(/You have [0-9]+ submissions left out of 10\./);
+                        amount = $txt.match(/You have ([0-9]+)/)[1];
+                        expect(amount).to.be.gt(1);
+                    });
+
+                // Should not be visible when the test student is active.
+                cy.get('.submission-uploader')
+                    .contains('.custom-checkbox', 'Test submission')
+                    .click();
+                cy.get('.submission-limiting').should('not.exist')
+                cy.get('.submission-uploader')
+                    .contains('.custom-checkbox', 'Test submission')
+                    .click();
+
+                return uploadFiles({ submitOpts: { hasConfirm: true } })
+            }).then(() => {
+                cy.get('.local-header .back-button').click();
+
+                cy.get('.submission-limiting')
+                    .find('.loader')
+                    .should('not.exist');
+                cy.get('.submission-limiting')
+                    .text()
+                    .should('contain', `You have ${amount - 1} submissions left out of 10.`);
+            });
+        });
+
+        it('should show and update cool off periods', () => {
+            function checkSubmissionText(txt) {
+                cy.get('.submission-limiting').find('.loader').should('not.exist');
+                cy.get('.submission-limiting')
+                    .text()
+                    .then($txt => {
+                        expect($txt.trim()).to.eq(txt);
+                    });
+            }
+
+            function goBack() {
+                cy.get('.local-header .back-button').click();
+            }
+
+            return cy.authRequest({
+                url: `/api/v1/assignments/${assignment.id}`,
+                method: 'PATCH',
+                body: {
+                    max_submissions: null,
+                    cool_off_period: 60,
+                    amount_in_cool_off_period: 2,
+                },
+            }).then(() => {
+                goToSubmissions();
+                setUploadAuthor('Student3');
+                checkSubmissionText('Student3 has 0 submissions. You may submit twice every minute.');
+
+                return uploadFiles();
+            }).then(() => {
+                goBack();
+
+                setUploadAuthor('Student3');
+                checkSubmissionText('Student3 has 1 submission. You may submit twice every minute.');
+
+                return uploadFiles();
+            }).then(() => {
+                goBack();
+
+                setUploadAuthor('Student3');
+                checkSubmissionText(
+                    'Student3 has 2 submissions. You may submit twice every minute. ' +
+                        'Student3 submitted twice in the past few seconds, ' +
+                        'therefore must wait for a minute.'
+                );
+
+                cy.login('student3', 'Student3');
+
+                goToSubmissions();
+                cy.get('.action-buttons')
+                    .contains('.action-button', 'Upload files')
+                    .click();
+                checkSubmissionText(
+                    'You have 2 submissions. You may submit twice every minute. ' +
+                        'You submitted twice in the past few seconds, ' +
+                        'therefore you must wait for a minute.'
+                );
+
+
             });
         });
     });

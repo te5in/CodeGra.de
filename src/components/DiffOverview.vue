@@ -142,8 +142,8 @@ export default {
     },
 
     methods: {
-        ...mapActions('submissions', {
-            storeLoadFileTree: 'loadSubmissionFileTree',
+        ...mapActions('fileTrees', {
+            storeLoadFileTree: 'loadFileTree',
         }),
 
         getChangedFiles(tree, prefix = []) {

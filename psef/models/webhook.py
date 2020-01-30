@@ -123,7 +123,7 @@ class WebhookBase(Base, UUIDMixin, TimestampMixin):
         )
 
     @property
-    def _ssh_private_key(self) -> rsa.RSAPrivateKey:
+    def _ssh_private_key(self) -> rsa.RSAPrivateKeyWithSerialization:
         assert self._ssh_key is not None
         return serialization.load_pem_private_key(
             self._ssh_key, None, default_backend()
@@ -355,7 +355,10 @@ class _GitWebhook(WebhookBase):
             # otherwise we raise the last exception.
             try:
                 auth.ensure_can_submit_work(
-                    self.assignment, user, current_user=user
+                    self.assignment,
+                    author=self.user,
+                    for_user=user,
+                    current_user=user,
                 )
             except exceptions.PermissionException as e:
                 logger.info('User cannot submit work', exc_info=True)

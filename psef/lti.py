@@ -28,7 +28,7 @@ from . import app, auth, models, helpers, features, current_user
 from .auth import _user_active
 from .models import db
 from .helpers import register
-from .exceptions import APICodes, APIException
+from .exceptions import APICodes, APIWarnings, APIException
 
 logger = structlog.get_logger()
 
@@ -48,41 +48,6 @@ LTI_NAMESPACES = {
 
 T_LTI_ROLE = t.TypeVar('T_LTI_ROLE', bound='LTIRole')  # pylint: disable=invalid-name
 
-LTI_SYSROLE_LOOKUPS: t.Mapping[str, str] = {
-    # LIS standard System Roles
-    'SysAdmin': 'Staff',
-    'SysSupport': 'Staff',
-    'Creator': 'Staff',
-    'AccountAdmin': 'Staff',
-    'User': 'Student',
-    'Administrator': 'Staff',
-    'None': 'Nobody',
-    # LIS standard Institution Roles
-    'Student': 'Student',
-    'Faculty': 'Staff',
-    'Member': 'Student',
-    'Learner': 'Student',
-    'Instructor': 'Staff',
-    'Mentor': 'Staff',
-    'Staff': 'Staff',
-    'Alumni': 'Student',
-    'ProspectiveStudent': 'Student',
-    'Guest': 'Student',
-    'Other': 'Student',
-    'Observer': 'Student',
-}
-
-LTI_COURSEROLE_LOOKUPS: t.Mapping[str, str] = {
-    # LIS standard Context Roles
-    'Learner': 'Student',
-    'Instructor': 'Teacher',
-    'ContentDeveloper': 'Designer',
-    'Member': 'Student',
-    'Mentor': 'TA',
-    'Administrator': 'Teacher',
-    'TeachingAssistant': 'TA',
-}
-
 
 @dataclass
 class LTIProperty:
@@ -90,9 +55,11 @@ class LTIProperty:
 
     :ivar internal: The name the property should be names in the launch params.
     :ivar external: The external name of the property.
+    :ivar error_on_missing: This is considered a essential property.
     """
     internal: str
     external: str
+    error_on_missing: bool = False
 
 
 class LTIRoleException(APIException):
@@ -100,45 +67,71 @@ class LTIRoleException(APIException):
     """
 
 
-class LTIRoleKind(enum.Enum):
-    """Kind of an LTI role.
-    """
-    system = enum.auto()
-    institution = enum.auto()
-    course = enum.auto()
-
-    @classmethod
-    def get_kind(cls, lti_kind: str) -> 'LTIRoleKind':
-        """Get the LTIRoleKind for a kind passed by the LTI provider.
-
-        :param lti_kind: Kind passed by the LTI provider.
-        :returns: The LTIRoleKind corresponding to the passed in kind.
-        """
-        try:
-            return {
-                'sysrole': cls.system,
-                'instrole': cls.institution,
-                'role': cls.course,
-            }[lti_kind]
-        except KeyError:
-            raise LTIRoleException(
-                'The given role could not be parsed as an LTI role.',
-                f'The role kind {lti_kind} is invalid.',
-                APICodes.INVALID_PARAM, 400
-            )
-
-
-class LTIRole:
+class LTIRole(abc.ABC):
     """LTI role, parsed from a role urn. The urn must be of the form
     urn:lti:{kind}:ims/lis/{name}/{subname}.
 
-    :ivar kind: Kind of the role.
     :ivar ~.LTIRole.name: Primary role name.
     :ivar subnames: Secondary role names.
     """
+    _LOOKUP: t.ClassVar[t.Mapping[str, t.Tuple[str, int]]]
 
     @classmethod
+    @abc.abstractmethod
     def parse(cls: t.Type[T_LTI_ROLE], urn: str) -> T_LTI_ROLE:
+        """Parse the given ``urn`` to a role.
+
+        :param urn: The urn to parse.
+        :returns: The parsed role.
+        :raises LTIRoleException: If the role is not valid.
+        """
+        raise NotImplementedError
+
+    @property
+    def codegrade_role_name(self) -> t.Optional[str]:
+        """If not ``None`` this role should be mapped to a CodeGrade role with
+        this name.
+        """
+        if self.name in self._LOOKUP:
+            return self._LOOKUP[self.name][0]
+        return None
+
+    @classmethod
+    def codegrade_role_name_used(cls, name: str) -> bool:
+        """Is the given name used for any known LTI role as CodeGrade role
+            name.
+
+        This is true if there is any role ``l`` for which
+        ``l.codegrade_role_name == name``.
+
+        :param name: The CodeGrade role name to check.
+        """
+        return any(cg_name == name for cg_name, _ in cls._LOOKUP.values())
+
+    def _get_sort_key(self) -> int:
+        return self._LOOKUP.get(self.name, ('', -1))[-1]
+
+    def __lt__(self, other: object) -> bool:
+        """Check if this item is less than the other item.
+
+        >>> a = LTICourseRole(name='Mentor', subnames=['c'])
+        >>> b = LTICourseRole(name='Learner', subnames=['c'])
+        >>> c = LTIGlobalRole(name='Mentor', subnames=['c'])
+        >>> a < b
+        False
+        >>> a > b
+        True
+        >>> a.__lt__(c)
+        NotImplemented
+        """
+        if not isinstance(other, type(self)):
+            return NotImplemented
+        return self._get_sort_key() < other._get_sort_key()
+
+    @classmethod
+    def _parse(
+        cls: t.Type[T_LTI_ROLE], urn: str, wanted_kind: t.Collection[str]
+    ) -> T_LTI_ROLE:
         """Parse a LTI role from a IMS urn.
 
         :param urn: The string to parse.
@@ -157,7 +150,7 @@ class LTIRole:
         role_assert(urn.startswith('urn:lti:'))
         _, __, *rest = urn.split(':')
         role_assert(len(rest) >= 2)
-        kind = LTIRoleKind.get_kind(rest[0])
+        role_assert(rest[0] in wanted_kind)
 
         path = rest[1]
         role_assert(path.startswith('ims/lis/'))
@@ -165,19 +158,70 @@ class LTIRole:
         role_assert(len(names) > 0)
         name = names[0]
         subnames = names[1:]
-        return cls(kind=kind, name=name, subnames=subnames)
+        return cls(name=name, subnames=subnames)
 
-    def __init__(
-        self, *, kind: LTIRoleKind, name: str, subnames: t.Sequence[str]
-    ) -> None:
-        self.kind = kind
+    def __init__(self, *, name: str, subnames: t.Sequence[str]) -> None:
         self.name = name
         self.subnames = subnames
 
     def __repr__(self) -> str:
-        kind = self.kind.name.lower()
+        kind = self.__class__.__name__.lower()
         name = '/'.join([self.name, *self.subnames])
         return f'{kind}:{name}'
+
+
+class LTICourseRole(LTIRole):
+    """A class representing a course LTI role.
+    """
+    _LOOKUP = {
+        # LIS standard Context Roles
+        'Learner': ('Student', 0),
+        'Instructor': ('Teacher', 3),
+        'ContentDeveloper': ('Designer', 1),
+        'Member': ('Student', 0),
+        'Mentor': ('TA', 2),
+        'Administrator': ('Teacher', 3),
+        'TeachingAssistant': ('TA', 2),
+    }
+
+    @classmethod
+    def parse(cls, urn: str) -> 'LTICourseRole':
+        return cls._parse(urn, {'role'})
+
+
+class LTIGlobalRole(LTIRole):
+    """A class representing a global LTI role.
+
+    This class represents both roles of type ``sysrole`` and of type
+    ``instrole``, as CodeGrade handles those both the same way.
+    """
+    _LOOKUP = {
+        # LIS standard System Roles,
+        'SysAdmin': ('Staff', 3),
+        'SysSupport': ('Staff', 3),
+        'Creator': ('Staff', 3),
+        'AccountAdmin': ('Staff', 3),
+        'User': ('Student', 2),
+        'Administrator': ('Staff', 3),
+        'None': ('Nobody', 1),
+        # LIS standard Institution Roles,
+        'Student': ('Student', 2),
+        'Faculty': ('Staff', 3),
+        'Member': ('Student', 2),
+        'Learner': ('Student', 2),
+        'Instructor': ('Staff', 3),
+        'Mentor': ('Staff', 3),
+        'Staff': ('Staff', 3),
+        'Alumni': ('Student', 2),
+        'ProspectiveStudent': ('Student', 2),
+        'Guest': ('Student', 2),
+        'Other': ('Student', 2),
+        'Observer': ('Student', 2),
+    }
+
+    @classmethod
+    def parse(cls, urn: str) -> 'LTIGlobalRole':
+        return cls._parse(urn, {'sysrole', 'instrole'})
 
 
 T_LTI = t.TypeVar('T_LTI', bound='LTI')  # pylint: disable=invalid-name
@@ -277,7 +321,9 @@ class LTI:  # pylint: disable=too-many-public-methods
         lms = params['custom_lms_name']
         cls = lti_classes.get(lms)
         assert cls is not None
-        return cls(params)
+        res = cls(params)
+        res.ensure_lti_data_correct()
+        return res
 
     @staticmethod
     def get_lti_properties() -> t.List[LTIProperty]:
@@ -400,17 +446,39 @@ class LTI:  # pylint: disable=too-many-public-methods
         raise NotImplementedError
 
     @property
-    def roles(self) -> t.Iterable[LTIRole]:
-        """The normalized roles of the current LTI user.
-        """
+    def course_roles(self) -> t.Sequence[LTICourseRole]:
+        """The course roles of the user doing the launch."""
         raise NotImplementedError
 
-    def _roles(self, key: str) -> t.Iterable[LTIRole]:
+    @property
+    def global_roles(self) -> t.Sequence[LTIGlobalRole]:
+        """The global roles of the user doing the launch."""
+        raise NotImplementedError
+
+    def ensure_lti_data_correct(self) -> None:  # pylint: disable=no-self-use
+        """Make sure the lti data is correct.
+
+        This is the place were you can do some sanity checks, and make sure the
+        setup of the assignment was done correct.
+        """
+        return
+
+    def _roles(self, key: str,
+               role_type: t.Type[T_LTI_ROLE]) -> t.Sequence[T_LTI_ROLE]:
+        roles = self._get_unsorted_roles(key, role_type)
+        roles.sort(reverse=True)
+        return roles
+
+    def _get_unsorted_roles(self, key: str, role_type: t.Type[T_LTI_ROLE]
+                            ) -> t.List[T_LTI_ROLE]:
+        roles = []
         for role in self.launch_params[key].split(','):
             try:
-                yield LTIRole.parse(role)
+                roles.append(role_type.parse(role))
             except LTIRoleException:
                 pass
+
+        return roles
 
     def get_assignment_deadline(self, default: datetime.datetime = None
                                 ) -> t.Optional[datetime.datetime]:
@@ -529,6 +597,25 @@ class LTI:  # pylint: disable=too-many-public-methods
 
         return course
 
+    def create_and_add_assignment(
+        self, course: models.Course
+    ) -> models.Assignment:
+        """Create a new assignment in the database from the launch parameters.
+
+        This function also adds the created assignment to the current session.
+        """
+        assignment = models.Assignment(
+            name=self.assignment_name,
+            state=self.assignment_state,
+            course=course,
+            deadline=self.get_assignment_deadline(),
+            lti_assignment_id=self.assignment_id,
+            description=''
+        )
+        db.session.add(assignment)
+        db.session.flush()
+        return assignment
+
     def get_assignment(
         self, user: models.User, course: models.Course
     ) -> models.Assignment:
@@ -538,16 +625,7 @@ class LTI:  # pylint: disable=too-many-public-methods
             lti_assignment_id=self.assignment_id,
         ).first()
         if assignment is None:
-            assignment = models.Assignment(
-                name=self.assignment_name,
-                state=self.assignment_state,
-                course=course,
-                deadline=self.get_assignment_deadline(),
-                lti_assignment_id=self.assignment_id,
-                description=''
-            )
-            db.session.add(assignment)
-            db.session.flush()
+            assignment = self.create_and_add_assignment(course=course)
 
         if assignment.deleted:
             raise APIException(
@@ -557,12 +635,15 @@ class LTI:  # pylint: disable=too-many-public-methods
             )
 
         if assignment.course != course:  # pragma: no cover
-            logger.warning(
-                'Assignment changed course!',
-                assignment=assignment,
-                course=course,
+            raise APIException(
+                (
+                    'The assignment was previously connected to a different'
+                    ' course.'
+                ), (
+                    f'The assignment {self.assignment_id} was previously'
+                    f' connected to {course.id}'
+                ), APICodes.INVALID_STATE, 400
             )
-            assignment.course = course
 
         if self.has_result_sourcedid():
             if assignment.id in user.assignment_results:
@@ -616,14 +697,17 @@ class LTI:  # pylint: disable=too-many-public-methods
         :rtype: None
         """
         if user.role is None:
-            for role in self.roles:
-                # Ignore course roles.
-                if role.kind == LTIRoleKind.course:
+            global_roles = self.global_roles
+            logger.info(
+                'Checking global roles', given_global_roles=global_roles
+            )
+
+            for role in global_roles:
+                if role.codegrade_role_name is None:
                     continue
-                role_lookup = LTI_SYSROLE_LOOKUPS.get(role.name)
-                if role_lookup is None:
-                    continue
-                user.role = models.Role.query.filter_by(name=role_lookup).one()
+                user.role = models.Role.query.filter_by(
+                    name=role.codegrade_role_name
+                ).one()
                 return
             user.role = models.Role.query.filter_by(
                 name=app.config['DEFAULT_ROLE']
@@ -643,17 +727,18 @@ class LTI:  # pylint: disable=too-many-public-methods
         :returns: True if a new role was created.
         """
         if course.id not in user.courses:
-            unkown_roles = []
-            for role in self.roles:
-                # Ignore system roles.
-                if role.kind != LTIRoleKind.course:
-                    continue
-                role_lookup = LTI_COURSEROLE_LOOKUPS.get(role.name)
-                if role_lookup is None:
+            unkown_roles: t.List[str] = []
+            course_roles = self.course_roles
+            logger.info(
+                'Checking course roles',
+                given_course_roles=course_roles,
+            )
+            for role in course_roles:
+                if role.codegrade_role_name is None:
                     unkown_roles.append(role.name)
                     continue
                 crole = models.CourseRole.query.filter_by(
-                    course_id=course.id, name=role_lookup
+                    course_id=course.id, name=role.codegrade_role_name
                 ).one()
                 user.courses[course.id] = crole
                 return False
@@ -662,7 +747,7 @@ class LTI:  # pylint: disable=too-many-public-methods
                 raise APIException(
                     'The given LTI role could not be found or was not valid. '
                     'Please ask your instructor or site administrator.',
-                    f'No role in "{list(self.roles)}" is a known LTI role',
+                    f'No role in "{list(self.course_roles)}" is a known LTI role',
                     APICodes.INVALID_STATE, 400
                 )
 
@@ -830,6 +915,22 @@ class CanvasLTI(LTI):
         """Canvas supports common cartridges"""
         return True
 
+    def ensure_lti_data_correct(self) -> None:
+        super().ensure_lti_data_correct()
+        for lti_prop in self.get_lti_properties():
+            if not lti_prop.error_on_missing:
+                continue
+            if self.launch_params[lti_prop.internal] == lti_prop.external:
+                raise APIException(
+                    (
+                        'It seems that CodeGrade was not added correctly as an'
+                        ' assignment to this module, are you sure you did not'
+                        ' add CodeGrade directly as an external tool?'
+                    ),
+                    f"The property {lti_prop.external} didn't have a value.",
+                    APICodes.MISSING_REQUIRED_PARAM, 400
+                )
+
     @staticmethod
     def get_lti_properties() -> t.List[LTIProperty]:
         """All extension properties used by Canvas.
@@ -839,31 +940,35 @@ class CanvasLTI(LTI):
         return [
             LTIProperty(
                 internal='custom_canvas_course_name',
-                external='$Canvas.course.name'
+                external='$Canvas.course.name',
+                error_on_missing=True,
             ),
             LTIProperty(
                 internal='custom_canvas_course_id',
-                external='$Canvas.course.id'
+                external='$Canvas.course.id',
+                error_on_missing=True,
             ),
             LTIProperty(
                 internal='custom_canvas_assignment_id',
-                external='$Canvas.assignment.id'
+                external='$Canvas.assignment.id',
+                error_on_missing=True,
             ),
             LTIProperty(
                 internal='custom_canvas_assignment_title',
-                external='$Canvas.assignment.title'
+                external='$Canvas.assignment.title',
+                error_on_missing=True,
             ),
             LTIProperty(
                 internal='custom_canvas_assignment_due_at',
-                external='$Canvas.assignment.dueAt.iso8601'
+                external='$Canvas.assignment.dueAt.iso8601',
             ),
             LTIProperty(
                 internal='custom_canvas_assignment_published',
-                external='$Canvas.assignment.published'
+                external='$Canvas.assignment.published',
             ),
             LTIProperty(
                 internal='custom_canvas_points_possible',
-                external='$Canvas.assignment.pointsPossible'
+                external='$Canvas.assignment.pointsPossible',
             ),
         ]
 
@@ -918,6 +1023,22 @@ class CanvasLTI(LTI):
     def has_result_sourcedid(self) -> bool:
         return 'lis_result_sourcedid' in self.launch_params
 
+    def create_and_add_assignment(
+        self, course: models.Course
+    ) -> models.Assignment:
+        if not self.has_outcome_service_url():
+            helpers.add_warning(
+                (
+                    'It seems that CodeGrade was added directly to this module'
+                    ' as an external tool, rather than as a CodeGrade'
+                    ' assignment. Because of this we do not have the'
+                    ' possibility to pass back grades. Make sure to first'
+                    ' create a CodeGrade assignment and then connect that'
+                    ' assignment to the module.'
+                ), APIWarnings.POSSIBLE_LTI_SETUP_ERROR
+            )
+        return super().create_and_add_assignment(course=course)
+
     @property
     def assignment_state(self) -> models._AssignmentStateEnum:
         # pylint: disable=protected-access
@@ -927,8 +1048,12 @@ class CanvasLTI(LTI):
             return models._AssignmentStateEnum.hidden
 
     @property
-    def roles(self) -> t.Iterable[LTIRole]:
-        return self._roles('ext_roles')
+    def course_roles(self) -> t.Sequence[LTICourseRole]:
+        return self._roles('ext_roles', LTICourseRole)
+
+    @property
+    def global_roles(self) -> t.Sequence[LTIGlobalRole]:
+        return self._roles('ext_roles', LTIGlobalRole)
 
     def get_assignment_deadline(self, default: datetime.datetime = None
                                 ) -> t.Optional[datetime.datetime]:
@@ -1035,8 +1160,12 @@ class BareBonesLTIProvider(LTI):
         return models._AssignmentStateEnum.open
 
     @property
-    def roles(self) -> t.Iterable[LTIRole]:
-        return self._roles('roles')
+    def course_roles(self) -> t.Sequence[LTICourseRole]:
+        return self._roles('roles', LTICourseRole)
+
+    @property
+    def global_roles(self) -> t.Sequence[LTIGlobalRole]:
+        return self._roles('roles', LTIGlobalRole)
 
     def get_assignment_deadline(self, default: datetime.datetime = None
                                 ) -> t.Optional[datetime.datetime]:
@@ -1110,15 +1239,24 @@ class MoodleLTI(BareBonesLTIProvider):
         """Moodle supports common cartridges"""
         return True
 
-    def _roles(self, key: str) -> t.Iterable[LTIRole]:
+    def _get_unsorted_roles(self, key: str, role_type: t.Type[T_LTI_ROLE]
+                            ) -> t.List[T_LTI_ROLE]:
+        roles: t.List[T_LTI_ROLE] = []
+
         for role in self.launch_params[key].split(','):
             # Moodle is strange, it gives these two roles as course roles
-            if role in {'Instructor', 'Learner'}:
-                yield LTIRole(kind=LTIRoleKind.course, name=role, subnames=[])
+            if role in {
+                'Instructor', 'Learner'
+            } and role_type == LTICourseRole:
+                roles.append(
+                    t.cast(T_LTI_ROLE, LTICourseRole(name=role, subnames=[]))
+                )
             try:
-                yield LTIRole.parse(role)
+                roles.append(role_type.parse(role))
             except LTIRoleException:
                 pass
+
+        return roles
 
     @classmethod
     def passback_grade(
@@ -1173,34 +1311,29 @@ class BrightSpaceLTI(BareBonesLTIProvider):
     def username(self) -> str:
         return self.launch_params['ext_d2l_username']
 
-    def _roles(self, key: str) -> t.Iterable[LTIRole]:
-        # Some Brightspace instances pass all roles as instrole. In those
-        # cases we yield the role twice, once as instrole and once as
-        # course role, because we cannot determine whether a role was meant
-        # to be an instrole or a course role. If any of the roles already
-        # is a course role, we simply continue with the next one.
-
-        roles: t.List[LTIRole] = []
+    def _get_unsorted_roles(self, key: str, role_kind: t.Type[T_LTI_ROLE]
+                            ) -> t.List[T_LTI_ROLE]:
+        roles: t.List[T_LTI_ROLE] = []
         for role in self.launch_params[key].split(','):
             try:
-                roles.append(LTIRole.parse(role))
+                roles.append(role_kind.parse(role))
             except LTIRoleException:
                 continue
 
-        if any(
-            parsed_role.kind == LTIRoleKind.course for parsed_role in roles
-        ):
-            yield from roles
-        else:
-            for parsed_role in roles:
-                yield parsed_role
-
-                if parsed_role.name in LTI_COURSEROLE_LOOKUPS:
-                    yield LTIRole(
-                        kind=LTIRoleKind.course,
-                        name=parsed_role.name,
-                        subnames=parsed_role.subnames,
+        if role_kind != LTIGlobalRole and not roles:
+            # Some Brightspace instances pass all roles as instrole (global
+            # role). In those cases we yield each global role also as a course
+            # role, because we cannot determine whether a role was meant to be
+            # a global or a course role.
+            for global_role in self._roles(key, LTIGlobalRole):
+                roles.append(
+                    role_kind(
+                        name=global_role.name,
+                        subnames=global_role.subnames,
                     )
+                )
+
+        return roles
 
 
 #####################################

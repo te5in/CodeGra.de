@@ -29,7 +29,7 @@
 </multiselect>
 <input :value="value ? value.username : ''"
        @input="onInput({ username: $event.target.value })"
-       class="form-control user-selector"
+       class="form-control user-selector border-0 rounded-0"
        :class="{ disabled }"
        :placeholder="placeholder"
        :disabled="disabled"
@@ -37,6 +37,7 @@
 </template>
 
 <script>
+import { mapGetters, mapActions } from 'vuex';
 import Multiselect from 'vue-multiselect';
 
 import Icon from 'vue-awesome/components/Icon';
@@ -105,14 +106,31 @@ export default {
     },
 
     computed: {
+        ...mapGetters('user', {
+            myId: 'id',
+            myUsername: 'username',
+        }),
+        ...mapGetters('users', { getUserById: 'getUser' }),
+
         queryTooSmall() {
             return !this.searchQuery || this.searchQuery.replace(/\s/g, '').length < 3;
         },
     },
 
     methods: {
+        ...mapActions('users', ['addOrUpdateUser']),
+
         onInput(newValue) {
-            this.$emit('input', newValue);
+            if (newValue != null && newValue.username) {
+                let toEmit = newValue;
+                if (toEmit.username === this.myUsername) {
+                    toEmit.id = this.myId;
+                }
+                toEmit = this.getUserById(toEmit.id) || toEmit;
+                this.$emit('input', toEmit);
+            } else {
+                this.$emit('input', null);
+            }
         },
 
         queryMatches() {
@@ -155,6 +173,7 @@ export default {
                                 return;
                             }
 
+                            data.map(user => this.addOrUpdateUser({ user }));
                             this.loadingStudentsCallback = null;
                             this.students = data.filter(this.filterStudents);
                             this.loadingStudents = false;

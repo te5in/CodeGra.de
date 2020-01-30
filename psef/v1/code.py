@@ -15,7 +15,7 @@ from flask import request, make_response
 from sqlalchemy.orm import make_transient
 
 from . import api
-from .. import app, auth, files, models, helpers, features, current_user
+from .. import app, auth, files, models, helpers, current_user
 from ..errors import APICodes, APIException
 from ..models import FileOwner, db
 from ..helpers import (
@@ -240,10 +240,9 @@ def get_feedback(file: models.File, linter: bool = False) -> _FeedbackMapping:
     comments: t.Union[t.List[models.Comment], t.List[models.LinterComment]]
 
     try:
-        auth.ensure_can_see_grade(file.work)
-
         if linter:
-            features.ensure_feature(features.Feature.LINTERS)
+            auth.ensure_can_see_linter_feedback(file.work)
+
             comments = db.session.query(
                 models.LinterComment,
             ).filter_by(file_id=file.id).all()
@@ -255,6 +254,8 @@ def get_feedback(file: models.File, linter: bool = False) -> _FeedbackMapping:
                 name = linter_comment.linter.tester.name
                 res[line].append((name, linter_comment))  # type: ignore
         else:
+            auth.ensure_can_see_user_feedback(file.work)
+
             comments = db.session.query(
                 models.Comment,
             ).filter_by(file_id=file.id).all()

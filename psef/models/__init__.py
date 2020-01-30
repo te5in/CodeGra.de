@@ -150,7 +150,8 @@ if True:  # pylint: disable=using-constant-test
     from .course import Course, CourseSnippet, CourseRegistrationLink
     from .assignment import (
         Assignment, AssignmentLinter, AssignmentResult, AssignmentDoneType,
-        AssignmentGraderDone, AssignmentAssignedGrader, _AssignmentStateEnum
+        AssignmentGraderDone, AssignmentAssignedGrader, _AssignmentStateEnum,
+        AssignmentAmbiguousSettingTag
     )
     from .permission import Permission
     from .user import User
@@ -167,7 +168,7 @@ if True:  # pylint: disable=using-constant-test
     from .comment import Comment
     from .role import AbstractRole, Role, CourseRole
     from .snippet import Snippet
-    from .rubric import RubricItem, RubricRow
+    from .rubric import RubricItem, RubricRowBase as RubricRow, WorkRubricItem
     from .group import GroupSet, Group
     from .link_tables import user_course
     from .auto_test import (

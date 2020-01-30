@@ -20,6 +20,19 @@ import ltiProviders from '@/lti_providers';
 
 import { setPageTitle } from './title';
 
+function getToastOptions() {
+    return {
+        position: 'bottom-center',
+        closeOnSwipe: false,
+        action: {
+            text: '✖',
+            onClick: (e, toastObject) => {
+                toastObject.goAway(0);
+            },
+        },
+    };
+}
+
 export default {
     name: 'lti-launch-page',
 
@@ -49,7 +62,8 @@ export default {
                     blob_id: this.$route.query.blob_id,
                 })
                 .then(
-                    async ({ data }) => {
+                    async response => {
+                        const { data } = response;
                         if (data.access_token) {
                             await this.logout();
                             disablePersistance();
@@ -58,24 +72,21 @@ export default {
                             this.clearPlagiarismCases();
                         }
 
-                        this.$ltiProvider = ltiProviders[data.custom_lms_name];
+                        this.$utils.WarningHeader.fromResponse(response).messages.forEach(
+                            warning => {
+                                this.$toasted.info(warning.text, getToastOptions());
+                            },
+                        );
 
+                        this.$ltiProvider = ltiProviders[data.custom_lms_name];
                         this.$LTIAssignmentId = data.assignment.id;
+
                         if (data.new_role_created) {
                             this.$toasted.info(
                                 `You do not have any permissions yet, please ask your teacher to enable them for your role "${
                                     data.new_role_created
                                 }".`,
-                                {
-                                    position: 'bottom-center',
-                                    closeOnSwipe: false,
-                                    action: {
-                                        text: '✖',
-                                        onClick: (e, toastObject) => {
-                                            toastObject.goAway(0);
-                                        },
-                                    },
-                                },
+                                getToastOptions(),
                             );
                         }
                         if (data.updated_email) {
@@ -85,16 +96,7 @@ export default {
                                 }" which is the email registered with your ${
                                     data.custom_lms_name
                                 }.`,
-                                {
-                                    position: 'bottom-center',
-                                    closeOnSwipe: false,
-                                    action: {
-                                        text: '✖',
-                                        onClick: (e, toastObject) => {
-                                            toastObject.goAway(0);
-                                        },
-                                    },
-                                },
+                                getToastOptions(),
                             );
                         }
                         if (

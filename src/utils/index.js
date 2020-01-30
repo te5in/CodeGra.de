@@ -1,6 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import moment from 'moment';
-import * as assignmentState from '@/store/assignment-states';
 import { getLanguage, highlight } from 'highlightjs';
 import { visualizeWhitespace } from './visualize';
 
@@ -23,6 +22,12 @@ export function htmlEscape(inputString) {
     return string;
 }
 
+export function coerceToString(obj) {
+    if (obj == null) return '';
+    else if (typeof obj === 'string') return obj;
+    return `${obj}`;
+}
+
 export function formatGrade(grade) {
     const g = parseFloat(grade);
     return Number.isNaN(g) ? null : g.toFixed(2);
@@ -33,7 +38,14 @@ export function formatTimePart(num) {
 }
 
 export function toMaxNDecimals(num, n) {
+    if (num == null) {
+        return null;
+    }
+
     let str = num.toFixed(n);
+    if (n === 0) {
+        return str;
+    }
     while (str[str.length - 1] === '0') {
         str = str.slice(0, -1);
     }
@@ -55,7 +67,9 @@ export function cmpOneNull(first, second) {
 }
 
 export function cmpNoCase(first, second) {
-    return first.toLocaleLowerCase().localeCompare(second.toLocaleLowerCase());
+    return coerceToString(first).localeCompare(coerceToString(second), undefined, {
+        sensitivity: 'base',
+    });
 }
 
 /**
@@ -71,16 +85,22 @@ export function parseBool(value, dflt = true) {
     return dflt;
 }
 
+function toMoment(date) {
+    if (moment.isMoment(date)) {
+        return date.clone();
+    } else {
+        return moment.utc(date, moment.ISO_8601);
+    }
+}
+
 export function formatDate(date) {
-    return moment
-        .utc(date, moment.ISO_8601)
+    return toMoment(date)
         .local()
         .format('YYYY-MM-DDTHH:mm');
 }
 
 export function readableFormatDate(date) {
-    return moment
-        .utc(date, moment.ISO_8601)
+    return toMoment(date)
         .local()
         .format('YYYY-MM-DD HH:mm');
 }
@@ -91,42 +111,102 @@ export function convertToUTC(timeStr) {
         .format('YYYY-MM-DDTHH:mm');
 }
 
-export function parseWarningHeader(warningStr) {
-    let startIndex = 0;
-    const res = [];
-    const len = warningStr.length;
-    function consume(part) {
-        const arr = part.split(' ');
-
-        const code = parseFloat(arr[0]);
-        const agent = arr[1];
-        const text = arr
-            .slice(2)
-            .join(' ')
-            .replace(/\\(.)/g, '$1')
-            .slice(1, -1);
-
-        return { code, agent, text };
+export function getProps(object, defaultValue, ...props) {
+    let res = object;
+    for (let i = 0; res != null && i < props.length; ++i) {
+        res = res[props[i]];
     }
-
-    for (let i = 0, seenQuote = false; i < len; ++i) {
-        const cur = warningStr.charAt(i);
-        if (cur === '"') {
-            if (seenQuote) {
-                res.push(consume(warningStr.slice(startIndex, i + 1)));
-                // Next char is a comma and then a space
-                startIndex = i + 3;
-                seenQuote = false;
-            } else {
-                seenQuote = true;
-            }
-        } else if (cur === '\\') {
-            // Skip next char
-            i++;
-        }
+    if (res == null) {
+        res = defaultValue;
     }
-
     return res;
+}
+
+export function setProps(object, value, ...props) {
+    if (object == null) {
+        throw new Error('Given object to set props on is null');
+    }
+    const lastProp = props.pop();
+    let inner = object;
+
+    for (let i = 0; i < props.length; ++i) {
+        if (inner[props[i]] == null) {
+            inner[props[i]] = {};
+        }
+        inner = inner[props[i]];
+    }
+
+    inner[lastProp] = value;
+}
+
+export class WarningHeader {
+    static fromWarningStr(warningStr) {
+        if (warningStr instanceof WarningHeader) {
+            return warningStr;
+        } else if (!warningStr) {
+            return new WarningHeader([]);
+        }
+
+        let startIndex = 0;
+        const res = [];
+        const len = warningStr.length;
+
+        function consume(part) {
+            const arr = part.split(' ');
+
+            const code = parseFloat(arr[0]);
+            const agent = arr[1];
+            const text = arr
+                .slice(2)
+                .join(' ')
+                .replace(/\\(.)/g, '$1')
+                .slice(1, -1);
+
+            return { code, agent, text };
+        }
+
+        for (let i = 0, seenQuote = false; i < len; ++i) {
+            const cur = warningStr.charAt(i);
+            if (cur === '"') {
+                if (seenQuote) {
+                    res.push(consume(warningStr.slice(startIndex, i + 1)));
+                    // Next char is a comma and then a space
+                    startIndex = i + 3;
+                    seenQuote = false;
+                } else {
+                    seenQuote = true;
+                }
+            } else if (cur === '\\') {
+                // Skip next char
+                i++;
+            }
+        }
+
+        return new WarningHeader(res);
+    }
+
+    static fromResponse(response) {
+        const warningStr = getProps(response, null, 'headers', 'warning');
+
+        return WarningHeader.fromWarningStr(warningStr);
+    }
+
+    constructor(warnings) {
+        this.messages = Object.freeze(warnings);
+        Object.freeze(this);
+    }
+
+    merge(obj) {
+        let other;
+        if (other instanceof WarningHeader) {
+            other = obj;
+        } else if (obj.headers) {
+            other = WarningHeader.fromResponse(obj);
+        } else {
+            other = WarningHeader.fromWarningStr(obj);
+        }
+        return new WarningHeader(this.messages.concat(other.messages));
+    }
 }
 
 export function waitAtLeast(time, ...promises) {
@@ -199,6 +279,8 @@ export function getOtherAssignmentPlagiarismDesc(item, index) {
     }" of "${item.assignments[index].course.name}"`;
 
     if (item.submissions != null) {
+        // These submissions are not yet submission object, so we don't have
+        // `createdAt` property.
         const date = moment
             .utc(item.submissions[index].created_at, moment.ISO_8601)
             .local()
@@ -211,6 +293,7 @@ export function getOtherAssignmentPlagiarismDesc(item, index) {
 
 export function nameOfUser(user) {
     if (!user) return '';
+    else if (user.readableName) return user.readableName;
     else if (user.group) return `Group "${user.group.name}"`;
     else return user.name || '';
 }
@@ -221,6 +304,8 @@ export function groupMembers(user) {
 }
 
 export function userMatches(user, filter) {
+    // The given user might not be an actual user object, as this function is
+    // also used by the plagiarism list.
     return [nameOfUser(user), ...groupMembers(user)].some(
         name => name.toLocaleLowerCase().indexOf(filter) > -1,
     );
@@ -242,17 +327,6 @@ export function highlightCode(sourceArr, language, maxLen = 5000) {
         state = top;
         return visualizeWhitespace(value);
     });
-}
-
-export function getProps(object, defaultValue, ...props) {
-    let res = object;
-    for (let i = 0; res != null && i < props.length; ++i) {
-        res = res[props[i]];
-    }
-    if (res == null) {
-        res = defaultValue;
-    }
-    return res;
 }
 
 export const getUniqueId = (() => {
@@ -367,33 +441,6 @@ export function safeDivide(a, b, dfl) {
     return b === 0 ? dfl : a / b;
 }
 
-export function deadlinePassed(assignment, now) {
-    return now.isAfter(assignment.deadline);
-}
-
-export function canUploadWork(assignment, now) {
-    const perms = assignment.course.permissions;
-
-    if (!(perms.can_submit_own_work || perms.can_submit_others_work)) {
-        return false;
-    } else if (assignment.state === assignmentState.HIDDEN) {
-        return false;
-    } else if (
-        assignment.deadline == null ||
-        (deadlinePassed(assignment, now) && !perms.can_upload_after_deadline)
-    ) {
-        return false;
-    } else {
-        return true;
-    }
-}
-
-export function canSeeGrade(assignment) {
-    const perms = assignment.course.permissions;
-
-    return assignment.state === assignmentState.DONE || perms.can_see_grade_before_open;
-}
-
 export function autoTestHasCheckpointAfterHiddenStep(autoTest) {
     let testHasHiddenStep = false;
 
@@ -429,4 +476,43 @@ export function autoTestHasCheckpointAfterHiddenStep(autoTest) {
     }
 
     return false;
+}
+
+export function snakeToCamelCase(val) {
+    return val.replace(/[-_]([a-z])/gi, inner => inner[1].toUpperCase());
+}
+
+/**
+ * Get the `prop` from the first object in `objs` where `objs[i][prop]` is not
+ * `null`.
+ */
+export function getNoNull(prop, ...objs) {
+    for (let i = 0; i < objs.length; ++i) {
+        if (objs[i] && objs[i][prop] != null) {
+            return objs[i][prop];
+        }
+    }
+    return null;
+}
+
+export function setXor(A, B) {
+    return new Set([...A, ...B].filter(el => A.has(el) ^ B.has(el)));
+}
+
+export function numberToTimes(number) {
+    if (typeof number !== 'number') {
+        throw new Error('The given argument should be a number');
+    }
+
+    if (number === 1) {
+        return 'once';
+    } else if (number === 2) {
+        return 'twice';
+    } else {
+        return `${number} times`;
+    }
+}
+
+export function ensureArray(obj) {
+    return Array.isArray(obj) ? obj : [obj];
 }

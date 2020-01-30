@@ -181,13 +181,28 @@ def test_patch_submission(
     if feedback is not None:
         data['feedback'] = feedback
 
+    expected_submission = {
+        'id': work_id,
+        'assignee': None,
+        'user': dict,
+        'created_at': str,
+        'grade': None if error else grade,
+        'comment': None if error else feedback,
+        'comment_author': (None if error or 'feedback' not in data else dict),
+        'grade_overridden': False,
+        'assignment_id': int,
+        'extra_info': None,
+        'origin': 'uploaded_files',
+        'rubric_result': None,
+    }
+
     with logged_in(named_user):
         test_client.req(
             'patch',
             f'/api/v1/submissions/{work_id}',
             error or 200,
             data=data,
-            result=error_template if error else dict,
+            result=error_template if error else expected_submission,
         )
 
     with logged_in(ta_user):
@@ -195,20 +210,7 @@ def test_patch_submission(
             'get',
             f'/api/v1/submissions/{work_id}',
             200,
-            result={
-                'id': work_id,
-                'assignee': None,
-                'user': dict,
-                'created_at': str,
-                'grade': None if error else grade,
-                'comment': None if error else feedback,
-                'comment_author':
-                    (None if error or 'feedback' not in data else dict),
-                'grade_overridden': False,
-                'assignment_id': int,
-                'extra_info': None,
-                'origin': 'uploaded_files',
-            }
+            result=expected_submission
         )
         assert 'email' not in res['user']
 
@@ -253,6 +255,7 @@ def test_delete_grade_submission(
                 'assignment_id': int,
                 'extra_info': None,
                 'origin': 'uploaded_files',
+                'rubric_result': None,
             }
         )
         assert res['comment_author']['id'] == ta_user.id
@@ -1759,6 +1762,7 @@ def test_delete_submission_with_other_work(
                                                 ).one_or_none() is None
 
 
+@pytest.mark.parametrize('old_format', [True, False])
 @pytest.mark.parametrize('filename', ['test_flake8.tar.gz'], indirect=True)
 @pytest.mark.parametrize(
     'named_user', [
@@ -1771,123 +1775,210 @@ def test_delete_submission_with_other_work(
 )
 def test_selecting_multiple_rubric_items(
     named_user, request, test_client, logged_in, error_template, ta_user,
-    assignment_real_works, session, bs_course, teacher_user
+    assignment_real_works, session, bs_course, teacher_user, old_format,
+    describe
 ):
-    assignment, work = assignment_real_works
-    work_id = work['id']
+    with describe('setup'):
+        assignment, work = assignment_real_works
+        work_id = work['id']
 
-    perm_err = request.node.get_closest_marker('perm_error')
-    if perm_err:
-        error = perm_err.kwargs['error']
-    else:
-        error = False
+        perm_err = request.node.get_closest_marker('perm_error')
+        if perm_err:
+            error = perm_err.kwargs['error']
+        else:
+            error = False
 
-    rubric = {
-        'rows': [{
-            'header': 'My header',
-            'description': 'My description',
-            'items': [{
-                'description': '5points',
-                'header': 'bladie',
-                'points': 5
+        rubric = {
+            'rows': [{
+                'header': 'My header',
+                'description': 'My description',
+                'items': [{
+                    'description': '5points',
+                    'header': 'bladie',
+                    'points': 5
+                }, {
+                    'description': '10points',
+                    'header': 'bladie',
+                    'points': 10,
+                }]
             }, {
-                'description': '10points',
-                'header': 'bladie',
-                'points': 10,
+                'header': 'My header2',
+                'description': 'My description2',
+                'items': [{
+                    'description': '1points',
+                    'header': 'bladie',
+                    'points': 1
+                }, {
+                    'description': '2points',
+                    'header': 'bladie',
+                    'points': 2,
+                }]
             }]
-        }, {
-            'header': 'My header2',
-            'description': 'My description2',
-            'items': [{
-                'description': '1points',
-                'header': 'bladie',
-                'points': 1
-            }, {
-                'description': '2points',
-                'header': 'bladie',
-                'points': 2,
-            }]
-        }]
-    }  # yapf: disable
-    max_points = 12
+        }  # yapf: disable
+        max_points = 12
 
-    with logged_in(teacher_user):
-        bs_rubric = test_client.req(
-            'put',
-            f'/api/v1/assignments/{bs_course.id}/rubrics/',
-            200,
-            data=rubric
-        )
-        rubric = test_client.req(
-            'put',
-            f'/api/v1/assignments/{assignment.id}/rubrics/',
-            200,
-            data=rubric
-        )
-        rubric = test_client.req(
-            'get',
-            f'/api/v1/submissions/{work_id}/rubrics/',
-            200,
-            result={
-                'rubrics': list, 'selected': [],
-                'points': {'max': max_points, 'selected': 0}
-            }
-        )['rubrics']
+        with logged_in(teacher_user):
+            bs_rubric = test_client.req(
+                'put',
+                f'/api/v1/assignments/{bs_course.id}/rubrics/',
+                200,
+                data=rubric
+            )
+            rubric = test_client.req(
+                'put',
+                f'/api/v1/assignments/{assignment.id}/rubrics/',
+                200,
+                data=rubric
+            )
+            rubric = test_client.req(
+                'get',
+                f'/api/v1/submissions/{work_id}/rubrics/',
+                200,
+                result={
+                    'rubrics': list, 'selected': [],
+                    'points': {'max': max_points, 'selected': 0}
+                }
+            )['rubrics']
 
-    def get_rubric_item(head, desc):
-        for row in rubric:
-            if row['header'] == head:
-                for item in row['items']:
-                    if item['description'] == desc:
-                        return item
+        def get_rubric_item(head, desc, multiplier=1.0, rubric=rubric):
+            for row in rubric:
+                if row['header'] == head:
+                    for item in row['items']:
+                        if item['description'] == desc:
+                            if old_format:
+                                return item['id']
+                            else:
+                                return {
+                                    'row_id': row['id'],
+                                    'item_id': item['id'],
+                                    'multiplier': multiplier,
+                                }
 
-    with logged_in(named_user):
+    with describe('can select if perms correct'), logged_in(named_user):
         to_select = [
-            get_rubric_item('My header', '5points')['id'],
-            get_rubric_item('My header2', '2points')['id'],
+            get_rubric_item('My header', '5points'),
+            get_rubric_item('My header2', '2points'),
         ]
         points = 7
+        expected_rubric_result = {
+            'rubrics': list,
+            'selected': list,
+            'points': {
+                'max': max_points,
+                'selected': 0 if error else points,
+            },
+        }
+
         test_client.req(
             'patch',
             f'/api/v1/submissions/{work_id}/rubricitems/',
-            error if error else 204,
+            error if error else 200,
             data={'items': to_select},
-            result=error_template if error else None
+            result=error_template if error else {
+                '__allow_extra__': True,
+                'rubric_result': expected_rubric_result,
+            },
         )
 
-    with logged_in(ta_user):
-        selected = test_client.req(
-            'get',
-            f'/api/v1/submissions/{work_id}/rubrics/',
-            200,
-            result={
-                'rubrics': list, 'selected': list, 'points': {
-                    'max': max_points,
-                    'selected': 0 if error else points,
-                }
-            }
-        )['selected']
-        if error:
-            assert not selected
-        else:
-            selected = [s['id'] for s in selected]
-            assert all(item in selected for item in to_select)
+        with logged_in(ta_user):
+            selected = test_client.req(
+                'get',
+                f'/api/v1/submissions/{work_id}/rubrics/',
+                200,
+                result=expected_rubric_result
+            )['selected']
+            if error:
+                assert not selected
+            else:
+                selected = [s['id'] for s in selected]
+                if old_format:
+                    assert all(item in selected for item in to_select)
+                else:
+                    assert all(
+                        item in selected
+                        for item in set(i['item_id'] for i in to_select)
+                    )
 
-        test_client.req(
-            'patch',
-            f'/api/v1/submissions/{work_id}/rubricitems/',
-            404,
-            data={'items': to_select + [-1]},
-            result=error_template,
-        )
+        with describe('cannot select unkown rubric items'), logged_in(ta_user):
+            if old_format:
+                test_client.req(
+                    'patch',
+                    f'/api/v1/submissions/{work_id}/rubricitems/',
+                    404,
+                    data={'items': to_select + [-1]},
+                    result=error_template,
+                )
+            else:
+                # Unknown row id
+                test_client.req(
+                    'patch',
+                    f'/api/v1/submissions/{work_id}/rubricitems/',
+                    404,
+                    data={
+                        'items': [
+                            to_select[0],
+                            {**to_select[-1], 'row_id': -1},
+                        ]
+                    },
+                    result=error_template,
+                )
 
-        test_client.req(
-            'patch',
-            f'/api/v1/submissions/{work_id}/rubricitems/',
-            400,
-            data={'items': to_select + [bs_rubric[0]['items'][0]['id']]},
-            result=error_template,
-        )
+                # Unknown item id
+                test_client.req(
+                    'patch',
+                    f'/api/v1/submissions/{work_id}/rubricitems/',
+                    404,
+                    data={
+                        'items': [
+                            to_select[0],
+                            {**to_select[-1], 'item_id': -1},
+                        ]
+                    },
+                    result=error_template,
+                )
+
+            # Cannot select from a rubric of a different assignment.
+            test_client.req(
+                'patch',
+                f'/api/v1/submissions/{work_id}/rubricitems/',
+                400,
+                data={
+                    'items':
+                        to_select + [
+                            get_rubric_item(
+                                'My header', '5points', rubric=bs_rubric
+                            )
+                        ]
+                },
+                result=error_template,
+            )
+
+    if not old_format:
+        with describe('cannot use multiplier on normal rows'
+                      ), logged_in(ta_user):
+            test_client.req(
+                'patch',
+                f'/api/v1/submissions/{work_id}/rubricitems/',
+                400,
+                data={'items': [{**to_select[0], 'multiplier': 0.5}]},
+                result=error_template,
+            )
+
+        with describe(
+            'cannot use a multiplier of higher than 1.0 or lower than 0.0'
+        ), logged_in(ta_user):
+            for mult in [-0.5, 1.5]:
+                test_client.req(
+                    'patch',
+                    f'/api/v1/submissions/{work_id}/rubricitems/',
+                    400,
+                    data={'items': [{**to_select[0], 'multiplier': mult}]},
+                    result={
+                        **error_template,
+                        'message':
+                            'A multiplier has to be between 0.0 and 1.0.',
+                    }
+                )
 
 
 @pytest.mark.parametrize('ext', ['tar.gz'])

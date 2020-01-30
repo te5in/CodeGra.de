@@ -41,17 +41,6 @@ user_course: RawTable = db.Table(  # pylint: disable=invalid-name
     )
 )
 
-work_rubric_item: RawTable = db.Table(  # pylint: disable=invalid-name
-    'work_rubric_item',
-    db.Column(
-        'work_id', db.Integer, db.ForeignKey('Work.id', ondelete='CASCADE')
-    ),
-    db.Column(
-        'rubricitem_id', db.Integer,
-        db.ForeignKey('RubricItem.id', ondelete='CASCADE')
-    )
-)
-
 users_groups: RawTable = db.Table(  # pylint: disable=invalid-name
     'users-groups',
     db.Column(

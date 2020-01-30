@@ -3,23 +3,15 @@ import Vue from 'vue';
 import axios from 'axios';
 
 import * as utils from '@/utils';
-import { sortSubmissions } from '@/utils/FilterSubmissionsManager';
-import { FileTree, Feedback } from '@/models/submission';
+import { Submission } from '@/models/submission';
 import * as types from '../mutation-types';
 
-function getSubmission(state, assignmentId, submissionId, throwNotFound = true) {
-    const subs = state.submissions[assignmentId];
-
-    let submission = null;
-    if (subs != null) {
-        submission = subs.find(sub => sub.id === submissionId);
-    }
+function getSubmission(state, submissionId, throwNotFound = true) {
+    const submission = state.submissions[submissionId];
 
     if (submission == null) {
         if (throwNotFound) {
-            throw ReferenceError(
-                `Could not find submission: ${submissionId} for assignment ${assignmentId}`,
-            );
+            throw ReferenceError(`Could not find submission: ${submissionId}`);
         }
         return null;
     }
@@ -28,47 +20,63 @@ function getSubmission(state, assignmentId, submissionId, throwNotFound = true) 
 }
 
 const getters = {
-    getAllSubmissions: state => assignmentId => state.submissions[assignmentId] || [],
-    getSingleSubmission: state => (assignmentId, submissionId) =>
-        getSubmission(state, assignmentId, submissionId, false),
-    allSubmissions: state => state.submissions,
-    latestSubmissions: state => state.latestSubmissions,
-    usersWithGroupSubmission: state => state.groupSubmissionUsers,
+    getSingleSubmission: state => (assignmentId, submissionId) => {
+        // TODO: Get rid of the assignmentId argument.
+        let id;
+        if (submissionId === undefined && assignmentId !== undefined) {
+            id = assignmentId;
+        } else {
+            id = submissionId;
+        }
+        return getSubmission(state, id, false);
+    },
+    getLatestSubmissions: state => assignmentId =>
+        utils
+            .getProps(state.latestSubmissions, [], assignmentId, 'array')
+            .map(subId => getSubmission(state, subId, true)),
+    getGroupSubmissionOfUser: state => (assignmentId, userId) => {
+        const subId = utils.getProps(state.groupSubmissionUsers, null, assignmentId, userId);
+        if (subId == null) {
+            return null;
+        }
+        return getSubmission(state, subId);
+    },
+    getSubmissionsByUser: state => (assignmentId, userId) => {
+        const res = [];
+        utils.getProps(state.submissionsByUser, [], assignmentId, userId).forEach(subId => {
+            res.push(getSubmission(state, subId));
+        });
+        res.sort((a, b) => a.createdAt - b.createdAt);
+        return res;
+    },
 };
 
-const loaders = {
-    feedback: {},
-    fileTrees: {},
-};
-
-function getUsersInGroup(subs) {
+function getUsersInGroup(submissions, subIds) {
     const userIds = {};
-    subs.forEach(sub => {
+    subIds.forEach(subId => {
+        const sub = submissions[subId];
+
         if (sub.user.group) {
             sub.user.group.members.forEach(member => {
-                userIds[member.id] = sub.user;
+                userIds[member.id] = sub.id;
             });
         }
     });
     return userIds;
 }
 
-function addToLatest(latestSubs, newSub) {
-    const len = latestSubs.length;
-    let i = 0;
-    for (; i < len; ++i) {
-        const cur = latestSubs[i];
-        if (cur.user.id === newSub.user.id) {
-            // Need <= here because we may want to update the same submission,
-            // for example when the grade changes.
-            if (cur.created_at <= newSub.created_at) {
-                Vue.set(latestSubs, i, Object.assign({}, latestSubs[i], newSub));
-            }
-            break;
+function addToLatest(submissions, latestSubs, newSub) {
+    const index = latestSubs.lookup[newSub.userId];
+
+    if (index != null) {
+        const oldSub = submissions[latestSubs.array[index]];
+        if (oldSub.createdAt.isBefore(newSub.createdAt)) {
+            Vue.set(latestSubs.array, index, newSub.id);
         }
-    }
-    if (i === len) {
-        latestSubs.push(newSub);
+    } else {
+        Vue.set(latestSubs.lookup, newSub.userId, latestSubs.array.length);
+        latestSubs.array.push(newSub.id);
+        Vue.set(latestSubs, 'array', latestSubs.array);
     }
 
     return latestSubs;
@@ -77,33 +85,30 @@ function addToLatest(latestSubs, newSub) {
 function getLatestSubmissions(subs) {
     // BLAZE IT: R y a n C e l s i u s ° S o u n d s
     const seen = new Set();
-    return subs.filter(item => {
-        if (seen.has(item.user.id)) {
-            return false;
-        } else {
-            seen.add(item.user.id);
-            return true;
-        }
-    });
+    return subs
+        .filter(item => {
+            if (seen.has(item.userId)) {
+                return false;
+            } else {
+                seen.add(item.userId);
+                return true;
+            }
+        })
+        .reduce(
+            (acc, cur) => {
+                acc.lookup[cur.userId] = acc.array.length;
+                acc.array.push(cur.id);
+                return acc;
+            },
+            {
+                array: [],
+                lookup: {},
+            },
+        );
 }
 
-function processSubmission(sub) {
-    sub.formatted_created_at = utils.readableFormatDate(sub.created_at);
-    sub.grade = utils.formatGrade(sub.grade);
-    return sub;
-}
-
-function addSubmission(subs, newSub) {
-    const idx = subs.findIndex(sub => sub.id === newSub.id);
-
-    if (idx !== -1) {
-        Vue.set(subs, idx, Object.assign({}, subs[idx], newSub));
-        return subs;
-    }
-
-    const submissions = [...subs, newSub];
-    submissions.sort((a, b) => -sortSubmissions(a, b, 'created_at'));
-    return submissions;
+function commitRubricResult(commit, submissionId, result) {
+    commit(`rubrics/${types.SET_RUBRIC_RESULT}`, { submissionId, result }, { root: true });
 }
 
 const actions = {
@@ -122,11 +127,15 @@ const actions = {
             const promise = axios
                 .get(`/api/v1/assignments/${assignmentId}/users/${userId}/submissions/`)
                 .then(({ data: subs }) => {
-                    const submissions = subs.map(processSubmission);
+                    const submissions = subs.map(sub =>
+                        Submission.fromServerData(sub, assignmentId),
+                    );
                     submissions.forEach(sub => {
                         context.commit(types.ADD_SINGLE_SUBMISSION, { submission: sub });
+                        if (sub.rubric_result != null) {
+                            commitRubricResult(context.commit, sub.id, sub.rubric_result);
+                        }
                     });
-                    return submissions;
                 });
             context.commit(types.SET_SUBMISSIONS_BY_USER_PROMISE, {
                 assignmentId,
@@ -137,7 +146,7 @@ const actions = {
 
         await context.state.submissionsByUserPromises[assignmentId][userId];
 
-        return context.state.submissionsByUser[assignmentId][userId];
+        return context.getters.getSubmissionsByUser(assignmentId, userId);
     },
 
     loadGivenSubmissions(context, { assignmentId, submissionIds }) {
@@ -153,7 +162,7 @@ const actions = {
 
     async loadSingleSubmission(context, { assignmentId, submissionId, force }) {
         // Don't wait for anything if we simply have the submission
-        let submission = getSubmission(context.state, assignmentId, submissionId, false);
+        let submission = getSubmission(context.state, submissionId, false);
         if (submission != null && !force) {
             return submission;
         }
@@ -164,14 +173,17 @@ const actions = {
             return context.state.singleSubmissionLoaders[submissionId];
         }
 
-        submission = getSubmission(context.state, assignmentId, submissionId, false);
+        submission = getSubmission(context.state, submissionId, false);
         if (submission != null && !force) {
             return submission;
         }
 
         const promise = axios.get(`/api/v1/submissions/${submissionId}`).then(({ data }) => {
-            const sub = processSubmission(data);
+            const sub = Submission.fromServerData(data, assignmentId);
             context.commit(types.ADD_SINGLE_SUBMISSION, { submission: sub });
+            if (data.rubric_result != null) {
+                commitRubricResult(context.commit, submission.id, data.rubric_result);
+            }
             return sub;
         });
 
@@ -189,13 +201,16 @@ const actions = {
         });
     },
 
-    addSubmission({ commit }, { submission }) {
-        submission.formatted_created_at = utils.readableFormatDate(submission.created_at);
-        submission.grade = utils.formatGrade(submission.grade);
-        return commit(types.ADD_SINGLE_SUBMISSION, { submission });
+    addSubmission({ commit }, { submission, assignmentId }) {
+        commit(types.ADD_SINGLE_SUBMISSION, {
+            submission: Submission.fromServerData(submission, assignmentId),
+        });
+        if (submission.rubric_result != null) {
+            commitRubricResult(commit, submission.id, submission.rubric_result);
+        }
     },
 
-    deleteSubmission({ dispatch }, { assignmentId }) {
+    async deleteSubmission({ dispatch }, { assignmentId }) {
         return dispatch('forceLoadSubmissions', assignmentId);
     },
 
@@ -204,13 +219,35 @@ const actions = {
         // calls to `loadSubmissions` still only does one request (for the
         // same arguments of course).
         const promiseFun = async () => {
-            await context.dispatch('courses/loadCourses', null, { root: true });
+            await Promise.all([
+                context.dispatch('fileTrees/deleteFileTree', { assignmentId }, { root: true }),
+                context.dispatch('feedback/deleteFeedback', { assignmentId }, { root: true }),
+                context.dispatch('courses/loadCourses', null, { root: true }),
+                context.dispatch(
+                    'rubrics/clearResult',
+                    {
+                        submissionIds: utils.getProps(
+                            context.state.latestSubmissions,
+                            [],
+                            assignmentId,
+                            'array',
+                        ),
+                    },
+                    { root: true },
+                ),
+            ]);
 
             await Promise.all([
                 axios
                     .get(`/api/v1/assignments/${assignmentId}/submissions/?extended&latest_only`)
-                    .then(({ data: submissions }) => submissions.map(processSubmission)),
-                context.dispatch('courses/loadRubric', assignmentId, { root: true }),
+                    .then(({ data: submissions }) => {
+                        submissions.forEach(sub => {
+                            if (sub.rubric_result != null) {
+                                commitRubricResult(context.commit, sub.id, sub.rubric_result);
+                            }
+                        });
+                        return submissions.map(s => Submission.fromServerData(s, assignmentId));
+                    }),
                 // TODO: Maybe not force load the graders here?
                 context.dispatch('courses/forceLoadGraders', assignmentId, { root: true }),
             ]).then(([submissions]) => {
@@ -245,152 +282,6 @@ const actions = {
         return context.state.submissionsLoaders[assignmentId];
     },
 
-    async loadSubmissionFileTree({ commit, dispatch, state }, { assignmentId, submissionId }) {
-        const submission = getSubmission(state, assignmentId, submissionId, false);
-        if (submission && submission.fileTree != null) {
-            return null;
-        }
-
-        if (loaders.fileTrees[submissionId] == null) {
-            const loader = Promise.all([
-                dispatch('loadSingleSubmission', { assignmentId, submissionId }),
-                axios.get(`/api/v1/submissions/${submissionId}/files/`),
-                axios
-                    .get(`/api/v1/submissions/${submissionId}/files/`, {
-                        params: { owner: 'teacher' },
-                    })
-                    .catch(err => {
-                        switch (utils.getProps(err, null, 'response', 'status')) {
-                            case 403:
-                                return { data: null };
-                            default:
-                                throw err;
-                        }
-                    }),
-            ]).then(
-                ([, student, teacher]) => {
-                    delete loaders.fileTrees[submissionId];
-                    commit(types.UPDATE_SUBMISSION, {
-                        assignmentId,
-                        submissionId,
-                        submissionProps: {
-                            fileTree: new FileTree(student.data, teacher.data),
-                        },
-                    });
-                },
-                err => {
-                    delete loaders.fileTrees[submissionId];
-                    throw err;
-                },
-            );
-            loaders.fileTrees[submissionId] = loader;
-        }
-
-        return loaders.fileTrees[submissionId];
-    },
-
-    async loadSubmissionFeedback({ commit, dispatch, state }, { assignmentId, submissionId }) {
-        const submission = getSubmission(state, assignmentId, submissionId, false);
-
-        if (submission && submission.feedback != null) {
-            return null;
-        }
-
-        if (loaders.feedback[submissionId] == null) {
-            const loader = Promise.all([
-                dispatch('loadSingleSubmission', { assignmentId, submissionId }),
-                axios.get(`/api/v1/submissions/${submissionId}/feedbacks/`).catch(err => {
-                    delete loaders.feedback[submissionId];
-
-                    switch (utils.getProps(err, null, 'response', 'status')) {
-                        case 403:
-                            return {};
-                        default:
-                            throw err;
-                    }
-                }),
-            ]).then(([, { data }]) => {
-                delete loaders.feedback[submissionId];
-                if (data != null) {
-                    commit(types.UPDATE_SUBMISSION, {
-                        assignmentId,
-                        submissionId,
-                        submissionProps: {
-                            feedback: new Feedback(data),
-                        },
-                    });
-                }
-            });
-
-            loaders.feedback[submissionId] = loader;
-        }
-
-        return loaders.feedback[submissionId];
-    },
-
-    async addSubmissionFeedbackLine(
-        { commit, state, dispatch },
-        {
-            assignmentId, submissionId, fileId, line, author,
-        },
-    ) {
-        await dispatch('loadSingleSubmission', { assignmentId, submissionId });
-        const submission = getSubmission(state, assignmentId, submissionId);
-
-        commit(types.UPDATE_SUBMISSION_FEEDBACK, {
-            submission,
-            fileId,
-            line,
-            data: '',
-            author,
-        });
-    },
-
-    async submitSubmissionFeedbackLine(
-        { commit, state, dispatch },
-        {
-            assignmentId, submissionId, fileId, line, data, author,
-        },
-    ) {
-        await dispatch('loadSingleSubmission', { assignmentId, submissionId });
-        const submission = getSubmission(state, assignmentId, submissionId);
-
-        return axios.put(`/api/v1/code/${fileId}/comments/${line}`, { comment: data }).then(() =>
-            commit(types.UPDATE_SUBMISSION_FEEDBACK, {
-                submission,
-                fileId,
-                line,
-                data,
-                author,
-            }),
-        );
-    },
-
-    async deleteSubmissionFeedbackLine(
-        { commit, state, dispatch },
-        {
-            assignmentId, submissionId, fileId, line, onServer,
-        },
-    ) {
-        await dispatch('loadSingleSubmission', { assignmentId, submissionId });
-        const submission = getSubmission(state, assignmentId, submissionId);
-
-        function cont() {
-            commit(types.UPDATE_SUBMISSION_FEEDBACK, {
-                submission,
-                fileId,
-                line,
-                data: null,
-            });
-        }
-
-        if (onServer) {
-            return axios.delete(`/api/v1/code/${fileId}/comments/${line}`).then(() => cont);
-        } else {
-            return Promise.resolve(cont);
-        }
-    },
-
     updateSubmission({ commit }, { assignmentId, submissionId, submissionProps }) {
         commit(types.UPDATE_SUBMISSION, {
             assignmentId,
@@ -398,55 +289,36 @@ const actions = {
             submissionProps,
         });
     },
-
-    async updateAutoTestTree(
-        { commit, dispatch },
-        {
-            assignmentId, submissionId, autoTest, autoTestTree,
-        },
-    ) {
-        await dispatch('loadSubmissionFileTree', { assignmentId, submissionId });
-
-        const entries = [];
-        autoTest.sets.forEach(set => {
-            set.suites.forEach(suite => {
-                if (autoTestTree[suite.id] == null) {
-                    return;
-                }
-
-                entries.push({
-                    id: null,
-                    name: suite.rubricRow.header,
-                    entries: autoTestTree[suite.id],
-                });
-            });
-        });
-
-        commit(types.UPDATE_SUBMISSION, {
-            assignmentId,
-            submissionId,
-            submissionProps: {
-                autoTestTree: {
-                    id: null,
-                    name: 'AutoTest generated files',
-                    entries,
-                },
-            },
-        });
-    },
 };
 
 const mutations = {
     [types.UPDATE_SUBMISSIONS](state, { assignmentId, submissions }) {
+        Vue.set(
+            state,
+            'submissions',
+            Object.assign(
+                {},
+                state.submissions,
+                submissions.reduce((acc, cur) => {
+                    acc[cur.id] = cur;
+                    return acc;
+                }, {}),
+            ),
+        );
+
         const newLatest = getLatestSubmissions(submissions);
-        Vue.set(state.submissions, assignmentId, submissions);
+
         Vue.set(state.latestSubmissions, assignmentId, newLatest);
-        Vue.set(state.groupSubmissionUsers, assignmentId, getUsersInGroup(newLatest));
+        Vue.set(
+            state.groupSubmissionUsers,
+            assignmentId,
+            getUsersInGroup(state.submissions, newLatest.array),
+        );
         Vue.set(
             state.submissionsByUser,
             assignmentId,
             submissions.reduce((accum, val) => {
-                accum[val.user.id] = [val];
+                accum[val.userId] = new Set([val.id]);
                 return accum;
             }, {}),
         );
@@ -459,47 +331,9 @@ const mutations = {
         Vue.set(state.submissionsByUserPromises, assignmentId, all);
     },
 
-    [types.UPDATE_SUBMISSION_FEEDBACK](_, {
-        submission, fileId, line, data, author,
-    }) {
-        const feedback = submission.feedback;
-        const fileFeedback = feedback.user[fileId] || {};
-
-        if (data == null) {
-            Vue.delete(fileFeedback, line);
-            if (Object.keys(fileFeedback).length === 0) {
-                Vue.delete(feedback.user, fileId);
-            }
-        } else {
-            const lineFeedback = fileFeedback[line] || { line, author };
-            Vue.set(
-                fileFeedback,
-                line,
-                Object.assign({}, lineFeedback, {
-                    msg: data,
-                }),
-            );
-            Vue.set(feedback.user, fileId, Object.assign({}, fileFeedback));
-        }
-
-        Vue.set(feedback, 'user', Object.assign({}, feedback.user));
-        Vue.set(submission, 'feedback', feedback);
-    },
-
-    [types.UPDATE_SUBMISSION](state, { assignmentId, submissionId, submissionProps }) {
-        const submission = getSubmission(state, assignmentId, submissionId);
-
-        Object.entries(submissionProps).forEach(([key, val]) => {
-            if (key === 'id') {
-                throw TypeError(`Cannot set submission property: ${key}`);
-            } else if (key === 'autoTestTree') {
-                Vue.set(submission.fileTree, 'autotest', val);
-            } else if (key === 'grade') {
-                Vue.set(submission, key, utils.formatGrade(val));
-            } else {
-                Vue.set(submission, key, val);
-            }
-        });
+    [types.UPDATE_SUBMISSION](state, { submissionId, submissionProps }) {
+        const submission = getSubmission(state, submissionId).update(submissionProps);
+        Vue.set(state.submissions, submission.id, submission);
     },
 
     [types.SET_SUBMISSIONS_PROMISE](state, { promise, assignmentId }) {
@@ -515,19 +349,29 @@ const mutations = {
     },
 
     [types.ADD_SINGLE_SUBMISSION](state, { submission }) {
-        const userId = submission.user.id;
-        const assignmentId = submission.assignment_id;
-        const submissions = addSubmission(state.submissions[assignmentId] || [], submission);
-        const userSubmissions = addSubmission(
-            utils.getProps(state.submissionsByUser, [], assignmentId, userId),
-            submission,
-        );
-        const oldLatest = state.latestSubmissions[assignmentId] || [];
-        const newLatest = addToLatest(oldLatest, submission);
+        Vue.set(state.submissions, submission.id, submission);
 
-        Vue.set(state.submissions, assignmentId, submissions);
+        const userId = submission.userId;
+        const assignmentId = submission.assignmentId;
+
+        const userSubmissions = utils.getProps(
+            state.submissionsByUser,
+            new Set(),
+            assignmentId,
+            userId,
+        );
+        userSubmissions.add(submission.id);
+
+        const oldLatest = state.latestSubmissions[assignmentId] || { lookup: {}, array: [] };
+        const newLatest = addToLatest(state.submissions, oldLatest, submission);
+
         Vue.set(state.latestSubmissions, assignmentId, newLatest);
-        Vue.set(state.groupSubmissionUsers, assignmentId, getUsersInGroup(newLatest));
+        Vue.set(
+            state.groupSubmissionUsers,
+            assignmentId,
+            getUsersInGroup(state.submissions, newLatest.array),
+        );
+
         if (state.submissionsByUser[assignmentId] == null) {
             Vue.set(state.submissionsByUser, assignmentId, { userId: userSubmissions });
         } else {
@@ -543,8 +387,6 @@ const mutations = {
         Vue.set(state, 'submissionsLoaders', {});
         Vue.set(state, 'singleSubmissionLoaders', {});
         Vue.set(state, 'groupSubmissionUsers', {});
-        loaders.feedback = {};
-        loaders.fileTrees = {};
     },
 };
 

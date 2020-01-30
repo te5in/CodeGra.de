@@ -59,7 +59,7 @@
                 <b-form-fieldset v-if="canEditDeadline">
                     <b-input-group>
                         <b-input-group-prepend is-text slot="prepend"
-                                               :class="{ 'warning': assignment.deadline === null }">
+                                               :class="{ 'warning': !assignment.hasDeadline }">
                             Deadline
 
                             <description-popover placement="top">
@@ -77,10 +77,10 @@
                             </description-popover>
                         </b-input-group-prepend>
                         <datetime-picker v-model="assignmentTempDeadline"
+                                         class="assignment-deadline"
                                          placeholder="None set"/>
                         <b-input-group-append>
                             <submit-button :submit="submitDeadline"
-                                           @success="updateDeadline"
                                            ref="updateDeadline"/>
                         </b-input-group-append>
                     </b-input-group>
@@ -92,6 +92,87 @@
 
                 <b-form-fieldset v-if="canEditInfo">
                     <assignment-submit-types :assignment-id="assignmentId"/>
+                </b-form-fieldset>
+
+                <b-form-fieldset v-if="canEditInfo">
+                    <b-input-group class="max-submissions">
+                        <b-input-group-prepend is-text slot="prepend">
+                            Maximum amount of submissions
+                            <description-popover>
+                                The maximum amount of submissions, inclusive, students will
+                                be able to make. If you leave this value empty,
+                                or set it to 0, students will be able to make an
+                                infinite amount of submissions.
+                            </description-popover>
+                        </b-input-group-prepend>
+
+                        <input class="form-control"
+                               type="number"
+                               min="0"
+                               @keyup.ctrl.enter="$refs.updateMaxSubmissions.onClick"
+                               v-model="assignmentTempMaxSubmissions"
+                               placeholder="Infinite"/>
+
+                        <b-input-group-append>
+                            <submit-button :submit="submitMaxSubmissions"
+                                           ref="updateMaxSubmissions"
+                                           @success="afterSubmitMaxSubmissions"/>
+                        </b-input-group-append>
+                    </b-input-group>
+                </b-form-fieldset>
+
+                <b-form-fieldset v-if="canEditInfo">
+                    <b-input-group class="cool-off-period-wrapper">
+                        <b-input-group-prepend is-text slot="prepend">
+                            Cool off period
+                            <description-popover>
+                                The minimum amount of time there should be
+                                between submissions. The first input determines
+                                the amount of submissions, and the second the
+                                time in minutes. You can set the time to zero to
+                                disable this limit.
+                            </description-popover>
+                        </b-input-group-prepend>
+
+                        <input class="form-control amount-in-cool-off-period"
+                               type="number"
+                               min="0"
+                               @keyup.ctrl.enter="$refs.updateCoolOffPeriod.onClick"
+                               v-model="assignmentTempAmountInCoolOff"/>
+
+                        <b-input-group-prepend is-text>
+                            <template v-if="parseInt(assignmentTempAmountInCoolOff, 10) === 1">
+                                submission
+                            </template>
+                            <template v-else>
+                                submissions
+                            </template>
+                            every
+                        </b-input-group-prepend>
+
+                        <input class="form-control cool-off-period"
+                               type="number"
+                               min="0"
+                               step="1"
+                               @keyup.ctrl.enter="$refs.updateCoolOffPeriod.onClick"
+                               v-model="assignmentTempCoolOffDuration"
+                               placeholder="0"/>
+
+                        <b-input-group-append is-text>
+                            <template v-if="parseFloat(assignmentTempCoolOffDuration) === 1">
+                                minute
+                            </template>
+                            <template v-else>
+                                minutes
+                            </template>
+                        </b-input-group-append>
+
+                        <b-input-group-append>
+                            <submit-button :submit="submitCoolOffPeriod"
+                                           ref="updateCoolOffPeriod"
+                                           @success="afterSubmitCoolOffPeriod"/>
+                        </b-input-group-append>
+                    </b-input-group>
                 </b-form-fieldset>
             </div>
 
@@ -282,17 +363,16 @@
 
         <div class="cat-wrapper" :class="{hidden: selectedCat !== 'rubric'}">
             <b-card header="Rubric" v-if="canUseRubrics">
-                <!-- TODO: Properfix instead of :key hack -->
+                <!-- TODO: Proper fix instead of :key hack -->
                 <rubric-editor :key="assignment.id"
-                               :assignment="assignment"
                                :hidden="selectedCat !== 'rubric'"
-                               ref="rubricEditor"
-                               editable/>
+                               editable
+                               :assignment="assignment" />
             </b-card>
         </div>
 
         <div class="cat-wrapper" :class="{hidden: selectedCat !== 'auto-test'}">
-            <!-- TODO: Properfix instead of :key hack -->
+            <!-- TODO: Proper fix instead of :key hack -->
             <auto-test :key="assignment.id"
                        :assignment="assignment"
                        :hidden="selectedCat !== 'auto-test'"
@@ -305,7 +385,6 @@
 <script>
 import { mapActions, mapGetters } from 'vuex';
 
-import { convertToUTC, readableFormatDate } from '@/utils';
 import ltiProviders from '@/lti_providers';
 
 import {
@@ -342,6 +421,9 @@ export default {
             gradersLoadedOnce: false,
             assignmentTempName: '',
             assignmentTempDeadline: '',
+            assignmentTempMaxSubmissions: null,
+            assignmentTempCoolOffDuration: null,
+            assignmentTempAmountInCoolOff: null,
             permissions: null,
             loading: true,
             loadingInner: true,
@@ -353,7 +435,7 @@ export default {
         ...mapGetters('courses', ['assignments']),
 
         formattedDeadline() {
-            return (this.assignment && this.assignment.formatted_deadline) || '';
+            return (this.assignment && this.assignment.getFormattedDeadline()) || '';
         },
 
         assignmentId() {
@@ -507,28 +589,36 @@ export default {
     },
 
     watch: {
-        assignmentId(newVal, oldVal) {
-            if (oldVal && newVal !== oldVal) {
-                this.loadData();
-            }
+        assignmentId: {
+            immediate: true,
+            handler(newVal, oldVal) {
+                if (newVal !== oldVal && newVal != null) {
+                    this.loadData();
+                }
+            },
         },
     },
 
-    mounted() {
-        this.loadData();
-    },
-
     methods: {
-        ...mapActions('courses', ['updateAssignment', 'loadCourses', 'reloadCourses']),
+        ...mapActions('courses', [
+            'updateAssignment',
+            'loadCourses',
+            'reloadCourses',
+            'updateAssignmentDeadline',
+        ]),
         ...mapActions('submissions', ['forceLoadSubmissions']),
 
         async loadData() {
             const setAssigData = () => {
                 if (this.loading) {
+                    this.loading = false;
+
                     this.permissions = this.assignment.course.permissions;
                     this.assignmentTempName = this.assignment.name;
-                    this.assignmentTempDeadline = this.assignment.deadline;
-                    this.loading = false;
+                    this.assignmentTempDeadline = this.assignment.getDeadlineAsString();
+                    this.assignmentTempMaxSubmissions = this.assignment.max_submissions;
+                    this.assignmentTempCoolOffDuration = this.assignment.coolOffPeriod.asMinutes();
+                    this.assignmentTempAmountInCoolOff = this.assignment.amount_in_cool_off_period;
                 }
             };
 
@@ -579,18 +669,9 @@ export default {
         },
 
         submitDeadline() {
-            return this.$http.patch(this.assignmentUrl, {
-                deadline: convertToUTC(this.assignmentTempDeadline),
-            });
-        },
-
-        updateDeadline() {
-            this.updateAssignment({
+            return this.updateAssignmentDeadline({
                 assignmentId: this.assignment.id,
-                assignmentProps: {
-                    deadline: this.assignmentTempDeadline,
-                    formatted_deadline: readableFormatDate(this.assignmentTempDeadline),
-                },
+                deadline: this.assignmentTempDeadline,
             });
         },
 
@@ -601,6 +682,92 @@ export default {
         afterDeleteAssignment() {
             this.reloadCourses();
             this.$router.push({ name: 'home' });
+        },
+
+        submitMaxSubmissions() {
+            let value = this.assignmentTempMaxSubmissions;
+
+            if (
+                value == null ||
+                ['0', '', 'infinite'].indexOf(this.$utils.coerceToString(value).toLowerCase()) >= 0
+            ) {
+                value = null;
+            } else {
+                value = parseInt(value, 10);
+                if (Number.isNaN(value) || value < 1) {
+                    throw new Error(
+                        'Please provide an integer higher than or equal to 0, or the value "infinite".',
+                    );
+                }
+            }
+
+            return this.$http
+                .patch(this.assignmentUrl, {
+                    max_submissions: value,
+                })
+                .then(response => {
+                    response.cgOldValue = this.assignmentTempMaxSubmissions;
+                    return response;
+                });
+        },
+
+        afterSubmitMaxSubmissions({ data, cgOldValue }) {
+            if (this.assignmentTempMaxSubmissions === cgOldValue) {
+                this.assignmentTempMaxSubmissions = data.max_submissions;
+            }
+
+            this.updateAssignment({
+                assignmentId: this.assignment.id,
+                assignmentProps: {
+                    max_submissions: data.max_submissions,
+                },
+            });
+        },
+
+        submitCoolOffPeriod() {
+            const period = parseFloat(this.assignmentTempCoolOffDuration || 0);
+            if (period == null || Number.isNaN(period) || period < 0) {
+                throw new Error(
+                    'The given cool off period should be a number higher or equal to 0',
+                );
+            }
+
+            const amount = parseInt(this.assignmentTempAmountInCoolOff, 10);
+            if (amount == null || Number.isNaN(amount) || amount < 1) {
+                throw new Error(
+                    'The given amount in cool off period should be a number higher or equal to 1',
+                );
+            }
+
+            return this.$http
+                .patch(this.assignmentUrl, {
+                    cool_off_period: period * 60,
+                    amount_in_cool_off_period: amount,
+                })
+                .then(response => {
+                    response.cgOldValue = {
+                        period: this.assignmentTempCoolOffDuration,
+                        amount: this.assignmentTempAmountInCoolOff,
+                    };
+                    return response;
+                });
+        },
+
+        afterSubmitCoolOffPeriod({ data, cgOldValue }) {
+            this.updateAssignment({
+                assignmentId: this.assignment.id,
+                assignmentProps: {
+                    cool_off_period: data.cool_off_period,
+                    amount_in_cool_off_period: data.amount_in_cool_off_period,
+                },
+            }).then(assignment => {
+                if (cgOldValue.period === this.assignmentTempCoolOffDuration) {
+                    this.assignmentTempCoolOffDuration = assignment.coolOffPeriod.asMinutes();
+                }
+                if (cgOldValue.amount === this.assignmentTempAmountInCoolOff) {
+                    this.assignmentTempAmountInCoolOff = assignment.amount_in_cool_off_period;
+                }
+            });
         },
     },
 

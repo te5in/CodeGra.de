@@ -43,3 +43,24 @@
 .wy-menu-vertical p.caption {
   color: #fff;
 }
+
+.rst-content .example-directive {
+    background: #f0ffd6;
+}
+
+.rst-content .example-directive .admonition-title {
+    background: #8AC91A;
+}
+
+.rst-content .example-directive .admonition-title::before {
+    content: "";
+}
+
+.admonition-title .headerlink {
+    padding-left: 0.5em;
+    display: none;
+}
+
+.admonition-title:hover .headerlink {
+    display: inline;
+}

@@ -5,6 +5,7 @@ import pytest
 
 import psef.models as m
 from helpers import create_marker
+from psef.permissions import CoursePermission as CPerm
 
 perm_error = create_marker(pytest.mark.perm_error)
 data_error = create_marker(pytest.mark.data_error)
@@ -225,6 +226,77 @@ def test_get_feedback(
 
 
 @pytest.mark.parametrize('filename', ['test_flake8.tar.gz'], indirect=True)
+@pytest.mark.parametrize('named_user', ['Thomas Schaper'], indirect=True)
+@pytest.mark.parametrize('perm_value', [True, False])
+def test_can_see_user_feedback_before_done_permission(
+    named_user, request, logged_in, test_client, assignment_real_works,
+    session, error_template, ta_user, perm_value
+):
+    assignment, work = assignment_real_works
+    assig_id = assignment.id
+    perm_err = request.node.get_closest_marker('perm_error')
+    late_err = request.node.get_closest_marker('late_error')
+    list_err = request.node.get_closest_marker('list_error')
+
+    code_id = session.query(m.File.id).filter(
+        m.File.work_id == work['id'],
+        m.File.parent != None,  # NOQA
+        m.File.name != '__init__',
+    ).first()[0]
+
+    with logged_in(ta_user):
+        test_client.req(
+            'put',
+            f'/api/v1/code/{code_id}/comments/0',
+            204,
+            data={'comment': 'for line 0'},
+        )
+        test_client.req(
+            'put',
+            f'/api/v1/code/{code_id}/comments/1',
+            204,
+            data={'comment': 'for line - 1'},
+        )
+
+    assignment.state = m._AssignmentStateEnum.open
+
+    course = assignment.course
+    course_users = course.get_all_users_in_course(include_test_students=False
+                                                  ).all()
+    course_role = next(r for u, r in course_users if u.id == named_user.id)
+
+    course_role.set_permission(
+        CPerm.can_see_user_feedback_before_done, perm_value
+    )
+
+    session.commit()
+
+    with logged_in(named_user):
+        if perm_value:
+            res = {
+                '0': {
+                    'line': 0,
+                    'msg': 'for line 0',
+                    'author': dict,
+                }, '1': {
+                    'line': 1,
+                    'msg': 'for line - 1',
+                    'author': dict,
+                }
+            }
+        else:
+            res = {}
+
+        test_client.req(
+            'get',
+            f'/api/v1/code/{code_id}',
+            200,
+            query={'type': 'feedback'},
+            result=res
+        )
+
+
+@pytest.mark.parametrize('filename', ['test_flake8.tar.gz'], indirect=True)
 @pytest.mark.parametrize(
     'named_user', [
         'Thomas Schaper',
@@ -360,10 +432,10 @@ def test_get_all_feedback(
         r'\n'
         r'\n'
         r'Comments:\n'
-        r'test.py:0:0: for line 0\n'
-        r'test.py:1:0: for line - 1\n'
+        r'test.py:1:1: for line 0\n'
+        r'test.py:2:1: for line - 1\n'
         r'\nLinter comments:\n'
-        r'(test.py:1:0: \(Flake8 .*\) .*\n)+\n*'
+        r'(test.py:2:1: \(Flake8 .*\) .*\n)+\n*'
     )
 
     with logged_in(named_user):
@@ -371,8 +443,6 @@ def test_get_all_feedback(
 
         if perm_err:
             code = perm_err.kwargs['error']
-        elif late_err:
-            code = 403
         else:
             code = 200
 
@@ -419,15 +489,28 @@ def test_get_all_feedback(
             assert expected.match(res.data.decode('utf8'))
 
     with logged_in(named_user):
-        out = {'user': dict, 'general': str, 'linter': dict, 'authors': None}
-        if not list_err:
-            out['authors'] = dict
+        if perm_err:
+            out = {
+                'general': '',
+                'user': {},
+                'linter': {},
+                'authors': None,
+            }
+        else:
+            out = {
+                'user': dict,
+                'general': str,
+                'linter': dict,
+                'authors': None,
+            }
+            if not list_err:
+                out['authors'] = dict
 
         res = test_client.req(
             'get',
             f'/api/v1/submissions/{work["id"]}/feedbacks/',
-            perm_err.kwargs['error'] if perm_err else 200,
-            result=error_template if perm_err else out,
+            200,
+            result=out,
         )
 
         if not perm_err:
@@ -500,7 +583,7 @@ def test_get_assignment_all_feedback(
 
     def match_res(res):
         general = 'Niet zo goed'
-        user = ['test.py:0:0: for line 0', 'test.py:1:0: for line - 1']
+        user = ['test.py:1:1: for line 0', 'test.py:2:1: for line - 1']
         assert len(res) == 1 if only_own_subs else 3
         linter = None
 

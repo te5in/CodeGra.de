@@ -13,27 +13,27 @@ from collections import defaultdict
 
 import sqlalchemy.sql as sql
 from sqlalchemy import orm, select
+from sqlalchemy.orm import undefer, selectinload
 from sqlalchemy.types import JSON
 
 import psef
 
 from . import Base, DbColumn, db
 from . import file as file_models
+from . import user as user_models
 from . import group as group_models
 from . import _MyQuery
 from . import assignment as assignment_models
 from .. import auth, helpers, features
 from .linter import LinterState, LinterComment, LinterInstance
-from .rubric import RubricItem
+from .rubric import RubricItem, WorkRubricItem
 from .comment import Comment
 from ..helpers import JSONType
 from ..exceptions import PermissionException
-from .link_tables import work_rubric_item
 from ..permissions import CoursePermission
 
 if t.TYPE_CHECKING:  # pragma: no cover
     # pylint: disable=unused-import, invalid-name
-    from . import user as user_models
     hybrid_property = property
 else:
     from sqlalchemy.ext.hybrid import hybrid_property
@@ -180,8 +180,8 @@ class Work(Base):
         'assigned_to', db.Integer, db.ForeignKey('User.id'), nullable=True
     )
     selected_items = db.relationship(
-        'RubricItem', secondary=work_rubric_item
-    )  # type: t.MutableSequence['RubricItem']
+        'WorkRubricItem', cascade='all, delete-orphan'
+    )  # type: t.MutableSequence['WorkRubricItem']
 
     assignment = db.relationship(
         'Assignment',
@@ -430,7 +430,7 @@ class Work(Base):
 
     def select_rubric_items(
         self,
-        items: t.List['RubricItem'],
+        items: t.List['WorkRubricItem'],
         user: 'user_models.User',
         override: bool = False
     ) -> None:
@@ -451,10 +451,10 @@ class Work(Base):
         """
         # Sanity checks
         assert all(
-            item.rubricrow.assignment_id == self.assignment_id
+            item.rubric_item.rubricrow.assignment_id == self.assignment_id
             for item in items
         )
-        row_ids = [item.rubricrow_id for item in items]
+        row_ids = [item.rubric_item.rubricrow_id for item in items]
         assert len(row_ids) == len(set(row_ids))
 
         if override:
@@ -506,21 +506,24 @@ class Work(Base):
             'created_at': self.created_at.isoformat(),
             'origin': self.origin.name,
             'extra_info': self.extra_info,
+            'grade': None,
+            'grade_overridden': False,
+            'assignee': None,
         }
 
         try:
             auth.ensure_permission(
                 CoursePermission.can_see_assignee, self.assignment.course_id
             )
-            item['assignee'] = self.assignee
         except PermissionException:
-            item['assignee'] = None
+            pass
+        else:
+            item['assignee'] = self.assignee
 
         try:
             auth.ensure_can_see_grade(self)
         except PermissionException:
-            item['grade'] = None
-            item['grade_overridden'] = False
+            pass
         else:
             item['grade'] = self.grade
             item['grade_overridden'] = (
@@ -558,11 +561,15 @@ class Work(Base):
             'comment': None,
             'comment_author': None,
             'assignment_id': self.assignment.id,
+            'rubric_result': None,
             **self.__to_json__()
         }
 
+        if self.assignment.rubric_rows:
+            res['rubric_result'] = self.__rubric_to_json__()
+
         try:
-            auth.ensure_can_see_grade(self)
+            auth.ensure_can_see_user_feedback(self)
         except PermissionException:
             pass
         else:
@@ -643,41 +650,39 @@ class Work(Base):
             tree, None, {'work': self}
         )
 
-    def get_all_feedback(self) -> t.Tuple[t.Iterable[str], t.Iterable[str], ]:
-        """Get all feedback for this work.
+    def get_user_feedback(self) -> t.Iterable[str]:
+        """Get all user given feedback for this work.
 
-        :returns: A tuple of two iterators both producing human readable
-            representations of the given feedback. The first iterator produces
-            the feedback given by a person and the second the feedback given by
-            the linters.
+        :returns: An iterator producing human readable representations of the
+            feedback given by a person.
         """
+        comments = Comment.query.filter(
+            t.cast(DbColumn[file_models.File], Comment.file).has(work=self),
+        ).order_by(
+            t.cast(DbColumn[int], Comment.file_id).asc(),
+            t.cast(DbColumn[int], Comment.line).asc(),
+        )
+        for com in comments:
+            yield f'{com.file.get_path()}:{com.line + 1}:1: {com.comment}'
 
-        def __get_user_feedback() -> t.Iterable[str]:
-            comments = Comment.query.filter(
-                t.cast(DbColumn[file_models.File],
-                       Comment.file).has(work=self),
-            ).order_by(
-                t.cast(DbColumn[int], Comment.file_id).asc(),
-                t.cast(DbColumn[int], Comment.line).asc(),
+    def get_linter_feedback(self) -> t.Iterable[str]:
+        """Get all linter feedback for this work.
+
+        :returns: An iterator that produces the all feedback given on this work
+            by linters.
+        """
+        linter_comments = LinterComment.query.filter(
+            LinterComment.file.has(work=self)  # type: ignore
+        ).order_by(
+            LinterComment.file_id.asc(),  # type: ignore
+            LinterComment.line.asc(),  # type: ignore
+        )
+        for line_comm in linter_comments:
+            yield (
+                f'{line_comm.file.get_path()}:{line_comm.line + 1}:1: '
+                f'({line_comm.linter.tester.name}'
+                f' {line_comm.linter_code}) {line_comm.comment}'
             )
-            for com in comments:
-                yield f'{com.file.get_path()}:{com.line}:0: {com.comment}'
-
-        def __get_linter_feedback() -> t.Iterable[str]:
-            linter_comments = LinterComment.query.filter(
-                LinterComment.file.has(work=self)  # type: ignore
-            ).order_by(
-                LinterComment.file_id.asc(),  # type: ignore
-                LinterComment.line.asc(),  # type: ignore
-            )
-            for line_comm in linter_comments:
-                yield (
-                    f'{line_comm.file.get_path()}:{line_comm.line}:0: '
-                    f'({line_comm.linter.tester.name}'
-                    f' {line_comm.linter_code}) {line_comm.comment}'
-                )
-
-        return __get_user_feedback(), __get_linter_feedback()
 
     def remove_selected_rubric_item(self, row_id: int) -> None:
         """Deselect selected :class:`.RubricItem` on row.
@@ -689,10 +694,10 @@ class Work(Base):
                            rubric items
         :returns: Nothing
         """
-        rubricitem = db.session.query(RubricItem).join(
-            work_rubric_item, RubricItem.id == work_rubric_item.c.rubricitem_id
+        rubricitem = db.session.query(WorkRubricItem).join(
+            RubricItem, RubricItem.id == WorkRubricItem.rubricitem_id
         ).filter(
-            work_rubric_item.c.work_id == self.id,
+            WorkRubricItem.work_id == self.id,
             RubricItem.rubricrow_id == row_id
         ).first()
         if rubricitem is not None:
@@ -910,8 +915,12 @@ class Work(Base):
         """
         # TODO: Check why we need to pass both user_id and user.
         self = cls(assignment=assignment, user_id=author.id, user=author)
-        if created_at is not None:
+
+        if created_at is None:
+            self.created_at = helpers.get_request_start_time()
+        else:
             self.created_at = created_at
+
         self.divide_new_work()
 
         self.add_file_tree(tree)
@@ -935,3 +944,37 @@ class Work(Base):
             self.assignment.auto_test.add_to_run(self)
 
         return self
+
+    @classmethod
+    def update_query_for_extended_jsonify(
+        cls: t.Type['Work'], query: _MyQuery['Work']
+    ) -> _MyQuery['Work']:
+        """Update the given query to load all attributes needed for an extended
+            jsonify eagerly.
+
+        :param query: The query to update.
+        :returns: The updated query, which now loads all attributes needed for
+            an extended jsonify eagerly.
+        """
+        return query.options(
+            selectinload(
+                cls.selected_items,
+            ),
+            # We want to load all users directly. We do this by loading the
+            # user, which might be a group. For such groups we also load all
+            # users.  The users in this group will never be a group, so the
+            # last `selectinload` here might be seen as strange. However,
+            # during the serialization of a group we access `User.group`, which
+            # checks if a user is really not a group. To prevent these last
+            # queries the last `selectinload` is needed here.
+            selectinload(
+                cls.user,
+            ).selectinload(
+                user_models.User.group,
+            ).selectinload(
+                group_models.Group.members,
+            ).selectinload(
+                user_models.User.group,
+            ),
+            undefer(cls.comment),
+        )

@@ -11,7 +11,7 @@
 
     <ul class="sidebar-list" v-if="sortedFilteredSubmissions.length > 0">
         <li v-for="sub in sortedFilteredSubmissions"
-            :class="{ 'light-selected': curSub && sub.user.id === curSub.user.id  }"
+            :class="{ 'light-selected': curSub && sub.userId === curSub.userId  }"
             :tabindex="0"
             @keyup.enter="gotoSub(sub)"
             class="sidebar-list-item">
@@ -21,7 +21,7 @@
                       show-title/>
 
                 <small>
-                    Latest: {{ sub.formatted_created_at }}
+                    Latest: {{ sub.formattedCreatedAt }}
                 </small>
                 <small v-if="sub.assignee">
                     Assignee: {{ sub.assignee.name }}
@@ -67,7 +67,7 @@ export default {
     },
 
     computed: {
-        ...mapGetters('submissions', ['latestSubmissions']),
+        ...mapGetters('submissions', ['getLatestSubmissions']),
         ...mapGetters({
             userId: 'user/id',
         }),
@@ -81,7 +81,7 @@ export default {
         },
 
         submissions() {
-            return this.latestSubmissions[this.assignmentId];
+            return this.getLatestSubmissions(this.assignmentId);
         },
 
         filterAssignee() {

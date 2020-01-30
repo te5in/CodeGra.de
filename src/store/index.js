@@ -12,6 +12,9 @@ import autotest from './modules/autotest';
 import plagiarism from './modules/plagiarism';
 import submissions from './modules/submissions';
 import code from './modules/code';
+import users from './modules/users';
+import fileTrees from './modules/file_trees';
+import feedback from './modules/feedback';
 
 Vue.use(Vuex);
 
@@ -69,6 +72,9 @@ export const store = new Vuex.Store({
         plagiarism,
         submissions,
         code,
+        users,
+        fileTrees,
+        feedback,
     },
     strict: debug,
     plugins,

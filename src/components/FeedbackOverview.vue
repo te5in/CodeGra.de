@@ -124,7 +124,7 @@ export default {
         },
 
         fileTree() {
-            return this.submission.fileTree;
+            return this.submission && this.submission.fileTree;
         },
 
         feedback() {
@@ -134,7 +134,7 @@ export default {
                 return {};
             }
 
-            return this.submission.feedback;
+            return feedback;
         },
 
         fileIds() {
@@ -148,10 +148,14 @@ export default {
         generalFeedback() {
             return this.submission.comment || '';
         },
+
+        submissionId() {
+            return this.submission.id;
+        },
     },
 
     watch: {
-        submission: {
+        submissionId: {
             immediate: true,
             handler() {
                 this.loadFeedback();
@@ -167,10 +171,13 @@ export default {
     },
 
     methods: {
-        ...mapActions('submissions', {
-            storeLoadSubmissionFeedback: 'loadSubmissionFeedback',
-            storeLoadSubmissionFileTree: 'loadSubmissionFileTree',
+        ...mapActions('feedback', {
+            storeLoadSubmissionFeedback: 'loadFeedback',
         }),
+        ...mapActions('fileTrees', {
+            storeLoadSubmissionFileTree: 'loadFileTree',
+        }),
+        ...mapActions('code', { storeLoadCode: 'loadCode' }),
 
         async loadFeedback() {
             this.codeLines = null;
@@ -222,28 +229,24 @@ export default {
         },
 
         getCode(fileId, selectedLanguage) {
-            return this.$http
-                .get(`/api/v1/code/${fileId}`, {
-                    responseType: 'arraybuffer',
-                })
-                .then(
-                    rawCode => {
-                        let code;
-                        try {
-                            code = decodeBuffer(rawCode.data);
-                        } catch (e) {
-                            return [];
-                        }
-                        return this.highlightCode(
-                            code.split('\n'),
-                            selectedLanguage,
-                            this.fileTree.flattened[fileId],
-                        );
-                    },
-                    err => {
-                        this.error = this.$utils.getErrorMessage(err);
-                    },
-                );
+            return this.storeLoadCode(fileId).then(
+                rawCode => {
+                    let code;
+                    try {
+                        code = decodeBuffer(rawCode);
+                    } catch (e) {
+                        return [];
+                    }
+                    return this.highlightCode(
+                        code.split('\n'),
+                        selectedLanguage,
+                        this.fileTree.flattened[fileId],
+                    );
+                },
+                err => {
+                    this.error = this.$utils.getErrorMessage(err);
+                },
+            );
         },
 
         highlightCode(codeLines, language, filePath) {

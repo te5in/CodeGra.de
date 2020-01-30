@@ -27,3 +27,5 @@ PRIVACY_STATEMENT.md
 /celerybeat-schedule.db
 /celerybeat-schedule
 /cypress/screenshots
+/cypress/videos
+/.nyc_output/

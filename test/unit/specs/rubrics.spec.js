@@ -1,5 +1,11 @@
-import { mutations } from '@/store/modules/rubrics';
-import { RubricResult } from '@/models/rubric.js';
+import axios from 'axios';
+
+import { store } from '@/store';
+import * as mutationTypes from '@/store/mutation-types';
+import { actions, mutations } from '@/store/modules/rubrics';
+import { NONEXISTENT, UNSET_SENTINEL } from '@/constants';
+import { Rubric, ContinuousRubricRow, NormalRubricRow, RubricRow, RubricResult } from '@/models/rubric';
+import { AutoTestResult } from '@/models/auto_test';
 
 describe('The rubric store', () => {
     let state;
@@ -7,10 +13,26 @@ describe('The rubric store', () => {
     let submissionId;
     let mockRubric;
     let mockResult;
+    let mockAxiosGet;
 
     function getResult() {
         return state.results[submissionId];
     }
+
+    beforeAll(() => {
+        store.commit(`courses/${mutationTypes.SET_COURSES}`, [
+            [{
+                id: 1,
+                assignments: [{
+                    id: 1,
+                }],
+            }],
+            {},
+            {},
+            {},
+            {},
+        ]);
+    });
 
     beforeEach(() => {
         state = {
@@ -22,6 +44,7 @@ describe('The rubric store', () => {
         mockRubric = [
             {
                 id: 0,
+                type: 'normal',
                 items: [
                     { id: 0, points: 0 },
                     { id: 1, points: 1 },
@@ -30,6 +53,7 @@ describe('The rubric store', () => {
             },
             {
                 id: 1,
+                type: 'normal',
                 items: [
                     { id: 3, points: 4 },
                     { id: 4, points: 8 },
@@ -38,16 +62,203 @@ describe('The rubric store', () => {
             },
         ];
         mockResult = {
-            selected: [{ id: 1, points: 1 }],
+            rubrics: mockRubric,
+            selected: [{ id: 1, points: 1, multiplier: 1 }],
         };
+    });
 
+    describe('actions', () => {
+        beforeEach(() => {
+            store.commit(`rubrics/${mutationTypes.CLEAR_RUBRICS}`);
+            store.commit(`rubrics/${mutationTypes.CLEAR_RUBRIC_RESULTS}`);
+            state = store.state.rubrics;
+        });
+
+        describe('loadRubric', () => {
+            it('should load the rubric if it is not already available', async () => {
+                const mockGet = jest.fn(() => Promise.resolve({}));
+                axios.get = mockGet;
+
+                await store.dispatch('rubrics/loadRubric', { assignmentId });
+
+                expect(mockGet).toBeCalledTimes(1);
+                expect(mockGet).toHaveBeenCalledWith(`/api/v1/assignments/${assignmentId}/rubrics/`);
+                expect(state.rubrics).toHaveProperty(`${assignmentId}`);
+            });
+
+            it('should not send a request if the rubric is already available', async () => {
+                const mockGet = jest.fn(() => Promise.resolve({}));
+                axios.get = mockGet;
+
+                await store.dispatch('rubrics/loadRubric', { assignmentId });
+                await store.dispatch('rubrics/loadRubric', { assignmentId });
+
+                expect(mockGet).toBeCalledTimes(1);
+                expect(state.rubrics).toHaveProperty(`${assignmentId}`);
+            });
+
+            it('should send a request if the rubric is already available and "force" is true', async () => {
+                const mockGet = jest.fn(() => Promise.resolve({}));
+                axios.get = mockGet;
+
+                await store.dispatch('rubrics/loadRubric', { assignmentId });
+                await store.dispatch('rubrics/loadRubric', { assignmentId, force: true });
+
+                expect(mockGet).toBeCalledTimes(2);
+                expect(state.rubrics).toHaveProperty(`${assignmentId}`);
+            });
+
+            it('should set the rubric to NONEXISTENT on error during loading', async () => {
+                const mockErr = {};
+                const mockGet = jest.fn(() => Promise.reject(mockErr));
+                axios.get = mockGet;
+
+                try {
+                    await store.dispatch('rubrics/loadRubric', { assignmentId });
+                } catch (e) {
+                    expect(e).toBe(mockErr);
+                }
+
+                expect(mockGet).toBeCalledTimes(1);
+                expect(state.rubrics).toHaveProperty(`${assignmentId}`);
+                expect(state.rubrics[assignmentId]).toBe(NONEXISTENT);
+            });
+        });
+
+        describe('copyRubric', () => {
+            it('should send a request to the server', async () => {
+                const mockPost = jest.fn(() => Promise.resolve({ data: mockRubric }));
+                axios.post = mockPost;
+
+                const otherAssignmentId = 2;
+                await store.dispatch('rubrics/copyRubric', { assignmentId, otherAssignmentId });
+
+                expect(mockPost).toBeCalledTimes(1);
+                expect(mockPost).toHaveBeenCalledWith(
+                    `/api/v1/assignments/${assignmentId}/rubric`,
+                    { old_assignment_id: otherAssignmentId },
+                );
+                expect(state.rubrics).toHaveProperty(`${assignmentId}`);
+            });
+        });
+
+        describe('updateRubric', () => {
+            it('should send a request to the server and update the store', async () => {
+                const mockPut = jest.fn(() => Promise.resolve({ data: mockRubric }));
+                axios.put = mockPut;
+
+                const maxPoints = 3;
+                await store.dispatch('rubrics/updateRubric', {
+                    assignmentId,
+                    rows: mockRubric,
+                    maxPoints,
+                });
+
+                expect(mockPut).toHaveBeenCalledTimes(1);
+                expect(mockPut).toHaveBeenCalledWith(
+                    `/api/v1/assignments/${assignmentId}/rubrics/`,
+                    {
+                        rows: mockRubric,
+                        max_points: maxPoints,
+                    },
+                );
+
+                state.rubrics[assignmentId].rows.forEach((row, i) => {
+                    expect(row).toEqual(expect.objectContaining(mockRubric[i]));
+                });
+                expect(store.getters['courses/assignments'][assignmentId].fixed_max_rubric_points).toBe(maxPoints);
+            });
+        });
+
+        describe('deleteRubric', () => {
+            it('should send a request to the server and delete the rubric from the store', async () => {
+                const response = {};
+                const mockDelete = jest.fn(() => Promise.resolve(response));
+                axios.delete = mockDelete;
+
+                store.commit(`rubrics/${mutationTypes.SET_RUBRIC}`, {
+                    assignmentId,
+                    rubric: mockRubric,
+                });
+                await store.dispatch(`rubrics/deleteRubric`, { assignmentId });
+
+                expect(mockDelete).toHaveBeenCalledTimes(1);
+                expect(mockDelete).toHaveBeenCalledWith(
+                    `/api/v1/assignments/${assignmentId}/rubrics/`,
+                );
+
+                response.onAfterSuccess();
+                expect(state.rubrics).toHaveProperty(`${assignmentId}`);
+                expect(state.rubrics[assignmentId]).toBe(NONEXISTENT);
+            });
+        });
+
+        describe('clearRubric', () => {
+            it('should not send a request to the server and delete the rubric from the store', async () => {
+                const mockDelete = jest.fn(() => Promise.resolve());
+                axios.delete = mockDelete;
+
+                store.commit(`rubrics/${mutationTypes.SET_RUBRIC}`, {
+                    assignmentId,
+                    rubric: mockRubric,
+                });
+                await store.dispatch(`rubrics/clearRubric`, { assignmentId });
+
+                expect(mockDelete).toHaveBeenCalledTimes(0);
+                expect(state.rubrics).not.toHaveProperty(`${assignmentId}`);
+            });
+        });
     });
 
     describe('mutations', () => {
+        describe('SET_RUBRIC', () => {
+            it('should store a new Rubric model', () => {
+                mutations[mutationTypes.SET_RUBRIC](state, {
+                    assignmentId,
+                    rubric: mockRubric,
+                });
 
-        describe('setResult', () => {
+                const rubric = state.rubrics[assignmentId];
+
+                expect(rubric).toBeInstanceOf(Rubric);
+                expect(rubric.maxPoints).toBe(18);
+            });
+
+            it('should not try to convert NONEXISTENT to a Rubric model', () => {
+                mutations[mutationTypes.SET_RUBRIC](state, {
+                    assignmentId,
+                    rubric: NONEXISTENT,
+                });
+
+                const rubric = state.rubrics[assignmentId];
+
+                expect(rubric).toBe(NONEXISTENT);
+            });
+        });
+
+        describe('CLEAR_RUBRIC', () => {
+            it('should delete the rubric from the store', () => {
+                state.rubrics[assignmentId] = {};
+
+                mutations[mutationTypes.CLEAR_RUBRIC](state, { assignmentId });
+
+                expect(state.rubrics[assignmentId]).toBeUndefined();
+            });
+        });
+
+        describe('CLEAR_RUBRICS', () => {
+            it('should delete all rubrics from the store', () => {
+                state.rubrics[assignmentId] = {};
+
+                mutations[mutationTypes.CLEAR_RUBRICS](state);
+
+                expect(Object.values(state.rubrics).length).toBe(0);
+            });
+        });
+
+        describe('SET_RUBRIC_RESULT', () => {
             it('should store a new RubricResult model', () => {
-                mutations.setResult(state, {
+                mutations[mutationTypes.SET_RUBRIC_RESULT](state, {
                     submissionId,
                     result: mockResult,
                 });
@@ -55,12 +266,12 @@ describe('The rubric store', () => {
                 const result = state.results[submissionId];
 
                 expect(result).toBeInstanceOf(RubricResult);
-                expect(result.selected.length).toBe(mockResult.selected.length);
+                expect(Object.values(result.selected).length).toBe(mockResult.selected.length);
                 expect(result.points).toBe(1);
             });
 
             it('should store null as points if no items are selected', () => {
-                mutations.setResult(state, {
+                mutations[mutationTypes.SET_RUBRIC_RESULT](state, {
                     submissionId,
                     result: Object.assign(mockResult, {
                         selected: [],
@@ -70,150 +281,363 @@ describe('The rubric store', () => {
                 const result = state.results[submissionId];
 
                 expect(result).toBeInstanceOf(RubricResult);
-                expect(result.selected.length).toBe(0);
+                expect(Object.values(result.selected).length).toBe(0);
                 expect(result.points).toBeNull();
             });
         });
 
-        describe('clearResult', () => {
+        describe('CLEAR_RUBRIC_RESULT', () => {
             it('should delete the rubric from the store', () => {
                 state.results[submissionId] = {};
 
-                mutations.clearResult(state, { submissionId });
+                mutations[mutationTypes.CLEAR_RUBRIC_RESULT](state, { submissionId });
 
                 expect(getResult()).toBeUndefined();
             });
         });
 
-        describe('setSelected', () => {
-            it('should entirely replace the old selected value', () => {
-                mutations.setResult(state, {
-                    submissionId,
-                    result: mockResult,
-                    submissionId,
-                });
+        describe('CLEAR_RUBRIC_RESULTS', () => {
+            it('should delete all rubric results from the store', () => {
+                state.results[submissionId] = {};
 
-                mutations.setSelected(state, {
-                    result: getResult(),
-                    selected: [{ id: 0, points: 0 }],
-                    submissionId,
-                });
+                mutations[mutationTypes.CLEAR_RUBRIC_RESULTS](state);
 
-                expect(getResult().selected).toEqual([{ id: 0, points: 0 }]);
+                expect(Object.values(state.results).length).toBe(0);
+            });
+        });
+    });
+
+    describe('The Rubric model', () => {
+        describe('fromServerData', () => {
+            it('should return an immutable object', () => {
+                const rubric = Rubric.fromServerData(mockRubric);
+
+                expect(rubric).toBeInstanceOf(Rubric);
+                expect(() => {
+                    rubric.rows = [];
+                }).toThrow(TypeError);
             });
 
-            it('should update the points of the result', () => {
-                mutations.setResult(state, {
-                    submissionId,
-                    result: mockResult,
+            it('should sort items in a row by points, ascendingly', () => {
+                const rows = [...mockRubric];
+                rows[0].items = [...rows[0].items].reverse();
+
+                const rubric = Rubric.fromServerData(mockRubric);
+
+                expect(rubric.rows[0]).toEqual(
+                    expect.objectContaining({ ...mockRubric[0] }),
+                );
+            });
+
+            it('should instantiate a NormalRubricRow model for each row', () => {
+                const rubric = Rubric.fromServerData(mockRubric);
+                rubric.rows.forEach(row => {
+                    expect(row).toBeInstanceOf(NormalRubricRow);
                 });
-
-                expect(getResult().points).toBe(1);
-
-                mutations.setSelected(state, {
-                    result: getResult(),
-                    selected: [{ id: 0, points: 0 }],
-                    submissionId,
-                });
-
-                expect(getResult().points).toBe(0);
-
-                mutations.setSelected(state, {
-                    result: getResult(),
-                    selected: [
-                        { id: 0, points: 0 },
-                        { id: 1, points: 1 },
-                        { id: 2, points: 2 },
-                    ],
-                    submissionId,
-                });
-
-                expect(getResult().points).toBe(3);
-
-                mutations.setSelected(state, {
-                    result: getResult(),
-                    selected: [],
-                    submissionId,
-                });
-
-                expect(getResult().points).toBeNull();
             });
         });
 
-        describe('selectItem', () => {
-            it('should update the points', () => {
-                mutations.setResult(state, {
-                    submissionId,
-                    result: mockResult,
-                });
+        describe('maxPoints', () => {
+            it('should be unset initially and cache the result', () => {
+                const rubric = Rubric.fromServerData(mockRubric);
 
-                const row = mockRubric[1];
-                const item = row.items[1];
-
-                mutations.selectItem(state, { result: getResult(), row, item, submissionId });
-
-                expect(getResult().selected.length).toBe(2);
-                expect(getResult().selected).toContainEqual(item);
-                expect(getResult().points).toBe(9);
-            });
-
-            it('should remove selected items from the same row', () => {
-                mutations.setResult(state, {
-                    submissionId,
-                    result: mockResult,
-                });
-
-                const row = mockRubric[0];
-                const item = row.items[0];
-
-                mutations.selectItem(state, { result: getResult(), row, item, submissionId });
-
-                expect(getResult().selected.length).toBe(1);
-                expect(getResult().selected).toContainEqual(item);
-                expect(getResult().points).toBe(0);
+                expect(rubric._cache.maxPoints).toBe(UNSET_SENTINEL);
+                expect(rubric.maxPoints).toBe(18);
+                expect(rubric._cache.maxPoints).toBe(18);
             });
         });
 
-        describe('unselectItem', () => {
-            it('should throw an error when item is not selected', () => {
-                mutations.setResult(state, {
-                    submissionId,
-                    result: mockResult,
-                });
+        describe('createRow', () => {
+            it('should return a new copy', () => {
+                const rubric = Rubric.fromServerData(mockRubric);
+                const newRubric = rubric.createRow();
 
-                const row = mockRubric[1];
-                const item = row.items[0];
+                expect(newRubric).not.toBe(rubric);
+            });
+
+            it('should insert a row', () => {
+                const rubric = Rubric.fromServerData(mockRubric);
+                const newRubric = rubric.createRow();
+                const newRow = newRubric.rows[newRubric.rows.length - 1];
+
+                expect(newRubric.rows.length).toBe(rubric.rows.length + 1);
+                expect(newRow.type).toBe('');
+                expect(newRow.items.length).toBe(0);
+            });
+        });
+
+        describe('deleteRow', () => {
+            it('should return a new copy', () => {
+                const rubric = Rubric.fromServerData(mockRubric);
+                const newRubric = rubric.deleteRow(0);
+
+                expect(rubric).not.toBe(newRubric);
+            });
+
+            it('should delete the given row', () => {
+                const rubric = Rubric.fromServerData(mockRubric);
+                const newRubric = rubric.deleteRow(0);
+
+                expect(newRubric.rows.length).toBe(rubric.rows.length - 1);
+                newRubric.rows.forEach(row => {
+                    expect(row).not.toEqual(rubric.rows[0]);
+                });
+            });
+
+            it('should throw an error when an invalid index is given', () => {
+                let rubric = Rubric.fromServerData(mockRubric);
+
+                expect(() => rubric.deleteRow(-1)).toThrow(ReferenceError);
+                expect(() => rubric.deleteRow(10)).toThrow(ReferenceError);
+
+                while (rubric.rows.length > 0) {
+                    rubric = rubric.deleteRow(0);
+                }
+
+                expect(rubric.rows.length).toBe(0);
+                expect(() => rubric.deleteRow(0)).toThrow(ReferenceError);
+            });
+        });
+
+        describe('updateRow', () => {
+            it('should throw an error when the argument is not of type NormalRubricRow', () => {
+                const rubric = Rubric.fromServerData(mockRubric);
 
                 expect(() => {
-                    mutations.unselectItem(state, { result: getResult(), row, item, submissionId });
-                }).toThrow(ReferenceError);
+                    rubric.updateRow(0, 0);
+                }).toThrow(TypeError);
+
+                expect(() => {
+                    rubric.updateRow(0, '0');
+                }).toThrow(TypeError);
+
+                expect(() => {
+                    rubric.updateRow(0, null);
+                }).toThrow(TypeError);
+
+                expect(() => {
+                    rubric.updateRow(0, []);
+                }).toThrow(TypeError);
+
+                expect(() => {
+                    rubric.updateRow(0, {});
+                }).toThrow(TypeError);
+
+                expect(() => {
+                    rubric.updateRow(0, undefined);
+                }).toThrow(TypeError);
+            });
+        });
+    });
+
+    describe('The NormalRubricRow model', () => {
+        describe('constructor', () => {
+            it('should return an immutable object', () => {
+                const row = new NormalRubricRow(mockRubric[0]);
+
+                expect(row).toBeInstanceOf(NormalRubricRow);
+                expect(() => {
+                    row.id = 3;
+                }).toThrow(TypeError);
+            });
+        });
+
+        describe('maxPoints',  () => {
+            it('should be unset initially and cache the result', () => {
+                const row = new NormalRubricRow(mockRubric[0]);
+
+                expect(row._cache.maxPoints).toBe(UNSET_SENTINEL);
+                expect(row.maxPoints).toBe(2);
+                expect(row._cache.maxPoints).toBe(2);
+            });
+        });
+
+        describe('update', () => {
+            let row, row_upd;
+            let props = { header: 'NEW HEADER' };
+
+            beforeEach(() => {
+                row = new NormalRubricRow(mockRubric[0]);
+                row_upd = row.update(props);
             });
 
-            it('should update the points', () => {
-                mutations.setResult(state, {
-                    submissionId,
-                    result: mockResult,
-                });
+            it('should return a new copy', () => {
+                expect(row).not.toBe(row_upd);
+            });
 
-                let row = mockRubric[1];
-                let item = row.items[0];
+            it('should update the given props', () => {
+                expect(row_upd.header).toBe(props.header);
+            });
+        });
 
-                mutations.selectItem(state, { result: getResult(), row, item, submissionId });
+        describe('setType', () => {
+            let row, row_norm, row_cont;
 
-                mutations.unselectItem(state, { result: getResult(), row, item, submissionId });
+            beforeEach(() => {
+                row = new RubricRow(Object.assign({}, mockRubric[0], {type: null}));
+                row_norm = row.setType('normal');
+                row_cont = row.setType('continuous');
+            });
 
-                expect(getResult().selected.length).toBe(1);
-                expect(getResult().selected).toEqual([{ id: 1, points: 1 }]);
-                expect(getResult().points).toBe(1);
+            it('should return a new copy', () => {
+                expect(row).not.toBe(row_norm);
+                expect(row).not.toBe(row_cont);
+            });
 
-                row = mockRubric[0];
-                item = mockRubric[1];
+            it('should throw an error if the type was already set', () => {
+                expect(() => row_cont.setType('normal')).toThrow();
+                expect(() => row_norm.setType('continuous')).toThrow();
+            });
 
-                mutations.unselectItem(state, { result: getResult(), row, item, submissionId });
+            it('should set the correct type', () => {
+                expect(row_norm.type).toBe('normal');
+                expect(row_cont.type).toBe('continuous');
 
-                expect(getResult().selected.length).toBe(0);
-                expect(getResult().selected).toEqual([]);
-                expect(getResult().points).toBeNull();
+                expect(row_norm).toBeInstanceOf(NormalRubricRow);
+                expect(row_cont).toBeInstanceOf(ContinuousRubricRow);
+            });
+
+            it('should not insert a single item if the new type is "normal"', () => {
+                expect(row_norm.items.length).toBe(0);
+            });
+
+            it('should insert a single item if the new type is "continuous"', () => {
+                expect(row_cont.items.length).toBe(1);
+            });
+        });
+
+        describe('createItem', () => {
+            let row, row2;
+
+            beforeEach(() => {
+                row = new NormalRubricRow(mockRubric[0]);
+                row2 = row.createItem();
+            });
+
+            it('should return a new copy', () => {
+                expect(row).not.toBe(row2);
+            });
+
+            it('should insert an item in the items list', () => {
+                expect(row2.items.length).toBe(row.items.length + 1);
+            });
+
+            it('should insert an empty item', () => {
+                const item = row2.items[row2.items.length - 1];
+
+                expect(item.points).toBe('');
+                expect(item.header).toBe('');
+                expect(item.description).toBe('');
+            });
+        });
+
+        describe('deleteItem', () => {
+            let row, row2;
+
+            beforeEach(() => {
+                row = new NormalRubricRow(mockRubric[0]);
+                row2 = row.deleteItem(0);
+            });
+
+            it('should return a new copy', () => {
+                expect(row).not.toBe(row2);
+            });
+
+            it('should throw an error when the index is invalid', () => {
+                expect(() => row.deleteItem(-1)).toThrow(ReferenceError);
+                expect(() => row.deleteItem(10)).toThrow(ReferenceError);
+
+                while (row2.items.length > 0) {
+                    row2 = row2.deleteItem(0);
+                }
+
+                expect(row2.items.length).toBe(0);
+                expect(() => row2.deleteItem(0)).toThrow(ReferenceError);
+            });
+
+            it('should delete the item at the given index', () => {
+                expect(row2.items[0]).toEqual(row.items[1]);
+                expect(row2.items[1]).toEqual(row.items[2]);
+
+                row2 = row.deleteItem(1);
+                expect(row2.items[0]).toEqual(row.items[0]);
+                expect(row2.items[1]).toEqual(row.items[2]);
+
+                row2 = row.deleteItem(2);
+                expect(row2.items[0]).toEqual(row.items[0]);
+                expect(row2.items[1]).toEqual(row.items[1]);
+            });
+        });
+
+        describe('lockMessagge', () => {
+            let row;
+
+            beforeEach(() => {
+                row = new ContinuousRubricRow(Object.assign({}, mockRubric[0], {
+                    locked: 'auto_test',
+                    type: 'continuous',
+                }));
+
+            });
+
+            it('should be empty when the row is not an AutoTest row', () => {
+                row = new NormalRubricRow(mockRubric[0]);
+                expect(row.lockMessage(null, null, null)).toBe('');
+            });
+
+            it('should return a message when the row is an AutoTest row', () => {
+                expect(row.lockMessage(null, null, null)).toBe('This is an AutoTest category.');
+
+                row = new NormalRubricRow(Object.assign({}, mockRubric[0], {
+                    locked: 'auto_test',
+                }));
+
+                expect(row.lockMessage(null, null, null)).toBe('This is an AutoTest category. No grade calculation method has been set yet.');
+            });
+
+            it('should get the correct message for a not filled in rubric with a result', () => {
+
+                const atResult = new AutoTestResult({
+                    id: 5,
+                    work_id: 6,
+                    state: 'failed',
+                })
+
+                expect(row.lockMessage(
+                    null, atResult, null
+                )).toBe(
+                    'This is an AutoTest category. It will be filled in' +
+                        ' once all hidden steps have been run, which will' +
+                        ' happen after the deadline.'
+                );
+            });
+
+            it ('should get the correct message for a final finished result', () => {
+                const atResult = new AutoTestResult({
+                    id: 5,
+                    work_id: 6,
+                })
+                atResult.updateExtended({ final_result: true, state: 'working' });
+
+                expect(row.lockMessage(
+                    null, atResult, null
+                )).toBe(
+                    'This is an AutoTest category. It will be filled in once the test has finished running.'
+                );
+            });
+
+            it('should get the correct message for passed and final results', () => {
+                const atResult = new AutoTestResult({
+                    id: 5,
+                    work_id: 6,
+                })
+                atResult.updateExtended({ final_result: true, state: 'passed' });
+
+                expect(row.lockMessage(
+                    null, atResult, null
+                )).toBe(
+                    'This is an AutoTest category. It will be filled in once you have the permission to see the final grade.'
+                );
             });
         });
     });

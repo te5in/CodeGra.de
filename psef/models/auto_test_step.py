@@ -661,7 +661,7 @@ class _CustomOutput(AutoTestStepBase):
     }
 
     _MATCH_GROUP_NAME = 'amount_of_points'
-    _FLOAT_REGEX = r'(?P<{}>(?:-\s*)?(?:1\.0*|0\.\d*|(?:\.\d+)))'.format(
+    _FLOAT_REGEX = r'(?P<{}>-?(?:1\.0*|0\.\d*|\.\d+))'.format(
         _MATCH_GROUP_NAME
     )
 

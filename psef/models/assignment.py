@@ -8,6 +8,7 @@ import math
 import uuid
 import typing as t
 import datetime
+import dataclasses
 from random import shuffle
 from operator import itemgetter
 from itertools import cycle
@@ -33,12 +34,9 @@ from .. import auth, ignore, helpers
 from .role import CourseRole
 from .permission import Permission
 from ..exceptions import (
-    APICodes, APIWarnings, APIException, PermissionException,
-    InvalidAssignmentState
+    APICodes, APIException, PermissionException, InvalidAssignmentState
 )
-from .link_tables import (
-    user_course, users_groups, work_rubric_item, course_permissions
-)
+from .link_tables import user_course, users_groups, course_permissions
 from ..permissions import CoursePermission as CPerm
 
 if t.TYPE_CHECKING:  # pragma: no cover
@@ -56,6 +54,24 @@ Y = t.TypeVar('Y')
 Z = t.TypeVar('Z')
 
 logger = structlog.get_logger()
+
+
+class AssignmentAmbiguousSettingTag(enum.Enum):
+    """All items that can contribute to a ambiguous assignment setting.
+    """
+    webhook = enum.auto()
+    cgignore = enum.auto()
+    max_submissions = enum.auto()
+    cool_off = enum.auto()
+
+
+@dataclasses.dataclass(frozen=True)
+class _AssignmentAmbiguousSetting:
+    """A class representing a ambiguous setting for an assignment.
+    """
+    __slots__ = ['message', 'tags']
+    message: str
+    tags: t.Set[AssignmentAmbiguousSettingTag]
 
 
 @enum.unique
@@ -438,11 +454,11 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         nullable=True,
     )
     rubric_rows = db.relationship(
-        'RubricRow',
+        'RubricRowBase',
         back_populates='assignment',
         cascade='delete-orphan, delete, save-update',
-        order_by="RubricRow.created_at"
-    )  # type: t.MutableSequence['rubric_models.RubricRow']
+        order_by="RubricRowBase.created_at"
+    )  # type: t.MutableSequence['rubric_models.RubricRowBase']
 
     group_set_id: t.Optional[int] = db.Column(
         'group_set_id',
@@ -499,11 +515,31 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         nullable=False,
     )
 
+    _cool_off_period: t.Optional[datetime.timedelta] = db.Column(
+        'cool_off_period', db.Interval, default=None, nullable=True
+    )
+
+    amount_in_cool_off_period = db.Column(
+        'amount_in_cool_off_period',
+        db.Integer,
+        default=1,
+        nullable=False,
+        server_default='1',
+    )
+
+    max_submissions: t.Optional[int] = db.Column(
+        'max_amount_of_submissions', db.Integer, default=None, nullable=True
+    )
+
     __table_args__ = (
         db.CheckConstraint(
             "files_upload_enabled or webhook_upload_enabled",
             name='upload_methods_check',
         ),
+        db.CheckConstraint(
+            'amount_in_cool_off_period >= 1',
+            name='amount_in_cool_off_period_check'
+        )
     )
 
     def __eq__(self, other: object) -> bool:
@@ -558,6 +594,19 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
     def cgignore(self, val: ignore.SubmissionFilter) -> None:
         self._cgignore_version = ignore.filter_handlers.find(type(val), None)
         self._cgignore = json.dumps(val.export())
+
+    @property
+    def cool_off_period(self) -> datetime.timedelta:
+        """The minimum amount of time there should be between two submissions
+            from the same user.
+        """
+        if self._cool_off_period is None:
+            return datetime.timedelta(seconds=0)
+        return self._cool_off_period
+
+    @cool_off_period.setter
+    def cool_off_period(self, delta: datetime.timedelta) -> None:
+        self._cool_off_period = delta
 
     # We don't use property.setter because in that case `new_val` could only be
     # a `float` because of https://github.com/python/mypy/issues/220
@@ -702,12 +751,12 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         sql = latest.filter(
             work_models.Work.assigned_to == user_id,
         ).join(
-            work_rubric_item,
-            work_rubric_item.c.work_id == work_models.Work.id,
+            rubric_models.WorkRubricItem,
+            rubric_models.WorkRubricItem.work_id == work_models.Work.id,
             isouter=True
         ).having(
             and_(
-                func.count(work_rubric_item.c.rubricitem_id) == 0,
+                func.count(rubric_models.WorkRubricItem.rubricitem_id) == 0,
                 # We access _grade here directly as we need it to do this query
                 t.cast(DbColumn[t.Optional[int]],
                        work_models.Work._grade).is_(None)  # pylint: disable=protected-access
@@ -779,11 +828,10 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         sub = db.session.query(
             func.max(rubric_models.RubricItem.points).label('max_val')
         ).join(
-            rubric_models.RubricRow,
-            rubric_models.RubricRow.id == rubric_models.RubricItem.rubricrow_id
-        ).filter(rubric_models.RubricRow.assignment_id == self.id).group_by(
-            rubric_models.RubricRow.id
-        ).subquery('sub')
+            rubric_models.RubricRowBase, rubric_models.RubricRowBase.id ==
+            rubric_models.RubricItem.rubricrow_id
+        ).filter(rubric_models.RubricRowBase.assignment_id == self.id
+                 ).group_by(rubric_models.RubricRowBase.id).subquery('sub')
         return db.session.query(func.sum(sub.c.max_val)).scalar()
 
     @property
@@ -861,7 +909,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         .. note::
 
             If the assignment is not yet done we check if the ``current_user``
-            has the permission ``can_see_grade_before_open``.
+            has the permission ``can_see_linter_feedback_before_done``.
 
         :returns: True if there is an :py:class:`.AssignmentLinter` with name
             ``MixedWhitespace`` and ``assignment_id``.
@@ -869,7 +917,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         try:
             if not self.is_done:
                 auth.ensure_permission(
-                    CPerm.can_see_grade_before_open, self.course_id
+                    CPerm.can_see_linter_feedback_before_done, self.course_id
                 )
         except PermissionException:
             return False
@@ -916,6 +964,18 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
                                     # this value is 12 a user can score 2
                                     # additional bonus points. If this value is
                                     # `null` it is unset and regarded as a 10.
+                'max_submissions': t.Optional[int], # The maximum amount of
+                    # submission a student may create, inclusive. The value
+                    # ``null`` indicates that there is no limit.
+
+
+                # These two values determine the maximum submissions in an
+                # amount of time by a user. A user can submit at most
+                # `amount_in_cool_off_period` submissions in `cool_off_period`
+                # seconds. `amount_in_cool_off_period` is always >= 1, so this
+                # check is disabled if `cool_off_period == 0`.
+                'cool_off_period': float,
+                'amount_in_cool_off_period': int,
             }
 
         :returns: An object as described above.
@@ -938,22 +998,27 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
             'cgignore': None if cgignore is None else cgignore.export(),
             'cgignore_version': self._cgignore_version,
             'whitespace_linter': self.whitespace_linter,
-            'done_type': None,
-            'done_email': None,
-            'reminder_time': None,
             'fixed_max_rubric_points': self.fixed_max_rubric_points,
             'max_grade': self._max_grade,
             'group_set': self.group_set,
-            'division_parent_id': None,
             'auto_test_id': self.auto_test_id,
             'files_upload_enabled': self.files_upload_enabled,
             'webhook_upload_enabled': self.webhook_upload_enabled,
+            'max_submissions': self.max_submissions,
+            'cool_off_period': self.cool_off_period.total_seconds(),
+            'amount_in_cool_off_period': self.amount_in_cool_off_period,
+
+            # These are all filled in based on permissions and data
+            # availability.
+            'reminder_time': None,
+            'lms_name': None,
+            'done_type': None,
+            'done_email': None,
+            'division_parent_id': None,
         }
 
         if self.course.lti_provider is not None:
             res['lms_name'] = self.course.lti_provider.lms_name
-        else:
-            res['lms_name'] = None
 
         if psef.current_user.has_permission(
             CPerm.can_grade_work,
@@ -994,6 +1059,29 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         else:
             raise InvalidAssignmentState(f'{state} is not a valid state')
 
+    def get_not_deleted_submissions(self) -> MyQuery['work_models.Work']:
+        """Get a query returning all not deleted submissions to this
+            assignment.
+
+        This method returns a faster query than just filtering submissions on
+        not deleted and an assignment, as it checks the state of the assignment
+        itself separately.
+        """
+        base_query = db.session.query(
+            work_models.Work,
+        ).filter(
+            work_models.Work.assignment_id == self.id,
+            # We don't need the intelligent `deleted` attribute here from the
+            # Work models, which also checks if the assignment is deleted, as
+            # we already check this at the start of the function.
+            ~work_models.Work._deleted,  # pylint: disable=protected-access
+        )
+
+        if self.deleted:
+            return base_query.filter(sqlalchemy.sql.false())
+
+        return base_query
+
     def get_latest_submission_for_user(
         self,
         user: 'user_models.User',
@@ -1013,12 +1101,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         :returns: A query that should not be reordered that contains the latest
             submission for the given user.
         """
-        base_query = db.session.query(
-            work_models.Work,
-        ).filter(work_models.Work.assignment_id == self.id)
-
-        if self.deleted:
-            return base_query.filter(sqlalchemy.sql.false())
+        base_query = self.get_not_deleted_submissions()
 
         user_ids = [user.id]
         order_bys = [
@@ -1054,11 +1137,6 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
 
         return base_query.filter(
             t.cast(DbColumn[int], work_models.Work.user_id).in_(user_ids),
-            # We don't need the intelligent `deleted` attribute here from
-            # the Work models, which also checks if the assignment is
-            # deleted, as we already check this at the start of the
-            # function.
-            ~work_models.Work._deleted,  # pylint: disable=protected-access
         ).order_by(*order_bys).limit(1)
 
     @t.overload
@@ -1627,49 +1705,80 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
                 also_error=lambda user: user.is_test_student,
             )
 
-        auth.ensure_can_submit_work(self, author)
-
-        group = None
         if self.group_set and not author.is_test_student:
             group = self.group_set.get_valid_group_for_user(author)
-
-        if group is not None:
-            author = group.virtual_user
-            members = group.members
+            resulting_author = author if group is None else group.virtual_user
         else:
-            members = [author]
+            resulting_author = author
 
-        if self.is_lti and not is_test_submission and any(
-            self.id not in member.assignment_results for member in members
-        ):
-            lms = self.course.lti_provider.lms_name
-            raise APIException(
-                f"Some authors haven't opened the assignment in {lms} yet",
-                'No assignment_results found for some authors in the group',
-                APICodes.ASSIGNMENT_RESULT_GROUP_NOT_READY,
-                400,
-                group=group,
-                author=author,
-            )
+        auth.ensure_can_submit_work(
+            self, author=resulting_author, for_user=author
+        )
 
-        return author
+        return resulting_author
 
     def has_webhooks(self) -> bool:
         return db.session.query(
             psef.models.WebhookBase.query.filter_by(assignment=self).exists()
         ).scalar() or False
 
-    def maybe_add_webhook_ignore_combination_warning(self) -> None:
-        """Maybe add a warning to this request that warns the user for a
-            ambiguous combination of webhooks and a ignore file.
+    def get_all_ambiguous_combinations(
+        self
+    ) -> t.Sequence[_AssignmentAmbiguousSetting]:
+        """Get all ambiguous settings for an assignment.
+
+        :returns: A list of ambiguous settings.
         """
+        res = []
+
         if not isinstance(
             self.cgignore, (ignore.EmptySubmissionFilter, type(None))
         ) and self.webhook_upload_enabled:
-            helpers.add_warning(
-                (
-                    'Hand-in requirements are currently ignored when handing'
-                    ' in using Git'
-                ),
-                APIWarnings.AMBIGUOUS_COMBINATION,
+            res.append(
+                _AssignmentAmbiguousSetting(
+                    tags={
+                        AssignmentAmbiguousSettingTag.webhook,
+                        AssignmentAmbiguousSettingTag.cgignore
+                    },
+                    message=(
+                        'Hand-in requirements are currently ignored when'
+                        ' handing in using Git'
+                    )
+                )
             )
+
+        if (
+            self.cool_off_period.total_seconds() > 0 and
+            self.webhook_upload_enabled
+        ):
+            res.append(
+                _AssignmentAmbiguousSetting(
+                    tags={
+                        AssignmentAmbiguousSettingTag.webhook,
+                        AssignmentAmbiguousSettingTag.cool_off,
+                    },
+                    message=(
+                        'When combining a cool off period with webhooks '
+                        ' submissions can be silently ignored when students'
+                        ' push too quickly.'
+                    )
+                )
+            )
+
+        if self.max_submissions is not None and self.webhook_upload_enabled:
+            res.append(
+                _AssignmentAmbiguousSetting(
+                    tags={
+                        AssignmentAmbiguousSettingTag.webhook,
+                        AssignmentAmbiguousSettingTag.max_submissions,
+                    },
+                    message=(
+                        'When combining a limit on submissions and webhooks'
+                        ' submissions can be silently dropped, as the student'
+                        ' might not check if a push results in a new'
+                        ' submission.'
+                    )
+                )
+            )
+
+        return res

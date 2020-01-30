@@ -10,9 +10,9 @@ from flask import request
 from . import api
 from .. import auth, models, features, current_user
 from ..helpers import (
-    JSONResponse, EmptyResponse, jsonify, get_or_404, add_warning,
-    readable_join, ensure_json_dict, ensure_keys_in_dict, make_empty_response,
-    filter_single_or_404
+    EmptyResponse, ExtendedJSONResponse, get_or_404, add_warning,
+    readable_join, ensure_json_dict, extended_jsonify, ensure_keys_in_dict,
+    make_empty_response, filter_single_or_404
 )
 from ..exceptions import (
     APICodes, APIWarnings, APIException, ValidationException
@@ -23,7 +23,7 @@ from ..permissions import CoursePermission as CPerm
 @api.route('/groups/<int:group_id>', methods=['GET'])
 @features.feature_required(features.Feature.GROUPS)
 @auth.login_required
-def get_group(group_id: int) -> JSONResponse[models.Group]:
+def get_group(group_id: int) -> ExtendedJSONResponse[models.Group]:
     """Get a group by id.
 
     .. :quickref: Group; Get a single group by id.
@@ -33,7 +33,7 @@ def get_group(group_id: int) -> JSONResponse[models.Group]:
     """
     group = get_or_404(models.Group, group_id)
     auth.ensure_can_view_group(group)
-    return jsonify(group)
+    return extended_jsonify(group, use_extended=models.Group)
 
 
 @api.route('/groups/<int:group_id>', methods=['DELETE'])
@@ -78,7 +78,7 @@ def delete_group(group_id: int) -> EmptyResponse:
 @api.route('/groups/<int:group_id>/member', methods=['POST'])
 @features.feature_required(features.Feature.GROUPS)
 @auth.login_required
-def add_member_to_group(group_id: int) -> JSONResponse[models.Group]:
+def add_member_to_group(group_id: int) -> ExtendedJSONResponse[models.Group]:
     """Add a user (member) to a group.
 
     .. :quickref: Group; Add a member to a group.
@@ -160,14 +160,14 @@ def add_member_to_group(group_id: int) -> JSONResponse[models.Group]:
 
     group.members.append(new_user)
     models.db.session.commit()
-    return jsonify(group)
+    return extended_jsonify(group, use_extended=models.Group)
 
 
 @api.route('/groups/<int:group_id>/members/<int:user_id>', methods=['DELETE'])
 @features.feature_required(features.Feature.GROUPS)
 @auth.login_required
-def remove_member_from_group(group_id: int,
-                             user_id: int) -> JSONResponse[models.Group]:
+def remove_member_from_group(group_id: int, user_id: int
+                             ) -> ExtendedJSONResponse[models.Group]:
     """Remove a user (member) from a group.
 
     .. :quickref: Group; Remove a member from a group.
@@ -206,13 +206,13 @@ def remove_member_from_group(group_id: int,
     group.members = [u for u in group.members if u != user]
 
     models.db.session.commit()
-    return jsonify(group)
+    return extended_jsonify(group, use_extended=models.Group)
 
 
 @api.route('/groups/<int:group_id>/name', methods=['POST'])
 @features.feature_required(features.Feature.GROUPS)
 @auth.login_required
-def update_name_of_group(group_id: int) -> JSONResponse[models.Group]:
+def update_name_of_group(group_id: int) -> ExtendedJSONResponse[models.Group]:
     """Update the name of the group.
 
     .. :quickref: Group; Update the name of a group.
@@ -247,4 +247,4 @@ def update_name_of_group(group_id: int) -> JSONResponse[models.Group]:
     group.name = new_name
 
     models.db.session.commit()
-    return jsonify(group)
+    return extended_jsonify(group, use_extended=models.Group)

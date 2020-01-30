@@ -3,5 +3,6 @@
   "fixturesFolder": "test_data/",
   "projectId": "xaj67z",
   "video": true,
+  "videoCompression": 0,
   "videoUploadOnPasses": false
 }

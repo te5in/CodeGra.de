@@ -1,5 +1,3 @@
-import { range } from '@/utils';
-
 // Exported for testing purposes
 export function nSpaces(n) {
     const arr = Array(n + 1);
@@ -8,8 +6,7 @@ export function nSpaces(n) {
     )}</span><wbr>`;
 }
 
-const MAX_SPACES = 8;
-const spacesCache = range(1, MAX_SPACES + 1).map(nSpaces);
+const spacesCache = [1, 2, 3, 4, 5, 6, 7, 8].map(nSpaces);
 
 // Exported for testing purposes
 export function nTabs(n) {
@@ -18,8 +15,7 @@ export function nTabs(n) {
     return arr.join(oneTab);
 }
 
-const MAX_TABS = 4;
-const tabsCache = range(1, MAX_TABS + 1).map(nTabs);
+const tabsCache = [1, 2, 3, 4].map(nTabs);
 
 export function visualizeWhitespace(line) {
     const newLine = [];

@@ -282,7 +282,7 @@ Cypress.Commands.add('createSubmission', (assignmentId, fileName, opts={}) => {
             url,
             method: 'POST',
             data,
-        });
+        }).its('response.body');
     });
 });
 
@@ -293,6 +293,24 @@ Cypress.Commands.add('deleteSubmission', (submissionId) => {
     });
 });
 
+Cypress.Commands.add('patchSubmission', (submissionId, body) => {
+    return cy.authRequest({
+        url: `/api/v1/submissions/${submissionId}`,
+        method: 'PATCH',
+        body,
+    }).its('body');
+});
+
+Cypress.Commands.add('clearRubricResult', (submissionId) => {
+    return cy.authRequest({
+        url: `/api/v1/submissions/${submissionId}/rubricitems/`,
+        method: 'PATCH',
+        body: {
+            items: [],
+        },
+    }).its('body');
+});
+
 Cypress.Commands.add('createRubric', (assignmentId, rubricData, maxPoints = null) => {
     return cy.authRequest({
         url: `/api/v1/assignments/${assignmentId}/rubrics/`,
@@ -301,12 +319,56 @@ Cypress.Commands.add('createRubric', (assignmentId, rubricData, maxPoints = null
             rows: rubricData,
             max_points: maxPoints,
         },
+    }).its('body');
+});
+
+Cypress.Commands.add('deleteRubric', (assignmentId, opts={}) => {
+    return cy.authRequest({
+        url: `/api/v1/assignments/${assignmentId}/rubrics/`,
+        method: 'DELETE',
+        ...opts,
     });
 });
 
-Cypress.Commands.add('deleteRubric', (assignmentId) => {
+Cypress.Commands.add('createAutoTest', (assignmentId, autoTestConfig) =>
+    cy.authRequest({
+        url: '/api/v1/auto_tests/',
+        method: 'POST',
+        body: {
+            assignment_id: assignmentId,
+        },
+    }).its('body').then(autoTest =>
+        cy.wrap(autoTestConfig.sets).each(setConfig =>
+            cy.authRequest({
+                url: `/api/v1/auto_tests/${autoTest.id}/sets/`,
+                method: 'POST',
+            }).its('body').then(set =>
+                cy.authRequest({
+                    url: `/api/v1/auto_tests/${autoTest.id}/sets/${set.id}`,
+                    method: 'PATCH',
+                    body: { stop_points: setConfig.stop_points },
+                }).then(() =>
+                    cy.wrap(setConfig.suites).each(suiteConfig =>
+                        cy.authRequest({
+                            url: `/api/v1/auto_tests/${autoTest.id}/sets/${set.id}/suites/`,
+                            method: 'PATCH',
+                            body: suiteConfig,
+                        }),
+                    ),
+                ),
+            ),
+        ).then(() =>
+            cy.authRequest({
+                url: `/api/v1/auto_tests/${autoTest.id}`,
+                method: 'GET',
+            }).its('body'),
+        ),
+    ),
+);
+
+Cypress.Commands.add('deleteAutoTest', (autoTestId) => {
     return cy.authRequest({
-        url: `/api/v1/assignments/${assignmentId}/rubrics/`,
+        url: `/api/v1/auto_tests/${autoTestId}`,
         method: 'DELETE',
     });
 });
@@ -372,6 +434,15 @@ Cypress.Commands.add('openCategory', (name) => {
         .should('have.class', 'selected');
 });
 
+Cypress.Commands.add('containsAll', { prevSubject: true }, (subject, msgs) => {
+    return cy.wrap(subject).text().then($text => {
+        for (let msg of msgs) {
+            cy.wrap($text).should('contain', msg);
+        }
+        return cy.wrap(subject);
+    });
+});
+
 // Click a submit button, and optionally wait for its state to return back to
 // default.
 Cypress.Commands.add('submit', { prevSubject: true }, (subject, state, optsArg = {}) => {
@@ -379,11 +450,21 @@ Cypress.Commands.add('submit', { prevSubject: true }, (subject, state, optsArg =
         popoverMsg: '',
         hasConfirm: false,
         doConfirm: true,
+        confirmInModal: false,
+        confirmMsg: '',
         waitForState: true,
         waitForDefault: true,
         warningCallback: () => {},
         confirmCallback: null,
     }, optsArg);
+
+    if (!Array.isArray(opts.popoverMsg)) {
+        opts.popoverMsg = [opts.popoverMsg];
+    }
+
+    if (!Array.isArray(opts.confirmMsg)) {
+        opts.confirmMsg = [opts.confirmMsg];
+    }
 
     // Ensure this is a submit button.
     cy.wrap(subject).should('have.class', 'submit-button');
@@ -395,10 +476,20 @@ Cypress.Commands.add('submit', { prevSubject: true }, (subject, state, optsArg =
 
     // Click a button the confirm popover.
     if (opts.hasConfirm) {
-        cy.get('.popover .submit-button-confirm')
-            .should('be.visible')
-            .contains('.btn', opts.doConfirm ? 'Yes' : 'No')
-            .click();
+        if (opts.confirmInModal) {
+            const id = subject.get(0).id;
+            cy.get(`#${id}-modal`)
+                .should('be.visible')
+                .containsAll(opts.confirmMsg)
+                .contains('.btn', opts.doConfirm ? 'Confirm' : 'Cancel')
+                .click();
+        } else {
+            cy.get('.popover .submit-button-confirm')
+                .containsAll(opts.confirmMsg)
+                .should('be.visible')
+                .contains('.btn', opts.doConfirm ? 'Yes' : 'No')
+                .click();
+        }
     }
 
     if (!opts.waitForState) {
@@ -414,7 +505,7 @@ Cypress.Commands.add('submit', { prevSubject: true }, (subject, state, optsArg =
     // Close the error/warning popover.
     if (state === 'error' || state === 'warning') {
         cy.get(`.popover .submit-button-${state}`)
-            .should('contain', opts.popoverMsg)
+            .containsAll(opts.popoverMsg)
             .find('.hide-button')
             .click();
     }

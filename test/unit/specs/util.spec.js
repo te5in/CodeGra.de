@@ -14,12 +14,15 @@ import {
     highlightCode,
     nameOfUser,
     groupMembers,
-    deadlinePassed,
-    canUploadWork,
-    canSeeGrade,
     autoTestHasCheckpointAfterHiddenStep,
     safeDivide,
-    parseWarningHeader,
+    WarningHeader,
+    setProps,
+    coerceToString,
+    getNoNull,
+    numberToTimes,
+    deepCopy,
+    toMaxNDecimals,
 } from '@/utils';
 
 import * as assignmentState from '@/store/assignment-states';
@@ -265,6 +268,11 @@ describe('utils.js', () => {
             expect(nameOfUser(null)).toEqual('');
             expect(nameOfUser({})).toEqual('');
         });
+
+        it('should the `readableName` property if available', () => {
+            const obj = {};
+            expect(nameOfUser({ readableName: obj })).toBe(obj);
+        });
     });
 
     describe('groupMembers', () => {
@@ -293,184 +301,6 @@ describe('utils.js', () => {
         it('should work for empty objects', () => {
             expect(groupMembers(null)).toEqual([]);
             expect(groupMembers({})).toEqual([]);
-        });
-    });
-
-    describe('deadlinePassed', () => {
-        it.each([
-            [-1, 'minutes'],
-            [-1, 'hours'],
-            [-1, 'days'],
-            [-1, 'months'],
-            [-1, 'years'],
-            [1, 'minutes'],
-            [1, 'hours'],
-            [1, 'days'],
-            [1, 'months'],
-            [1, 'years'],
-        ])('should return true (false) when the deadline has (not) passed', (delta, type) => {
-            const now = moment();
-
-            expect(deadlinePassed({
-                deadline: formatDate(moment(now).add(delta, type)),
-            }, now)).toBe(delta < 0 ? true : false);
-        });
-    });
-
-    describe('canUploadWork', () => {
-        it('should return false when you cannot submit work', () => {
-            expect(canUploadWork({
-                course: {
-                    permissions: {
-                        can_submit_own_work: false,
-                        can_submit_others_work: false,
-                    },
-                },
-            })).toBe(false);
-        });
-
-        it.each([
-            [false],
-            [true],
-        ])('should return false when the assignment is hidden', (submitOwn) => {
-            const assig = {
-                state: assignmentState.HIDDEN,
-                course: {
-                    permissions: {
-                        can_submit_own_work: true,
-                        can_submit_others_work: false,
-                    },
-                },
-            };
-
-            expect(canUploadWork(assig)).toBe(false);
-
-            assig.course.permissions = {
-                can_submit_own_work: false,
-                can_submit_others_work: true,
-            };
-
-            expect(canUploadWork(assig)).toBe(false);
-
-            assig.course.permissions.can_submit_own_work = true;
-
-            expect(canUploadWork(assig)).toBe(false);
-        });
-
-        it('should return false when the deadline has passed and you do not have permission to submit after the deadline', () => {
-            const now = moment();
-            const assig = {
-                state: assignmentState.OPEN,
-                deadline: formatDate(moment(now).add(-1, 'days')),
-                course: {
-                    permissions: {
-                        can_submit_own_work: true,
-                        can_submit_others_work: false,
-                        can_upload_after_deadline: false,
-                    },
-                },
-            };
-
-            expect(canUploadWork(assig, now)).toBe(false);
-
-            assig.course.permissions = {
-                can_submit_own_work: false,
-                can_submit_others_work: true,
-            };
-
-            expect(canUploadWork(assig, now)).toBe(false);
-
-            assig.course.permissions.can_submit_own_work = true;
-
-            expect(canUploadWork(assig, now)).toBe(false);
-
-            assig.state = assignmentState.DONE;
-            assig.course.permissions.can_submit_others_work = false;
-
-            expect(canUploadWork(assig, now)).toBe(false);
-
-            assig.course.permissions = {
-                can_submit_own_work: false,
-                can_submit_others_work: true,
-            };
-
-            expect(canUploadWork(assig, now)).toBe(false);
-
-            assig.course.permissions.can_submit_own_work = true;
-
-            expect(canUploadWork(assig, now)).toBe(false);
-
-        });
-
-        it('should return true when you can submit work, the assignment is not hidden, and the deadline has not passed', () => {
-            const now = moment();
-            const assig = {
-                state: assignmentState.OPEN,
-                deadline: moment(now).add(1, 'days'),
-                course: {
-                    permissions: {
-                        can_submit_own_work: true,
-                        can_submit_others_work: false,
-                    },
-                },
-            };
-
-            expect(canUploadWork(assig, now)).toBe(true);
-
-            assig.state = assignmentState.DONE;
-
-            expect(canUploadWork(assig, now)).toBe(true);
-        });
-    });
-
-    describe('canSeeGrade', () => {
-        it.each([
-            assignmentState.HIDDEN,
-            assignmentState.SUBMITTING,
-            assignmentState.GRADING,
-            assignmentState.OPEN,
-        ])('should return false when the assignment state is %s and you don\'t have permission can_see_grade_before_open', (state) => {
-            const assig = {
-                state,
-                course: {
-                    permissions: {
-                        can_see_grade_before_open: false,
-                    },
-                },
-            };
-
-            expect(canSeeGrade(assig)).toBe(false);
-        });
-
-        it('should return true when the assignment state is done', () => {
-            const assig = {
-                state: assignmentState.DONE,
-                course: {
-                    permissions: {
-                        can_see_grade_before_open: false,
-                    },
-                },
-            };
-
-            expect(canSeeGrade(assig)).toBe(true);
-        });
-
-        it.each([
-            assignmentState.HIDDEN,
-            assignmentState.SUBMITTING,
-            assignmentState.GRADING,
-            assignmentState.OPEN,
-        ])('should return true when you have the permission can_see_grade_before_open', (state) => {
-            const assig = {
-                state,
-                course: {
-                    permissions: {
-                        can_see_grade_before_open: true,
-                    },
-                },
-            };
-
-            expect(canSeeGrade(assig)).toBe(true);
         });
     });
 
@@ -735,38 +565,229 @@ describe('utils.js', () => {
         });
     });
 
-    describe('parseWarningHeader', () => {
-        it('should work for simple single warnings', () => {
-            expect(parseWarningHeader('14 C "Hello warning"')).toEqual([{
-                code: 14,
-                agent: 'C',
-                text: 'Hello warning',
-            }]);
+    describe('WarningHeader', () => {
+        describe('.fromWarningStr', () => {
+            it('should work for simple single warnings', () => {
+                expect(WarningHeader.fromWarningStr('14 C "Hello warning"')).toEqual({
+                    messages: [{
+                        code: 14,
+                        agent: 'C',
+                        text: 'Hello warning',
+                    }],
+                });
+            });
+
+            it('should work for multiple simple warnings', () => {
+                expect(WarningHeader.fromWarningStr('14 C "Hello warning", 15 C "W2"')).toEqual({
+                    messages: [{
+                        code: 14,
+                        agent: 'C',
+                        text: 'Hello warning',
+                    }, {
+                        code: 15,
+                        agent: 'C',
+                        text: 'W2',
+                    }],
+                });
+            });
+
+            it('should work for difficult warnings', () => {
+                const warningStr = '14 C_C ",\\"WARN\\\\ING\\\\", 14 C ",,"';
+                expect(WarningHeader.fromWarningStr(warningStr)).toEqual({
+                    messages: [{
+                        code: 14,
+                        agent: 'C_C',
+                        text: ',"WARN\\ING\\',
+                    }, {
+                        code: 14,
+                        agent: 'C',
+                        text: ',,',
+                    }],
+                });
+            });
+
+            it('should return the same if passed a WarningHeader', () => {
+                const res = WarningHeader.fromWarningStr('14 C "?asdfasd"');
+                expect(WarningHeader.fromWarningStr(res)).toBe(res);
+            });
+        })
+
+        describe('.fromResponse', () => {
+            it('should work when passed null', () => {
+                expect(WarningHeader.fromResponse(null)).toEqual({
+                    messages: [],
+                });
+            });
+
+            it('should work when a response', () => {
+                expect(WarningHeader.fromResponse({ headers: { warning: '14 c "d"'}})).toEqual({
+                    messages: [{
+                        code: 14,
+                        agent: 'c',
+                        text: 'd',
+                    }],
+                });
+            });
         });
 
-        it('should work for multiple simple warnings', () => {
-            expect(parseWarningHeader('14 C "Hello warning", 15 C "W2"')).toEqual([{
-                code: 14,
-                agent: 'C',
-                text: 'Hello warning',
-            }, {
-                code: 15,
-                agent: 'C',
-                text: 'W2',
-            }]);
+        describe('.merge', () => {
+            const base = WarningHeader.fromWarningStr('14 c "d"');
+
+            it('should work when passed a string', () => {
+                expect(base.merge('15 d "c"')).toEqual({
+                    messages: [{
+                        code: 14,
+                        agent: 'c',
+                        text: 'd'
+                    }, {
+                        code: 15,
+                        agent: 'd',
+                        text: 'c'
+                    }],
+                });
+            });
+
+            it('should work when passed a WarningHeader', () => {
+                expect(base.merge(WarningHeader.fromWarningStr('15 d "c"'))).toEqual({
+                    messages: [{
+                        code: 14,
+                        agent: 'c',
+                        text: 'd'
+                    }, {
+                        code: 15,
+                        agent: 'd',
+                        text: 'c'
+                    }],
+                });
+            });
+
+            it('should work when passed a response', () => {
+                expect(base.merge({ headers: { warning: '14 c "c"' } })).toEqual({
+                    messages: [{
+                        code: 14,
+                        agent: 'c',
+                        text: 'd'
+                    }, {
+                        code: 14,
+                        agent: 'c',
+                        text: 'c'
+                    }],
+                });
+            });
+
+            it('should create a new object every time', () => {
+                const msgs = deepCopy(base.messages);
+                base.merge(base);
+                expect(base.messages).toEqual(msgs);
+            });
+        });
+    });
+
+    describe('setProps', () => {
+        it('should work when the key is not there yet', () => {
+            let obj = {};
+            let value = {};
+            setProps(obj, value, '1', '2', '3', '4');
+            expect(obj).toEqual({
+                1: {
+                    2: {
+                        3: {
+                            4: value,
+                        }
+                    }
+                }
+            })
+            expect(obj[1][2][3][4]).toBe(value);
         });
 
-        it('should work for difficult warnings', () => {
-            const warningStr = '14 C_C ",\\"WARN\\\\ING\\\\", 14 C ",,"';
-            expect(parseWarningHeader(warningStr)).toEqual([{
-                code: 14,
-                agent: 'C_C',
-                text: ',"WARN\\ING\\',
-            }, {
-                code: 14,
-                agent: 'C',
-                text: ',,',
-            }]);
+        it('should work when a part of the path is there', () => {
+            let obj = {};
+            let value = {1: { 2: { }}};
+            setProps(obj, value, '1', '2', '3', '4');
+            expect(obj).toEqual({
+                1: {
+                    2: {
+                        3: {
+                            4: value,
+                        }
+                    }
+                }
+            })
+            expect(obj[1][2][3][4]).toBe(value);
         });
+
+        it('should throw when the given object is null', () => {
+            expect(() => setProps(null, 5, 1)).toThrow(Error);
+        });
+    });
+
+    describe('coerceToString', () => {
+        it('should work for strings', () => {
+            expect(coerceToString('abc')).toBe('abc');
+        });
+
+        it('should work for null', () => {
+            expect(coerceToString(null)).toBe('');
+        });
+
+        it('should work for objects', () => {
+            expect(coerceToString(true)).toBe('true');
+
+            expect(coerceToString({})).toBe('[object Object]');
+            expect(coerceToString({ toString() { return 'abc'; }})).toBe('abc');
+        });
+
+        it('should work for numbers', () => {
+            expect(coerceToString(-1)).toBe('-1');
+            expect(coerceToString(15.555)).toBe('15.555');
+            expect(coerceToString(0)).toBe('0');
+            expect(coerceToString(1)).toBe('1');
+        });
+    });
+
+    describe('getNoNull', () => {
+        const obj1 = {};
+        const obj2 = {};
+
+        it('should work when it is in the first obj', () => {
+            expect(getNoNull('a', {a: obj1}, {a: obj2})).toBe(obj1);
+        });
+        it('should work when it is not the first obj', () => {
+            expect(getNoNull('b', {a: obj1}, null, {b: obj2})).toBe(obj2);
+        });
+        it('should return null if it is not found', () => {
+            expect(getNoNull('c', {a: obj1}, null, {b: obj2})).toBe(null);
+        });
+    });
+
+    describe('numberToTimes', () => {
+        it('should work with 1', () => expect(numberToTimes(1)).toBe('once'));
+
+        it('should work with 2', () => expect(numberToTimes(2)).toBe('twice'));
+
+        it('should work with other numbers', () => {
+            expect(numberToTimes(3)).toBe('3 times');
+            expect(numberToTimes(15)).toBe('15 times');
+        });
+
+        it('should throw for non numbers', () => {
+            expect(() => numberToTimes('five')).toThrow();
+        });
+    });
+
+    describe('toMaxNDecimals', () => {
+        it('should work', () => {
+            [
+                [0.5, 2, '0.5'],
+                [0.025, 3, '0.025'],
+                [0.25, 1, '0.3'],
+                [0.5, 0, '1'],
+                [150, 0, '150'],
+                [150, 50, '150'],
+                [null, 0, null],
+            ].forEach(([input, n, result]) => {
+                expect(toMaxNDecimals(input, n)).toBe(result);
+            })
+        })
     });
 });

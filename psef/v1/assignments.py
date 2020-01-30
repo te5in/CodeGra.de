@@ -16,7 +16,7 @@ import werkzeug
 import structlog
 import sqlalchemy.sql as sql
 from flask import request
-from sqlalchemy.orm import undefer, joinedload, selectinload
+from sqlalchemy.orm import joinedload, selectinload
 
 import psef
 import psef.files
@@ -181,18 +181,23 @@ def get_assignments_feedback(assignment_id: int) -> JSONResponse[
 
     res = {}
     for sub in latest_subs:
-        try:
-            # This call should be cached in auth.py
-            auth.ensure_can_see_grade(sub)
+        item: t.MutableMapping[str, t.Union[str, t.Sequence[str]]] = {}
 
-            user_feedback, linter_feedback = sub.get_all_feedback()
-            item = {
-                'general': sub.comment or '',
-                'user': list(user_feedback),
-                'linter': list(linter_feedback),
-            }
+        try:
+            auth.ensure_can_see_user_feedback(sub)
         except auth.PermissionException:
-            item = {'user': [], 'linter': [], 'general': ''}
+            item['general'] = ''
+            item['user'] = []
+        else:
+            item['general'] = sub.comment or ''
+            item['user'] = list(sub.get_user_feedback())
+
+        try:
+            auth.ensure_can_see_linter_feedback(sub)
+        except auth.PermissionException:
+            item['linter'] = []
+        else:
+            item['linter'] = list(sub.get_linter_feedback())
 
         res[str(sub.id)] = item
 
@@ -281,6 +286,13 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
     :<json bool files_upload_enabled: Should students be allowed to upload work
         directly using files and/or archives. This is always possible for users
         with the ``can_submit_others_work``.
+    :<json int max_submissions: The maximum amount of submissions a user may
+        create. This value cannot be lower than 1.
+    :<json float cool_off_period: The amount of time in seconds there should be
+        between ``amount_in_cool_off_period + 1`` submissions.
+    :<json int amount_in_cool_off_period: The maximum amount of submissions
+        that can be made within ``cool_off_period`` seconds. This should be
+        higher than or equal to 1.
 
     If any of ``done_type``, ``done_email`` or ``reminder_time`` is given all
     the other values should be given too.
@@ -293,6 +305,7 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
         models.Assignment, assignment_id, also_error=lambda a: a.deleted
     )
     content = ensure_json_dict(request.get_json())
+    warning_tags = set()
 
     lti_class: t.Optional[t.Type[psef.lti.LTI]]
     lms_name: t.Optional[str]
@@ -358,6 +371,7 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
         assig.deadline = parsers.parse_datetime(deadline)
 
     if 'ignore' in content:
+        warning_tags.add(models.AssignmentAmbiguousSettingTag.cgignore)
         auth.ensure_permission(CPerm.can_edit_cgignore, assig.course_id)
         ignore_version = helpers.get_key_from_dict(
             content, 'ignore_version', 'IgnoreFilterManager'
@@ -371,7 +385,6 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
                 ), APICodes.OBJECT_NOT_FOUND, 404
             )
         assig.cgignore = filter_type.parse(t.cast(JSONType, content['ignore']))
-        assig.maybe_add_webhook_ignore_combination_warning()
 
     if 'max_grade' in content:
         if lti_class is not None and not lti_class.supports_max_points():
@@ -429,6 +442,7 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
             assig.files_upload_enabled = get('files_upload_enabled', bool)
 
     if 'webhook_upload_enabled' in content:
+        warning_tags.add(models.AssignmentAmbiguousSettingTag.webhook)
         auth.ensure_permission(CPerm.can_edit_assignment_info, assig.course_id)
         with get_from_map_transaction(content) as [get, _]:
             assig.webhook_upload_enabled = get('webhook_upload_enabled', bool)
@@ -440,14 +454,72 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
                 ), APIWarnings.EXISTING_WEBHOOKS_EXIST
             )
 
-        assig.maybe_add_webhook_ignore_combination_warning()
-
     if not any([assig.webhook_upload_enabled, assig.files_upload_enabled]):
         raise APIException(
             'At least one way of uploading needs to be enabled',
             'It is not possible to disable both webhook and files uploads',
             APICodes.INVALID_STATE, 400
         )
+
+    if 'max_submissions' in content:
+        warning_tags.add(models.AssignmentAmbiguousSettingTag.max_submissions)
+        auth.ensure_permission(CPerm.can_edit_assignment_info, assig.course_id)
+        with get_from_map_transaction(content) as [get, _]:
+            max_submissions = get('max_submissions', (int, type(None)))
+
+        if helpers.handle_none(max_submissions, 1) <= 0:
+            raise APIException(
+                'You have to allow at least one submission',
+                'The set maximum amount of submissions is too low',
+                APICodes.INVALID_PARAM, 400
+            )
+
+        if max_submissions is not None and db.session.query(
+            assig.get_not_deleted_submissions().group_by(
+                models.Work.user_id
+            ).having(sql.func.count() > max_submissions).exists()
+        ).scalar():
+            helpers.add_warning(
+                (
+                    'There are already users with more submission than the'
+                    ' set max submissions amount'
+                ),
+                APIWarnings.LIMIT_ALREADY_EXCEEDED,
+            )
+
+        assig.max_submissions = max_submissions
+
+    if 'cool_off_period' in content:
+        warning_tags.add(models.AssignmentAmbiguousSettingTag.cool_off)
+        auth.ensure_permission(CPerm.can_edit_assignment_info, assig.course_id)
+        with get_from_map_transaction(content) as [get, _]:
+            assig.cool_off_period = datetime.timedelta(
+                seconds=get('cool_off_period', (int, float))
+            )
+
+    if 'amount_in_cool_off_period' in content:
+        auth.ensure_permission(CPerm.can_edit_assignment_info, assig.course_id)
+        with get_from_map_transaction(content) as [get, _]:
+            amount = get('amount_in_cool_off_period', int)
+
+        if amount < 1:
+            raise APIException(
+                (
+                    'The minimum amount of submissions that can be done in a'
+                    ' cool of period should be at least one'
+                ), (
+                    f'The given amount ${amount} is too low for'
+                    ' `amount_in_cool_off_period`'
+                ), APICodes.INVALID_PARAM, 400
+            )
+
+        assig.amount_in_cool_off_period = amount
+
+    for warning in assig.get_all_ambiguous_combinations():
+        if warning.tags & warning_tags:
+            helpers.add_warning(
+                warning.message, APIWarnings.AMBIGUOUS_COMBINATION
+            )
 
     db.session.commit()
 
@@ -537,6 +609,7 @@ def delete_rubric(assignment_id: int) -> EmptyResponse:
         )
 
     assig.rubric_rows = []
+    assig.fixed_max_rubric_points = None
 
     db.session.commit()
 
@@ -606,21 +679,18 @@ def add_assignment_rubric(assignment_id: int
 
     :>json array rows: An array of rows. Each row should be an object that
         should contain a ``header`` mapping to a string, a ``description`` key
-        mapping to a string, an ``items`` key mapping to an array and it may
-        contain an ``id`` key mapping to the current id of this row. The items
+        mapping to a string, an ``items`` key mapping to an array, it may
+        contain an ``id`` key mapping to the current id of this row, and it may
+        ``type`` key mapping to a string (this defaults to 'normal'). The items
         array should contain objects with a ``description`` (string),
-        ``header`` (string) and ``points`` (number) and optionally an ``id`` if
+        ``header`` (string), ``points`` (number) and optionally an ``id`` if
         you are modifying an existing item in an existing row.
     :>json number max_points: Optionally override the maximum amount of points
         you can get for this rubric. By passing ``null`` you reset this value,
         by not passing it you keep its current value. (OPTIONAL)
 
     :param int assignment_id: The id of the assignment
-    :returns: An empty response with return code 204
-
-    :raises PermissionException: If there is no logged in user. (NOT_LOGGED_IN)
-    :raises PermissionException: If the user is not allowed to manage rubrics.
-                                (INCORRECT_PERMISSION)
+    :returns: The updated or created rubric.
     """
     assig = helpers.get_or_404(
         models.Assignment, assignment_id, also_error=lambda a: a.deleted
@@ -705,7 +775,11 @@ def process_rubric_row(row: JSONType) -> models.RubricRow:
     """
     row = ensure_json_dict(row)
     ensure_keys_in_dict(
-        row, [('description', str), ('header', str), ('items', list)]
+        row, [
+            ('description', str),
+            ('header', str),
+            ('items', list),
+        ]
     )
     header = t.cast(str, row['header'])
     desc = t.cast(str, row['description'])
@@ -720,6 +794,16 @@ def process_rubric_row(row: JSONType) -> models.RubricRow:
             )
         ) for it in t.cast(list, row['items'])
     ]
+    row_type = registry.rubric_row_types.get(
+        t.cast(str, row.get('type', 'normal'))
+    )
+
+    if row_type is None:
+        raise APIException(
+            'The specified row type was not found',
+            f'The row type {row["type"]} is not known',
+            APICodes.OBJECT_NOT_FOUND, 404
+        )
 
     if not header:
         raise APIException(
@@ -730,14 +814,16 @@ def process_rubric_row(row: JSONType) -> models.RubricRow:
     if 'id' in row:
         ensure_keys_in_dict(row, [('id', int)])
         row_id = t.cast(int, row['id'])
-        rubric_row = helpers.get_or_404(models.RubricRow, row_id)
+        # This ensures the type is never changed.
+        rubric_row = helpers.get_or_404(row_type, row_id)
         rubric_row.update_from_json(header, desc, items)
         return rubric_row
     else:
-        return models.RubricRow.create_from_json(header, desc, items)
+        return row_type.create_from_json(header, desc, items)
 
 
 @api.route('/assignments/<int:assignment_id>/submission', methods=['POST'])
+@auth.login_required
 def upload_work(assignment_id: int) -> ExtendedJSONResponse[models.Work]:
     """Upload one or more files as :class:`.models.Work` to the given
     :class:`.models.Assignment`.
@@ -1203,8 +1289,10 @@ def get_all_works_by_user_for_assignment(
         auth.ensure_permission(CPerm.can_see_others_work, assignment.course_id)
 
     return extended_jsonify(
-        models.Work.query.filter_by(
-            assignment_id=assignment_id, user_id=user.id, deleted=False
+        models.Work.update_query_for_extended_jsonify(
+            models.Work.query.filter_by(
+                assignment_id=assignment_id, user_id=user.id, deleted=False
+            )
         ).order_by(
             t.cast(models.DbColumn[object], models.Work.created_at).desc()
         ).all(),
@@ -1256,27 +1344,9 @@ def get_all_works_for_assignment(
             assignment_id=assignment_id, deleted=False
         )
 
-    obj = obj.options(
-        joinedload(
-            models.Work.selected_items,
-        ),
-        # We want to load all users directly. We do this by loading the user,
-        # which might be a group. For such groups we also load all users.
-        # The users in this group will never be a group, so the last
-        # `selectinload` here might be seen as strange. However, during the
-        # serialization of a group we access `User.group`, which checks if a
-        # user is really not a group. To prevent these last queries the last
-        # `selectinload` is needed here.
-        selectinload(
-            models.Work.user,
-        ).selectinload(
-            models.User.group,
-        ).selectinload(
-            models.Group.members,
-        ).selectinload(
-            models.User.group,
-        )
-    ).order_by(t.cast(t.Any, models.Work.created_at).desc())
+    obj = models.Work.update_query_for_extended_jsonify(obj).order_by(
+        t.cast(t.Any, models.Work.created_at).desc()
+    )
 
     if not current_user.has_permission(
         CPerm.can_see_others_work, course_id=assignment.course_id
@@ -1284,7 +1354,6 @@ def get_all_works_for_assignment(
         obj = models.Work.limit_to_user_submissions(obj, current_user)
 
     if helpers.extended_requested():
-        obj = obj.options(undefer(models.Work.comment))
         return extended_jsonify(
             obj.all(),
             use_extended=models.Work,

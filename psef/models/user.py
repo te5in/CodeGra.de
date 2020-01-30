@@ -162,7 +162,7 @@ class User(NotEqualMixin, Base):
         back_populates='virtual_user',
         lazy='selectin',
         uselist=False,
-    )  # type: group_models.Group
+    )  # type: t.Optional[group_models.Group]
 
     role: Role = db.relationship('Role', foreign_keys=role_id, lazy='select')
 
@@ -173,6 +173,21 @@ class User(NotEqualMixin, Base):
 
     def __hash__(self) -> int:
         return hash(self.id)
+
+    def contains_user(self, possible_member: 'User') -> bool:
+        """Check if given user is part of this user.
+
+        A user ``A`` is part of a user ``B`` if either ``A == B`` or
+        ``B.is_group and A in B.group.members``
+
+        :param possible_member: The user to check for if it is part of
+            ``self``.
+        :return: A bool indicating if ``self`` contains ``possible_member``.
+        """
+        if self.group is None:
+            return self == possible_member
+        else:
+            return possible_member in self.group.members
 
     @classmethod
     def create_new_test_student(cls) -> 'User':
@@ -354,7 +369,7 @@ class User(NotEqualMixin, Base):
             CoursePermission.can_see_hidden_assignments
         )
 
-    def __to_json__(self) -> t.Mapping[str, t.Any]:
+    def __to_json__(self) -> t.Dict[str, t.Any]:
         """Creates a JSON serializable representation of this object.
 
         This object will look like this:

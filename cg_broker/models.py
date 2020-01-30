@@ -4,15 +4,18 @@ SPDX-License-Identifier: AGPL-3.0-only
 """
 import enum
 import time
+import uuid
 import typing as t
 import secrets
 from datetime import datetime, timedelta
 
 import boto3
 import structlog
+import sqlalchemy
 import transip.service
 from suds import WebFault
 from sqlalchemy.types import JSON
+from sqlalchemy_utils import UUIDType
 from botocore.exceptions import ClientError
 
 import cg_broker
@@ -22,7 +25,7 @@ from cg_timers import timed_code
 from cg_flask_helpers import callback_after_this_request
 from cg_sqlalchemy_helpers import types, mixins
 
-from . import BrokerFlask, app
+from . import BrokerFlask, app, utils
 
 if t.TYPE_CHECKING:
     hybrid_property = property  # pylint: disable=invalid-name
@@ -140,11 +143,38 @@ class Runner(Base, mixins.TimestampMixin, mixins.UUIDMixin):
         'Job', foreign_keys=job_id, back_populates='runners'
     )
 
+    public_id: uuid.UUID = db.Column(
+        'public_id',
+        UUIDType,
+        unique=True,
+        nullable=False,
+        default=uuid.uuid4,
+        server_default=sqlalchemy.func.uuid_generate_v4(),
+    )
+
+    _pass: str = db.Column(
+        'pass',
+        db.Unicode,
+        unique=False,
+        nullable=False,
+        default=utils.make_password,
+        server_default=sqlalchemy.func.cast(
+            sqlalchemy.func.uuid_generate_v4(),
+            db.Unicode,
+        )
+    )
+
+    def __to_json__(self) -> t.Mapping[str, str]:
+        return {'id': str(self.public_id)}
+
     def cleanup_runner(self, shutdown_only: bool) -> None:
         raise NotImplementedError
 
     def start_runner(self) -> None:
         raise NotImplementedError
+
+    def is_pass_valid(self, requesting_pass: str) -> bool:
+        return secrets.compare_digest(self._pass, requesting_pass)
 
     def is_ip_valid(self, requesting_ip: str) -> bool:
         return secrets.compare_digest(self.ipaddr, requesting_ip)
@@ -379,6 +409,7 @@ class AWSRunner(Runner):
 
     def start_runner(self) -> None:
         assert self.instance_id is None
+        assert self._pass is not None
 
         client = boto3.client('ec2')
         ec2 = boto3.resource('ec2')
@@ -403,7 +434,15 @@ class AWSRunner(Runner):
             ImageId=image['ImageId'],
             InstanceType=app.config['AWS_INSTANCE_TYPE'],
             MaxCount=1,
-            MinCount=1
+            MinCount=1,
+            UserData="""#!/bin/bash
+F="{config_dir}/.runner-pass"
+echo "{password}" > "$F"
+chmod 777 "$F"
+            """.format(
+                password=self._pass,
+                config_dir=app.config['RUNNER_CONFIG_DIR'],
+            )
         )
 
         with bound_to_logger(instance=inst):

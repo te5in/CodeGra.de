@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 import os
+import re
 import sys
 import copy
 import json
@@ -132,11 +133,7 @@ def app(request):
         'MIN_PASSWORD_SCORE': 3,
         'AUTO_TEST_PASSWORD': auto_test_password,
         'AUTO_TEST_CF_EXTRA_AMOUNT': 2,
-        '__S_AUTO_TEST_HOSTS': {
-            f'http://127.0.0.1:{LIVE_SERVER_PORT}': {
-                'password': auto_test_password, 'type': 'simple_runner'
-            }
-        },
+        'AUTO_TEST_RUNNER_INSTANCE_PASS': auto_test_password,
         'AUTO_TEST_DISABLE_ORIGIN_CHECK': True,
         'AUTO_TEST_MAX_TIME_COMMAND': 3,
         'ADMIN_USER': None,
@@ -215,7 +212,8 @@ def test_client(app, session, assert_similar):
         setattr(ctx_stack.top, 'jwt_user', None)
         if real_data is None:
             data = json.dumps(data) if data is not None else None
-            kwargs['content_type'] = 'application/json'
+            if data:
+                kwargs['content_type'] = 'application/json'
         else:
             data = real_data
         rv = getattr(client, method)(
@@ -273,9 +271,14 @@ def assert_similar():
         is_list = isinstance(tree, list)
         i = 0
         allowed_extra = False
+        not_allowed_extra = set()
+
         for k, value in enumerate(tree) if is_list else tree.items():
+
             if k == '__allow_extra__' and value:
                 allowed_extra = True
+                if not isinstance(value, bool):
+                    not_allowed_extra = set(value)
                 continue
             elif not is_list and k[0] == '?' and k[-1] == '?':
                 k = k[1:-1]
@@ -294,6 +297,13 @@ def assert_similar():
                 else:
                     assert 0 <= k < len(vals)
                 checker(vals[k], value, cur_path + [str(k)])
+            elif isinstance(value, re.Pattern):
+                assert value.search(vals[k]), (
+                    "Wrong value for key '{}', expected something to match"
+                    " with '{}', got '{}'"
+                ).format(
+                    '.'.join(cur_path + [str(k)]), value.pattern, vals[k]
+                )
             else:
                 assert vals[k] == value, (
                     "Wrong value for key '{}', expected '{}', got '{}'"
@@ -308,6 +318,11 @@ def assert_similar():
             assert len(vals) == i, 'Difference in keys: {}'.format(
                 set(vals) ^ set(tree)
             )
+        else:
+            gotten_disallowed_keys = (set(vals.keys()) & not_allowed_extra)
+            assert not gotten_disallowed_keys, (
+                'Got disallowed keys: {}'
+            ).format(gotten_disallowed_keys)
 
     yield lambda val, result: checker({'top': val}, {'top': result}, [])
 
@@ -656,7 +671,12 @@ def assignment_real_works(
 
 
 @pytest.fixture
-def live_server(app):
+def live_server_url():
+    yield f'http://localhost:{LIVE_SERVER_PORT}'
+
+
+@pytest.fixture
+def live_server(app, live_server_url):
     p = None
 
     def stop():
@@ -683,7 +703,7 @@ def live_server(app):
 
         p = multiprocessing.Process(target=_inner)
         p.start()
-        url = f'http://localhost:{LIVE_SERVER_PORT}'
+        url = live_server_url
 
         for _ in range(15):
             try:

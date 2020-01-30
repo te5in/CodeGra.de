@@ -78,6 +78,7 @@ export default {
 
     computed: {
         ...mapGetters('pref', ['fontSize']),
+        ...mapGetters('feedback', ['getFeedback']),
 
         feedbackEditable() {
             return this.editable && this.studentMode;
@@ -97,7 +98,7 @@ export default {
         },
 
         feedback() {
-            const feedback = this.submission.feedback;
+            const feedback = this.getFeedback(this.assignment.id, this.submission.id);
             const fileId = this.fileId;
 
             if (!feedback || !this.studentMode) {

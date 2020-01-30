@@ -34,22 +34,23 @@ const actions = {
 
         const assignmentId = state.tests[autoTestId].assignment_id;
 
-        return axios.delete(`/api/v1/auto_tests/${autoTestId}`).then(data => {
-            const callback = () =>
-                Promise.all([
-                    dispatch(
-                        'courses/updateAssignment',
-                        {
-                            assignmentId,
-                            assignmentProps: { auto_test_id: null },
-                        },
+        return axios.delete(`/api/v1/auto_tests/${autoTestId}`).then(response =>
+            Promise.all([
+                response,
+                dispatch('submissions/forceLoadSubmissions', assignmentId, { root: true }),
+                dispatch('rubrics/loadRubric', { assignmentId, force: true }, { root: true }),
+            ]).then(res => {
+                res.onAfterSuccess = () => {
+                    commit(types.DELETE_AUTO_TEST, autoTestId);
+                    commit(
+                        `courses/${types.UPDATE_ASSIGNMENT}`,
+                        { assignmentId, assignmentProps: { auto_test_id: null } },
                         { root: true },
-                    ),
-                    dispatch('submissions/forceLoadSubmissions', assignmentId, { root: true }),
-                    commit(types.DELETE_AUTO_TEST, autoTestId),
-                ]);
-            return Object.assign({ callback }, data);
-        });
+                    );
+                };
+                return res;
+            }),
+        );
     },
 
     updateAutoTest({ commit }, { autoTestId, autoTestProps }) {
@@ -262,7 +263,7 @@ const actions = {
         const autoTest = state.tests[autoTestId];
         let run = getRun(autoTest, autoTestRunId);
 
-        if (run == null) {
+        if (run == null || run.id == null) {
             throw new Error('AutoTest has not been run yet.');
         }
 
@@ -273,7 +274,7 @@ const actions = {
                 force: true,
                 autoTestRunId,
             });
-            run = getRun(autoTest, autoTestRunId);
+            run = getRun(autoTest, run.id);
             result = run.findResultBySubId(submissionId);
         }
 
@@ -289,10 +290,10 @@ const actions = {
             await dispatch('loadAutoTestRunByUser', {
                 autoTestId,
                 autoTestRunId: run.id,
-                userId: submission && submission.user.id,
+                userId: submission && submission.userId,
             });
 
-            run = getRun(autoTest, autoTestRunId);
+            run = getRun(autoTest, run.id);
             result = run.findResultBySubId(submissionId);
         }
 
@@ -317,7 +318,7 @@ const actions = {
 
                         if (Object.keys(data.suite_files).length > 0) {
                             return dispatch(
-                                'submissions/updateAutoTestTree',
+                                'fileTrees/updateAutoTestTree',
                                 {
                                     assignmentId: autoTest.assignment_id,
                                     submissionId,
@@ -357,36 +358,31 @@ const actions = {
                     runs: [],
                 },
             });
+            commit(types.DELETE_AUTO_TEST_RESULT, {
+                resultIds: run.results.map(result => result.id),
+            });
+
+            // This also clears the rubricResults, so we don't need to do that
+            // here too.
             return dispatch('submissions/forceLoadSubmissions', autoTest.assignment_id, {
                 root: true,
             });
         };
 
-        return axios
-            .delete(`/api/v1/auto_tests/${autoTestId}/runs/${runId}`)
-            .then(() =>
-                run.results.forEach(r =>
-                    dispatch(
-                        'rubrics/clearResult',
-                        { submissionId: r.submissionId },
-                        { root: true },
-                    ),
-                ),
-            )
-            .then(
-                () => c(),
-                err => {
-                    switch (getProps(err, null, 'response', 'status')) {
-                        case 404:
-                            c();
-                            throw new Error(
-                                'AutoTest results were already deleted. Please reload the page.',
-                            );
-                        default:
-                            throw err;
-                    }
-                },
-            );
+        return axios.delete(`/api/v1/auto_tests/${autoTestId}/runs/${runId}`).then(
+            () => c(),
+            err => {
+                switch (getProps(err, null, 'response', 'status')) {
+                    case 404:
+                        c();
+                        throw new Error(
+                            'AutoTest results were already deleted. Please reload the page.',
+                        );
+                    default:
+                        throw err;
+                }
+            },
+        );
     },
 
     createFixtures({ commit }, { autoTestId, fixtures, delay }) {
@@ -454,6 +450,7 @@ const mutations = {
                     );
                 }, 0);
             },
+            enumerable: true,
         });
 
         autoTest.runs = autoTest.runs.map(run => new AutoTestRun(run, autoTest));
@@ -512,6 +509,16 @@ const mutations = {
 
         run.setResultById(storeResult);
         Vue.set(state.results, storeResult.id, storeResult);
+    },
+
+    [types.DELETE_AUTO_TEST_RESULT](state, { resultId, resultIds }) {
+        let ids = resultIds;
+        if (ids == null) {
+            ids = [resultId];
+        }
+        ids.forEach(id => {
+            Vue.delete(state.results, id);
+        });
     },
 
     [types.SET_AUTO_TEST_RESULTS_BY_USER](state, {

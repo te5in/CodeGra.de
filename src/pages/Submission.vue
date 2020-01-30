@@ -119,7 +119,7 @@
                             <tr @click="downloadType('zip')">
                                 <td><b>Archive</b></td>
                             </tr>
-                            <tr v-if="canSeeFeedback"
+                            <tr v-if="canSeeGrade || canSeeUserFeedback || canSeeLinterFeedback"
                                 @click="downloadType('feedback')">
                                 <td><b>Feedback</b></td>
                             </tr>
@@ -167,7 +167,7 @@
                              :submission="submission"
                              :file="currentFile"
                              :revision="revision"
-                             :editable="canGiveLineFeedback"
+                             :editable="canSeeUserFeedback && canGiveLineFeedback"
                              :can-use-snippets="canUseSnippets"
                              :show-whitespace="showWhitespace"
                              :show-inline-feedback="showInlineFeedback"
@@ -189,7 +189,7 @@
                                :assignment="assignment"
                                :submission="submission"
                                :show-whitespace="showWhitespace"
-                               :can-see-feedback="canSeeFeedback" />
+                               :can-see-feedback="canSeeUserFeedback" />
         </div>
 
         <div class="cat-wrapper"
@@ -214,7 +214,7 @@
                   :submission="submission"
                   :not-latest="!currentSubmissionIsLatest"
                   :group-of-user="groupOfCurrentUser"
-                  :editable="editable"
+                  :editable="canSeeGrade && editable"
                   :rubric-start-open="rubricStartOpen"
                   v-if="!loadingInner"
                   class="mb-3"/>
@@ -266,14 +266,6 @@ export default {
         return {
             assignmentState,
 
-            loadingPermissions: 'initial loading',
-            canDeleteSubmission: false,
-            canSeeFeedback: false,
-            canSeeRevision: false,
-            canSeeGradeHistory: true,
-            canGrade: false,
-            canUseSnippets: false,
-
             selectedCat: '',
             hiddenCats: new Set(),
 
@@ -288,16 +280,21 @@ export default {
 
     computed: {
         ...mapGetters('pref', ['contextAmount', 'fontSize']),
-        ...mapGetters('user', { userId: 'id' }),
+        ...mapGetters('user', {
+            userId: 'id',
+            userPerms: 'permissions',
+        }),
         ...mapGetters('submissions', {
-            storeLatestSubmissions: 'latestSubmissions',
+            storeGetLatestSubmissions: 'getLatestSubmissions',
             storeGetSingleSubmission: 'getSingleSubmission',
-            storeUsersWithGroupSubmissions: 'usersWithGroupSubmission',
+            storeGetGroupSubmissionOfUser: 'getGroupSubmissionOfUser',
         }),
         ...mapGetters('courses', ['assignments']),
         ...mapGetters('autotest', {
             allAutoTests: 'tests',
         }),
+        ...mapGetters('fileTrees', ['getFileTree']),
+        ...mapGetters('feedback', ['getFeedback']),
 
         courseId() {
             return Number(this.$route.params.courseId);
@@ -327,6 +324,58 @@ export default {
             );
         },
 
+        coursePerms() {
+            return this.$utils.getProps(this.assignment, {}, 'course', 'permissions');
+        },
+
+        canGrade() {
+            return this.coursePerms.can_grade_work;
+        },
+
+        canSeeGrade() {
+            return this.assignment && this.assignment.canSeeGrade();
+        },
+
+        canSeeUserFeedback() {
+            return this.assignment && this.assignment.canSeeUserFeedback();
+        },
+
+        canSeeLinterFeedback() {
+            return this.assignment && this.assignment.canSeeLinterFeedback();
+        },
+
+        canDeleteSubmission() {
+            return this.coursePerms.can_delete_submission;
+        },
+
+        canSeeGradeHistory() {
+            return this.coursePerms.can_see_grade_history;
+        },
+
+        canViewAutoTestBeforeDone() {
+            return this.coursePerms.can_view_autotest_before_done;
+        },
+
+        canSeeRevision() {
+            if (
+                this.submission &&
+                this.userId === this.submission.user.id &&
+                this.canSeeUserFeedback
+            ) {
+                return this.coursePerms.can_view_own_teacher_files;
+            } else {
+                return this.coursePerms.can_edit_others_work;
+            }
+        },
+
+        canGiveLineFeedback() {
+            return this.editable && this.revision === 'student';
+        },
+
+        canUseSnippets() {
+            return !!this.userPerms.can_use_snippets;
+        },
+
         prefFileId() {
             switch (this.selectedCat) {
                 case 'code':
@@ -351,7 +400,7 @@ export default {
         },
 
         latestSubmissions() {
-            return this.storeLatestSubmissions[this.assignmentId] || [];
+            return this.storeGetLatestSubmissions(this.assignmentId);
         },
 
         currentSubmissionIsLatest() {
@@ -359,17 +408,15 @@ export default {
         },
 
         groupOfCurrentUser() {
-            const usersWithGroup = this.storeUsersWithGroupSubmissions[this.assignmentId] || {};
-            const userId = this.$utils.getProps(this.submission, null, 'user', 'id');
-            return usersWithGroup[userId];
+            return this.storeGetGroupSubmissionOfUser(this.assignmentId, this.submissionId);
         },
 
         fileTree() {
-            return this.submission && this.submission.fileTree;
+            return this.getFileTree(this.assignmentId, this.submissionId);
         },
 
         feedback() {
-            return this.submission && this.submission.feedback;
+            return this.getFeedback(this.assignmentId, this.submissionId);
         },
 
         autoTestId() {
@@ -394,21 +441,20 @@ export default {
 
         loadingInner() {
             const {
-                canSeeFeedback,
+                canSeeUserFeedback,
+                canSeeLinterFeedback,
                 feedback,
                 fileTree,
                 currentFile,
                 canViewAutoTest,
                 autoTest,
-                loadingPermissions,
             } = this;
 
             return (
-                (canSeeFeedback && !feedback) ||
+                ((canSeeUserFeedback || canSeeLinterFeedback) && !feedback) ||
                 !fileTree ||
                 !currentFile ||
-                (canViewAutoTest && !autoTest) ||
-                loadingPermissions !== null
+                (canViewAutoTest && !autoTest)
             );
         },
 
@@ -462,8 +508,7 @@ export default {
                         if (
                             test &&
                             test.results_always_visible &&
-                            ((result && result.isFinal === false) ||
-                                !this.$utils.canSeeGrade(this.assignment))
+                            ((result && result.isFinal === false) || !this.canSeeGrade)
                         ) {
                             title +=
                                 ' <div class="ml-1 badge badge-warning" title="Continuous Feedback">CF</div>';
@@ -484,7 +529,7 @@ export default {
         hasFeedback() {
             const fb = this.feedback;
 
-            return fb && (fb.general || Object.keys(fb.user).length);
+            return !!(fb && (fb.general || Object.keys(fb.user).length));
         },
 
         assignmentDone() {
@@ -519,9 +564,9 @@ export default {
         rubricStartOpen() {
             const done = this.assignmentDone;
             const editable = this.editable;
-            const canSeeFeedback = this.canSeeFeedback;
+            const canSeeGrade = this.canSeeGrade;
 
-            return (editable || done) && canSeeFeedback;
+            return (editable || done) && canSeeGrade;
         },
 
         submissionsRoute() {
@@ -539,10 +584,6 @@ export default {
                     sortAsc: this.$route.query.sortAsc,
                 },
             };
-        },
-
-        canGiveLineFeedback() {
-            return this.editable && this.revision === 'student';
         },
 
         pageTitle() {
@@ -568,13 +609,6 @@ export default {
     },
 
     watch: {
-        courseId: {
-            immediate: true,
-            handler() {
-                this.loadPermissions(this.courseId);
-            },
-        },
-
         assignmentId: {
             immediate: true,
             handler() {
@@ -582,7 +616,7 @@ export default {
             },
         },
 
-        assignment: {
+        autoTestId: {
             immediate: true,
             handler() {
                 this.loadAutoTest();
@@ -645,70 +679,19 @@ export default {
         ...mapActions('submissions', {
             storeLoadSubmissions: 'loadSubmissions',
             storeLoadSingleSubmission: 'loadSingleSubmission',
-            storeUpdateSubmission: 'updateSubmission',
             storeDeleteSubmission: 'deleteSubmission',
-            storeLoadFileTree: 'loadSubmissionFileTree',
-            storeLoadFeedback: 'loadSubmissionFeedback',
+        }),
+        ...mapActions('feedback', {
+            storeLoadFeedback: 'loadFeedback',
+        }),
+        ...mapActions('fileTrees', {
+            storeLoadFileTree: 'loadFileTree',
         }),
 
         ...mapActions('autotest', {
             storeLoadAutoTest: 'loadAutoTest',
             storeLoadAutoTestResult: 'loadAutoTestResult',
         }),
-
-        loadPermissions(courseId) {
-            this.loadingPermissions = courseId;
-
-            Promise.all([
-                this.$hasPermission(
-                    [
-                        'can_grade_work',
-                        'can_see_grade_before_open',
-                        'can_delete_submission',
-                        'can_view_own_teacher_files',
-                        'can_edit_others_work',
-                        'can_see_grade_history',
-                        'can_view_autotest_before_done',
-                    ],
-                    this.courseId,
-                ),
-                this.$hasPermission('can_use_snippets'),
-            ]).then(
-                ([
-                    [
-                        canGrade,
-                        canSeeGradeBeforeDone,
-                        canDeleteSubmission,
-                        ownTeacher,
-                        editOthersWork,
-                        canSeeGradeHistory,
-                        canViewAutoTestBeforeDone,
-                    ],
-                    canUseSnippets,
-                ]) => {
-                    if (courseId === this.courseId) {
-                        this.canGrade = canGrade;
-                        this.canSeeFeedback = canSeeGradeBeforeDone || this.assignmentDone;
-                        this.canDeleteSubmission = canDeleteSubmission;
-                        this.canSeeGradeHistory = canSeeGradeHistory;
-                        this.canUseSnippets = canUseSnippets;
-                        this.canViewAutoTestBeforeDone = canViewAutoTestBeforeDone;
-
-                        if (
-                            this.submission &&
-                            this.userId === this.submission.user.id &&
-                            this.assignmentDone
-                        ) {
-                            this.canSeeRevision = ownTeacher;
-                        } else {
-                            this.canSeeRevision = editOthersWork;
-                        }
-
-                        this.loadingPermissions = null;
-                    }
-                },
-            );
-        },
 
         loadCurrentSubmission() {
             // We need to reset the current file to `null` as changing the

@@ -11,7 +11,6 @@ from datetime import datetime, timedelta
 import werkzeug
 from flask import request, safe_join, send_from_directory
 from werkzeug.exceptions import NotFound
-from werkzeug.datastructures import FileStorage
 
 from . import api
 from .. import app, auth, files, tasks
@@ -52,8 +51,9 @@ def post_file() -> JSONResponse[str]:
         )
 
     path, name = files.random_file_path(True)
+    with open(path, 'wb') as f:
+        files.limited_copy(request.stream, f, app.max_single_file_size)
 
-    FileStorage(request.stream).save(path)
     tasks.delete_file_at_time(
         filename=name,
         in_mirror_dir=True,

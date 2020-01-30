@@ -40,6 +40,7 @@ BrokerConfig = TypedDict(  # pylint: disable=invalid-name
         'OLD_JOB_AGE': int,
         'SLOW_STARTING_AGE': int,
         'HEALTH_KEY': t.Optional[str],
+        'RUNNER_CONFIG_DIR': str,
         'VERSION': str,
     }
 )
@@ -139,6 +140,10 @@ class BrokerFlask(flask.Flask):
 
         self.config['HEALTH_KEY'] = _parser['General'].get('HEALTH_KEY', None)
 
+        self.config['RUNNER_CONFIG_DIR'] = _parser['General'].get(
+            'RUNNER_CONFIG_DIR', ''
+        )
+
         try:
             self.config['VERSION'] = subprocess.check_output([
                 'git', 'rev-parse', 'HEAD'
@@ -164,7 +169,7 @@ else:
 def create_app() -> flask.Flask:
     """Create a broker flask app.
     """
-    # pylint: disable=redefined-outer-name
+    # pylint: disable=redefined-outer-name, import-outside-toplevel
     from . import api, exceptions, models, tasks, admin_panel
 
     app = BrokerFlask(__name__)

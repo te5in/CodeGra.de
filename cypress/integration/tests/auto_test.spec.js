@@ -72,7 +72,7 @@ context('Manage assignment page', () => {
         it('should not be possible to create an AutoTest when there is no rubric', () => {
             cy.openCategory('Rubric');
             cy.get('.rubric-editor')
-                .should('contain', 'This assignment does not have a rubric yet.');
+                .should('contain', 'Create new rubric');
 
             cy.openCategory('AutoTest');
             cy.get('.auto-test')
@@ -103,11 +103,12 @@ context('Manage assignment page', () => {
 
             cy.openCategory('Rubric');
             cy.get('.rubric-editor')
-                .find('.danger-buttons .btn:first')
-                .click();
-            cy.get('.modal-dialog')
-                .contains('.submit-button', 'Yes')
-                .submit('success');
+                .find('.submit-button.delete-rubric')
+                .submit('success', {
+                    hasConfirm: true,
+                    confirmInModal: true,
+                    waitForDefault: false,
+                });
 
             cy.openCategory('AutoTest');
             cy.get('.auto-test')
@@ -140,14 +141,16 @@ context('Manage assignment page', () => {
                 context = cy.get(context);
                 btnClass = `.submit-button${btnClass}`;
 
-                return (btnText ?  context.contains(btnClass, btnText) : context.find(btnClass))
+                (btnText ?  context.contains(btnClass, btnText) : context.find(btnClass))
                     .submit('default', {
                         hasConfirm: true,
                         waitForState: false,
-                    });
+                    })
+                    .should('not.exist');
             }
 
             submit('.modal-dialog', '', '.delete-step');
+            cy.get('.modal-dialog .auto-test-step').should('not.exist')
             submit('.modal-dialog', 'Delete');
             submit('.auto-test', 'Delete level');
             submit('.auto-test', 'Delete');
@@ -164,7 +167,7 @@ context('Manage assignment page', () => {
             cy.visit(`/courses/${course.id}/assignments/${assignmentCopy.id}`);
             cy.openCategory('Rubric');
             cy.get('.rubric-editor')
-                .should('contain', 'This assignment does not have a rubric yet.');
+                .should('contain', 'Create new rubric');
 
             cy.openCategory('AutoTest');
             cy.get('.auto-test')
@@ -180,7 +183,7 @@ context('Manage assignment page', () => {
 
             cy.openCategory('Rubric');
             cy.get('.rubric-editor')
-                .contains('This assignment does not have a rubric yet.')
+                .contains('Create new rubric')
                 .should('not.exist');
         });
     });

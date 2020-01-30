@@ -30,6 +30,9 @@ def test_disable_features(
             'post',
             '/api/v1/assignments/5/submissions/',
             400,
-            result=error_template
+            result={
+                **error_template,
+                'disabled_feature': {'name': str},
+            }
         )
         assert 'feature is not enabled' in res['message']

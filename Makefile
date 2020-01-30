@@ -4,7 +4,7 @@ SHELL=/bin/bash
 TEST_FLAGS?=
 PYTHON?=env/bin/python3
 export PYTHONPATH=$(CURDIR)
-PY_MODULES?=psef cg_celery cg_sqlalchemy_helpers cg_json cg_broker cg_logger cg_worker_pool cg_threading_utils
+PY_MODULES?=psef cg_celery cg_sqlalchemy_helpers cg_json cg_broker cg_logger cg_worker_pool cg_threading_utils cg_flask_helpers
 PY_ALL_MODULES=$(PY_MODULES) psef_test
 
 .PHONY: test_setup
@@ -151,6 +151,11 @@ create_permission:
 .PHONY: docs
 docs:
 	$(MAKE) -C docs html
+
+.PHONY: hotreload_docs
+hotreload_docs:
+	pip install sphinx-reload
+	sphinx-reload docs/ --watch 'docs/**/*.rst' --watch 'docs/**/*.py'
 
 .PHONY: clean
 clean:

@@ -12,7 +12,7 @@
                               :editable="false"
                               v-if="!small"
                               size="sm"/>
-            <small v-else-if="assignment.deadline" class="deadline">
+            <small v-else-if="assignment.hasDeadline" class="deadline">
                 Due {{ readableDeadline }}
             </small>
 
@@ -40,7 +40,6 @@
 </template>
 
 <script>
-import moment from 'moment';
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/gear';
 
@@ -84,7 +83,10 @@ export default {
         },
 
         readableDeadline() {
-            return moment(this.assignment.deadline).from(this.$root.$now);
+            if (this.assignment.hasDeadline) {
+                return this.assignment.deadline.from(this.$root.$now);
+            }
+            return '';
         },
     },
 

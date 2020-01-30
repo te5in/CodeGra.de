@@ -255,13 +255,14 @@ def test_data(db=None):
                     rubric_row = m.RubricRow.query.filter_by(
                         header=row['header'],
                         description=row['description'],
-                        assignment_id=assignment.id
+                        assignment_id=assignment.id,
                     ).first()
                     if rubric_row is None:
                         rubric_row = m.RubricRow(
                             header=row['header'],
                             description=row['description'],
-                            assignment=assignment
+                            assignment=assignment,
+                            rubric_row_type='normal',
                         )
                         db.session.add(rubric_row)
                     for item in row['items']:

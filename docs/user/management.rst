@@ -158,6 +158,41 @@ directory and can be handled and assessed that way automatically.
 More information on setting up Git uploading can be found in the
 :ref:`step-by-step guide <guide_git_uploads>`.
 
+Limiting the amount of submissions
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+By setting the maximum amount of submissions, and the *cool off period* you can
+limit the number of times students can hand-in.
+
+Maximum submissions
+###################
+
+By setting the maximum amount of submissions you can limit how many submissions
+a student can make in total for an assignment. If you set this to value to
+anything higher than 0 this is the total amount of submissions the student can
+make. They will be informed of this limit when they create a new submission. You
+can disable this limit by setting the limit to "0" or "infinite".
+
+Cool off period
+####################
+
+The cool off period allows for a more advanced way of limiting the amount of
+submissions a student can create. Instead of setting a limit for the entire
+assignment, you can set a limit for a certain time frame in an assignment. This
+allows you to effectively set an amount of submissions a student may create in a
+certain time period.
+
+.. example::
+
+    When the cool off period is set to "2 submissions every 10 minutes", and a
+    student submits at 10:00, and at 10:05 it will be impossible for this
+    student to submit again before 10:10. If the student submits again at 10:11,
+    it will now be impossible to submit again before 10:15.
+
+You can combine the *cool off period* with a maximum amount of submissions. This
+could allow you, for example, to enforce a small wait period between two
+submissions, but also enforce a total amount of submissions.
+
 Hand-in Requirements
 ++++++++++++++++++++++
 The hand-in requirements make it possible to set up strict rules to the
@@ -377,15 +412,37 @@ made in CodeGrade. A basic rubric consist of multiple categories that all have
 multiple levels and corresponding points. All components in a CodeGrade rubric
 can have a name and description.
 
-A new category can be created by clicking the :fa:`plus` button. A name and
-description can be given, furthermore a number of levels can be given. New
-levels are automatically added by typing in previous levels and levels can be
-removed by pressing the :fa:`times` button.
+A new category can be created by clicking the :fa:`plus` button. You can also
+import a rubric by clicking the :fa:`copy` button.
 
-Each level can be assigned a number of points (usually descending). The total number of points is automatically incremented by the given
-points but can be manually overridden if requested.
+After creating a new rubric or copying an existing rubric you can add categories
+by pressing the :fa:`plus` icon in the tab bar. After creating a category you
+have to select one of two types:
 
-.. note:: A rubric is only saved after pressing the 'Submit' button, it is recommended to occasionally save the rubric to prevent losing work.
+Discrete rubric categories
+++++++++++++++++++++++++++++
+
+Discrete rubric categories are rubric categories with multiple levels, each
+assigned a number of points, in them. When grading one level in a category can
+be selected. New levels can be created by clicking on the empty level with the
+large :fa:`plus` in it. You can remove levels by pressing the :fa:`times`
+button.
+
+Continuous rubric categories
+++++++++++++++++++++++++++++
+
+Besides the more traditional discrete categories, CodeGrade also offers
+continuous categories. Continuous categories are assigned a maximum amount of
+points (which should be higher than 0), and when grading any amount of points
+between 0 and the set maximum can be assigned for the category. This allows you,
+for example, to split your grade into multiple categories, while still allowing
+precise grading. Continuous rubric categories are also very useful for
+:ref:`AutoTest <autotest-overview>`.
+
+.. tip::
+
+    A rubric is only saved after pressing the 'Submit' button, it is recommended
+    to occasionally save the rubric to prevent losing work.
 
 
 Creating a new Assignment

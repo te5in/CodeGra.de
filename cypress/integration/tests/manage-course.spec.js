@@ -65,7 +65,7 @@ context('Manage Course', () => {
         });
 
         cy.get('.flatpickr-calendar .flatpickr-next-month').click();
-        cy.get('.flatpickr-calendar .flatpickr-day').first().click();
+        cy.get('.flatpickr-calendar .flatpickr-day').last().click();
         cy.get('.flatpickr-calendar .flatpickr-confirm').click();
 
         cy.get('.registration-links .submit-button').first().submit('success');
@@ -86,10 +86,12 @@ context('Manage Course', () => {
         cy.get('.flatpickr-calendar .flatpickr-confirm').click();
 
         cy.get('.registration-links td:last-child .submit-button').first().submit('warning', {
+            popoverMsg: [
+                'already expired',
+                'more permissions',
+            ],
             warningCallback: $el => {
                 cy.wrap($el).find('li').should('have.length', 2);
-                cy.wrap($el).find('li').first().contains('already expired');
-                cy.wrap($el).find('li:nth-child(2)').contains('more permissions');
             },
         });
         cy.get('.registration-links td:nth-child(2)').first().find('code').then($code => {
