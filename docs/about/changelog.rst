@@ -1,6 +1,54 @@
 Changelog
 ==========
 
+Version 1.19.0 (Knoet.2)
+-------------------------
+
+**Released**: January 30th, 2020
+
+You can now add Continuous Rubric Categories, which can score anywhere on a
+continuous scale and work great with AutoTest. You can also now set student
+submission limits and a cool off period.
+
+**Features**
+
+- Continuous rubric categories `(#1235)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/1235>`__: this new type of
+  rubric category can be used to give points anywhere on a scale from 0 to a
+  configurable amount of points. This behavior maps better to certain types of
+  AutoTest categories, such as categories containing only "capture points"
+  steps. Rubrics can contain a mix of discrete and continuous categories and
+  both can still be used for AutoTest.
+- Make it possible to limit the amount of submissions `(#1237)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/1237>`__: the amount of
+  submissions can be limited in two ways:
+
+  1. A maximum total amount of submissions for an assignment.
+  2. A cool-off period: an amount of time a student must wait before they can
+     submit again.
+- Separate feedback permissions `(#1234)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/1234>`__: the
+  `can_see_grade_before_done` permission was used for all types of feedback
+  students would get. New `can_see_user_feedback_before_done` and
+  `can_see_linter_feedback_before_done` permissions make it possible to show
+  these types of feedback before an assignment is set to done while still
+  hiding others.
+
+**Minor updates**
+
+- Add warning when creating a wrong external tool link in Canvas `(#1248)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/1248>`__: Canvas has multiple
+  ways to integrate external tools, some of which leave CodeGrade unable to
+  communicate correctly with it. This update displays a message when this
+  happens.
+
+**Fixes**
+
+- Use the most privileged LTI role available
+  `(#1248) <https://github.com/CodeGra-de/CodeGra.de/pull/1248>`__.
+- Fix float matching for AutoTest capture points test
+  `(#1251) <https://github.com/CodeGra-de/CodeGra.de/pull/1251>`__.
+
 Version 1.17.0 (Knoet.1)
 --------------------------
 
