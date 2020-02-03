@@ -1,13 +1,12 @@
 import typing as t
 from dataclasses import dataclass
 
+import flask
 import werkzeug.wrappers
 from pylti1p3 import redirect
 from pylti1p3.cookie import CookieService
 from pylti1p3.request import Request
 from pylti1p3.session import SessionService
-
-import flask
 
 if t.TYPE_CHECKING:
     Redirect = redirect.Redirect

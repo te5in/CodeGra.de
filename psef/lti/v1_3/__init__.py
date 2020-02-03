@@ -2,10 +2,9 @@ import os
 import json
 import typing as t
 
+import flask
 from pylti1p3 import oidc_login, message_launch
 from pylti1p3.tool_config import ToolConfDict
-
-import flask
 
 from ... import PsefFlask, current_app
 from .flask import (
