@@ -26,11 +26,11 @@ from defusedxml.ElementTree import fromstring as defused_xml_fromstring
 
 from cg_dt_utils import DatetimeWithTimezone
 
-from . import app, auth, models, helpers, features, current_user
-from .auth import _user_active
-from .models import db
-from .helpers import register
-from .exceptions import APICodes, APIWarnings, APIException
+from .. import app, auth, models, helpers, features, current_user
+from ..auth import _user_active
+from ..models import db
+from ..helpers import register
+from ..exceptions import APICodes, APIWarnings, APIException
 
 logger = structlog.get_logger()
 

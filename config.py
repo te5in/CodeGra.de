@@ -81,6 +81,9 @@ FlaskConfig = TypedDict(
         'TESTING': bool,
         'Celery': CeleryConfig,
         'LTI Consumer keys': t.Mapping[str, str],
+        '_LTI1.3_CONFIG_JSON_PATH': t.Optional[str],
+        'LTI1.3_CONFIG_JSON': t.Mapping[str, t.Mapping[str, str]],
+        'LTI1.3_CONFIG_DIRNAME': str,
         'DEBUG': bool,
         'SQLALCHEMY_DATABASE_URI': str,
         'SECRET_KEY': str,
@@ -184,8 +187,12 @@ def set_str(
     parser: t.Any,
     item: str,
     default: object,
+    key_in_parser: str = None,
 ) -> None:
-    val = parser.get(item)
+    if key_in_parser is None:
+        key_in_parser = item
+
+    val = parser.get(key_in_parser)
     out[item] = default if val is None else str(val)
 
 
@@ -550,6 +557,15 @@ if lti_parser.read(config_file) and 'LTI Consumer keys' in lti_parser:
 else:
     CONFIG['LTI_CONSUMER_KEY_SECRETS'] = {}
 
+# For LTI1.3
+set_str(
+    CONFIG,
+    backend_ops,
+    '_LTI1.3_CONFIG_JSON_PATH',
+    None,
+    key_in_parser='lti1.3_config_json_path'
+)
+
 ###################
 # Jplag languages #
 ###################
@@ -586,7 +602,6 @@ if celery_parser.read(config_file) and 'Celery' in celery_parser:
     CONFIG['CELERY_CONFIG'] = dict(celery_parser['Celery'])
 else:
     CONFIG['CELERY_CONFIG'] = {}
-
 
 set_bool(CONFIG, auto_test_ops, 'IS_AUTO_TEST_RUNNER', False)
 

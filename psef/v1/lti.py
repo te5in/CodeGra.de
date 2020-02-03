@@ -21,8 +21,8 @@ from psef import app
 from cg_dt_utils import DatetimeWithTimezone
 
 from . import api
-from .. import lti, auth, errors, models, helpers, features
-from ..lti import LTI
+from .. import auth, errors, models, helpers, features
+from ..lti import v1_1 as lti_v1_1
 from ..models import db
 
 logger = structlog.get_logger()
@@ -36,7 +36,8 @@ def launch_lti() -> t.Any:
     .. :quickref: LTI; Do a LTI Launch.
     """
     data = {
-        'params': LTI.create_from_request(flask.request).launch_params,
+        'params':
+            lti_v1_1.LTI.create_from_request(flask.request).launch_params,
         'exp': DatetimeWithTimezone.utcnow() + timedelta(minutes=1)
     }
     blob = models.BlobStorage(
@@ -76,7 +77,7 @@ def get_lti_config() -> werkzeug.wrappers.Response:
     """
     helpers.ensure_keys_in_dict(flask.request.args, [('lms', str)])
     lms: str = flask.request.args.get('lms', '')
-    cls = lti.lti_classes.get(lms)
+    cls = lti_v1_1.lti_classes.get(lms)
     if cls is None:
         raise errors.APIException(
             f'The given LMS "{lms}" was not found',
@@ -156,7 +157,7 @@ def second_phase_lti_launch() -> helpers.JSONResponse[
     else:
         db.session.delete(blob)
 
-    inst = LTI.create_from_launch_params(launch_params)
+    inst = lti_v1_1.LTI.create_from_launch_params(launch_params)
 
     user, new_token, updated_email = inst.ensure_lti_user()
     auth.set_current_user(user)

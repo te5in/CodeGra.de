@@ -26,7 +26,7 @@ from psef.helpers import (
 
 from . import api
 from .. import limiter, parsers, features
-from ..lti import LTICourseRole
+from ..lti.v1_1 import LTICourseRole
 from ..permissions import CoursePermMap
 from ..permissions import CoursePermission as CPerm
 from ..permissions import GlobalPermission as GPerm

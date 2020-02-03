@@ -120,14 +120,14 @@ class LTIProvider(Base):
         return self._lms_and_secret[1]
 
     @property
-    def lti_class(self) -> t.Type['psef.lti.LTI']:
+    def lti_class(self) -> t.Type['psef.lti.v1_1.LTI']:
         """The name of the LTI class to be used for this LTIProvider.
 
         :getter: Get the LTI class name.
         :setter: Impossible as this is fixed during startup of CodeGrade.
         """
         lms = self.lms_name
-        cls = psef.lti.lti_classes.get(lms)
+        cls = psef.lti.v1_1.lti_classes.get(lms)
         if cls is None:
             raise psef.errors.APIException(
                 'The requested LMS is not supported',

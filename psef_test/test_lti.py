@@ -11,7 +11,6 @@ import oauth2
 import pytest
 import dateutil.parser
 
-import psef.lti as lti
 import psef.auth as auth
 import psef.models as m
 import psef.features as feats
@@ -19,6 +18,7 @@ from helpers import (
     create_group, create_marker, create_group_set, create_submission,
     create_user_with_perms
 )
+from psef.lti import v1_1 as lti
 from cg_dt_utils import DatetimeWithTimezone
 from psef.permissions import CoursePermission as CPerm
 

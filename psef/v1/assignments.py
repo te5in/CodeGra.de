@@ -308,7 +308,7 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
     content = ensure_json_dict(request.get_json())
     warning_tags = set()
 
-    lti_class: t.Optional[t.Type[psef.lti.LTI]]
+    lti_class: t.Optional[t.Type[psef.lti.v1_1.LTI]]
     lms_name: t.Optional[str]
 
     if assig.is_lti:
