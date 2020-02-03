@@ -96,6 +96,7 @@ def app(request):
         'MAX_LARGE_UPLOAD_SIZE': 100 * 2 ** 20,  # 100mb
         'LTI_CONSUMER_KEY_SECRETS': {
             'my_lti': 'Canvas:12345678',
+            'canvas2': 'Canvas:123456789',
             'no_secret': 'Canvas:',
             'no_lms': ':12345678',
             'no_colon': '12345678',

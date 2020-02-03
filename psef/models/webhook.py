@@ -28,18 +28,8 @@ from ..exceptions import APICodes, APIException
 T = t.TypeVar('T', bound=t.Type['WebhookBase'])
 
 _ALL_WEBHOOK_TYPES = sorted(['git'])
+webhook_handlers.set_possible_options(_ALL_WEBHOOK_TYPES)
 logger = structlog.get_logger()
-
-
-def _register(cls: T) -> T:
-    name = cls.__mapper_args__['polymorphic_identity']
-
-    assert isinstance(name, str)
-    assert name in _ALL_WEBHOOK_TYPES
-    assert webhook_handlers.get(name) is None
-    webhook_handlers.register(name)(cls)
-
-    return cls
 
 
 class WebhookBase(Base, UUIDMixin, TimestampMixin):
@@ -233,7 +223,7 @@ class GitCloneData(_PartialGitCloneData):
         }
 
 
-@_register
+@webhook_handlers.register_table
 class _GitWebhook(WebhookBase):
     __mapper_args__ = {'polymorphic_identity': 'git'}
 
@@ -412,3 +402,6 @@ class _GitWebhook(WebhookBase):
                 GitCloneData.from_partial(data, branch=current_branch)
             ),
         )
+
+
+webhook_handlers.freeze()

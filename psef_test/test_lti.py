@@ -259,7 +259,10 @@ def test_lti_new_user_new_course(test_client, app, logged_in, ta_user):
         out = get_user_info(False)
         assert out['name'] == ta_user.name
         assert out['username'] == ta_user.username
-        assert m.User.query.get(ta_user.id).lti_user_id == 'THOMAS_SCHAPER'
+        assert m.UserLTIProvider.user_is_linked(ta_user)
+        assert m.UserLTIProvider.query.filter_by(
+            user_id=ta_user.id
+        ).one().lti_user_id == 'THOMAS_SCHAPER'
 
         assert assig['id'] in ta_user.assignment_results
 
@@ -2308,3 +2311,76 @@ def test_canvas_missing_required_params(
                 'message': re.compile(r'.*not added correctly.*'),
             },
         )
+
+
+def test_lti_multiple_providers_same_user_id(
+    test_client, app, logged_in, session, tomorrow
+):
+    def do_launch(lti_id, **d):
+        data = {
+            'custom_canvas_course_name': 'NEW_COURSE',
+            'custom_canvas_course_id': 'MY_COURSE_ID',
+            'custom_canvas_assignment_id': 'MY_ASSIG_ID',
+            'custom_canvas_assignment_title': '15',
+            'ext_roles': 'urn:lti:role:ims/lis/Instructor',
+            'roles': 'urn:lti:role:ims/lis/Instructor',
+            'custom_canvas_user_login_id': 'a-the-a-er',
+            'custom_canvas_assignment_due_at': tomorrow.isoformat(),
+            'custom_canvas_assignment_published': 'false',
+            'user_id': lti_id,
+            'lis_person_contact_email_primary': 'thomas@example.com',
+            'lis_person_name_full': 'A the A-er',
+            'context_id': 'NO_CONTEXT',
+            'context_title': 'WRONG_TITLE',
+            'oauth_consumer_key': 'my_lti',
+            'resource_link_id': '',
+            'resource_link_title': '',
+            **d,
+        }
+        with app.app_context():
+            res = test_client.post('/api/v1/lti/launch/1', data=data)
+            assert res.status_code == 302
+            url = urllib.parse.urlparse(res.headers['Location'])
+            blob_id = urllib.parse.parse_qs(url.query)['blob_id'][0]
+            lti_res = test_client.req(
+                'post',
+                '/api/v1/lti/launch/2',
+                200,
+                data={'blob_id': blob_id},
+            )
+
+            token = lti_res.get('access_token', None)
+
+            return test_client.req(
+                'get',
+                '/api/v1/login?extended',
+                200,
+                headers={'Authorization': f'Bearer {token}'}
+            )
+
+    user1 = do_launch('1')
+    user2 = do_launch('1')
+    user3 = do_launch('1', custom_canvas_user_login_id='new!')
+    user4 = do_launch('1', oauth_consumer_key='canvas2')
+    user5 = do_launch(
+        '1', oauth_consumer_key='canvas2', custom_canvas_user_login_id='new!'
+    )
+    user6 = do_launch(
+        '1',
+        oauth_consumer_key='blackboard_lti',
+        lis_person_name_full='a-the-a-er',
+        lis_person_sourcedid='a-the-a-er',
+    )
+
+    # All launches within the same LMS should have the same id
+    assert set(u['id'] for u in [user1, user2, user3]) == {user1['id']}
+    assert user4['id'] == user5['id']
+    # Different LMS should have a different id
+    assert len(set([user1['id'], user4['id'], user6['id']])) == 3
+
+    # Username change in the LMS should be ignored, and collisions should be
+    # detected.
+    assert user1['username'] == user2['username']
+    assert user1['username'] == user3['username']
+    assert user1['username'] + ' (1)' == user4['username']
+    assert user1['username'] + ' (2)' == user6['username']

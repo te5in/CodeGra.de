@@ -20,7 +20,7 @@ from ..helpers import NotEqualMixin
 from .assignment import Assignment
 from .link_tables import user_course
 from ..permissions import CoursePermission
-from .lti_provider import LTIProvider
+from .lti_provider import LTIProviderBase
 
 logger = structlog.get_logger()
 
@@ -135,7 +135,7 @@ class Course(NotEqualMixin, Base):
         db.String(UUID_LENGTH), db.ForeignKey('LTIProvider.id')
     )
     lti_provider = db.relationship(
-        lambda: LTIProvider, foreign_keys=lti_provider_id
+        lambda: LTIProviderBase, foreign_keys=lti_provider_id
     )
 
     virtual = db.Column('virtual', db.Boolean, default=False, nullable=False)
@@ -177,7 +177,7 @@ class Course(NotEqualMixin, Base):
         cls,
         name: str = None,
         lti_course_id: str = None,
-        lti_provider: 'LTIProvider' = None,
+        lti_provider: 'LTIProviderBase' = None,
         virtual: bool = False,
     ) -> 'Course':
         """Create a new course and add it to the current database session.

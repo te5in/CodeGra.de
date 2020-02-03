@@ -20,14 +20,12 @@ import oauth2
 import dateutil
 import httplib2
 import structlog
-import flask_jwt_extended as flask_jwt
 from mypy_extensions import TypedDict
 from defusedxml.ElementTree import fromstring as defused_xml_fromstring
 
 from cg_dt_utils import DatetimeWithTimezone
 
-from .. import app, auth, models, helpers, features, current_user
-from ..auth import _user_active
+from .. import app, auth, models, helpers, features
 from ..models import db
 from ..helpers import register
 from ..exceptions import APICodes, APIWarnings, APIException
@@ -255,7 +253,7 @@ class LTI:  # pylint: disable=too-many-public-methods
     def __init__(
         self,
         params: t.Mapping[str, str],
-        lti_provider: models.LTIProvider = None
+        lti_provider: models.LTI1p1Provider = None
     ) -> None:
         self.launch_params = params
 
@@ -264,7 +262,7 @@ class LTI:  # pylint: disable=too-many-public-methods
         else:
             lti_id = params['lti_provider_id']
             self.lti_provider = helpers.get_or_404(
-                models.LTIProvider,
+                models.LTI1p1Provider,
                 lti_id,
             )
 
@@ -283,11 +281,15 @@ class LTI:  # pylint: disable=too-many-public-methods
         """
         params = req.form.copy()
 
-        lti_provider = models.LTIProvider.query.filter_by(
+        lti_provider = models.db.session.query(
+            models.LTI1p1Provider
+        ).filter_by(
             key=params['oauth_consumer_key'],
         ).first()
         if lti_provider is None:
-            lti_provider = models.LTIProvider(key=params['oauth_consumer_key'])
+            lti_provider = models.LTI1p1Provider(
+                key=params['oauth_consumer_key']
+            )
             db.session.add(lti_provider)
             db.session.commit()
 
@@ -511,60 +513,13 @@ class LTI:  # pylint: disable=too-many-public-methods
             optionally the updated email of the user as a string, this is
             ``None`` if the email was not updated.
         """
-        is_logged_in = _user_active(current_user)
-        token = None
-        user = None
-
-        lti_user = models.User.query.filter_by(lti_user_id=self.user_id
-                                               ).first()
-
-        if is_logged_in and current_user.lti_user_id == self.user_id:
-            # The currently logged in user is now using LTI
-            user = current_user
-
-        elif lti_user is not None:
-            # LTI users are used before the current logged user.
-            token = flask_jwt.create_access_token(
-                identity=lti_user.id,
-                fresh=True,
-            )
-            user = lti_user
-        elif is_logged_in and current_user.lti_user_id is None:
-            # TODO show some sort of screen if this linking is wanted
-            current_user.lti_user_id = self.user_id
-            db.session.flush()
-            user = current_user
-        else:
-            # New LTI user id is found and no user is logged in or the current
-            # user has a different LTI user id. A new user is created and
-            # logged in.
-            i = 0
-
-            def _get_username() -> str:
-                return self.username + (f' ({i})' if i > 0 else '')
-
-            while db.session.query(
-                models.User.query.filter_by(username=_get_username()).exists()
-            ).scalar():  # pragma: no cover
-                i += 1
-
-            user = models.User(
-                lti_user_id=self.user_id,
-                name=self.full_name,
-                email=self.user_email,
-                active=True,
-                password=None,
-                username=_get_username(),
-            )
-            db.session.add(user)
-            db.session.flush()
-
-            token = flask_jwt.create_access_token(
-                identity=user.id,
-                fresh=True,
-            )
-
-        assert user is not None
+        user, token = models.UserLTIProvider.get_or_create_user(
+            lti_user_id=self.user_id,
+            lti_provider=self.lti_provider,
+            wanted_username=self.username,
+            full_name=self.full_name,
+            email=self.user_email,
+        )
 
         updated_email = None
         if user.reset_email_on_lti:

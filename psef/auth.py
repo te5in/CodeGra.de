@@ -14,6 +14,7 @@ from flask import _app_ctx_stack  # type: ignore
 from sqlalchemy import sql
 from werkzeug.local import LocalProxy
 from mypy_extensions import NoReturn
+from typing_extensions import Literal
 
 import psef
 from psef import features
@@ -76,15 +77,25 @@ def _load_user(user_id: int) -> t.Optional['psef.models.User']:
     return psef.models.User.query.get(int(user_id))
 
 
-def _user_active(user: t.Optional['psef.models.User']) -> bool:
+@t.overload
+def user_active(user: None) -> Literal[True]:
+    ...
+
+
+@t.overload
+def user_active(user: t.Union[LocalProxy, 'psef.models.User']) -> bool:
+    ...
+
+
+def user_active(user: t.Union[None, LocalProxy, 'psef.models.User']) -> bool:
     """Check if the given user is active.
 
     :returns: True if the given user is not ``None`` and active.
     """
-    try:
-        return user is not None and user.is_active
-    except AttributeError:
-        return False
+    if isinstance(user, LocalProxy):
+        user = user._get_current_object()
+
+    return user is not None and user.is_active
 
 
 def login_required(fun: T) -> T:
@@ -108,7 +119,7 @@ def ensure_logged_in() -> None:
 
     :raises PermissionException: If there is no logged in user. (NOT_LOGGED_IN)
     """
-    if not _user_active(psef.current_user):
+    if not user_active(psef.current_user):
         _raise_login_exception()
 
 
@@ -829,7 +840,7 @@ def ensure_permission(  # pylint: disable=function-redefined
     """
     user = psef.current_user if user is None else user
 
-    if _user_active(user):
+    if user_active(user):
         if isinstance(permission,
                       CPerm) and course_id is not None and user.has_permission(
                           permission, course_id=course_id

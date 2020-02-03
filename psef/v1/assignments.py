@@ -308,15 +308,14 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
     content = ensure_json_dict(request.get_json())
     warning_tags = set()
 
-    lti_class: t.Optional[t.Type[psef.lti.v1_1.LTI]]
+    lti_provider: t.Optional[models.LTIProviderBase]
     lms_name: t.Optional[str]
 
     if assig.is_lti:
-        assert assig.course.lti_provider is not None
-        lti_class = assig.course.lti_provider.lti_class
-        lms_name = assig.course.lti_provider.lms_name
+        lti_provider = assig.course.lti_provider
+        lms_name = lti_provider.lms_name
     else:
-        lti_class = None
+        lti_provider = None
         lms_name = None
 
     if 'state' in content:
@@ -358,7 +357,7 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
         assig.name = name
 
     if 'deadline' in content:
-        if lti_class is not None and lti_class.supports_deadline():
+        if lti_provider is not None and lti_provider.supports_deadline():
             raise APIException(
                 (
                     'The deadline of this assignment should be set in '
@@ -389,7 +388,7 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
         assig.cgignore = filter_type.parse(t.cast(JSONType, content['ignore']))
 
     if 'max_grade' in content:
-        if lti_class is not None and not lti_class.supports_max_points():
+        if lti_provider is not None and not lti_provider.supports_max_points():
             raise APIException(
                 f'{lms_name} does not support setting the maximum grade',
                 f'{lms_name} does not support setting the maximum grade',

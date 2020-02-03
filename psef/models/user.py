@@ -78,9 +78,6 @@ class User(NotEqualMixin, Base):
 
     id = hybrid_property(_get_id, _set_id)
 
-    # All stuff for LTI
-    lti_user_id = db.Column(db.Unicode, unique=True)
-
     name = db.Column('name', db.Unicode, nullable=False)
     active = db.Column('active', db.Boolean, default=True, nullable=False)
     virtual = db.Column(

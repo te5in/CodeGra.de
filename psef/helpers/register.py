@@ -7,9 +7,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 import typing as t
 from collections import OrderedDict
 
+if t.TYPE_CHECKING:
+    from ..models import Base
+
 T = t.TypeVar('T')  # pylint: disable=invalid-name
 V = t.TypeVar('V')  # pylint: disable=invalid-name
 TT = t.TypeVar('TT')  # pylint: disable=invalid-name
+V_TABLE = t.TypeVar('V_TABLE', bound=t.Type['Base'])  # pylint: disable=invalid-name
 
 
 class Register(t.Generic[T, V]):  # pylint: disable=unsubscriptable-object
@@ -37,6 +41,13 @@ class Register(t.Generic[T, V]):  # pylint: disable=unsubscriptable-object
 
     def __init__(self) -> None:
         self.__map: t.Dict[T, V] = OrderedDict()
+        self.__frozen = False
+
+    def freeze(self) -> None:
+        self.__frozen = True
+
+    def assert_not_frozen(self) -> None:
+        assert not self.__frozen, 'This register is frozen'
 
     def register(self, key: T) -> t.Callable[[V], V]:
         """A decorator that can be used to register a single key.
@@ -58,6 +69,7 @@ class Register(t.Generic[T, V]):  # pylint: disable=unsubscriptable-object
         :param keys: The keys to register.
         :returns: A decorator that registers the given keys.
         """
+        self.assert_not_frozen()
 
         def __decorator(cls: V) -> V:
             for key in keys:
@@ -102,3 +114,32 @@ class Register(t.Generic[T, V]):  # pylint: disable=unsubscriptable-object
             if val == needle:
                 return key
         return default
+
+
+class TableRegister(t.Generic[T, V_TABLE], Register[T, V_TABLE]):
+    def __init__(self) -> None:
+        super().__init__()
+        self.__possible_options: t.Optional[t.Sequence[str]] = None
+
+    def set_possible_options(self, options: t.Sequence[str]) -> None:
+        self.assert_not_frozen()
+        assert self.__possible_options is None, 'Options already set'
+        self.__possible_options = options
+
+    def register_table(self, cls: V_TABLE) -> V_TABLE:
+        assert self.__possible_options is not None, (
+            'Possible options not yet set'
+        )
+        name = getattr(
+            cls,
+            '__mapper_args__',
+            {},
+        ).get('polymorphic_identity', None)
+
+        assert (
+            name is not None and name in self.__possible_options
+        ), f'Unknown key: {name}'
+        assert self.get(name) is None, 'Cannot register twice'
+        self.register(name)(cls)
+
+        return cls
