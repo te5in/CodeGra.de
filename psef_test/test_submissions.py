@@ -13,6 +13,7 @@ from helpers import (
     create_course, create_marker, create_assignment, create_submission,
     create_user_with_role
 )
+from cg_dt_utils import DatetimeWithTimezone
 
 http_error = create_marker(pytest.mark.http_error)
 perm_error = create_marker(pytest.mark.perm_error)
@@ -1001,7 +1002,7 @@ def test_get_teacher_zip_file(
     m.Assignment.query.filter_by(
         id=m.Work.query.get(work_id).assignment_id,
     ).update({
-        'deadline': datetime.datetime.utcnow() - datetime.timedelta(days=1)
+        'deadline': DatetimeWithTimezone.utcnow() - datetime.timedelta(days=1)
     }, )
     get_files(student_user, 403)
 
@@ -1203,8 +1204,8 @@ def test_add_file(
         session.query(
             m.Assignment
         ).filter_by(id=m.Work.query.get(work_id).assignment_id).update({
-            'deadline': datetime.datetime.utcnow() -
-                        datetime.timedelta(days=1)
+            'deadline':
+                DatetimeWithTimezone.utcnow() - datetime.timedelta(days=1)
         })
 
         test_client.req(
@@ -1243,8 +1244,8 @@ def test_add_file(
         session.query(
             m.Assignment
         ).filter_by(id=m.Work.query.get(work_id).assignment_id).update({
-            'deadline': datetime.datetime.utcnow() +
-                        datetime.timedelta(days=1)
+            'deadline':
+                DatetimeWithTimezone.utcnow() + datetime.timedelta(days=1)
         })
 
     with logged_in(student_user):
@@ -1356,8 +1357,8 @@ def test_add_file(
         session.query(
             m.Assignment
         ).filter_by(id=m.Work.query.get(work_id).assignment_id).update({
-            'deadline': datetime.datetime.utcnow() +
-                        datetime.timedelta(days=1)
+            'deadline':
+                DatetimeWithTimezone.utcnow() + datetime.timedelta(days=1)
         })
 
 

@@ -6,7 +6,6 @@ import math
 import uuid
 import typing as t
 import numbers
-import datetime
 import itertools
 
 import structlog
@@ -17,6 +16,7 @@ from sqlalchemy_utils import UUIDType
 from sqlalchemy.sql.expression import or_, and_, case, nullsfirst
 
 import psef
+from cg_dt_utils import DatetimeWithTimezone
 from cg_flask_helpers import callback_after_this_request
 from cg_sqlalchemy_helpers.mixins import IdMixin, UUIDMixin, TimestampMixin
 
@@ -285,8 +285,8 @@ class AutoTestResult(Base, TimestampMixin, IdMixin, NotEqualMixin):
         )
     )
 
-    started_at: t.Optional[datetime.datetime] = db.Column(
-        'started_at', db.DateTime, default=None, nullable=True
+    started_at: t.Optional[DatetimeWithTimezone] = db.Column(
+        'started_at', db.TIMESTAMP(timezone=True), default=None, nullable=True
     )
 
     setup_stderr: t.Optional[str] = orm.deferred(
@@ -350,7 +350,7 @@ class AutoTestResult(Base, TimestampMixin, IdMixin, NotEqualMixin):
         >>> not_set = object()
         >>> r.started_at = not_set
         >>> r.state = auto_test_step_models.AutoTestStepResultState.running
-        >>> isinstance(r.started_at, datetime.datetime)
+        >>> isinstance(r.started_at, DatetimeWithTimezone)
         True
         >>> called
         True
@@ -373,7 +373,7 @@ class AutoTestResult(Base, TimestampMixin, IdMixin, NotEqualMixin):
 
         self._state = new_state
         if new_state == auto_test_step_models.AutoTestStepResultState.running:
-            self.started_at = datetime.datetime.utcnow()
+            self.started_at = DatetimeWithTimezone.utcnow()
             psef.tasks.adjust_amount_runners(self.run.id)
         elif (
             new_state in
@@ -571,8 +571,10 @@ class AutoTestRunner(Base, TimestampMixin, UUIDMixin, NotEqualMixin):
 
     _ipaddr: str = db.Column('ipaddr', db.Unicode, nullable=False)
 
-    last_heartbeat: datetime.datetime = db.Column(
-        'last_heartbeat', db.DateTime, default=datetime.datetime.utcnow
+    last_heartbeat: DatetimeWithTimezone = db.Column(
+        'last_heartbeat',
+        db.TIMESTAMP(timezone=True),
+        default=DatetimeWithTimezone.utcnow
     )
 
     _job_id: t.Optional[str] = db.Column('job_id', db.Unicode)
@@ -695,12 +697,15 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
         order_by='AutoTestResult.created_at'
     )  # type: t.MutableSequence[AutoTestResult]
 
-    started_date: t.Optional[datetime.datetime] = db.Column(
-        'started_date', db.DateTime, nullable=True, default=None
+    started_date: t.Optional[DatetimeWithTimezone] = db.Column(
+        'started_date',
+        db.TIMESTAMP(timezone=True),
+        nullable=True,
+        default=None
     )
 
-    kill_date: t.Optional[datetime.datetime] = db.Column(
-        'kill_date', db.DateTime, nullable=True, default=None
+    kill_date: t.Optional[DatetimeWithTimezone] = db.Column(
+        'kill_date', db.TIMESTAMP(timezone=True), nullable=True, default=None
     )
 
     _job_number = db.Column('job_number', db.Integer, default=0)
@@ -923,7 +928,7 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
         # This run was not started before this runner, so set all the auxiliary
         # data.
         if self.started_date is None:
-            self.started_date = datetime.datetime.utcnow()
+            self.started_date = DatetimeWithTimezone.utcnow()
             # Continuous feedback runs don't get killed because of time, so
             # don't set this data.
         runner = AutoTestRunner.create(runner_ipaddr, run=self)

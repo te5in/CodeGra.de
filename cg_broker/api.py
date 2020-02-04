@@ -7,7 +7,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 import uuid
 import typing as t
 import secrets
-from datetime import datetime, timedelta
+from datetime import timedelta
 from functools import wraps
 
 import structlog
@@ -15,6 +15,7 @@ from flask import Blueprint, g, request
 from flask_expects_json import expects_json
 
 import cg_json
+from cg_dt_utils import DatetimeWithTimezone
 from cg_flask_helpers import EmptyResponse, callback_after_this_request
 from cg_sqlalchemy_helpers.types import DbColumn
 
@@ -279,7 +280,7 @@ def mark_runner_as_alive() -> cg_json.JSONResponse[models.Runner]:
             raise NotFoundException
 
     runner.state = models.RunnerState.started
-    runner.started_at = datetime.utcnow()
+    runner.started_at = DatetimeWithTimezone.utcnow()
     db.session.commit()
 
     return cg_json.jsonify(runner)
@@ -324,7 +325,7 @@ def about() -> cg_json.JSONResponse[t.Mapping[str, object]]:
     health information.
     """
     if request.args.get('health', object()) == app.config['HEALTH_KEY']:
-        now = datetime.utcnow()
+        now = DatetimeWithTimezone.utcnow()
         slow_created_date = now - timedelta(minutes=app.config['OLD_JOB_AGE'])
 
         slow_jobs = db.session.query(models.Job).filter(

@@ -7,6 +7,7 @@ import pytest
 
 import psef.models as m
 from helpers import create_marker
+from cg_dt_utils import DatetimeWithTimezone
 from psef.permissions import CoursePermission
 
 perm_error = create_marker(pytest.mark.perm_error)
@@ -301,9 +302,8 @@ def test_delete_code_as_ta(
             result=error_template,
         )
 
-        assignment.deadline = datetime.datetime.utcnow() - datetime.timedelta(
-            days=1
-        )
+        assignment.deadline = DatetimeWithTimezone.utcnow(
+        ) - datetime.timedelta(days=1)
         session.commit()
 
         ents = test_client.req(
@@ -467,9 +467,8 @@ def test_delete_code_twice(
         )
         assert len(res['entries']) == 2
 
-        assignment.deadline = datetime.datetime.utcnow() - datetime.timedelta(
-            days=1
-        )
+        assignment.deadline = DatetimeWithTimezone.utcnow(
+        ) - datetime.timedelta(days=1)
         session.commit()
 
         test_client.req(
@@ -532,7 +531,8 @@ def test_invalid_delete_code(
                 'name': str,
             }
         )
-        assignment.deadline = datetime.datetime.utcnow() - datetime.timedelta(
+        assignment.deadline = DatetimeWithTimezone.utcnow(
+        ) - datetime.timedelta(
             days=1,
         )
         session.commit()
@@ -707,7 +707,7 @@ def test_update_code(
 
     m.Assignment.query.filter_by(id=assignment.id).update({
         'state': m._AssignmentStateEnum.open,
-        'deadline': datetime.datetime.utcnow() - datetime.timedelta(days=1),
+        'deadline': DatetimeWithTimezone.utcnow() - datetime.timedelta(days=1),
     })
     # Cannot change code after deadline as student
     with logged_in(student_user):

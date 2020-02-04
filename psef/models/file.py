@@ -7,7 +7,6 @@ import enum
 import uuid
 import shutil
 import typing as t
-import datetime
 from collections import defaultdict
 
 from flask import current_app
@@ -15,6 +14,7 @@ from sqlalchemy import event
 from sqlalchemy_utils import UUIDType
 
 import psef
+from cg_dt_utils import DatetimeWithTimezone
 from cg_sqlalchemy_helpers.mixins import TimestampMixin
 
 from . import Base, db, _MyQuery
@@ -140,7 +140,9 @@ class NestedFileMixin(FileMixin[T]):
     representation of a directory.
     """
     modification_date = db.Column(
-        'modification_date', db.DateTime, default=datetime.datetime.utcnow
+        'modification_date',
+        db.TIMESTAMP(timezone=True),
+        default=DatetimeWithTimezone.utcnow
     )
 
     if t.TYPE_CHECKING:  # pragma: no cover

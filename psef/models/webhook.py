@@ -6,7 +6,6 @@ import hmac
 import json
 import typing as t
 import secrets
-import datetime
 import tempfile
 import contextlib
 import dataclasses
@@ -18,6 +17,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 
 import psef
+from cg_dt_utils import DatetimeWithTimezone
 from cg_sqlalchemy_helpers.mixins import UUIDMixin, TimestampMixin
 
 from . import Base, User, MyQuery, Assignment, db
@@ -406,7 +406,7 @@ class _GitWebhook(WebhookBase):
             )
 
         psef.tasks.clone_commit_as_submission(
-            unix_timestamp=datetime.datetime.utcnow().timestamp(),
+            unix_timestamp=DatetimeWithTimezone.utcnow().timestamp(),
             clone_data_as_dict=dataclasses.asdict(
                 GitCloneData.from_partial(data, branch=current_branch)
             ),

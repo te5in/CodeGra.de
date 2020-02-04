@@ -11,7 +11,7 @@ import shutil
 import getpass
 import tempfile
 import threading
-from datetime import datetime, timedelta
+from datetime import timedelta
 from textwrap import dedent
 
 import lxc
@@ -25,6 +25,7 @@ import helpers
 import psef.models as m
 import cg_worker_pool
 import requests_stubs
+from cg_dt_utils import DatetimeWithTimezone
 from psef.exceptions import APICodes, APIException
 
 
@@ -209,7 +210,7 @@ def basic(logged_in, admin_user, test_client, session):
         assig_id = helpers.create_assignment(
             test_client,
             course,
-            deadline=datetime.utcnow() + timedelta(days=30)
+            deadline=DatetimeWithTimezone.utcnow() + timedelta(days=30)
         )['id']
         teacher = helpers.create_user_with_role(session, 'Teacher', [course])
         student = helpers.create_user_with_role(session, 'Student', [course])
@@ -1867,7 +1868,7 @@ def test_copy_auto_test(
             new_assig_id = helpers.create_assignment(
                 test_client,
                 new_course,
-                deadline=datetime.utcnow() + timedelta(days=30)
+                deadline=DatetimeWithTimezone.utcnow() + timedelta(days=30)
             )['id']
             crole = m.CourseRole.query.filter_by(
                 name='Teacher',

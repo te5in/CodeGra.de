@@ -13,6 +13,7 @@ from sqlalchemy.sql.expression import func as sql_func
 
 from cg_celery import CGCelery
 from cg_logger import bound_to_logger
+from cg_dt_utils import DatetimeWithTimezone
 from cg_flask_helpers import callback_after_this_request
 from cg_sqlalchemy_helpers.types import DbColumn
 
@@ -290,7 +291,7 @@ def start_runner(runner_hex_id: str) -> None:
 
     maybe_kill_unneeded_runner.apply_async(
         (runner.id.hex, ),
-        eta=datetime.datetime.utcnow() +
+        eta=DatetimeWithTimezone.utcnow() +
         datetime.timedelta(minutes=app.config['RUNNER_MAX_TIME_ALIVE'])
     )
 

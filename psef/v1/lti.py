@@ -8,8 +8,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 """
 import typing as t
 import urllib
-import datetime
 import urllib.parse
+from datetime import timedelta
 
 import jwt
 import flask
@@ -17,6 +17,7 @@ import werkzeug
 import structlog
 
 from psef import app
+from cg_dt_utils import DatetimeWithTimezone
 
 from . import api
 from .. import lti, auth, errors, models, helpers, features
@@ -35,7 +36,7 @@ def launch_lti() -> t.Any:
     """
     data = {
         'params': LTI.create_from_request(flask.request).launch_params,
-        'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=1)
+        'exp': DatetimeWithTimezone.utcnow() + timedelta(minutes=1)
     }
     blob = models.BlobStorage(
         data=jwt.encode(

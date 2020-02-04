@@ -3,10 +3,11 @@
 SPDX-License-Identifier: AGPL-3.0-only
 """
 import uuid
-from datetime import datetime
 
-from sqlalchemy import Column, Integer, DateTime
+from sqlalchemy import TIMESTAMP, Column, Integer
 from sqlalchemy_utils import UUIDType
+
+from cg_dt_utils import DatetimeWithTimezone
 
 __all__ = ['IdMixin', 'UUIDMixin', 'TimestampMixin']
 
@@ -34,14 +35,16 @@ class TimestampMixin:
     Provides the :attr:`created_at` and :attr:`updated_at` audit timestamps
     """
     #: Timestamp for when this instance was created.
-    created_at: datetime = Column(
-        DateTime, default=datetime.utcnow, nullable=False
+    created_at: DatetimeWithTimezone = Column(
+        TIMESTAMP(timezone=True),
+        default=DatetimeWithTimezone.utcnow,
+        nullable=False
     )
 
     #: Timestamp for when this instance was last updated.
-    updated_at: datetime = Column(
-        DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
+    updated_at: DatetimeWithTimezone = Column(
+        TIMESTAMP(timezone=True),
+        default=DatetimeWithTimezone.utcnow,
+        onupdate=DatetimeWithTimezone.utcnow,
         nullable=False
     )

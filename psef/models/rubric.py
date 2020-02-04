@@ -5,12 +5,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 import enum
 import typing as t
 import numbers
-import datetime
 
 from sqlalchemy import select
 from mypy_extensions import TypedDict
 
 import cg_json
+from cg_dt_utils import DatetimeWithTimezone
 
 from . import Base, DbColumn, db, _MyQuery
 from .. import helpers
@@ -273,7 +273,9 @@ class RubricRowBase(helpers.NotEqualMixin, Base):
     header: str = db.Column('header', db.Unicode)
     description: str = db.Column('description', db.Unicode, default='')
     created_at = db.Column(
-        'created_at', db.DateTime, default=datetime.datetime.utcnow
+        'created_at',
+        db.TIMESTAMP(timezone=True),
+        default=DatetimeWithTimezone.utcnow
     )
     items = db.relationship(
         "RubricItem",
@@ -338,7 +340,7 @@ class RubricRowBase(helpers.NotEqualMixin, Base):
 
     def copy(self) -> 'RubricRowBase':
         return RubricRowBase(
-            created_at=datetime.datetime.utcnow(),
+            created_at=DatetimeWithTimezone.utcnow(),
             description=self.description,
             header=self.header,
             assignment_id=self.assignment_id,

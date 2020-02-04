@@ -22,6 +22,7 @@ import psef
 import psef.files
 from psef import app as current_app
 from psef import current_user
+from cg_dt_utils import DatetimeWithTimezone
 from psef.models import db
 from psef.helpers import (
     JSONType, JSONResponse, EmptyResponse, ExtendedJSONResponse, jsonify,
@@ -236,7 +237,7 @@ def set_reminder(
     )
 
     if reminder_time and (reminder_time -
-                          datetime.datetime.utcnow()).total_seconds() < 60:
+                          DatetimeWithTimezone.utcnow()).total_seconds() < 60:
         raise APIException(
             (
                 'The given date is not far enough from the current time, '

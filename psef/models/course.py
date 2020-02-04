@@ -5,11 +5,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 import copy
 import uuid
 import typing as t
-import datetime
 
 import structlog
 
 import psef
+from cg_dt_utils import DatetimeWithTimezone
 from cg_sqlalchemy_helpers import mixins
 
 from . import UUID_LENGTH, Base, DbColumn, db, _MyQuery
@@ -48,9 +48,9 @@ class CourseRegistrationLink(Base, mixins.UUIDMixin, mixins.TimestampMixin):
         db.ForeignKey('Course_Role.id'),
         nullable=False
     )
-    expiration_date: datetime.datetime = db.Column(
+    expiration_date: DatetimeWithTimezone = db.Column(
         'expiration_date',
-        db.DateTime,
+        db.TIMESTAMP(timezone=True),
         nullable=False,
     )
 
@@ -85,10 +85,10 @@ class CourseSnippet(Base):
     course_id: int = db.Column(
         'course_id', db.Integer, db.ForeignKey('Course.id'), nullable=False
     )
-    created_at: datetime.datetime = db.Column(
+    created_at: DatetimeWithTimezone = db.Column(
         'created_at',
-        db.DateTime,
-        default=datetime.datetime.utcnow,
+        db.TIMESTAMP(timezone=True),
+        default=DatetimeWithTimezone.utcnow,
         nullable=False,
     )
 
@@ -126,8 +126,8 @@ class Course(NotEqualMixin, Base):
     id: int = db.Column('id', db.Integer, primary_key=True)
     name: str = db.Column('name', db.Unicode)
 
-    created_at: datetime.datetime = db.Column(
-        db.DateTime, default=datetime.datetime.utcnow
+    created_at: DatetimeWithTimezone = db.Column(
+        db.TIMESTAMP(timezone=True), default=DatetimeWithTimezone.utcnow
     )
 
     # All stuff for LTI
@@ -301,7 +301,7 @@ class Course(NotEqualMixin, Base):
         ):
             assigs = (a for a in assigs if not a.is_hidden)
         return sorted(
-            assigs, key=lambda item: item.deadline or datetime.datetime.max
+            assigs, key=lambda item: item.deadline or DatetimeWithTimezone.max
         )
 
     def get_all_users_in_course(

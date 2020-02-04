@@ -22,6 +22,7 @@ from sqlalchemy.sql.expression import and_, func
 from sqlalchemy.orm.collections import attribute_mapped_collection
 
 import psef
+from cg_dt_utils import DatetimeWithTimezone
 from cg_sqlalchemy_helpers.types import MyQuery, MyNonOrderableQuery
 
 from . import UUID_LENGTH, Base, DbColumn, db
@@ -356,11 +357,12 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
     course_id: int = db.Column(
         'Course_id', db.Integer, db.ForeignKey('Course.id'), nullable=False
     )
-    created_at: datetime.datetime = db.Column(
-        db.DateTime, default=datetime.datetime.utcnow
+    created_at: DatetimeWithTimezone = db.Column(
+        db.TIMESTAMP(timezone=True), default=DatetimeWithTimezone.utcnow
     )
-    deadline: t.Optional[datetime.datetime
-                         ] = db.Column('deadline', db.DateTime)
+    deadline: t.Optional[DatetimeWithTimezone] = db.Column(
+        'deadline', db.TIMESTAMP(timezone=True)
+    )
 
     _mail_task_id: t.Optional[str] = db.Column(
         'mail_task_id',
@@ -368,9 +370,9 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         nullable=True,
         default=None,
     )
-    reminder_email_time: t.Optional[datetime.datetime] = db.Column(
+    reminder_email_time: t.Optional[DatetimeWithTimezone] = db.Column(
         'reminder_email_time',
-        db.DateTime,
+        db.TIMESTAMP(timezone=True),
         default=None,
         nullable=True,
     )
@@ -635,7 +637,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
     def change_notifications(
         self,
         done_type: t.Optional[AssignmentDoneType],
-        grader_date: t.Optional[datetime.datetime],
+        grader_date: t.Optional[DatetimeWithTimezone],
         done_email: t.Optional[str],
     ) -> None:
         """Change the notifications for the current assignment.

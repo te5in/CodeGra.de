@@ -5,12 +5,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 import enum
 import typing as t
 import logging as system_logging
-from datetime import datetime
 
 import structlog
 from flask import Flask, g, has_app_context
 from celery import Celery as _Celery
 from celery import signals
+
+from cg_dt_utils import DatetimeWithTimezone
 
 logger = structlog.get_logger()
 
@@ -114,7 +115,9 @@ class CGCelery(Celery):
         outer_self = self
 
         class _ContextTask(TaskBase):
-            def maybe_delay_task(self, wanted_time: datetime) -> bool:
+            def maybe_delay_task(
+                self, wanted_time: DatetimeWithTimezone
+            ) -> bool:
                 """Maybe delay this task.
 
                 This function reschedules the current task with the same
@@ -125,7 +128,7 @@ class CGCelery(Celery):
                 :returns: ``True`` if the task was rescheduled, in this case
                     you should quit running the current task.
                 """
-                now = datetime.utcnow()
+                now = DatetimeWithTimezone.utcnow()
 
                 logger.info(
                     'Checking if should delay the task',
@@ -180,7 +183,7 @@ class CGCelery(Celery):
                     g.queries_total_duration = 0
                     g.queries_max_duration = None
                     g.query_start = None
-                    g.request_start_time = datetime.utcnow()
+                    g.request_start_time = DatetimeWithTimezone.utcnow()
 
                 if outer_self._flask_app.testing:
                     set_g_vars()

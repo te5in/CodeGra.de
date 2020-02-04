@@ -3,13 +3,13 @@
 SPDX-License-Identifier: AGPL-3.0-only
 """
 import typing as t
-import datetime
 from sys import maxsize as _maxsize
 
 import coolname
 from sqlalchemy.sql.expression import or_ as sql_or
 from sqlalchemy.sql.expression import func as sql_func
 
+from cg_dt_utils import DatetimeWithTimezone
 from cg_sqlalchemy_helpers.types import MyQueryTuple
 
 from . import Base, DbColumn, db
@@ -51,8 +51,8 @@ class GroupSet(NotEqualMixin, Base):
     course_id: int = db.Column(
         'Course_id', db.Integer, db.ForeignKey('Course.id'), nullable=False
     )
-    created_at: datetime.datetime = db.Column(
-        db.DateTime, default=datetime.datetime.utcnow
+    created_at: DatetimeWithTimezone = db.Column(
+        db.TIMESTAMP(timezone=True), default=DatetimeWithTimezone.utcnow
     )
 
     course: 'course_models.Course' = db.relationship(
@@ -230,8 +230,8 @@ class Group(Base):
         db.ForeignKey('GroupSet.id'),
         nullable=False,
     )
-    created_at: datetime.datetime = db.Column(
-        db.DateTime, default=datetime.datetime.utcnow
+    created_at: DatetimeWithTimezone = db.Column(
+        db.TIMESTAMP(timezone=True), default=DatetimeWithTimezone.utcnow
     )
     virtual_user_id: int = db.Column(
         'virtual_user_id',

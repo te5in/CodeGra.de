@@ -7,7 +7,6 @@ import os
 import enum
 import typing as t
 import zipfile
-import datetime
 import tempfile
 from collections import defaultdict
 
@@ -17,6 +16,7 @@ from sqlalchemy.orm import undefer, selectinload
 from sqlalchemy.types import JSON
 
 import psef
+from cg_dt_utils import DatetimeWithTimezone
 
 from . import Base, DbColumn, db
 from . import file as file_models
@@ -61,8 +61,8 @@ class GradeHistory(Base):
         query: t.ClassVar[_MyQuery['GradeHistory']] = Base.query
     __tablename__ = "GradeHistory"
     id: int = db.Column('id', db.Integer, primary_key=True)
-    changed_at: datetime.datetime = db.Column(
-        db.DateTime, default=datetime.datetime.utcnow
+    changed_at: DatetimeWithTimezone = db.Column(
+        db.TIMESTAMP(timezone=True), default=DatetimeWithTimezone.utcnow
     )
     is_rubric: bool = db.Column('is_rubric', db.Boolean)
     grade: float = db.Column('grade', db.Float)
@@ -173,8 +173,8 @@ class Work(Base):
     )
 
     orm.deferred(db.Column('comment', db.Unicode, default=None))
-    created_at: datetime.datetime = db.Column(
-        db.DateTime, default=datetime.datetime.utcnow
+    created_at: DatetimeWithTimezone = db.Column(
+        db.TIMESTAMP(timezone=True), default=DatetimeWithTimezone.utcnow
     )
     assigned_to: t.Optional[int] = db.Column(
         'assigned_to', db.Integer, db.ForeignKey('User.id'), nullable=True
@@ -420,8 +420,9 @@ class Work(Base):
             newest_grade_history_id = db.session.query(
                 t.cast(DbColumn[int], GradeHistory.id)
             ).filter_by(work_id=self.id).order_by(
-                t.cast(DbColumn[datetime.datetime],
-                       GradeHistory.changed_at).desc(),
+                t.cast(
+                    DbColumn[DatetimeWithTimezone], GradeHistory.changed_at
+                ).desc(),
             ).limit(1).with_for_update()
 
             db.session.query(GradeHistory).filter(
@@ -896,7 +897,7 @@ class Work(Base):
         author: 'user_models.User',
         tree: psef.extract_tree.ExtractFileTree,
         *,
-        created_at: t.Optional[datetime.datetime] = None,
+        created_at: t.Optional[DatetimeWithTimezone] = None,
     ) -> 'Work':
         """Create a submission from a file tree.
 

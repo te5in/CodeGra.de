@@ -126,6 +126,8 @@ def parse_info_file(file: str) -> SubmissionInfo:
                 student_name=match.group('name').decode('utf-8'),
                 student_id=match.group('id').decode('utf-8'),
                 assignment_name=match.group('assignment').decode('utf-8'),
+                # Timezones are probably wrong here, but we are parsing a
+                # format that is not really documented, so who cares?
                 created_at=dateparser.parse(
                     match.group('datetime').decode('utf-8').replace(
                         " o'clock", ""

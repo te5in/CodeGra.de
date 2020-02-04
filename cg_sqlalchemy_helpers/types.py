@@ -8,7 +8,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 import enum
 import typing as t
-from datetime import datetime, timedelta
+from datetime import timedelta
+
+from typing_extensions import Literal
+
+import cg_dt_utils
 
 T = t.TypeVar('T')
 Z = t.TypeVar('Z')
@@ -136,19 +140,34 @@ class RawTable:  # pragma: no cover
     c: t.Any
 
 
+class _ForeignKey:  # pragma: no cover
+    ...
+
+
 class MyDb:  # pragma: no cover
     session: MySession
     Float: DbType[float]
     Integer: DbType[int]
     Unicode: DbType[str]
-    DateTime: DbType[datetime]
     Boolean: DbType[bool]
-    ForeignKey: t.Callable
     String: t.Callable[[DbSelf, int], DbType[str]]
     LargeBinary: DbType[bytes]
     Interval: DbType[timedelta]
     init_app: t.Callable
     engine: t.Any
+
+    def ForeignKey(
+        self,
+        _name: str,
+        *,
+        ondelete: (t.Union[None, Literal['SET NULL'], Literal['CASCADE']]
+                   ) = None,
+    ) -> _ForeignKey:
+        ...
+
+    def TIMESTAMP(self, *, timezone: Literal[True]
+                  ) -> DbType[cg_dt_utils.DatetimeWithTimezone]:
+        ...
 
     def Table(self, name: str, *args: T) -> RawTable:
         ...
@@ -166,12 +185,25 @@ class MyDb:  # pragma: no cover
 
     @t.overload
     def Column(
-        self, name: str, type_: DbType[T], *args: t.Any, **rest: t.Any
+        self,
+        name: str,
+        type_: DbType[T],
+        _fk: t.Optional[_ForeignKey] = None,
+        *,
+        default: t.Union[T, t.Callable[[], T], None] = None,
+        **rest: t.Any
     ) -> T:
         ...
 
     @t.overload  # NOQA
-    def Column(self, type_: DbType[T], *args: t.Any, **rest: t.Any) -> T:
+    def Column(
+        self,
+        type_: DbType[T],
+        _fk: t.Optional[_ForeignKey] = None,
+        *,
+        default: t.Union[T, t.Callable[[], T], None] = None,
+        **rest: t.Any
+    ) -> T:
         ...
 
     def Column(self, *args: t.Any, **kwargs: t.Any) -> t.Any:  # NOQA

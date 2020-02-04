@@ -19,7 +19,13 @@ def render_item(type_, col, autogen_context):
 
 app = cg_broker.create_app()
 
-migrate = Migrate(app, cg_broker.models.db, render_item=render_item, directory='cg_broker/migrations')
+migrate = Migrate(
+    app,
+    cg_broker.models.db,
+    render_item=render_item,
+    directory='cg_broker/migrations',
+    compare_type=True
+)
 manager = Manager(app)
 
 manager.add_command('db', MigrateCommand)

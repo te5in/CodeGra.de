@@ -24,6 +24,8 @@ import flask_jwt_extended as flask_jwt
 from mypy_extensions import TypedDict
 from defusedxml.ElementTree import fromstring as defused_xml_fromstring
 
+from cg_dt_utils import DatetimeWithTimezone
+
 from . import app, auth, models, helpers, features, current_user
 from .auth import _user_active
 from .models import db
@@ -478,8 +480,8 @@ class LTI:  # pylint: disable=too-many-public-methods
 
         return roles
 
-    def get_assignment_deadline(self, default: datetime.datetime = None
-                                ) -> t.Optional[datetime.datetime]:
+    def get_assignment_deadline(self, default: DatetimeWithTimezone = None
+                                ) -> t.Optional[DatetimeWithTimezone]:
         """Get the deadline of the current LTI assignment.
 
         :param default: The value to be returned of the assignment has no
@@ -842,9 +844,8 @@ class LTI:  # pylint: disable=too-many-public-methods
         lti_operation: LTIOperation
         submission_details: SubmissionDetails = {}
         if use_submission_details:
-            submission_details['submittedAt'] = submission.created_at.replace(
-                tzinfo=datetime.timezone.utc
-            ).isoformat()
+            submission_details['submittedAt'
+                               ] = submission.created_at.isoformat()
 
         data_type = (
             LTIResultDataType.lti_launch_url
@@ -1053,14 +1054,15 @@ class CanvasLTI(LTI):
     def global_roles(self) -> t.Sequence[LTIGlobalRole]:
         return self._roles('ext_roles', LTIGlobalRole)
 
-    def get_assignment_deadline(self, default: datetime.datetime = None
-                                ) -> t.Optional[datetime.datetime]:
+    def get_assignment_deadline(
+        self, default: t.Optional[DatetimeWithTimezone] = None
+    ) -> t.Optional[DatetimeWithTimezone]:
         try:
             deadline = dateutil.parser.parse(
                 self.launch_params['custom_canvas_assignment_due_at']
             )
             deadline = deadline.astimezone(datetime.timezone.utc)
-            return deadline.replace(tzinfo=None)
+            return DatetimeWithTimezone.utcfromtimestamp(deadline.timestamp())
         except (KeyError, ValueError, OverflowError):
             return default
 
@@ -1165,8 +1167,9 @@ class BareBonesLTIProvider(LTI):
     def global_roles(self) -> t.Sequence[LTIGlobalRole]:
         return self._roles('roles', LTIGlobalRole)
 
-    def get_assignment_deadline(self, default: datetime.datetime = None
-                                ) -> t.Optional[datetime.datetime]:
+    def get_assignment_deadline(
+        self, default: t.Optional[DatetimeWithTimezone] = None
+    ) -> t.Optional[DatetimeWithTimezone]:
         return default
 
     @classmethod
