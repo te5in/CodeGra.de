@@ -715,6 +715,10 @@ export default {
         flex: 1 1 auto;
         padding: 0.5rem 0.25rem 0.25rem;
         text-align: center;
+
+        .fa-icon {
+            transform: translateY(-2px);
+        }
     }
 }
 

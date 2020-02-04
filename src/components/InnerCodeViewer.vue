@@ -76,7 +76,7 @@
         </li>
         <li class="missing-newline"
             v-if="showMissingNewline">
-            <icon name="level-up" style="transform: rotate(90deg)"/> Missing newline at the end of file.
+            <icon name="level-up" class="missing-newline-icon"/> Missing newline at the end of file.
         </li>
     </ol>
 
@@ -458,8 +458,12 @@ li {
         cursor: default;
         user-select: none;
 
-        svg {
-            margin-bottom: -0.125em;
+        .fa-icon {
+            transform: rotate(90deg);
+
+            &.missing-newline-icon {
+                transform: translateY(-2px) rotate(90deg);
+            }
         }
     }
 }
