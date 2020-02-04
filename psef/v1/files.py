@@ -6,11 +6,13 @@ the database.
 SPDX-License-Identifier: AGPL-3.0-only
 """
 import os
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import werkzeug
 from flask import request, safe_join, send_from_directory
 from werkzeug.exceptions import NotFound
+
+from cg_dt_utils import DatetimeWithTimezone
 
 from . import api
 from .. import app, auth, files, tasks
@@ -96,7 +98,8 @@ def get_file(
         full_path = files.safe_join(directory, file_name)
         if os.path.isfile(full_path):
             mtime = os.path.getmtime(full_path)
-            age = get_request_start_time() - datetime.fromtimestamp(mtime)
+            age = get_request_start_time(
+            ) - DatetimeWithTimezone.utcfromtimestamp(mtime)
             if age > _MAX_AGE:
                 raise NotFound
 

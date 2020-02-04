@@ -9,7 +9,6 @@ import copy
 import enum
 import typing as t
 import numbers
-import datetime
 
 import regex as re
 import structlog
@@ -17,6 +16,7 @@ from sqlalchemy.types import JSON
 
 import psef
 import cg_logger
+from cg_dt_utils import DatetimeWithTimezone
 from cg_sqlalchemy_helpers.mixins import IdMixin, TimestampMixin
 
 from . import Base, db, _MyQuery
@@ -480,7 +480,7 @@ class _IoTest(AutoTestStepBase):
         opts: 'auto_test_module.ExecuteOptions',
     ) -> float:
         def now() -> str:
-            return datetime.datetime.utcnow().isoformat()
+            return DatetimeWithTimezone.utcnow().isoformat()
 
         data = opts.test_instructions['data']
         assert isinstance(data, dict)
@@ -905,8 +905,8 @@ class AutoTestStepResult(Base, TimestampMixin, IdMixin):
         nullable=False,
     )
 
-    started_at: t.Optional[datetime.datetime] = db.Column(
-        'started_at', db.DateTime, default=None, nullable=True
+    started_at: t.Optional[DatetimeWithTimezone] = db.Column(
+        'started_at', db.TIMESTAMP(timezone=True), default=None, nullable=True
     )
 
     log: 'psef.helpers.JSONType' = db.Column(
@@ -930,7 +930,7 @@ class AutoTestStepResult(Base, TimestampMixin, IdMixin):
 
         self._state = new_state
         if new_state == AutoTestStepResultState.running:
-            self.started_at = datetime.datetime.utcnow()
+            self.started_at = DatetimeWithTimezone.utcnow()
         else:
             self.started_at = None
 

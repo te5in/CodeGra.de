@@ -32,6 +32,7 @@ import psef.auth as a
 import psef.models as m
 from helpers import create_error_template, create_user_with_perms
 from lxc_stubs import lxc_stub
+from cg_dt_utils import DatetimeWithTimezone
 from psef.permissions import CoursePermission as CPerm
 
 TESTDB = 'test_project.db'
@@ -572,7 +573,7 @@ def assignment(course_name, state_is_hidden, session, request, with_works):
         name='TEST COURSE',
         state=state,
         course=course,
-        deadline=datetime.datetime.utcnow() +
+        deadline=DatetimeWithTimezone.utcnow() +
         datetime.timedelta(days=1 if request.param == 'new' else -1)
     )
     session.add(assig)
@@ -620,7 +621,7 @@ def stub_function_class():
         def __call__(self, *args, **kwargs):
             self.args.append(args)
             self.kwargs.append(kwargs)
-            self.call_dates.append(datetime.datetime.utcnow())
+            self.call_dates.append(DatetimeWithTimezone.utcnow())
 
             if self.with_args:
                 self.rets.append(self.ret_func(*args, **kwargs))
@@ -758,9 +759,9 @@ def stubmailer(monkeypatch):
 
 @pytest.fixture
 def tomorrow():
-    yield datetime.datetime.utcnow() + datetime.timedelta(days=1)
+    yield DatetimeWithTimezone.utcnow() + datetime.timedelta(days=1)
 
 
 @pytest.fixture
 def yesterday():
-    yield datetime.datetime.utcnow() - datetime.timedelta(days=1)
+    yield DatetimeWithTimezone.utcnow() - datetime.timedelta(days=1)

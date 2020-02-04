@@ -11,7 +11,6 @@ import sys
 import enum
 import time
 import typing as t
-import datetime
 import tempfile
 import threading
 import contextlib
@@ -35,6 +34,7 @@ from cg_json import (
     JSONResponse, ExtendedJSONResponse, jsonify, extended_jsonify
 )
 from cg_timers import timed_code
+from cg_dt_utils import DatetimeWithTimezone
 from cg_flask_helpers import (
     EmptyResponse, make_empty_response, callback_after_this_request
 )
@@ -381,7 +381,7 @@ def between(min_bound: Z, item: Z, max_bound: Z) -> Z:
     return item
 
 
-def get_request_start_time() -> datetime.datetime:
+def get_request_start_time() -> DatetimeWithTimezone:
     """Return the start time of the current request.
 
     :returns: The time as returned by the python time module.

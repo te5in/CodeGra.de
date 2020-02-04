@@ -19,6 +19,7 @@ from helpers import (
     create_group, create_marker, create_group_set, create_submission,
     create_user_with_perms
 )
+from cg_dt_utils import DatetimeWithTimezone
 from psef.permissions import CoursePermission as CPerm
 
 perm_error = create_marker(pytest.mark.perm_error)
@@ -154,7 +155,7 @@ def test_lti_config(test_client, error_template):
 
 
 def test_lti_new_user_new_course(test_client, app, logged_in, ta_user):
-    due_at = datetime.datetime.utcnow() + datetime.timedelta(
+    due_at = DatetimeWithTimezone.utcnow() + datetime.timedelta(
         days=1, hours=1, minutes=2
     )
     due_at = due_at.replace(second=0, microsecond=0)
@@ -168,7 +169,7 @@ def test_lti_new_user_new_course(test_client, app, logged_in, ta_user):
         due=None
     ):
         with app.app_context():
-            due_date = due or due_at.isoformat() + 'Z'
+            due_date = due or due_at.isoformat()
             data = {
                 'custom_canvas_course_name': 'NEW_COURSE',
                 'custom_canvas_course_id': 'MY_COURSE_ID',
@@ -275,7 +276,7 @@ def test_lti_new_user_new_course(test_client, app, logged_in, ta_user):
 
 
 def test_lti_no_roles_found(test_client, app, logged_in, ta_user, monkeypatch):
-    due_at = datetime.datetime.utcnow() + datetime.timedelta(days=1)
+    due_at = DatetimeWithTimezone.utcnow() + datetime.timedelta(days=1)
     no_course_role = True
 
     def do_lti_launch(
@@ -389,7 +390,7 @@ def test_lti_no_roles_found(test_client, app, logged_in, ta_user, monkeypatch):
     ]
 )
 def test_invalid_lti_role(test_client, app, role, session):
-    due_at = datetime.datetime.utcnow() + datetime.timedelta(days=1)
+    due_at = DatetimeWithTimezone.utcnow() + datetime.timedelta(days=1)
 
     with app.app_context():
         data = {
@@ -440,7 +441,7 @@ def test_lti_grade_passback(
     test_client, app, logged_in, ta_user, filename, monkeypatch, patch,
     monkeypatch_celery, error_template, session
 ):
-    due_at = datetime.datetime.utcnow() + datetime.timedelta(days=1)
+    due_at = DatetimeWithTimezone.utcnow() + datetime.timedelta(days=1)
     assig_max_points = 8
     lti_max_points = assig_max_points / 2
     last_xml = None
@@ -684,7 +685,7 @@ def test_lti_grade_passback_blackboard(
     test_client, app, logged_in, ta_user, filename, monkeypatch, patch,
     monkeypatch_celery, error_template, session
 ):
-    due_at = datetime.datetime.utcnow() + datetime.timedelta(days=1)
+    due_at = DatetimeWithTimezone.utcnow() + datetime.timedelta(days=1)
     assig_max_points = 8
     last_xml = None
 
@@ -758,7 +759,7 @@ def test_lti_grade_passback_blackboard(
                 200,
                 data={
                     'deadline': (
-                        datetime.datetime.utcnow() +
+                        DatetimeWithTimezone.utcnow() +
                         datetime.timedelta(days=1)
                     ).isoformat(),
                 },
@@ -1096,7 +1097,7 @@ def test_lti_assignment_update(
             'patch',
             f'/api/v1/assignments/{assig["id"]}',
             status,
-            data={'deadline': datetime.datetime.utcnow().isoformat()},
+            data={'deadline': DatetimeWithTimezone.utcnow().isoformat()},
             headers={'Authorization': f'Bearer {token}'},
             result=result,
         )
@@ -1119,7 +1120,7 @@ def test_lti_assignment_update(
 
 
 def test_reset_lti_email(test_client, app, logged_in, ta_user, session):
-    due_at = datetime.datetime.utcnow() + datetime.timedelta(
+    due_at = DatetimeWithTimezone.utcnow() + datetime.timedelta(
         days=1, hours=1, minutes=2
     )
     due_at = due_at.replace(second=0, microsecond=0)
@@ -1134,7 +1135,7 @@ def test_reset_lti_email(test_client, app, logged_in, ta_user, session):
         due=None
     ):
         with app.app_context():
-            due_date = due or due_at.isoformat() + 'Z'
+            due_date = due or due_at.isoformat()
             data = {
                 'custom_canvas_course_name': 'NEW_COURSE',
                 'custom_canvas_course_id': 'MY_COURSE_ID',
@@ -1214,7 +1215,7 @@ def test_reset_lti_email(test_client, app, logged_in, ta_user, session):
 
 
 def test_invalid_jwt(test_client, app, logged_in, session, error_template):
-    due_at = datetime.datetime.utcnow() + datetime.timedelta(
+    due_at = DatetimeWithTimezone.utcnow() + datetime.timedelta(
         days=1, hours=1, minutes=2
     )
     due_at = due_at.replace(second=0, microsecond=0)
@@ -1227,7 +1228,7 @@ def test_invalid_jwt(test_client, app, logged_in, session, error_template):
     username = 'a-the-a-er'
     due = None
     with app.app_context():
-        due_date = due or due_at.isoformat() + 'Z'
+        due_date = due or due_at.isoformat()
         data = {
             'custom_canvas_course_name': 'NEW_COURSE',
             'custom_canvas_course_id': 'MY_COURSE_ID',
@@ -1266,7 +1267,7 @@ def test_invalid_jwt(test_client, app, logged_in, session, error_template):
         )
 
         # Cannot use blob twice
-        blob.created_at = datetime.datetime.utcnow()
+        blob.created_at = DatetimeWithTimezone.utcnow()
         session.commit()
         test_client.req(
             'post', '/api/v1/lti/launch/2', 200, data={'blob_id': blob_id}
@@ -1295,7 +1296,7 @@ def test_invalid_jwt(test_client, app, logged_in, session, error_template):
 def test_invalid_lms(
     test_client, app, logged_in, session, error_template, oauth_key, err
 ):
-    due_at = datetime.datetime.utcnow() + datetime.timedelta(
+    due_at = DatetimeWithTimezone.utcnow() + datetime.timedelta(
         days=1, hours=1, minutes=2
     )
     due_at = due_at.replace(second=0, microsecond=0)
@@ -1308,7 +1309,7 @@ def test_invalid_lms(
     username = 'a-the-a-er'
     due = None
     with app.app_context():
-        due_date = due or due_at.isoformat() + 'Z'
+        due_date = due or due_at.isoformat()
         data = {
             'custom_canvas_course_name': 'NEW_COURSE',
             'custom_canvas_course_id': 'MY_COURSE_ID',
@@ -1344,7 +1345,7 @@ def test_lti_grade_passback_with_groups(
     test_client, app, logged_in, teacher_user, filename, monkeypatch,
     monkeypatch_celery, error_template, session
 ):
-    due_at = datetime.datetime.utcnow() + datetime.timedelta(days=1)
+    due_at = DatetimeWithTimezone.utcnow() + datetime.timedelta(days=1)
     assig_max_points = 8
     lti_max_points = assig_max_points / 2
     source_id = str(uuid.uuid4())
@@ -1655,7 +1656,7 @@ def test_lti_grade_passback_moodle(
     test_client, app, logged_in, ta_user, filename, monkeypatch, patch,
     monkeypatch_celery, error_template, session
 ):
-    due_at = datetime.datetime.utcnow() + datetime.timedelta(days=1)
+    due_at = DatetimeWithTimezone.utcnow() + datetime.timedelta(days=1)
     assig_max_points = 8
     last_xml = None
 
@@ -1728,7 +1729,7 @@ def test_lti_grade_passback_moodle(
                 200,
                 data={
                     'deadline': (
-                        datetime.datetime.utcnow() +
+                        DatetimeWithTimezone.utcnow() +
                         datetime.timedelta(days=1)
                     ).isoformat(),
                 },
@@ -1828,7 +1829,7 @@ def test_lti_grade_passback_brightspace(
     test_client, app, logged_in, ta_user, filename, monkeypatch, patch,
     monkeypatch_celery, error_template, session
 ):
-    due_at = datetime.datetime.utcnow() + datetime.timedelta(days=1)
+    due_at = DatetimeWithTimezone.utcnow() + datetime.timedelta(days=1)
     assig_max_points = 8
     last_xml = None
 
@@ -1901,7 +1902,7 @@ def test_lti_grade_passback_brightspace(
                 200,
                 data={
                     'deadline': (
-                        datetime.datetime.utcnow() +
+                        DatetimeWithTimezone.utcnow() +
                         datetime.timedelta(days=1)
                     ).isoformat(),
                 },
@@ -2217,7 +2218,7 @@ def test_lti_roles(
 def test_canvas_new_assignment_without_outcoume_service_url(
     test_client, app, logged_in, session, include_service_url
 ):
-    due_at = datetime.datetime.utcnow() + datetime.timedelta(
+    due_at = DatetimeWithTimezone.utcnow() + datetime.timedelta(
         days=1, hours=1, minutes=2
     )
     due_at = due_at.replace(second=0, microsecond=0)
@@ -2230,7 +2231,7 @@ def test_canvas_new_assignment_without_outcoume_service_url(
     due = None
 
     with app.app_context():
-        due_date = due or due_at.isoformat() + 'Z'
+        due_date = due or due_at.isoformat()
         data = {
             'custom_canvas_course_name': 'NEW_COURSE',
             'custom_canvas_course_id': 'MY_COURSE_ID',
@@ -2284,7 +2285,7 @@ def test_canvas_missing_required_params(
             'custom_canvas_assignment_title': '$Canvas.assignment.title',
             'ext_roles': 'urn:lti:role:ims/lis/Instructor',
             'custom_canvas_user_login_id': username,
-            'custom_canvas_assignment_due_at': tomorrow.isoformat() + 'Z',
+            'custom_canvas_assignment_due_at': tomorrow.isoformat(),
             'custom_canvas_assignment_published': published,
             'user_id': lti_id,
             'lis_person_contact_email_primary': email,

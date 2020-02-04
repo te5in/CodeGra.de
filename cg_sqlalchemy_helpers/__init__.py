@@ -3,9 +3,9 @@ SQLAlchemy especially in the context of Flask.
 
 SPDX-License-Identifier: AGPL-3.0-only
 """
+import time
 import uuid
 import typing as t
-import datetime
 
 from flask import Flask, g
 from sqlalchemy import event
@@ -47,15 +47,14 @@ def init_app(db: types.MyDb, app: Flask) -> None:
         @event.listens_for(db.engine, "before_cursor_execute")
         def __before_cursor_execute(*_args: object) -> None:
             if hasattr(g, 'query_start'):
-                g.query_start = datetime.datetime.utcnow()
+                g.query_start = time.time()
 
         @event.listens_for(db.engine, "after_cursor_execute")
         def __after_cursor_execute(*_args: object) -> None:
             if hasattr(g, 'queries_amount'):
                 g.queries_amount += 1
             if hasattr(g, 'query_start'):
-                delta = (datetime.datetime.utcnow() -
-                         g.query_start).total_seconds()
+                delta = time.time() - g.query_start
                 if hasattr(g, 'queries_total_duration'):
                     g.queries_total_duration += delta
                 if (

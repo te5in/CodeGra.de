@@ -5,9 +5,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 import enum
 import json
 import typing as t
-import datetime
 
 import psef
+from cg_dt_utils import DatetimeWithTimezone
 
 from . import Base, db, _MyQuery
 from .. import auth
@@ -75,8 +75,8 @@ class PlagiarismRun(Base):
         db.ForeignKey('Assignment.id'),
         nullable=False,
     )
-    created_at: datetime.datetime = db.Column(
-        db.DateTime, default=datetime.datetime.utcnow
+    created_at: DatetimeWithTimezone = db.Column(
+        db.TIMESTAMP(timezone=True), default=DatetimeWithTimezone.utcnow
     )
 
     assignment: Assignment = db.relationship(
@@ -208,8 +208,8 @@ class PlagiarismCase(Base):
         db.ForeignKey('Work.id', ondelete='CASCADE'),
         nullable=False,
     )
-    created_at: datetime.datetime = db.Column(
-        db.DateTime, default=datetime.datetime.utcnow
+    created_at: DatetimeWithTimezone = db.Column(
+        db.TIMESTAMP(timezone=True), default=DatetimeWithTimezone.utcnow
     )
     plagiarism_run_id = db.Column(
         'plagiarism_run_id',

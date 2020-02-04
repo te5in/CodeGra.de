@@ -3,7 +3,6 @@
 SPDX-License-Identifier: AGPL-3.0-only
 """
 import typing as t
-import datetime
 from functools import wraps
 
 import oauth2
@@ -18,6 +17,7 @@ from mypy_extensions import NoReturn
 
 import psef
 from psef import features
+from cg_dt_utils import DatetimeWithTimezone
 from psef.helpers import readable_join
 from psef.exceptions import APICodes, APIException, PermissionException
 
@@ -206,7 +206,7 @@ def _ensure_submission_limits_not_exceeded(
             )
         )
         query_oldest_in_period: psef.models.DbColumn[
-            t.Optional[datetime.datetime]
+            t.Optional[DatetimeWithTimezone]
         ] = base_sql.filter(Work.created_at >= cool_off_cutoff).with_entities(
             sql.func.min(Work.created_at)
         ).label('oldest')

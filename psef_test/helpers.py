@@ -11,6 +11,7 @@ import pytest
 from werkzeug.local import LocalProxy
 
 import psef.models as m
+from cg_dt_utils import DatetimeWithTimezone
 from psef.permissions import CoursePermission as CPerm
 from psef.permissions import GlobalPermission as GPerm
 
@@ -45,7 +46,7 @@ def create_lti_assignment(
     name = f'__NEW_LTI_ASSIGNMENT__-{uuid.uuid4()}'
 
     if deadline == 'tomorrow':
-        deadline = datetime.datetime.utcnow() + datetime.timedelta(days=1)
+        deadline = DatetimeWithTimezone.utcnow() + datetime.timedelta(days=1)
 
     res = m.Assignment(
         name=name,
@@ -93,7 +94,7 @@ def create_assignment(
         course_id = create_course(test_client)
 
     if deadline == 'tomorrow':
-        deadline = datetime.datetime.utcnow() + datetime.timedelta(days=1)
+        deadline = DatetimeWithTimezone.utcnow() + datetime.timedelta(days=1)
 
     res = test_client.req(
         'post',

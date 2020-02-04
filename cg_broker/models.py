@@ -7,7 +7,7 @@ import time
 import uuid
 import typing as t
 import secrets
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import boto3
 import structlog
@@ -22,6 +22,7 @@ import cg_broker
 import cg_sqlalchemy_helpers as cgs
 from cg_logger import bound_to_logger
 from cg_timers import timed_code
+from cg_dt_utils import DatetimeWithTimezone
 from cg_flask_helpers import callback_after_this_request
 from cg_sqlalchemy_helpers import types, mixins
 
@@ -120,8 +121,8 @@ class Runner(Base, mixins.TimestampMixin, mixins.UUIDMixin):
         nullable=False,
         default=RunnerState.not_running
     )
-    started_at: t.Optional[datetime] = db.Column(
-        db.DateTime, default=None, nullable=True
+    started_at: t.Optional[DatetimeWithTimezone] = db.Column(
+        db.TIMESTAMP(timezone=True), default=None, nullable=True
     )
 
     # The id used by the provider of this execution unit
@@ -283,7 +284,7 @@ class Runner(Base, mixins.TimestampMixin, mixins.UUIDMixin):
             of time if it is still unassigned.
         """
         self.job_id = None
-        eta = datetime.utcnow() + timedelta(
+        eta = DatetimeWithTimezone.utcnow() + timedelta(
             minutes=app.config['RUNNER_MAX_TIME_ALIVE']
         )
         runner_hex_id = self.id.hex

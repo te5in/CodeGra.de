@@ -27,6 +27,7 @@ from celery.schedules import crontab
 import psef as p
 import cg_celery
 import cg_logger
+from cg_dt_utils import DatetimeWithTimezone
 from cg_sqlalchemy_helpers.types import DbColumn
 
 logger = structlog.get_logger()
@@ -351,7 +352,7 @@ def _run_plagiarism_control_1(  # pylint: disable=too-many-branches,too-many-sta
 
 @celery.task
 def _run_autotest_batch_runs_1() -> None:
-    now = datetime.datetime.utcnow()
+    now = DatetimeWithTimezone.utcnow()
     # Limit the amount of runs, this way we never accidentally overload the
     # server by doing a large amount of batch run.
     max_runs = p.app.config['AUTO_TEST_MAX_CONCURRENT_BATCH_RUNS']
@@ -475,7 +476,7 @@ def _check_heartbeat_stop_test_runner_1(auto_test_runner_id: str) -> None:
     interval = p.app.config['AUTO_TEST_HEARTBEAT_INTERVAL']
     max_missed = p.app.config['AUTO_TEST_HEARTBEAT_MAX_MISSED']
     max_interval = datetime.timedelta(seconds=interval * max_missed)
-    needed_time = datetime.datetime.utcnow() - max_interval
+    needed_time = DatetimeWithTimezone.utcnow() - max_interval
     expired = runner.last_heartbeat < needed_time
 
     logger.info(
@@ -551,10 +552,10 @@ def _update_latest_results_in_broker_1(auto_test_run_id: int) -> None:
 
     def get_latest_date(
         state: m.AutoTestStepResultState,
-        col: t.Optional[datetime.datetime],
+        col: t.Optional[DatetimeWithTimezone],
         oldest: bool = True
     ) -> t.Optional[str]:
-        c = t.cast(m.DbColumn[datetime.datetime], col)  # pylint: disable=invalid-name
+        c = t.cast(m.DbColumn[DatetimeWithTimezone], col)  # pylint: disable=invalid-name
         date = m.db.session.query(c).filter_by(
             auto_test_run_id=auto_test_run_id,
             state=state,
@@ -624,7 +625,7 @@ def _clone_commit_as_submission_1(
     assignment = p.models.Assignment.query.filter_by(id=webhook.assignment_id
                                                      ).with_for_update().one()
 
-    created_at = datetime.datetime.fromtimestamp(unix_timestamp)
+    created_at = DatetimeWithTimezone.utcfromtimestamp(unix_timestamp)
 
     with webhook.written_private_key() as fname, tempfile.TemporaryDirectory(
     ) as tmpdir:
@@ -671,7 +672,7 @@ def _delete_file_at_time_1(
     filename: str, in_mirror_dir: bool, deletion_time: str
 ) -> None:
     if current_task.maybe_delay_task(
-        datetime.datetime.fromisoformat(deletion_time)
+        DatetimeWithTimezone.fromisoformat(deletion_time)
     ):
         return
 
@@ -715,11 +716,12 @@ update_latest_results_in_broker = _update_latest_results_in_broker_1.delay  # py
 clone_commit_as_submission = _clone_commit_as_submission_1.delay  # pylint: disable=invalid-name
 delete_file_at_time = _delete_file_at_time_1.delay  # pylint: disable=invalid-name
 
-send_reminder_mails: t.Callable[[
-    t.Tuple[int], NamedArg(t.Optional[datetime.datetime], 'eta')
-], t.Any] = _send_reminder_mails_1.apply_async  # pylint: disable=invalid-name
+send_reminder_mails: t.Callable[
+    [t.Tuple[int],
+     NamedArg(t.Optional[DatetimeWithTimezone], 'eta')], t.
+    Any] = _send_reminder_mails_1.apply_async  # pylint: disable=invalid-name
 
 check_heartbeat_auto_test_run: t.Callable[
     [t.Tuple[str],
-     DefaultNamedArg(t.Optional[datetime.datetime], 'eta')], t.
+     DefaultNamedArg(t.Optional[DatetimeWithTimezone], 'eta')], t.
     Any] = _check_heartbeat_stop_test_runner_1.apply_async  # pylint: disable=invalid-name
