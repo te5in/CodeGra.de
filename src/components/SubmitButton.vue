@@ -450,9 +450,6 @@ export default {
     left: 50%;
     line-height: 1;
     transform: translate(-50%, -50%);
-    .fa-icon {
-        transform: none;
-    }
 }
 
 .state-success .label.success,
