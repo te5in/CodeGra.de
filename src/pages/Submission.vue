@@ -174,7 +174,7 @@
                              :language="selectedLanguage"
                              @language="languageChanged" />
 
-                <div class="file-tree-container form-control p-0 mt-3 mt-lg-0" slot="secondPane">
+                <div class="file-tree-container border rounded p-0 mt-3 mt-lg-0" slot="secondPane">
                     <file-tree :assignment="assignment"
                                :submission="submission"
                                :revision="revision"

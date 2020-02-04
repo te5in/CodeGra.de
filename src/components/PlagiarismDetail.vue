@@ -114,7 +114,7 @@
     <div v-if="!contentLoaded" style="padding-top: 3em;">
         <loader :scale="3"/>
     </div>
-    <div class="code-viewer form-control" v-else>
+    <div class="code-viewer border rounded" v-else>
         <div class="student-files"
                 v-for="key in ['self', 'other']"
                 :ref="`file-comparison-${key}`">

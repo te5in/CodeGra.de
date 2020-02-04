@@ -58,7 +58,7 @@
                      :key="`file-${id}-line-${part[0]}`">
                     <hr v-if="i !== 0">
 
-                    <inner-code-viewer class="form-control p-0"
+                    <inner-code-viewer class="border rounded p-0"
                                        :assignment="assignment"
                                        :submission="submission"
                                        :code-lines="codeLines[id]"

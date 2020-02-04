@@ -31,7 +31,7 @@
             </span>
             <div v-else-if="cell.cell_type === 'code'">
                 <inner-code-viewer
-                    class="code form-control p-0"
+                    class="code border rounded p-0"
                     :assignment="assignment"
                     :submission="submission"
                     :code-lines="cell.source"
