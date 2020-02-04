@@ -152,8 +152,8 @@ export default {
     }
 
     .back-button {
-        border-top-left-radius: 0.25rem !important;
-        border-bottom-left-radius: 0.25rem !important;
+        border-top-left-radius: @border-radius !important;
+        border-bottom-left-radius: @border-radius !important;
     }
 }
 

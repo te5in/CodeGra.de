@@ -188,25 +188,25 @@ export default {
 .multiple-files-uploader {
     &:not(.no-border) .dropzone {
         border: 1px solid rgba(0, 0, 0, 0.125);
-        border-top-left-radius: 0.25rem;
-        border-top-right-radius: 0.25rem;
+        border-top-left-radius: @border-radius;
+        border-top-right-radius: @border-radius;
 
         &.dropzone-amount-files-0 .dz-custom-message:hover,
         .dz-message + .dz-preview,
         .dz-hover-overlay {
-            border-top-left-radius: 0.25rem;
-            border-top-right-radius: 0.25rem;
+            border-top-left-radius: @border-radius;
+            border-top-right-radius: @border-radius;
         }
     }
 
     &.no-hard-bottom-corners .dropzone {
-        border-bottom-right-radius: 0.25rem;
-        border-bottom-left-radius: 0.25rem;
+        border-bottom-right-radius: @border-radius;
+        border-bottom-left-radius: @border-radius;
 
         &.dropzone-amount-files-0 .dz-custom-message:hover,
         .dz-hover-overlay {
-            border-bottom-right-radius: 0.25rem;
-            border-bottom-left-radius: 0.25rem;
+            border-bottom-right-radius: @border-radius;
+            border-bottom-left-radius: @border-radius;
         }
     }
 
@@ -247,7 +247,7 @@ export default {
                 right: 0.75rem;
                 bottom: 0.75rem;
                 border: 2px dashed white;
-                border-radius: 0.5rem;
+                border-radius: 2 * @border-radius;
                 color: white;
                 font-size: 2rem;
                 text-align: center;

@@ -718,7 +718,7 @@ ${right.join('\n')}
     flex: 0 0 auto;
     overflow-y: auto;
     border: 1px solid rgba(0, 0, 0, 0.125);
-    border-radius: 0.25rem;
+    border-radius: @border-radius;
 }
 
 .range-table {

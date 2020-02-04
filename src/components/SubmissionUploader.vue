@@ -9,10 +9,11 @@
         <webhook-instructions :data="gitData" />
     </b-modal>
 
-    <b-modal id="wrong-files-modal"
-             v-if="showWrongFileModal"
+    <b-modal v-if="showWrongFileModal"
+             id="wrong-files-modal"
              hide-footer
-             title="Your submission does not follow the hand-in instruction required by your teacher!">
+             title="Your submission does not follow the hand-in instruction required by your teacher!"
+             size="xl">
         <div v-if="oldIgnoreFormat">
             <p>
                 The following files should not be in your archive according to
@@ -35,7 +36,7 @@
                     content-class="missing-required-files-content">
                 <b-tab title="Missing files" class="ignore-tab" :disabled="wrongFileError.missing_files.length === 0">
                     <b-card class="ignore-card missing-card" no-body>
-                        <p class="explanation">
+                        <p class="m-3">
                             The following files were required by your teacher, but
                             were not found in your submission.
                         </p>
@@ -926,12 +927,7 @@ export default {
     flex: 0 0 auto;
 }
 
-.missing-card .explanation {
-    padding: 0 0.75rem;
-}
-
 .ignore-card {
-    padding-top: 0.75rem;
     border-top-right-radius: 0;
     border-top-left-radius: 0;
     border-top: 0;

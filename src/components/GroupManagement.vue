@@ -383,7 +383,7 @@ action is required.${divEnd}`;
         color: @color-lighter-gray;
     }
 
-    border-radius: 0.25rem;
+    border-radius: @border-radius;
     border: 1px solid @color-secondary;
     display: flex;
     justify-content: space-between;
@@ -424,6 +424,8 @@ action is required.${divEnd}`;
 </style>
 
 <style lang="less">
+@import "~mixins.less";
+
 .group-management .user-selector.multiselect .multiselect__tags {
     border-left: 0;
     border-bottom: 0;
@@ -431,6 +433,6 @@ action is required.${divEnd}`;
 }
 
 .group-management .user-selector.multiselect--active .multiselect__tags {
-    border-bottom-left-radius: 0.25rem;
+    border-bottom-left-radius: @border-radius;
 }
 </style>

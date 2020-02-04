@@ -408,7 +408,8 @@ export default {
     width: 100%;
     display: block;
     border: 1px solid #dee2e6;
-    border-radius: 0.25rem;
+    border-radius: @border-radius;
+
     #app.dark & {
         border-color: @color-primary-darker;
     }

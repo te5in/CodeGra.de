@@ -671,8 +671,8 @@ export default {
     overflow-y: auto;
 
     .snippet-list-wrapper:not(.snippets-above) & {
-        border-bottom-left-radius: 0.25rem;
-        border-bottom-right-radius: 0.25rem;
+        border-bottom-left-radius: @border-radius;
+        border-bottom-right-radius: @border-radius;
     }
     &.inline {
         height: 8em;
@@ -735,7 +735,7 @@ export default {
         display: flex;
         align-items: top;
         border: 1px solid rgba(0, 0, 0, 0.125);
-        border-radius: 0.25rem;
+        border-radius: @border-radius;
     }
 
     @media @media-small {
@@ -804,8 +804,8 @@ button {
     .submit-button {
         flex: 1;
         &:first-child {
-            border-top-right-radius: 0px;
-            border-top-left-radius: 0px;
+            border-top-right-radius: 0;
+            border-top-left-radius: 0;
         }
     }
     min-height: 7em;
@@ -842,7 +842,7 @@ textarea {
         border: 0.5px solid @color-secondary;
     }
     padding: 0;
-    border-radius: 0.25rem;
+    border-radius: @border-radius;
 }
 
 .input.snippet {
@@ -872,9 +872,9 @@ textarea {
 
 <style lang="less">
 .feedback-area .minor-buttons .submit-button.btn:last-child {
-    border-bottom-right-radius: 0px;
-    border-bottom-left-radius: 0px;
-    border-top-right-radius: 0px;
-    border-top-left-radius: 0px;
+    border-bottom-right-radius: 0;
+    border-bottom-left-radius: 0;
+    border-top-right-radius: 0;
+    border-top-left-radius: 0;
 }
 </style>

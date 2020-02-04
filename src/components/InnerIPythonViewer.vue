@@ -183,7 +183,7 @@ export default {
     .inner-result-cell pre {
         padding: 0.6em 2rem;
         border: 1px solid rgba(0, 0, 0, 0.1);
-        border-radius: 0.25rem;
+        border-radius: @border-radius;
 
         #app.dark & {
             background: @color-primary-darkest;
