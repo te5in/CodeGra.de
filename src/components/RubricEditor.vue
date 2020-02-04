@@ -95,8 +95,25 @@
         <b-tab class="border px-3 pt-3 pb-0"
                :class="{ 'rounded-bottom': editable, 'border-bottom-0': !editable }"
                v-for="row, i in rubricRows"
-               :title="rubricCategoryTitle(row)"
                :key="`rubric-${id}-${i}`">
+
+            <template v-slot:title>
+                <template v-if="row.header">
+                    {{ row.header }}
+                </template>
+
+                <span v-else
+                      class="text-muted font-italic">
+                    Unnamed
+                </span>
+
+                <b-badge v-if="row.locked === 'auto_test'"
+                         title="This is an AutoTest category"
+                         variant="primary"
+                         class="ml-1">
+                    AT
+                </b-badge>
+            </template>
 
             <template v-if="row.type == '' && editable">
                 <h4 class="text-center pb-3 pt-3">Select the type of category</h4>
@@ -366,7 +383,7 @@ import 'vue-awesome/icons/times';
 import 'vue-awesome/icons/reply';
 import 'vue-awesome/icons/ellipsis-h';
 
-import { RUBRIC_BADGE_AT, NONEXISTENT } from '@/constants';
+import { NONEXISTENT } from '@/constants';
 import { Rubric } from '@/models';
 import { ValidationError } from '@/models/errors';
 import { formatGrade } from '@/utils';
@@ -747,20 +764,6 @@ export default {
         setRowType(idx, type) {
             const row = this.rubric.rows[idx].setType(type);
             this.rubric = this.rubric.updateRow(idx, row);
-        },
-
-        rubricCategoryTitle(row) {
-            if (!row.header) {
-                return '<span class="text-muted font-italic">Unnamed category</span>';
-            }
-
-            let title = this.$utils.htmlEscape(row.header);
-
-            if (row.locked === 'auto_test') {
-                title += ` ${RUBRIC_BADGE_AT}`;
-            }
-
-            return title;
         },
     },
 
