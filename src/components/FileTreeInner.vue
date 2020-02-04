@@ -366,11 +366,11 @@ export default {
 
     .caret-icon {
         width: 1em;
-        transform: rotate(0);
+        transform: translateY(-1px) rotate(0);
         transition: transform @transition-duration;
 
         &.collapsed {
-            transform: rotate(-90deg);
+            transform: translateY(-1px) rotate(-90deg);
         }
     }
 

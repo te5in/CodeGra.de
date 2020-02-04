@@ -12,12 +12,17 @@
                      revision="student"
                      :icon="submission.user.group ? 'user-plus' : 'user'"
                      class="student-tree">
-        <span slot="dir-slot" :title="$utils.nameOfUser(submission.user)">
-            <description-popover placement="top" boundary="window">
-                This directory contains the files uploaded by the student.
-            </description-popover>{{
-                $utils.nameOfUser(submission.user)
-            }}
+        <span slot="dir-slot"
+              slot-scope="dirinfo"
+              :title="$utils.nameOfUser(submission.user)">
+            <template v-if="dirinfo.depth === 1">
+                <description-popover placement="top" boundary="window">
+                    This directory contains the files uploaded by the student.
+                </description-popover>{{ $utils.nameOfUser(submission.user) }}
+            </template>
+            <template v-else>
+                {{ dirinfo.filename }}
+            </template>
             <!-- The <user> component does not work here, for some reason it is never visible -->
             <!-- when the user is a group. If this is a group submission it is used in the -->
             <!-- submission navbar, though, so it is not really needed here. -->
@@ -35,11 +40,16 @@
                          revision="teacher"
                          icon="graduation-cap"
                          class="teacher-tree">
-            <template slot="dir-slot">
-                <description-popover placement="top" boundary="window">
-                    This directory contains files changed by the teacher. Faded files are unchanged.
-                </description-popover
-                >Teacher revision
+            <template slot="dir-slot"
+                      slot-scope="dirinfo">
+                <template v-if="dirinfo.depth === 1">
+                    <description-popover placement="top" boundary="window">
+                        This directory contains files changed by the teacher. Faded files are unchanged.
+                    </description-popover>Teacher revision
+                </template>
+                <template v-else>
+                    {{ dirinfo.filename }}
+                </template>
             </template>
         </file-tree-inner>
 
@@ -53,12 +63,17 @@
                          revision="diff"
                          icon="diff"
                          class="diff-tree">
-            <template slot="dir-slot">
-                <description-popover placement="top" boundary="window">
-                    This directory contains the diffs between the student submission and the teacher
-                    revision. Faded files are unchanged.
-                </description-popover
-                >Teacher diff
+            <template slot="dir-slot"
+                      slot-scope="dirinfo">
+                <template v-if="dirinfo.depth === 1">
+                    <description-popover placement="top" boundary="window">
+                        This directory contains the diffs between the student submission and the teacher
+                        revision. Faded files are unchanged.
+                    </description-popover>Teacher diff
+                </template>
+                <template v-else>
+                    {{ dirinfo.filename }}
+                </template>
             </template>
         </file-tree-inner>
     </template>
@@ -73,13 +88,18 @@
                          revision="autotest"
                          icon="rocket"
                          class="autotest-tree">
-            <template slot="dir-slot">
-                <description-popover placement="top" boundary="window">
-                    This directory contains files generated during the AutoTest. Each subdirectory
-                    represents a single AutoTest category and contains only the files that were
-                    generated in that category.
-                </description-popover
-                >AutoTest output
+            <template slot="dir-slot"
+                      slot-scope="dirinfo">
+                <template v-if="dirinfo.depth === 1">
+                    <description-popover placement="top" boundary="window">
+                        This directory contains files generated during the AutoTest. Each subdirectory
+                        represents a single AutoTest category and contains only the files that were
+                        generated in that category.
+                    </description-popover>AutoTest output
+                </template>
+                <template v-else>
+                    {{ dirinfo.filename }}
+                </template>
             </template>
         </file-tree-inner>
     </template>
