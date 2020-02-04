@@ -34,49 +34,53 @@
              :sort-by="this.$route.query.sortBy || 'user'"
              :sort-desc="!parseBool(this.$route.query.sortAsc, true)"
              class="mb-0 border-bottom submissions-table">
-        <a class="invisible-link"
-           href="#"
-           slot="user"
-           slot-scope="item"
-           @click.prevent>
-            <user :user="item.item.sub.user"/>
-            <webhook-name :submission="item.item.sub" />
-            <icon name="exclamation-triangle"
-                  class="text-warning ml-1"
-                  style="margin-bottom: -1px;"
-                  v-b-popover.top.hover="getOtherSubmissionPopover(item.item.sub)"
-                  v-if="!!getOtherSubmissionPopover(item.item.sub)"/>
-        </a>
-
-        <span slot="grade" slot-scope="item" class="submission-grade">
-            {{ item.item.sub.grade || '-' }}
-        </span>
-
-        <template slot="formattedCreatedAt" slot-scope="item">
-            {{item.item.sub.formattedCreatedAt }}
-            <late-submission-icon
-                :submission="item.item.sub"
-                :assignment="assignment" />
+        <template v-slot:cell(user)="item">
+            <a class="invisible-link"
+               href="#"
+               @click.prevent>
+                <user :user="item.item.sub.user"/>
+                <webhook-name :submission="item.item.sub" />
+                <icon name="exclamation-triangle"
+                      class="text-warning ml-1"
+                      style="margin-bottom: -1px;"
+                      v-b-popover.top.hover="getOtherSubmissionPopover(item.item.sub)"
+                      v-if="!!getOtherSubmissionPopover(item.item.sub)"/>
+            </a>
         </template>
 
-        <span slot="assignee" slot-scope="item" class="assigned-to-grader">
-            <span v-if="!canAssignGrader || graders == null">
-                <user :user="item.item.sub.assignee"
-                      v-if="item.item.sub.assignee"/>
-                <span v-else>-</span>
+        <template v-slot:cell(grade)="item">
+            <span class="submission-grade">
+                {{ item.item.sub.grade || '-' }}
             </span>
-            <loader :scale="1"
-                    v-else-if="assigneeUpdating[item.item.sub.id]"/>
-            <div v-else
-                 v-b-popover.top.hover="item.item.sub.user.is_test_student ? 'You cannot assign test students to graders.' : ''">
-                <b-form-select :options="assignees"
-                               :disabled="!!(item.item.sub.user.is_test_student || getOtherSubmissionPopover(item.item.sub))"
-                               :value="item.item.sub.assigneeId || null"
-                               @input="updateAssignee($event, item.item.sub)"
-                               @click.native.stop
-                               class="user-form-select"/>
-            </div>
-        </span>
+        </template>
+
+        <template v-slot:cell(formattedCreatedAt)="item">
+            {{item.item.sub.formattedCreatedAt }}
+
+            <late-submission-icon :submission="item.item.sub"
+                                  :assignment="assignment" />
+        </template>
+
+        <template v-slot:cell(assignee)="item" >
+            <span class="assigned-to-grader">
+                <span v-if="!canAssignGrader || graders == null">
+                    <user :user="item.item.sub.assignee"
+                          v-if="item.item.sub.assignee"/>
+                    <span v-else>-</span>
+                </span>
+                <loader :scale="1"
+                        v-else-if="assigneeUpdating[item.item.sub.id]"/>
+                <div v-else
+                     v-b-popover.top.hover="item.item.sub.user.is_test_student ? 'You cannot assign test students to graders.' : ''">
+                    <b-form-select :options="assignees"
+                                   :disabled="!!(item.item.sub.user.is_test_student || getOtherSubmissionPopover(item.item.sub))"
+                                   :value="item.item.sub.assigneeId || null"
+                                   @input="updateAssignee($event, item.item.sub)"
+                                   @click.native.stop
+                                   class="user-form-select"/>
+                </div>
+            </span>
+        </template>
     </b-table>
 
     <div v-if="!canSeeOthersWork && this.submissions.length === 0"
