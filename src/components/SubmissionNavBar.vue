@@ -6,7 +6,7 @@
                   :disabled="prevSub == null"
                   v-b-popover.hover.bottom="generatePopoverTitle(prevSub)"
                   @click="selectSub(prevSub)"
-                  class="prev">
+                  class="prev flex-grow-0">
             <icon name="angle-left"/>
         </b-button>
 
@@ -76,7 +76,7 @@
                   :disabled="nextSub == null"
                   v-b-popover.hover.bottom="generatePopoverTitle(nextSub)"
                   @click="selectSub(nextSub)"
-                  class="next">
+                  class="next flex-grow-0">
             <icon name="angle-right"/>
         </b-button>
     </b-button-group>
