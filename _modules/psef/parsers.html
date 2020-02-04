@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>psef.parsers &mdash; CodeGrade v1.19.0 documentation</title>
+  <title>psef.parsers &mdash; CodeGrade v1.19.1 documentation</title>
   
 
   
@@ -66,7 +66,7 @@
             
             
               <div class="version">
-                v1.19.0
+                v1.19.1
               </div>
             
           
@@ -204,12 +204,13 @@
 <span class="sd">&quot;&quot;&quot;</span>
 <span class="kn">import</span> <span class="nn">enum</span>
 <span class="kn">import</span> <span class="nn">typing</span> <span class="k">as</span> <span class="nn">t</span>
-<span class="kn">import</span> <span class="nn">datetime</span>
 <span class="kn">import</span> <span class="nn">email.utils</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">timezone</span>
 
 <span class="kn">import</span> <span class="nn">dateutil.parser</span>
 <span class="kn">from</span> <span class="nn">validate_email</span> <span class="kn">import</span> <span class="n">validate_email</span>
 
+<span class="kn">from</span> <span class="nn">cg_dt_utils</span> <span class="kn">import</span> <span class="n">DatetimeWithTimezone</span>
 <span class="kn">from</span> <span class="nn">psef.errors</span> <span class="kn">import</span> <span class="n">APICodes</span><span class="p">,</span> <span class="n">APIException</span>
 
 <span class="n">T</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">TypeVar</span><span class="p">(</span><span class="s1">&#39;T&#39;</span><span class="p">,</span> <span class="n">bound</span><span class="o">=</span><span class="n">enum</span><span class="o">.</span><span class="n">Enum</span><span class="p">)</span>
@@ -220,7 +221,7 @@
 
 
 <span class="nd">@t</span><span class="o">.</span><span class="n">overload</span>
-<span class="k">def</span> <span class="nf">parse_datetime</span><span class="p">(</span><span class="n">to_parse</span><span class="p">:</span> <span class="nb">object</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="p">:</span>  <span class="c1"># pylint: disable=missing-docstring,unused-argument</span>
+<span class="k">def</span> <span class="nf">parse_datetime</span><span class="p">(</span><span class="n">to_parse</span><span class="p">:</span> <span class="nb">object</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DatetimeWithTimezone</span><span class="p">:</span>  <span class="c1"># pylint: disable=missing-docstring,unused-argument</span>
     <span class="o">...</span>
 
 
@@ -228,14 +229,14 @@
 <span class="k">def</span> <span class="nf">parse_datetime</span><span class="p">(</span>  <span class="c1"># pylint: disable=missing-docstring,unused-argument,function-redefined</span>
     <span class="n">to_parse</span><span class="p">:</span> <span class="nb">object</span><span class="p">,</span>
     <span class="n">allow_none</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="p">]:</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">DatetimeWithTimezone</span><span class="p">]:</span>
     <span class="o">...</span>
 
 
 <div class="viewcode-block" id="parse_datetime"><a class="viewcode-back" href="../../psef_api/psef.html#psef.parsers.parse_datetime">[docs]</a><span class="k">def</span> <span class="nf">parse_datetime</span><span class="p">(</span>  <span class="c1"># pylint: disable=function-redefined</span>
     <span class="n">to_parse</span><span class="p">:</span> <span class="nb">object</span><span class="p">,</span>
     <span class="n">allow_none</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="p">]:</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">DatetimeWithTimezone</span><span class="p">]:</span>
     <span class="sd">&quot;&quot;&quot;Parse a datetime string using dateutil.</span>
 
 <span class="sd">    :param to_parse: The object to parse, if this is not a string the parsing</span>
@@ -243,7 +244,7 @@
 <span class="sd">    :param allow_none: Allow ``None`` to be passed without raising a</span>
 <span class="sd">        exception. if ``to_parse`` is ``None`` and this option is ``True`` the</span>
 <span class="sd">        result will be ``None``.</span>
-<span class="sd">    :returns: The parsed datetime object.</span>
+<span class="sd">    :returns: The parsed DatetimeWithTimezone object.</span>
 <span class="sd">    :raises APIException: If the parsing fails for whatever reason.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="n">to_parse</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">allow_none</span><span class="p">:</span>
@@ -251,9 +252,16 @@
 
     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">to_parse</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">dateutil</span><span class="o">.</span><span class="n">parser</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">to_parse</span><span class="p">)</span>
+            <span class="n">parsed</span> <span class="o">=</span> <span class="n">dateutil</span><span class="o">.</span><span class="n">parser</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">to_parse</span><span class="p">)</span>
         <span class="k">except</span> <span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="ne">OverflowError</span><span class="p">):</span>
             <span class="k">pass</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># This assumes that datetimes without tzinfo are in UTC. That is</span>
+            <span class="c1"># not correct according to the ISO spec, however it is what we used</span>
+            <span class="c1"># to do so we need to do this because of backwards compatibility.</span>
+            <span class="k">return</span> <span class="n">DatetimeWithTimezone</span><span class="o">.</span><span class="n">from_datetime</span><span class="p">(</span>
+                <span class="n">parsed</span><span class="p">,</span> <span class="n">default_tz</span><span class="o">=</span><span class="n">timezone</span><span class="o">.</span><span class="n">utc</span>
+            <span class="p">)</span>
 
     <span class="k">raise</span> <span class="n">APIException</span><span class="p">(</span>
         <span class="s1">&#39;The given date is not valid!&#39;</span><span class="p">,</span>

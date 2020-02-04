@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>psef.blackboard &mdash; CodeGrade v1.19.0 documentation</title>
+  <title>psef.blackboard &mdash; CodeGrade v1.19.1 documentation</title>
   
 
   
@@ -66,7 +66,7 @@
             
             
               <div class="version">
-                v1.19.0
+                v1.19.1
               </div>
             
           
@@ -325,6 +325,8 @@
                 <span class="n">student_name</span><span class="o">=</span><span class="n">match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="s1">&#39;name&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">),</span>
                 <span class="n">student_id</span><span class="o">=</span><span class="n">match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="s1">&#39;id&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">),</span>
                 <span class="n">assignment_name</span><span class="o">=</span><span class="n">match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="s1">&#39;assignment&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">),</span>
+                <span class="c1"># Timezones are probably wrong here, but we are parsing a</span>
+                <span class="c1"># format that is not really documented, so who cares?</span>
                 <span class="n">created_at</span><span class="o">=</span><span class="n">dateparser</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span>
                     <span class="n">match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="s1">&#39;datetime&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span>
                         <span class="s2">&quot; o&#39;clock&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span>

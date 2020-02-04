@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>psef.auth &mdash; CodeGrade v1.19.0 documentation</title>
+  <title>psef.auth &mdash; CodeGrade v1.19.1 documentation</title>
   
 
   
@@ -66,7 +66,7 @@
             
             
               <div class="version">
-                v1.19.0
+                v1.19.1
               </div>
             
           
@@ -202,7 +202,6 @@
 <span class="sd">SPDX-License-Identifier: AGPL-3.0-only</span>
 <span class="sd">&quot;&quot;&quot;</span>
 <span class="kn">import</span> <span class="nn">typing</span> <span class="k">as</span> <span class="nn">t</span>
-<span class="kn">import</span> <span class="nn">datetime</span>
 <span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">wraps</span>
 
 <span class="kn">import</span> <span class="nn">oauth2</span>
@@ -217,6 +216,7 @@
 
 <span class="kn">import</span> <span class="nn">psef</span>
 <span class="kn">from</span> <span class="nn">psef</span> <span class="kn">import</span> <span class="n">features</span>
+<span class="kn">from</span> <span class="nn">cg_dt_utils</span> <span class="kn">import</span> <span class="n">DatetimeWithTimezone</span>
 <span class="kn">from</span> <span class="nn">psef.helpers</span> <span class="kn">import</span> <span class="n">readable_join</span>
 <span class="kn">from</span> <span class="nn">psef.exceptions</span> <span class="kn">import</span> <span class="n">APICodes</span><span class="p">,</span> <span class="n">APIException</span><span class="p">,</span> <span class="n">PermissionException</span>
 
@@ -405,7 +405,7 @@
             <span class="p">)</span>
         <span class="p">)</span>
         <span class="n">query_oldest_in_period</span><span class="p">:</span> <span class="n">psef</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">DbColumn</span><span class="p">[</span>
-            <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="p">]</span>
+            <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">DatetimeWithTimezone</span><span class="p">]</span>
         <span class="p">]</span> <span class="o">=</span> <span class="n">base_sql</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">Work</span><span class="o">.</span><span class="n">created_at</span> <span class="o">&gt;=</span> <span class="n">cool_off_cutoff</span><span class="p">)</span><span class="o">.</span><span class="n">with_entities</span><span class="p">(</span>
             <span class="n">sql</span><span class="o">.</span><span class="n">func</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">Work</span><span class="o">.</span><span class="n">created_at</span><span class="p">)</span>
         <span class="p">)</span><span class="o">.</span><span class="n">label</span><span class="p">(</span><span class="s1">&#39;oldest&#39;</span><span class="p">)</span>
