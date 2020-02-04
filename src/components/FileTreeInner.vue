@@ -366,24 +366,24 @@ export default {
 
     .caret-icon {
         width: 1em;
-        transform: translateY(3px) rotate(0);
+        transform: rotate(0);
         transition: transform @transition-duration;
 
         &.collapsed {
-            transform: translateY(3px) rotate(-90deg);
+            transform: rotate(-90deg);
         }
     }
 
     .dir-icon {
         width: 1.5em;
         margin-right: 0.2rem;
-        transform: translateY(2px);
+        transform: translateY(-1px);
     }
 
     .file-icon {
         width: 1em;
         margin-right: 0.5em;
-        transform: translateY(2px);
+        transform: translateY(-1px);
     }
 
     .rev-popover {
