@@ -54,12 +54,12 @@ context('Manage Assignment', () => {
         it('should use the correct deadline after updating it', () => {
             cy.get('.assignment-deadline')
                 .click({ force: true });
-            cy.get('.flatpickr-calendar .flatpickr-day:not(.prevMonthDay):not(.nextMonthDay).today')
+            cy.get('.flatpickr-calendar:visible .flatpickr-day:not(.prevMonthDay):not(.nextMonthDay).today')
                 .click();
-            cy.get('.flatpickr-calendar input.flatpickr-hour:visible')
+            cy.get('.flatpickr-calendar:visible input.flatpickr-hour:visible')
                 .clear()
                 .type('23');
-            cy.get('.flatpickr-calendar input.flatpickr-minute:visible')
+            cy.get('.flatpickr-calendar:visible input.flatpickr-minute:visible')
                 .clear()
                 .type('59{enter}');
             cy.get('.assignment-deadline ~ .input-group-append .submit-button')

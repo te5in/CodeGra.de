@@ -56,14 +56,6 @@
     <img src="https://img.shields.io/badge/semVer-✓-brightgreen.svg"
       alt="Semantic Version: ✓" title="Semantic Version">
   </a>
-  <a href="https://github.com/CodeGra-de/CodeGra.de/issues">
-    <img src="https://img.shields.io/github/issues-raw/CodeGra-de/CodeGra.de.svg"
-      alt="Open GitHub Issues" title="Open GitHub Issues">
-  </a>
-  <a href="https://github.com/CodeGra-de/CodeGra.de/issues">
-    <img src="https://img.shields.io/github/issues-closed-raw/CodeGra-de/CodeGra.de.svg"
-      alt="Closed GitHub Issues" title="Closed GitHub Issues">
-  </a>
   <a href="https://github.com/CodeGra-de/CodeGra.de/pulls">
     <img src="https://img.shields.io/github/issues-pr-raw/CodeGra-de/CodeGra.de.svg"
       alt="Open GitHub Pull Requests" title="Open GitHub Pull Requests">
@@ -196,6 +188,12 @@ this project during its first year of development.
 ## Full Documentation
 The full documentation of CodeGrade can be found on our website:
 <https://docs.codegra.de/>.
+
+## Reporting issues
+CodeGrade uses a private issue tracker to keep track of all issues. Please
+e-mail us for any issues or feature requests. If you like to help with
+development, and would like to know any issues or wanted features, please also
+get in touch with us!
 
 ## License
 CodeGrade as a whole is licensed under the [GNU Affero General Public License
