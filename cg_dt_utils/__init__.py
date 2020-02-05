@@ -2,6 +2,7 @@
 
 SPDX-License-Identifier: AGPL-3.0-only
 """
+import re
 import time
 import typing as t
 import datetime
@@ -89,6 +90,8 @@ else:
 
         @classmethod
         def fromisoformat(cls, isoformat: str) -> 'DatetimeWithTimezone':
+            if re.search(r'(\+\d\d:\d\d|Z)$', isoformat):
+                isoformat += '+00:00'
             dt = datetime.datetime.fromisoformat(isoformat)
             # This assumes that datetimes without tzinfo are in UTC.
             return cls.utcfromtimestamp(dt.timestamp())
