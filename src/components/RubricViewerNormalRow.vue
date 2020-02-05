@@ -4,7 +4,7 @@
      :class="{ editable, locked }"
      @mouseenter="lockPopoverVisible = true"
      @mouseleave="lockPopoverVisible = false">
-    <div class="rubric-row-description border-bottom py-2 px-3">
+    <div class="row-description border-bottom py-2 px-3">
         <template v-if="locked">
             <!-- We need to key this popover to make sure it actually
                  changes when the content changes. -->
@@ -28,23 +28,23 @@
 
     <div class="rubric-row-items position-relative d-flex flex-row">
         <div v-for="item, i in rowItems"
-            class="rubric-item p-2"
-            :class="{
-                selected: item.id === selectedId,
-                'border-left': i > 0,
-                'pb-4': showProgressMeter,
-            }"
-            :style="{ flex: `0 0 ${100 / rowItems.length}%` }"
-            @click="toggleItem(item)">
+             class="rubric-item pt-2 pl-2"
+             :class="{
+                 selected: item.id === selectedId,
+                 'border-left': i > 0,
+                 'pb-4': showProgressMeter,
+             }"
+             :style="{ flex: `0 0 ${100 / rowItems.length}%` }"
+             @click="toggleItem(item)">
             <b class="mb-2">
                 {{ item.points }} - {{ item.header }}
 
                 <icon v-if="item.id === selectedId"
                       name="check"
-                      class="float-right" />
+                      class="float-right mr-2" />
             </b>
 
-            <p class="mb-0 text-justify text-wrap-pre">{{ item.description }}</p>
+            <p class="description mb-0 pb-2 pr-2 text-justify text-wrap-pre">{{ item.description }}</p>
         </div>
 
         <div class="progress-meter"
@@ -177,10 +177,6 @@ export default {
 <style lang="less" scoped>
 @import '~mixins.less';
 
-.rubric-row-description {
-    background-color: rgba(0, 0, 0, 0.0625);
-}
-
 .rubric-item {
     line-height: 1.3;
 
@@ -188,12 +184,17 @@ export default {
         cursor: pointer;
 
         &:hover {
-            background-color: rgba(0, 0, 0, 0.0625);
+            background-color: rgba(0, 0, 0, 0.125);
         }
     }
 
     &.selected {
-        background-color: rgba(0, 0, 0, 0.125) !important;
+        background-color: rgba(0, 0, 0, 0.09375);
+    }
+
+    .description {
+        max-height: 5rem;
+        overflow: auto;
     }
 }
 </style>

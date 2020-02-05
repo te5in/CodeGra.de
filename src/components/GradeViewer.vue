@@ -209,6 +209,17 @@ export default {
             return this.rubricResult && this.rubricResult.points;
         },
 
+        rubricMaxPoints() {
+            if (this.rubric == null) {
+                return null;
+            }
+            return this.$utils.getProps(
+                this.assignment,
+                this.rubric.maxPoints,
+                'fixed_max_rubric_points',
+            );
+        },
+
         rubricHasSelectedItems() {
             return this.rubricPoints != null;
         },
@@ -217,11 +228,7 @@ export default {
             if (this.rubric == null || this.rubricResult == null) {
                 return null;
             }
-
-            let maxPoints = parseFloat(this.assignment.fixed_max_rubric_points);
-            maxPoints = Number.isNaN(maxPoints) ? this.rubric.maxPoints : maxPoints;
-
-            return this.rubricResult.getGrade(maxPoints);
+            return this.rubricResult.getGrade(this.rubricMaxPoints);
         },
 
         isRubricChanged() {
@@ -304,7 +311,7 @@ export default {
             };
             const points = this.rubricPoints;
             const scored = points ? toFixed(points) : 0;
-            const max = toFixed(this.rubric.maxPoints);
+            const max = toFixed(this.rubricMaxPoints);
             return `${scored} / ${max}`;
         },
 
