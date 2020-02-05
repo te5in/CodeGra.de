@@ -161,16 +161,16 @@
                                         No results were found.
                                     </span>
                                 </multiselect>
-                                <div v-else-if="option.type === 'file'" style="display: flex;">
-                                    <b-form-file :class="`file-uploader-form ${option.name}`"
-                                                 :ref="`${selectedProvider.name}||${option.name}`"
+                                <div v-else-if="option.type === 'file'" class="d-flex">
+                                    <b-form-file :class="option.name"
+                                                 :ref="`${selectedProvider.name} || ${option.name}`"
                                                  name="file"
                                                  style="z-index: 0;"
                                                  placeholder="Click here to choose a file..."
                                                  v-model="selectedOptions[option.name]"/>
                                     <b-btn variant="warning"
                                            style="margin-left: 5px;"
-                                           @click="$refs[`${selectedProvider.name}||${option.name}`].map(a => a.reset())">Clear</b-btn>
+                                           @click="$refs[`${selectedProvider.name} || ${option.name}`].map(a => a.reset())">Clear</b-btn>
                                 </div>
                             </td>
                         </tr>
@@ -609,24 +609,31 @@ export default {
     tr.run-crashed {
         td {
             border-color: lighten(@alert-danger-color, 30%);
+
             #app.dark & {
                 border-color: @alert-danger-color;
             }
         }
+
         &:nth-of-type(2n + 1) {
             background: lighten(@alert-danger-color, 20%);
+
             #app.dark & {
                 background: @alert-danger-color;
             }
         }
+
         &:nth-of-type(2n) {
             background: lighten(@alert-danger-color, 30%);
+
             #app.dark & {
                 background: lighten(@alert-danger-color, 10%);
             }
         }
+
         &:hover {
             background: lighten(@alert-danger-color, 10%);
+
             #app.dark & {
                 background: darken(@alert-danger-color, 10%);
                 td {
