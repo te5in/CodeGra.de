@@ -42,7 +42,8 @@
                   @keydown.ctrl.enter.prevent="submitRubric" />
     </template>
 
-    <div class="mb-3 pb-3 border-bottom">
+    <div v-else
+         class="mb-3 pb-3 border-bottom">
         <template v-if="value.locked">
             <b-popover :show="lockPopoverVisible"
                        :target="`rubric-lock-${id}`"

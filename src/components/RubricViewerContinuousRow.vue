@@ -5,7 +5,7 @@
      @mouseenter="lockPopoverVisible = true"
      @mouseleave="lockPopoverVisible = false">
     <div class="rubric-row-header">
-        <div class="description border-bottom py-2 px-3">
+        <div class="row-description border-bottom py-2 px-3">
             <template v-if="locked">
                 <!-- We need to key this popover to make sure it actually
                      changes when the content changes. -->
@@ -231,10 +231,6 @@ export default {
 
 .rubric-viewer-row.continuous {
     overflow: hidden;
-}
-
-.rubric-row-header .description {
-    background-color: rgba(0, 0, 0, 0.0625);
 }
 
 .rubric-item {
