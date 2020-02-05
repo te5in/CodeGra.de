@@ -2,7 +2,6 @@
 
 SPDX-License-Identifier: AGPL-3.0-only
 """
-import re
 import time
 import typing as t
 import datetime
@@ -89,11 +88,12 @@ else:
             return cls.utcfromtimestamp(time.time())
 
         @classmethod
-        def fromisoformat(cls, isoformat: str) -> 'DatetimeWithTimezone':
-            if re.search(r'([+-]\d\d(:?\d\d)?|Z)$', isoformat) is None:
-                isoformat += '+00:00'
+        def fromisoformat(
+            cls, isoformat: str, default_tz: datetime.timezone = _utc
+        ) -> 'DatetimeWithTimezone':
             dt = datetime.datetime.fromisoformat(isoformat)
-            # This assumes that datetimes without tzinfo are in UTC.
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=default_tz)
             return cls.utcfromtimestamp(dt.timestamp())
 
         @staticmethod
