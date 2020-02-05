@@ -428,9 +428,22 @@
             cursor: not-allowed;
         }
 
+        .custom-control-input:not(:disabled):active ~ .custom-control-label::before {
+            background-color: fade(@color-primary, 30%);
+        }
+
+        .custom-control-input:focus ~ .custom-control-label::before {
+            box-shadow: 0 0 0 0.2rem fade(@color-primary, 20%);
+        }
+
+        .custom-control-input:focus:not(:checked) ~ .custom-control-label::before {
+            border-color: @color-primary;
+        }
+
         .custom-control-input:checked ~ .custom-control-label {
             &::before {
                 background-color: @color-primary-darker;
+                border-color: @color-primary-darker;
                 color: @color-primary-darker;
             }
             &::after {
@@ -455,9 +468,18 @@
             }
         }
 
+        .custom-control-input:not(:disabled):active ~ .custom-control-label::before {
+            background-color: fade(@text-color-dark, 30%);
+        }
+
+        .custom-control-input:focus ~ .custom-control-label::before {
+            box-shadow: 0 0 0 0.2rem fade(@text-color-dark, 20%);
+        }
+
         & .custom-control-input:checked ~ .custom-control-label {
             &::before {
                 background-color: @text-color-dark;
+                border-color: @text-color-dark;
                 color: @color-primary-darker;
             }
 
