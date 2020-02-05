@@ -155,7 +155,7 @@ if True:  # pylint: disable=using-constant-test
     )
     from .permission import Permission
     from .user import User
-    from .lti_provider import LTIProviderBase, LTI1p1Provider, UserLTIProvider
+    from .lti_provider import LTIProviderBase, LTI1p1Provider, UserLTIProvider, LTI1p3Provider
     from .file import (
         File, FileOwner, AutoTestFixture, FileMixin, NestedFileMixin,
         AutoTestOutputFile

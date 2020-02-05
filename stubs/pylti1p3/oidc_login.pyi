@@ -31,7 +31,7 @@ class OIDCLogin(abc.ABC, t.Generic[REQ, TCONF, SES, COOK, RED]):
         ...
 
     @abc.abstractmethod
-    def get_redirect(self, url: str) -> RED:
+    def get_redirect(self, url: str) -> Redirect[RED]:
         raise NotImplementedError
 
     def redirect(self, launch_url: str, js_redirect: bool = False) -> RED:

@@ -1,12 +1,18 @@
 import typing as t
+from datetime import timedelta
 from dataclasses import dataclass
 
-import flask
+import structlog
 import werkzeug.wrappers
 from pylti1p3 import redirect
 from pylti1p3.cookie import CookieService
 from pylti1p3.request import Request
 from pylti1p3.session import SessionService
+
+import flask
+from cg_dt_utils import DatetimeWithTimezone
+
+logger = structlog.get_logger()
 
 if t.TYPE_CHECKING:
     Redirect = redirect.Redirect
@@ -23,15 +29,15 @@ else:
 
 
 class FlaskRequest(Request):
-    def __init__(self, request: flask.Request, use_post: bool) -> None:
+    def __init__(self, request: flask.Request, *, force_post: bool) -> None:
         self._request = request
-        self._use_post = use_post
+        self._force_post = force_post
 
     def set_request(self, request: flask.Request) -> None:
         self._request = request
 
     def get_param(self, key: str) -> object:
-        if self._use_post:
+        if self._force_post or self._request.method == 'POST':
             return self._request.form.get(key, None)
         return self._request.args.get(key, None)
 
@@ -44,27 +50,35 @@ class FlaskSessionService(SessionService):
         return self._session_prefix + '-' + key
 
     def get_launch_data(self, key: str) -> t.Dict[str, object]:
-        return self._request.session.get(self._get_key(key), None)
+        return flask.session.get(self._get_key(key), None)
 
     def save_launch_data(
         self, key: str, jwt_body: t.Dict[str, object]
     ) -> None:
-        self._request.session[self._get_key(key)] = jwt_body
+        flask.session[self._get_key(key)] = jwt_body
 
     def save_nonce(self, nonce: str) -> None:
-        self._request.session[self._get_key('lti-nonce')] = nonce
+        flask.session[self._get_key('lti-nonce')] = nonce
 
     def check_nonce(self, nonce: str) -> bool:
         nonce_key = self._get_key('lti-nonce')
-        return self._request.session.get(nonce_key, None) == nonce_key
+        session_nonce = flask.session.get(nonce_key, None)
+        logger.info(
+            'Checking nonce',
+            session_nonce=session_nonce,
+            nonce_key=nonce_key,
+            wanted_nonce=nonce,
+        )
+        return session_nonce == nonce
 
     def save_state_params(
         self, state: str, params: t.Dict[str, object]
     ) -> None:
-        self._request.session[self._get_key(state)] = params
+        flask.session[self._get_key(state)] = params
 
     def get_state_params(self, state: str) -> t.Dict[str, object]:
-        return self._request.session[self._get_key(state)]
+        logger.info('Getting state params', state=state, session=flask.session)
+        return flask.session[self._get_key(state)]
 
 
 class FlaskCookieService(CookieService):
@@ -72,7 +86,7 @@ class FlaskCookieService(CookieService):
     class _CookieData:
         key: str
         value: str
-        exp: int
+        exp: DatetimeWithTimezone
 
     def __init__(self, request: flask.Request):
         self._request = request
@@ -82,46 +96,62 @@ class FlaskCookieService(CookieService):
         return self._cookie_prefix + '-' + key
 
     def get_cookie(self, name: str) -> t.Optional[str]:
+        logger.info(
+            'Getting cookie', cookie_key=name, cookies=self._request.cookies
+        )
         return self._request.cookies.get(self._get_key(name))
 
-    def set_cookie(self, name: str, value: str, exp: int = 3600) -> None:
+    def set_cookie(self, name: str, value: str, exp: int = 60) -> None:
         self._cookie_data_to_set.append(
             FlaskCookieService._CookieData(
-                key=name,
+                key=self._get_key(name),
                 value=value,
-                exp=exp,
+                exp=DatetimeWithTimezone.utcnow() + timedelta(seconds=exp),
             )
         )
 
-    def update_response(self, response: werkzeug.wrappers.Response) -> None:
+    def update_response(
+        self, response: werkzeug.wrappers.Response
+    ) -> werkzeug.wrappers.Response:
         for cookie_data in self._cookie_data_to_set:
+            logger.info('Setting cookie', cookie=cookie_data)
             response.set_cookie(
                 key=cookie_data.key,
                 value=cookie_data.value,
                 expires=cookie_data.exp,
                 httponly=True,
                 secure=True,
+                samesite='None',
             )
+        return response
 
 
 class FlaskRedirect(Redirect[werkzeug.wrappers.Response]):
     def __init__(
         self,
         location: str,
-        cookie_service: t.Optional[FlaskCookieService] = None
+        cookie_service: FlaskCookieService,
     ):
         self._location = location
         self._cookie_service = cookie_service
 
+    def __repr__(self) -> str:
+        return '{}.{}(location={})'.format(
+            self.__class__.__module__,
+            self.__class__.__qualname__,
+            repr(self._location),
+        )
+
     def _process_response(
         self, response: werkzeug.wrappers.Response
     ) -> werkzeug.wrappers.Response:
-        if self._cookie_service is not None:
-            self._cookie_service.update_response(response)
-        return response
+        if self._cookie_service is None:
+            logger.warning('Cookie service is None!')
+            return response
+        return self._cookie_service.update_response(response)
 
     def do_redirect(self) -> werkzeug.wrappers.Response:
-        return self._process_response(flask.redirect(self._location))
+        return self._process_response(flask.redirect(self._location, code=303))
 
     def do_js_redirect(self) -> werkzeug.wrappers.Response:
         return self._process_response(
@@ -129,7 +159,7 @@ class FlaskRedirect(Redirect[werkzeug.wrappers.Response]):
                 (
                     '<!DOCTYPE html>'
                     '<html><script type="text/javascript">'
-                    'window.location={};'
+                    'window.location="{}";'
                     '</script></html>'
                 ).format(self._location)
             )

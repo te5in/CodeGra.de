@@ -2,13 +2,16 @@
 
 SPDX-License-Identifier: AGPL-3.0-only
 """
-
 import abc
 import uuid
 import typing as t
 
 import flask_jwt_extended as flask_jwt
 from flask import current_app
+from pylti1p3.registration import Registration
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
 
 import psef
 from cg_sqlalchemy_helpers.mixins import TimestampMixin
@@ -20,8 +23,11 @@ from .. import auth
 from ..registry import lti_provider_handlers
 
 if t.TYPE_CHECKING:  # pragma: no cover
-    # pylint: disable=unused-import
+    # pylint: disable=unused-import, invalid-name
     from .work import Work
+    hybrid_property = property
+else:
+    from sqlalchemy.ext.hybrid import hybrid_property
 
 _ALL_LTI_PROVIDERS = sorted(['lti1.1', 'lti1.3'])
 lti_provider_handlers.set_possible_options(_ALL_LTI_PROVIDERS)
@@ -33,7 +39,13 @@ class LTIProviderBase(Base):
     :ivar ~.LTIProvider.key: The OAuth consumer key for this LTI provider.
     """
     __tablename__ = 'LTIProvider'
-    id: str = db.Column('id', db.String(UUID_LENGTH), primary_key=True)
+    id: str = db.Column(
+        'id',
+        db.String(UUID_LENGTH),
+        primary_key=True,
+        default=lambda: str(uuid.uuid4())
+    )
+    key: str = db.Column('key', db.Unicode, unique=True, nullable=True)
     _lti_provider_version: str = db.Column(
         'lti_provider_version',
         db.Enum(*_ALL_LTI_PROVIDERS, name='ltiproviderversion'),
@@ -45,9 +57,6 @@ class LTIProviderBase(Base):
         'polymorphic_on': _lti_provider_version,
         'polymorphic_identity': 'non_existing',
     }
-
-    def __init__(self) -> None:
-        super().__init__(id=str(uuid.uuid4()))
 
     def find_user(self, lti_user_id: str) -> t.Optional['user_models.User']:
         user_link = db.session.query(UserLTIProvider).filter(
@@ -90,7 +99,6 @@ class LTIProviderBase(Base):
 @lti_provider_handlers.register_table
 class LTI1p1Provider(LTIProviderBase):
     __mapper_args__ = {'polymorphic_identity': 'lti1.1'}
-    key: str = db.Column('key', db.Unicode, unique=True, nullable=True)
 
     def __init__(self, key: str) -> None:
         super().__init__()
@@ -199,6 +207,104 @@ class LTI1p1Provider(LTIProviderBase):
 class LTI1p3Provider(LTIProviderBase):
     __mapper_args__ = {'polymorphic_identity': 'lti1.3'}
 
+    _lms_name: t.Optional[str] = db.Column('lms_name', db.Unicode)
+    _auth_login_url: t.Optional[str] = db.Column('auth_login_url', db.Unicode)
+    _auth_token_url: t.Optional[str] = db.Column('auth_token_url', db.Unicode)
+    _client_id: t.Optional[str] = db.Column('client_id', db.Unicode)
+    _key_set: t.Optional[str] = db.Column('key_set', db.Unicode)
+    _key_set_url: t.Optional[str] = db.Column('key_set_url', db.Unicode)
+
+    _crypto_key: t.Optional[bytes] = db.Column('crypto_key', db.LargeBinary)
+
+    @property
+    def lms_name(self) -> str:
+        assert self._lms_name is not None
+        return self._lms_name
+
+    @classmethod
+    def create_and_generate_keys(
+        cls,
+        iss: str,
+        lms_name: str,
+        auth_login_url: str,
+        auth_token_url: str,
+        client_id: str,
+        key_set: t.Optional[str],
+        key_set_url: t.Optional[str],
+    ) -> 'LTI1p3Provider':
+        assert key_set is not None or key_set_url is not None, (
+            'One of key_set and key_set_url should not be None'
+        )
+
+        key = rsa.generate_private_key(
+            public_exponent=65537,
+            key_size=4096,
+            backend=default_backend(),
+        )
+        return cls(
+            key=iss,
+            _lms_name=lms_name,
+            _auth_login_url=auth_login_url,
+            _auth_token_url=auth_token_url,
+            _client_id=client_id,
+            _key_set=key_set,
+            _key_set_url=key_set_url,
+            _crypto_key=key.private_bytes(
+                encoding=serialization.Encoding.PEM,
+                format=serialization.PrivateFormat.PKCS8,
+                encryption_algorithm=serialization.NoEncryption(),
+            )
+        )
+
+    @property
+    def _private_key(self) -> rsa.RSAPrivateKeyWithSerialization:
+        assert self._crypto_key is not None
+
+        return serialization.load_pem_private_key(
+            self._crypto_key, None, default_backend()
+        )
+
+    def get_public_key(self) -> str:
+        """Get the public key that is associated with this LTIProvider.
+        """
+        key = self._private_key.public_key()
+        return key.public_bytes(
+            encoding=serialization.Encoding.OpenSSH,
+            format=serialization.PublicFormat.OpenSSH,
+        ).decode('utf8')
+
+    @hybrid_property
+    def iss(self) -> str:
+        return self.key
+
+    def get_registration(self) -> Registration:
+        assert self._auth_login_url is not None
+        assert self._auth_token_url is not None
+        assert self._client_id is not None
+        assert self.iss is not None
+
+        return Registration() \
+            .set_auth_login_url(self._auth_login_url) \
+            .set_auth_token_url(self._auth_token_url) \
+            .set_client_id(self._client_id) \
+            .set_key_set(self._key_set) \
+            .set_key_set_url(self._key_set_url) \
+            .set_issuer(self.iss) \
+            .set_tool_private_key(self._private_key)
+
+    # TODO: Implement these 4 methods
+    def delete_grade_for_submission(self, sub: 'Work') -> None:
+        return None
+
+    def passback_grade(self, sub: 'Work', initial: bool) -> None:
+        return None
+
+    def supports_deadline(self) -> bool:
+        return False
+
+    def supports_max_points(self) -> bool:
+        return False
+
 
 lti_provider_handlers.freeze()
 
@@ -227,7 +333,7 @@ class UserLTIProvider(Base, TimestampMixin):
     )
 
     lti_provider: 'LTIProviderBase' = db.relationship(
-        LTIProviderBase,
+        LTIProviderBase,  # type: ignore[misc]
         lazy='joined',
         foreign_keys=lti_provider_id,
     )

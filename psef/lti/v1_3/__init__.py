@@ -2,11 +2,14 @@ import os
 import json
 import typing as t
 
-import flask
 from pylti1p3 import oidc_login, message_launch
-from pylti1p3.tool_config import ToolConfDict
+from pylti1p3.deployment import Deployment
+from pylti1p3.tool_config import ToolConfAbstract
+from pylti1p3.registration import Registration
 
-from ... import PsefFlask, current_app
+import flask
+
+from ... import PsefFlask, models, helpers, current_app
 from .flask import (
     FlaskRequest, FlaskRedirect, FlaskCookieService, FlaskSessionService
 )
@@ -52,27 +55,19 @@ def init_app(app: PsefFlask) -> None:
             app.config['LTI1.3_CONFIG_JSON'] = conf
 
 
-class LTIConfig(ToolConfDict):
-    @classmethod
-    def from_app(cls, app: PsefFlask) -> 'LTIConfig':
-        conf = app.config['LTI1.3_CONFIG_JSON']
-        self = cls(conf)
+class LTIConfig(ToolConfAbstract):
+    def find_registration_by_issuer(self, iss: str) -> Registration:
+        return helpers.filter_single_or_404(
+            models.LTI1p3Provider,
+            models.LTI1p3Provider.key == iss,
+        ).get_registration()
 
-        for iss in conf:
-            private_key_file = conf[iss]['private_key_file']
-
-            if not os.path.isabs(private_key_file):
-                private_key_file = os.path.join(
-                    app.config['LTI1.3_CONFIG_DIRNAME'], private_key_file
-                )
-            assert os.path.isfile(
-                private_key_file
-            ), 'Private key file does not exist'
-
-            with open(private_key_file, 'r') as prf:
-                self.set_private_key(iss, prf.read())
-
-        return self
+    def find_deployment(
+        self,
+        iss: str,
+        deployment_id: str,
+    ) -> t.Optional[Deployment]:
+        return None
 
 
 class FlaskMessageLaunch(
@@ -85,8 +80,8 @@ class FlaskMessageLaunch(
     @classmethod
     def from_request(cls, request: flask.Request) -> 'FlaskMessageLaunch':
         return cls(
-            FlaskRequest(request, use_post=True),
-            LTIConfig.from_app(current_app),
+            FlaskRequest(request, force_post=True),
+            LTIConfig(),
             FlaskSessionService(request),
             FlaskCookieService(request),
         )
@@ -94,6 +89,9 @@ class FlaskMessageLaunch(
     # We never want to save the launch data in the session, as we have no
     # use-case for it, and it slows down every request
     def save_launch_data(self) -> 'FlaskMessageLaunch':
+        return self
+
+    def validate_deployment(self) -> 'FlaskMessageLaunch':
         return self
 
 
@@ -107,8 +105,8 @@ class FlaskOIDCLogin(
     @classmethod
     def from_request(cls, request: flask.Request) -> 'FlaskOIDCLogin':
         return FlaskOIDCLogin(
-            FlaskRequest(request, use_post=False),
-            LTIConfig.from_app(current_app),
+            FlaskRequest(request, force_post=False),
+            LTIConfig(),
             FlaskSessionService(request),
             FlaskCookieService(request),
         )

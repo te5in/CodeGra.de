@@ -23,21 +23,21 @@ from cg_dt_utils import DatetimeWithTimezone
 from . import api
 from .. import auth, errors, models, helpers, features
 from ..lti import v1_1 as lti_v1_1
+from ..lti import v1_3 as lti_v1_3
 from ..models import db
 
 logger = structlog.get_logger()
 
 
-@api.route('/lti/launch/1', methods=['POST'])
-@features.feature_required(features.Feature.LTI)
-def launch_lti() -> t.Any:
-    """Do a LTI launch.
-
-    .. :quickref: LTI; Do a LTI Launch.
-    """
+def _make_blob_and_redirect(
+    params: t.Mapping[str, object],
+    version: str,
+) -> werkzeug.wrappers.Response:
     data = {
-        'params':
-            lti_v1_1.LTI.create_from_request(flask.request).launch_params,
+        'params': {
+            'data': params,
+            'version': version,
+        },
         'exp': DatetimeWithTimezone.utcnow() + timedelta(minutes=1)
     }
     blob = models.BlobStorage(
@@ -60,8 +60,20 @@ def launch_lti() -> t.Any:
             redirect=urllib.parse.quote(
                 flask.request.args.get('codegrade_redirect', ''),
             ),
-        )
+        ),
+        code=303,
     )
+
+
+@api.route('/lti/launch/1', methods=['POST'])
+@features.feature_required(features.Feature.LTI)
+def launch_lti() -> t.Any:
+    """Do a LTI launch.
+
+    .. :quickref: LTI; Do a LTI Launch.
+    """
+    params = lti_v1_1.LTI.create_from_request(flask.request).launch_params
+    return _make_blob_and_redirect(params, 'lti_v1_1')
 
 
 @api.route('/lti/', methods=['GET'])
@@ -157,27 +169,73 @@ def second_phase_lti_launch() -> helpers.JSONResponse[
     else:
         db.session.delete(blob)
 
-    inst = lti_v1_1.LTI.create_from_launch_params(launch_params)
+    version = launch_params.pop('lti_version', 'lti_v1_1')
+    if version == 'lti_v1_1':
+        inst = lti_v1_1.LTI.create_from_launch_params(launch_params['data'])
 
-    user, new_token, updated_email = inst.ensure_lti_user()
-    auth.set_current_user(user)
+        user, new_token, updated_email = inst.ensure_lti_user()
+        auth.set_current_user(user)
 
-    course = inst.get_course()
-    assig = inst.get_assignment(user, course)
-    inst.set_user_role(user)
-    new_role_created = inst.set_user_course_role(user, course)
+        course = inst.get_course()
+        assig = inst.get_assignment(user, course)
+        inst.set_user_role(user)
+        new_role_created = inst.set_user_course_role(user, course)
 
-    db.session.commit()
+        db.session.commit()
 
-    result: t.Mapping[str, t.Union[str, models.Assignment, bool, None]]
-    result = {
-        'assignment': assig,
-        'new_role_created': new_role_created,
-        'custom_lms_name': inst.lti_provider.lms_name,
-    }
-    if new_token is not None:
-        result['access_token'] = new_token
-    if updated_email:
-        result['updated_email'] = updated_email
+        result: t.Mapping[str, t.Union[str, models.Assignment, bool, None]]
+        result = {
+            'assignment': assig,
+            'new_role_created': new_role_created,
+            'custom_lms_name': inst.lti_provider.lms_name,
+        }
+        if new_token is not None:
+            result['access_token'] = new_token
+        if updated_email:
+            result['updated_email'] = updated_email
+    elif version == 'lti_v1_3':
+        result = {}
+    else:
+        assert False
 
     return helpers.jsonify(result)
+
+
+@api.route('/lti1.3/login', methods=['GET', 'POST'])
+def do_oidc_login() -> werkzeug.wrappers.Response:
+    app.config['SESSION_COOKIE_SAMESITE'] = 'None'
+
+    req = flask.request
+    if req.method == 'GET':
+        target = req.args.get('target_link_uri')
+    else:
+        target = req.form.get('target_link_uri')
+
+    assert target is not None
+    oidc = lti_v1_3.FlaskOIDCLogin.from_request(req)
+    red = oidc.get_redirect_object(target)
+    logger.info(
+        'Redirecting after oidc',
+        target=target,
+        get_args=req.args,
+        post_args=req.form,
+        redirect=red,
+    )
+    response = red.do_redirect()
+    response.set_cookie(
+        'cross-site-cookie', 'bar', samesite='None', secure=True
+    )
+    return response
+
+
+@api.route('/lti1.3/launch', methods=['POST'])
+def handle_lti_advantage_launch() -> werkzeug.wrappers.Response:
+    app.config['SESSION_COOKIE_SAMESITE'] = 'None'
+
+    import pprint
+    message_launch = lti_v1_3.FlaskMessageLaunch.from_request(flask.request)
+    pprint.pprint(message_launch)
+    message_launch_data = message_launch.get_launch_data()
+    pprint.pprint(message_launch_data)
+
+    return _make_blob_and_redirect(message_launch_data, version='lti_v1_3')

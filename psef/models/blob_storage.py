@@ -18,3 +18,6 @@ class BlobStorage(Base, UUIDMixin, TimestampMixin):
     :ivar data: The data that is stored in this blob.
     """
     data = db.Column('data', db.LargeBinary, nullable=False)
+
+    def __init__(self, *, data: bytes) -> None:
+        super().__init__(data=data)

@@ -123,6 +123,7 @@ def create_app(  # pylint: disable=too-many-statements
     resulting_app.config.update(t.cast(t.Any, global_config.CONFIG))
     resulting_app.config['SQLALCHEMY_TRACK_MODIFICATIONS'  # type: ignore
                          ] = False
+    resulting_app.config['SESSION_COOKIE_SECURE'] = True
 
     if not resulting_app.debug:
         assert not resulting_app.config['AUTO_TEST_DISABLE_ORIGIN_CHECK']
