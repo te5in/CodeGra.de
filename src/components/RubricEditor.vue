@@ -222,6 +222,7 @@
                 <submit-button class="delete-rubric border-right rounded-right-0"
                                style="margin-right: -1px;"
                                variant="danger"
+                               v-b-popover.top.hover="'Delete rubric'"
                                :submit="deleteRubric"
                                :filter-error="deleteFilter"
                                @after-success="afterDeleteRubric"
