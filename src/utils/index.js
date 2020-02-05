@@ -382,7 +382,7 @@ export function withOrdinalSuffix(i) {
     return `${i}${suffix}`;
 }
 
-export function getErrorMessage(err) {
+export function getErrorMessage(err, dflt = 'Something unknown went wrong') {
     let msg;
 
     if (err == null) {
@@ -397,7 +397,7 @@ export function getErrorMessage(err) {
         msg = err.toString();
     }
 
-    return msg || 'Something unknown went wrong';
+    return msg || dflt;
 }
 
 // https://stackoverflow.com/questions/13405129/javascript-create-and-save-file

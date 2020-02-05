@@ -1,11 +1,14 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
-    <b-alert variant="danger" show v-if="error" class="box">
+    <b-alert variant="danger" show v-if="error" class="box m-0 rounded-0">
         <p style="text-align: center; font-size: 1.3em;">
-            Something went wrong during the LTI launch!
-            <br>
-            <span v-if="errorMsg">{{ errorMsg }}</span>
-            <span v-else>Please try again.</span>
+            Something went wrong during the LTI launch:
+            <template v-if="errorMsg">
+                {{ errorMsg }}
+            </template>
+            <template v-else>
+                Please <a href="mailto:support@codegra.de">contact support</a>.
+            </template>
         </p>
     </b-alert>
     <loader v-else/>
@@ -64,10 +67,12 @@ export default {
                 .then(
                     async response => {
                         const { data } = response;
-                        if (data.access_token) {
+
+                        this.$ltiProvider = ltiProviders[data.data.custom_lms_name];
+                        if (data.data.access_token) {
                             await this.logout();
                             disablePersistance();
-                            await this.updateAccessToken(data.access_token);
+                            await this.updateAccessToken(data.data.access_token);
                         } else {
                             this.clearPlagiarismCases();
                         }
@@ -78,56 +83,62 @@ export default {
                             },
                         );
 
-                        this.$ltiProvider = ltiProviders[data.custom_lms_name];
-                        this.$LTIAssignmentId = data.assignment.id;
+                        this.$ltiProvider = ltiProviders[data.data.custom_lms_name];
 
-                        if (data.new_role_created) {
-                            this.$toasted.info(
-                                `You do not have any permissions yet, please ask your teacher to enable them for your role "${
-                                    data.new_role_created
-                                }".`,
-                                getToastOptions(),
-                            );
+                        switch (data.version) {
+                            case 'lti_v1_1': return this.handleLTI1p1(data.data);
+                            default: throw new Error(`Unknown LTI version (${data.version}) encountered.`);
                         }
-                        if (data.updated_email) {
-                            this.$toasted.info(
-                                `Your email was updated to "${
-                                    data.updated_email
-                                }" which is the email registered with your ${
-                                    data.custom_lms_name
-                                }.`,
-                                getToastOptions(),
-                            );
-                        }
-                        if (
-                            this.$route.query.redirect &&
-                            this.$route.query.redirect.startsWith('/')
-                        ) {
-                            this.$router.replace(this.$route.query.redirect);
-                        } else {
-                            this.$router.replace({
-                                name: 'assignment_submissions',
-                                params: {
-                                    courseId: data.assignment.course.id,
-                                    assignmentId: data.assignment.id,
-                                },
-                            });
-                        }
-                    },
-                    err => {
-                        this.error = true;
-                        if (err.response) {
-                            this.errorMsg = err.response.data.message;
-                            if (first && err.response.status === 401) {
-                                return this.logout().then(() => this.secondStep(false));
-                            }
-                        }
-                        return null;
                     },
                 )
-                .catch(() => {
+                .catch(err => {
+                    if (err.response) {
+                        if (first && err.response.status === 401) {
+                            return this.logout().then(() => this.secondStep(false));
+                        }
+                    }
+                    this.errorMsg = this.$utils.getErrorMessage(err, null);
                     this.error = true;
+
+                    return null;
                 });
+        },
+
+        handleLTI1p1(data) {
+            this.$LTIAssignmentId = data.assignment.id;
+
+            if (data.new_role_created) {
+                this.$toasted.info(
+                    `You do not have any permissions yet, please ask your teacher to enable them for your role "${
+                        data.new_role_created
+                    }".`,
+                    getToastOptions(),
+                );
+            }
+            if (data.updated_email) {
+                this.$toasted.info(
+                    `Your email was updated to "${
+                        data.updated_email
+                    }" which is the email registered with your ${
+                        data.custom_lms_name
+                    }.`,
+                    getToastOptions(),
+                );
+            }
+            if (
+                this.$route.query.redirect &&
+                    this.$route.query.redirect.startsWith('/')
+            ) {
+                this.$router.replace(this.$route.query.redirect);
+            } else {
+                this.$router.replace({
+                    name: 'assignment_submissions',
+                    params: {
+                        courseId: data.assignment.course.id,
+                        assignmentId: data.assignment.id,
+                    },
+                });
+            }
         },
     },
 

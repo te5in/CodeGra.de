@@ -669,7 +669,7 @@ class LTI:  # pylint: disable=too-many-public-methods
             ).one()
 
     def set_user_course_role(self, user: models.User,
-                             course: models.Course) -> t.Union[str, bool]:
+                             course: models.Course) -> t.Optional[str]:
         """Set the course role for the given course and user if there is no
         such role just yet.
 
@@ -679,7 +679,8 @@ class LTI:  # pylint: disable=too-many-public-methods
 
         :param models.User user: The user to set the course role  for.
         :param models.Course course: The course to connect to user to.
-        :returns: True if a new role was created.
+        :returns: The name of the new role created, or ``None`` if no role was
+            created.
         """
         if course.id not in user.courses:
             unkown_roles: t.List[str] = []
@@ -696,7 +697,7 @@ class LTI:  # pylint: disable=too-many-public-methods
                     course_id=course.id, name=role.codegrade_role_name
                 ).one()
                 user.courses[course.id] = crole
-                return False
+                return None
 
             if not features.has_feature(features.Feature.AUTOMATIC_LTI_ROLE):
                 raise APIException(
@@ -707,7 +708,8 @@ class LTI:  # pylint: disable=too-many-public-methods
                 )
 
             # Add a new course role
-            new_created: t.Union[bool, str] = False
+            new_created: t.Optional[str] = None
+
             new_role = (unkown_roles + ['New LTI Role'])[0]
             existing_role = models.CourseRole.query.filter_by(
                 course_id=course.id, name=new_role
@@ -720,7 +722,8 @@ class LTI:  # pylint: disable=too-many-public-methods
                 new_created = new_role
             user.courses[course.id] = existing_role
             return new_created
-        return False
+
+        return None
 
     def has_result_sourcedid(self) -> bool:
         """Check if the current LTI request has a ``sourcedid`` field.

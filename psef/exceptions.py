@@ -82,6 +82,7 @@ class APICodes(IntEnum):
     OBJECT_EXPIRED = 40
     TOO_MANY_SUBMISSIONS = 41
     COOL_OFF_PERIOD_ACTIVE = 42
+    LTI1_3_ERROR = 43
 
 
 class InvalidAssignmentState(TypeError):

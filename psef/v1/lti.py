@@ -16,12 +16,15 @@ import jwt
 import flask
 import werkzeug
 import structlog
+import pylti1p3.exception
+from mypy_extensions import TypedDict
 
 from psef import app
 from cg_dt_utils import DatetimeWithTimezone
 
 from . import api
-from .. import auth, errors, models, helpers, features
+from .. import auth, errors, models, helpers, features, exceptions
+from ..lti import LTIVersion
 from ..lti import v1_1 as lti_v1_1
 from ..lti import v1_3 as lti_v1_3
 from ..models import db
@@ -31,12 +34,12 @@ logger = structlog.get_logger()
 
 def _make_blob_and_redirect(
     params: t.Mapping[str, object],
-    version: str,
+    version: LTIVersion,
 ) -> werkzeug.wrappers.Response:
     data = {
         'params': {
             'data': params,
-            'version': version,
+            'version': version.__to_json__(),
         },
         'exp': DatetimeWithTimezone.utcnow() + timedelta(minutes=1)
     }
@@ -73,7 +76,7 @@ def launch_lti() -> t.Any:
     .. :quickref: LTI; Do a LTI Launch.
     """
     params = lti_v1_1.LTI.create_from_request(flask.request).launch_params
-    return _make_blob_and_redirect(params, 'lti_v1_1')
+    return _make_blob_and_redirect(params, LTIVersion.v1_1)
 
 
 @api.route('/lti/', methods=['GET'])
@@ -109,10 +112,22 @@ def get_lti_config() -> werkzeug.wrappers.Response:
         )
 
 
+class _LTILaunchData(TypedDict):
+    assignment: models.Assignment
+    custom_lms_name: str
+    new_role_created: t.Optional[str]
+    access_token: t.Optional[str]
+    updated_email: t.Optional[str]
+
+
+class _LTILaunchResult(TypedDict):
+    data: _LTILaunchData
+    version: LTIVersion
+
+
 @api.route('/lti/launch/2', methods=['POST'])
 @features.feature_required(features.Feature.LTI)
-def second_phase_lti_launch() -> helpers.JSONResponse[
-    t.Mapping[str, t.Union[str, models.Assignment, bool, None]]]:
+def second_phase_lti_launch() -> helpers.JSONResponse[_LTILaunchResult]:
     """Do the second part of an LTI launch.
 
     .. :quickref: LTI; Do the callback of a LTI launch.
@@ -120,13 +135,7 @@ def second_phase_lti_launch() -> helpers.JSONResponse[
     :>json string blob_id: The id of the blob which you got from the lti launch
         redirect.
 
-    :<json assignment: The assignment that the LTI launch was for.
-    :<json bool new_role_created: Was a new role created in the LTI launch.
-    :<json access_token: A fresh access token for the current user. This value
-        is not always available, this depends on internal state so you should
-        simply check.
-    :<json updated_email: The new email of the current user. This is value is
-        also not always available, check!
+    :returns: A _LTILaunch instance.
     :raises APIException: If the given Jwt token is not valid. (INVALID_PARAM)
     """
     content = helpers.ensure_json_dict(flask.request.get_json())
@@ -169,9 +178,12 @@ def second_phase_lti_launch() -> helpers.JSONResponse[
     else:
         db.session.delete(blob)
 
-    version = launch_params.pop('lti_version', 'lti_v1_1')
-    if version == 'lti_v1_1':
-        inst = lti_v1_1.LTI.create_from_launch_params(launch_params['data'])
+    version = LTIVersion[launch_params.get('version', LTIVersion.v1_1)]
+    data = launch_params['data']
+    result: _LTILaunchData
+
+    if version == LTIVersion.v1_1:
+        inst = lti_v1_1.LTI.create_from_launch_params(data)
 
         user, new_token, updated_email = inst.ensure_lti_user()
         auth.set_current_user(user)
@@ -183,22 +195,30 @@ def second_phase_lti_launch() -> helpers.JSONResponse[
 
         db.session.commit()
 
-        result: t.Mapping[str, t.Union[str, models.Assignment, bool, None]]
         result = {
             'assignment': assig,
             'new_role_created': new_role_created,
             'custom_lms_name': inst.lti_provider.lms_name,
+            'updated_email': updated_email,
+            'access_token': new_token,
         }
-        if new_token is not None:
-            result['access_token'] = new_token
-        if updated_email:
-            result['updated_email'] = updated_email
-    elif version == 'lti_v1_3':
+    elif version == LTIVersion.v1_3:
+        if data.get('type') == 'exception':
+            raise exceptions.APIException(
+                data.get('exception_message'),
+                'An error occured when processing the LTI1.3 launch',
+                exceptions.APICodes.LTI1_3_ERROR,
+                400,
+            )
+
         result = {}
     else:
         assert False
 
-    return helpers.jsonify(result)
+    return helpers.jsonify({
+        'version': version,
+        'data': result,
+    })
 
 
 @api.route('/lti1.3/login', methods=['GET', 'POST'])
@@ -212,8 +232,33 @@ def do_oidc_login() -> werkzeug.wrappers.Response:
         target = req.form.get('target_link_uri')
 
     assert target is not None
-    oidc = lti_v1_3.FlaskOIDCLogin.from_request(req)
-    red = oidc.get_redirect_object(target)
+    try:
+        oidc = lti_v1_3.FlaskOIDCLogin.from_request(req)
+        red = oidc.get_redirect_object(target)
+    except exceptions.APIException as exc:
+        if exc.api_code == exceptions.APICodes.OBJECT_NOT_FOUND:
+            message = (
+                'This LMS was not found as a LTIProvider for CodeGrade, this'
+                ' is probably caused by a wrong setup.'
+            )
+        else:
+            message = exc.message
+
+        return _make_blob_and_redirect(
+            {
+                'type': 'exception',
+                'exception_message': message,
+            },
+            version=LTIVersion.v1_3,
+        )
+    except pylti1p3.exception.OIDCException as exc:
+        return _make_blob_and_redirect(
+            {
+                'type': 'exception',
+                'exception_message': exc.args[0],
+            },
+            version=LTIVersion.v1_3,
+        )
     logger.info(
         'Redirecting after oidc',
         target=target,
@@ -221,11 +266,7 @@ def do_oidc_login() -> werkzeug.wrappers.Response:
         post_args=req.form,
         redirect=red,
     )
-    response = red.do_redirect()
-    response.set_cookie(
-        'cross-site-cookie', 'bar', samesite='None', secure=True
-    )
-    return response
+    return red.do_redirect()
 
 
 @api.route('/lti1.3/launch', methods=['POST'])
@@ -234,8 +275,29 @@ def handle_lti_advantage_launch() -> werkzeug.wrappers.Response:
 
     import pprint
     message_launch = lti_v1_3.FlaskMessageLaunch.from_request(flask.request)
-    pprint.pprint(message_launch)
-    message_launch_data = message_launch.get_launch_data()
-    pprint.pprint(message_launch_data)
 
-    return _make_blob_and_redirect(message_launch_data, version='lti_v1_3')
+    try:
+        message_launch.validate()
+    except exceptions.APIException as exc:
+        return _make_blob_and_redirect(
+            {
+                'type': 'exception',
+                'exception_message': exc.message,
+            },
+            version=LTIVersion.v1_3,
+        )
+    except pylti1p3.exception.LtiException as exc:
+        return _make_blob_and_redirect(
+            {
+                'type': 'exception',
+                'exception_message': exc.args[0],
+            },
+            version=LTIVersion.v1_3,
+        )
+
+    message_launch_data = message_launch.get_launch_data()
+
+    return _make_blob_and_redirect(
+        message_launch_data,
+        version=LTIVersion.v1_3,
+    )

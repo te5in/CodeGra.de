@@ -2,6 +2,7 @@ import os
 import json
 import typing as t
 
+import werkzeug
 from pylti1p3 import oidc_login, message_launch
 from pylti1p3.deployment import Deployment
 from pylti1p3.tool_config import ToolConfAbstract
@@ -97,7 +98,7 @@ class FlaskMessageLaunch(
 
 class FlaskOIDCLogin(
     OIDCLogin[FlaskRequest, LTIConfig, FlaskSessionService, FlaskCookieService,
-              FlaskRedirect]
+              werkzeug.wrappers.Response]
 ):
     def get_redirect(self, url: str) -> FlaskRedirect:
         return FlaskRedirect(url, self._cookie_service)

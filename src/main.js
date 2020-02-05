@@ -151,10 +151,12 @@ Vue.util.defineReactive(
     '$inLTI',
     inLTI,
     val => {
-        if (val === true) {
+        if (val === undefined) {
+            // PASS
+        } else if (val === true) {
             inLTI = val;
         } else {
-            throw new TypeError('You can only set $inLTI to true');
+            throw new TypeError(`You can only set $inLTI to true, not to ${val}.`);
         }
     },
     true,

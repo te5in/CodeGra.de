@@ -115,7 +115,8 @@ class FlaskCookieService(CookieService):
     ) -> werkzeug.wrappers.Response:
         for cookie_data in self._cookie_data_to_set:
             logger.info('Setting cookie', cookie=cookie_data)
-            response.set_cookie(
+            # mypy doesn't know the argument `samesite`
+            response.set_cookie(  # type: ignore[call-arg]
                 key=cookie_data.key,
                 value=cookie_data.value,
                 expires=cookie_data.exp,
