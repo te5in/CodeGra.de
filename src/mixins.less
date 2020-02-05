@@ -106,14 +106,6 @@
     }
 }
 
-.navbar-color {
-    background-color: @color-primary;
-
-    body.cg-dark-mode & {
-        background-color: @color-primary-darker;
-    }
-}
-
 .default-background {
     background-color: #fff;
 
@@ -273,10 +265,19 @@
 }
 
 .tab-colors {
-    li.nav-item > .nav-link.disabled {
-        color: @text-color-muted !important;
-        &:hover {
+    li.nav-item {
+        &:focus,
+        & .nav-link:focus {
+            outline-color: transparent !important;
+        }
+
+        > .nav-link.disabled {
+            cursor: not-allowed;
             color: @text-color-muted !important;
+
+            &:hover {
+                color: @text-color-muted !important;
+            }
         }
     }
 
@@ -341,6 +342,11 @@
 
 .dark-table-colors {
     background-color: @color-primary;
+    color: @text-color-dark;
+
+    tbody + tbody {
+        border-color: @color-primary-darker;
+    }
 
     tr.table-info,
     tr.table-success,
@@ -364,6 +370,10 @@
 }
 
 .default-table-colors {
+    tr:first-child td {
+        border-top: 0;
+    }
+
     body.cg-dark-mode & {
         .dark-table-colors;
     }
