@@ -165,7 +165,7 @@
                                 Options
                             </label>
 
-                            <div class="form-control mb-3">
+                            <div class="border rounded mb-3 px-2 py-1">
                                 <b-form-checkbox-group v-model="input.options"
                                                        @change="optionToggled(index, $event)">
                                     <b-form-checkbox v-for="opt in ioOptions"
@@ -1265,13 +1265,14 @@ export default {
     cursor: pointer;
 
     .fa-icon {
-        transition: transform 250ms linear;
+        transform: translateY(-2px);
+        transition: transform @transition-duration linear;
     }
 
     .x-collapsing .handle .fa-icon,
     .x-collapsed .handle .fa-icon,
     &.collapsed .fa-icon {
-        transform: rotate(-90deg);
+        transform: translateY(-2px) rotate(-90deg);
     }
 }
 

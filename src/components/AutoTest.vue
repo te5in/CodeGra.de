@@ -169,7 +169,7 @@
 
                                     <b-input-group>
                                         <b-radio-group stacked
-                                                       class="p-0 form-control"
+                                                       class="p-0 border rounded-left flex-grow-1"
                                                        :class="{
                                                                'rounded-left': configEditable,
                                                                'readably-disabled': !configEditable,
@@ -207,7 +207,7 @@
 
                                     <b-input-group>
                                         <b-radio-group stacked
-                                                       class="p-0 form-control"
+                                                       class="p-0 border rounded-left flex-grow-1"
                                                        :class="{
                                                            'rounded-left': configEditable,
                                                            'readably-disabled': !configEditable,
@@ -1414,12 +1414,6 @@ export default {
 
         &:not(:last-child) {
             border-bottom: 1px solid rgba(0, 0, 0, 0.125);
-        }
-
-        label::before,
-        label::after {
-            margin-top: 0.25rem;
-            margin-left: 0.75rem;
         }
     }
 

@@ -50,13 +50,14 @@ export default {
     cursor: pointer;
 
     .fa-icon {
+        transform: translateY(-2px);
         transition: transform 250ms linear;
     }
 
     .x-collapsing .handle .fa-icon,
     .x-collapsed .handle .fa-icon,
     &.collapsed .fa-icon {
-        transform: rotate(-90deg);
+        transform: translateY(-2px) rotate(-90deg);
     }
 }
 </style>

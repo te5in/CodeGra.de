@@ -2,24 +2,25 @@
 <template>
 <div class="auto-test-suite"
      :class="value.isEmpty() ? 'empty' : ''">
-    <b-modal class="edit-suite-modal"
-             :style="{ cursor: slickItemMoving ? 'grabbing' : undefined }"
+    <b-modal :style="{ cursor: slickItemMoving ? 'grabbing' : undefined }"
              ref="editModal"
+             size="lg"
              no-close-on-backdrop
              no-close-on-esc
              hide-header-close
              hide-header
+             modal-class="edit-suite-modal"
              v-model="showModal"
              v-if="internalValue">
         <b-input-group prepend="Rubric category">
             <b-dropdown :text="internalValue.rubricRow.header || 'Select a rubric category'"
-                        class="category-dropdown">
+                        class="category-dropdown flex-grow-1"
+                        toggle-class="rounded-left-0">
                 <b-dropdown-item v-for="cat in rubric.rows"
                                  :key="cat.id"
                                  :disabled="!!disabledCategories[cat.id]"
                                  @click="setRubricRow(cat)"
-                                 :active="internalValue.rubricRow.id === cat.id"
-                                 class="px-3 py-1">
+                                 :active="internalValue.rubricRow.id === cat.id">
                     <div v-b-popover.top.hover="disabledCategories[cat.id] ? 'This rubric category is already in use.' : ''">
                         <h5 class="mb-1">{{ cat.header }}</h5>
                         <span class="rubric-description">{{ cat.description }}</span>
@@ -94,9 +95,7 @@
                         Timeout per step (seconds)
 
                         <description-popover hug-text>
-                            <template slot="description">
-                                If a single step takes longer than specified, the step will fail.
-                            </template>
+                            If a single step takes longer than specified, the step will fail.
                         </description-popover>
                     </label>
 
@@ -113,12 +112,12 @@
                                      class="mr-1"
                                      v-model="internalValue.networkDisabled">
                         Network disabled
-                    </b-form-checkbox>
 
                         <description-popover hug-text>
                             Only turn this option off if you want students' code to access the
                             internet.
                         </description-popover>
+                    </b-form-checkbox>
                 </b-form-fieldset>
             </div>
         </collapse>
@@ -571,15 +570,14 @@ export default {
     cursor: pointer;
 
     .fa-icon {
-        position: relative;
-        top: 2px;
+        transform: translateY(-2px);
         margin-right: 0.5rem;
         transition: transform @transition-duration;
     }
 
     .x-collapsing & .fa-icon,
     .x-collapsed & .fa-icon {
-        transform: rotate(-90deg);
+        transform: translateY(-2px) rotate(-90deg);
     }
 }
 
@@ -633,23 +631,21 @@ export default {
 </style>
 
 <style lang="less">
-.auto-test-suite {
-    .edit-suite-modal .modal-dialog {
+.edit-suite-modal {
+    .modal-dialog {
         max-width: 891px;
     }
 
     .category-dropdown {
         flex: 1 1 auto;
 
-        .dropdown-toggle {
-            flex: 1 1 auto;
-            border-top-left-radius: 0;
-            border-bottom-left-radius: 0;
-        }
+        .dropdown-menu {
+            width: 100%;
 
-        .dropdown-menu.show {
-            overflow-y: auto;
-            padding: 0;
+            &.show {
+                overflow-y: auto;
+                padding: 0;
+            }
         }
     }
 }
