@@ -90,7 +90,7 @@ else:
 
         @classmethod
         def fromisoformat(cls, isoformat: str) -> 'DatetimeWithTimezone':
-            if re.search(r'(\+\d\d:\d\d|Z)$', isoformat):
+            if re.search(r'([+-]\d\d(:?\d\d)?|Z)$', isoformat) is None:
                 isoformat += '+00:00'
             dt = datetime.datetime.fromisoformat(isoformat)
             # This assumes that datetimes without tzinfo are in UTC.
