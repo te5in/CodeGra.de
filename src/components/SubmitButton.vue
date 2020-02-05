@@ -40,7 +40,7 @@
                :container="container"
                :target="btnId"
                triggers=""
-               @hide="onHideError">
+               @hidden="onHideError">
         <div class="submit-button-error">
             <icon name="times"
                   class="hide-button"
@@ -58,7 +58,7 @@
                :show="!!warning"
                :target="btnId"
                triggers=""
-               @hide="onHideWarning">
+               @hidden="onHideWarning">
         <div class="submit-button-warning">
             <icon name="times"
                   class="hide-button"
