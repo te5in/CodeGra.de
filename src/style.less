@@ -27,6 +27,12 @@ html {
 
 .custom-select {
     background-image: url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 4 5'%3E%3Cpath fill='%23ccc' d='M2 0L0 2h4zm0 5L0 3h4z'/%3E%3C/svg%3E");
+
+    body.cg-dark-mode & {
+        background-color: @color-primary;
+        border-color: @color-primary-darker;
+        color: @text-color-dark;
+    }
 }
 
 .alert-danger {
@@ -46,7 +52,7 @@ html {
 }
 
 main {
-    a:not(.btn) {
+    a {
         .default-link-colors;
     }
 }
@@ -114,7 +120,7 @@ table.table {
         border-top: 0;
     }
 
-    #app.dark & tbody + tbody {
+    body.cg-dark-mode & tbody + tbody {
         border-color: @color-primary-darker;
     }
 }
@@ -127,12 +133,7 @@ textarea {
     }
 }
 
-#app.dark ~ .popover,
-#app.dark .popover {
-    .dark-popover-colors;
-}
-
-input[type='datetime-local'] {
+input[type="datetime-local"] {
     flex-direction: row !important;
     padding: 0 0.75rem;
     &::-webkit-inner-spin-button {
@@ -153,7 +154,7 @@ input[type='datetime-local'] {
     }
 }
 
-input[type='number'] {
+input[type="number"] {
     text-align: right;
     padding-right: 1em;
 
@@ -186,8 +187,12 @@ textarea:disabled {
     .default-button-group-colors;
 }
 
-#app {
+body {
     .default-checkbox-and-radio-colors;
+
+    &.cg-dark-mode .popover {
+        .dark-popover-colors;
+    }
 }
 
 .input-group {
@@ -245,9 +250,11 @@ textarea:disabled {
             background-color: @color-lighter-gray;
         }
 
-        #app.dark & {
-            border-color: @color-primary-darker;
+        body.cg-dark-mode & {
             background-color: @color-primary;
+            border-color: @color-primary-darker;
+            color: @color-secondary-text-lighter;
+
             &::after {
                 background-color: @color-primary-darker;
                 border-color: @color-primary-darker;
@@ -298,7 +305,7 @@ textarea:disabled {
         color: black;
         font-weight: normal;
 
-        #app.dark {
+        body.cg-dark-mode & {
             color: @text-color-dark;
         }
     }
@@ -333,7 +340,7 @@ textarea:disabled {
     color: rgba(0, 0, 0, 0.2);
     display: inline-block;
 
-    #app.dark & {
+    body.cg-dark-mode & {
         color: @color-secondary-text;
     }
 
@@ -372,8 +379,8 @@ textarea:disabled {
     }
 }
 
-#app.dark hr {
-    border-top-color: @color-primary-darkest;
+body.cg-dark-mode hr {
+    border-top-color: @color-primary-darker;
 }
 
 .modal-dialog {
@@ -443,7 +450,7 @@ textarea:disabled {
     background-color: @color-warning;
     border-color: @color-warning;
 
-    #app.dark & {
+    body.cg-dark-mode & {
         background-color: @color-warning-dark;
         border-color: @color-warning-dark;
         color: @text-color;
@@ -460,7 +467,8 @@ textarea:disabled {
         margin-left: 0;
         padding: 0.375rem;
         border-bottom: 1px solid @color-border-gray-lighter;
-        #app.dark & {
+
+        body.cg-dark-mode & {
             border-color: @color-primary-darker;
         }
     }
@@ -480,12 +488,12 @@ textarea:disabled {
     color: @text-color-muted;
     border-radius: @border-radius;
 
-    #app.dark & {
+    body.cg-dark-mode & {
         background-color: @color-primary-darker;
     }
 }
 
-#app.dark {
+body.cg-dark-mode {
     .border {
         border-color: @color-primary-darker !important;
     }
@@ -533,13 +541,13 @@ textarea:disabled {
 .badge-primary {
     background-color: @color-primary;
 
-    #app.dark & {
+    body.cg-dark-mode & {
         background-color: @text-color-dark;
         color: @color-primary;
     }
 }
 
-#app.dark .bg-light {
+body.cg-dark-mode .bg-light {
     background-color: @color-primary-darker !important;
 }
 

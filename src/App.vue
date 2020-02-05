@@ -34,6 +34,7 @@ export default {
 
     computed: {
         ...mapGetters('user', ['loggedIn']),
+        ...mapGetters('pref', ['darkMode']),
         ...mapGetters('courses', ['assignments']),
 
         canManageLTICourse() {
@@ -72,6 +73,19 @@ export default {
             loading: true,
             showContent: false,
         };
+    },
+
+    watch: {
+        darkMode: {
+            immediate: true,
+            handler() {
+                if (this.darkMode) {
+                    document.body.classList.add('cg-dark-mode');
+                } else {
+                    document.body.classList.remove('cg-dark-mode');
+                }
+            },
+        },
     },
 
     methods: {
