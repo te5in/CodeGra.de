@@ -4,10 +4,9 @@
     <textarea :placeholder="placeholder"
               class="form-control"
               :rows="10"
-              ref="field"
               v-model="feedback"
               @keydown.ctrl.enter.prevent="$refs.submitButton.onClick"
-              @keydown.native.tab.capture="expandSnippet"
+              @keydown.tab.capture="expandSnippet"
               v-if="editable"/>
     <pre class="feedback-field"
          v-else>{{ feedback || placeholder }}</pre>
@@ -46,6 +45,7 @@ export default {
         ...mapGetters('user', {
             nameCurrentUser: 'name',
             userId: 'id',
+            snippets: 'snippets',
         }),
 
         placeholder() {
@@ -66,6 +66,7 @@ export default {
     },
 
     methods: {
+        ...mapActions('user', ['refreshSnippets']),
         ...mapActions('submissions', ['updateSubmission']),
 
         submitFeedback() {
@@ -88,13 +89,13 @@ export default {
         },
 
         expandSnippet(event) {
-            const { field } = this.$refs;
-            const end = field.$el.selectionEnd;
-            if (field.$el.selectionStart === end) {
+            const field = event.target;
+            const end = field.selectionEnd;
+            if (field.selectionStart === end) {
                 event.preventDefault();
                 const val = this.feedback.slice(0, end);
                 const start = Math.max(val.lastIndexOf(' '), val.lastIndexOf('\n')) + 1;
-                const res = this.snippets()[val.slice(start, end)];
+                const res = this.snippets[val.slice(start, end)];
                 if (res !== undefined) {
                     this.feedback = val.slice(0, start) + res.value + this.feedback.slice(end);
                 }
