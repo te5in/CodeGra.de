@@ -4,8 +4,12 @@
      :class="{ editable, locked }"
      @mouseenter="lockPopoverVisible = true"
      @mouseleave="lockPopoverVisible = false">
-    <div class="row-description border-bottom py-2 px-3">
+    <div class="row-description border-bottom">
         <template v-if="locked">
+            <icon name="lock"
+                  class="rubric-lock float-right mx-3 my-2"
+                  :id="`rubric-lock-${id}`" />
+
             <!-- We need to key this popover to make sure it actually
                  changes when the content changes. -->
             <b-popover :show="lockPopoverVisible"
@@ -13,15 +17,12 @@
                        :content="lockPopover"
                        :key="lockPopover"
                        triggers=""
-                       placement="top" />
-
-            <icon name="lock"
-                  class="float-right mt-1"
-                  :id="`rubric-lock-${id}`" />
+                       placement="top"
+                       boundary="window" />
         </template>
 
-        <p class="text-wrap-pre mb-0" v-if="rubricRow.description">{{ rubricRow.description }}</p>
-        <p class="mb-0 text-muted font-italic" v-else>
+        <p class="text-wrap-pre mb-0 py-2 px-3" v-if="rubricRow.description">{{ rubricRow.description }}</p>
+        <p class="mb-0 py-2 px-3 text-muted font-italic" v-else>
             This category has no description.
         </p>
     </div>

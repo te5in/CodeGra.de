@@ -148,6 +148,12 @@ context('Rubric Viewer', () => {
         const rubricRows = new Rubric(...rubricPoints);
         let rubric;
 
+        function setMaxPoints(maxPoints) {
+            cy.createRubric(assignment.id, rubricRows, maxPoints);
+            cy.reload();
+            cy.get('.rubric-viewer').should('be.visible');
+        }
+
         after(() => {
             cy.deleteRubric(assignment.id);
         });
@@ -217,13 +223,24 @@ context('Rubric Viewer', () => {
             checkGrade('10.00');
         });
 
-        it('should take the rubric\'s max points into account calculating the rubric grade', () => {
-            function setMaxPoints(maxPoints) {
-                cy.createRubric(assignment.id, rubricRows, maxPoints);
-                cy.reload();
-                cy.get('.rubric-viewer').should('be.visible');
+        it('should display the correct max points in the grade viewer', () => {
+            function checkMaxPoints(maxPoints) {
+                cy.get('.grade-viewer .rubric-score')
+                    .should('contain', `/ ${maxPoints}`);
             }
 
+            checkMaxPoints(12);
+            setMaxPoints(1);
+            checkMaxPoints(1);
+            setMaxPoints(10);
+            checkMaxPoints(10);
+            setMaxPoints(10.12345);
+            checkMaxPoints(10.12);
+            setMaxPoints(null);
+            checkMaxPoints(12);
+        });
+
+        it('should take the rubric\'s max points into account calculating the rubric grade', () => {
             setMaxPoints(1);
             selectRubricItem(0);
             checkGrade('10.00');
