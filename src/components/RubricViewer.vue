@@ -7,7 +7,7 @@
             v-model="currentCategory">
         <b-tab v-for="row, i in rubric.rows"
                :key="`rubric-${row.id}`">
-            <template v-slot:title>
+            <template #title>
                 <template v-if="row.header">
                     {{ row.header }}
                 </template>

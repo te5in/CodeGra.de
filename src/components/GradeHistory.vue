@@ -8,7 +8,7 @@
              :fields="fields"
              show-empty
              empty-text="No grade history">
-        <template v-slot:cell(user)="data">
+        <template #cell(user)="data">
             <user v-if="data.item.origin === 'human'"
                   :user="data.item.user"/>
             <i v-else
@@ -17,16 +17,16 @@
             </i>
         </template>
 
-        <template v-slot:cell(grade)="data">
+        <template #cell(grade)="data">
             {{ data.item.grade >= 0 ? $utils.toMaxNDecimals(data.item.grade, 2) : 'Deleted' }}
         </template>
 
-        <template v-slot:cell(rubric)="data">
+        <template #cell(rubric)="data">
             <icon :name="data.item.is_rubric ? 'check' : 'times'" />
         </template>
 
         <template v-if="isLTI"
-                  v-slot:cell(lti)="data">
+                  #cell(lti)="data">
             <icon :name="data.item.passed_back ? 'check' : 'times'" />
         </template>
     </b-table>

@@ -121,11 +121,11 @@
              :sort-compare="sortTable"
              sort-by="User">
 
-        <template v-slot:cell(User)="item">
+        <template #cell(User)="item">
             <span class="username">{{item.value.name}} ({{item.value.username}})</span>
         </template>
 
-        <template v-slot:cell(CourseRole)="item">
+        <template #cell(CourseRole)="item">
             <b-dropdown class="role-dropdown"
                         v-b-popover.top.hover="item.item.User.name === userName ? 'You cannot change your own role' : ''"
                         :disabled="updating[item.item.User.id] || item.item.User.name === userName">

@@ -97,7 +97,7 @@
                v-for="row, i in rubricRows"
                :key="`rubric-${id}-${i}`">
 
-            <template v-slot:title>
+            <template #title>
                 <template v-if="row.header">
                     {{ row.header }}
                 </template>

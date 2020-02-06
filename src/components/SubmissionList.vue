@@ -34,7 +34,7 @@
              :sort-by="this.$route.query.sortBy || 'user'"
              :sort-desc="!parseBool(this.$route.query.sortAsc, true)"
              class="mb-0 border-bottom submissions-table">
-        <template v-slot:cell(user)="item">
+        <template #cell(user)="item">
             <a class="invisible-link"
                href="#"
                @click.prevent>
@@ -48,20 +48,20 @@
             </a>
         </template>
 
-        <template v-slot:cell(grade)="item">
+        <template #cell(grade)="item">
             <span class="submission-grade">
                 {{ item.item.sub.grade || '-' }}
             </span>
         </template>
 
-        <template v-slot:cell(formattedCreatedAt)="item">
+        <template #cell(formattedCreatedAt)="item">
             {{item.item.sub.formattedCreatedAt }}
 
             <late-submission-icon :submission="item.item.sub"
                                   :assignment="assignment" />
         </template>
 
-        <template v-slot:cell(assignee)="item" >
+        <template #cell(assignee)="item" >
             <span class="assigned-to-grader">
                 <span v-if="!canAssignGrader || graders == null">
                     <user :user="item.item.sub.assignee"
