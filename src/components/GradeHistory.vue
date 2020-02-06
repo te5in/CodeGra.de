@@ -1,22 +1,34 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <loader v-if="loading"/>
-<div class="grade-history" v-else>
-    <b-table striped :items="history" :fields="fields" show-empty empty-text="No grade history">
-        <template slot="user" slot-scope="data">
-            <user v-if="data.item.origin === 'human'" :user="data.item.user"/>
-            <span v-else><i v-b-popover.top.hover="'This grade was not given by a human.'"
-                            >{{ convertGradeOrigin(data.item.origin) }}</i></span>
+<div v-else
+     class="grade-history">
+    <b-table striped
+             :items="history"
+             :fields="fields"
+             show-empty
+             empty-text="No grade history">
+        <template v-slot:cell(user)="data">
+            <user v-if="data.item.origin === 'human'"
+                  :user="data.item.user"/>
+            <i v-else
+               v-b-popover.top.hover="'This grade was not given by a human.'">
+                {{ convertGradeOrigin(data.item.origin) }}
+            </i>
         </template>
-        <span slot="grade" slot-scope="data">
-            {{ data.item.grade >= 0 ? Math.round(data.item.grade * 100) / 100 : 'Deleted' }}
-        </span>
-        <span slot="rubric" slot-scope="data">
+
+        <template v-slot:cell(grade)="data">
+            {{ data.item.grade >= 0 ? $utils.toMaxNDecimals(data.item.grade, 2) : 'Deleted' }}
+        </template>
+
+        <template v-slot:cell(rubric)="data">
             <icon :name="data.item.is_rubric ? 'check' : 'times'" />
-        </span>
-        <span v-if="isLTI" slot="lti" slot-scope="data">
+        </template>
+
+        <template v-if="isLTI"
+                  v-slot:cell(lti)="data">
             <icon :name="data.item.passed_back ? 'check' : 'times'" />
-        </span>
+        </template>
     </b-table>
 </div>
 </template>
@@ -103,6 +115,10 @@ export default {
         },
     },
 
+    mounted() {
+        this.updateHistory();
+    },
+
     components: {
         Icon,
         Loader,
@@ -113,7 +129,6 @@ export default {
 
 <style lang="less" scoped>
 .grade-history {
-    width: 30em;
     margin: -0.5rem -0.75rem;
     max-height: 40em;
     overflow-y: auto;
@@ -122,10 +137,17 @@ export default {
 .table {
     margin-bottom: 0;
     cursor: text !important;
+}
+</style>
 
+<style lang="less">
+.grade-history .table {
     th,
     td {
-        padding: 0.25rem !important;
+        &:last-child {
+            width: 1px;
+            white-space: nowrap;
+        }
     }
 }
 </style>

@@ -7,25 +7,6 @@
 </div>
 <loader center v-else-if="loadingPage"/>
 <div class="page submission outer-container" id="submission-page" v-else>
-    <b-modal id="modal_delete" title="Are you sure?" hide-footer v-if="canDeleteSubmission">
-        <p style="text-align: center;">
-            By deleting all information about this submission,
-            including files, will be lost forever! So are you
-            really sure?
-        </p>
-        <b-button-toolbar justify>
-            <submit-button label="Yes"
-                           variant="outline-danger"
-                           :submit="deleteSubmission"
-                           @after-success="afterDeleteSubmission"/>
-            <b-btn class="text-center"
-                   variant="success"
-                   @click="$root.$emit('bv::hide::modal', `modal_delete`)">
-                No!
-            </b-btn>
-        </b-button-toolbar>
-    </b-modal>
-
     <local-header :back-route="submissionsRoute"
                   back-popover="Go back to submissions list"
                   always-show-extra-slot
@@ -39,27 +20,23 @@
             :assignment="assignment"/>
 
         <b-button-group class="submission-header-buttons">
-            <b-button class="settings-toggle"
-                      v-b-popover.hover.top="'Settings'"
-                      id="codeviewer-settings-toggle">
+            <b-button id="codeviewer-settings-toggle"
+                      v-b-popover.hover.top="'Settings'">
                 <icon name="cog"/>
 
-                <b-popover triggers="click"
+                <b-popover target="codeviewer-settings-toggle"
+                           triggers="click"
                            class="settings-popover"
-                           target="codeviewer-settings-toggle"
-                           @show="beforeShowPopover"
-                           container="#submission-page"
-                           placement="bottom">
-                    <div class="settings-content"
-                         id="codeviewer-settings-content"
-                         ref="settingsContent">
-                        <preference-manager :file-id="prefFileId"
-                                            :show-context-amount="selectedCat === 'feedback-overview' || selectedCat === 'teacher-diff'"
-                                            :show-language="selectedCat === 'code'"
-                                            @whitespace="whitespaceChanged"
-                                            @language="languageChanged"
-                                            @inline-feedback="inlineFeedbackChanged"/>
-                    </div>
+                           container="submission-page"
+                           placement="bottom"
+                           @show="beforeShowPopover">
+                    <preference-manager style="width: 24rem;"
+                                        :file-id="prefFileId"
+                                        :show-context-amount="selectedCat === 'feedback-overview' || selectedCat === 'teacher-diff'"
+                                        :show-language="selectedCat === 'code'"
+                                        @whitespace="whitespaceChanged"
+                                        @language="languageChanged"
+                                        @inline-feedback="inlineFeedbackChanged"/>
                 </b-popover>
             </b-button>
 
@@ -70,9 +47,9 @@
 
                 <b-popover target="codeviewer-general-feedback"
                            triggers="click"
-                           container="#submission-page"
-                           @show="beforeShowPopover"
-                           placement="bottom">
+                           container="submission-page"
+                           placement="bottom"
+                           @show="beforeShowPopover">
                     <template slot="title">
                         <span v-if="submission && submission.comment_author">
                             General feedback by <user :user="submission.comment_author"/>
@@ -96,11 +73,10 @@
                 <b-popover target="codeviewer-grade-history"
                            title="Grade history"
                            triggers="click"
-                           container="#submission-page"
-                           boundary="viewport"
-                           @show="beforeShowPopover(); $refs.gradeHistory.updateHistory()"
-                           placement="bottom">
-                    <grade-history ref="gradeHistory"
+                           container="submission-page"
+                           placement="bottom"
+                           @show="beforeShowPopover()">
+                    <grade-history style="width: 30rem;"
                                    :submission-id="submission && submission.id"
                                    :isLTI="assignment && assignment.course.is_lti"/>
                 </b-popover>
@@ -112,8 +88,9 @@
 
                 <b-popover target="codeviewer-download-toggle"
                            triggers="click"
-                           @show="beforeShowPopover"
-                           placement="bottom">
+                           placement="bottom"
+                           container="submission-page"
+                           @show="beforeShowPopover">
                     <table class="table table-hover">
                         <tbody>
                             <tr @click="downloadType('zip')">
@@ -128,13 +105,15 @@
                 </b-popover>
             </b-button>
 
-            <b-btn v-if="canDeleteSubmission"
-                   variant="danger"
-                   v-b-popover.hover.top="'Delete submission'"
-                   id="codeviewer-delete-submission"
-                   @click="$root.$emit('bv::show::modal',`modal_delete`)">
+            <submit-button v-if="canDeleteSubmission"
+                           variant="danger"
+                           confirm="By deleting all information about this submission, including files, will be lost forever! So are you really sure?"
+                           confirm-in-modal
+                           v-b-popover.hover.top="'Delete submission'"
+                           :submit="deleteSubmission"
+                           @after-success="afterDeleteSubmission">
                 <icon name="times"/>
-            </b-btn>
+            </submit-button>
         </b-button-group>
 
         <template slot="extra" v-if="!loadingInner">
@@ -881,6 +860,7 @@ export default {
     height: 100vh;
     max-height: 100%;
     margin-bottom: 0 !important;
+    overflow: hidden;
 }
 
 .submission-nav-bar {

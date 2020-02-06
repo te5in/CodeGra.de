@@ -35,9 +35,9 @@
 
             <div class="progress-meter"
                  :style="{
-                    opacity: showProgressMeter ? 1 : 0,
-                    width: `${progressWidth}%`,
-                }">
+                     opacity: showProgressMeter ? 1 : 0,
+                     width: `${progressWidth}%`,
+                 }">
                 <small class="text-center" :class="`progress-${readableMultiplier}`">
                     {{ $utils.toMaxNDecimals(onlyItem.points * multiplier / 100, 2) }}
                 </small>
