@@ -431,16 +431,29 @@ export class RubricResult {
         return store.getters['submissions/getSingleSubmission'](this.submissionId);
     }
 
+    get assignment() {
+        return getProps(this.submission, null, 'assignment');
+    }
+
     get rubric() {
         const id = getProps(this.submission, null, 'assignmentId');
         return id == null ? null : store.getters['rubrics/rubrics'][id];
     }
 
-    getGrade(maxPoints) {
-        if (this.nSelected === 0) {
+    get maxPoints() {
+        // TODO: Move this to the Rubric model and get it from this.rubric.
+        return getProps(
+            this.assignment,
+            getProps(this.rubric, null, 'maxPoints'),
+            'fixed_max_rubric_points',
+        );
+    }
+
+    get grade() {
+        if (this.nSelected === 0 || this.maxPoints == null) {
             return null;
         } else {
-            const grade = 10 * this.points / maxPoints;
+            const grade = 10 * this.points / this.maxPoints;
             return formatGrade(Math.max(0, Math.min(grade, 10)));
         }
     }

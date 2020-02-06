@@ -206,18 +206,11 @@ export default {
         },
 
         rubricPoints() {
-            return this.rubricResult && this.rubricResult.points;
+            return this.$utils.getProps(this.rubricResult, null, 'points');
         },
 
         rubricMaxPoints() {
-            if (this.rubric == null) {
-                return null;
-            }
-            return this.$utils.getProps(
-                this.assignment,
-                this.rubric.maxPoints,
-                'fixed_max_rubric_points',
-            );
+            return this.$utils.getProps(this.rubricResult, null, 'maxPoints');
         },
 
         rubricHasSelectedItems() {
@@ -225,10 +218,7 @@ export default {
         },
 
         rubricGrade() {
-            if (this.rubric == null || this.rubricResult == null) {
-                return null;
-            }
-            return this.rubricResult.getGrade(this.rubricMaxPoints);
+            return this.$utils.getProps(this.rubricResult, null, 'grade');
         },
 
         isRubricChanged() {

@@ -114,9 +114,9 @@ class LTIRole(abc.ABC):
     def __lt__(self, other: object) -> bool:
         """Check if this item is less than the other item.
 
-        >>> a = LTICourseRole(name='Mentor', subnames=['c'])
+        >>> a = LTICourseRole(name='Instructor', subnames=['c'])
         >>> b = LTICourseRole(name='Learner', subnames=['c'])
-        >>> c = LTIGlobalRole(name='Mentor', subnames=['c'])
+        >>> c = LTIGlobalRole(name='Instructor', subnames=['c'])
         >>> a < b
         False
         >>> a > b
@@ -179,7 +179,6 @@ class LTICourseRole(LTIRole):
         'Instructor': ('Teacher', 3),
         'ContentDeveloper': ('Designer', 1),
         'Member': ('Student', 0),
-        'Mentor': ('TA', 2),
         'Administrator': ('Teacher', 3),
         'TeachingAssistant': ('TA', 2),
     }
@@ -210,7 +209,6 @@ class LTIGlobalRole(LTIRole):
         'Member': ('Student', 2),
         'Learner': ('Student', 2),
         'Instructor': ('Staff', 3),
-        'Mentor': ('Staff', 3),
         'Staff': ('Staff', 3),
         'Alumni': ('Student', 2),
         'ProspectiveStudent': ('Student', 2),

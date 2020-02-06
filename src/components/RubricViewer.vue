@@ -242,10 +242,16 @@ export default {
     }
 
     .row-description {
+        position: relative;
         max-height: 6.66rem;
         overflow: auto;
         line-height: 1.3;
         background-color: rgba(0, 0, 0, 0.0625);
+
+        .rubric-lock {
+            position: sticky;
+            top: 0.5rem;
+        }
     }
 
     .progress-meter {
