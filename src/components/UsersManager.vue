@@ -120,20 +120,24 @@
              :sort-compare="sortTable"
              sort-by="User">
 
-        <template slot="User" slot-scope="item">
+        <template v-slot:cell(User)="item">
             <span class="username">{{item.value.name}} ({{item.value.username}})</span>
         </template>
 
-        <template slot="CourseRole" slot-scope="item">
-            <loader :scale="2" v-if="updating[item.item.User.id]"/>
-            <b-dropdown :text="item.value.name"
-                        disabled
-                        class="role-dropdown"
-                        v-b-popover.top.hover="'You cannot change your own role'"
-                        v-else-if="item.item.User.name == userName"/>
-            <b-dropdown :text="item.value.name"
-                        class="role-dropdown"
-                        v-else>
+        <template v-slot:cell(CourseRole)="item">
+            <b-dropdown class="role-dropdown"
+                        v-b-popover.top.hover="item.item.User.name === userName ? 'You cannot change your own role' : ''"
+                        :disabled="updating[item.item.User.id] || item.item.User.name === userName">
+
+                <template slot="button-content"
+                          v-if="updating[item.item.User.id]">
+                    <loader class="d-inline" :scale="1" />
+                </template>
+                <template slot="button-content"
+                          v-else>
+                    {{ item.value.name }}
+                </template>
+
                 <b-dropdown-header>Select the new role</b-dropdown-header>
                 <b-dropdown-item v-for="role in roles"
                                  @click="changed(item.item, role)"
@@ -227,18 +231,18 @@ export default {
             canSearchUsers: false,
             newRole: '',
             error: '',
-            fields: {
-                User: {
+            fields: [
+                {
                     label: 'Name',
-                    sortable: true,
                     key: 'User',
-                },
-                CourseRole: {
-                    label: 'role',
                     sortable: true,
-                    key: 'CourseRole',
                 },
-            },
+                {
+                    label: 'Role',
+                    key: 'CourseRole',
+                    sortable: true,
+                },
+            ],
 
             registrationLinks: [],
             UserConfig,
@@ -487,10 +491,6 @@ export default {
     vertical-align: middle;
 }
 
-.users-table .dropdown .btn {
-    width: 10rem;
-}
-
 .add-student .drop .btn {
     border-radius: 0;
 }
@@ -512,12 +512,14 @@ export default {
 }
 
 .role-dropdown .dropdown-toggle {
+    width: 10rem;
     padding-top: 3px;
     padding-bottom: 4px;
-}
 
-.registration-table .role-dropdown .btn {
-    padding: 0.375rem 0.75rem;
+    &::after {
+        float: right;
+        margin-top: 0.66rem;
+    }
 }
 
 .add-user-button {

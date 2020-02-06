@@ -111,6 +111,16 @@ main {
 
 table.table {
     .default-table-colors;
+
+    th.shrink,
+    td.shrink {
+        width: 1px;
+        white-space: nowrap;
+    }
+}
+
+.table-hover tbody tr {
+    cursor: pointer;
 }
 
 input,
@@ -165,10 +175,6 @@ textarea:disabled {
 
 .card {
     .default-card-colors;
-}
-
-.table-hover tbody tr {
-    cursor: pointer;
 }
 
 .btn-group {
