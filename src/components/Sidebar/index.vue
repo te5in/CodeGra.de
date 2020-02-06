@@ -904,11 +904,6 @@ export default {
         padding: 0 0.75rem 0.25rem;
     }
 
-    & &-list-item {
-        display: flex;
-        flex-direction: row;
-    }
-
     & &-top-item,
     & &-bottom-item {
         cursor: pointer;
@@ -970,6 +965,8 @@ export default {
     }
 
     & &-list-item {
+        display: flex;
+        flex-direction: row;
         cursor: pointer;
 
         &:hover {
@@ -1026,6 +1023,10 @@ export default {
                     color: @color-primary;
                 }
             }
+        }
+
+        .fa-icon {
+            transform: translateY(-1px);
         }
     }
 
