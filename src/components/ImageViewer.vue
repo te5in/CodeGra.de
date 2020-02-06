@@ -160,7 +160,6 @@ export default {
 
 <style lang="less" scoped>
 .image-viewer {
-    min-height: 10rem;
     padding: 0;
 
     .img {
@@ -174,9 +173,10 @@ export default {
 </style>
 
 <style lang="less">
-.image-viewer.floating-feedback-button .content {
+.image-viewer.floating-feedback-button .content-wrapper {
     display: flex;
     flex-direction: column;
     align-items: center;
+    min-height: 10rem;
 }
 </style>

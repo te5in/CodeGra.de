@@ -2,7 +2,10 @@
 <div class="floating-feedback-button"
      :class="{ 'add-space': addSpace, 'without-hover': visibleWithoutHover }">
     <div class="content">
-        <slot/>
+        <div class="content-wrapper">
+            <slot/>
+        </div>
+
         <b-button class="feedback-button"
                   :class="buttonClasses"
                   @click="startEditingFeedback"
@@ -168,7 +171,6 @@ export default {
 @import '~mixins.less';
 
 .floating-feedback-button {
-    position: relative;
     display: flex;
     flex-direction: column;
     max-height: 100%;
@@ -180,9 +182,19 @@ export default {
 }
 
 .content {
+    position: relative;
     flex: 1 1 auto;
     min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.content-wrapper {
+    width: 100%;
+    height: 100%;
     overflow: auto;
+    display: flex;
+    justify-content: center;
 }
 
 .feedback-area-wrapper {

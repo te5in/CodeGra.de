@@ -786,7 +786,8 @@ export default {
     }
 }
 
-.cat-wrapper {
+.cat-wrapper,
+.submission-list {
     flex: 1 1 auto;
 }
 

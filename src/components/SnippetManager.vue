@@ -69,6 +69,7 @@
     <b-modal :title="modalTitle"
              ref="modal"
              class="edit-snippet-modal"
+             static
              @shown="focusInput">
         <b-form-group v-if="!!editingSnippet">
             <b-input-group>
@@ -83,7 +84,8 @@
             </b-input-group>
         </b-form-group>
 
-        <b-form-group v-if="!!editingSnippet">
+        <b-form-group v-if="!!editingSnippet"
+                      class="mb-0">
             <b-input-group>
                 <textarea rows="10"
                           name="snippet-value"
@@ -97,7 +99,7 @@
 
         <template slot="modal-footer">
             <b-button-toolbar justify
-                              class="modal-buttons">
+                              class="flex-grow-1">
                 <b-button variant="danger"
                           @click="cancelEditSnippet">
                     Cancel
@@ -463,21 +465,7 @@ export default {
     }
 }
 
-.modal-content {
-    .form-group:last-child {
-        margin-bottom: 0;
-    }
-
-    .modal-buttons {
-        flex: 1 1 auto;
-    }
-}
-
 .add-button {
     width: 100%;
-
-    .fa-icon {
-        transform: translateY(3px) !important;
-    }
 }
 </style>

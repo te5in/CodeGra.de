@@ -96,8 +96,7 @@
     </div>
 
     <div v-else-if="this.submissions && this.filteredSubmissions.length === 0"
-         class="no-submissions-found border-bottom text-muted"
-         >
+         class="no-submissions-found border-bottom text-muted">
         No submissions found with the given filters.
     </div>
 

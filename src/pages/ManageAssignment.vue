@@ -191,7 +191,9 @@
                                          warning if their submission does not
                                          follow the hand-in requirements."/>
                     </span>
-                    <c-g-ignore-file :assignment-id="assignmentId"/>
+
+                    <c-g-ignore-file class="m-3"
+                                     :assignment-id="assignmentId"/>
                 </b-card>
 
                 <b-card v-if="canEditGroups" no-body>
@@ -297,11 +299,13 @@
                             </span>
                         </description-popover>
                     </span>
-                    <loader class="text-center" v-if="gradersLoading && !gradersLoadedOnce"/>
-                    <divide-submissions :assignment="assignment"
+
+                    <loader class="m-3 text-center" v-if="gradersLoading && !gradersLoadedOnce"/>
+
+                    <divide-submissions v-else
+                                        :assignment="assignment"
                                         @divided="loadGraders"
-                                        :graders="graders"
-                                        v-else/>
+                                        :graders="graders" />
                 </b-card>
             </div>
 
@@ -316,7 +320,9 @@
                                          grading. All graders that have indicated that they
                                          are done will not receive notification e-mails."/>
                     </span>
-                    <loader class="text-center" v-if="gradersLoading"/>
+
+                    <loader class="m-3 text-center" v-if="gradersLoading"/>
+
                     <finished-grader-toggles :assignment="assignment"
                                              :graders="graders"
                                              :others="permissions.can_update_grader_status || false"
@@ -331,6 +337,7 @@
                                          graders on the selected time if they have not yet
                                          finished grading."/>
                     </span>
+
                     <notifications :assignment="assignment"
                                    class="reminders"/>
                 </b-card>
@@ -354,7 +361,8 @@
                         description="Run a plagiarism checker or view
                                      the results."/>
                 </span>
-                <plagiarism-runner :assignment="assignment"
+                <plagiarism-runner class="mb-3"
+                                   :assignment="assignment"
                                    :hidden="selectedCat !== 'plagiarism'"
                                    :can-manage="permissions.can_manage_plagiarism"
                                    :can-view="permissions.can_view_plagiarism"/>
@@ -820,38 +828,8 @@ export default {
     color: inherit;
 }
 
-.plagiarism-runner {
-    margin-bottom: 1rem;
-}
-
-.categories {
-    display: flex;
-    flex-direction: row;
-}
-
-.category {
-    display: flex;
-    flex-direction: column;
-
-    margin-bottom: -1rem;
-    line-height: 1rem;
-    padding: 0 1rem;
-    cursor: pointer;
-
-    span {
-        padding-bottom: 0.25rem;
-        font-size: 0.75rem;
-    }
-
-    .icon {
-        padding-bottom: 0rem;
-        margin: 0 auto;
-    }
-}
-
 .cat-wrapper {
     transition: opacity 0.25s ease-out;
-    padding-top: 5px;
 
     &.hidden {
         padding: 0;
@@ -866,11 +844,7 @@ export default {
     z-index: 9;
 }
 
-.finished-grading-card .loader {
-    padding: 1rem;
-}
-
 .ignore-card .card-body {
-    padding-top: 0.75rem;
+    padding: 0;
 }
 </style>

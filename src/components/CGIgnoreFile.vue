@@ -23,13 +23,12 @@
          class="font-italic text-muted">
         No validation set.
     </div>
-    <b-form-group
-        v-else-if="!summaryMode"
-        class="policy-form"
-        :class="policy ? '' : 'policy-form-only'"
-        label-class="font-weight-bold pt-0 policy-form-label"
-        label-cols="9"
-        horizontal>
+    <b-form-group v-else-if="!summaryMode"
+                  class="policy-form"
+                  :class="policy ? '' : 'policy-form-only'"
+                  label-class="font-weight-bold pt-0 policy-form-label"
+                  label-cols="9"
+                  horizontal>
         <template slot="label">
             By default
             <description-popover
@@ -53,6 +52,7 @@
             button-variant="primary"
             buttons />
     </b-form-group>
+
     <transition :name="disabledAnimations ? '' : 'collapse'">
         <div v-if="policy" class="collapse-entry">
             <table v-if="!summaryMode" class="table table-striped">
@@ -526,10 +526,6 @@ td {
     opacity: 0;
 }
 
-.policy-form-only {
-    margin-bottom: 0;
-}
-
 .old-cgignore {
     padding: 1rem;
     margin-top: 1rem;
@@ -603,12 +599,16 @@ pre {
 
     .policy-form {
         padding-left: 0.75rem;
-        padding-right: 0.75rem;
         vertical-align: middle;
-        margin-bottom: 0.75rem;
+
+        &-only {
+            margin-bottom: 0;
+        }
+
         .form-row {
             align-items: center;
         }
+
         .policy-form-label {
             padding-bottom: 0;
         }
