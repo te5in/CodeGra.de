@@ -81,7 +81,7 @@
         </div>
     </div>
 
-    <div class="shadow"/>
+    <div class="shadow-overlay"/>
 
     <div class="submenu-container"
          :class="{ 'use-space': dimmingUseSpace, }"
@@ -641,7 +641,7 @@ export default {
     // box-shadow property on .main-class, because the z-indices of
     // .main-menu and .submenu must be equal, so that modals spawned in the
     // latter can have a higher z-index than .main-menu.
-    & + .shadow {
+    & + .shadow-overlay {
         position: absolute;
         top: 0;
         left: 0;
