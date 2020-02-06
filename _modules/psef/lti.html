@@ -315,9 +315,9 @@
     <span class="k">def</span> <span class="fm">__lt__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="nb">object</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Check if this item is less than the other item.</span>
 
-<span class="sd">        &gt;&gt;&gt; a = LTICourseRole(name=&#39;Mentor&#39;, subnames=[&#39;c&#39;])</span>
+<span class="sd">        &gt;&gt;&gt; a = LTICourseRole(name=&#39;Instructor&#39;, subnames=[&#39;c&#39;])</span>
 <span class="sd">        &gt;&gt;&gt; b = LTICourseRole(name=&#39;Learner&#39;, subnames=[&#39;c&#39;])</span>
-<span class="sd">        &gt;&gt;&gt; c = LTIGlobalRole(name=&#39;Mentor&#39;, subnames=[&#39;c&#39;])</span>
+<span class="sd">        &gt;&gt;&gt; c = LTIGlobalRole(name=&#39;Instructor&#39;, subnames=[&#39;c&#39;])</span>
 <span class="sd">        &gt;&gt;&gt; a &lt; b</span>
 <span class="sd">        False</span>
 <span class="sd">        &gt;&gt;&gt; a &gt; b</span>
@@ -380,7 +380,6 @@
         <span class="s1">&#39;Instructor&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;Teacher&#39;</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span>
         <span class="s1">&#39;ContentDeveloper&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;Designer&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
         <span class="s1">&#39;Member&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;Student&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
-        <span class="s1">&#39;Mentor&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;TA&#39;</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span>
         <span class="s1">&#39;Administrator&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;Teacher&#39;</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span>
         <span class="s1">&#39;TeachingAssistant&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;TA&#39;</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span>
     <span class="p">}</span>
@@ -411,7 +410,6 @@
         <span class="s1">&#39;Member&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;Student&#39;</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span>
         <span class="s1">&#39;Learner&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;Student&#39;</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span>
         <span class="s1">&#39;Instructor&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;Staff&#39;</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span>
-        <span class="s1">&#39;Mentor&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;Staff&#39;</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span>
         <span class="s1">&#39;Staff&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;Staff&#39;</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span>
         <span class="s1">&#39;Alumni&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;Student&#39;</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span>
         <span class="s1">&#39;ProspectiveStudent&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;Student&#39;</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span>
