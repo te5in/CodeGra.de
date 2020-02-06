@@ -83,7 +83,7 @@
     <b-tabs no-fade
             nav-class="border-0"
             v-model="currentCategory">
-        <b-nav-item slot="tabs"
+        <b-nav-item slot="tabs-end"
                     class="add-row font-weight-bold"
                     @click.prevent="createRow"
                     href="#"
@@ -736,10 +736,9 @@ export default {
 
         createRow() {
             this.ensureEditable();
-
             this.rubric = this.rubric.createRow();
 
-            this.$nextTick().then(() => {
+            this.$afterRerender(() => {
                 this.currentCategory = this.rubric.rows.length - 1;
             });
         },
