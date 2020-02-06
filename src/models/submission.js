@@ -357,7 +357,7 @@ export class Feedback {
     }
 }
 
-const SUBMISSION_SERVER_PROPS = ['id', 'origin', 'extra_info', 'grade_overridden'];
+const SUBMISSION_SERVER_PROPS = ['id', 'origin', 'extra_info', 'grade_overridden', 'comment'];
 
 const USER_PROPERTIES = ['user', 'assignee', 'comment_author'].reduce((acc, cur) => {
     acc[cur] = `${snakeToCamelCase(cur)}Id`;
