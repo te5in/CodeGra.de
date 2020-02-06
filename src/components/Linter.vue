@@ -7,7 +7,7 @@
         <div v-if="state == 'new'"
              :class="{ 'lonely-start-button-wrapper' : Object.keys(options).length == 0 }">
             <div v-if="Object.keys(options).length > 0">
-                <b-button-toolbar justify class="margin">
+                <b-button-toolbar justify class="mb-3">
                     <b-dropdown :text="selectedOption">
                         <b-dropdown-header>Select your config file</b-dropdown-header>
                         <b-dropdown-item v-for="(_, optionName) in options"
@@ -26,7 +26,7 @@
 
                 <b-collapse :id="`sub_collapse_${name}_${assignment.id}`">
                     <form>
-                        <textarea class="form-control margin"
+                        <textarea class="form-control mb-3"
                                   rows="10"
                                   placeholder="Enter your custom config"
                                   v-model="config"/>
@@ -43,9 +43,11 @@
             <b-progress :value="done + crashed"
                         :max="done + working + crashed"
                         animated/>
-            <span class="text-center progress-text">{{ done + crashed }} out of {{ working + crashed + done }}</span>
+            <div class="text-center my-3">
+                {{ done + crashed }} out of {{ working + crashed + done }}
+            </div>
         </div>
-        <div v-if="state !== 'new'" class="info-wrapper">
+        <div v-if="state !== 'new'" class="mb-3">
             <b-button-toolbar justify>
                 <submit-button class="delete-button"
                                :disabled="state === 'new'"
@@ -72,26 +74,26 @@
                 </div>
             </b-button-toolbar>
             <b-collapse :id="`linter-more-info-${compId}`"
-                        class="info-collapse"
+                        class="mt-3"
                         v-model="showMoreInfo">
                 <!-- Null is used as initial value, so we want to show the loader
                 if the data is not loaded yet -->
                 <input class="form-control"
                        placeholder="Type to search runs"
                        v-model="infoFilter"/>
-                <div class="table-wrapper">
-                    <table class="table table-striped">
+                <div class="table-wrapper border rounded mt-3">
+                    <table class="table table-striped mb-0">
                         <thead>
                             <tr>
-                                <th class="col-xs-9">Student</th>
-                                <th class="col-xs-9">Status</th>
-                                <th/>
+                                <th class="border-top">Student</th>
+                                <th class="border-top shrink">Status</th>
+                                <th class="border-top shrink"/>
                             </tr>
                         </thead>
                         <tbody>
                             <tr v-for="test in sortedFilteredTests">
                                 <td class="col-xs-9 detail-run-user"><user :user="test.work.user"/></td>
-                                <td class="state col-xs-3">
+                                <td class="state col-xs-3 shrink">
                                     <span class="detail-run-state">{{ test.state }}</span>
                                     <loader :center="false"
                                             class="detail-run-loader"
@@ -110,7 +112,7 @@
                                                                disable-math/>
                                     </b-popover>
                                 </td>
-                                <td>
+                                <td class="shrink">
                                     <div v-b-popover.top.hover="'Download the output of the linter.'"
                                          v-if="test.state === 'crashed'">
                                         <submit-button size="sm"
@@ -370,10 +372,6 @@ export default {
 <style lang="less" scoped>
 @import '~mixins';
 
-.margin {
-    margin-bottom: 15px;
-}
-
 .center-table {
     text-align: center;
 }
@@ -382,49 +380,23 @@ export default {
     text-align: center;
 }
 
-.progress-text {
-    display: block;
-    margin: 15px 0;
-}
-
 .lonely-start-button-wrapper {
     display: flex;
     justify-content: flex-end;
     margin-bottom: 15px;
 }
 
-.info-wrapper {
-    margin-bottom: 1rem;
-}
-
-.info-collapse {
-    margin-top: 1rem;
-}
-
 .table-wrapper {
-    margin-top: 1rem;
     max-height: 20rem;
     overflow-y: auto;
     width: 100%;
-    display: block;
-    border: 1px solid #dee2e6;
-    border-radius: @border-radius;
 
-    #app.dark & {
-        border-color: @color-primary-darker;
-    }
-    .table {
-        margin-bottom: 0;
-    }
     .table thead th {
         border-top: none;
     }
+
     td {
         vertical-align: middle;
-    }
-    td:not(:first-child) {
-        width: 1px;
-        white-space: nowrap;
     }
 }
 

@@ -30,7 +30,7 @@
                 :key="snippet.id">
                 <td class="snippet-key">{{ snippet.key }}</td>
                 <td class="snippet-value">{{ snippet.value }}</td>
-                <td class="snippet-actions">
+                <td class="snippet-actions shrink">
                     <b-button-group v-b-popover.top.hover="editable ? '' : 'You are not allowed to edit snippets.'">
                         <submit-button variant="danger"
                                        class="delete-snippet-button"
@@ -452,11 +452,6 @@ export default {
         white-space: nowrap;
         text-overflow: ellipsis;
         overflow: hidden;
-    }
-
-    .snippet-actions {
-        width: 0px;
-        white-space: nowrap;
     }
 
     .no-snippets {

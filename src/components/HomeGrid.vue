@@ -62,12 +62,13 @@
                                             No deadline
                                         </small>
                                     </td>
-                                    <td>
+                                    <td class="shrink">
                                         <assignment-state :assignment="assignment"
                                                           :editable="false"
                                                           size="sm"/>
                                     </td>
-                                    <td v-if="assignment.canManage">
+                                    <td v-if="assignment.canManage"
+                                        class="shrink">
                                         <router-link :to="manageAssignmentRoute(assignment)"
                                                      v-b-popover.window.top.hover="'Manage assignment'">
                                             <icon name="gear" class="gear-icon"/>
@@ -290,15 +291,6 @@ export default {
             &:hover {
                 background-color: rgba(0, 0, 0, 0.075);
             }
-        }
-
-        td:not(:first-child) {
-            width: 1px;
-            white-space: nowrap;
-        }
-
-        td:last-child a {
-            padding-bottom: 0;
         }
 
         a:hover {

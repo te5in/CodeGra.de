@@ -4,9 +4,9 @@
     <table class="table table-striped grader-list">
         <thead>
             <tr>
-                <th class="name">Grader</th>
+                <th class="name shrink">Grader</th>
                 <th class="weight">Weight</th>
-                <th class="percentage">Percent</th>
+                <th class="percentage shrink">Percent</th>
             </tr>
         </thead>
 
@@ -15,7 +15,7 @@
             <tr v-for="grader, i in graders"
                 :class="{ 'text-muted': tableDisabled }"
                 class="grader">
-                <td class="name">
+                <td class="name shrink">
                     <b-form-checkbox @change="graderChanged(i)"
                                      :disabled="tableDisabled"
                                      :checked="grader.weight != 0">
@@ -30,11 +30,10 @@
                            min="0"
                            step="any"
                            ref="inputField"
-                           style="min-width: 3em;"
                            @keydown.ctrl.enter="$refs.submitButton.onClick"
                            v-model.number="grader.weight"/>
                 </td>
-                <td class="percentage">
+                <td class="percentage shrink">
                     {{ (100 * grader.weight / totalWeight).toFixed(1) }}%
                 </td>
             </tr>
@@ -43,8 +42,8 @@
 
     <b-button-toolbar v-if="graders.length"
                       justify
-                      class="button-bar">
-        <multiselect class="assignment-selector"
+                      class="button-bar flex-row mx-3">
+        <multiselect class="assignment-selector mr-3 flex-grow-1"
                      :disabled="divisionChildren.length > 0"
                      v-model="importAssignment"
                      :options="otherAssignments"
@@ -66,19 +65,21 @@
                 No results were found.
             </span>
         </multiselect>
-        <div id="division-submit-button-wrapper">
+
+        <div id="division-submit-button-wrapper"
+             class="flex-grow-0">
             <submit-button label="Divide"
                            :disabled="divisionChildren.length > 0 || invalidParentSelected"
-                           style="height: inherit;"
                            :submit="divideSubmissions"
                            @success="afterDivideSubmissions"
                            ref="submitButton"/>
         </div>
+
         <b-popover triggers="click hover"
                    show
                    v-if="invalidParentSelected"
                    target="division-submit-button-wrapper">
-            <div style="text-align: justify;">
+            <div class="text-justify">
                 The division of the selected assignment is determined by
                 {{getDivisionParent(importAssignment).name}}, so you cannot
                 connect to this assignment.
@@ -286,8 +287,38 @@ export default {
     margin-bottom: 1rem;
 }
 
-th {
-    border-top: 0;
+.table {
+    th {
+        border-top: 0;
+    }
+
+    .weight,
+    .percentage {
+        text-align: right;
+    }
+
+    td.weight {
+        padding: 0;
+        vertical-align: bottom;
+
+        input {
+            min-width: 3rem;
+            padding: 0.75rem;
+            height: auto;
+            border: none;
+            border-bottom: 1px solid transparent !important;
+            border-radius: 0;
+            background: transparent !important;
+
+            &:not(:disabled):hover {
+                border-color: @color-primary !important;
+
+                #app.dark & {
+                    border-color: @color-primary-darkest !important;
+                }
+            }
+        }
+    }
 }
 
 .grader {
@@ -302,58 +333,23 @@ th {
     cursor: not-allowed;
 }
 
-tbody .weight {
-    padding: 0;
-
-    input {
-        padding: 0.75rem;
-        border: none;
-        border-bottom: 1px solid transparent !important;
-        border-radius: 0;
-        background: transparent !important;
-
-        &:not(:disabled):hover {
-            border-color: @color-primary !important;
-
-            #app.dark & {
-                border-color: @color-primary-darkest !important;
-            }
-        }
-    }
-}
-
-.weight,
-.percentage {
-    text-align: right;
-}
-
-.name,
-.percentage {
-    width: 1px;
-    white-space: nowrap;
-}
-
 .button-bar {
-    margin: 0 1rem;
-    .assignment-selector {
-        flex: 0 1 70%;
-    }
-    .submit-button {
-        flex: 0;
-    }
+    flex-wrap: nowrap;
+
+    /* .assignment-selector { */
+    /*     flex: 1 1 auto; */
+    /* } */
+
+    /* .submit-button { */
+    /*     flex: 0 0 auto; */
+    /* } */
 }
 </style>
 
 <style lang="less">
 .divide-submissions {
-    .grader-list {
-        .custom-checkbox {
-            display: flex;
-
-            label {
-                width: 100%;
-            }
-        }
+    .grader-list .custom-checkbox label {
+        display: block;
     }
 
     .disabled-option {

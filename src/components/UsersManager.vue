@@ -29,7 +29,7 @@
                             registering with this link.
                         </description-popover>
                     </th>
-                    <th />
+                    <th class="shrink" />
                 </tr>
             </thead>
             <tbody>
@@ -66,9 +66,10 @@
                         <datetime-picker v-model="link.expiration_date"
                                          placeholder="None set"/>
                     </td>
-                    <td>
+                    <td class="shrink">
                         <b-dropdown :text="link.role.name"
-                                    class="role-dropdown">
+                                    class="role-dropdown"
+                                    style="width: 12rem;">
                             <b-dropdown-header>Select the new role</b-dropdown-header>
                             <b-dropdown-item v-for="role in roles"
                                              @click="$set(link, 'role', role)"
@@ -77,7 +78,7 @@
                             </b-dropdown-item>
                         </b-dropdown>
                     </td>
-                    <td>
+                    <td class="shrink">
                         <div class="save-link-wrapper">
                             <submit-button :submit="() => saveLink(link)" label="Save"
                                            :disabled="link.role.id == null || link.expiration_date == null"

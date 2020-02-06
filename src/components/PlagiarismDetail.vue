@@ -30,12 +30,12 @@
         <table class="range-table table table-striped table-hover">
             <thead>
                 <tr>
-                    <th class="col-student-range">Export</th>
+                    <th class="shrink text-center">Export</th>
                     <th class="col-student-name"><user :user="detail.users[0]"/></th>
-                    <th class="col-student-range">Lines</th>
-                    <th class="col-student-range">Color</th>
+                    <th class="shrink text-center">Lines</th>
+                    <th class="shrink text-center">Color</th>
                     <th class="col-student-name"><user :user="detail.users[1]"/></th>
-                    <th class="col-student-range">Lines</th>
+                    <th class="shrink text-center">Lines</th>
                 </tr>
             </thead>
 
@@ -46,12 +46,12 @@
                     <td class="col-student-name">
                         {{ getFromFileTree(tree1, match.files[0]) }}
                     </td>
-                    <td class="col-student-range">{{ match.lines[0][0] + 1 }} - {{ match.lines[0][1] + 1 }}</td>
+                    <td class="shrink text-center">{{ match.lines[0][0] + 1 }} - {{ match.lines[0][1] + 1 }}</td>
                     <td :style="`background: rgba(${getColorForMatch(match).background}, 0.4);`"></td>
                     <td class="col-student-name">
                         {{ getFromFileTree(tree2, match.files[1]) }}
                     </td>
-                    <td class="col-student-range">{{ match.lines[1][0] + 1 }} - {{ match.lines[1][1] + 1 }}</td>
+                    <td class="shrink text-center">{{ match.lines[1][0] + 1 }} - {{ match.lines[1][1] + 1 }}</td>
                 </tr>
             </tbody>
         </table>
@@ -87,10 +87,10 @@
             <thead>
                 <tr>
                     <th class="col-student-name"><user :user="detail.users[0]"/></th>
-                    <th class="col-student-range">Lines</th>
-                    <th class="col-student-range">Color</th>
+                    <th class="shrink text-center">Lines</th>
+                    <th class="shrink text-center">Color</th>
                     <th class="col-student-name"><user :user="detail.users[1]"/></th>
-                    <th class="col-student-range">Lines</th>
+                    <th class="shrink text-center">Lines</th>
                 </tr>
             </thead>
 
@@ -100,12 +100,12 @@
                     <td class="col-student-name">
                         {{ getFromFileTree(tree1, match.files[0]) }}
                     </td>
-                    <td class="col-student-range">{{ match.lines[0][0] + 1 }} - {{ match.lines[0][1] + 1 }}</td>
+                    <td class="shrink text-center">{{ match.lines[0][0] + 1 }} - {{ match.lines[0][1] + 1 }}</td>
                     <td :style="`background: rgba(${getColorForMatch(match).background}, 0.4);`"></td>
                     <td class="col-student-name">
                         {{ getFromFileTree(tree2, match.files[1]) }}
                     </td>
-                    <td class="col-student-range">{{ match.lines[1][0] + 1 }} - {{ match.lines[1][1] + 1 }}</td>
+                    <td class="shrink text-center">{{ match.lines[1][0] + 1 }} - {{ match.lines[1][1] + 1 }}</td>
                 </tr>
             </tbody>
         </table>
@@ -734,12 +734,6 @@ ${right.join('\n')}
 
     .col-student-name {
         width: 50%;
-    }
-
-    .col-student-range {
-        width: 1px;
-        white-space: nowrap;
-        text-align: center;
     }
 
     #plagiarism-export & {

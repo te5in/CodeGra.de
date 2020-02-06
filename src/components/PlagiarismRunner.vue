@@ -9,7 +9,8 @@
                 <tr>
                     <th>Previous runs</th>
                     <th>Started</th>
-                    <th :colspan="canManage ? 2 : 1">State</th>
+                    <th :colspan="canManage ? 2 : 1"
+                        class="shrink">State</th>
                 </tr>
             </thead>
 
@@ -60,7 +61,7 @@
                                     v-b-popover.hover.top="'This job is running'"/>
                         </span>
                     </td>
-                    <td class="run-delete">
+                    <td class="run-delete shrink">
                         <submit-button v-if="canManage"
                                        :variant="runIsFinished(run) ? 'danger' : 'warning'"
                                        size="sm"
@@ -108,14 +109,14 @@
                 <table class="table table-striped options-table">
                     <thead>
                         <tr>
-                            <th>Option</th>
+                            <th class="shrink">Option</th>
                             <th>Value</th>
                         </tr>
                     </thead>
 
                     <tbody>
                         <tr v-for="option in selectedProvider.options">
-                            <td>
+                            <td class="shrink">
                                 {{ option.title }}
                                 <sup v-if="option.mandatory"
                                      v-b-popover.hover.top="'This option is required'"
@@ -649,6 +650,7 @@ export default {
 
     .run-state {
         text-transform: capitalize;
+
         .loader {
             display: inline-block;
             margin-left: 0.5rem;
@@ -657,8 +659,6 @@ export default {
     }
 
     .run-delete {
-        white-space: nowrap;
-        width: 1px;
         vertical-align: top;
     }
 }
@@ -686,11 +686,6 @@ export default {
 
     td {
         vertical-align: middle;
-    }
-
-    td:first-child {
-        width: 1px;
-        white-space: nowrap;
     }
 }
 

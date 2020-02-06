@@ -1299,11 +1299,6 @@ export default {
             transform: rotate(-90deg);
         }
     }
-
-    td.shrink {
-        width: 1px;
-        white-space: nowrap;
-    }
 }
 
 .results-log-collapse-row {

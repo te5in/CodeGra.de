@@ -26,7 +26,7 @@
                     hug-text
                     description="The assignments this group set is used."/>
             </td>
-            <td class="btns">Actions</td>
+            <td class="btns shrink">Actions</td>
         </thead>
         <tbody>
             <tr v-if="groupSets.length === 0">
@@ -35,14 +35,14 @@
             <tr v-else v-for="set in groupSets">
                 <template v-if="editing[set.id]">
                     <td>
-                        <input class="form-control"
+                        <input class="form-control text-left"
                                type="number"
                                min="1"
                                v-model="editing[set.id].minimum_size"
                                @keyup.ctrl.enter="clickSubmit(set)"/>
                     </td>
                     <td>
-                        <input class="form-control"
+                        <input class="form-control text-left"
                                v-model="editing[set.id].maximum_size"
                                type="number"
                                :min="editing[set.id].minimum_size"
@@ -50,12 +50,12 @@
                     </td>
                     <td>
                         <span v-b-popover.top.hover="'Go the assignment management page to use this group set in an assignment'">
-                            <input class="form-control"
+                            <input class="form-control text-left"
                                    :value="formattedAssignments(set)"
                                    disabled />
                         </span>
                     </td>
-                    <td class="btns">
+                    <td class="btns shrink">
                         <b-button-group>
                             <b-button variant="warning"
                                       size="sm"
@@ -77,7 +77,7 @@
                     <td><span class="txt">{{ set.minimum_size }}</span></td>
                     <td><span class="txt">{{ set.maximum_size }}</span></td>
                     <td><span class="txt assigs">{{ formattedAssignments(set)}}</span></td>
-                    <td class="btns">
+                    <td class="btns shrink">
                         <b-button-group>
                             <b-button variant="primary"
                                       size="sm"
@@ -100,7 +100,7 @@
         </tbody>
     </table>
 
-    <submit-button class="add-btn"
+    <submit-button class="add-btn float-right"
                    label="Add group set"
                    :submit="addGroup"
                    @success="afterAddGroup"/>
@@ -237,24 +237,13 @@ export default {
 td {
     width: 33%;
     vertical-align: middle;
+
     .txt {
         display: block;
+
         &:not(.assigs) {
             width: 100%;
         }
     }
-
-    input {
-        text-align: left;
-    }
-
-    &.btns {
-        width: 1px;
-        white-space: nowrap;
-    }
-}
-
-.add-btn {
-    float: right;
 }
 </style>

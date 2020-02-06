@@ -17,8 +17,8 @@
             <thead>
                 <tr>
                     <th class="name">Name</th>
-                    <th class="score">Score</th>
-                    <th class="state">State</th>
+                    <th class="score shrink">Score</th>
+                    <th class="state shrink">State</th>
                 </tr>
             </thead>
 
@@ -34,7 +34,7 @@
                             <loader :center="false" :scale="1"/>
                         </div>
                     </td>
-                    <td class="score">
+                    <td class="score shrink">
                         <div>
                             <span v-if="submissions[result.submissionId]">
                                 <icon v-if="submissions[result.submissionId].grade_overridden"
@@ -45,7 +45,7 @@
                             {{ $utils.toMaxNDecimals(autoTest.pointsPossible, 2) }}
                         </div>
                     </td>
-                    <td class="state">
+                    <td class="state shrink">
                         <div>
                             <auto-test-state :result="result" show-icon />
                         </div>
@@ -253,13 +253,6 @@ export default {
 
     th {
         border-top: 0;
-    }
-
-    .submitted,
-    .score,
-    .state {
-        width: 1px;
-        white-space: nowrap;
     }
 
     .score {

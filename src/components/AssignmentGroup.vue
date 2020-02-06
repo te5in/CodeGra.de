@@ -17,10 +17,9 @@
                 v-for="groupSet in groupSets"
                 :key="groupSet.id"
                 @click.prevent="selectGroupSet(groupSet.id)">
-                <td>
+                <td class="shrink">
                     <b-form-checkbox @click.native.prevent
-                                     :checked="selected === groupSet.id"
-                                     class="group-set-checkbox"/>
+                                     :checked="selected === groupSet.id"/>
                 </td>
                 <td>
                     <ul>
@@ -33,7 +32,7 @@
                         </li>
                     </ul>
                 </td>
-                <td>
+                <td class="shrink">
                     <b-button :to="manageGroupsLink(groupSet)"
                               variant="primary"
                               size="sm"
@@ -45,15 +44,15 @@
         </tbody>
     </table>
 
-    <b-button-toolbar justify>
+    <b-button-toolbar justify
+                      class="mx-1 px-2 py-3">
         <b-button :to="manageLink"
                   variant="outline-primary"
                   v-b-popover.hover.top="'Manage group sets for this course.'">
             Edit group sets
         </b-button>
-        <submit-button ref="submitButton"
-                       style="height: inherit;"
-                       v-if="groupSets.length > 0"
+
+        <submit-button v-if="groupSets.length > 0"
                        :submit="submit"
                        @success="afterSubmit"/>
     </b-button-toolbar>
@@ -203,12 +202,6 @@ export default {
 .group-table {
     vertical-align: middle;
 
-    td:first-child:not(:last-child),
-    td:last-child:not(:first-child) {
-        width: 1px;
-        white-space: nowrap;
-    }
-
     .toggle-container {
         padding: 0.375rem 0.5rem;
     }
@@ -231,14 +224,5 @@ ul {
 
 td {
     vertical-align: middle;
-}
-
-.group-set-checkbox {
-    margin-right: 0;
-    padding-left: 0.75rem;
-}
-
-.btn-toolbar {
-    padding: 1rem 0.75rem;
 }
 </style>
