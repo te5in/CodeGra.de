@@ -2,7 +2,8 @@
 <template>
 <loader v-if="loading" page-loader/>
 <div class="permissions-manager" v-else>
-    <table class="table table-striped table-hover">
+    <table class="table table-striped table-hover"
+           :class="{ 'mb-0': !showAddRole }">
         <thead>
             <tr>
                 <th>Name</th>
@@ -15,9 +16,7 @@
 
         <tbody>
             <tr v-for="perm, i in filteredPermissions"
-                :class="{
-                    'table-danger': perm.warning,
-                }">
+                :class="{ 'table-danger': perm.warning }">
                 <td>
                     {{ perm.short_description }}
 
