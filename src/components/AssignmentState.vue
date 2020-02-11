@@ -174,15 +174,7 @@ export default {
 </script>
 
 <style lang="less" scoped>
-.state-button .fa-icon {
-    transform: translateY(1px) !important;
-}
-
-.state-button.larger {
-    width: 4em;
-
-    .fa-icon {
-        margin-left: 0;
-    }
+.state-button.larger .fa-icon {
+    margin-left: 0;
 }
 </style>
