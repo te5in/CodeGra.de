@@ -787,6 +787,12 @@ class Setting(Base, mixins.TimestampMixin):
     def set(cls, setting: PossibleSetting, value: object) -> None:
         assert isinstance(value, type(setting.value.default_value))
         found = db.session.query(cls).filter_by(setting=setting).one_or_none()
+        logger.info(
+            'Setting config setting',
+            setting=setting.name,
+            new_value=value,
+            existing_value=found and found.value,
+        )
 
         # This can lead to an integrity error when two users create the same
         # setting for the first time. But as the broker is only used internally
