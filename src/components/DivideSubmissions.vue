@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
-<div class="divide-submissions">
-    <table class="table table-striped grader-list">
+<div class="divide-submissions mb-3">
+    <table class="table table-striped grader-list border-bottom mb-3">
         <thead>
             <tr>
                 <th class="name shrink">Grader</th>
@@ -22,7 +22,7 @@
                         <user :user="grader"/>
                     </b-form-checkbox>
                 </td>
-                <td class="weight">
+                <td class="weight p-0 align-bottom">
                     <input class="form-control"
                            :class="{ 'text-muted': tableDisabled }"
                            :disabled="tableDisabled"
@@ -282,11 +282,6 @@ export default {
 <style lang="less" scoped>
 @import '~mixins.less';
 
-.grader-list,
-.divide-submissions {
-    margin-bottom: 1rem;
-}
-
 .table {
     th {
         border-top: 0;
@@ -297,35 +292,25 @@ export default {
         text-align: right;
     }
 
-    td.weight {
-        padding: 0;
-        vertical-align: bottom;
+    .weight input {
+        min-width: 3rem;
+        padding: 0.75rem;
+        height: auto;
+        border: none;
+        border-bottom: 1px solid transparent !important;
+        border-radius: 0;
+        background: transparent !important;
+        margin-bottom: -1px;
+        position: relative;
+        z-index: 1;
 
-        input {
-            min-width: 3rem;
-            padding: 0.75rem;
-            height: auto;
-            border: none;
-            border-bottom: 1px solid transparent !important;
-            border-radius: 0;
-            background: transparent !important;
+        &:not(:disabled):hover {
+            border-color: @color-primary !important;
 
-            &:not(:disabled):hover {
-                border-color: @color-primary !important;
-
-                #app.dark & {
-                    border-color: @color-primary-darkest !important;
-                }
+            #app.dark & {
+                border-color: @color-primary-darkest !important;
             }
         }
-    }
-}
-
-.grader {
-    border-bottom: 1px solid #dee2e6;
-
-    #app.dark & {
-        border-bottom: 1px solid @color-primary-darker;
     }
 }
 
@@ -335,20 +320,12 @@ export default {
 
 .button-bar {
     flex-wrap: nowrap;
-
-    /* .assignment-selector { */
-    /*     flex: 1 1 auto; */
-    /* } */
-
-    /* .submit-button { */
-    /*     flex: 0 0 auto; */
-    /* } */
 }
 </style>
 
 <style lang="less">
 .divide-submissions {
-    .grader-list .custom-checkbox label {
+    .custom-checkbox label {
         display: block;
     }
 
