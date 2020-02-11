@@ -684,10 +684,18 @@ def live_server(app, live_server_url):
         if p is None:
             return
 
-        os.kill(p.pid, signal.SIGINT)
-        try:
-            p.join(4)
-        except:
+        from pytest_cov.embed import cleanup
+        cleanup()
+
+        for sig in [signal.SIGTERM, signal.SIGINT]:
+            os.kill(p.pid, sig)
+            try:
+                p.join(4)
+            except:
+                pass
+            else:
+                break
+        else:
             p.terminate()
             p.join()
 
@@ -695,9 +703,12 @@ def live_server(app, live_server_url):
         nonlocal p
 
         def _inner():
+            from pytest_cov.embed import cleanup_on_sigterm
+            cleanup_on_sigterm()
             app.run(
                 host='localhost',
                 port=LIVE_SERVER_PORT,
+                debug=False,
                 use_reloader=False,
                 threaded=False
             )
