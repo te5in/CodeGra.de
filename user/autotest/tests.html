@@ -239,8 +239,8 @@ Categories. Another way to maximize feedback to students is by naming
 your tests and inputs in a meaningful way, as this is the first feedback
 students will receive from the tests.</p>
 <div class="admonition note">
-<p class="first admonition-title">Note</p>
-<p class="last">Use weights per test (or per input of IO test) to differentiate between
+<p class="admonition-title">Note</p>
+<p>Use weights per test (or per input of IO test) to differentiate between
 the importance of tests.</p>
 </div>
 <div class="section" id="io-test">
@@ -253,21 +253,21 @@ specify all input and output combinations you want to check for this program.</p
 <p>Multiple options allow you to more flexibly compare the output of the program:</p>
 <blockquote>
 <div><ul class="simple">
-<li><strong>Case insensitive</strong>: ignore case in comparing the expected output and actual output.</li>
-<li><strong>Ignore trailing whitespace</strong>: trim all trailing whitespacing from the start and end.</li>
-<li><strong>Ignore all whitespace</strong>: all whitespace is ignored when comparing the student output with the expected output (including newlines).</li>
-<li><strong>Substring</strong>: the expected output should be a substring of the actual output.</li>
-<li><strong>Regex</strong>: the expected output is a <em>Python3 Regex</em> which should match with the actual output.</li>
+<li><p><strong>Case insensitive</strong>: ignore case in comparing the expected output and actual output.</p></li>
+<li><p><strong>Ignore trailing whitespace</strong>: trim all trailing whitespacing from the start and end.</p></li>
+<li><p><strong>Ignore all whitespace</strong>: all whitespace is ignored when comparing the student output with the expected output (including newlines).</p></li>
+<li><p><strong>Substring</strong>: the expected output should be a substring of the actual output.</p></li>
+<li><p><strong>Regex</strong>: the expected output is a <em>Python3 Regex</em> which should match with the actual output.</p></li>
 </ul>
 </div></blockquote>
 <div class="admonition note">
-<p class="first admonition-title">Note</p>
-<p class="last">The options <em>Ignore all whitespace</em> and <em>regex</em> cannot be activated
+<p class="admonition-title">Note</p>
+<p>The options <em>Ignore all whitespace</em> and <em>regex</em> cannot be activated
 together.</p>
 </div>
 <div class="admonition note">
-<p class="first admonition-title">Note</p>
-<p class="last">The option <em>substring</em> is required when using the <em>regex</em> option.</p>
+<p class="admonition-title">Note</p>
+<p>The option <em>substring</em> is required when using the <em>regex</em> option.</p>
 </div>
 <p>Use the <em class="fa codegrade fa-plus"></em> button in the bottom left corner to create a new input/output
 combination.</p>
@@ -280,8 +280,8 @@ solver is correctly implemented or even complex mathematical programs.
 Additionally, IO Tests can be used to check the correct handling of incorrect
 input.</p>
 <div class="admonition note">
-<p class="first admonition-title">Note</p>
-<p class="last">If you require files as input to your tests, upload these files as fixtures
+<p class="admonition-title">Note</p>
+<p>If you require files as input to your tests, upload these files as fixtures
 to find them in <code class="docutils literal notranslate"><span class="pre">$FIXTURES/[FILE]</span></code>, where you can then use them as input
 arguments to your test.</p>
 </div>
@@ -310,8 +310,8 @@ the output of this program. The output of the program can be captured using a
 and 1.0</strong>. This number is then multiplied with the weight of the Capture Point
 Test to get to the final score of the test.</p>
 <div class="admonition note">
-<p class="first admonition-title">Note</p>
-<p class="last">The float captured for a <em>Capture Points Test</em> is captured from the <strong>last</strong>
+<p class="admonition-title">Note</p>
+<p>The float captured for a <em>Capture Points Test</em> is captured from the <strong>last</strong>
 <code class="docutils literal notranslate"><span class="pre">32</span> <span class="pre">kB</span></code> of output data.</p>
 </div>
 <div class="section" id="id2">
@@ -324,8 +324,8 @@ student code.</p>
 simply write a small wrapper script around it to parse the output to a value
 between 0 and 1.</p>
 <div class="admonition note">
-<p class="first admonition-title">Note</p>
-<p class="last">If you have trouble writing these wrapper scripts or using the Capture
+<p class="admonition-title">Note</p>
+<p>If you have trouble writing these wrapper scripts or using the Capture
 Points Test with your own frameworks, contact us and we’re happy to help
 you!</p>
 </div>

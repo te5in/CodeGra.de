@@ -213,20 +213,19 @@ test scripts. A Capture Points Test captures the output of the executed program
 with a Python3 Regular Expression. This output should be a <strong>number between
 0 and 1</strong>.</p>
 <ol class="arabic">
-<li><p class="first">Input which program you want to execute.</p>
-</li>
-<li><p class="first">Specify the <strong>Python3 Regex</strong> with which you want to capture the output. By
+<li><p>Input which program you want to execute.</p></li>
+<li><p>Specify the <strong>Python3 Regex</strong> with which you want to capture the output. By
 default this captures a single float. This number is multiplied by the <strong>weight</strong>
 to get the amount of points.</p>
 <div class="admonition note">
-<p class="first admonition-title">Note</p>
-<p class="last">A <strong>Python3 Regex</strong> may contain <code class="docutils literal notranslate"><span class="pre">\f</span></code>, which will capture a float.</p>
+<p class="admonition-title">Note</p>
+<p>A <strong>Python3 Regex</strong> may contain <code class="docutils literal notranslate"><span class="pre">\f</span></code>, which will capture a float.</p>
 </div>
 </li>
 </ol>
 <div class="admonition note">
-<p class="first admonition-title">Note</p>
-<p class="last">You can easily use existing unit test scripts and frameworks with the Capture
+<p class="admonition-title">Note</p>
+<p>You can easily use existing unit test scripts and frameworks with the Capture
 Points Test, simply write a simple wrapper script around the unit test script
 that parses the output and outputs a number between 0.0 and 1.0 (e.g. the
 amount of passed tests divided by the total amount of tests).</p>

@@ -228,13 +228,13 @@ Continuous Feedback, hidden steps won’t be run before the deadline. AutoTest
 will automatically run all hidden steps within 30 minutes after the deadline.
 There are some use cases to make your steps hidden:</p>
 <ol class="arabic simple">
-<li><strong>Performance heavy tests and Continuous Feedback</strong></li>
+<li><p><strong>Performance heavy tests and Continuous Feedback</strong></p></li>
 </ol>
 <p>You may sometimes have performance heavy tests. When giving your students
 Continuous Feedback, you may want to hide these tests to speed up the process,
 as hidden steps are not run until after the deadline.</p>
 <ol class="arabic simple" start="2">
-<li><strong>Not giving away all of your tests</strong></li>
+<li><p><strong>Not giving away all of your tests</strong></p></li>
 </ol>
 <p>Sometimes you might want to have tests that students can see and other tests
 that students cannot see. For example when having a simple test suite that
@@ -249,7 +249,7 @@ your fixtures correctly, read more about how to do this
 <p>We recommend two different ways to compile students’ code. Which one to use
 depends on the application.</p>
 <ol class="arabic simple">
-<li><strong>Using the per-student setup script</strong></li>
+<li><p><strong>Using the per-student setup script</strong></p></li>
 </ol>
 <p>If you want to use the compiled code in multiple categories, we recommend
 using the per-student setup script for compiling. Either use a compilation script,
@@ -258,25 +258,25 @@ input field.</p>
 <p>If you want to stop AutoTest when the compilation fails, you can do this in
 the following way:</p>
 <ol class="loweralpha simple">
-<li>Create a compilation rubric category.</li>
-<li>Create a new AutoTest level and add the compilation category in this level.</li>
-<li>Use a Run Program step to check whether compilation was successful (e.g. by checking if the compiled files exist).</li>
-<li>Save this category and create a new AutoTest level to put all your other test categories.</li>
-<li>Set the <em>Only execute further levels</em> to 100%.</li>
+<li><p>Create a compilation rubric category.</p></li>
+<li><p>Create a new AutoTest level and add the compilation category in this level.</p></li>
+<li><p>Use a Run Program step to check whether compilation was successful (e.g. by checking if the compiled files exist).</p></li>
+<li><p>Save this category and create a new AutoTest level to put all your other test categories.</p></li>
+<li><p>Set the <em>Only execute further levels</em> to 100%.</p></li>
 </ol>
 <ol class="arabic simple" start="2">
-<li><strong>Using a Run Program step and Checkpoint step</strong></li>
+<li><p><strong>Using a Run Program step and Checkpoint step</strong></p></li>
 </ol>
 <p>If you only want to use the compiled code in one category (e.g. when every category has a different program), we recommend using a
 Run Program step combined with a Checkpoint to compile the code.</p>
 <ol class="loweralpha simple">
-<li>Create a Run Program step with the compilation command.</li>
-<li>Create a Checkpoint step right below the Run Program step and set it to 100%.</li>
+<li><p>Create a Run Program step with the compilation command.</p></li>
+<li><p>Create a Checkpoint step right below the Run Program step and set it to 100%.</p></li>
 </ol>
 <p>In this way, the category will stop testing if the Run Program step fails.</p>
 <div class="admonition warning">
-<p class="first admonition-title">Warning</p>
-<p class="last">Keep in mind that the state of AutoTest is reset to the state after the
+<p class="admonition-title">Warning</p>
+<p>Keep in mind that the state of AutoTest is reset to the state after the
 <em>per-student script</em> at the start of each category. So all your compiled
 files from method 2 are lost after the category finishes executing.</p>
 </div>
@@ -294,57 +294,57 @@ the upper bound is reached.</p>
 category, before they should get the maximum item in the rubric category.</p>
 <p>Let’s go over an example to make this more clear. This is the rubric category
 we want to create tests for:</p>
-<table border="1" class="docutils">
+<table class="docutils align-default">
 <colgroup>
-<col width="29%" />
-<col width="15%" />
-<col width="17%" />
-<col width="18%" />
-<col width="21%" />
+<col style="width: 29%" />
+<col style="width: 15%" />
+<col style="width: 17%" />
+<col style="width: 18%" />
+<col style="width: 21%" />
 </colgroup>
-<tbody valign="top">
-<tr class="row-odd"><td><strong>Item name</strong></td>
-<td>Nothing works (0)</td>
-<td>Compiling works (1)</td>
-<td>Simple tests work (5)</td>
-<td>Advanced tests work (10)</td>
+<tbody>
+<tr class="row-odd"><td><p><strong>Item name</strong></p></td>
+<td><p>Nothing works (0)</p></td>
+<td><p>Compiling works (1)</p></td>
+<td><p>Simple tests work (5)</p></td>
+<td><p>Advanced tests work (10)</p></td>
 </tr>
-<tr class="row-even"><td><strong>Percentage range to reach item</strong></td>
-<td>0%-50%</td>
-<td>50%-75%</td>
-<td>75%-100%</td>
-<td>100%</td>
+<tr class="row-even"><td><p><strong>Percentage range to reach item</strong></p></td>
+<td><p>0%-50%</p></td>
+<td><p>50%-75%</p></td>
+<td><p>75%-100%</p></td>
+<td><p>100%</p></td>
 </tr>
 </tbody>
 </table>
 <p>As you can see, the maximum mode is selected, as you only reach the last rubric
 item (Advanced tests work) with 100% of passed tests.</p>
-<table border="1" class="docutils">
+<table class="docutils align-default">
 <colgroup>
-<col width="36%" />
-<col width="44%" />
-<col width="20%" />
+<col style="width: 36%" />
+<col style="width: 44%" />
+<col style="width: 20%" />
 </colgroup>
-<tbody valign="top">
-<tr class="row-odd"><td><strong>Type</strong></td>
-<td><strong>Name</strong></td>
-<td><strong>Weight</strong></td>
+<tbody>
+<tr class="row-odd"><td><p><strong>Type</strong></p></td>
+<td><p><strong>Name</strong></p></td>
+<td><p><strong>Weight</strong></p></td>
 </tr>
-<tr class="row-even"><td>Run Program</td>
-<td>Compile</td>
-<td>8</td>
+<tr class="row-even"><td><p>Run Program</p></td>
+<td><p>Compile</p></td>
+<td><p>8</p></td>
 </tr>
-<tr class="row-odd"><td>Checkpoint</td>
-<td>Stop if compilation fails</td>
-<td>-</td>
+<tr class="row-odd"><td><p>Checkpoint</p></td>
+<td><p>Stop if compilation fails</p></td>
+<td><p>-</p></td>
 </tr>
-<tr class="row-even"><td>IO Test (4 substeps)</td>
-<td>Simple tests</td>
-<td>4</td>
+<tr class="row-even"><td><p>IO Test (4 substeps)</p></td>
+<td><p>Simple tests</p></td>
+<td><p>4</p></td>
 </tr>
-<tr class="row-odd"><td>Capture Points</td>
-<td>Advanced tests</td>
-<td>4</td>
+<tr class="row-odd"><td><p>Capture Points</p></td>
+<td><p>Advanced tests</p></td>
+<td><p>4</p></td>
 </tr>
 </tbody>
 </table>
@@ -370,8 +370,8 @@ to adjust the grade down, you can also use a rubric category with negative weigh
 which you upload as a fixture, or input it directly in the input field. You can
 install Ubuntu packages with <code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">apt-get</span> <span class="pre">install</span> <span class="pre">-y</span> <span class="pre">PACKAGE_NAME</span></code>.</p>
 <div class="admonition note">
-<p class="first admonition-title">Note</p>
-<p class="last">Always make sure to give the <code class="docutils literal notranslate"><span class="pre">-y</span></code> option to <code class="docutils literal notranslate"><span class="pre">apt-get</span></code>, otherwise the package
+<p class="admonition-title">Note</p>
+<p>Always make sure to give the <code class="docutils literal notranslate"><span class="pre">-y</span></code> option to <code class="docutils literal notranslate"><span class="pre">apt-get</span></code>, otherwise the package
 won’t install.</p>
 </div>
 </div>
@@ -384,8 +384,8 @@ AutoTest.</p>
 <p>For some linters, CodeGrade can provide these wrapper scripts for you, contact
 us for more details.</p>
 <div class="admonition note">
-<p class="first admonition-title">Note</p>
-<p class="last">Sometimes some warnings/errors are more important than others, keep this
+<p class="admonition-title">Note</p>
+<p>Sometimes some warnings/errors are more important than others, keep this
 in mind while writing your wrapper script.</p>
 </div>
 </div>
@@ -406,14 +406,14 @@ modify the script so that it outputs a value between zero and one at the end,
 upload it as a fixture and use a Capture Points test to execute the grading
 script and capture the score.</p>
 <div class="admonition note">
-<p class="first admonition-title">Note</p>
-<p class="last">If you need any help converting your existing grading scripts to CodeGrade
+<p class="admonition-title">Note</p>
+<p>If you need any help converting your existing grading scripts to CodeGrade
 grading scripts, feel free to contact us at
 <a class="reference external" href="mailto:support&#37;&#52;&#48;codegra&#46;de">support<span>&#64;</span>codegra<span>&#46;</span>de</a>.</p>
 </div>
 <div class="admonition warning">
-<p class="first admonition-title">Warning</p>
-<p class="last">It is important to note that rubric calculation and capture points might be a bit
+<p class="admonition-title">Warning</p>
+<p>It is important to note that rubric calculation and capture points might be a bit
 difficult to combine sometimes, especially when combining with IO tests
 too. In some cases it might be better to split the test script into multiple
 scripts (or use command line arguments), and use multiple ‘run program’ tests instead.</p>
@@ -437,8 +437,8 @@ are hidden when you upload them. You can change the state by clicking the
 fixtures on the AutoTest servers. You can limit this by using a special script.
 You can read more about this <a class="reference internal" href="../user/autotest/setup.html#autotest-limit-student-access"><span class="std std-ref">here</span></a>.</p>
 <div class="admonition warning">
-<p class="first admonition-title">Warning</p>
-<p class="last">If you’re uploading solutions as fixtures you probably want to limit student
+<p class="admonition-title">Warning</p>
+<p>If you’re uploading solutions as fixtures you probably want to limit student
 access.</p>
 </div>
 </div>
@@ -448,8 +448,8 @@ access.</p>
 type of rounding. CodeGrade supplies a <code class="docutils literal notranslate"><span class="pre">normalize_floats</span></code> program in AutoTest
 to solve this issue. You can use this in the following way: <code class="docutils literal notranslate"><span class="pre">normalize_floats</span> <span class="pre">amount_of_decimals</span> <span class="pre">program_to_run</span></code>.</p>
 <div class="admonition note">
-<p class="first admonition-title">Note</p>
-<p class="last"><code class="docutils literal notranslate"><span class="pre">normalize_floats</span></code> only transforms stdout and does not touch stderr.</p>
+<p class="admonition-title">Note</p>
+<p><code class="docutils literal notranslate"><span class="pre">normalize_floats</span></code> only transforms stdout and does not touch stderr.</p>
 </div>
 </div>
 <div class="section" id="how-to-let-io-tests-pass-when-the-exit-code-is-not-0">
@@ -459,8 +459,8 @@ however, you want IO tests to also pass with another exit code than 0. You
 can simply fix this by appending <code class="docutils literal notranslate"><span class="pre">||</span> <span class="pre">true</span></code> to your command, this will make
 sure the exit code is always 0.</p>
 <div class="admonition note">
-<p class="first admonition-title">Note</p>
-<p class="last">The “Input arguments” field of an IO step is appended to the command. This
+<p class="admonition-title">Note</p>
+<p>The “Input arguments” field of an IO step is appended to the command. This
 means that if it is not empty, this technique will likely not produce the
 expected results. To work around this case, add the <code class="docutils literal notranslate"><span class="pre">||</span> <span class="pre">true</span></code> to the
 input arguments instead.</p>

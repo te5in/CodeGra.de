@@ -206,10 +206,10 @@ goal for students and combining this with CodeGrade’s features makes it very
 well suited for education.</p>
 <p>To set up Git submissions for your CodeGrade assignment, follow the steps below:</p>
 <ol class="arabic simple">
-<li>Go to the <strong>Assignment Management</strong> page for the assignment you want to enable git submissions for by clicking on the <em class="fa codegrade fa-cog"></em> button.</li>
-<li>Under the <strong>General</strong> tab, locate the <strong>Allowed upload types</strong> section.</li>
-<li>Select the <strong>GitHub/GitLab</strong> checkbox to enable submissions via Git.</li>
-<li><em>Optionally</em>, deselect the <strong>File uploader</strong> checkbox to <strong>only</strong> allow students to submit via Git and not have an additional file uploader present on the hand-in page.</li>
+<li><p>Go to the <strong>Assignment Management</strong> page for the assignment you want to enable git submissions for by clicking on the <em class="fa codegrade fa-cog"></em> button.</p></li>
+<li><p>Under the <strong>General</strong> tab, locate the <strong>Allowed upload types</strong> section.</p></li>
+<li><p>Select the <strong>GitHub/GitLab</strong> checkbox to enable submissions via Git.</p></li>
+<li><p><em>Optionally</em>, deselect the <strong>File uploader</strong> checkbox to <strong>only</strong> allow students to submit via Git and not have an additional file uploader present on the hand-in page.</p></li>
 </ol>
 <p>You have now enabled Git submissions for your CodeGrade assignment. Students
 will be shown instructions on configuring their Git repository to work together
@@ -218,22 +218,22 @@ up correctly, students’ work will be uploaded to CodeGrade with every
 <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">push</span></code> they execute. Encourage students to set this up before starting to
 work on the assignment, so a nice history of submissions is created in CodeGrade.</p>
 <div class="admonition warning">
-<p class="first admonition-title">Warning</p>
-<p class="last">Git submissions work together with all of CodeGrade’s features <strong>except Hand-in
+<p class="admonition-title">Warning</p>
+<p>Git submissions work together with all of CodeGrade’s features <strong>except Hand-in
 Requirements.</strong> Utilize i.e. CodeGrade Continuous Feedback to still give the
 students immediate feedback for every <code class="docutils literal notranslate"><span class="pre">push</span></code>.</p>
 </div>
 <div class="admonition warning">
-<p class="first admonition-title">Warning</p>
-<p class="last">CodeGrade has a size limit on student submissions. Exceeding this size limit
+<p class="admonition-title">Warning</p>
+<p>CodeGrade has a size limit on student submissions. Exceeding this size limit
 will result in a warning message when regularly handing in, but not when
 using git to upload. If a student exceeds this limit, files exceeding the
 limit are silently deleted. This very rare case does result in a
 <code class="docutils literal notranslate"><span class="pre">cg-size-limit-exceeded</span></code> file to show up in the Code Viewer.</p>
 </div>
 <div class="admonition note">
-<p class="first admonition-title">Note</p>
-<p class="last">Want to see how your students use Git or even assess this automatically? The
+<p class="admonition-title">Note</p>
+<p>Want to see how your students use Git or even assess this automatically? The
 <code class="docutils literal notranslate"><span class="pre">.git</span></code> folder containing all information is accessible in the student
 submission to be inspected in our Code Viewer or assessed in AutoTest, run
 <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">fetch</span> <span class="pre">--unshallow</span></code> to make sure the information is complete. You
@@ -241,8 +241,8 @@ can also click on the <em>Github</em> or <em>GitLab</em> link to directly access
 student repository.</p>
 </div>
 <div class="admonition note">
-<p class="first admonition-title">Note</p>
-<p class="last">If your CodeGrade assignment is set up as a Group assignment, all members
+<p class="admonition-title">Note</p>
+<p>If your CodeGrade assignment is set up as a Group assignment, all members
 of the group will have the same <em>deploy key</em> and <em>webhook</em> and can hand in
 for the whole group using Git in the same way they would for an individual
 assignment. <strong>All members of the group will still have to open the CodeGrade

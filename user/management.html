@@ -252,8 +252,8 @@ users (students, teachers and other roles) that are <em>enrolled</em> in the
 course. The role of users can be changed here and new users can be added to the
 course.</p>
 <div class="admonition note">
-<p class="first admonition-title">Note</p>
-<p class="last">Course management is done in your learning management system if the course
+<p class="admonition-title">Note</p>
+<p>Course management is done in your learning management system if the course
 is connected, however managing roles and permissions is still done in
 CodeGrade.</p>
 </div>
@@ -283,14 +283,14 @@ that link.</p>
 You can have multiple links with different roles, e.g. one for students to
 sign up and one for teachers or TAs to sign up.</p>
 <div class="admonition warning">
-<p class="first admonition-title">Warning</p>
-<p class="last">You don’t want to add a course registration link to LTI courses
+<p class="admonition-title">Warning</p>
+<p>You don’t want to add a course registration link to LTI courses
 (courses that are connected to your Learning Management System), as all
 course registration should come from the LMS.</p>
 </div>
 <div class="admonition note">
-<p class="first admonition-title">Note</p>
-<p class="last"><em>Everyone</em> with access to this link will be able to register for your course.
+<p class="admonition-title">Note</p>
+<p><em>Everyone</em> with access to this link will be able to register for your course.
 Currently, it’s not possible to delete users from a course, so be careful
 when sharing the link. Contact us if you wish to delete users.</p>
 </div>
@@ -312,11 +312,11 @@ courses and assignments.</p>
 <span id="manage-assignment-state"></span><h3>Assignment State<a class="headerlink" href="#assignment-state" title="Permalink to this headline">¶</a></h3>
 <p>Three assignment states are available and can be set on the top right:</p>
 <ul class="simple">
-<li><em class="fa codegrade fa-eye-slash"></em> <strong>Hidden</strong> state: the assignment is invisible to students.</li>
-<li><em class="fa codegrade fa-clock-o"></em> <strong>Open</strong> state: the assignment is visible to students and
-students can hand in submissions before the deadline.</li>
-<li><em class="fa codegrade fa-check"></em> <strong>Done</strong> state: the assignment is visible to students and grading
-is finished.</li>
+<li><p><em class="fa codegrade fa-eye-slash"></em> <strong>Hidden</strong> state: the assignment is invisible to students.</p></li>
+<li><p><em class="fa codegrade fa-clock-o"></em> <strong>Open</strong> state: the assignment is visible to students and
+students can hand in submissions before the deadline.</p></li>
+<li><p><em class="fa codegrade fa-check"></em> <strong>Done</strong> state: the assignment is visible to students and grading
+is finished.</p></li>
 </ul>
 </div>
 <div class="section" id="general">
@@ -328,12 +328,12 @@ deadline, but also some more advanced settings.</p>
 <p>CodeGrade offers two means of handing in for students: via the file uploader
 in CodeGrade or using Git (GitHub or GitLab).</p>
 <ul class="simple">
-<li><strong>File Uploader</strong>: this option allows students to hand in their submission through CodeGrade’s file uploader. Students can hand in one or multiple files and can even hand in archives (e.g. <code class="docutils literal notranslate"><span class="pre">.zip</span></code> or <code class="docutils literal notranslate"><span class="pre">.tar.gz</span></code>) which will be extracted automatically.</li>
-<li><strong>Git</strong>: this option allows students to configure their GitHub or GitLab repository to upload to CodeGrade with every <code class="docutils literal notranslate"><span class="pre">push</span></code>. Configuration instructions can be found on the hand-in page, the unique deploy key and webhook have to be configured for each separate assignment once per student.</li>
+<li><p><strong>File Uploader</strong>: this option allows students to hand in their submission through CodeGrade’s file uploader. Students can hand in one or multiple files and can even hand in archives (e.g. <code class="docutils literal notranslate"><span class="pre">.zip</span></code> or <code class="docutils literal notranslate"><span class="pre">.tar.gz</span></code>) which will be extracted automatically.</p></li>
+<li><p><strong>Git</strong>: this option allows students to configure their GitHub or GitLab repository to upload to CodeGrade with every <code class="docutils literal notranslate"><span class="pre">push</span></code>. Configuration instructions can be found on the hand-in page, the unique deploy key and webhook have to be configured for each separate assignment once per student.</p></li>
 </ul>
 <div class="admonition note">
-<p class="first admonition-title">Note</p>
-<p class="last">It is possible to use both the File Uploader and Git upload type together for the same assignment. Students can then choose which means of handing in they prefer.</p>
+<p class="admonition-title">Note</p>
+<p>It is possible to use both the File Uploader and Git upload type together for the same assignment. Students can then choose which means of handing in they prefer.</p>
 </div>
 <div class="section" id="git-uploading">
 <h5>Git uploading<a class="headerlink" href="#git-uploading" title="Permalink to this headline">¶</a></h5>
@@ -346,8 +346,8 @@ to read your repository. The webhook is used to notify CodeGrade for each push
 event that takes place. With this setup, students will automatically upload
 their work to CodeGrade every time they <code class="docutils literal notranslate"><span class="pre">push</span></code>.</p>
 <div class="admonition warning">
-<p class="first admonition-title">Warning</p>
-<p class="last">CodeGrade has a size limit on student submissions. Exceeding this size limit
+<p class="admonition-title">Warning</p>
+<p>CodeGrade has a size limit on student submissions. Exceeding this size limit
 will result in a warning message when regularly handing in, but not when
 using git to upload. If a student exceeds this limit, files exceeding the
 limit are silently deleted. This very rare case does result in a
@@ -362,8 +362,8 @@ with a <code class="docutils literal notranslate"><span class="pre">git</span> <
 have to open the CodeGrade assignment in their LMS (Canvas, Blackboard,
 Brightspace or Moodle).</p>
 <div class="admonition warning">
-<p class="first admonition-title">Warning</p>
-<p class="last">Hand-In Requirements are <strong>disabled</strong> when using the Git upload type.</p>
+<p class="admonition-title">Warning</p>
+<p>Hand-In Requirements are <strong>disabled</strong> when using the Git upload type.</p>
 </div>
 <p>In addition to further streamlining the workflow for students, Git uploading
 allows teachers to also assess git usage within CodeGrade. This can be done
@@ -372,8 +372,8 @@ opening the student repository by clicking the GitLab or GitHub link in the
 submission. In AutoTest, the student submission is a normal Git
 directory and can be handled and assessed that way automatically.</p>
 <div class="admonition note">
-<p class="first admonition-title">Note</p>
-<p class="last">Using git in AutoTest? Run <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">fetch</span> <span class="pre">--unshallow</span></code> to make sure the
+<p class="admonition-title">Note</p>
+<p>Using git in AutoTest? Run <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">fetch</span> <span class="pre">--unshallow</span></code> to make sure the
 information in the <code class="docutils literal notranslate"><span class="pre">.git</span></code> folder is complete and shows all history.</p>
 </div>
 <p>More information on setting up Git uploading can be found in the
@@ -422,21 +422,21 @@ third part of the specifications.</p>
 <p>Secondly, numerous options can be selected to further specify the behaviour of
 your requirements. These options are:</p>
 <ul class="simple">
-<li><strong>Delete empty directories</strong>: If enabled, automatically delete empty directories in submissions.</li>
-<li><strong>Delete leading directories</strong>: If enabled, automatically delete superfluous leading directories (i.e. top-level directories in which all files / subdirectories are located).</li>
-<li><strong>Allow overrides by students</strong>: If enabled, the student can, after being shown a warning, still force hand in the submission even if it violates the hand-in requirements.</li>
+<li><p><strong>Delete empty directories</strong>: If enabled, automatically delete empty directories in submissions.</p></li>
+<li><p><strong>Delete leading directories</strong>: If enabled, automatically delete superfluous leading directories (i.e. top-level directories in which all files / subdirectories are located).</p></li>
+<li><p><strong>Allow overrides by students</strong>: If enabled, the student can, after being shown a warning, still force hand in the submission even if it violates the hand-in requirements.</p></li>
 </ul>
 <p>Thirdly, rules can be given that consist of exceptions to the default rule and
 requiring certain files. These rules can apply to files anywhere in the
 submission or files that have to be in an given path relative to the top level
 directory. These rules are individual and do not have any ordering between them.</p>
 <div class="admonition note">
-<p class="first admonition-title">Note</p>
+<p class="admonition-title">Note</p>
 <p>Use <code class="docutils literal notranslate"><span class="pre">/</span></code> or <code class="docutils literal notranslate"><span class="pre">\</span></code> as a directory separator to specify that certain files are
 required, allowed or denied in a directory. Start the rule with a directory
 separator (<code class="docutils literal notranslate"><span class="pre">/</span></code> or <code class="docutils literal notranslate"><span class="pre">\</span></code>) to specify that a file is required, allowed or denied in
 the top level directory.</p>
-<p class="last">To match more than one file, you can use a single wildcard for the name of
+<p>To match more than one file, you can use a single wildcard for the name of
 the file, by using a <code class="docutils literal notranslate"><span class="pre">*</span></code>. For example <code class="docutils literal notranslate"><span class="pre">/src/*.py</span></code> matches any file ending with
 <code class="docutils literal notranslate"><span class="pre">.py</span></code> in the directory src that is directly in the top level directory of the
 submission.</p>
@@ -469,8 +469,8 @@ the downloaded archive can be uploaded using Blackboard Zip tool in CodeGrade.</
 CodeGrade accounts to the course and link their submissions correctly.  If a
 student does not yet have a CodeGrade account, a new account will be created.</p>
 <div class="admonition warning">
-<p class="first admonition-title">Warning</p>
-<p class="last">BlackBoard uploading is an experimental feature that was tested working with
+<p class="admonition-title">Warning</p>
+<p>BlackBoard uploading is an experimental feature that was tested working with
 BlackBoard 9, if an error occurs please contact us at <a class="reference external" href="mailto:help&#37;&#52;&#48;codegra&#46;de">help<span>&#64;</span>codegra<span>&#46;</span>de</a>.</p>
 </div>
 </div>
@@ -504,8 +504,8 @@ copying the assignee of the parent assignment for the submitting student, or if
 this is not possible selecting the most common assignee in the children
 assignments.</p>
 <div class="admonition note">
-<p class="first admonition-title">Note</p>
-<p class="last">When teachers manually assign themselves, weights are not updated to reflect
+<p class="admonition-title">Note</p>
+<p>When teachers manually assign themselves, weights are not updated to reflect
 this.</p>
 </div>
 </div>
@@ -515,8 +515,8 @@ this.</p>
 e-mail notifications. These notifications rely on graders indicating that they
 are done grading by setting their state to ‘Done’ after all grading is finished.</p>
 <div class="admonition warning">
-<p class="first admonition-title">Warning</p>
-<p class="last">It is possible to set a grader to the ‘Done’ state that did not finish
+<p class="admonition-title">Warning</p>
+<p>It is possible to set a grader to the ‘Done’ state that did not finish
 grading all assigned submissions, a warning is shown in this case.</p>
 </div>
 </div>
@@ -525,14 +525,14 @@ grading all assigned submissions, a warning is shown in this case.</p>
 <p>CodeGrade provides two types of e-mail notifications to enable essential
 communication between graders:</p>
 <ul class="simple">
-<li><strong>Graders</strong> notification: send an e-mail at a specified date and time to all
-graders that have not yet finished grading.</li>
-<li><strong>Finished</strong> notification: send an e-mail to a specified e-mail address to
-notify when all graders are finished grading.</li>
+<li><p><strong>Graders</strong> notification: send an e-mail at a specified date and time to all
+graders that have not yet finished grading.</p></li>
+<li><p><strong>Finished</strong> notification: send an e-mail to a specified e-mail address to
+notify when all graders are finished grading.</p></li>
 </ul>
 <div class="admonition note">
-<p class="first admonition-title">Note</p>
-<p class="last">Notifications rely on the manually set status by the graders.</p>
+<p class="admonition-title">Note</p>
+<p>Notifications rely on the manually set status by the graders.</p>
 </div>
 </div>
 </div>
@@ -562,8 +562,8 @@ stylistic errors, like wrong indentation. It can be configured by a XML file,
 you can find documentation on how to write such a configuration file
 <a class="reference external" href="http://checkstyle.sourceforge.net/config.html">here</a>.</p>
 <div class="admonition note">
-<p class="first admonition-title">Note</p>
-<p class="last">Not all configuration fields are allowed because of security. For the same
+<p class="admonition-title">Note</p>
+<p>Not all configuration fields are allowed because of security. For the same
 reason it is also not possible to upload your own checkers.</p>
 </div>
 </div>
@@ -584,8 +584,8 @@ style and common functional errors, but can also find stylistic errors. The
 linter has to be configured using rulesets, how to do this is described here
 <a class="reference external" href="https://pmd.github.io/pmd-6.10.0/pmd_userdocs_making_rulesets.html">here</a>.</p>
 <div class="admonition note">
-<p class="first admonition-title">Note</p>
-<p class="last">Because of security reasons, it is not possible to create custom rules, nor
+<p class="admonition-title">Note</p>
+<p>Because of security reasons, it is not possible to create custom rules, nor
 is it possible to create XPath rules. This is because of security.</p>
 </div>
 </div>
@@ -637,8 +637,8 @@ for example, to split your grade into multiple categories, while still allowing
 precise grading. Continuous rubric categories are also very useful for
 <a class="reference internal" href="autotest/overview.html#autotest-overview"><span class="std std-ref">AutoTest</span></a>.</p>
 <div class="admonition tip">
-<p class="first admonition-title">Tip</p>
-<p class="last">A rubric is only saved after pressing the ‘Submit’ button, it is recommended
+<p class="admonition-title">Tip</p>
+<p>A rubric is only saved after pressing the ‘Submit’ button, it is recommended
 to occasionally save the rubric to prevent losing work.</p>
 </div>
 </div>
