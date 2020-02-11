@@ -550,6 +550,7 @@ export default {
 
     .rubric-description {
         white-space: initial;
+        word-wrap: break-word;
         max-height: 5rem;
         display: block;
         overflow-y: auto;
