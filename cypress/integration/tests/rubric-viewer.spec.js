@@ -336,6 +336,22 @@ context('Rubric Viewer', () => {
                 });
             checkGrade('10.00');
         });
+
+        it('should wrap text instead of overflowing', () => {
+            cy.fixture('test_rubrics/long_description.json').then(
+                rubricData => cy.createRubric(assignment.id, rubricData),
+            ).then(() => {
+                cy.reload();
+                cy.get('.rubric-viewer').should('be.visible');
+
+                cy.get('.rubric-viewer .rubric-viewer-row.normal:visible p')
+                    .shouldNotOverflow();
+                cy.get('.nav-tabs .nav-item:nth(1)')
+                    .click();
+                cy.get('.rubric-viewer .rubric-viewer-row.continuous:visible p')
+                    .shouldNotOverflow();
+            });
+        });
     });
 
     context('Assignment with Rubric and AutoTest', () => {
