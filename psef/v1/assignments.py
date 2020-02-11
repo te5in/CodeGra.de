@@ -311,7 +311,7 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
     lti_provider: t.Optional[models.LTIProviderBase]
     lms_name: t.Optional[str]
 
-    if assig.is_lti:
+    if assig.course.lti_provider is not None:
         lti_provider = assig.course.lti_provider
         lms_name = lti_provider.lms_name
     else:

@@ -128,15 +128,23 @@ class Course(NotEqualMixin, Base):
         nullable=False,
     )
 
-    # All stuff for LTI
-    lti_course_id = db.Column(db.Unicode, unique=True)
+    course_lti_provider = db.relationship(
+        lambda: psef.models.CourseLTIProvider,
+        back_populates="course",
+        uselist=False,
+    )
 
-    lti_provider_id = db.Column(
-        db.String(UUID_LENGTH), db.ForeignKey('LTIProvider.id')
-    )
-    lti_provider = db.relationship(
-        lambda: LTIProviderBase, foreign_keys=lti_provider_id
-    )
+    @property
+    def lti_course_id(self) -> t.Optional[str]:
+        if self.course_lti_provider is None:
+            return None
+        return self.course_lti_provider.lti_course_id
+
+    @property
+    def lti_provider(self) -> t.Optional['LTIProviderBase']:
+        if self.course_lti_provider is None:
+            return None
+        return self.course_lti_provider.lti_provider
 
     virtual = db.Column('virtual', db.Boolean, default=False, nullable=False)
 
@@ -176,23 +184,16 @@ class Course(NotEqualMixin, Base):
     def create_and_add(
         cls,
         name: str = None,
-        lti_course_id: str = None,
-        lti_provider: 'LTIProviderBase' = None,
         virtual: bool = False,
     ) -> 'Course':
         """Create a new course and add it to the current database session.
 
         :param name: The name of the new course.
-        :param lti_course_id: The id of the course for the LMS.
-        :param lti_provider: The lti provider. Either both ``lti_course_id``
-            and ``lti_provider`` should be ``None``, or both should be a valid
-            value.
         :param virtual: Is this a virtual course.
         """
+
         self = cls(
             name=name,
-            lti_course_id=lti_course_id,
-            lti_provider=lti_provider,
             virtual=virtual,
         )
         if virtual:

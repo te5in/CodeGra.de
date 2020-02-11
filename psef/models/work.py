@@ -10,6 +10,7 @@ import zipfile
 import tempfile
 from collections import defaultdict
 
+import structlog
 import sqlalchemy.sql as sql
 from sqlalchemy import orm, select
 from sqlalchemy.orm import undefer, selectinload
@@ -33,6 +34,14 @@ from .comment import Comment
 from ..helpers import JSONType
 from ..exceptions import PermissionException
 from ..permissions import CoursePermission
+
+logger = structlog.get_logger()
+
+if t.TYPE_CHECKING:  # pragma: no cover
+    # pylint: disable=unused-import, invalid-name
+    hybrid_property = property
+else:
+    from sqlalchemy.ext.hybrid import hybrid_property
 
 
 class GradeOrigin(enum.Enum):
@@ -413,6 +422,14 @@ class Work(Base):
             return
         lti_provider = self.assignment.course.lti_provider
         assert lti_provider
+
+        if lti_provider is None:
+            logger.warning(
+                'Passback requested for non LTI work',
+                work_id=self.id,
+                course_id=self.assignment.course_id,
+            )
+            return
 
         lti_provider.passback_grade(self, initial)
 

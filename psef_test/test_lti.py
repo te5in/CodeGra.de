@@ -2298,7 +2298,7 @@ def test_canvas_missing_required_params(
             'oauth_consumer_key': 'my_lti',
         }
         res = test_client.post('/api/v1/lti/launch/1', data=data)
-        assert res.status_code == 302
+        assert res.status_code in {302, 303}
         url = urllib.parse.urlparse(res.headers['Location'])
         blob_id = urllib.parse.parse_qs(url.query)['blob_id'][0]
         test_client.req(
@@ -2339,7 +2339,7 @@ def test_lti_multiple_providers_same_user_id(
         }
         with app.app_context():
             res = test_client.post('/api/v1/lti/launch/1', data=data)
-            assert res.status_code == 302
+            assert res.status_code in {302, 303}
             url = urllib.parse.urlparse(res.headers['Location'])
             blob_id = urllib.parse.parse_qs(url.query)['blob_id'][0]
             lti_res = test_client.req(

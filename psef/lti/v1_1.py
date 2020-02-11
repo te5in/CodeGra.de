@@ -532,12 +532,25 @@ class LTI:  # pylint: disable=too-many-public-methods
     def get_course(self) -> models.Course:
         """Get the current LTI course as a psef course.
         """
-        course = models.Course.query.filter_by(lti_course_id=self.course_id
-                                               ).first()
-        if course is None:
-            course = models.Course.create_and_add(
-                name=self.course_name, lti_course_id=self.course_id
+        course_lti_provider = models.db.session.query(
+            models.CourseLTIProvider,
+        ).filter(
+            models.CourseLTIProvider.lti_course_id == self.course_id,
+            models.CourseLTIProvider.lti_provider == self.lti_provider,
+        ).one_or_none()
+
+        if course_lti_provider is None:
+            course = models.Course.create_and_add(name=self.course_name)
+            db.session.add(
+                models.CourseLTIProvider(
+                    lti_course_id=self.course_id,
+                    course=course,
+                    lti_provider=self.lti_provider,
+                    deployment_id=self.lti_provider.id,
+                )
             )
+        else:
+            course = course_lti_provider.course
 
         if course.name != self.course_name:
             logger.info(
@@ -547,7 +560,6 @@ class LTI:  # pylint: disable=too-many-public-methods
             )
             course.name = self.course_name
 
-        course.lti_provider = self.lti_provider
         db.session.flush()
 
         return course
@@ -576,10 +588,16 @@ class LTI:  # pylint: disable=too-many-public-methods
     ) -> models.Assignment:
         """Get the current LTI assignment as a psef assignment.
         """
-        assignment = models.Assignment.query.filter_by(
-            lti_assignment_id=self.assignment_id,
+        assignment = models.Assignment.query.filter(
+            models.Assignment.lti_assignment_id == self.assignment_id,
+            models.Assignment.course == course,
         ).first()
         if assignment is None:
+            logger.info(
+                'Creating new assignment',
+                lti_assignment_id=self.assignment_id,
+                course_id=course.id,
+            )
             assignment = self.create_and_add_assignment(course=course)
 
         if assignment.deleted:
@@ -587,17 +605,6 @@ class LTI:  # pylint: disable=too-many-public-methods
                 'The launched assignment has been deleted on CodeGrade',
                 f'The assignment "{assignment.id}" has been deleted',
                 APICodes.OBJECT_NOT_FOUND, 404
-            )
-
-        if assignment.course != course:  # pragma: no cover
-            raise APIException(
-                (
-                    'The assignment was previously connected to a different'
-                    ' course.'
-                ), (
-                    f'The assignment {self.assignment_id} was previously'
-                    f' connected to {course.id}'
-                ), APICodes.INVALID_STATE, 400
             )
 
         if self.has_result_sourcedid():
@@ -616,7 +623,7 @@ class LTI:  # pylint: disable=too-many-public-methods
             assignment.lti_points_possible = self.assignment_points_possible
 
         if self.has_outcome_service_url():
-            assignment.lti_outcome_service_url = self.outcome_service_url
+            assignment.lti_grade_service_data = self.outcome_service_url
 
         if not assignment.is_done:
             assignment.state = self.assignment_state

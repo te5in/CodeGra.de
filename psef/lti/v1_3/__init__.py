@@ -3,10 +3,11 @@ import json
 import typing as t
 
 import werkzeug
-from pylti1p3 import oidc_login, message_launch
 from pylti1p3.deployment import Deployment
+from pylti1p3.oidc_login import OIDCLogin
 from pylti1p3.tool_config import ToolConfAbstract
 from pylti1p3.registration import Registration
+from pylti1p3.message_launch import MessageLaunch
 
 import flask
 
@@ -16,23 +17,7 @@ from .flask import (
 )
 
 if t.TYPE_CHECKING:
-    MessageLaunch = message_launch.MessageLaunch
-    OIDCLogin = oidc_login.OIDCLogin
-else:
-    # MessageLaunch, Redirect, and OIDCLogin are not really a generic class, so
-    # we hack it to make it look like it is.
-
-    class FakeGenericMeta(type):
-        def __getitem__(self, item):
-            return self
-
-    class MessageLaunch(
-        message_launch.MessageLaunch, metaclass=FakeGenericMeta
-    ):
-        pass
-
-    class OIDCLogin(oidc_login.OIDCLogin, metaclass=FakeGenericMeta):
-        pass
+    from pylti1p3.message_launch import _JwtData
 
 
 def init_app(app: PsefFlask) -> None:
@@ -57,10 +42,22 @@ def init_app(app: PsefFlask) -> None:
 
 
 class LTIConfig(ToolConfAbstract):
+    def find_registration_by_issuer_and_client(
+        self, iss: str, client_id: t.Optional[str]
+    ) -> t.Optional[Registration]:
+        if client_id is None:
+            return self.find_registration_by_issuer(iss)
+
+        return helpers.filter_single_or_404(
+            models.LTI1p3Provider,
+            models.LTI1p3Provider.iss == iss,
+            models.LTI1p3Provider.client_id == client_id,
+        ).get_registration()
+
     def find_registration_by_issuer(self, iss: str) -> Registration:
         return helpers.filter_single_or_404(
             models.LTI1p3Provider,
-            models.LTI1p3Provider.key == iss,
+            models.LTI1p3Provider.iss == iss,
         ).get_registration()
 
     def find_deployment(
@@ -94,6 +91,24 @@ class FlaskMessageLaunch(
 
     def validate_deployment(self) -> 'FlaskMessageLaunch':
         return self
+
+    @classmethod
+    def from_message_data(
+        cls,
+        request: flask.Request,
+        launch_data: t.Mapping[str, object],
+    ) -> 'FlaskMessageLaunch':
+        obj = cls(
+            FlaskRequest(request, force_post=False),
+            LTIConfig(),
+            session_service=FlaskSessionService(request),
+            cookie_service=FlaskCookieService(request),
+        )
+
+        return obj.set_auto_validation(enable=False) \
+            .set_jwt(t.cast('_JwtData', {'body': launch_data})) \
+            .set_restored() \
+            .validate_registration()
 
 
 class FlaskOIDCLogin(

@@ -22,6 +22,7 @@ Flask-Migrate==2.5.2
 Flask-Script==2.0.6
 Flask-SQLAlchemy==2.4.1
 freezegun==0.3.14
+git+https://github.com/CodeGra-de/pylti1.3.git
 git+http://github.com/CodeGra-de/python3-lxc.git
 git+https://github.com/i-kiwamu/python3-oauth2.git
 git+https://github.com/libre-man/HTTPdomain#subdirectory=httpdomain

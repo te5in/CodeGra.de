@@ -2,30 +2,18 @@ import typing as t
 from datetime import timedelta
 from dataclasses import dataclass
 
+import pylti1p3
 import structlog
 import werkzeug.wrappers
-from pylti1p3 import redirect
 from pylti1p3.cookie import CookieService
 from pylti1p3.request import Request
 from pylti1p3.session import SessionService
+from pylti1p3.redirect import Redirect
 
 import flask
 from cg_dt_utils import DatetimeWithTimezone
 
 logger = structlog.get_logger()
-
-if t.TYPE_CHECKING:
-    Redirect = redirect.Redirect
-else:
-    # Redirect is not really a generic class, so we hack it to make it look
-    # like it is.
-
-    class FakeGenericMeta(type):
-        def __getitem__(self, item):
-            return self
-
-    class Redirect(redirect.Redirect, metaclass=FakeGenericMeta):
-        pass
 
 
 class FlaskRequest(Request):

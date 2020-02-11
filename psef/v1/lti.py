@@ -6,6 +6,7 @@ directly after a successful lti launch.
 
 SPDX-License-Identifier: AGPL-3.0-only
 """
+import json
 import uuid
 import typing as t
 import urllib
@@ -18,8 +19,10 @@ import werkzeug
 import structlog
 import pylti1p3.exception
 from mypy_extensions import TypedDict
+from typing_extensions import Literal
 
 from psef import app
+from cg_json import jsonify
 from cg_dt_utils import DatetimeWithTimezone
 
 from . import api
@@ -30,6 +33,29 @@ from ..lti import v1_3 as lti_v1_3
 from ..models import db
 
 logger = structlog.get_logger()
+
+
+def _convert_boolean(value: t.Union[bool, str, None], default: bool) -> bool:
+    """Convert possible string value to boolean.
+
+    >>> cv = _convert_boolean
+    >>> s = object()
+    >>> cv('true', s)
+    True
+    >>> cv('false', s)
+    False
+    >>> cv(True, s)
+    True
+    >>> cv('not a bool', s) is s
+    True
+    >>> cv(None, s) is s
+    True
+    """
+    if isinstance(value, bool):
+        return value
+    elif isinstance(value, str) and value.lower() in {'true', 'false'}:
+        return value.lower() == 'true'
+    return default
 
 
 def _make_blob_and_redirect(
@@ -113,35 +139,28 @@ def get_lti_config() -> werkzeug.wrappers.Response:
 
 
 class _LTILaunchData(TypedDict):
-    assignment: models.Assignment
+    assignment: t.Optional[models.Assignment]
     custom_lms_name: str
     new_role_created: t.Optional[str]
     access_token: t.Optional[str]
     updated_email: t.Optional[str]
+    type: Literal['normal_result']
+
+
+class _LTIDeepLinkResult(TypedDict):
+    id: str
+    assignment_name: str
+    assignment_description: str
+    auto_create: bool
+    type: Literal['deep_link']
 
 
 class _LTILaunchResult(TypedDict):
-    data: _LTILaunchData
+    data: t.Union[_LTILaunchData, _LTIDeepLinkResult]
     version: LTIVersion
 
 
-@api.route('/lti/launch/2', methods=['POST'])
-@features.feature_required(features.Feature.LTI)
-def second_phase_lti_launch() -> helpers.JSONResponse[_LTILaunchResult]:
-    """Do the second part of an LTI launch.
-
-    .. :quickref: LTI; Do the callback of a LTI launch.
-
-    :>json string blob_id: The id of the blob which you got from the lti launch
-        redirect.
-
-    :returns: A _LTILaunch instance.
-    :raises APIException: If the given Jwt token is not valid. (INVALID_PARAM)
-    """
-    content = helpers.ensure_json_dict(flask.request.get_json())
-    with helpers.get_from_map_transaction(content) as [get, _]:
-        blob_id = get('blob_id', str)
-
+def _get_second_phase_lti_launch_data(blob_id: str) -> _LTILaunchResult:
     def also_error(b: models.BlobStorage) -> bool:
         age = helpers.get_request_start_time() - b.created_at
         # Older than 5 minutes is too old
@@ -149,7 +168,7 @@ def second_phase_lti_launch() -> helpers.JSONResponse[_LTILaunchResult]:
 
     blob = helpers.filter_single_or_404(
         models.BlobStorage,
-        models.BlobStorage.id == uuid.UUID(blob_id),
+        models.BlobStorage.id == blob_id,
         with_for_update=True,
         also_error=also_error,
     )
@@ -171,7 +190,7 @@ def second_phase_lti_launch() -> helpers.JSONResponse[_LTILaunchResult]:
                 f'Decoding given JWT token failed, LTI is probably '
                 'not configured correctly. Please contact your site admin.'
             ),
-            f'The decoding of "{flask.request.headers.get("Jwt")}" failed.',
+            f'The decoding of jwt failed.',
             errors.APICodes.INVALID_PARAM,
             400,
         )
@@ -180,7 +199,7 @@ def second_phase_lti_launch() -> helpers.JSONResponse[_LTILaunchResult]:
 
     version = LTIVersion[launch_params.get('version', LTIVersion.v1_1)]
     data = launch_params['data']
-    result: _LTILaunchData
+    result: t.Union[_LTILaunchData, _LTIDeepLinkResult]
 
     if version == LTIVersion.v1_1:
         inst = lti_v1_1.LTI.create_from_launch_params(data)
@@ -195,13 +214,14 @@ def second_phase_lti_launch() -> helpers.JSONResponse[_LTILaunchResult]:
 
         db.session.commit()
 
-        result = {
-            'assignment': assig,
-            'new_role_created': new_role_created,
-            'custom_lms_name': inst.lti_provider.lms_name,
-            'updated_email': updated_email,
-            'access_token': new_token,
-        }
+        result = _LTILaunchData(
+            assignment=assig,
+            new_role_created=new_role_created,
+            custom_lms_name=inst.lti_provider.lms_name,
+            updated_email=updated_email,
+            access_token=new_token,
+            type='normal_result',
+        )
     elif version == LTIVersion.v1_3:
         if data.get('type') == 'exception':
             raise exceptions.APIException(
@@ -211,14 +231,61 @@ def second_phase_lti_launch() -> helpers.JSONResponse[_LTILaunchResult]:
                 400,
             )
 
-        result = {}
+        launch_message = lti_v1_3.FlaskMessageLaunch.from_message_data(
+            request=flask.request,
+            launch_data=data,
+        )
+        message_data = launch_message.get_launch_data()
+
+        if launch_message.is_deep_link_launch():
+            deep_link_data = message_data[
+                'https://purl.imsglobal.org/spec/lti-dl/claim/deep_linking_settings'
+            ]
+            result = _LTIDeepLinkResult(
+                id=str(uuid.uuid4()),
+                assignment_name=deep_link_data.get('title', ''),
+                auto_create=_convert_boolean(
+                    deep_link_data.get('auto_create'),
+                    False,
+                ),
+                assignment_description=deep_link_data.get('text', ''),
+                type='deep_link',
+            )
+        else:
+            result = {}
     else:
         assert False
 
-    return helpers.jsonify({
+    return {
         'version': version,
         'data': result,
-    })
+    }
+
+
+@api.route('/lti/launch/2', methods=['POST'])
+@features.feature_required(features.Feature.LTI)
+def second_phase_lti_launch(
+) -> helpers.JSONResponse[t.Union[_LTILaunchResult, t.Dict[str, t.Any]]]:
+    """Do the second part of an LTI launch.
+
+    .. :quickref: LTI; Do the callback of a LTI launch.
+
+    :>json string blob_id: The id of the blob which you got from the lti launch
+        redirect.
+
+    :returns: A _LTILaunch instance.
+    :raises APIException: If the given Jwt token is not valid. (INVALID_PARAM)
+    """
+    with helpers.get_from_map_transaction(
+        helpers.get_json_dict_from_request()
+    ) as [get, _]:
+        blob_id = get('blob_id', str)
+
+    res = _get_second_phase_lti_launch_data(blob_id)
+    if helpers.extended_requested():
+        return jsonify(res)
+
+    return jsonify(t.cast(dict, res['data']))
 
 
 @api.route('/lti1.3/login', methods=['GET', 'POST'])

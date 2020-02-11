@@ -36,7 +36,7 @@
                 </b-form-checkbox>
             </b-input-group-text>
         </b-input-group-prepend>
-        <b-input-group-append>
+        <b-input-group-append v-if="!withoutAssignment">
             <submit-button :submit="submit" ref="submitButton"/>
         </b-input-group-append>
     </b-input-group>
@@ -57,7 +57,12 @@ export default {
     props: {
         assignmentId: {
             type: Number,
-            required: true,
+            required: false,
+        },
+
+        value: {
+            type: Object,
+            default: null,
         },
     },
 
@@ -75,10 +80,34 @@ export default {
             },
             immediate: true,
         },
+
+        value: {
+            immediate: true,
+            handler() {
+                if (this.value != null) {
+                    this.webhook = this.value.webhook;
+                    this.files = this.value.files;
+                } else {
+                    this.emitValue();
+                }
+            },
+        },
+
+        webhook() {
+            this.emitValue();
+        },
+
+        files() {
+            this.emitValue();
+        },
     },
 
     computed: {
         ...mapGetters('courses', ['assignments']),
+
+        withoutAssignment() {
+            return this.assignmentId == null;
+        },
 
         assignment() {
             return this.assignments[this.assignmentId];
@@ -88,12 +117,25 @@ export default {
     methods: {
         ...mapActions('courses', ['updateAssignment']),
 
+        emitValue() {
+            this.$emit('input', { webhook: this.webhook, files: this.files });
+        },
+
         setRemoteData() {
-            this.files = this.assignment.files_upload_enabled;
-            this.webhook = this.assignment.webhook_upload_enabled;
+            if (this.withoutAssignment) {
+                this.files = true;
+                this.webhook = true;
+            } else {
+                this.files = this.assignment.files_upload_enabled;
+                this.webhook = this.assignment.webhook_upload_enabled;
+            }
         },
 
         submit() {
+            if (this.withoutAssignment) {
+                return Promise.resolve();
+            }
+
             const data = {
                 files_upload_enabled: this.files,
                 webhook_upload_enabled: this.webhook,

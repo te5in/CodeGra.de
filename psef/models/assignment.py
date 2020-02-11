@@ -18,6 +18,7 @@ import structlog
 import sqlalchemy
 from sqlalchemy.orm import validates
 from mypy_extensions import DefaultArg
+from sqlalchemy.types import JSON
 from sqlalchemy.sql.expression import and_, func
 from sqlalchemy.orm.collections import attribute_mapped_collection
 
@@ -45,6 +46,7 @@ from ..permissions import CoursePermission as CPerm
 
 if t.TYPE_CHECKING:  # pragma: no cover
     # pylint: disable=unused-import
+    from pylti1p3.assignments_grades import _AssignmentsGradersData
     cached_property = property  # pylint: disable=invalid-name
 else:
     # pylint: disable=unused-import
@@ -399,6 +401,9 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         default=None,
     )
     _max_grade = db.Column('max_grade', db.Float, nullable=True, default=None)
+
+    # This is always `None` for LTI 1.3. As LTI 1.3 supports sending more than
+    # the set maximum amount of points.
     lti_points_possible = db.Column(
         'lti_points_possible',
         db.Float,
@@ -407,8 +412,18 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
     )
 
     # All stuff for LTI
-    lti_assignment_id = db.Column(db.Unicode, unique=True)
-    lti_outcome_service_url = db.Column(db.Unicode)
+    lti_assignment_id = db.Column(
+        'lti_assignment_id', db.Unicode, nullable=True
+    )
+
+    # This is the lti outcome service url for LTI 1.1 and for LTI 1.3 this is
+    # the data passed under the
+    # "https://purl.imsglobal.org/spec/lti-ags/claim/endpoint" claim.
+    lti_grade_service_data: ColumnProxy[
+        t.Union[None, '_AssignmentsGradersData', str]]
+    lti_grade_service_data = db.Column(
+        'lti_grade_service_data', JSON, nullable=True
+    )
 
     assigned_graders: t.MutableMapping[
         int, AssignmentAssignedGrader] = db.relationship(
@@ -553,6 +568,11 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         db.CheckConstraint(
             'amount_in_cool_off_period >= 1',
             name='amount_in_cool_off_period_check'
+        ),
+        db.UniqueConstraint(
+            lti_assignment_id,
+            course_id,
+            name='ltiassignmentid_courseid_unique',
         )
     )
 
@@ -781,7 +801,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
 
         :returns: A boolean indicating if this is the case.
         """
-        return self.lti_outcome_service_url is not None
+        return self.lti_assignment_id is not None
 
     @property
     def max_rubric_points(self) -> t.Optional[float]:
@@ -1064,7 +1084,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
             self.state = _AssignmentStateEnum.hidden
         elif state == 'done':
             self.state = _AssignmentStateEnum.done
-            if self.lti_outcome_service_url is not None:
+            if self.lti_grade_service_data is not None:
                 self._submit_grades()
         else:
             raise InvalidAssignmentState(f'{state} is not a valid state')

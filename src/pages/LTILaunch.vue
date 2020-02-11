@@ -1,23 +1,33 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
-    <b-alert variant="danger" show v-if="error" class="box m-0 rounded-0">
-        <p style="text-align: center; font-size: 1.3em;">
-            Something went wrong during the LTI launch:
-            <template v-if="errorMsg">
-                {{ errorMsg }}
-            </template>
-            <template v-else>
-                Please <a href="mailto:support@codegra.de">contact support</a>.
-            </template>
-        </p>
-    </b-alert>
-    <loader v-else/>
+<b-alert variant="danger" show v-if="error" class="box m-0 rounded-0">
+    <p style="text-align: center; font-size: 1.3em;">
+        Something went wrong during the LTI launch:
+        <template v-if="errorMsg">
+            {{ errorMsg }}
+        </template>
+        <template v-else>
+            Please <a href="mailto:support@codegra.de">contact support</a>.
+        </template>
+    </p>
+</b-alert>
+<div v-else-if="deepLinkData != null" class="lti-launch d-flex flex-column">
+    <local-header title="Create a new assignment" >
+        <cg-logo :inverted="!darkMode" />
+    </local-header>
+    <lti-deep-link
+        :initial-assignment-name="deepLinkData.assignment_name"
+        initial-assignment-deadline=""
+        :deep-link-id="deepLinkData.id"
+        :auto-create="deepLinkData.auto_create"/>
+</div>
+<loader v-else/>
 </template>
 
 <script>
 import 'vue-awesome/icons/times';
-import { Loader } from '@/components';
-import { mapActions } from 'vuex';
+import { Loader, LocalHeader, CgLogo, LtiDeepLink } from '@/components';
+import { mapActions, mapGetters } from 'vuex';
 import { disablePersistance } from '@/store';
 import ltiProviders from '@/lti_providers';
 
@@ -43,11 +53,17 @@ export default {
         return {
             error: false,
             errorMsg: false,
+            deepLinkData: null,
         };
     },
 
     mounted() {
         this.secondStep(true);
+    },
+
+
+    computed: {
+        ...mapGetters('pref', ['darkMode']),
     },
 
     methods: {
@@ -86,7 +102,8 @@ export default {
                         this.$ltiProvider = ltiProviders[data.data.custom_lms_name];
 
                         switch (data.version) {
-                            case 'lti_v1_1': return this.handleLTI1p1(data.data);
+                            case 'v1_1': return this.handleLTI1p1(data.data);
+                            case 'v1_3': return this.handleLTI1p3(data.data);
                             default: throw new Error(`Unknown LTI version (${data.version}) encountered.`);
                         }
                     },
@@ -104,7 +121,23 @@ export default {
                 });
         },
 
+        handleLTI1p3(data) {
+            switch (data.type) {
+                case 'deep_link': return this.handleDeepLink(data);
+                case 'normal_result': return this.handleLTI1p1(data);
+                default: throw new Error(`Unknown LTI1.3 type: ${data.type}`);
+            }
+        },
+
+        handleDeepLink(data) {
+            this.deepLinkData = data;
+        },
+
         handleLTI1p1(data) {
+            if (data.type !== 'normal_result') {
+                throw new Error(`Unknown LTI1.1 type: ${data.type}.`);
+            }
+
             this.$LTIAssignmentId = data.assignment.id;
 
             if (data.new_role_created) {
@@ -144,14 +177,22 @@ export default {
 
     components: {
         Loader,
+        LocalHeader,
+        CgLogo,
+        LtiDeepLink,
     },
 };
 </script>
 
-<style>
+<style lang="less" scoped>
 .box {
     display: flex;
     justify-content: center;
     align-items: center;
+}
+
+.cg-logo {
+    height: 1.5rem;
+    width: auto;
 }
 </style>

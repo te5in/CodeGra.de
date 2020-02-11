@@ -14,7 +14,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 
 import psef
-from cg_sqlalchemy_helpers.mixins import TimestampMixin
+from cg_sqlalchemy_helpers.mixins import UUIDMixin, TimestampMixin
 
 from . import UUID_LENGTH, Base, db
 from . import user as user_models
@@ -25,6 +25,7 @@ from ..registry import lti_provider_handlers
 if t.TYPE_CHECKING:  # pragma: no cover
     # pylint: disable=unused-import, invalid-name
     from .work import Work
+    from . import course as course_models
     hybrid_property = property
 else:
     from sqlalchemy.ext.hybrid import hybrid_property
@@ -46,6 +47,12 @@ class LTIProviderBase(Base):
         default=lambda: str(uuid.uuid4())
     )
     key: str = db.Column('key', db.Unicode, unique=True, nullable=True)
+
+    # This is only really available for LTI1.3, however we need to define it
+    # here to be able to create a unique constraint.
+    if not t.TYPE_CHECKING:
+        client_id: t.Optional[str] = db.Column('client_id', db.Unicode)
+
     _lti_provider_version: str = db.Column(
         'lti_provider_version',
         db.Enum(*_ALL_LTI_PROVIDERS, name='ltiproviderversion'),
@@ -57,6 +64,8 @@ class LTIProviderBase(Base):
         'polymorphic_on': _lti_provider_version,
         'polymorphic_identity': 'non_existing',
     }
+
+    __table_args__ = (db.UniqueConstraint('client_id', key), )
 
     def find_user(self, lti_user_id: str) -> t.Optional['user_models.User']:
         user_link = db.session.query(UserLTIProvider).filter(
@@ -111,8 +120,10 @@ class LTI1p1Provider(LTIProviderBase):
     def delete_grade_for_submission(self, sub: 'Work') -> None:
         """Delete the grade for the given submission.
         """
-        if sub.assignment.lti_outcome_service_url is None:  # pragma: no cover
-            return
+        service_url = sub.assignment.lti_grade_service_data
+        assert isinstance(
+            service_url, str
+        ), f'Service url has unexpected value: {service_url}'
 
         for user in sub.get_all_authors():
             sourcedid = sub.assignment.assignment_results[user.id].sourcedid
@@ -124,7 +135,7 @@ class LTI1p1Provider(LTIProviderBase):
                 secret=self.secret,
                 grade=None,
                 initial=False,
-                service_url=sub.assignment.lti_outcome_service_url,
+                service_url=service_url,
                 sourcedid=sourcedid,
                 lti_points_possible=sub.assignment.lti_points_possible,
                 submission=sub,
@@ -140,8 +151,10 @@ class LTI1p1Provider(LTIProviderBase):
             actually do a passback when this is set to ``True``.
         :returns: Nothing.
         """
-        if sub.assignment.lti_outcome_service_url is None:  # pragma: no cover
-            return
+        service_url = sub.assignment.lti_grade_service_data
+        assert isinstance(
+            service_url, str
+        ), f'Service url has unexpected value: {service_url}'
 
         for user in sub.get_all_authors():
             sourcedid = sub.assignment.assignment_results[user.id].sourcedid
@@ -153,7 +166,7 @@ class LTI1p1Provider(LTIProviderBase):
                 secret=self.secret,
                 grade=sub.grade,
                 initial=initial,
-                service_url=sub.assignment.lti_outcome_service_url,
+                service_url=service_url,
                 sourcedid=sourcedid,
                 lti_points_possible=sub.assignment.lti_points_possible,
                 submission=sub,
@@ -207,11 +220,12 @@ class LTI1p1Provider(LTIProviderBase):
 class LTI1p3Provider(LTIProviderBase):
     __mapper_args__ = {'polymorphic_identity': 'lti1.3'}
 
+    if t.TYPE_CHECKING:
+        client_id: t.Optional[str] = db.Column('client_id', db.Unicode)
+
     _lms_name: t.Optional[str] = db.Column('lms_name', db.Unicode)
     _auth_login_url: t.Optional[str] = db.Column('auth_login_url', db.Unicode)
     _auth_token_url: t.Optional[str] = db.Column('auth_token_url', db.Unicode)
-    _client_id: t.Optional[str] = db.Column('client_id', db.Unicode)
-    _key_set: t.Optional[str] = db.Column('key_set', db.Unicode)
     _key_set_url: t.Optional[str] = db.Column('key_set_url', db.Unicode)
 
     _crypto_key: t.Optional[bytes] = db.Column('crypto_key', db.LargeBinary)
@@ -229,13 +243,8 @@ class LTI1p3Provider(LTIProviderBase):
         auth_login_url: str,
         auth_token_url: str,
         client_id: str,
-        key_set: t.Optional[str],
-        key_set_url: t.Optional[str],
+        key_set_url: str,
     ) -> 'LTI1p3Provider':
-        assert key_set is not None or key_set_url is not None, (
-            'One of key_set and key_set_url should not be None'
-        )
-
         key = rsa.generate_private_key(
             public_exponent=65537,
             key_size=4096,
@@ -246,8 +255,7 @@ class LTI1p3Provider(LTIProviderBase):
             _lms_name=lms_name,
             _auth_login_url=auth_login_url,
             _auth_token_url=auth_token_url,
-            _client_id=client_id,
-            _key_set=key_set,
+            client_id=client_id,
             _key_set_url=key_set_url,
             _crypto_key=key.private_bytes(
                 encoding=serialization.Encoding.PEM,
@@ -280,14 +288,14 @@ class LTI1p3Provider(LTIProviderBase):
     def get_registration(self) -> Registration:
         assert self._auth_login_url is not None
         assert self._auth_token_url is not None
-        assert self._client_id is not None
+        assert self._key_set_url is not None
+        assert self.client_id is not None
         assert self.iss is not None
 
         return Registration() \
             .set_auth_login_url(self._auth_login_url) \
             .set_auth_token_url(self._auth_token_url) \
-            .set_client_id(self._client_id) \
-            .set_key_set(self._key_set) \
+            .set_client_id(self.client_id) \
             .set_key_set_url(self._key_set_url) \
             .set_issuer(self.iss) \
             .set_tool_private_key(self._private_key)
@@ -332,7 +340,7 @@ class UserLTIProvider(Base, TimestampMixin):
         db.UniqueConstraint(lti_provider_id, lti_user_id),
     )
 
-    lti_provider: 'LTIProviderBase' = db.relationship(
+    lti_provider: LTIProviderBase = db.relationship(
         LTIProviderBase,  # type: ignore[misc]
         lazy='joined',
         foreign_keys=lti_provider_id,
@@ -440,3 +448,68 @@ class UserLTIProvider(Base, TimestampMixin):
             )
 
         return user, token
+
+
+class CourseLTIProvider(UUIDMixin, TimestampMixin, Base):
+    course_id = db.Column(
+        'course_id',
+        db.Integer,
+        db.ForeignKey('Course.id'),
+        nullable=False,
+        unique=True,
+    )
+
+    lti_provider_id = db.Column(
+        'lti_provider_id',
+        db.String(UUID_LENGTH),
+        db.ForeignKey(LTIProviderBase.id),
+        nullable=False,
+    )
+
+    lti_course_id: str = db.Column(
+        'lti_course_id',
+        db.Unicode,
+        nullable=False,
+    )
+
+    # For LTI1.1: the deployment_id is always the same as `lti_course_id`.
+    deployment_id: str = db.Column(
+        'deployment_id',
+        db.Unicode,
+        nullable=False,
+    )
+
+    lti_provider: LTIProviderBase = db.relationship(
+        LTIProviderBase,  # type: ignore[misc]
+        lazy='joined',
+        foreign_keys=lti_provider_id,
+    )
+
+    course: 'course_models.Course' = db.relationship(
+        'Course',
+        lazy='joined',
+        foreign_keys=course_id,
+    )
+
+    __table_args__ = (
+        # For LTI1.1: the deployment_id is always the same as `lti_course_id`.
+
+        # For LTI1.3: A lti_course_id (context_id in LTI terminology) is
+        # locally (so for a single lti_provider (platform)) unique for a
+        # deployment_id.
+        db.UniqueConstraint(lti_provider_id, deployment_id, lti_course_id),
+    )
+
+    def __init__(
+        self,
+        lti_course_id: str,
+        course: 'course_models.Course',
+        lti_provider: LTIProviderBase,
+        deployment_id: str,
+    ) -> None:
+        super().__init__(
+            lti_course_id=lti_course_id,
+            course=course,
+            lti_provider=lti_provider,
+            deployment_id=deployment_id,
+        )
