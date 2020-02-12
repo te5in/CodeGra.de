@@ -389,15 +389,28 @@ Cypress.Commands.add('deleteRubric', (assignmentId, opts={}) => {
     });
 });
 
-Cypress.Commands.add('createAutoTest', (assignmentId, autoTestConfig) =>
-    cy.authRequest({
+Cypress.Commands.add('createAutoTest', (assignmentId, autoTestConfig) => {
+    const patchProps = Object.entries(autoTestConfig).reduce((acc, [key, val]) => {
+        if (key == 'grade_calculation' || key == 'results_always_visible') {
+            acc[key] = val;
+        }
+        return acc;
+    }, {});
+    return cy.authRequest({
         url: '/api/v1/auto_tests/',
         method: 'POST',
         body: {
             assignment_id: assignmentId,
         },
-    }).its('body').then(autoTest =>
-        cy.wrap(autoTestConfig.sets).each(setConfig =>
+    }).its('body').then(autoTest => {
+        if (Object.keys(patchProps).length > 0) {
+            cy.authRequest({
+                url: `/api/v1/auto_tests/${autoTest.id}`,
+                method: 'PATCH',
+                body: patchProps,
+            });
+        }
+        return cy.wrap(autoTestConfig.sets).each(setConfig =>
             cy.authRequest({
                 url: `/api/v1/auto_tests/${autoTest.id}/sets/`,
                 method: 'POST',
@@ -422,9 +435,9 @@ Cypress.Commands.add('createAutoTest', (assignmentId, autoTestConfig) =>
                 url: `/api/v1/auto_tests/${autoTest.id}`,
                 method: 'GET',
             }).its('body'),
-        ),
-    ),
-);
+        );
+    });
+});
 
 Cypress.Commands.add('createAutoTestFromFixture', (assignmentId, autoTest, rubric) => {
     // Since AutoTest categories must map to a rubric category, we must know

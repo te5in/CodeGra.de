@@ -45,9 +45,16 @@ context('Rubric Editor', () => {
 
     before(() => {
         cy.visit('/');
-        cy.createCourse(`Rubric Editor Course ${unique}`).then(res => {
+        cy.createCourse(
+            `Rubric Editor Course ${unique}`,
+            [{ name: 'student1', role: 'Student' }],
+        ).then(res => {
             course = res;
-            cy.createAssignment(course.id, `Rubric Editor Assignment ${unique}`).then(res => {
+            cy.createAssignment(
+                course.id,
+                `Rubric Editor Assignment ${unique}`,
+                { state: 'open', deadline: 'tomorrow' },
+            ).then(res => {
                 assignment = res;
             });
         });
@@ -978,6 +985,30 @@ context('Rubric Editor', () => {
                     .click();
                 cy.get('.rubric-editor .rubric-editor-row.continuous:visible p')
                     .shouldNotOverflow();
+            });
+        });
+
+        it('should be visible even if the user does not have the permission to see the AutoTest', () => {
+            const rubricData = new Rubric([1], [1], [0, 1, 2], [0, 1, 2]);
+            cy.createRubric(assignment.id, rubricData).then(rubric =>
+                cy.createAutoTestFromFixture(
+                    assignment.id,
+                    'no_continuous',
+                    rubric,
+                ),
+            ).then(autoTest => {
+                loadPage(true);
+                cy.get('.rubric-editor')
+                    .should('not.have.class', 'alert')
+                    .should('be.visible');
+
+                cy.login('student1', 'Student1');
+                loadPage(false);
+                cy.get('.rubric-editor')
+                    .should('not.have.class', 'alert')
+                    .should('be.visible');
+
+                cy.deleteAutoTest(autoTest.id);
             });
         });
     });
