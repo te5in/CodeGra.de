@@ -131,8 +131,8 @@
                 </router-link>
                 <span v-else
                      slot="header"
-                     class="link-disabled"
-                     v-b-popover.hover.bottom="'You can\'t view files from other assignments.'">
+                     class="text-muted cursor-not-allowed"
+                     v-b-popover.window.hover.top="'You can\'t view files from other assignments.'">
                     {{ getFromFileTree(key == 'self' ? tree1 : tree2, file) }}
                 </span>
 
@@ -805,10 +805,6 @@ ${right.join('\n')}
         z-index: 5;
         background-color: @linum-bg;
         margin-bottom: -1px;
-
-        .link-disabled {
-            color: @color-secondary-text-lighter !important;
-        }
     }
 }
 
