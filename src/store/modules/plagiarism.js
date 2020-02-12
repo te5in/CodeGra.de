@@ -25,7 +25,8 @@ const processCase = (run, serverCase) => {
         serverCase.assignments[1].id != null;
     if (serverCase.canView) {
         // eslint-disable-next-line
-        serverCase._rowVariant = 'info';
+        serverCase._rowVariant = null;
+        // serverCase._rowVariant = 'info';
     } else {
         // eslint-disable-next-line
         serverCase._rowVariant = 'warning';

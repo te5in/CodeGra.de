@@ -18,7 +18,7 @@
             </main>
         </div>
     </template>
-    <div v-if="showFrameBorder" class="frame-border"/>
+    <div v-if="showFrameBorder" class="frame-border border"/>
 </div>
 </template>
 
@@ -220,8 +220,8 @@ export default {
     right: 0;
     bottom: 0;
     pointer-events: none;
-    border: 1px solid @color-border-gray-lighter;
     z-index: 1000;
+
     #app.dark & {
         display: none;
     }

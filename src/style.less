@@ -455,23 +455,23 @@ body.cg-dark-mode hr {
     list-style: none;
     margin: 0;
     padding: 0;
-    border-radius: @border-radius;
 
     li {
         margin-left: 0;
         padding: 0.375rem;
-        border-bottom: 1px solid @color-border-gray-lighter;
+        border-top: 1px solid @border-color;
+
+        &:first-child {
+            border-top-width: 2px;
+        }
+
+        &:nth-child(2n + 1) {
+            background-color: rgba(0, 0, 0, 0.05);
+        }
 
         body.cg-dark-mode & {
             border-color: @color-primary-darker;
         }
-    }
-
-    li:nth-child(2n + 1) {
-        background-color: rgba(0, 0, 0, 0.05);
-    }
-    li:last-child {
-        border-bottom: none;
     }
 }
 

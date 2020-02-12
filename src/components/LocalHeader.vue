@@ -172,7 +172,7 @@ export default {
 
 .separator {
     margin: 1em 0;
-    border-color: @color-border-gray;
+    border-color: @border-color;
 
     #app.dark & {
         border-color: @color-primary-darkest;

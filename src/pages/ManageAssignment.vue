@@ -361,7 +361,7 @@
                         description="Run a plagiarism checker or view
                                      the results."/>
                 </span>
-                <plagiarism-runner class="mb-3"
+                <plagiarism-runner :class="{ 'mb-3': permissions.can_manage_plagiarism }"
                                    :assignment="assignment"
                                    :hidden="selectedCat !== 'plagiarism'"
                                    :can-manage="permissions.can_manage_plagiarism"
@@ -443,6 +443,7 @@ export default {
         ...mapGetters('courses', ['assignments']),
 
         formattedDeadline() {
+            console.log(this.assignment);
             return (this.assignment && this.assignment.getFormattedDeadline()) || '';
         },
 

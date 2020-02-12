@@ -15,7 +15,9 @@
         </thead>
 
         <tbody>
-            <tr v-for="perm, i in filteredPermissions"
+            <!-- <tr v-for="perm, i in filteredPermissions" -->
+            <tr v-for="perm, i in items"
+                v-if="filteredIndices.has(i)"
                 :class="{ 'table-danger': perm.warning }">
                 <td>
                     {{ perm.short_description }}
@@ -151,13 +153,21 @@ export default {
     },
 
     computed: {
-        filteredPermissions() {
+        filteredIndices() {
             const filter = this.filter.toLocaleLowerCase();
-            return this.items.filter(perm => (
-                perm.short_description.toLocaleLowerCase().match(filter) ||
-                perm.long_description.toLocaleLowerCase().match(filter) ||
-                (perm.warning && perm.warning.toLocaleLowerCase().match(filter))
-            ));
+            return this.items.reduce(
+                (acc, perm, i) => {
+                    if (
+                        perm.short_description.toLocaleLowerCase().match(filter) ||
+                        perm.long_description.toLocaleLowerCase().match(filter) ||
+                        (perm.warning && perm.warning.toLocaleLowerCase().match(filter))
+                    ) {
+                        acc.add(i);
+                    }
+                    return acc;
+                },
+                new Set(),
+            );
         },
     },
 

@@ -538,17 +538,8 @@ pre {
     padding: 0;
 }
 
-.rules-list {
-    border-top: 2px solid @color-border-gray-lighter;
-    border-radius: 0;
-
-    #app.dark & {
-        border-color: @color-primary-darker;
-    }
-
-    &.background-enabled .list-item {
-        transition: all 0.3s;
-    }
+.rules-list.background-enabled .list-item {
+    transition: all 0.3s;
 }
 
 .btn.policy-btn {
