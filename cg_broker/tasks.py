@@ -150,6 +150,9 @@ def maybe_start_more_runners() -> None:
 
 @celery.task
 def start_needed_unassigned_runners() -> None:
+    """Start extra runners if the mimimum_amount_extra_runners option is set
+    and there are less runners than its value.
+    """
     wanted_amount = models.Setting.get(
         models.PossibleSetting.minimum_amount_extra_runners
     )

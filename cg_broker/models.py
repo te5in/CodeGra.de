@@ -769,6 +769,9 @@ class PossibleSetting(enum.Enum):
 
 
 class Setting(Base, mixins.TimestampMixin):
+    """A setting for the broker that can be changed via an interface on the
+    broker's web page.
+    """
     setting = db.Column(
         'settting', db.Enum(PossibleSetting), nullable=False, primary_key=True
     )
@@ -778,6 +781,8 @@ class Setting(Base, mixins.TimestampMixin):
     # https://github.com/python/typing/issues/535
     @classmethod
     def get(cls, setting: PossibleSetting) -> t.Any:
+        """Get the current value of this setting.
+        """
         found = db.session.query(cls).filter_by(setting=setting).one_or_none()
         if found is None:
             return setting.value.default_value
@@ -785,6 +790,8 @@ class Setting(Base, mixins.TimestampMixin):
 
     @classmethod
     def set(cls, setting: PossibleSetting, value: object) -> None:
+        """Set a new value for this setting.
+        """
         assert isinstance(value, type(setting.value.default_value))
         found = db.session.query(cls).filter_by(setting=setting).one_or_none()
         logger.info(

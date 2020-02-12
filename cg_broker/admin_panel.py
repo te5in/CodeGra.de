@@ -249,6 +249,8 @@ def create_runner() -> Response:
 @admin.route('/settings/', methods=['GET'])
 @login_required
 def show_settings() -> str:
+    """Display the settings and their values.
+    """
     lookup = {
         setting.setting: setting.value
         for setting in models.Setting.query.all()
@@ -264,6 +266,8 @@ def show_settings() -> str:
 @admin.route('/settings/', methods=['POST'])
 @login_required
 def update_setting() -> Response:
+    """Update values of settings.
+    """
     setting_name = request.form['setting']
     setting_value = request.form['value']
 
