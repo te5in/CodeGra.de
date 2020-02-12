@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <span class="description-popover"
-      :style="{ float: hugText ? 'none' : 'right' }"
+      :class="{ 'float-right': !hugText }"
       @click.stop.prevent>
     <b-popover :placement="placement"
                :triggers="triggers"
@@ -94,6 +94,10 @@ export default {
     padding: 0 0.5em;
     height: 100%;
     display: inline-block;
+
+    .description-popover.float-right & {
+        padding-right: 0;
+    }
 }
 
 .description-popover {
