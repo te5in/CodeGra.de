@@ -986,5 +986,19 @@ context('Rubric Editor', () => {
                 cy.deleteAutoTest(autoTest.id);
             });
         });
+
+        it('should wrap text instead of overflowing', () => {
+            cy.fixture('test_rubrics/long_description.json').then(
+                rubricData => cy.createRubric(assignment.id, rubricData),
+            ).then(() => {
+                loadPage(true);
+                cy.get('.rubric-editor .rubric-editor-row.normal:visible p')
+                    .shouldNotOverflow();
+                cy.get('.rubric-editor .nav-tabs .nav-item:nth-child(2)')
+                    .click();
+                cy.get('.rubric-editor .rubric-editor-row.continuous:visible p')
+                    .shouldNotOverflow();
+            });
+        });
     });
 });

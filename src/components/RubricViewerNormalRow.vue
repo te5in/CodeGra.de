@@ -35,7 +35,7 @@
                  'border-left': i > 0,
                  'pb-4': showProgressMeter,
              }"
-             :style="{ flex: `0 0 ${100 / rowItems.length}%` }"
+             :style="{ flex: `0 0 ${itemWidth}`, maxWidth: itemWidth  }"
              @click="toggleItem(item)">
             <b class="mb-2">
                 {{ item.points }} - {{ item.header }}
@@ -154,6 +154,10 @@ export default {
         readableAutoTestProgress() {
             const progress = this.autoTestProgress;
             return progress == null ? 0 : progress.toFixed(0);
+        },
+
+        itemWidth() {
+            return `${100 / this.rowItems.length}%`;
         },
     },
 

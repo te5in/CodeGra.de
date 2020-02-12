@@ -182,7 +182,7 @@ const actions = {
             const sub = Submission.fromServerData(data, assignmentId);
             context.commit(types.ADD_SINGLE_SUBMISSION, { submission: sub });
             if (data.rubric_result != null) {
-                commitRubricResult(context.commit, submission.id, data.rubric_result);
+                commitRubricResult(context.commit, sub.id, data.rubric_result);
             }
             return sub;
         });

@@ -443,6 +443,17 @@ Cypress.Commands.add('containsAll', { prevSubject: true }, (subject, msgs) => {
     });
 });
 
+Cypress.Commands.add('shouldNotOverflow', { prevSubject: true }, (subject) => {
+    return cy.wrap(subject).each($el =>
+        cy.wrap($el)
+            .should('be.visible')
+            .then(() => {
+                const { scrollWidth, clientWidth } = $el.get(0);
+                expect(scrollWidth).to.be.at.most(clientWidth);
+            }),
+    );
+});
+
 // Click a submit button, and optionally wait for its state to return back to
 // default.
 Cypress.Commands.add('submit', { prevSubject: true }, (subject, state, optsArg = {}) => {

@@ -116,10 +116,10 @@
                 </span>
 
                 <!-- Weird formatting required for text-wrap-pre formatting. -->
-                <div class="description flex-grow-1 border rounded px-3 py-2 text-wrap-pre"
+                <p class="description flex-grow-1 border rounded mb-0 px-3 py-2 text-wrap-pre"
                     ><template v-if="item.description">{{ item.description }}</template
                     ><span v-else class="text-muted font-italic">No description.</span>
-                </div>
+                </p>
             </template>
         </div>
 
@@ -310,7 +310,7 @@ input.points {
     max-width: 3rem;
 }
 
-div.description {
+p.description {
     background-color: rgba(0, 0, 0, 0.0325);
 
     .rubric-editor-row.normal:not(.grow) & {
