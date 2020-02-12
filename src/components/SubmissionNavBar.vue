@@ -64,7 +64,7 @@
             </template>
             <b-dropdown-item v-else>
                 <loader :scale="1"
-                        class="old-sub"
+                        class="old-sub m-2"
                         :center="true"/>
             </b-dropdown-item>
         </b-dropdown>
