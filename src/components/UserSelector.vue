@@ -29,8 +29,8 @@
 </multiselect>
 <input :value="value ? value.username : ''"
        @input="onInput({ username: $event.target.value })"
-       class="form-control user-selector border-0 rounded-0"
-       :class="{ disabled }"
+       class="user-selector form-control border-left-0 border-bottom-0 border-right-0 rounded-top-0"
+       :class="{ disabled, 'border-top': !noBorder }"
        :placeholder="placeholder"
        :disabled="disabled"
        v-else/>
@@ -55,17 +55,14 @@ export default {
             type: String,
             required: true,
         },
-
         useSelector: {
             type: Boolean,
             default: true,
         },
-
         filterStudents: {
             type: Function,
             default: () => true,
         },
-
         selectLabel: {
             type: String,
             default: 'Press enter to select',

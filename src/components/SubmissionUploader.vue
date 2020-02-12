@@ -407,22 +407,18 @@ export default {
             required: true,
             type: Object,
         },
-
         disabled: {
             default: false,
             type: Boolean,
         },
-
         forOthers: {
             type: Boolean,
             required: true,
         },
-
         canListUsers: {
             type: Boolean,
             required: true,
         },
-
         noBorder: {
             type: Boolean,
             default: false,

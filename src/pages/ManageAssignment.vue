@@ -236,7 +236,7 @@
                         border-variant="danger"
                         header-text-variant="danger"
                         header-border-variant="danger"
-                        v-if="assignment.course.permissions.can_delete_assignments">
+                        v-if="permissions.can_delete_assignments">
                     <div class="d-flex justify-content-between">
                         <div>
                             <strong class="d-block">Delete assignment</strong>
@@ -443,7 +443,6 @@ export default {
         ...mapGetters('courses', ['assignments']),
 
         formattedDeadline() {
-            console.log(this.assignment);
             return (this.assignment && this.assignment.getFormattedDeadline()) || '';
         },
 
