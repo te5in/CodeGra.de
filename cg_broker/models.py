@@ -760,6 +760,9 @@ def _after_update_minimum_amount_extra_runners() -> None:
 
 @enum.unique
 class PossibleSetting(enum.Enum):
+    """This enum lists all possible settings that can be set via the web
+    interface of the broker.
+    """
     minimum_amount_extra_runners = _PossibleSetting(
         default_value=0,
         type_convert=int,
