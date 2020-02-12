@@ -479,13 +479,13 @@ export default {
                     id: 'feedback-overview',
                     name: () => {
                         let title = 'Feedback overview';
-                        if (!this.feedback) {
+                        if (!this.feedback || !this.submission) {
                             return title;
                         }
 
                         const nitems = Object.values(this.feedback.user).reduce(
                             (acc, file) => acc + Object.values(file).filter(x => x.msg).length,
-                            this.feedback.general ? 1 : 0,
+                            this.submission.comment ? 1 : 0,
                         );
                         if (nitems) {
                             title += ` <div class="ml-1 badge badge-primary">${nitems}</div>`;

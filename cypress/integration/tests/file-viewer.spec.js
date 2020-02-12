@@ -8,7 +8,7 @@ context('FileViewer', () => {
         cy.visit('/');
 
         cy.createCourse(uniqueName, [
-            { name: 'robin', role: 'Teacher' },
+            { name: 'student1', role: 'Student' },
         ]).then(res => {
             course = res;
 
@@ -18,31 +18,13 @@ context('FileViewer', () => {
             })
         }).then(res => {
             assignment = res;
-
-            cy.visit(`/courses/${course.id}/assignments/${assignment.id}/submissions`);
-
-            // Do a submission.
-            cy.get('.multiple-files-uploader .dropzone').should('be.visible');
-            const fileName = 'test_submissions/all_filetypes.zip';
-
-            cy.fixture(fileName).then(fileContent => {
-                cy.get('.dropzone').upload(
-                    {
-                        fileContent,
-                        fileName,
-                        mimeType: 'application/zip',
-                    },
-                    { subjectType: 'drag-n-drop' },
-                );
-
-                cy.get('.submission-uploader .submit-button').submit('success', {
-                    waitForState: false,
-                    hasConfirm: true,
-                });
-                cy.url().should('contain', '/files/').then(url => {
-                    submissionURL = url;
-                });
-            });
+            return cy.createSubmission(
+                assignment.id,
+                'test_submissions/all_filetypes.zip',
+                { author: 'student1' },
+            );
+        }).then(res => {
+            submissionURL = `/courses/${course.id}/assignments/${assignment.id}/submissions/${res.id}`;
         });
     });
 

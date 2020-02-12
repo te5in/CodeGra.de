@@ -173,79 +173,64 @@ export default {
             type: String,
             default: 'Submit',
         },
-
         submit: {
             type: Function,
             required: true,
         },
-
         filterSuccess: {
             type: Function,
             default: x => x,
         },
-
         filterError: {
             type: Function,
             default: x => {
                 throw x;
             },
         },
-
         id: {
             type: String,
             default: null,
         },
-
         tabindex: {
             type: [Number, String],
             default: 0,
         },
-
         disabled: {
             type: Boolean,
             default: false,
         },
-
         size: {
             type: String,
             default: 'md',
         },
-
         variant: {
             type: String,
             default: 'primary',
         },
-
         duration: {
             type: Number,
             default: 750,
         },
-
         confirm: {
             type: String,
             default: '',
         },
-
         confirmInModal: {
             type: Boolean,
             default: false,
         },
-
         popoverPlacement: {
             type: String,
             default: 'top',
         },
-
         waitAtLeast: {
             type: Number,
             default: 250,
         },
-
         iconScale: {
             type: Number,
             default: 1,
         },
-
         container: {
             default: undefined,
         },

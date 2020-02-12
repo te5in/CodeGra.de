@@ -87,7 +87,8 @@
                                @error="deleteFeedbackError"
                                variant="danger"
                                ref="deleteButton"
-                               v-b-popover.top.hover="'Delete feedback'">
+                               v-b-popover.top.hover="'Delete feedback'"
+                               class="delete-feedback">
                     <icon name="times" aria-hidden="true"/>
                 </submit-button>
             </div>

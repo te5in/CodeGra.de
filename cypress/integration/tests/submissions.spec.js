@@ -91,14 +91,9 @@ context('Submissions page', () => {
             });
         }).then(res => {
             assignments.withoutSubs = res;
-
-            visitSubmissions();
-
-            const assigId = assignments.withSubs.id;
-
             return cy.wrap(users).each(
                 author => cy.createSubmission(
-                    assigId,
+                    assignments.withSubs.id,
                     'test_submissions/hello.py',
                     { author: author.name },
                 ),

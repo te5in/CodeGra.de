@@ -427,7 +427,7 @@ export default {
             let grade = this.grade;
 
             if (grade != null && !isDecimalNumber(grade)) {
-                throw new Error('Grade must be a number');
+                throw new Error('Grade must be a number.');
             }
 
             grade = parseFloat(grade);

@@ -21,6 +21,8 @@ function yesterday() {
     return moment().add(-1, 'day').startOf('day').toISOString();
 }
 
+const ADMIN_USER = { username: 'admin', password: 'admin' };
+
 Cypress.Commands.add('getAll', (aliases) => {
     // Get the value for multiple aliases at once.
 
@@ -41,13 +43,15 @@ Cypress.Commands.add('text', { prevSubject: true }, subject => {
 });
 
 Cypress.Commands.add('login', (username, password) => {
+    Cypress.log({
+        name: 'login',
+        message: username,
+        consoleProps: () => ({ username, password }),
+    });
     return cy.request({
         url:'/api/v1/login',
         method: 'POST',
-        body: {
-            username,
-            password,
-        }
+        body: { username, password }
     }).its('body').then(body => {
         cy.window().its('__app__').then(app => {
             const url = app.$router.getRestoreRoute();
@@ -57,6 +61,7 @@ Cypress.Commands.add('login', (username, password) => {
             } else {
                 cy.reload()
             }
+            cy.get('#app > .loader').should('not.exist');
         });
     });
 });
@@ -68,17 +73,35 @@ Cypress.Commands.add('logout', () => {
     });
 });
 
-function getAuthHeaders() {
-    return cy.window().its('__app__').then(app => {
-        const { jwtToken } = app.$store.state.user;
-        return { Authorization: `Bearer ${jwtToken}` };
-    });
+function getAuthHeaders(user) {
+    // Get the authentication header for the given user, or for the user logged
+    // in in the frontend if no user is given.
+
+    const mkHeader = token => ({ Authorization: `Bearer ${token}` });
+
+    if (user != null) {
+        return cy.request({
+            url: '/api/v1/login',
+            method: 'POST',
+            body: user,
+        }).its('body').then(user => {
+            return mkHeader(user.access_token);
+        });
+    } else {
+        return cy.window().its('__app__').then(app => {
+            const { jwtToken } = app.$store.state.user;
+            return mkHeader(jwtToken);
+        });
+    }
 }
 
 Cypress.Commands.add('authRequest', (options) => {
-    // Do a request as the logged in user.
+    // Do a request as the logged in user, or as the given user
 
-    return getAuthHeaders().then(headers => {
+    const user = options.user;
+    delete options.user;
+
+    return getAuthHeaders(user).then(headers => {
         options.headers = Object.assign(options.headers || {}, headers);
         return cy.request(options);
     });
@@ -90,9 +113,9 @@ Cypress.Commands.add('formRequest', (options) => {
     // files. Use cy.fixtureAsFile to load a fixture as a File object suitable
     // to be used in FormData. The request is sent as the logged in user.
 
-    let { url, method, headers, data } = options;
+    let { url, method, headers, user, data } = options;
 
-    return getAuthHeaders().then(authHeaders => {
+    return getAuthHeaders(user).then(authHeaders => {
         headers = Object.assign(headers || {}, authHeaders)
         return cy
             .server()
@@ -183,18 +206,18 @@ Cypress.Commands.add('createUser', (username, password, email = `${username}@exa
 });
 
 Cypress.Commands.add('createCourse', (name, users=[]) => {
-    cy.login('admin', 'admin');
-
     return cy.authRequest({
         url: '/api/v1/courses/',
         method: 'POST',
         body: { name },
+        user: ADMIN_USER,
     }).its('body').then(course => {
         // Get the course roles so we can map a role name
         // to a role id.
         return cy.authRequest({
             url: `/api/v1/courses/${course.id}/roles/`,
             method: 'GET',
+            user: ADMIN_USER,
         }).its('body').then(roles => {
             return [course, roles];
         });
@@ -205,6 +228,7 @@ Cypress.Commands.add('createCourse', (name, users=[]) => {
             cy.authRequest({
                 url: `/api/v1/courses/${course.id}/users/`,
                 method: 'PUT',
+                user: ADMIN_USER,
                 body: {
                     username: user.name,
                     role_id: role.id,
@@ -212,17 +236,15 @@ Cypress.Commands.add('createCourse', (name, users=[]) => {
             });
         })
         course.roles = roles;
-        cy.log('created course', course);
         return cy.wrap(course);
     });
 });
 
 Cypress.Commands.add('createAssignment', (courseId, name, { state, bbZip, deadline } = {}) => {
-    cy.login('admin', 'admin');
-
     return cy.authRequest({
         url: `/api/v1/courses/${courseId}/assignments/`,
         method: 'POST',
+        user: ADMIN_USER,
         body: { name },
     }).its('body').then(assignment => {
         const body = {};
@@ -238,14 +260,6 @@ Cypress.Commands.add('createAssignment', (courseId, name, { state, bbZip, deadli
             body.deadline = deadline;
         }
 
-        if (Object.keys(body).length > 0) {
-            cy.authRequest({
-                url: `/api/v1/assignments/${assignment.id}`,
-                method: 'PATCH',
-                body,
-            });
-        }
-
         if (bbZip) {
             cy.fixtureAsFile('test_blackboard/bb.zip', 'bb.zip', 'application/zip').then(bbZipFile => {
                 const data = new FormData();
@@ -254,14 +268,58 @@ Cypress.Commands.add('createAssignment', (courseId, name, { state, bbZip, deadli
                 return cy.formRequest({
                     url: `/api/v1/assignments/${assignment.id}/submissions/`,
                     method: 'POST',
+                    user: ADMIN_USER,
                     data,
                 });
             });
         }
 
-        cy.log('created assignment', assignment);
-        return cy.wrap(assignment);
+        if (Object.keys(body).length > 0) {
+            return cy.patchAssignment(assignment.id, body);
+        } else {
+            return cy.wrap(assignment);
+        }
     });
+});
+
+Cypress.Commands.add('patchAssignment', (assignmentId, props={}) => {
+    const body = Object.assign({}, props);
+
+    if (body.deadline === 'tomorrow') {
+        body.deadline = tomorrow();
+    } else if (body.deadline === 'yesterday') {
+        body.deadline = yesterday();
+    }
+
+    if (body.state === 'submitting' || body.state === 'grading') {
+        body.state = 'open';
+    }
+
+    cy.authRequest({
+        url: `/api/v1/assignments/${assignmentId}`,
+        method: 'PATCH',
+        user: ADMIN_USER,
+        body,
+    }).its('body');
+});
+
+Cypress.Commands.add('tempPatchAssignment', (assignment, props, callback) => {
+    const oldProps = Object.entries(assignment).reduce(
+        (acc, [key, value]) => {
+            if (Object.hasOwnProperty.call(props, key)) {
+                acc[key] = value;
+            }
+            return acc;
+        },
+        {},
+    );
+
+    return cy.patchAssignment(assignment.id, props)
+        .then(tempAssignment => {
+            cy.reload();
+            return callback(tempAssignment);
+        })
+        .then(() => cy.patchAssignment(assignment.id, oldProps));
 });
 
 Cypress.Commands.add('createSubmission', (assignmentId, fileName, opts={}) => {
@@ -281,6 +339,7 @@ Cypress.Commands.add('createSubmission', (assignmentId, fileName, opts={}) => {
         return cy.formRequest({
             url,
             method: 'POST',
+            user: ADMIN_USER,
             data,
         }).its('response.body');
     });
@@ -373,25 +432,6 @@ Cypress.Commands.add('deleteAutoTest', (autoTestId) => {
     });
 });
 
-Cypress.Commands.add('patchAssignment', (assignmentId, body={}) => {
-    switch (body.deadline) {
-        case 'tomorrow':
-            body.deadline = tomorrow();
-            break;
-        case 'yesterday':
-            body.deadline = yesterday();
-            break;
-        default:
-            break;
-    }
-
-    return cy.authRequest({
-        url: `/api/v1/assignments/${assignmentId}`,
-        method: 'PATCH',
-        body,
-    }).its('body');
-});
-
 Cypress.Commands.add('connectGroupSet', (courseId, assignmentId, minSize=1, maxSize=1) => {
     return cy.authRequest({
         url: `/api/v1/courses/${courseId}/group_sets/`,
@@ -452,6 +492,13 @@ Cypress.Commands.add('shouldNotOverflow', { prevSubject: true }, (subject) => {
                 expect(scrollWidth).to.be.at.most(clientWidth);
             }),
     );
+});
+
+Cypress.Commands.add('maybeType', { prevSubject: true }, (subject, text) => {
+    // Clear the input and type `text` if it is a nonempty string.
+    return cy.wrap(subject)
+        .clear()
+        .then($el => typeof text === 'string' && text ? cy.wrap($el).type(text) : cy.wrap($el));
 });
 
 // Click a submit button, and optionally wait for its state to return back to
