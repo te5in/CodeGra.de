@@ -2,7 +2,7 @@
 <div class="group-set-manager">
     <table class="range-table table table-striped">
         <thead>
-            <td>
+            <th>
                 Minimum size
                 <description-popover
                     hug-text
@@ -11,22 +11,24 @@
                                  a user that is not in a group is also able to
                                  submit assignments. The value should be 1 or
                                  higher."/>
-            </td>
-            <td>
+            </th>
+            <th>
                 Maximum size
                 <description-popover
                     hug-text
                     description="The maximum size a group can be. This value
                                  should be equal or greater than the minimum
                                  size."/>
-            </td>
-            <td>
+            </th>
+            <th>
                 Assignments
                 <description-popover
                     hug-text
                     description="The assignments this group set is used."/>
-            </td>
-            <td class="btns shrink">Actions</td>
+            </th>
+            <th class="shrink">
+                Actions
+            </th>
         </thead>
         <tbody>
             <tr v-if="groupSets.length === 0">
@@ -55,7 +57,7 @@
                                    disabled />
                         </span>
                     </td>
-                    <td class="btns shrink">
+                    <td class="shrink">
                         <b-button-group>
                             <b-button variant="warning"
                                       size="sm"
@@ -77,7 +79,7 @@
                     <td><span class="txt">{{ set.minimum_size }}</span></td>
                     <td><span class="txt">{{ set.maximum_size }}</span></td>
                     <td><span class="txt assigs">{{ formattedAssignments(set)}}</span></td>
-                    <td class="btns shrink">
+                    <td class="shrink">
                         <b-button-group>
                             <b-button variant="primary"
                                       size="sm"
