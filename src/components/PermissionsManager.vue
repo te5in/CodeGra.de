@@ -53,11 +53,14 @@
 
             <tr v-if="showDeleteRole">
                 <td/>
-                <td v-for="field, i in fields">
-                    <submit-button label="Delete"
-                                   variant="danger"
+                <td v-for="field, i in fields"
+                    class="text-center">
+                    <submit-button variant="danger"
                                    :submit="() => removeRole(i)"
-                                   @after-success="afterRemoveRole(i)"/>
+                                   @after-success="afterRemoveRole(i)"
+                                   v-b-popover.hover.top="'Delete this role'">
+                        Delete
+                    </submit-button>
                 </td>
             </tr>
         </tbody>
@@ -95,7 +98,9 @@
 </template>
 
 <script>
+import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/exclamation-triangle';
+import 'vue-awesome/icons/times';
 
 import { waitAtLeast } from '@/utils';
 
@@ -272,6 +277,7 @@ export default {
     },
 
     components: {
+        Icon,
         Loader,
         SubmitButton,
         DescriptionPopover,
