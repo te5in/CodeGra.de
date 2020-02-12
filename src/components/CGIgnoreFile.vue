@@ -31,16 +31,25 @@
                   horizontal>
         <template slot="label">
             By default
-            <description-popover
-                hug-text
-                description="This determines what happens to files by
-                             default. 'Deny all files' denies all files by
-                             default, which determines exactly which files a
-                             student is allowed to upload. 'Allow all files'
-                             allows all files by default, which allows you to
-                             specify which files a student is not allowed to
-                             upload. With both options you can specify required
-                             files, that students must upload."/>
+            <description-popover hug-text>
+                <p class="mb-1">
+                    This determines what happens to files by default.  With
+                    both options you can specify required files, that students
+                    must upload.
+                </p>
+
+                <p class="mb-1">
+                    <b>Deny all files</b> denies all files by default, which
+                    determines exactly which files a student is allowed to
+                    upload.
+                </p>
+
+                <p class="mb-1">
+                    <b>Allow all files</b> allows all files by default, which
+                    allows you to specify which files a student is not allowed
+                    to upload.
+                </p>
+            </description-popover>
         </template>
         <b-form-radio-group
             class="option-button"
