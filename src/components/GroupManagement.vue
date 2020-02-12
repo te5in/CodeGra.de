@@ -85,6 +85,7 @@
             <b-input-group class="new-user-wrapper"
                            v-if="canEditOthers">
                 <user-selector placeholder="Type to add a member"
+                               :use-selector="canListUsers"
                                :filter-students="filterMembers"
                                :disabled="groupFull"
                                v-model="newAuthor"
@@ -129,37 +130,30 @@ export default {
             type: Object,
             required: true,
         },
-
         selectedMembers: {
             type: Set,
             required: true,
         },
-
         groupSet: {
             type: Object,
             required: true,
         },
-
         course: {
             type: Object,
             required: true,
         },
-
         assignment: {
             type: Object,
             default: null,
         },
-
         showLtiProgress: {
             type: Boolean,
             default: false,
         },
-
         canEditOwn: {
             type: Boolean,
             required: true,
         },
-
         canEditOthers: {
             type: Boolean,
             required: true,
@@ -236,6 +230,10 @@ action is required.${divEnd}`;
                 own = this.canEditOwn;
             }
             return own || this.canEditOthers;
+        },
+
+        canListUsers() {
+            return this.$utils.getProps(this.course, false, 'permissions', 'can_list_course_users');
         },
 
         deleteGroupDisabled() {
