@@ -7,7 +7,7 @@ if [[ $1 = 'broker' ]]; then
 
     dropdb "codegrade_broker_dev"
     psql -c "create database codegrade_broker_dev"
-    psql -d codegrade_broker_dev -c 'create extension if not exists "uuid-ossp"'
+    psql codegrade_broker_dev -c 'create extension "uuid-ossp";'
     ./manage_broker.py db upgrade
     exit $?
 fi

@@ -11,7 +11,7 @@ import typing as t
 
 import werkzeug
 import sqlalchemy.sql as sql
-from flask import request, make_response
+from flask import Response, request
 from sqlalchemy.orm import make_transient
 
 from . import api
@@ -141,7 +141,7 @@ def get_auto_test_output_file(
             CPerm.can_view_autotest_output_files_before_done, assig.course_id
         )
 
-    res = make_response(f.open())
+    res = Response(f.open())
     res.headers['Content-Type'] = 'application/octet-stream'
     return res
 
@@ -200,8 +200,7 @@ def get_code(file_id: int) -> t.Union[werkzeug.wrappers.Response, JSONResponse[
     elif get_type == 'linter-feedback':
         return jsonify(get_feedback(file, linter=True))
     else:
-        contents = files.get_file_contents(file)
-        res: 'werkzeug.wrappers.Response' = make_response(contents)
+        res = Response(file.open())
         res.headers['Content-Type'] = 'application/octet-stream'
         return res
 

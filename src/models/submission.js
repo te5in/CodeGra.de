@@ -34,6 +34,7 @@ export class FileTree {
     }
 
     addAutoTestTree(autoTestTree) {
+        FileTree.setParents(autoTestTree);
         return new FileTree(
             this.student,
             this.teacher,
@@ -44,17 +45,10 @@ export class FileTree {
         );
     }
 
-    static fromServerData(studentTree, teacherTree) {
-        let diff;
-        if (teacherTree) {
-            diff = FileTree.matchFiles(studentTree, teacherTree);
-        } else {
-            diff = FileTree.matchFiles(studentTree, studentTree);
-        }
+    static setParents(root) {
+        const todo = [root];
 
-        const todo = [studentTree];
-
-        studentTree.parent = null;
+        root.parent = null;
         for (let i = 0; todo.length > i; ++i) {
             const child = todo[i];
             child.entries.forEach(f => {
@@ -63,6 +57,18 @@ export class FileTree {
                     todo.push(f);
                 }
             });
+        }
+    }
+
+    static fromServerData(studentTree, teacherTree) {
+        let diff;
+
+        FileTree.setParents(studentTree);
+        if (teacherTree) {
+            FileTree.setParents(teacherTree);
+            diff = FileTree.matchFiles(studentTree, teacherTree);
+        } else {
+            diff = FileTree.matchFiles(studentTree, studentTree);
         }
 
         const flattened = FileTree.flatten(diff);

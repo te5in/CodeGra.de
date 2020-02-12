@@ -24,7 +24,7 @@ def upgrade():
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('updated_at', sa.DateTime(), nullable=False),
     sa.Column('deleted', sa.Boolean(), nullable=False),
-    sa.Column('max_unused_time', sa.Interval(), nullable=False),
+    sa.Column('max_age', sa.Interval(), nullable=False),
     sa.Column('base_work_file_id', sa.Integer(), nullable=True),
     sa.Column('base_at_result_file_id', sqlalchemy_utils.types.uuid.UUIDType(), nullable=True),
     sa.Column('excluding_fileowner', ENUM('student', 'teacher', 'both', name='fileowner', create_type=False), nullable=True),

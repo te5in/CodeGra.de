@@ -2,17 +2,17 @@
 
 SPDX-License-Identifier: AGPL-3.0-only
 """
-import uuid
 import typing as t
 import datetime
+from uuid import UUID
+from collections import defaultdict
 
 from sqlalchemy_utils import UUIDType
 
 from cg_sqlalchemy_helpers.mixins import UUIDMixin, TimestampMixin
 
 from . import (
-    Base, File, Work, MyQuery, DbColumn, FileOwner, NestedFileMixin,
-    AutoTestOutputFile, db
+    Base, File, MyQuery, FileOwner, NestedFileMixin, AutoTestOutputFile, db
 )
 from .. import helpers
 
@@ -20,34 +20,41 @@ T = t.TypeVar('T')
 
 
 def _search_candiate(
-    candidates: t.Sequence[NestedFileMixin[T]],
-    lookup: t.Mapping[T, t.Tuple[str, T]],
+    lookup: t.Mapping[T, t.Mapping[str, T]],
     base_file: NestedFileMixin[T],
     path: t.Sequence[str],
-) -> t.Optional[NestedFileMixin[T]]:
-    to_search = path[:-1]
-    for candidate in candidates:
-        next_id = candidate.parent_id
-        for wanted_name in reversed(to_search):
-            found_name, next_id = lookup[next_id]
-            if found_name != wanted_name:
-                break
-        else:
-            # We got to the root dir
-            if next_id == base_file.id:
-                return candidate
-
-    return None
+) -> t.Optional[T]:
+    """
+    """
+    try:
+        cur = base_file.id
+        for wanted_name in path:
+            cur = lookup[cur][wanted_name]
+        return cur
+    except KeyError:
+        return None
 
 
 class Proxy(Base, UUIDMixin, TimestampMixin):
+    """A proxy, which can be used to get files from an AutoTest result or a
+    submission for a limited time without authentication.
+
+    :ivar base_work_file_id: The id of the base file from which this proxy
+        serves files.
+    :ivar base_at_result_file_id: The id of the base file from which this proxy
+        serves files. Exactly one of ``base_work_file_id`` and
+        ``base_at_result_file_id`` is ``None``.
+    :ivar excluding_fileowner: The file owner which should not be served using
+        this proxy. This is never ``None`` if ``base_work_file_id`` is not
+        ``None``, and always ``None`` otherwise.
+    """
     if t.TYPE_CHECKING:  # pragma: no cover
         query: t.ClassVar[MyQuery['Proxy']]
     __tablename__ = 'proxy'
 
     deleted = db.Column('deleted', db.Boolean, default=False, nullable=False)
-    max_unused_time = db.Column(
-        'max_unused_time',
+    max_age = db.Column(
+        'max_age',
         db.Interval,
         nullable=False,
         default=datetime.timedelta(minutes=30),
@@ -70,10 +77,6 @@ class Proxy(Base, UUIDMixin, TimestampMixin):
     base_at_result_file = db.relationship(
         'AutoTestOutputFile', foreign_keys=base_at_result_file_id
     )
-
-    @property
-    def base_file(self) -> NestedFileMixin:
-        return self.base_work_file or self.base_at_result_file
 
     excluding_fileowner: FileOwner = db.Column(
         'excluding_fileowner',
@@ -99,13 +102,18 @@ class Proxy(Base, UUIDMixin, TimestampMixin):
             name='either_at_result_file_or_work_file'
         ),
         db.CheckConstraint(
-            '(base_at_result_file_id is NULL) or (excluding_fileowner is NULL)',
+            (
+                '(base_at_result_file_id is NULL) or'
+                ' (excluding_fileowner is NULL)'
+            ),
             name='fileowner_null_iff_work_file_id_null'
         ),
     )
 
     @property
     def csp_header(self) -> str:
+        """Get the csp header for this proxy.
+        """
         if not self.allow_remote_resources:
             return "default-src 'self' 'unsafe-inline'"
         elif not self.allow_remote_scripts:
@@ -121,68 +129,68 @@ class Proxy(Base, UUIDMixin, TimestampMixin):
 
     @property
     def expired(self) -> bool:
+        """Is this proxy expired.
+        """
         return (
-            self.created_at - helpers.get_request_start_time() >
-            self.max_unused_time
+            helpers.get_request_start_time() - self.created_at > self.max_age
         )
 
     def __to_json__(self) -> t.Mapping[str, str]:
         return {'id': str(self.id)}
 
     def _get_at_file(self, path: t.Sequence[str]
-                     ) -> t.Optional[NestedFileMixin[uuid.UUID]]:
-        name = path[-1]
-
+                     ) -> t.Optional[NestedFileMixin[UUID]]:
         base = self.base_at_result_file
         assert base is not None
 
-        candidates = AutoTestOutputFile.query.filter(
+        lookup: t.Mapping[UUID, t.Dict[str, UUID]] = defaultdict(dict)
+
+        for f_id, f_name, f_parent_id in db.session.query(
+            AutoTestOutputFile.id,
+            AutoTestOutputFile.name,
+            AutoTestOutputFile.parent_id,
+        ).filter(
             AutoTestOutputFile.suite == base.suite,
-            AutoTestOutputFile.name == name,
-            ~AutoTestOutputFile.is_directory,
-        ).all()
+            AutoTestOutputFile.result == base.result,
+        ):
+            lookup[f_parent_id][f_name] = f_id
 
-        lookup = {
-            f_id: (f_name, f_parent_id)
-            for f_id, f_name, f_parent_id in db.session.query(
-                AutoTestOutputFile.id, AutoTestOutputFile.name,
-                AutoTestOutputFile.parent_id
-            ).filter(
-                AutoTestOutputFile.suite == base.suite,
-            )
-        }
-
-        return _search_candiate(
-            candidates, lookup, self.base_at_result_file, path
-        )
+        found_id = _search_candiate(lookup, base, path)
+        if found_id is None:
+            return None
+        return AutoTestOutputFile.query.get(found_id)
 
     def _get_work_file(self, path: t.Sequence[str]
                        ) -> t.Optional[NestedFileMixin[int]]:
-        name = path[-1]
-
-        assert self.base_work_file is not None
+        base = self.base_work_file
+        assert base is not None
         assert self.excluding_fileowner is not None
 
-        candidates = File.query.filter(
-            File.work == self.base_work_file.work,
+        lookup: t.Mapping[int, t.Dict[str, int]] = defaultdict(dict)
+        for f_id, f_name, f_parent_id in db.session.query(
+            File.id, File.name, File.parent_id
+        ).filter(
+            File.work == base.work,
             File.fileowner != self.excluding_fileowner,
-            File.name == name,
-            ~File.is_directory,
-        ).all()
+        ):
+            lookup[f_parent_id][f_name] = f_id
 
-        lookup = {
-            f_id: (f_name, f_parent_id)
-            for f_id, f_name, f_parent_id in
-            db.session.query(File.id, File.name, File.parent_id).filter(
-                File.work == self.base_work_file.work,
-                File.fileowner != self.excluding_fileowner,
-            )
-        }
+        found_id = _search_candiate(lookup, base, path)
+        if found_id is None:
+            return None
+        return File.query.get(found_id)
 
-        return _search_candiate(candidates, lookup, self.base_work_file, path)
+    def get_file(
+        self, path: t.Sequence[str]
+    ) -> t.Union[None, NestedFileMixin[int], NestedFileMixin[UUID]]:
+        """Get a file from this proxy for the given path.
 
-    def get_file(self,
-                 path: t.Sequence[str]) -> t.Optional[NestedFileMixin]:
+        :param path: The path to search for.
+        :returns: The found file, or ``None``.
+        """
+        assert not self.expired
+        assert not self.deleted
+
         if self.base_at_result_file_id is None:
             return self._get_work_file(path)
         else:

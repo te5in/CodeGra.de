@@ -6,6 +6,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 import json
 import typing as t
 import numbers
+from uuid import UUID
 
 import werkzeug
 import structlog
@@ -812,3 +813,82 @@ def copy_auto_test(auto_test_id: int) -> JSONResponse[models.AutoTest]:
     assignment.auto_test = test.copy(mapping)
     db.session.commit()
     return jsonify(assignment.auto_test)
+
+
+@api.route(
+    (
+        '/auto_tests/<int:auto_test_id>/runs/<int:run_id>/results/'
+        '<int:result_id>/suites/<int:suite_id>/proxy'
+    ),
+    methods=['POST']
+)
+@feature_required(Feature.AUTO_TEST)
+def get_auto_test_result_proxy(
+    auto_test_id: int,
+    run_id: int,
+    result_id: int,
+    suite_id: int,
+) -> JSONResponse[models.Proxy]:
+    """Create a proxy to view the files of the given AT result through.
+
+    .. :quickref: AutoTest; Create a proxy to view the files a result.
+
+    This allows you to view files of an AutoTest result (within a suite)
+    without authentication for a limited time.
+
+    :param auto_test_id: The id of the AutoTest in which the result is located.
+    :param run_id: The id of run in which the result is located.
+    :param result_id: The id of the result from which you want to get the
+        files.
+    :param suite_id: The suite from which you want to proxy the output files.
+    :<json bool allow_remote_resources: Allow the proxy to load remote
+        resources.
+    :<json bool allow_remote_scripts: Allow the proxy to load remote scripts,
+        and allow to usage of 'eval'.
+    :returns: The created proxy.
+    """
+    with get_from_map_transaction(get_json_dict_from_request()) as [get, _]:
+        allow_remote_resources = get('allow_remote_resources', bool)
+        allow_remote_scripts = get('allow_remote_scripts', bool)
+
+    test = get_or_404(
+        models.AutoTest,
+        auto_test_id,
+        also_error=lambda at: at.assignment.deleted
+    )
+    auth.ensure_can_view_autotest(test)
+    if not test.assignment.is_done:
+        auth.ensure_permission(
+            CPerm.can_view_autotest_output_files_before_done,
+            test.assignment.course_id,
+        )
+
+    def also_error(obj: models.AutoTestResult) -> bool:
+        if obj.auto_test_run_id != run_id or obj.run.auto_test_id != test.id:
+            return True
+        elif obj.work.deleted:
+            return True
+        return False
+
+    result = get_or_404(
+        models.AutoTestResult,
+        result_id,
+        also_error=also_error,
+    )
+
+    base_file = filter_single_or_404(
+        models.AutoTestOutputFile,
+        t.cast(models.DbColumn[UUID],
+               models.AutoTestOutputFile.parent_id).is_(None),
+        models.AutoTestOutputFile.auto_test_suite_id == suite_id,
+        models.AutoTestOutputFile.result == result,
+    )
+
+    proxy = models.Proxy(
+        base_at_result_file=base_file,
+        allow_remote_resources=allow_remote_resources,
+        allow_remote_scripts=allow_remote_scripts,
+    )
+    db.session.add(proxy)
+    db.session.commit()
+    return jsonify(proxy)

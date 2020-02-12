@@ -992,15 +992,34 @@ def get_dir_contents(
 
 @api.route('/submissions/<int:submission_id>/proxy', methods=['POST'])
 def create_proxy(submission_id: int) -> JSONResponse[models.Proxy]:
+    """Create a proxy to view the files of the given submission through.
+
+    .. :quickref: Submission; Create a proxy to view the files of a submission
+
+    This allows you to view files of a submission without authentication for a
+    limited time.
+
+    :param submission_id: The submission for which the proxy should be created.
+    :<json bool allow_remote_resources: Allow the proxy to load remote
+        resources.
+    :<json bool allow_remote_scripts: Allow the proxy to load remote scripts,
+        and allow to usage of 'eval'.
+    :<json teacher_revision: Create a proxy for the teacher revision of the
+        submission.
+    :returns: The created proxy.
+    """
     submission = helpers.filter_single_or_404(
         models.Work, models.Work.id == submission_id, ~models.Work.deleted
     )
+
     with helpers.get_from_map_transaction(
         helpers.get_json_dict_from_request()
     ) as [get, _]:
         allow_remote_resources = get('allow_remote_resources', bool)
         allow_remote_scripts = get('allow_remote_scripts', bool)
         teacher_revision = get('teacher_revision', bool)
+
+    auth.ensure_can_view_files(submission, teacher_revision)
 
     exclude_owner = (
         models.FileOwner.student

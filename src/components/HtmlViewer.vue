@@ -7,7 +7,7 @@
             source.
         </p>
 
-        <b-button-toolbar justify class="pt-3">
+        <b-button-toolbar justify>
             <submit-button :submit="getIframeSrc" @success="afterGetIframeSrc" variant="outline-danger">
                 Render html
             </submit-button>
@@ -146,6 +146,17 @@ export default {
     computed: {
         ...mapGetters('feedback', ['getFeedback']),
         ...mapGetters('user', { myId: 'id' }),
+        ...mapGetters('autotest', {
+            allAutoTests: 'tests',
+        }),
+
+        autoTest() {
+            return this.allAutoTests[this.assignment.auto_test_id];
+        },
+
+        autoTestRun() {
+            return this.$utils.getProps(this.autoTest, null, 'runs', 0);
+        },
 
         id() {
             return this.file ? this.file.id : -1;
@@ -176,6 +187,9 @@ export default {
             while (cur.parent != null) {
                 arr.push(cur.name);
                 cur = cur.parent;
+            }
+            if (this.revision === 'autotest') {
+                arr.pop();
             }
             arr.reverse();
             return arr.join('/');
@@ -210,7 +224,7 @@ export default {
         },
 
         rejectText() {
-            const base = 'No show source';
+            const base = 'Show source';
             if (this.hasFeedback && this.editable) {
                 return `${base}, and display and give line feedback`;
             } else if (this.hasFeedback) {
@@ -218,7 +232,7 @@ export default {
             } else if (this.editable) {
                 return `${base}, and give line feedback`;
             } else {
-                return `${base}.`;
+                return `${base}`;
             }
         },
 
@@ -245,7 +259,20 @@ export default {
         },
 
         getIframeSrc() {
-            return this.$http.post(`/api/v1/submissions/${this.submission.id}/proxy`, {
+            let url;
+            if (this.revision === 'autotest') {
+                let curFile = this.file;
+                while (curFile && curFile.autoTestSuiteId == null) {
+                    curFile = curFile.parent;
+                }
+                const suiteId = curFile.autoTestSuiteId;
+                const resultId = this.autoTestRun.findResultBySubId(this.submission.id).id;
+                url = `/api/v1/auto_tests/${this.assignment.auto_test_id}/runs/${this.autoTestRun.id}/results/${resultId}/suites/${suiteId}/proxy`;
+            } else {
+                url = `/api/v1/submissions/${this.submission.id}/proxy`;
+            }
+
+            return this.$http.post(url, {
                 allow_remote_resources: this.allowRemoteResources,
                 allow_remote_scripts: this.allowRemoteScripts,
                 teacher_revision: this.revision === 'teacher',
