@@ -589,6 +589,9 @@ export default {
                 this.autoTestConfigId &&
                     this.storeLoadAutoTest({
                         autoTestId: this.autoTestConfigId,
+                    }).catch(err => {
+                        // eslint-disable-next-line
+                        console.log('Could not load AutoTest configuration.', err);
                     }),
             ]).then(
                 () => {
