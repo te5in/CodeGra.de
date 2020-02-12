@@ -913,33 +913,13 @@ context('Rubric Editor', () => {
         });
 
         it('should indicate which rows are connected to AutoTest', () => {
-            const rubric = new Rubric([1], [1], [0, 1, 2], [0, 1, 2]);
-            cy.createRubric(assignment.id, rubric).then(res =>
-                cy.createAutoTest(assignment.id, {
-                    sets: [{
-                        suites: [{
-                            rubric_row_id: res[0].id,
-                            network_disabled: true,
-                            steps: [{
-                                type: 'run_program',
-                                weight: 1,
-                                hidden: false,
-                                name: 'step 1',
-                                data: { program: 'true' },
-                            }],
-                        }, {
-                            rubric_row_id: res[2].id,
-                            network_disabled: true,
-                            steps: [{
-                                type: 'run_program',
-                                weight: 1,
-                                hidden: false,
-                                name: 'step 2',
-                                data: { program: 'true' },
-                            }],
-                        }],
-                    }],
-                }),
+            const rubricData = new Rubric([1], [1], [0, 1, 2], [0, 1, 2]);
+            cy.createRubric(assignment.id, rubricData).then(rubric =>
+                cy.createAutoTestFromFixture(
+                    assignment.id,
+                    'single_cat_two_items',
+                    rubric,
+                ),
             ).then(autoTest => {
                 loadPage(true);
 

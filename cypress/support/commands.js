@@ -417,6 +417,7 @@ Cypress.Commands.add('createAutoTest', (assignmentId, autoTestConfig) =>
                 ),
             ),
         ).then(() =>
+            // Get the object again so we're sure we have the latest.
             cy.authRequest({
                 url: `/api/v1/auto_tests/${autoTest.id}`,
                 method: 'GET',
@@ -424,6 +425,24 @@ Cypress.Commands.add('createAutoTest', (assignmentId, autoTestConfig) =>
         ),
     ),
 );
+
+Cypress.Commands.add('createAutoTestFromFixture', (assignmentId, autoTest, rubric) => {
+    // Since AutoTest categories must map to a rubric category, we must know
+    // the rubric row's id in advance before we can submit the AutoTest config.
+    // This function loads a fixture from the test_auto_tests fixture
+    // subdirectory and patches its rubric row ids with the ones in the given
+    // rubric. The rubric row ids in the fixture represent rubric row indices.
+
+    cy.fixture(`test_auto_tests/${autoTest}.json`).then(autoTestConfig => {
+        autoTestConfig.sets.forEach(set => {
+            set.suites.forEach(suite => {
+                const idx = suite.rubric_row_id;
+                suite.rubric_row_id = rubric[idx].id;
+            });
+        });
+        return cy.createAutoTest(assignmentId, autoTestConfig);
+    });
+});
 
 Cypress.Commands.add('deleteAutoTest', (autoTestId) => {
     return cy.authRequest({
