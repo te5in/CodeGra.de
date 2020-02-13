@@ -720,7 +720,7 @@ context('Rubric Editor', () => {
         });
 
         it('should indicate which rows are connected to AutoTest', () => {
-            const rubric = new Rubric([1], [1], [0, 1, 2], [0, 1, 2]);
+            const rubricData = new Rubric([1], [1], [0, 1, 2], [0, 1, 2]);
             cy.createRubric(assignment.id, rubricData).then(rubric =>
                 cy.createAutoTestFromFixture(
                     assignment.id,
