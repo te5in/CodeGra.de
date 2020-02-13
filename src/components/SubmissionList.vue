@@ -24,15 +24,15 @@
 
     <b-table striped
              hover
-             @row-clicked="gotoSubmission"
-             @sort-changed="(ctx) => $nextTick(() => sortChanged(ctx))"
+             class="mb-0 border-bottom submissions-table"
+             primary-key="id"
              :items="filteredSubmissions"
              :fields="fields"
-             :current-page="currentPage"
-             :sort-compare="(a, b, sortBy) => sortSubmissions(a.sub, b.sub, sortBy)"
              :sort-by="this.$route.query.sortBy || 'user'"
              :sort-desc="!parseBool(this.$route.query.sortAsc, true)"
-             class="mb-0 border-bottom submissions-table">
+             :sort-compare="(a, b, sortBy) => sortSubmissions(a.sub, b.sub, sortBy)"
+             @sort-changed="sortChanged"
+             @row-clicked="gotoSubmission">
         <template #cell(user)="item">
             <router-link class="invisible-link"
                          :to="submissionRoute(item.item.sub)">
@@ -149,11 +149,9 @@ export default {
 
     data() {
         return {
-            parseBool,
             mineOnly: parseBool(this.$route.query.mine, null),
             sortAsc: true,
             sortBy: 'user',
-            currentPage: 1,
             filter: this.$route.query.q || '',
             assignees: [],
             assigneeUpdating: [],
@@ -221,6 +219,7 @@ export default {
                     }
 
                     return {
+                        id: sub.id,
                         sub,
                         _rowVariant: variant,
                     };
@@ -304,16 +303,18 @@ export default {
         },
 
         sortChanged(context) {
-            const { sortBy, sortDesc } = context;
-            this.sortBy = sortBy;
-            // Fuck you bootstrapVue (sortDesc should've been sortAsc)
-            this.sortAsc = !sortDesc;
-            this.$router.replace({
-                query: Object.assign({}, this.$route.query, {
-                    sortBy,
-                    sortAsc: !sortDesc,
-                }),
-                hash: this.$route.hash,
+            this.$nextTick().then(() => {
+                const { sortBy, sortDesc } = context;
+                this.sortBy = sortBy;
+                // Fuck you bootstrapVue (sortDesc should've been sortAsc)
+                this.sortAsc = !sortDesc;
+                this.$router.replace({
+                    query: Object.assign({}, this.$route.query, {
+                        sortBy,
+                        sortAsc: !sortDesc,
+                    }),
+                    hash: this.$route.hash,
+                });
             });
         },
 
@@ -399,6 +400,7 @@ export default {
             );
         },
 
+        parseBool,
         formatGrade,
         sortSubmissions,
 
