@@ -43,7 +43,11 @@ export function sortSubmissions(a, b, sortBy) {
     }
 
     if (sortBy === 'assignee') {
-        return cmpNoCase(first.readableName, second.readableName);
+        const cmp = cmpOneNull(first.readableName, second.readableName);
+        // If either assignee doesn't have a name (which can happen for some
+        // reason...) just place the one that _does_ have a name before the
+        // other.
+        return cmp == null ? cmpNoCase(first.readableName, second.readableName) : -cmp;
     } else if (sortBy === 'user') {
         return cmpNoCase(first.readableName, second.readableName);
     } else if (

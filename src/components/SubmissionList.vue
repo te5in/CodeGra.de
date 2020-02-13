@@ -24,7 +24,6 @@
 
     <b-table striped
              hover
-             ref="table"
              @row-clicked="gotoSubmission"
              @sort-changed="(ctx) => $nextTick(() => sortChanged(ctx))"
              :items="filteredSubmissions"
@@ -35,9 +34,8 @@
              :sort-desc="!parseBool(this.$route.query.sortAsc, true)"
              class="mb-0 border-bottom submissions-table">
         <template #cell(user)="item">
-            <a class="invisible-link"
-               href="#"
-               @click.prevent>
+            <router-link class="invisible-link"
+                         :to="submissionRoute(item.item.sub)">
                 <user :user="item.item.sub.user"/>
                 <webhook-name :submission="item.item.sub" />
                 <icon name="exclamation-triangle"
@@ -45,7 +43,7 @@
                       style="margin-bottom: -1px;"
                       v-b-popover.top.hover="getOtherSubmissionPopover(item.item.sub)"
                       v-if="!!getOtherSubmissionPopover(item.item.sub)"/>
-            </a>
+            </router-link>
         </template>
 
         <template #cell(grade)="item">
@@ -153,6 +151,8 @@ export default {
         return {
             parseBool,
             mineOnly: parseBool(this.$route.query.mine, null),
+            sortAsc: true,
+            sortBy: 'user',
             currentPage: 1,
             filter: this.$route.query.q || '',
             assignees: [],
@@ -304,29 +304,35 @@ export default {
         },
 
         sortChanged(context) {
+            const { sortBy, sortDesc } = context;
+            this.sortBy = sortBy;
+            // Fuck you bootstrapVue (sortDesc should've been sortAsc)
+            this.sortAsc = !sortDesc;
             this.$router.replace({
                 query: Object.assign({}, this.$route.query, {
-                    sortBy: context.sortBy,
-                    sortAsc: !context.sortDesc,
+                    sortBy,
+                    sortAsc: !sortDesc,
                 }),
                 hash: this.$route.hash,
             });
         },
 
-        gotoSubmission({ sub: submission }) {
-            this.submit();
-
-            this.$router.push({
+        submissionRoute(submission) {
+            return {
                 name: 'submission',
                 params: { submissionId: submission.id },
                 query: {
                     mine: this.mineOnly == null ? undefined : this.mineOnly,
                     search: this.filter || undefined,
-                    // Fuck you bootstrapVue (sortDesc should've been sortAsc)
-                    sortBy: this.$refs.table.sortBy,
-                    sortAsc: !this.$refs.table.sortDesc,
+                    sortBy: this.sortBy,
+                    sortAsc: this.sortAsc,
                 },
-            });
+            };
+        },
+
+        gotoSubmission({ sub: submission }) {
+            this.submit();
+            this.$router.push(this.submissionRoute(submission));
         },
 
         submitDelayed() {
