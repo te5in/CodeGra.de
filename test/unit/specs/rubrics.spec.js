@@ -592,11 +592,10 @@ describe('The rubric store', () => {
                     locked: 'auto_test',
                 }));
 
-                expect(row.lockMessage(null, null, null)).toBe('This is an AutoTest category.');
+                expect(row.lockMessage(null, null, null).startsWith('This is an AutoTest category.')).toBeTrue();
             });
 
             it('should get the correct message for a not filled in rubric with a result', () => {
-
                 const atResult = new AutoTestResult({
                     id: 5,
                     work_id: 6,
