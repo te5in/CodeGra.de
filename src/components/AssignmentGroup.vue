@@ -17,7 +17,7 @@
                 v-for="groupSet in groupSets"
                 :key="groupSet.id"
                 @click.prevent="selectGroupSet(groupSet.id)">
-                <td class="shrink">
+                <td class="pr-0 shrink">
                     <b-form-checkbox @click.native.prevent
                                      :checked="selected === groupSet.id"/>
                 </td>
@@ -201,10 +201,6 @@ export default {
 
 .group-table {
     vertical-align: middle;
-
-    .toggle-container {
-        padding: 0.375rem 0.5rem;
-    }
 }
 
 .fade-enter-active,
