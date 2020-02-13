@@ -180,6 +180,11 @@ export default {
         overflow-x: hidden;
     }
 
+    .inner-markdown-viewer,
+    .inner-result-cell {
+        width: 100%;
+    }
+
     .inner-result-cell pre {
         padding: 0.6em 2rem;
         border: 1px solid rgba(0, 0, 0, 0.1);
