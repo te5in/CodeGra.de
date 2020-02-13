@@ -236,7 +236,9 @@
                                         Uploaded fixtures
                                     </label>
 
-                                    <transition-group name="fixture-list" tag="ul" class="fixture-list form-control p-0 mb-0">
+                                    <transition-group name="fixture-list"
+                                                      tag="ul"
+                                                      class="fixture-list border rounded p-0 mb-0">
                                         <li v-for="fixture, index in test.fixtures"
                                             class="border-bottom"
                                             :key="fixture.id">
@@ -473,6 +475,7 @@
 
     <b-modal v-if="currentResult"
              :id="resultsModalId"
+             size="xl"
              hide-footer
              @hidden="currentResult = null"
              class="result-modal">

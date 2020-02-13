@@ -21,7 +21,8 @@
                                  :disabled="!!disabledCategories[cat.id]"
                                  @click="setRubricRow(cat)"
                                  :active="internalValue.rubricRow.id === cat.id">
-                    <div v-b-popover.top.hover="disabledCategories[cat.id] ? 'This rubric category is already in use.' : ''">
+                    <div v-b-popover.top.hover="disabledCategories[cat.id] ? 'This rubric category is already in use.' : ''"
+                         :class="{ 'text-muted': !!disabledCategories[cat.id] }">
                         <h5 class="mb-1">{{ cat.header }}</h5>
                         <span class="rubric-description">{{ cat.description }}</span>
                     </div>
@@ -185,7 +186,9 @@
                 <small>Options</small>
             </a>
 
-            <b-popover :target="optionsPopoverId" triggers="click">
+            <b-popover :target="optionsPopoverId"
+                       triggers="click"
+                       placement="left">
                 <table class="text-left">
                     <tr>
                         <td class="pr-3">

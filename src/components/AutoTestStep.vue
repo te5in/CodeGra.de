@@ -773,7 +773,7 @@
                             </template>
 
                             <b-input-group class="mr-1 px-3 pb-3" prepend="Options">
-                                <b-form-checkbox-group class="form-control"
+                                <b-form-checkbox-group class="flex-grow-1 border rounded-right pl-2"
                                                        :checked="input.options">
                                     <div v-for="opt in ioOptions" :key="opt.value">
                                         <b-form-checkbox :value="opt.value"
@@ -783,7 +783,9 @@
                                             {{ opt.text }}
                                         </b-form-checkbox>
 
-                                        <description-popover hug-text>
+                                        <description-popover hug-text
+                                                             placement="top"
+                                                             boundary="window">
                                             {{ opt.description }}
                                         </description-popover>
                                     </div>
@@ -1343,7 +1345,6 @@ export default {
         }
 
         .custom-checkbox {
-            margin-right: 0.75rem;
             pointer-events: none;
         }
     }
