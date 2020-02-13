@@ -592,7 +592,7 @@ describe('The rubric store', () => {
                     locked: 'auto_test',
                 }));
 
-                expect(row.lockMessage(null, null, null)).toBe('This is an AutoTest category. No grade calculation method has been set yet.');
+                expect(row.lockMessage(null, null, null)).toBe('This is an AutoTest category.');
             });
 
             it('should get the correct message for a not filled in rubric with a result', () => {
