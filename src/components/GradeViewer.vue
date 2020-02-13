@@ -301,7 +301,7 @@ export default {
             };
             const points = this.rubricPoints;
             const scored = points ? toFixed(points) : 0;
-            const max = toFixed(this.rubricMaxPoints);
+            const max = this.rubricMaxPoints == null ? '…' : toFixed(this.rubricMaxPoints);
             return `${scored} / ${max}`;
         },
 
