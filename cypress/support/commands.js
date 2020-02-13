@@ -349,6 +349,7 @@ Cypress.Commands.add('deleteSubmission', (submissionId) => {
     return cy.authRequest({
         url: `/api/v1/submissions/${submissionId}`,
         method: 'DELETE',
+        user: ADMIN_USER,
     });
 });
 
@@ -356,6 +357,7 @@ Cypress.Commands.add('patchSubmission', (submissionId, body) => {
     return cy.authRequest({
         url: `/api/v1/submissions/${submissionId}`,
         method: 'PATCH',
+        user: ADMIN_USER,
         body,
     }).its('body');
 });
@@ -364,6 +366,7 @@ Cypress.Commands.add('clearRubricResult', (submissionId) => {
     return cy.authRequest({
         url: `/api/v1/submissions/${submissionId}/rubricitems/`,
         method: 'PATCH',
+        user: ADMIN_USER,
         body: {
             items: [],
         },
@@ -374,6 +377,7 @@ Cypress.Commands.add('createRubric', (assignmentId, rubricData, maxPoints = null
     return cy.authRequest({
         url: `/api/v1/assignments/${assignmentId}/rubrics/`,
         method: 'PUT',
+        user: ADMIN_USER,
         body: {
             rows: rubricData,
             max_points: maxPoints,
@@ -385,6 +389,7 @@ Cypress.Commands.add('deleteRubric', (assignmentId, opts={}) => {
     return cy.authRequest({
         url: `/api/v1/assignments/${assignmentId}/rubrics/`,
         method: 'DELETE',
+        user: ADMIN_USER,
         ...opts,
     });
 });
@@ -399,6 +404,7 @@ Cypress.Commands.add('createAutoTest', (assignmentId, autoTestConfig) => {
     return cy.authRequest({
         url: '/api/v1/auto_tests/',
         method: 'POST',
+        user: ADMIN_USER,
         body: {
             assignment_id: assignmentId,
         },
@@ -407,6 +413,7 @@ Cypress.Commands.add('createAutoTest', (assignmentId, autoTestConfig) => {
             cy.authRequest({
                 url: `/api/v1/auto_tests/${autoTest.id}`,
                 method: 'PATCH',
+                user: ADMIN_USER,
                 body: patchProps,
             });
         }
@@ -414,16 +421,19 @@ Cypress.Commands.add('createAutoTest', (assignmentId, autoTestConfig) => {
             cy.authRequest({
                 url: `/api/v1/auto_tests/${autoTest.id}/sets/`,
                 method: 'POST',
+                user: ADMIN_USER,
             }).its('body').then(set =>
                 cy.authRequest({
                     url: `/api/v1/auto_tests/${autoTest.id}/sets/${set.id}`,
                     method: 'PATCH',
+                    user: ADMIN_USER,
                     body: { stop_points: setConfig.stop_points },
                 }).then(() =>
                     cy.wrap(setConfig.suites).each(suiteConfig =>
                         cy.authRequest({
                             url: `/api/v1/auto_tests/${autoTest.id}/sets/${set.id}/suites/`,
                             method: 'PATCH',
+                            user: ADMIN_USER,
                             body: suiteConfig,
                         }),
                     ),
@@ -434,6 +444,7 @@ Cypress.Commands.add('createAutoTest', (assignmentId, autoTestConfig) => {
             cy.authRequest({
                 url: `/api/v1/auto_tests/${autoTest.id}`,
                 method: 'GET',
+                user: ADMIN_USER,
             }).its('body'),
         );
     });
@@ -461,6 +472,7 @@ Cypress.Commands.add('deleteAutoTest', (autoTestId) => {
     return cy.authRequest({
         url: `/api/v1/auto_tests/${autoTestId}`,
         method: 'DELETE',
+        user: ADMIN_USER,
     });
 });
 
@@ -468,6 +480,7 @@ Cypress.Commands.add('connectGroupSet', (courseId, assignmentId, minSize=1, maxS
     return cy.authRequest({
         url: `/api/v1/courses/${courseId}/group_sets/`,
         method: 'PUT',
+        user: ADMIN_USER,
         body: {
             minimum_size: minSize,
             maximum_size: maxSize,
@@ -489,11 +502,13 @@ Cypress.Commands.add('joinGroup', (groupSetId, username) => {
     return cy.authRequest({
         url: `/api/v1/group_sets/${groupSetId}/group`,
         method: 'POST',
+        user: ADMIN_USER,
         body: { member_ids: [] },
     }).its('body').then(
         group => cy.authRequest({
             url: `/api/v1/groups/${group.id}/member`,
             method: 'POST',
+            user: ADMIN_USER,
             body: { username },
         }),
     );
