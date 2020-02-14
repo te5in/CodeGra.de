@@ -37,9 +37,6 @@ class WebhookBase(Base, UUIDMixin, TimestampMixin):
 
     At the moment only webhook (GitHub + GitLab) are supported.
     """
-    if t.TYPE_CHECKING:  # pragma: no cover
-        query: t.ClassVar[MyQuery['WebhookBase']]
-
     secret = db.Column(
         'secret',
         db.Unicode,

@@ -16,6 +16,8 @@ from collections import Counter, defaultdict
 
 import structlog
 import sqlalchemy
+import pylti1p3.lineitem
+import pylti1p3.assignments_grades
 from sqlalchemy.orm import validates
 from mypy_extensions import DefaultArg
 from sqlalchemy.types import JSON
@@ -25,7 +27,8 @@ from sqlalchemy.orm.collections import attribute_mapped_collection
 import psef
 from cg_dt_utils import DatetimeWithTimezone
 from cg_sqlalchemy_helpers.types import (
-    _T_BASE, MyQuery, DbColumn, ColumnProxy, MyNonOrderableQuery
+    _T_BASE, MyQuery, DbColumn, ColumnProxy, MyNonOrderableQuery,
+    hybrid_property, hybrid_expression
 )
 
 from . import UUID_LENGTH, Base, DbColumn, db
@@ -35,7 +38,7 @@ from . import course as course_models
 from . import linter as linter_models
 from . import rubric as rubric_models
 from . import auto_test as auto_test_models
-from .. import auth, ignore, helpers
+from .. import auth, ignore, helpers, signals
 from .role import CourseRole
 from .permission import Permission, PermissionComp
 from ..exceptions import (
@@ -93,8 +96,6 @@ class AssignmentAssignedGrader(Base):
     The user linked to the assignment is an assigned grader. In this link the
     weight is the weight this user was given when assigning.
     """
-    if t.TYPE_CHECKING:  # pragma: no cover
-        query: t.ClassVar[MyQuery['AssignmentAssignedGrader']]
     __tablename__ = 'AssignmentAssignedGrader'
     weight = db.Column('weight', db.Float, nullable=False)
     user_id = db.Column(
@@ -124,9 +125,6 @@ class AssignmentGraderDone(Base):
     :ivar ~.AssignmentGraderDone.assignment_id: The id of the assignment that
         is linked.
     """
-    if t.TYPE_CHECKING:  # pragma: no cover
-        query: t.ClassVar[MyQuery['AssignmentGraderDone']]
-        query = Base.query
     __tablename__ = 'AssignmentGraderDone'
     user_id = db.Column(
         'User_id',
@@ -171,8 +169,6 @@ class AssignmentLinter(Base):
         :py:class:`.Flake8` metadata about the `flake8` program).
     :ivar config: The config that was passed to the linter.
     """
-    if t.TYPE_CHECKING:  # pragma: no cover
-        query = Base.query  # type: t.ClassVar[MyQuery['AssignmentLinter']]
     __tablename__ = 'AssignmentLinter'  # type: str
     # This has to be a String object as the id has to be a non guessable uuid.
     id = db.Column(
@@ -314,8 +310,6 @@ class AssignmentResult(Base):
     :ivar ~.AssignmentResult.assignment_id: The id of the assignment this
         belongs to.
     """
-    if t.TYPE_CHECKING:  # pragma: no cover
-        query = Base.query  # type: t.ClassVar[MyQuery['AssignmentResult']]
     __tablename__ = 'AssignmentResult'
     sourcedid = db.Column('sourcedid', db.Unicode)
     user_id = db.Column(
@@ -352,8 +346,6 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
     :ivar rubric_rows: The rubric rows that make up the rubric for this
         assignment.
     """
-    if t.TYPE_CHECKING:  # pragma: no cover
-        query = Base.query  # type:  t.ClassVar[MyQuery['Assignment']]
     __tablename__ = "Assignment"
     id = db.Column('id', db.Integer, primary_key=True)
     name = db.Column('name', db.Unicode, nullable=False)
@@ -424,6 +416,14 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
     lti_grade_service_data = db.Column(
         'lti_grade_service_data', JSON, nullable=True
     )
+
+    def get_lti_assignments_grades_service(
+        self
+    ) -> 'pylti1p3.assignments_grades.AssignmentsGradesService':
+        ...
+
+    def get_lti_lineitem(self) -> 'pylti1p3.lineitem.LineItem':
+        ...
 
     assigned_graders: t.MutableMapping[
         int, AssignmentAssignedGrader] = db.relationship(
@@ -601,13 +601,15 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
             assert self.course_id == group_set.course_id
         return group_set
 
+    GRADE_SCALE = 10
+
     @property
     def max_grade(self) -> float:
         """Get the maximum grade possible for this assignment.
 
         :returns: The maximum a grade for a submission.
         """
-        return 10 if self._max_grade is None else self._max_grade
+        return self.GRADE_SCALE if self._max_grade is None else self._max_grade
 
     @property
     def cgignore(self) -> t.Optional[ignore.SubmissionFilter]:
@@ -654,14 +656,6 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
 
     min_grade = 0
     """The minimum grade for a submission in this assignment."""
-
-    def _submit_grades(self) -> None:
-        subs = self.get_from_latest_submissions(work_models.Work.id).all()
-        for i in range(0, len(subs), 10):
-            psef.tasks.passback_grades(
-                [s[0] for s in subs[i:i + 10]],
-                assignment_id=self.id,
-            )
 
     def change_notifications(
         self,
@@ -795,13 +789,19 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
 
         return db.session.query(sql.exists()).scalar() or False
 
-    @property
-    def is_lti(self) -> bool:
+    def _get_is_lti(self) -> bool:
         """Is this assignment a LTI assignment.
 
         :returns: A boolean indicating if this is the case.
         """
         return self.lti_assignment_id is not None
+
+    @hybrid_expression
+    def _get_is_lti_expr(cls: 'Assignment') -> bool:
+        # pylint: disable=no-self-argument
+        return cls.lti_assignment_id.isnot(None)
+
+    is_lti = hybrid_property(_get_is_lti, expr=_get_is_lti_expr)
 
     @property
     def max_rubric_points(self) -> t.Optional[float]:
@@ -891,7 +891,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
     def should_passback(self) -> bool:
         """Should we passback the current grade.
         """
-        return self.is_done and self.course.lti_provider is not None
+        return self.is_done and self.is_lti
 
     @property
     def state_name(self) -> str:
@@ -1084,10 +1084,10 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
             self.state = _AssignmentStateEnum.hidden
         elif state == 'done':
             self.state = _AssignmentStateEnum.done
-            if self.lti_grade_service_data is not None:
-                self._submit_grades()
         else:
             raise InvalidAssignmentState(f'{state} is not a valid state')
+
+        signals.ASSIGNMENT_STATE_CHANGED.send(self)
 
     def get_not_deleted_submissions(self) -> MyQuery['work_models.Work']:
         """Get a query returning all not deleted submissions to this
@@ -1115,6 +1115,8 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
     def get_latest_submission_for_user(
         self,
         user: 'user_models.User',
+        *,
+        group_of_user: t.Optional['group_models.Group'] = None,
     ) -> MyNonOrderableQuery['work_models.Work']:
         """Get the latest non deleted submission for a given user.
 
@@ -1128,6 +1130,9 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
             `get_from_latest_submission`.
 
         :param user: The user to get the latest non deleted submission for.
+        :param group_of_user: The group that the user belongs to for this
+            assignment. This parameter prevents that the database is queried to
+            check if the user is in a group.
         :returns: A query that should not be reordered that contains the latest
             submission for the given user.
         """
@@ -1141,7 +1146,11 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
             # submissions for a user.)
             work_models.Work.id.desc()
         ]
-        if self.group_set_id is not None:
+
+        group_user_id = None
+        if group_of_user is not None:
+             group_user_id = group_of_user.virtual_user_id
+        elif self.group_set_id is not None:
             group_user_id = db.session.query(
                 psef.models.Group.virtual_user_id
             ).filter_by(group_set_id=self.group_set_id).filter(

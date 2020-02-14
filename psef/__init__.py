@@ -174,6 +174,9 @@ def create_app(  # pylint: disable=too-many-statements
     from . import parsers
     parsers.init_app(resulting_app)
 
+    from . import tasks
+    tasks.init_app(resulting_app)
+
     from . import models
     models.init_app(resulting_app)
 
@@ -182,9 +185,6 @@ def create_app(  # pylint: disable=too-many-statements
 
     from . import errors
     errors.init_app(resulting_app)
-
-    from . import tasks
-    tasks.init_app(resulting_app)
 
     from . import files
     files.init_app(resulting_app)
@@ -211,14 +211,17 @@ def create_app(  # pylint: disable=too-many-statements
     from . import v_internal as api_v_internal
     api_v_internal.init_app(resulting_app)
 
+    from . import signals
+    signals.init_app(resulting_app)
+
     # Make sure celery is working
     if not skip_celery:  # pragma: no cover
         try:
             tasks.add(2, 3)
         except Exception:  # pragma: no cover
-            logger.error(
-                'Celery is not responding! Please check your config',
-            )
+            logger.error('Celery is not responding! Please check your config')
             raise
+
+    signals.FINALIZE_APP.send(resulting_app)
 
     return resulting_app

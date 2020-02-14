@@ -12,7 +12,7 @@ from typing import Union
 from typing import Optional as Opt
 from datetime import timedelta
 
-from typing_extensions import Literal
+from typing_extensions import Literal, Protocol
 
 import cg_dt_utils
 
@@ -455,6 +455,12 @@ class DbColumn(t.Generic[T]):  # pragma: no cover
     ) -> 'DbColumn[bool]':
         ...
 
+    def notin_(
+        self, val: t.Union[t.Iterable[T], 'DbColumn[T]',
+                           'MyNonOrderableQuery[T]', 'RawTable']
+    ) -> 'DbColumn[T]':
+        ...
+
     def isnot(self, val: t.Optional[T]) -> 'DbColumn[bool]':
         ...
 
@@ -524,8 +530,13 @@ class Mapper(t.Generic[_T_BASE]):
         ...
 
 
+class _QueryProxy:
+    def __get__(self, _: object, type: t.Type[_T_BASE]) -> 'MyQuery[_T_BASE]':
+        ...
+
+
 class Base:  # pragma: no cover
-    query = None  # type: t.ClassVar[t.Any]
+    query: t.ClassVar[_QueryProxy]
 
     def __init__(self, *args: t.Any, **kwargs: t.Any) -> None:
         pass
@@ -663,6 +674,14 @@ if t.TYPE_CHECKING:
     def hybrid_property(
         fget: t.Callable[[Z], T],
         *,
+        expr: t.Callable[[t.Type[Z]], DbColumn[T]],
+    ) -> _ImmutableColumnProxy[T, Y]:
+        ...
+
+    @t.overload
+    def hybrid_property(
+        fget: t.Callable[[Z], T],
+        *,
         custom_comparator: t.Callable[[t.Type[Z]], Y],
     ) -> _ImmutableColumnProxy[T, Y]:
         ...
@@ -672,7 +691,7 @@ if t.TYPE_CHECKING:
         fget: t.Callable[[Z], T],
         fset: t.Callable[[Z, Y], None],
         fdel: None = None,
-        expr: t.Callable[[t.Type[Z]], 'DbColumn[T]'] = None,
+        expr: t.Callable[[t.Type[Z]], DbColumn[T]] = None,
     ) -> _MutableColumnProxy[T, Y, DbColumn[T]]:
         ...
 

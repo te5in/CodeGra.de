@@ -40,8 +40,6 @@ class Group(Base):
         is used to submissions as the group.
     :ivar group_set: The :class:`.GroupSet` this group is connected to.
     """
-    if t.TYPE_CHECKING:  # pragma: no cover
-        query: t.ClassVar[_MyQuery['Group']]
     __tablename__ = 'Group'
 
     id = db.Column('id', db.Integer, primary_key=True)
@@ -235,8 +233,6 @@ class GroupSet(NotEqualMixin, Base):
         can be used to submit a submission.
     :ivar maximum_size: The maximum amount of members a group can ever have.
     """
-    if t.TYPE_CHECKING:  # pragma: no cover
-        query: t.ClassVar[_MyQuery['GroupSet']]
     __tablename__ = 'GroupSet'
 
     id = db.Column('id', db.Integer, primary_key=True)

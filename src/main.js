@@ -183,13 +183,13 @@ Vue.util.defineReactive(
     '$LTIAssignmentId',
     LTIAssignmentId,
     val => {
-        if (val == null) {
-            throw new TypeError('You cannot set this to null or undefined');
-        }
+        // if (val == null) {
+        //     throw new TypeError('You cannot set $LTIAssignmentId to null or undefined');
+        // }
         if (LTIAssignmentId == null || val === LTIAssignmentId) {
             LTIAssignmentId = val;
         } else {
-            throw new TypeError('You cannot change this property once it is set');
+            throw new TypeError('You cannot change $LTIAssignmentId property once it is set');
         }
     },
     true,

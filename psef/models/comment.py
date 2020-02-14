@@ -20,8 +20,6 @@ class Comment(Base):
 
     A comment is always linked to a specific line in a file.
     """
-    if t.TYPE_CHECKING:  # pragma: no cover
-        query: t.ClassVar[_MyQuery['Comment']] = Base.query
     __tablename__ = "Comment"
     file_id = db.Column(
         'File_id',

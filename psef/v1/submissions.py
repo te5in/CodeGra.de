@@ -27,6 +27,7 @@ from ..helpers import (
     ensure_json_dict, extended_jsonify, ensure_keys_in_dict,
     make_empty_response
 )
+from ..signals import WORK_DELETED, WorkDeletedData
 from ..exceptions import PermissionException
 from ..permissions import CoursePermission as CPerm
 
@@ -203,11 +204,14 @@ def delete_submission(submission_id: int) -> EmptyResponse:
         with_for_update=True
     )
     user = submission.user
-    was_latest = db.session.query(
-        assignment.get_from_latest_submissions(
-            models.Work.id
-        ).filter_by(id=submission.id).exists()
-    ).scalar()
+    was_latest = helpers.handle_none(
+        db.session.query(
+            assignment.get_from_latest_submissions(
+                models.Work.id
+            ).filter_by(id=submission.id).exists()
+        ).scalar(),
+        False,
+    )
 
     logger.info(
         'Deleting submission',
@@ -221,27 +225,17 @@ def delete_submission(submission_id: int) -> EmptyResponse:
     submission.deleted = True
     db.session.flush()
 
-    if was_latest:
-        new_latest = assignment.get_all_latest_submissions().filter_by(
-            user_id=user.id
-        ).one_or_none()
-
-        if new_latest:
-            if assignment.should_passback:
-                new_latest_id = new_latest.id
-                helpers.callback_after_this_request(
-                    lambda: tasks.passback_grades(
-                        [new_latest_id],
-                        assignment_id=assignment.id,
-                    )
-                )
-            if assignment.auto_test:
-                # This function also sets `final_result` if needed
-                assignment.auto_test.reset_work(new_latest)
-        else:
-            helpers.callback_after_this_request(
-                lambda: tasks.delete_submission(submission_id, assignment.id)
-            )
+    WORK_DELETED.send(
+        WorkDeletedData(
+            deleted_work=submission,
+            was_latest=was_latest,
+            new_latest=(
+                assignment.get_all_latest_submissions().filter_by(
+                    user_id=user.id
+                ).one_or_none() if was_latest else None
+            ),
+        )
+    )
 
     db.session.commit()
 

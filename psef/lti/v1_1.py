@@ -28,6 +28,7 @@ from cg_dt_utils import DatetimeWithTimezone
 from .. import app, auth, models, helpers, features
 from ..models import db
 from ..helpers import register
+from .abstract import AbstractLTIConnector
 from ..exceptions import APICodes, APIWarnings, APIException
 
 logger = structlog.get_logger()
@@ -229,9 +230,12 @@ lti_classes: register.Register[str, t.Type['LTI']] = register.Register()
 
 # TODO: This class has so many public methods as they are properties. A lot of
 # them can be converted to private properties which should be done.
-class LTI:  # pylint: disable=too-many-public-methods
+class LTI(AbstractLTIConnector):  # pylint: disable=too-many-public-methods
     """The base LTI class.
     """
+
+    def get_lms_name(self) -> str:
+        return self.lti_provider.lms_name
 
     @staticmethod
     def supports_lti_launch_as_result() -> bool:  # pragma: no cover
@@ -541,13 +545,11 @@ class LTI:  # pylint: disable=too-many-public-methods
 
         if course_lti_provider is None:
             course = models.Course.create_and_add(name=self.course_name)
-            db.session.add(
-                models.CourseLTIProvider(
-                    lti_course_id=self.course_id,
-                    course=course,
-                    lti_provider=self.lti_provider,
-                    deployment_id=self.lti_provider.id,
-                )
+            course_lti_provider = models.CourseLTIProvider.create_and_add(
+                course=course,
+                lti_provider=self.lti_provider,
+                lti_context_id=self.course_id,
+                deployment_id=self.course_id,
             )
         else:
             course = course_lti_provider.course
@@ -600,13 +602,6 @@ class LTI:  # pylint: disable=too-many-public-methods
             )
             assignment = self.create_and_add_assignment(course=course)
 
-        if assignment.deleted:
-            raise APIException(
-                'The launched assignment has been deleted on CodeGrade',
-                f'The assignment "{assignment.id}" has been deleted',
-                APICodes.OBJECT_NOT_FOUND, 404
-            )
-
         if self.has_result_sourcedid():
             if assignment.id in user.assignment_results:
                 user.assignment_results[assignment.id
@@ -655,8 +650,6 @@ class LTI:  # pylint: disable=too-many-public-methods
             in the config of the app is used.
 
         :param models.User user: The user to set the role for.
-        :returns: Nothing
-        :rtype: None
         """
         if user.role is None:
             global_roles = self.global_roles
@@ -689,48 +682,48 @@ class LTI:  # pylint: disable=too-many-public-methods
         :returns: The name of the new role created, or ``None`` if no role was
             created.
         """
-        if course.id not in user.courses:
-            unkown_roles: t.List[str] = []
-            course_roles = self.course_roles
-            logger.info(
-                'Checking course roles',
-                given_course_roles=course_roles,
+        if course.id in user.courses:
+            return None
+
+        unkown_roles: t.List[str] = []
+        course_roles = self.course_roles
+        logger.info(
+            'Checking course roles',
+            given_course_roles=course_roles,
+        )
+        for role in course_roles:
+            if role.codegrade_role_name is None:
+                unkown_roles.append(role.name)
+                continue
+            crole = models.CourseRole.query.filter_by(
+                course_id=course.id, name=role.codegrade_role_name
+            ).one()
+            user.courses[course.id] = crole
+            return None
+
+        if not features.has_feature(features.Feature.AUTOMATIC_LTI_ROLE):
+            raise APIException(
+                'The given LTI role could not be found or was not valid. '
+                'Please ask your instructor or site administrator.',
+                f'No role in "{list(self.course_roles)}" is a known LTI role',
+                APICodes.INVALID_STATE, 400
             )
-            for role in course_roles:
-                if role.codegrade_role_name is None:
-                    unkown_roles.append(role.name)
-                    continue
-                crole = models.CourseRole.query.filter_by(
-                    course_id=course.id, name=role.codegrade_role_name
-                ).one()
-                user.courses[course.id] = crole
-                return None
 
-            if not features.has_feature(features.Feature.AUTOMATIC_LTI_ROLE):
-                raise APIException(
-                    'The given LTI role could not be found or was not valid. '
-                    'Please ask your instructor or site administrator.',
-                    f'No role in "{list(self.course_roles)}" is a known LTI role',
-                    APICodes.INVALID_STATE, 400
-                )
+        # Add a new course role
+        new_created: t.Optional[str] = None
 
-            # Add a new course role
-            new_created: t.Optional[str] = None
-
-            new_role = (unkown_roles + ['New LTI Role'])[0]
-            existing_role = models.CourseRole.query.filter_by(
-                course_id=course.id, name=new_role
-            ).first()
-            if existing_role is None:
-                existing_role = models.CourseRole(
-                    course=course, name=new_role, hidden=False
-                )
-                db.session.add(existing_role)
-                new_created = new_role
-            user.courses[course.id] = existing_role
-            return new_created
-
-        return None
+        new_role = (unkown_roles + ['New LTI Role'])[0]
+        existing_role = models.CourseRole.query.filter_by(
+            course_id=course.id, name=new_role
+        ).first()
+        if existing_role is None:
+            existing_role = models.CourseRole(
+                course=course, name=new_role, hidden=False
+            )
+            db.session.add(existing_role)
+            new_created = new_role
+        user.courses[course.id] = existing_role
+        return new_created
 
     def has_result_sourcedid(self) -> bool:
         """Check if the current LTI request has a ``sourcedid`` field.

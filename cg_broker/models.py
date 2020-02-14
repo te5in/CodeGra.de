@@ -106,7 +106,6 @@ class Runner(Base, mixins.TimestampMixin, mixins.UUIDMixin):
     """
     if t.TYPE_CHECKING:  # pragma: no cover
         __mapper__: t.ClassVar[cgs.types.Mapper['Runner']]
-        query: t.ClassVar[types.MyQuery['Runner']]
 
     __tablename__ = 'runner'
 
@@ -517,9 +516,6 @@ class Job(Base, mixins.TimestampMixin, mixins.IdMixin):
     A job is something a CodeGrade instance needs a runner for. These jobs are
     never deleted, but its state changes during its life.
     """
-    if t.TYPE_CHECKING:  # pragma: no cover
-        query: t.ClassVar[types.MyQuery['Job']]
-
     __tablename__ = 'job'
 
     _state = db.Column(

@@ -219,8 +219,6 @@ class File(NestedFileMixin[int], Base):
     single top level file. Each other file in a submission should be directly
     or indirectly connected to this file via the parent attribute.
     """
-    if t.TYPE_CHECKING:  # pragma: no cover
-        query: t.ClassVar[_MyQuery['File']]
     __tablename__ = "File"
 
     id = db.Column('id', db.Integer, primary_key=True)
@@ -375,8 +373,6 @@ class File(NestedFileMixin[int], Base):
 class AutoTestFixture(Base, FileMixin[int], TimestampMixin):
     """This class represents a single fixture for an AutoTest configuration.
     """
-    if t.TYPE_CHECKING:  # pragma: no cover
-        query: t.ClassVar[_MyQuery['AutoTestFixture']]
     __tablename__ = 'AutoTestFixture'
 
     id = db.Column('id', db.Integer, primary_key=True)
@@ -455,8 +451,6 @@ class AutoTestOutputFile(Base, NestedFileMixin[uuid.UUID], TimestampMixin):
     :class:`.psef.models.AutoTestResult` and a
     :class:`.psef.models.AutoTestSuite`.
     """
-    if t.TYPE_CHECKING:  # pragma: no cover
-        query: t.ClassVar[_MyQuery['AutoTestOutputFile']]
 
     id = db.Column('id', UUIDType, primary_key=True, default=uuid.uuid4)
 

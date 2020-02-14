@@ -45,9 +45,6 @@ class WorkRubricItem(helpers.NotEqualMixin, Base):
     """The association table between a :class:`.work_models.Work` and a
     :class:`.RubricItem`.
     """
-    if t.TYPE_CHECKING:  # pragma: no cover
-        query: t.ClassVar[_MyQuery['WorkRubricItem']] = Base.query
-
     def __init__(
         self,
         *,
@@ -190,9 +187,6 @@ class RubricItem(helpers.NotEqualMixin, Base):
     """This class holds the information about a single option/item in a
     :class:`.RubricRowBase`.
     """
-    if t.TYPE_CHECKING:  # pragma: no cover
-        query: t.ClassVar[_MyQuery['RubricItem']] = Base.query
-
     __tablename__ = 'RubricItem'
 
     id = db.Column('id', db.Integer, primary_key=True)
@@ -267,8 +261,6 @@ class RubricRowBase(helpers.NotEqualMixin, Base):
     :ivar ~.RubricRowBase.assignment_id: The assignment id of the assignment
         that belows to this rubric row.
     """
-    if t.TYPE_CHECKING:  # pragma: no cover
-        query = Base.query  # type: t.ClassVar[_MyQuery['RubricRowBase']]
     __tablename__ = 'RubricRow'
     id = db.Column('id', db.Integer, primary_key=True)
     assignment_id = db.Column(

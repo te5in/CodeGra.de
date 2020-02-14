@@ -144,7 +144,7 @@ def ensure_enrolled(
     else:
         label = f'The user "{user.name}" is'
 
-    if user.virtual or course_id not in user.courses:
+    if not user.is_enrolled(course_id):
         raise PermissionException(
             f'{label} not enrolled in this course.',
             f'The user "{user.id}" is not enrolled in course "{course_id}"',

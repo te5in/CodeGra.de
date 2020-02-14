@@ -31,6 +31,7 @@ from ..lti import LTIVersion
 from ..lti import v1_1 as lti_v1_1
 from ..lti import v1_3 as lti_v1_3
 from ..models import db
+from ..lti.abstract import LTILaunchData, AbstractLTIConnector
 
 logger = structlog.get_logger()
 
@@ -138,14 +139,6 @@ def get_lti_config() -> werkzeug.wrappers.Response:
         )
 
 
-class _LTILaunchData(TypedDict):
-    assignment: t.Optional[models.Assignment]
-    custom_lms_name: str
-    new_role_created: t.Optional[str]
-    access_token: t.Optional[str]
-    updated_email: t.Optional[str]
-    type: Literal['normal_result']
-
 
 class _LTIDeepLinkResult(TypedDict):
     id: str
@@ -156,7 +149,7 @@ class _LTIDeepLinkResult(TypedDict):
 
 
 class _LTILaunchResult(TypedDict):
-    data: t.Union[_LTILaunchData, _LTIDeepLinkResult]
+    data: t.Union[LTILaunchData, _LTIDeepLinkResult]
     version: LTIVersion
 
 
@@ -199,29 +192,13 @@ def _get_second_phase_lti_launch_data(blob_id: str) -> _LTILaunchResult:
 
     version = LTIVersion[launch_params.get('version', LTIVersion.v1_1)]
     data = launch_params['data']
-    result: t.Union[_LTILaunchData, _LTIDeepLinkResult]
+    result: t.Union[LTILaunchData, _LTIDeepLinkResult]
 
     if version == LTIVersion.v1_1:
         inst = lti_v1_1.LTI.create_from_launch_params(data)
 
-        user, new_token, updated_email = inst.ensure_lti_user()
-        auth.set_current_user(user)
+        result = inst.do_second_step_of_lti_launch()
 
-        course = inst.get_course()
-        assig = inst.get_assignment(user, course)
-        inst.set_user_role(user)
-        new_role_created = inst.set_user_course_role(user, course)
-
-        db.session.commit()
-
-        result = _LTILaunchData(
-            assignment=assig,
-            new_role_created=new_role_created,
-            custom_lms_name=inst.lti_provider.lms_name,
-            updated_email=updated_email,
-            access_token=new_token,
-            type='normal_result',
-        )
     elif version == LTIVersion.v1_3:
         if data.get('type') == 'exception':
             raise exceptions.APIException(
@@ -251,8 +228,10 @@ def _get_second_phase_lti_launch_data(blob_id: str) -> _LTILaunchResult:
                 assignment_description=deep_link_data.get('text', ''),
                 type='deep_link',
             )
+        elif launch_message.is_resource_launch():
+            result = launch_message.do_second_step_of_lti_launch() #
         else:
-            result = {}
+            assert 0
     else:
         assert False
 

@@ -13,8 +13,6 @@ class Snippet(Base):
     """Describes a :class:`.User` specified mapping from a keyword to some
     string.
     """
-    if t.TYPE_CHECKING:  # pragma: no cover
-        query: t.ClassVar[_MyQuery['Snippet']] = Base.query
     __tablename__ = 'Snippet'
     id = db.Column('id', db.Integer, primary_key=True)
     key = db.Column('key', db.Unicode, nullable=False)

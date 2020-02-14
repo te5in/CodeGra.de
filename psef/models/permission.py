@@ -56,8 +56,6 @@ class Permission(Base, t.Generic[_T]):  # pylint: disable=unsubscriptable-object
         this permission is global for the entire site.
 
     """
-    if t.TYPE_CHECKING:  # pragma: no cover
-        query = None
     __tablename__ = 'Permission'
 
     id = db.Column('id', db.Integer, primary_key=True)

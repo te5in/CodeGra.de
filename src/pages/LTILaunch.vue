@@ -76,7 +76,7 @@ export default {
             setPageTitle('LTI is launching, please wait');
 
             this.$http
-                .post('/api/v1/lti/launch/2', {
+                .post('/api/v1/lti/launch/2?extended', {
                     jwt_token: this.$route.query.jwt,
                     blob_id: this.$route.query.blob_id,
                 })
@@ -137,6 +137,7 @@ export default {
             if (data.type !== 'normal_result') {
                 throw new Error(`Unknown LTI1.1 type: ${data.type}.`);
             }
+            console.log(data);
 
             this.$LTIAssignmentId = data.assignment.id;
 

@@ -484,7 +484,7 @@ def get_in_or_error(
 def _filter_or_404(
     model: t.Type[Y],
     get_all: Literal[True],
-    criteria: t.Tuple,
+    criteria: t.Sequence[DbColumn[bool]],
     also_error: t.Optional[t.Callable[[t.List[Y]], bool]],
     with_for_update: t.Union[bool, LockType],
     options: t.Optional[t.List[t.Any]] = None,
@@ -497,7 +497,7 @@ def _filter_or_404(
 def _filter_or_404(
     model: t.Type[Y],
     get_all: Literal[False],
-    criteria: t.Tuple,
+    criteria: t.Sequence[DbColumn[bool]],
     also_error: t.Optional[t.Callable[[Y], bool]],
     with_for_update: t.Union[bool, LockType],
     options: t.Optional[t.List[t.Any]] = None,
@@ -509,7 +509,7 @@ def _filter_or_404(
 def _filter_or_404(
     model: t.Type[Y],
     get_all: bool,
-    criteria: t.Tuple,
+    criteria: t.Sequence[DbColumn[bool]],
     also_error: t.Optional[t.Callable[[t.Any], bool]],
     with_for_update: t.Union[bool, LockType],
     options: t.Optional[t.List[t.Any]] = None,
@@ -556,7 +556,7 @@ def _filter_or_404(
 
 def filter_all_or_404(
     model: t.Type[Y],
-    *criteria: t.Any,
+    *criteria: DbColumn[bool],
     with_for_update: t.Union[bool, LockType] = False,
 ) -> t.Sequence[Y]:
     """Get all objects of the specified model filtered by the specified
@@ -581,7 +581,7 @@ def filter_all_or_404(
 
 def filter_single_or_404(
     model: t.Type[Y],
-    *criteria: t.Any,
+    *criteria: DbColumn[bool],
     also_error: t.Optional[t.Callable[[Y], bool]] = None,
     with_for_update: t.Union[bool, LockType] = False,
     options: t.Optional[t.List[t.Any]] = None,
@@ -1584,3 +1584,27 @@ def contains_duplicate(it_to_check: t.Iterator[T_Hashable]) -> bool:
         seen.add(item)
 
     return False
+
+
+def chunkify(it: t.Iterable[T], chunk_size: int) -> t.Iterable[t.List[T]]:
+    """Chunkify the given iterable with chunks of size ``chunk_size``.
+
+    >>> list(chunkify(range(5), 2))
+    [[0, 1], [2, 3], [4]]
+    >>> list(chunkify(range(4), 2))
+    [[0, 1], [2, 3]]
+    >>> list(chunkify([], 2))
+    []
+
+    :param it: The iterable to chunkify.
+    :param chunk_size: The size of the chunks.
+    """
+    cur = []
+    for item in it:
+        cur.append(item)
+        if len(cur) == chunk_size:
+            yield cur
+            cur = []
+
+    if cur:
+        yield cur

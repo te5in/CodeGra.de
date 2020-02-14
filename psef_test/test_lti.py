@@ -436,13 +436,12 @@ def test_invalid_lti_role(test_client, app, role, session):
         assert user.courses[assig['course']['id']].name == 'New LTI Role'
 
 
-@pytest.mark.parametrize('patch', [True, False])
 @pytest.mark.parametrize('filename', [
     ('correct.tar.gz'),
 ])
 def test_lti_grade_passback(
-    test_client, app, logged_in, ta_user, filename, monkeypatch, patch,
-    monkeypatch_celery, error_template, session
+    test_client, app, logged_in, ta_user, filename, monkeypatch,
+    monkeypatch_celery, error_template, session, describe
 ):
     due_at = DatetimeWithTimezone.utcnow() + datetime.timedelta(days=1)
     assig_max_points = 8
@@ -468,9 +467,6 @@ def test_lti_grade_passback(
             assert isinstance(body, bytes)
             last_xml = body.decode('utf-8')
             return '', SUCCESS_XML
-
-    if patch:
-        monkeypatch.setitem(app.config, '_USING_SQLITE', True)
 
     patch_request = Patch()
     monkeypatch.setattr(oauth2.Client, 'request', patch_request)
@@ -557,37 +553,39 @@ def test_lti_grade_passback(
             headers={'Authorization': f'Bearer {token}'},
         )
 
-    assig, token = do_lti_launch()
-    work = get_upload_file(token, assig['id'])
-    assert patch_request.called
-    assert_initial_passback(last_xml, patch_request.source_id)
+    with describe('Submit should do an initial callback'):
+        # Test initial callback for
+        assig, token = do_lti_launch()
+        work = get_upload_file(token, assig['id'])
+        assert patch_request.called
+        assert_initial_passback(last_xml, patch_request.source_id)
 
-    # Assignment is not done so it should not passback the grade
-    set_grade(token, 5.0, work['id'])
-    assert not patch_request.called
+    with describe('Setting grade when assig is not done should not passback'):
+        set_grade(token, 5.0, work['id'])
+        assert not patch_request.called
 
-    test_client.req(
-        'patch',
-        f'/api/v1/assignments/{assig["id"]}',
-        200,
-        data={
-            'state': 'done',
-        },
-        headers={'Authorization': f'Bearer {token}'},
-    )
+    with describe('Setting the assig to done should passback the grades'):
+        test_client.req(
+            'patch',
+            f'/api/v1/assignments/{assig["id"]}',
+            200,
+            data={
+                'state': 'done',
+            },
+            headers={'Authorization': f'Bearer {token}'},
+        )
 
-    # After setting assignment open it should passback the grades.
-    assert patch_request.called
-    assert_grade_set_to(
-        last_xml,
-        patch_request.source_id,
-        lti_max_points,
-        5.0,
-        raw=False,
-        created_at=work['created_at']
-    )
+        # After setting assignment open it should passback the grades.
+        assert patch_request.called
+        assert_grade_set_to(
+            last_xml,
+            patch_request.source_id,
+            lti_max_points,
+            5.0,
+            raw=False,
+            created_at=work['created_at']
+        )
 
-    if patch:
         test_client.req(
             'get',
             f'/api/v1/submissions/{work["id"]}/grade_history/',
@@ -603,81 +601,82 @@ def test_lti_grade_passback(
             headers={'Authorization': f'Bearer {token}'},
         )
 
-    # Updating while open should passback straight away
-    set_grade(token, 6, work['id'])
-    assert patch_request.called
-    assert_grade_set_to(
-        last_xml,
-        patch_request.source_id,
-        lti_max_points,
-        6,
-        raw=False,
-        created_at=work['created_at']
-    )
-
-    # Setting grade to ``None`` should do a delete request
-    set_grade(token, None, work['id'])
-    assert patch_request.called
-    assert_grade_deleted(last_xml, patch_request.source_id)
-
-    with app.app_context():
-        test_client.req(
-            'patch',
-            f'/api/v1/assignments/{assig["id"]}',
-            200,
-            data={
-                'max_grade': 11,
-            },
-            headers={'Authorization': f'Bearer {token}'},
+    with describe('Updating while open should passback straight away'):
+        set_grade(token, 6, work['id'])
+        assert patch_request.called
+        assert_grade_set_to(
+            last_xml,
+            patch_request.source_id,
+            lti_max_points,
+            6,
+            raw=False,
+            created_at=work['created_at']
         )
 
-    # When ``max_grade`` is set it should start to do raw passbacks, but only
-    # if the grade passeback is in fact > 10
-    set_grade(token, 6, work['id'])
-    assert patch_request.called
-    assert_grade_set_to(
-        last_xml,
-        patch_request.source_id,
-        lti_max_points,
-        6.0,
-        raw=False,
-        created_at=work['created_at']
-    )
+    with describe('Setting grade to `None` should do a delete request'):
+        set_grade(token, None, work['id'])
+        assert patch_request.called
+        assert_grade_deleted(last_xml, patch_request.source_id)
 
-    # As this grade is >11 the ``raw`` option should be used
-    set_grade(token, 11, work['id'])
-    assert patch_request.called
-    assert_grade_set_to(
-        last_xml,
-        patch_request.source_id,
-        lti_max_points,
-        11.0,
-        raw=True,
-        created_at=work['created_at']
-    )
+    with describe('Setting max grade should work'):
+        with app.app_context():
+            test_client.req(
+                'patch',
+                f'/api/v1/assignments/{assig["id"]}',
+                200,
+                data={
+                    'max_grade': 11,
+                },
+                headers={'Authorization': f'Bearer {token}'},
+            )
 
-    assig, token = do_lti_launch(
-        username='NEW_USERNAME',
-        lti_id='NEW_ID',
-        source_id=False,
-        canvas_id='NEW_CANVAS_ID',
-    )
-    full_filename = (
-        f'{os.path.dirname(__file__)}/'
-        f'../test_data/test_blackboard/{filename}'
-    )
-    with app.app_context():
-        test_client.req(
-            'post',
-            f'/api/v1/assignments/{assig["id"]}/submission',
-            400,
-            real_data={'file': (full_filename, 'bb.tar.gz')},
-            headers={'Authorization': f'Bearer {token}'},
-            result=error_template
+        # When ``max_grade`` is set it should start to do raw passbacks, but
+        # only if the grade passeback is in fact > 10
+        set_grade(token, 6, work['id'])
+        assert patch_request.called
+        assert_grade_set_to(
+            last_xml,
+            patch_request.source_id,
+            lti_max_points,
+            6.0,
+            raw=False,
+            created_at=work['created_at']
         )
 
-    # When submitting fails no grades should be passed back
-    assert not patch_request.called
+        # As this grade is >11 the ``raw`` option should be used
+        set_grade(token, 11, work['id'])
+        assert patch_request.called
+        assert_grade_set_to(
+            last_xml,
+            patch_request.source_id,
+            lti_max_points,
+            11.0,
+            raw=True,
+            created_at=work['created_at']
+        )
+
+    with describe('When submitting fails no grades should be passed back'):
+        assig, token = do_lti_launch(
+            username='NEW_USERNAME',
+            lti_id='NEW_ID',
+            source_id=False,
+            canvas_id='NEW_CANVAS_ID',
+        )
+        full_filename = (
+            f'{os.path.dirname(__file__)}/'
+            f'../test_data/test_blackboard/{filename}'
+        )
+        with app.app_context():
+            test_client.req(
+                'post',
+                f'/api/v1/assignments/{assig["id"]}/submission',
+                400,
+                real_data={'file': (full_filename, 'bb.tar.gz')},
+                headers={'Authorization': f'Bearer {token}'},
+                result=error_template
+            )
+
+        assert not patch_request.called
 
 
 @pytest.mark.parametrize('patch', [True, False])

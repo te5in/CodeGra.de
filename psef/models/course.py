@@ -12,7 +12,7 @@ import psef
 from cg_dt_utils import DatetimeWithTimezone
 from cg_sqlalchemy_helpers import mixins
 
-from . import UUID_LENGTH, Base, DbColumn, db, _MyQuery
+from . import UUID_LENGTH, Base, MyQuery, DbColumn, db
 from .role import CourseRole
 from .user import User
 from .work import Work
@@ -72,8 +72,6 @@ class CourseSnippet(Base):
     """Describes a mapping from a keyword to a replacement text that is shared
     amongst the teachers and TAs of the course.
     """
-    if t.TYPE_CHECKING:  # pragma: no cover
-        query: t.ClassVar[_MyQuery['CourseSnippet']] = Base.query
     __tablename__ = 'CourseSnippet'
     id = db.Column('id', db.Integer, primary_key=True)
     key = db.Column('key', db.Unicode, nullable=False)
@@ -116,8 +114,6 @@ class Course(NotEqualMixin, Base):
     :param lti_course_id: The id of the course in LTI
     :param lti_provider: The LTI provider
     """
-    if t.TYPE_CHECKING:  # pragma: no cover
-        query: t.ClassVar[_MyQuery['Course']] = Base.query
     __tablename__ = "Course"
     id = db.Column('id', db.Integer, primary_key=True)
     name = db.Column('name', db.Unicode)
@@ -259,6 +255,17 @@ class Course(NotEqualMixin, Base):
             return self.id == other.id
         return NotImplemented
 
+    @property
+    def is_lti(self) -> bool:
+        """Is this course a LTI course.
+
+        :returns: A boolean indicating if this is the case.
+        """
+        return self.course_lti_provider is not None
+
+    def __structlog__(self) -> t.Mapping[str, t.Union[str, int]]:
+        return {'type': self.__class__.__name__, 'id': self.id}
+
     def __to_json__(self) -> t.Mapping[str, t.Any]:
         """Creates a JSON serializable representation of this object.
 
@@ -280,7 +287,7 @@ class Course(NotEqualMixin, Base):
             'id': self.id,
             'name': self.name,
             'created_at': self.created_at.isoformat(),
-            'is_lti': self.lti_course_id is not None,
+            'is_lti': self.is_lti,
             'virtual': self.virtual,
         }
 
@@ -307,7 +314,7 @@ class Course(NotEqualMixin, Base):
 
     def get_all_users_in_course(
         self, *, include_test_students: bool
-    ) -> '_MyQuery[t.Tuple[User, CourseRole]]':
+    ) -> MyQuery['t.Tuple[User, CourseRole]']:
         """Get a query that returns all users in the current course and their
             role.
 

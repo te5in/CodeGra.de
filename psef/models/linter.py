@@ -40,8 +40,6 @@ class LinterComment(Base):
     Like a :class:`Comment` it is attached to a specific line in a
     :class:`File`.
     """
-    if t.TYPE_CHECKING:  # pragma: no cover
-        query: t.ClassVar[_MyQuery['LinterComment']] = Base.query
     __tablename__ = "LinterComment"  # type: str
     id = db.Column('id', db.Integer, primary_key=True)
     file_id = db.Column(
@@ -83,8 +81,6 @@ class LinterInstance(Base):
     """Describes the connection between a :class:`assignment.AssignmentLinter`
     and a :class:`work_models.Work`.
     """
-    if t.TYPE_CHECKING:  # pragma: no cover
-        query = Base.query  # type: t.ClassVar[_MyQuery['LinterInstance']]
     __tablename__ = 'LinterInstance'
     id = db.Column(
         'id', db.String(UUID_LENGTH), nullable=False, primary_key=True

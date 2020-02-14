@@ -60,9 +60,6 @@ class User(NotEqualMixin, Base):
     :ivar reset_email_on_lti: Determines if the email should be reset on the
         next LTI launch.
     """
-    if t.TYPE_CHECKING:  # pragma: no cover
-        query: t.ClassVar[_MyQuery['User']] = Base.query
-
     __tablename__ = "User"
 
     _id = db.Column('id', db.Integer, primary_key=True)
@@ -160,6 +157,12 @@ class User(NotEqualMixin, Base):
 
     role = db.relationship(lambda: Role, foreign_keys=role_id, lazy='select')
 
+    def __structlog__(self) -> t.Mapping[str, t.Union[str, int]]:
+        return {
+            'type': self.__class__.__name__,
+            'id': self.id,
+        }
+
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, User):
             return NotImplemented
@@ -167,6 +170,23 @@ class User(NotEqualMixin, Base):
 
     def __hash__(self) -> int:
         return hash(self.id)
+
+    @t.overload
+    def is_enrolled(self, c: 'course.Course') -> bool:
+        ...
+
+    @t.overload
+    def is_enrolled(self, c: int) -> bool:
+        ...
+
+    def is_enrolled(self, c: t.Union[int, 'course.Course']) -> bool:
+        if isinstance(c, course.Course):
+            c = c.id
+
+        return not self.virtual and c in self.courses
+
+    def enroll_in_course(self, *, course_role: CourseRole) -> None:
+        self.courses[course_role.course_id] = course_role
 
     def contains_user(self, possible_member: 'User') -> bool:
         """Check if given user is part of this user.

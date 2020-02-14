@@ -55,18 +55,22 @@ if t.TYPE_CHECKING:  # pragma: no cover
         def task(
             self,
             *,
-            autoretry_for: t.Iterable[t.Type[Exception]],
-            retry_kwargs: t.Dict[str, object],
-            retry_backoff: bool,
+            autoretry_for: t.Iterable[t.Type[Exception]] = ...,
+            retry_kwargs: t.Dict[str, object] = ...,
+            retry_backoff: bool = ...,
             retry_jitter: bool = True,
             retry_backoff_max: t.Optional[int] = None,
+            name: str = ...,
+            max_retries: int = ...,
+            reject_on_worker_lost: bool = False,
+            acks_late: bool = False,
         ) -> t.Callable[[T], CeleryTask[T]]:
             ...
 
-        @t.overload
-        def task(self, **kwargs: t.Union[int, bool]
-                 ) -> t.Callable[[T], CeleryTask[T]]:
-            ...
+        # @t.overload
+        # def task(self, **kwargs: t.Union[int, bool]
+        #          ) -> t.Callable[[T], CeleryTask[T]]:
+        #     ...
 
         def task(self, *args: object, **kwargs: object) -> t.Any:
             # `CeleryTask()` is returned here as this code is also executed
@@ -216,6 +220,7 @@ class CGCelery(Celery):
             'timezone': 'UTC',
         })
         self._flask_app = app
+        app.celery = self
 
     def _call_callbacks(self, status: TaskStatus) -> None:
         for callback in self._after_task_callbacks:

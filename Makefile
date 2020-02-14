@@ -4,7 +4,7 @@ SHELL=/bin/bash
 TEST_FLAGS?=
 PYTHON?=env/bin/python3
 export PYTHONPATH=$(CURDIR)
-PY_MODULES?=psef cg_celery cg_sqlalchemy_helpers cg_json cg_broker cg_logger cg_worker_pool cg_threading_utils cg_flask_helpers cg_dt_utils
+PY_MODULES?=psef cg_celery cg_sqlalchemy_helpers cg_json cg_broker cg_logger cg_worker_pool cg_threading_utils cg_flask_helpers cg_dt_utils cg_signals
 PY_ALL_MODULES=$(PY_MODULES) psef_test
 
 .PHONY: test_setup
