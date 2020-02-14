@@ -24,6 +24,9 @@
 
 @text-color: rgba(41, 43, 44, 100%);
 @text-color-dark: rgba(210, 212, 213, 100%);
+// Needed to for inclusion in url() strings, as fucking LESS seems to always
+// convert colors to HEX notation...
+@text-color-dark-rgb: ~'rgb('(red(@text-color-dark))~', '(green(@text-color-dark))~', '(blue(@text-color-dark))~')';
 @text-color-muted: rgba(108, 117, 125, 100%);
 
 @background-color: rgb(255, 255, 255);
@@ -347,15 +350,18 @@
         border-color: @color-primary-darker;
     }
 
-    tr.table-info,
-    tr.table-success,
-    tr.table-warning,
-    tr.table-danger {
-        color: @color-primary-darkest;
-    }
+    thead > tr {
+        > [aria-sort] {
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='101' height='101' view-box='0 0 101 101' preserveAspectRatio='none'%3e%3cpath fill='@{text-color-dark-rgb}' opacity='.3' d='M51 1l25 23 24 22H1l25-22zM51 101l25-23 24-22H1l25 22z'/%3e%3c/svg%3e");
+        }
 
-    tr.table-danger > td {
-        background-color: @color-danger-dark;
+        > [aria-sort="descending"] {
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='101' height='101' view-box='0 0 101 101' preserveAspectRatio='none'%3e%3cpath fill='@{text-color-dark-rgb}' opacity='.3' d='M51 1l25 23 24 22H1l25-22z'/%3e%3cpath fill='@{text-color-dark-rgb}' d='M51 101l25-23 24-22H1l25 22z'/%3e%3c/svg%3e");
+        }
+
+        > [aria-sort="ascending"] {
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='101' height='101' view-box='0 0 101 101' preserveAspectRatio='none'%3e%3cpath fill='@{text-color-dark-rgb}' d='M51 1l25 23 24 22H1l25-22z'/%3e%3cpath fill='@{text-color-dark-rgb}' opacity='.3' d='M51 101l25-23 24-22H1l25 22z'/%3e%3c/svg%3e");
+        }
     }
 
     th {
