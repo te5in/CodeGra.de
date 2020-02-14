@@ -205,23 +205,30 @@ export default {
 </script>
 
 <style lang="less" scoped>
+@import '~mixins.less';
+
 .disabled {
     cursor: not-allowed;
 }
 
 .caret {
-    line-height: 16px;
     display: block;
     position: absolute;
-    box-sizing: border-box;
     width: 40px;
-    height: 38px;
-    right: 1px;
-    top: 13px;
-    margin: 0;
-    text-decoration: none;
-    text-align: center;
+    height: 100%;
+    right: 0;
     cursor: pointer;
+
+    #app.dark & {
+        color: @text-color-dark;
+    }
+
+    .fa-icon {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+    }
 }
 </style>
 
