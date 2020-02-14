@@ -131,16 +131,18 @@
 
     &:disabled,
     &.disabled {
-        border-color: @color-primary;
         color: @color-primary;
+        border-color: @color-primary;
     }
 
     body.cg-dark-mode & {
-        color: @text-color-dark;
         border-color: @color-primary-darker;
+        color: @text-color-dark;
 
-        &:hover {
-            background-color: @color-primary-darker;
+        &:hover:not(:disabled):not(.disabled),
+        &:active:not(:disabled):not(.disabled) {
+            border-color: @color-primary-darkest;
+            background-color: @color-primary-darkest;
             color: @text-color-dark;
         }
     }

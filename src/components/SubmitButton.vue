@@ -127,14 +127,14 @@
                 <b-button-toolbar justify>
                     <b-button size="sm"
                               variant="outline-primary"
-                              class="confirm-button confirm-button-accept"
+                              class="confirm-button confirm-button-accept mr-2"
                               @click="acceptConfirm">
                         Yes
                     </b-button>
                     <div class="sep"/>
                     <b-button size="sm"
                               variant="primary"
-                              class="confirm-button"
+                              class="confirm-button confirm-button-reject"
                               @click="resetConfirm(true)">
                         No
                     </b-button>
@@ -479,10 +479,6 @@ export default {
 
 .confirm-button {
     flex: 1 1 auto;
-
-    & + .sep {
-        width: 0.75rem;
-    }
 }
 </style>
 
@@ -491,15 +487,6 @@ export default {
 
 .submit-button .loader {
     display: inline-block !important;
-}
-
-#app.dark ~ .popover .confirm-button:first-child {
-    background-color: white;
-
-    &:hover {
-        background-color: @color-lighter-gray;
-        color: @color-primary;
-    }
 }
 
 .submit-button-confirm-modal {
