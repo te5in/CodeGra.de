@@ -825,8 +825,13 @@ export default {
 
 .main-menu .new-tab-link.sidebar-bottom-item {
     padding: 0.5rem;
+
     &.submit-button:not(.state-default) .new-tab-wrapper {
         opacity: 0;
+    }
+
+    .fa-icon {
+        transform: none;
     }
 }
 
