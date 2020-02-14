@@ -1,0 +1,29 @@
+{
+    "sets": [{
+        "suites": [{
+            "rubric_row_id": 0,
+            "network_disabled": true,
+            "steps": [{
+                "type": "run_program",
+                "weight": 1,
+                "hidden": false,
+                "name": "step 1",
+                "data": {
+                    "program": "true"
+                }
+            }]
+        }, {
+            "rubric_row_id": 2,
+            "network_disabled": true,
+            "steps": [{
+                "type": "run_program",
+                "weight": 1,
+                "hidden": false,
+                "name": "step 2",
+                "data": {
+                    "program": "true"
+                }
+            }]
+        }]
+    }]
+}

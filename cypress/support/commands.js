@@ -349,6 +349,7 @@ Cypress.Commands.add('deleteSubmission', (submissionId) => {
     return cy.authRequest({
         url: `/api/v1/submissions/${submissionId}`,
         method: 'DELETE',
+        user: ADMIN_USER,
     });
 });
 
@@ -356,6 +357,7 @@ Cypress.Commands.add('patchSubmission', (submissionId, body) => {
     return cy.authRequest({
         url: `/api/v1/submissions/${submissionId}`,
         method: 'PATCH',
+        user: ADMIN_USER,
         body,
     }).its('body');
 });
@@ -364,6 +366,7 @@ Cypress.Commands.add('clearRubricResult', (submissionId) => {
     return cy.authRequest({
         url: `/api/v1/submissions/${submissionId}/rubricitems/`,
         method: 'PATCH',
+        user: ADMIN_USER,
         body: {
             items: [],
         },
@@ -374,6 +377,7 @@ Cypress.Commands.add('createRubric', (assignmentId, rubricData, maxPoints = null
     return cy.authRequest({
         url: `/api/v1/assignments/${assignmentId}/rubrics/`,
         method: 'PUT',
+        user: ADMIN_USER,
         body: {
             rows: rubricData,
             max_points: maxPoints,
@@ -385,50 +389,90 @@ Cypress.Commands.add('deleteRubric', (assignmentId, opts={}) => {
     return cy.authRequest({
         url: `/api/v1/assignments/${assignmentId}/rubrics/`,
         method: 'DELETE',
+        user: ADMIN_USER,
         ...opts,
     });
 });
 
-Cypress.Commands.add('createAutoTest', (assignmentId, autoTestConfig) =>
-    cy.authRequest({
+Cypress.Commands.add('createAutoTest', (assignmentId, autoTestConfig) => {
+    const patchProps = Object.entries(autoTestConfig).reduce((acc, [key, val]) => {
+        if (key == 'grade_calculation' || key == 'results_always_visible') {
+            acc[key] = val;
+        }
+        return acc;
+    }, {});
+    return cy.authRequest({
         url: '/api/v1/auto_tests/',
         method: 'POST',
+        user: ADMIN_USER,
         body: {
             assignment_id: assignmentId,
         },
-    }).its('body').then(autoTest =>
-        cy.wrap(autoTestConfig.sets).each(setConfig =>
+    }).its('body').then(autoTest => {
+        if (Object.keys(patchProps).length > 0) {
+            cy.authRequest({
+                url: `/api/v1/auto_tests/${autoTest.id}`,
+                method: 'PATCH',
+                user: ADMIN_USER,
+                body: patchProps,
+            });
+        }
+        return cy.wrap(autoTestConfig.sets).each(setConfig =>
             cy.authRequest({
                 url: `/api/v1/auto_tests/${autoTest.id}/sets/`,
                 method: 'POST',
+                user: ADMIN_USER,
             }).its('body').then(set =>
                 cy.authRequest({
                     url: `/api/v1/auto_tests/${autoTest.id}/sets/${set.id}`,
                     method: 'PATCH',
+                    user: ADMIN_USER,
                     body: { stop_points: setConfig.stop_points },
                 }).then(() =>
                     cy.wrap(setConfig.suites).each(suiteConfig =>
                         cy.authRequest({
                             url: `/api/v1/auto_tests/${autoTest.id}/sets/${set.id}/suites/`,
                             method: 'PATCH',
+                            user: ADMIN_USER,
                             body: suiteConfig,
                         }),
                     ),
                 ),
             ),
         ).then(() =>
+            // Get the object again so we're sure we have the latest.
             cy.authRequest({
                 url: `/api/v1/auto_tests/${autoTest.id}`,
                 method: 'GET',
+                user: ADMIN_USER,
             }).its('body'),
-        ),
-    ),
-);
+        );
+    });
+});
+
+Cypress.Commands.add('createAutoTestFromFixture', (assignmentId, autoTest, rubric) => {
+    // Since AutoTest categories must map to a rubric category, we must know
+    // the rubric row's id in advance before we can submit the AutoTest config.
+    // This function loads a fixture from the test_auto_tests fixture
+    // subdirectory and patches its rubric row ids with the ones in the given
+    // rubric. The rubric row ids in the fixture represent rubric row indices.
+
+    cy.fixture(`test_auto_tests/${autoTest}.json`).then(autoTestConfig => {
+        autoTestConfig.sets.forEach(set => {
+            set.suites.forEach(suite => {
+                const idx = suite.rubric_row_id;
+                suite.rubric_row_id = rubric[idx].id;
+            });
+        });
+        return cy.createAutoTest(assignmentId, autoTestConfig);
+    });
+});
 
 Cypress.Commands.add('deleteAutoTest', (autoTestId) => {
     return cy.authRequest({
         url: `/api/v1/auto_tests/${autoTestId}`,
         method: 'DELETE',
+        user: ADMIN_USER,
     });
 });
 
@@ -436,6 +480,7 @@ Cypress.Commands.add('connectGroupSet', (courseId, assignmentId, minSize=1, maxS
     return cy.authRequest({
         url: `/api/v1/courses/${courseId}/group_sets/`,
         method: 'PUT',
+        user: ADMIN_USER,
         body: {
             minimum_size: minSize,
             maximum_size: maxSize,
@@ -457,11 +502,13 @@ Cypress.Commands.add('joinGroup', (groupSetId, username) => {
     return cy.authRequest({
         url: `/api/v1/group_sets/${groupSetId}/group`,
         method: 'POST',
+        user: ADMIN_USER,
         body: { member_ids: [] },
     }).its('body').then(
         group => cy.authRequest({
             url: `/api/v1/groups/${group.id}/member`,
             method: 'POST',
+            user: ADMIN_USER,
             body: { username },
         }),
     );

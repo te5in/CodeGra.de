@@ -125,13 +125,12 @@ const actions = {
 
         if (context.state.submissionsByUserPromises[assignmentId][userId] == null) {
             const promise = axios
-                .get(`/api/v1/assignments/${assignmentId}/users/${userId}/submissions/`)
+                .get(`/api/v1/assignments/${assignmentId}/users/${userId}/submissions/?extended`)
                 .then(({ data: subs }) => {
-                    const submissions = subs.map(sub =>
-                        Submission.fromServerData(sub, assignmentId),
-                    );
-                    submissions.forEach(sub => {
-                        context.commit(types.ADD_SINGLE_SUBMISSION, { submission: sub });
+                    subs.forEach(sub => {
+                        context.commit(types.ADD_SINGLE_SUBMISSION, {
+                            submission: Submission.fromServerData(sub, assignmentId),
+                        });
                         if (sub.rubric_result != null) {
                             commitRubricResult(context.commit, sub.id, sub.rubric_result);
                         }

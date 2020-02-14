@@ -363,33 +363,13 @@ context('Rubric Viewer', () => {
         before(() => {
             cy.createRubric(assignment.id, rubricRows).then(res => {
                 rubric = res;
-                cy.createAutoTest(assignment.id, {
-                    sets: [{
-                        suites: [{
-                            rubric_row_id: rubric[0].id,
-                            network_disabled: true,
-                            steps: [{
-                                type: 'run_program',
-                                weight: 1,
-                                hidden: false,
-                                name: 'step 1',
-                                data: { program: 'true' },
-                            }],
-                        }, {
-                            rubric_row_id: rubric[2].id,
-                            network_disabled: true,
-                            steps: [{
-                                type: 'run_program',
-                                weight: 1,
-                                hidden: false,
-                                name: 'step 2',
-                                data: { program: 'true' },
-                            }],
-                        }],
-                    }],
-                }).then(res => {
-                    autoTest = res;
-                });
+                return cy.createAutoTestFromFixture(
+                    assignment.id,
+                    'single_cat_two_items',
+                    rubric,
+                );
+            }).then(res => {
+                autoTest = res;
             });
         });
 
