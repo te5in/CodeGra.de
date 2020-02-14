@@ -302,43 +302,45 @@
 }
 
 .dark-popover-colors {
-    background-color: @color-primary;
-    box-shadow: 1px 1px 6px @color-primary-darker;
+    &:not(.b-popover-danger):not(.b-popover-warning) {
+        background-color: @color-primary;
+        box-shadow: 1px 1px 6px @color-primary-darker;
 
-    .popover-body {
-        color: @text-color-dark;
-    }
+        .popover-body {
+            color: @text-color-dark;
+        }
 
-    .popover-header {
-        background-color: @color-primary-darkest;
-        border-bottom-color: @color-primary-darkest;
-        color: @color-secondary-text-lighter;
-    }
+        .popover-header {
+            background-color: @color-primary-darkest;
+            border-bottom-color: @color-primary-darkest;
+            color: @color-secondary-text-lighter;
+        }
 
-    &.bs-popover-right .arrow::after {
-        border-right-color: @color-primary;
-    }
+        &.bs-popover-right .arrow::after {
+            border-right-color: @color-primary;
+        }
 
-    &.bs-popover-left .arrow::after {
-        border-left-color: @color-primary;
-    }
+        &.bs-popover-left .arrow::after {
+            border-left-color: @color-primary;
+        }
 
-    &.bs-popover-top .arrow::after {
-        border-top-color: @color-primary;
-    }
+        &.bs-popover-top .arrow::after {
+            border-top-color: @color-primary;
+        }
 
-    &.bs-popover-auto .arrow::after,
-    &.bs-popover-bottom .arrow::after {
-        border-bottom-color: @color-primary;
-    }
+        &.bs-popover-auto .arrow::after,
+        &.bs-popover-bottom .arrow::after {
+            border-bottom-color: @color-primary;
+        }
 
-    .arrow {
-        backbround: @color-primary;
-    }
+        .arrow {
+            backbround: @color-primary;
+        }
 
-    input,
-    textarea {
-        .dark-input-colors;
+        input,
+        textarea {
+            .dark-input-colors;
+        }
     }
 }
 
