@@ -191,7 +191,7 @@
                        placement="left">
                 <table class="text-left">
                     <tr>
-                        <td class="pr-3">
+                        <td class="pr-2">
                             Timeout per step (seconds)
                         </td>
                         <td>
@@ -651,6 +651,13 @@ export default {
                 padding: 0;
             }
         }
+    }
+}
+
+.popover .custom-checkbox input[name="network-disabled"] ~ label {
+    &::before,
+    &::after {
+        left: -1rem;
     }
 }
 </style>
