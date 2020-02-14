@@ -533,14 +533,21 @@
         background-color: @color-secondary;
         border-color: @color-secondary;
         color: white;
+
         &:hover:not(.btn-outline-info) {
             background-color: darken(@color-secondary, 10%);
             border-color: darken(@color-secondary, 10%);
         }
+
         &.btn-outline-info:not(:hover) {
             background-color: transparent;
             color: @color-secondary !important;
         }
+    }
+
+    & .input-group-text.no-bg {
+        background-color: transparent;
+        color: @text-color;
     }
 
     body.cg-dark-mode & {
