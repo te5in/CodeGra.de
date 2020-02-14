@@ -574,25 +574,38 @@ pre {
         .btn {
             border-color: @color-primary;
         }
+
         .btn:not(.disabled) {
             cursor: pointer;
             box-shadow: none;
         }
+
         &.btn-group {
             float: right;
         }
+
         .btn.active {
             text-decoration: underline;
             background-color: @color-primary;
-        }
-        .btn:not(.active) {
-            background-color: @background-color;
-            color: @text-color;
+            border-color: @color-primary;
+
             #app.dark & {
-                color: darken(@text-color-dark, 30%);
+                background-color: @color-primary-darker;
+                border-color: @color-primary-darker;
             }
-            &:hover:not(.disabled) {
-                background-color: darken(@background-color, 10%);
+        }
+
+        .btn:not(.active) {
+            background-color: transparent;
+            color: @text-color;
+
+            &:not(.disabled):hover {
+                background-color: rgba(0, 0, 0, 0.1);
+            }
+
+            #app.dark & {
+                border-color: @color-primary-darker;
+                color: @text-color-dark;
             }
         }
     }
