@@ -1,41 +1,41 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
-@color-secondary: #2980b9;
+@color-secondary: rgba(41, 128, 185, 100%);
 @color-secondary-darker: darken(@color-secondary, 7.5%);
 @color-secondary-darkest: darken(@color-secondary, 15%);
 
-@color-primary: #2c3e50;
+@color-primary: rgba(44, 62, 80, 100%);
 @color-primary-darker: darken(@color-primary, 7.5%);
 @color-primary-darkest: darken(@color-primary-darker, 3%);
 
-@color-secondary-text-lighter: #858b8e;
-@color-secondary-text: #464a4c;
+@color-secondary-text-lighter: rgba(133, 139, 142, 100%);
+@color-secondary-text: rgba(70, 74, 76, 100%);
 
 @color-light-gray: lighten(gray, 20%);
-@color-lighter-gray: rgb(233, 236, 239);
+@color-lighter-gray: rgba(233, 236, 239, 100%);
 @color-lightest-gray: lighten(@color-lighter-gray, 5%);
 
-@linum-bg: #f8f8f8;
-@line-bg: white;
+@linum-bg: rgba(248, 248, 248, 100%);
+@line-bg: rgb(255, 255, 255);
 
 @line-spacing: 0.5em;
 @code-linum-width: 4rem;
 
-@alert-danger-color: #a94442;
+@alert-danger-color: rgba(169, 68, 66, 100%);
 
-@text-color: #292b2c;
-@text-color-dark: #d2d4d5;
-@text-color-muted: #6c757d;
+@text-color: rgba(41, 43, 44, 100%);
+@text-color-dark: rgba(210, 212, 213, 100%);
+@text-color-muted: rgba(108, 117, 125, 100%);
 
-@background-color: #fff;
-@footer-color: #f5f5f5;
+@background-color: rgb(255, 255, 255);
+@footer-color: rgba(245, 245, 245, 100%);
 
-@color-danger: #dc3545;
-@color-danger-dark: lighten(#d9534f, 10%);
-@color-danger-table-row: #f5c6cb;
+@color-danger: rgba(220, 53, 69, 100%);
+@color-danger-dark: lighten(rgba(217, 83, 79, 100%), 10%);
+@color-danger-table-row: rgba(245, 198, 203, 100%);
 
-@color-diff-added-light: #ddffdd;
-@color-diff-added-dark: lighten(#448f65, 10%);
-@color-diff-removed-light: #ffdddd;
+@color-diff-added-light: rgba(221, 255, 221, 100%);
+@color-diff-added-dark: lighten(rgba(68, 143, 101, 100%), 10%);
+@color-diff-removed-light: rgba(255, 221, 221, 100%);
 @color-diff-removed-dark: @color-danger-dark;
 
 @media-small: ~'only screen and (max-width: 628px)';
@@ -45,11 +45,11 @@
 @media-large: ~'only screen and (min-width: 992px)';
 @media-no-large: ~'only screen and (max-width: 992px)';
 
-@color-warning: #ffd65d;
-@color-warning-dark: #b59320;
-@color-success: #28a745;
+@color-warning: rgba(255, 214, 93, 100%);
+@color-warning-dark: rgba(181, 147, 32, 100%);
+@color-success: rgba(40, 167, 69, 100%);
 
-@border-color: #dee2e6;
+@border-color: rgba(222, 226, 230, 100%);
 @border-radius: 0.25rem;
 @transition-duration: 300ms;
 
@@ -104,7 +104,7 @@
 }
 
 .default-background {
-    background-color: #fff;
+    background-color: rgb(255, 255, 255);
 
     body.cg-dark-mode & {
         background-color: @color-primary;
@@ -189,7 +189,7 @@
                 background-color: darken(@background-color, 10%);
             }
             color: @text-color;
-            border-color: #ccc;
+            border-color: rgb(204, 204, 204);
 
             body.cg-dark-mode & {
                 background-color: @color-primary;
@@ -388,8 +388,8 @@
 
 .default-form-control-colors {
     body:not(.cg-dark-mode) #main-content &:focus {
-        box-shadow: inset 0 0 0.2em 0 #ced4da;
-        border-color: #ced4da;
+        box-shadow: inset 0 0 0.2em 0 rgba(206, 212, 218, 100%);
+        border-color: rgba(206, 212, 218, 100%);
     }
 
     body.cg-dark-mode &:focus {
@@ -398,7 +398,7 @@
     }
 
     body.cg-dark-mode .has-danger & {
-        border-color: #d9534f;
+        border-color: rgba(217, 83, 79, 100%);
     }
 }
 

@@ -240,7 +240,7 @@ export default {
 .diff-viewer {
     position: relative;
     padding: 0;
-    background: #f8f8f8;
+    background: rgb(248, 248, 248);
 
     #app.dark & {
         background: @color-primary-darker;
@@ -302,7 +302,7 @@ code {
     font-size: 100%;
 
     #app.dark & {
-        color: #839496;
+        color: rgb(131, 148, 150);
     }
 
     li.added & {

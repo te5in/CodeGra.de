@@ -413,7 +413,7 @@ export default {
         border-radius: 0;
         margin-top: -1px;
         z-index: 100;
-        background-color: #f7f7f7;
+        background-color: rgb(247, 247, 247);
     }
 }
 </style>

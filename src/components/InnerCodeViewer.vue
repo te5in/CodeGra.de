@@ -483,7 +483,7 @@ code {
     hyphens: auto;
 
     #app.dark & {
-        color: #839496;
+        color: rgb(131, 148, 150);
     }
 }
 

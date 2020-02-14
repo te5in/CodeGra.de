@@ -290,10 +290,10 @@ export default {
         }
 
         &.multiselect__option--selected {
-            background: #d9534f !important;
+            background: rgb(217, 83, 79) !important;
 
             &::after {
-                background: #d9534f !important;
+                background: rgb(217, 83, 79) !important;
             }
         }
     }

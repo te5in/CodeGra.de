@@ -335,7 +335,7 @@ export default {
 
     .multiselect__option:not(.multiselect__option--highlight) {
         .disabled-option {
-            color: #cecece;
+            color: rgb(206, 206, 206);
         }
     }
 }

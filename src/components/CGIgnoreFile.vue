@@ -524,11 +524,11 @@ td {
 }
 .list-leave-active {
     transition: opacity 0.6s;
-    background-color: #d9534f !important;
+    background-color: rgb(217, 83, 79) !important;
 }
 
 .list-leave-to {
-    background-color: #d9534f !important;
+    background-color: rgb(217, 83, 79) !important;
 }
 .list-enter,
 .list-leave-to {

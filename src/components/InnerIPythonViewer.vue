@@ -199,7 +199,7 @@ export default {
     .input-data-prompt,
     .output-data-prompt {
         font-family: monospace;
-        color: #999;
+        color: rgb(153, 153, 153);
         width: 7em;
         margin-left: -10px;
         overflow-x: visible;

@@ -356,25 +356,25 @@ export default {
                 {
                     name: 'io_test',
                     title: 'IO Test',
-                    color: '#E7EEE9',
+                    color: 'rgb(231, 238, 233)',
                     help: 'Give input to a program and match it to a given output.',
                 },
                 {
                     name: 'run_program',
                     title: 'Run Program',
-                    color: '#E6DCCD',
+                    color: 'rgb(230, 220, 205)',
                     help: 'Execute a program or bash command.',
                 },
                 {
                     name: 'custom_output',
                     title: 'Capture Points',
-                    color: '#DFD3AA',
+                    color: 'rgb(223, 211, 170)',
                     help: 'Execute a custom test program that outputs a value between 0 and 1.',
                 },
                 {
                     name: 'check_points',
                     title: 'Checkpoint',
-                    color: '#D6CE5B',
+                    color: 'rgb(214, 206, 91)',
                     help:
                         'Stop testing this category if the amount of points is below a certain threshold.',
                     meta: true,

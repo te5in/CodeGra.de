@@ -277,19 +277,19 @@ export default {
         },
 
         colorPairs() {
-            return ['#00FF00', '#FF0000', '#0000FF', '#FFFB00', '#00FFFF', '#7F00FF'].map(color => {
-                const rgbInt = parseInt(color.slice(1), 16);
-                const r = (rgbInt >> 16) & 0xff;
-                const g = (rgbInt >> 8) & 0xff;
-                const b = rgbInt & 0xff;
-                const background = [r, g, b];
-                return {
-                    background,
-                    textColor: this.darkMode
-                        ? background.map(item => Math.min(255, Math.max(25, item) * 4))
-                        : background.map(item => item / 1.75),
-                };
-            });
+            return [
+                [0, 255, 0],
+                [255, 0, 0],
+                [0, 0, 255],
+                [255, 251, 0],
+                [0, 255, 255],
+                [127, 0, 255],
+            ].map(background => ({
+                background,
+                textColor: this.darkMode
+                    ? background.map(item => Math.min(255, Math.max(25, item) * 4))
+                    : background.map(item => item / 1.75),
+            }));
         },
 
         assignmentId() {

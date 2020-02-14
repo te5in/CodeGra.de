@@ -389,7 +389,7 @@ export default {
 }
 
 .file-part {
-    border: 1px solid #cccccc;
+    border: 1px solid rgb(204, 204, 204);
     background: white;
 
     &.name-with-wildcard {
@@ -401,11 +401,11 @@ export default {
         border-radius: 0;
 
         &:first-child {
-            border-right: 1px solid #ccc;
+            border-right: 1px solid rgb(204, 204, 204);
         }
 
         &:last-child {
-            border-left: 1px solid #ccc;
+            border-left: 1px solid rgb(204, 204, 204);
         }
 
         #app.dark & {

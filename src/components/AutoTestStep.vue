@@ -1379,8 +1379,8 @@ export default {
     }
 
     .added {
-        background-color: #00ffff !important;
-        color: #009191 !important;
+        background-color: rgb(0, 255, 255) !important;
+        color: rgb(0, 154, 154) !important;
     }
 
     .removed {
@@ -1405,7 +1405,7 @@ export default {
         line-height: 1;
 
         #app.dark & {
-            color: #839496;
+            color: rgb(131, 148, 150);
         }
     }
 }

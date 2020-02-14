@@ -389,7 +389,7 @@ export default {
     text-align: center;
     &.placeholder {
         background-color: white;
-        border: 1px solid #ccc;
+        border: 1px solid rgb(204, 204, 204);
         padding: 0.375rem 0.75rem;
     }
 

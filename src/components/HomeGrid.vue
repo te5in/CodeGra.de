@@ -105,26 +105,26 @@ import LocalHeader from './LocalHeader';
 import CgLogo from './CgLogo';
 
 const COLOR_PAIRS = [
-    { background: '#70A3A2', color: 'dark' },
-    { background: '#DFD3AA', color: 'dark' },
-    { background: '#DFB879', color: 'dark' },
-    { background: '#956F48', color: 'light' },
-    { background: '#4F5F56', color: 'light' },
-    { background: '#A7AE91', color: 'dark' },
-    { background: '#D7CEA6', color: 'dark' },
-    { background: '#CC3A28', color: 'light' },
-    { background: '#598D86', color: 'dark' },
-    { background: '#E6DCCD', color: 'dark' },
-    { background: '#D6CE5B', color: 'dark' },
-    { background: '#D97E71', color: 'dark' },
-    { background: '#5D8D7D', color: 'dark' },
-    { background: '#D2CF9F', color: 'dark' },
-    { background: '#EADB93', color: 'dark' },
-    { background: '#CB5452', color: 'light' },
-    { background: '#65686C', color: 'light' },
-    { background: '#B4AEA4', color: 'dark' },
-    { background: '#E7EEE9', color: 'dark' },
-    { background: '#EAB66C', color: 'dark' },
+    { background: 'rgb(112, 163, 162)', color: 'dark' },
+    { background: 'rgb(223, 211, 170)', color: 'dark' },
+    { background: 'rgb(223, 184, 121)', color: 'dark' },
+    { background: 'rgb(149, 111,  72)', color: 'light' },
+    { background: 'rgb( 79,  95,  86)', color: 'light' },
+    { background: 'rgb(167, 174, 145)', color: 'dark' },
+    { background: 'rgb(215, 206, 166)', color: 'dark' },
+    { background: 'rgb(204,  58,  40)', color: 'light' },
+    { background: 'rgb( 89, 141, 134)', color: 'dark' },
+    { background: 'rgb(230, 220, 205)', color: 'dark' },
+    { background: 'rgb(214, 206,  91)', color: 'dark' },
+    { background: 'rgb(217, 126, 113)', color: 'dark' },
+    { background: 'rgb( 93, 141, 125)', color: 'dark' },
+    { background: 'rgb(210, 207, 159)', color: 'dark' },
+    { background: 'rgb(234, 219, 147)', color: 'dark' },
+    { background: 'rgb(203,  84,  82)', color: 'light' },
+    { background: 'rgb(101, 104, 108)', color: 'light' },
+    { background: 'rgb(180, 174, 164)', color: 'dark' },
+    { background: 'rgb(231, 238, 233)', color: 'dark' },
+    { background: 'rgb(234, 182, 108)', color: 'dark' },
 ];
 
 export default {
@@ -280,7 +280,7 @@ export default {
         .assig-list-item {
             #app.dark &,
             #app.dark & .fa-icon {
-                color: #d2d4d5;
+                color: rgb(210, 212, 213);
             }
             display: table-row;
 
@@ -408,6 +408,6 @@ a {
 
 .super-text-muted,
 .super-text-muted a {
-    color: #ccc !important;
+    color: rgb(204, 204, 204) !important;
 }
 </style>

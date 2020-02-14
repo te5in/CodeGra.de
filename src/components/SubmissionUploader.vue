@@ -904,7 +904,7 @@ export default {
 
 .group-modal-wrapper {
     overflow: auto;
-    border-bottom: 1px solid #e9ecef;
+    border-bottom: 1px solid rgb(233, 236, 239);
     margin: -0.95rem;
     margin-bottom: 0.95rem;
     padding: 0.95rem;

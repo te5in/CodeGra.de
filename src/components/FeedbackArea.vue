@@ -625,7 +625,7 @@ export default {
         height: 10.3em;
         border-bottom-left-radius: 0;
         border-bottom-right-radius: 0;
-        box-shadow: 0.2em -0.1em 0.5em 0 #ced4da;
+        box-shadow: 0.2em -0.1em 0.5em 0 rgb(206, 212, 218);
         #app.dark & {
             box-shadow: 0.2em -0.1em 0.5em 0 @color-primary;
         }
@@ -639,7 +639,7 @@ export default {
         }
     }
     &:not(.snippets-above) {
-        box-shadow: 0.2em 0.1em 0.5em 0 #ced4da;
+        box-shadow: 0.2em 0.1em 0.5em 0 rgb(206, 212, 218);
 
         #app.dark & {
             box-shadow: 0.2em 0.1em 0.5em 0 @color-primary;

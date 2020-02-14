@@ -75,7 +75,7 @@ export default {
     #app.dark & {
         border-color: @color-primary-darker;
     }
-    border: 1px solid #dee2e6;
+    border: 1px solid rgb(222, 226, 230);
     border-top: 0;
     border-bottom-right-radius: @border-radius;
     border-bottom-left-radius: @border-radius;
