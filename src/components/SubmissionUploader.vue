@@ -251,6 +251,7 @@
             </div>
 
             <b-input-group-prepend class="test-student-checkbox border-left"
+                                   :class="{ 'cursor-not-allowed': disabled || !!author }"
                                    v-b-popover.hover.top="testSubmissionDisabledPopover">
                 <b-input-group-text class="border-0">
                     <b-form-checkbox v-model="isTestSubmission"
