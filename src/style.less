@@ -579,3 +579,77 @@ body.cg-dark-mode .bg-light {
 .cursor-help {
     cursor: help !important;
 }
+
+.flatpickr-calendar {
+    border-radius: @border-radius;
+
+    body.cg-dark-mode & {
+        background-color: @color-primary;
+        box-shadow: none;
+        border: 1px solid @color-primary-darker;
+
+        &::before,
+        &::after {
+            border-bottom-color: @color-primary-darker;
+        }
+
+        &,
+        .flatpickr-month,
+        .flatpickr-weekday,
+        .flatpickr-day {
+            color: @text-color-dark;
+        }
+
+        .flatpickr-prev-month,
+        .flatpickr-next-month {
+            & svg {
+                fill: @text-color-dark;
+            }
+
+            &:hover svg {
+                fill: @color-secondary;
+            }
+        }
+
+        .arrowUp::after {
+            border-bottom-color: @text-color-dark !important;
+        }
+
+        .arrowDown::after {
+            border-top-color: @text-color-dark !important;
+        }
+
+        .flatpickr-day {
+            &:hover {
+                background-color: @color-primary-darker;
+                border-color: @color-primary-darker;
+            }
+
+            &.today {
+                border-color: @color-primary-darker;
+            }
+
+            &.selected {
+                background-color: @color-primary-darkest;
+                border-color: @color-primary-darkest;
+            }
+        }
+
+        .flatpickr-time {
+            border-top-color: @color-primary-darker !important;
+
+            input.flatpickr-hour {
+                border-right: 1px solid @color-primary-darker;
+            }
+
+            input:hover,
+            input:focus {
+                background-color: @color-primary;
+            }
+        }
+
+        .flatpickr-confirm {
+            background-color: @color-primary-darker;
+        }
+    }
+}
