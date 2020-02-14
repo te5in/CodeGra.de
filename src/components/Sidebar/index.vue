@@ -5,10 +5,10 @@
      id="global-sidebar">
     <div class="main-menu" :class="{ show: mobileVisible }">
         <component :is="$inLTI ? 'div' : 'router-link'"
-                   :style="{ cursor: $inLTI ? 'default' : 'pointer'}"
                    class="sidebar-top-item logo"
+                   :class="{ 'cursor-default': $inLTI, 'no-hover': $inLTI }"
                    :to="$inLTI ? undefined : ({ name: 'home' })"
-                   @click.native="$inLTI && closeSubMenu(true)">
+                   @click="$inLTI && closeSubMenu(true)">
             <cg-logo :small="!mobileVisible"
                      :inverted="!darkMode && $inLTI"
                      show-easter-eggs />
@@ -678,6 +678,10 @@ export default {
             flex: 0 0 auto;
             display: block;
             padding: 1rem 0.5rem;
+
+            &.no-hover {
+                background-color: transparent !important;
+            }
 
             img {
                 width: 90%;
