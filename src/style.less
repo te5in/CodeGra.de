@@ -32,6 +32,11 @@ html {
         background-color: @color-primary;
         border-color: @color-primary-darker;
         color: @text-color-dark;
+
+        &:disabled,
+        &.disabled {
+            background-color: darken(@color-primary, 5%);
+        }
     }
 }
 
@@ -396,9 +401,11 @@ body.cg-dark-mode hr {
 
 .multiselect {
     .dark-multiselect-colors;
+
     &.multiselect--disabled {
         cursor: not-allowed !important;
         pointer-events: auto;
+
         .multiselect__select {
             cursor: not-allowed !important;
         }

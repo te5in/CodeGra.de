@@ -374,6 +374,26 @@
     td {
         border-top-color: @color-primary-darker;
     }
+
+    tbody tr:hover {
+        color: @text-color-dark;
+    }
+
+    tbody tr.table-info,
+    tbody tr.table-success,
+    tbody tr.table-warning,
+    tbody tr.table-danger {
+        color: @color-primary-darkest;
+    }
+
+    tbody tr.table-danger > td {
+        background-color: @color-danger-dark;
+        border-color: desaturate(darken(@color-danger-dark, 15%), 25%);
+    }
+
+    tbody tr.table-danger:hover > td {
+        background-color: darken(@color-danger-dark, 2.5%);
+    }
 }
 
 .default-table-colors {
@@ -526,6 +546,10 @@
         background-color: @color-primary-darker;
         color: @color-secondary-text-lighter;
         border-color: @color-primary-darkest;
+
+        body.cg-dark-mode & {
+            color: @text-color-dark;
+        }
     }
 
     .btn-info {
