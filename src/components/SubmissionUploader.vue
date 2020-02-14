@@ -5,14 +5,15 @@
     <b-modal id="git-instructions-modal"
              v-if="gitData != null"
              title="Git instructions"
-             hide-footer>
+             hide-footer
+             size="xl">
         <webhook-instructions :data="gitData" />
     </b-modal>
 
     <b-modal v-if="showWrongFileModal"
              id="wrong-files-modal"
-             hide-footer
              title="Your submission does not follow the hand-in instruction required by your teacher!"
+             hide-footer
              size="xl">
         <div v-if="oldIgnoreFormat">
             <p>
@@ -122,7 +123,8 @@
     <b-modal id="group-manage-modal"
              v-if="showGroupModal"
              hide-footer
-             title="Group">
+             title="Group"
+             size="lg">
         <div class="group-modal-wrapper">
             <p class="header">
                 This assignment is a group assignment. Each group should have at
