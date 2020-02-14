@@ -212,10 +212,6 @@ export default {
     },
 
     watch: {
-        darkMode() {
-            this.highlightAllLines();
-        },
-
         $route(newRoute, oldRoute) {
             if (
                 newRoute.params.assignmentId !== oldRoute.params.assignmentId ||
