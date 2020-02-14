@@ -13,8 +13,6 @@
         </template>
 
         <div slot="extra" v-show="!isStudent">
-            <hr class="separator top-separator"/>
-
             <category-selector slot="extra"
                                default=""
                                v-model="selectedCat"

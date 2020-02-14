@@ -25,8 +25,6 @@
                           :editable="canEditState"
                           size="sm"/>
         <template slot="extra">
-            <hr class="mt-2 mb-1" />
-
             <category-selector default="general"
                                v-model="selectedCat"
                                :categories="categories"/>

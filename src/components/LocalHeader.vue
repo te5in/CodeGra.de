@@ -44,6 +44,7 @@
         <slot name="extra"/>
     </b-collapse>
     <div class="always-extra-header" v-if="alwaysShowExtraSlot">
+        <hr class="separator narrow">
         <slot name="extra"/>
     </div>
 </div>
@@ -171,8 +172,12 @@ export default {
 }
 
 .separator {
-    margin: 1em 0;
+    margin: 1rem 0;
     border-color: @border-color;
+
+    &.narrow {
+        margin: 0.5rem 0 0.25rem;
+    }
 
     #app.dark & {
         border-color: @color-primary-darkest;

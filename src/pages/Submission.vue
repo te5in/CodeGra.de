@@ -117,8 +117,6 @@
         </b-button-group>
 
         <template slot="extra" v-if="!loadingInner">
-            <hr class="mt-2 mb-1" />
-
             <category-selector slot="extra"
                                 :default="defaultCat"
                                 v-model="selectedCat"
