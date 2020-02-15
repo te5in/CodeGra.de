@@ -119,7 +119,9 @@ def _delete_submission_1(work_id: int, assignment_id: int) -> None:
         logger.info('Could not find assignment', assignment_id=assignment_id)
         return
     if assignment.course.lti_provider is None:
-        logger.info('Not an LTI submission, ignoring')
+        logger.info(
+            'Not an LTI submission, ignoring', assignment_id=assignment_id
+        )
         return
 
     # TODO: This has a bug: if a user has a group submission, that is already

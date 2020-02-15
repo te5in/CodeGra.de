@@ -69,7 +69,6 @@ class Comment(Base):
         res: t.Dict[str, t.Union[int, str, t.Optional[user_models.User]]] = {
             'line': self.line,
             'msg': self.comment,
-            'author': None,
         }
 
         if psef.current_user.has_permission(

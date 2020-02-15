@@ -647,9 +647,9 @@ class Work(Base):
             :py:func:`psef.files.rename_directory_structure`
         :returns: Nothing
         """
-        file_models.File.create_from_extract_directory(
+        db.session.add(file_models.File.create_from_extract_directory(
             tree, None, {'work': self}
-        )
+        ))
 
     def get_user_feedback(self) -> t.Iterable[str]:
         """Get all user given feedback for this work.
