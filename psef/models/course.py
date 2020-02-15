@@ -20,11 +20,7 @@ from ..helpers import NotEqualMixin
 from .assignment import Assignment
 from .link_tables import user_course
 from ..permissions import CoursePermission
-
-if t.TYPE_CHECKING:  # pragma: no cover
-    # pylint: disable=unused-import,cyclic-import
-    from .lti_provider import LTIProvider
-    from .group import GroupSet
+from .lti_provider import LTIProvider
 
 logger = structlog.get_logger()
 
@@ -39,7 +35,7 @@ class CourseRegistrationLink(Base, mixins.UUIDMixin, mixins.TimestampMixin):
     :ivar ~.CourseRegistrationLink.expiration_date: The date after which this
         link is no longer valid.
     """
-    course_id: int = db.Column(
+    course_id = db.Column(
         'course_id', db.Integer, db.ForeignKey('Course.id'), nullable=False
     )
     course_role_id = db.Column(
@@ -48,20 +44,20 @@ class CourseRegistrationLink(Base, mixins.UUIDMixin, mixins.TimestampMixin):
         db.ForeignKey('Course_Role.id'),
         nullable=False
     )
-    expiration_date: DatetimeWithTimezone = db.Column(
+    expiration_date = db.Column(
         'expiration_date',
         db.TIMESTAMP(timezone=True),
         nullable=False,
     )
 
-    course: 'Course' = db.relationship(
-        'Course',
+    course = db.relationship(
+        lambda: Course,
         foreign_keys=course_id,
         back_populates='registration_links',
         innerjoin=True,
     )
-    course_role: CourseRole = db.relationship(
-        'CourseRole', foreign_keys=course_role_id, innerjoin=True
+    course_role = db.relationship(
+        lambda: CourseRole, foreign_keys=course_role_id, innerjoin=True
     )
 
     def __to_json__(self) -> t.Mapping[str, object]:
@@ -79,21 +75,21 @@ class CourseSnippet(Base):
     if t.TYPE_CHECKING:  # pragma: no cover
         query: t.ClassVar[_MyQuery['CourseSnippet']] = Base.query
     __tablename__ = 'CourseSnippet'
-    id: int = db.Column('id', db.Integer, primary_key=True)
-    key: str = db.Column('key', db.Unicode, nullable=False)
-    value: str = db.Column('value', db.Unicode, nullable=False)
-    course_id: int = db.Column(
+    id = db.Column('id', db.Integer, primary_key=True)
+    key = db.Column('key', db.Unicode, nullable=False)
+    value = db.Column('value', db.Unicode, nullable=False)
+    course_id = db.Column(
         'course_id', db.Integer, db.ForeignKey('Course.id'), nullable=False
     )
-    created_at: DatetimeWithTimezone = db.Column(
+    created_at = db.Column(
         'created_at',
         db.TIMESTAMP(timezone=True),
         default=DatetimeWithTimezone.utcnow,
         nullable=False,
     )
 
-    course: 'Course' = db.relationship(
-        'Course',
+    course = db.relationship(
+        lambda: Course,
         foreign_keys=course_id,
         back_populates='snippets',
         innerjoin=True,
@@ -123,54 +119,58 @@ class Course(NotEqualMixin, Base):
     if t.TYPE_CHECKING:  # pragma: no cover
         query: t.ClassVar[_MyQuery['Course']] = Base.query
     __tablename__ = "Course"
-    id: int = db.Column('id', db.Integer, primary_key=True)
-    name: str = db.Column('name', db.Unicode)
+    id = db.Column('id', db.Integer, primary_key=True)
+    name = db.Column('name', db.Unicode)
 
-    created_at: DatetimeWithTimezone = db.Column(
-        db.TIMESTAMP(timezone=True), default=DatetimeWithTimezone.utcnow
+    created_at = db.Column(
+        db.TIMESTAMP(timezone=True),
+        default=DatetimeWithTimezone.utcnow,
+        nullable=False,
     )
 
     # All stuff for LTI
-    lti_course_id: str = db.Column(db.Unicode, unique=True)
+    lti_course_id = db.Column(db.Unicode, unique=True)
 
-    lti_provider_id: str = db.Column(
+    lti_provider_id = db.Column(
         db.String(UUID_LENGTH), db.ForeignKey('LTIProvider.id')
     )
-    lti_provider: 'LTIProvider' = db.relationship("LTIProvider")
-
-    virtual: bool = db.Column(
-        'virtual', db.Boolean, default=False, nullable=False
+    lti_provider = db.relationship(
+        lambda: LTIProvider, foreign_keys=lti_provider_id
     )
 
-    group_sets: t.MutableSequence['GroupSet'] = db.relationship(
-        "GroupSet",
+    virtual = db.Column('virtual', db.Boolean, default=False, nullable=False)
+
+    group_sets = db.relationship(
+        lambda: psef.models.GroupSet,
         back_populates="course",
         cascade='all,delete',
         uselist=True,
-        order_by='GroupSet.created_at'
+        order_by=lambda: psef.models.GroupSet.created_at,
     )
 
-    snippets: t.MutableSequence['CourseSnippet'] = db.relationship(
-        'CourseSnippet',
+    snippets = db.relationship(
+        lambda: CourseSnippet,
         back_populates='course',
         cascade='all,delete',
         uselist=True,
         lazy='select',
-        order_by='CourseSnippet.created_at',
+        order_by=lambda: CourseSnippet.created_at,
     )
 
-    registration_links: t.MutableSequence[
-        'CourseRegistrationLink'] = db.relationship(
-            'CourseRegistrationLink',
-            back_populates='course',
-            cascade='all,delete',
-            uselist=True,
-            order_by='CourseRegistrationLink.created_at',
-        )
+    registration_links = db.relationship(
+        lambda: CourseRegistrationLink,
+        back_populates='course',
+        cascade='all,delete',
+        uselist=True,
+        order_by=lambda: CourseRegistrationLink.created_at,
+    )
 
     assignments = db.relationship(
-        "Assignment", back_populates="course", cascade='all,delete'
-    )  # type: t.MutableSequence[Assignment]
+        lambda: Assignment,
+        back_populates="course",
+        cascade='all,delete',
+        uselist=True,
+    )
 
     @classmethod
     def create_and_add(

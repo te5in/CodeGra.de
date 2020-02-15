@@ -4,10 +4,12 @@ about sqlalchemy.
 
 SPDX-License-Identifier: AGPL-3.0-only
 """
-# pylint: skip-file
-
 import enum
 import typing as t
+# pylint: skip-file
+from uuid import UUID
+from typing import Union
+from typing import Optional as Opt
 from datetime import timedelta
 
 from typing_extensions import Literal
@@ -51,15 +53,15 @@ class MySession:  # pragma: no cover
         ...
 
     @t.overload  # NOQA
-    def query(self, __x: t.Type[T]) -> 'MyQuery[T]':
+    def query(self, __x: t.Type[_T_BASE]) -> 'MyQuery[_T_BASE]':
         ...
 
     @t.overload  # NOQA
     def query(
         self,
         __y: 'DbColumn[T]',
-        __x: t.Type[Z],
-    ) -> 'MyQuery[t.Tuple[T, Z]]':
+        __x: t.Type[_T_BASE],
+    ) -> 'MyQuery[t.Tuple[T, _T_BASE]]':
         ...
 
     @t.overload  # NOQA
@@ -144,6 +146,35 @@ class _ForeignKey:  # pragma: no cover
     ...
 
 
+class ImmutableColumnProxy(t.Generic[T]):
+    @t.overload
+    def __get__(self, _: None, owner: t.Type[object]) -> 'DbColumn[T]':
+        ...
+
+    @t.overload
+    def __get__(self, _: Z, owner: t.Type[Z]) -> 'T':
+        ...
+
+    def __get__(self, *args: t.Any, **kwargs: t.Any) -> t.Any:
+        ...
+
+
+class MutableColumnProxy(t.Generic[T, Y], ImmutableColumnProxy[T]):
+    def __set__(self, instance: object, value: Y) -> None:
+        ...
+
+
+class ColumnProxy(t.Generic[T], MutableColumnProxy[T, T]):
+    ...
+
+
+_CP = ColumnProxy
+
+
+class _Backref:
+    ...
+
+
 class MyDb:  # pragma: no cover
     session: MySession
     Float: DbType[float]
@@ -190,9 +221,38 @@ class MyDb:  # pragma: no cover
         type_: DbType[T],
         _fk: t.Optional[_ForeignKey] = None,
         *,
+        unique: bool = False,
+        nullable: Literal[True] = True,
         default: t.Union[T, t.Callable[[], T], None] = None,
+        index: bool = False
+    ) -> 'ColumnProxy[t.Optional[T]]':
+        ...
+
+    @t.overload
+    def Column(
+        self,
+        name: str,
+        type_: DbType[T],
+        *,
+        unique: bool = False,
+        primary_key: Literal[True],
+        default: t.Callable[[], T] = ...,
+        index: bool = False
+    ) -> 'ColumnProxy[T]':
+        ...
+
+    @t.overload
+    def Column(
+        self,
+        name: str,
+        type_: DbType[T],
+        _fk: t.Optional[_ForeignKey] = None,
+        *,
+        unique: bool = False,
+        nullable: Literal[False],
+        default: t.Union[T, t.Callable[[], T]] = ...,
         **rest: t.Any
-    ) -> T:
+    ) -> 'ColumnProxy[T]':
         ...
 
     @t.overload  # NOQA
@@ -201,9 +261,23 @@ class MyDb:  # pragma: no cover
         type_: DbType[T],
         _fk: t.Optional[_ForeignKey] = None,
         *,
+        nullable: Literal[False],
+        default: t.Union[T, t.Callable[[], T]] = ...,
+        **rest: t.Any
+    ) -> 'ColumnProxy[T]':
+        ...
+
+    @t.overload  # NOQA
+    def Column(
+        self,
+        type_: DbType[T],
+        _fk: t.Optional[_ForeignKey] = None,
+        *,
+        unique: bool = False,
+        nullable: Literal[True] = True,
         default: t.Union[T, t.Callable[[], T], None] = None,
         **rest: t.Any
-    ) -> T:
+    ) -> 'ColumnProxy[t.Optional[T]]':
         ...
 
     def Column(self, *args: t.Any, **kwargs: t.Any) -> t.Any:  # NOQA
@@ -223,20 +297,120 @@ class MyDb:  # pragma: no cover
         ...
 
     @t.overload
-    def relationship(self, name: str, *args: t.Any, **kwargs: t.Any) -> t.Any:
+    def relationship(
+        self,
+        name: Union[t.Callable[[], t.Type[T]], t.Type[T]],
+        *args: t.Any,
+        foreign_keys: Union[_CP[Opt[int]], _CP[Opt[str]], _CP[Opt[UUID]]],
+        **kwargs: t.Any,
+    ) -> 'ColumnProxy[t.Optional[T]]':
         ...
 
     @t.overload  # NOQA
     def relationship(
-        self, name: t.Type[T], *args: t.Any, **kwargs: t.Any
-    ) -> T:
+        self,
+        name: Union[t.Callable[[], t.Type[T]], t.Type[T]],
+        *args: t.Any,
+        foreign_keys: Union[_CP[int], _CP[UUID], _CP[str]],
+        innerjoin: Literal[True] = None,
+        **kwargs: t.Any,
+    ) -> 'ColumnProxy[T]':
+        ...
+
+    @t.overload
+    def relationship(
+        self,
+        name: Union[t.Callable[[], t.Type[T]], t.Type[T]],
+        *,
+        back_populates: str,
+        cascade: str = '',
+        innerjoin: Literal[True],
+    ) -> 'ColumnProxy[T]':
+        ...
+
+    @t.overload
+    def relationship(
+        self,
+        name: Union[t.Callable[[], t.Type[T]], t.Type[T]],
+        *,
+        back_populates: str,
+        cascade: str = '',
+        uselist: Literal[False] = False,
+        lazy: Literal['select', 'join', 'selectin'] = 'select',
+    ) -> 'ColumnProxy[Opt[T]]':
+        ...
+
+    @t.overload
+    def relationship(
+        self,
+        name: Union[t.Callable[[], t.Type[T]], t.Type[T]],
+        *,
+        remote_side: t.List[ColumnProxy[t.Any]],
+        backref: _Backref,
+    ) -> 'ColumnProxy[Opt[T]]':
+        ...
+
+    @t.overload
+    def relationship(
+        self,
+        name: Union[t.Callable[[], t.Type[T]], t.Type[T]],
+        *,
+        backref: _Backref,
+        uselist: Literal[True],
+        lazy: Literal['select', 'join', 'selectin'] = 'select',
+    ) -> 'ColumnProxy[t.List[T]]':
+        ...
+
+    @t.overload  # NOQA
+    def relationship(
+        self,
+        name: Union[t.Callable[[], t.Type[T]], t.Type[T]],
+        *,
+        uselist: Literal[True],
+        cascade: str = '',
+        back_populates: str = None,
+        backref: _Backref = None,
+        order_by: t.Union[t.Callable[[], 'DbColumn'], t.
+                          Callable[[], 'ColumnOrder']] = None,
+        lazy: Literal['select', 'joined', 'selectin'] = 'select',
+    ) -> 'ColumnProxy[t.List[T]]':
+        ...
+
+    @t.overload  # NOQA
+    def relationship(
+        self,
+        name: t.Callable[[], t.Type[_T_BASE]],
+        *,
+        uselist: Literal[True],
+        secondary: 'RawTable',
+        cascade: str = '',
+        lazy: Literal['select', 'join', 'selectin'] = 'select',
+        order_by: t.Union[t.Callable[[], 'DbColumn'], t.
+                          Callable[[], 'ColumnOrder']] = None,
+    ) -> 'ColumnProxy[t.List[_T_BASE]]':
+        ...
+
+    @t.overload  # NOQA
+    def relationship(
+        self,
+        name: str,
+        *,
+        backref: _Backref = None,
+        collection_class: object,
+        secondary: 'RawTable' = None,
+        cascade: str = '',
+    ) -> t.Any:
         ...
 
     def relationship(self, *args: t.Any, **kwargs: t.Any) -> t.Any:  # NOQA
         ...
 
-    def backref(self, name: str, *args: t.Any, **kwargs: t.Any) -> t.Any:
+    def backref(self, name: str, *args: t.Any, **kwargs: t.Any) -> _Backref:
         ...
+
+
+class ColumnOrder:
+    ...
 
 
 class DbColumn(t.Generic[T]):  # pragma: no cover
@@ -248,10 +422,13 @@ class DbColumn(t.Generic[T]):  # pragma: no cover
     def __init__(self) -> None:
         raise ValueError
 
+    def any(self, cond: 'DbColumn[bool]' = None) -> 'DbColumn[bool]':
+        ...
+
     def in_(
         self, val: t.Union[t.Iterable[T], 'DbColumn[T]',
                            'MyNonOrderableQuery[T]', 'RawTable']
-    ) -> 'DbColumn[T]':
+    ) -> 'DbColumn[bool]':
         ...
 
     def isnot(self, val: t.Optional[T]) -> 'DbColumn[bool]':
@@ -260,22 +437,52 @@ class DbColumn(t.Generic[T]):  # pragma: no cover
     def label(self, name: str) -> 'DbColumn[T]':
         ...
 
-    def is_(self, val: t.Optional[T]) -> 'DbColumn[T]':
+    def is_(self, val: T) -> 'DbColumn[bool]':
         ...
 
-    def __invert__(self) -> 'DbColumn[T]':
+    def __invert__(self: 'DbColumn[bool]') -> 'DbColumn[bool]':
         ...
 
-    def desc(self) -> 'DbColumn[T]':
+    def desc(self) -> ColumnOrder:
         ...
 
-    def asc(self) -> 'DbColumn[T]':
+    def asc(self) -> ColumnOrder:
         ...
 
-    def has(self, **kwargs: t.Any) -> 'DbColumn[T]':
+    @t.overload
+    def has(self: 'DbColumn[t.List[Y]]', __arg: Y) -> 'DbColumn[bool]':
         ...
 
-    def any(self, i: t.Any = ...) -> 'DbColumn[T]':
+    @t.overload
+    def has(self, **kwargs: object) -> 'DbColumn[bool]':
+        ...
+
+    def has(self, *args: object, **kwargs: object) -> t.Any:
+        ...
+
+    def __eq__(  # type: ignore
+        self, other: Union[t.Optional[T], 'DbColumn[T]', 'DbColumn[t.Optional[T]]',
+                           'MyNonOrderableQuery[T]']
+    ) -> 'DbColumn[bool]':
+        ...
+
+    def __ne__(  # type: ignore
+        self, other: Union[t.Optional[T], 'DbColumn[T]', 'DbColumn[t.Optional[T]]',
+                           'MyNonOrderableQuery[T]']
+    ) -> 'DbColumn[bool]':
+        ...
+
+    def __ge__(
+        self, other: t.Union[T, 'DbColumn[T]', 'DbColumn[t.Optional[T]]']
+    ) -> 'DbColumn[bool]':
+        ...
+
+    def __lt__(
+        self, other: t.Union[T, 'DbColumn[T]', 'DbColumn[t.Optional[T]]']
+    ) -> 'DbColumn[bool]':
+        ...
+
+    def __or__(self, other: 'DbColumn[bool]') -> 'DbColumn[bool]':
         ...
 
 
@@ -298,7 +505,6 @@ class Base:  # pragma: no cover
 
 class MyNonOrderableQuery(t.Generic[T], t.Iterable):  # pragma: no cover
     delete: t.Callable[[QuerySelf], None]
-    as_scalar: t.Callable[[QuerySelf], 'MyNonOrderableQuery[T]']
     subquery: t.Callable[[QuerySelf, str], RawTable]
     limit: t.Callable[[QuerySelf, int], QuerySelf]
     first: t.Callable[[QuerySelf], t.Optional[T]]
@@ -343,10 +549,16 @@ class MyNonOrderableQuery(t.Generic[T], t.Iterable):  # pragma: no cover
     def from_self(self, *args: t.Type[Z]) -> 'MyNonOrderableQuery[Z]':
         ...
 
-    def join(self: QuerySelf, *args: t.Any, **kwargs: t.Any) -> 'QuerySelf':
+    def join(
+        self: QuerySelf,
+        to_join: t.Union[t.Type['Base'], RawTable, 'DbColumn[_T_BASE]'],
+        cond: 'DbColumn[bool]' = None,
+        *,
+        isouter: bool = False,
+    ) -> QuerySelf:
         ...
 
-    def filter(self: QuerySelf, *args: t.Any, **kwargs: t.Any) -> 'QuerySelf':
+    def filter(self: QuerySelf, *args: DbColumn[bool]) -> 'QuerySelf':
         ...
 
     def filter_by(
@@ -385,7 +597,7 @@ class MyNonOrderableQuery(t.Generic[T], t.Iterable):  # pragma: no cover
 
 class MyQuery(t.Generic[T], MyNonOrderableQuery[T]):
     def order_by(
-        self: QuerySelf, *args: t.Any, **kwargs: t.Any
+        self: QuerySelf, *args: t.Union[DbColumn, ColumnOrder]
     ) -> 'QuerySelf':
         ...
 
@@ -394,6 +606,9 @@ class MyQuery(t.Generic[T], MyNonOrderableQuery[T]):
 
 
 class MyQueryTuple(t.Generic[T], MyQuery[t.Tuple[T]]):
+    def as_scalar(self) -> 'MyQuery[T]':
+        ...
+
     def scalar(self) -> t.Optional[T]:
         ...
 
@@ -402,3 +617,24 @@ class MyQueryTuple(t.Generic[T], MyQuery[t.Tuple[T]]):
 
 
 _MyQuery = MyQuery
+
+if t.TYPE_CHECKING:
+
+    @t.overload
+    def hybrid_property(fget: t.Callable[[Z], T], ) -> ImmutableColumnProxy[T]:
+        ...
+
+    @t.overload
+    def hybrid_property(
+        fget: t.Callable[[Z], T],
+        fset: t.Callable[[Z, Y], None],
+        fdel: None = None,
+        expr: t.Callable[[t.Type[Z]], 'DbColumn[T]'] = None,
+    ) -> MutableColumnProxy[T, Y]:
+        ...
+
+    def hybrid_property(*args: object, **kwargs: object) -> t.Any:
+        ...
+
+else:
+    from sqlalchemy.ext.hybrid import hybrid_property

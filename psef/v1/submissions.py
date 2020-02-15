@@ -781,7 +781,7 @@ def get_grade_history(submission_id: int
     hist = db.session.query(
         models.GradeHistory
     ).filter_by(work_id=work.id).order_by(
-        models.GradeHistory.changed_at.desc(),  # type: ignore
+        models.GradeHistory.changed_at.desc(),
     ).all()
 
     return jsonify(hist)
@@ -843,7 +843,7 @@ def create_new_file(submission_id: int) -> JSONResponse[t.Mapping[str, t.Any]]:
         models.File.work_id == submission_id,
         models.File.fileowner != exclude_owner,
         models.File.name == patharr[0],
-        t.cast(DbColumn[int], models.File.parent_id).is_(None),
+        models.File.parent_id.is_(None),
     )
 
     code = None
@@ -976,7 +976,7 @@ def get_dir_contents(
     else:
         file = helpers.filter_single_or_404(
             models.File, models.File.work_id == submission_id,
-            t.cast(DbColumn[int], models.File.parent_id).is_(None),
+            models.File.parent_id.is_(None),
             models.File.fileowner != exclude_owner
         )
 

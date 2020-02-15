@@ -23,14 +23,17 @@ from sqlalchemy.orm.collections import attribute_mapped_collection
 
 import psef
 from cg_dt_utils import DatetimeWithTimezone
-from cg_sqlalchemy_helpers.types import MyQuery, MyNonOrderableQuery
+from cg_sqlalchemy_helpers.types import (
+    _T_BASE, MyQuery, DbColumn, ColumnProxy, MyNonOrderableQuery
+)
 
 from . import UUID_LENGTH, Base, DbColumn, db
 from . import user as user_models
 from . import work as work_models
-from . import group as group_models
+from . import course as course_models
 from . import linter as linter_models
 from . import rubric as rubric_models
+from . import auto_test as auto_test_models
 from .. import auth, ignore, helpers
 from .role import CourseRole
 from .permission import Permission
@@ -42,13 +45,10 @@ from ..permissions import CoursePermission as CPerm
 
 if t.TYPE_CHECKING:  # pragma: no cover
     # pylint: disable=unused-import
-    from . import course as course_models
-    from . import auto_test as auto_test_models
     cached_property = property  # pylint: disable=invalid-name
 else:
     # pylint: disable=unused-import
     from werkzeug.utils import cached_property
-    from . import auto_test as auto_test_models
 
 T = t.TypeVar('T')
 Y = t.TypeVar('Y')
@@ -94,13 +94,18 @@ class AssignmentAssignedGrader(Base):
     if t.TYPE_CHECKING:  # pragma: no cover
         query: t.ClassVar[MyQuery['AssignmentAssignedGrader']]
     __tablename__ = 'AssignmentAssignedGrader'
-    weight: float = db.Column('weight', db.Float, nullable=False)
-    user_id: int = db.Column(
-        'User_id', db.Integer, db.ForeignKey('User.id', ondelete='CASCADE')
+    weight = db.Column('weight', db.Float, nullable=False)
+    user_id = db.Column(
+        'User_id',
+        db.Integer,
+        db.ForeignKey('User.id', ondelete='CASCADE'),
+        nullable=False,
     )
-    assignment_id: int = db.Column(
-        'Assignment_id', db.Integer,
-        db.ForeignKey('Assignment.id', ondelete='CASCADE')
+    assignment_id = db.Column(
+        'Assignment_id',
+        db.Integer,
+        db.ForeignKey('Assignment.id', ondelete='CASCADE'),
+        nullable=False,
     )
 
     __table_args__ = (db.PrimaryKeyConstraint(assignment_id, user_id), )
@@ -121,12 +126,17 @@ class AssignmentGraderDone(Base):
         query: t.ClassVar[MyQuery['AssignmentGraderDone']]
         query = Base.query
     __tablename__ = 'AssignmentGraderDone'
-    user_id: int = db.Column(
-        'User_id', db.Integer, db.ForeignKey('User.id', ondelete='CASCADE')
+    user_id = db.Column(
+        'User_id',
+        db.Integer,
+        db.ForeignKey('User.id', ondelete='CASCADE'),
+        nullable=False,
     )
-    assignment_id: int = db.Column(
-        'Assignment_id', db.Integer,
-        db.ForeignKey('Assignment.id', ondelete='CASCADE')
+    assignment_id = db.Column(
+        'Assignment_id',
+        db.Integer,
+        db.ForeignKey('Assignment.id', ondelete='CASCADE'),
+        nullable=False,
     )
 
     __table_args__ = (db.PrimaryKeyConstraint(assignment_id, user_id), )
@@ -163,17 +173,18 @@ class AssignmentLinter(Base):
         query = Base.query  # type: t.ClassVar[MyQuery['AssignmentLinter']]
     __tablename__ = 'AssignmentLinter'  # type: str
     # This has to be a String object as the id has to be a non guessable uuid.
-    id: str = db.Column(
+    id = db.Column(
         'id', db.String(UUID_LENGTH), nullable=False, primary_key=True
     )
-    name: str = db.Column('name', db.Unicode)
+    name = db.Column('name', db.Unicode, nullable=False)
     tests = db.relationship(
-        "LinterInstance",
+        lambda: linter_models.LinterInstance,
         back_populates="tester",
         cascade='all,delete',
-        order_by='LinterInstance.work_id'
-    )  # type: t.Sequence[linter_models.LinterInstance]
-    config: str = db.Column(
+        order_by=lambda: linter_models.LinterInstance.work_id,
+        uselist=True,
+    )
+    config = db.Column(
         'config',
         db.Unicode,
         nullable=False,
@@ -182,13 +193,14 @@ class AssignmentLinter(Base):
         'Assignment_id',
         db.Integer,
         db.ForeignKey('Assignment.id'),
-    )  # type: int
+        nullable=False,
+    )
 
     assignment = db.relationship(
-        'Assignment',
+        lambda: Assignment,
         foreign_keys=assignment_id,
         backref=db.backref('linters', uselist=True),
-    )  # type: 'Assignment'
+    )
 
     @property
     def linters_crashed(self) -> int:
@@ -303,11 +315,11 @@ class AssignmentResult(Base):
     if t.TYPE_CHECKING:  # pragma: no cover
         query = Base.query  # type: t.ClassVar[MyQuery['AssignmentResult']]
     __tablename__ = 'AssignmentResult'
-    sourcedid: str = db.Column('sourcedid', db.Unicode)
-    user_id: int = db.Column(
+    sourcedid = db.Column('sourcedid', db.Unicode)
+    user_id = db.Column(
         'User_id', db.Integer, db.ForeignKey('User.id', ondelete='CASCADE')
     )
-    assignment_id: int = db.Column(
+    assignment_id = db.Column(
         'Assignment_id', db.Integer,
         db.ForeignKey('Assignment.id', ondelete='CASCADE')
     )
@@ -341,57 +353,53 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
     if t.TYPE_CHECKING:  # pragma: no cover
         query = Base.query  # type:  t.ClassVar[MyQuery['Assignment']]
     __tablename__ = "Assignment"
-    id: int = db.Column('id', db.Integer, primary_key=True)
-    name: str = db.Column('name', db.Unicode)
-    _cgignore: t.Optional[str] = db.Column('cgignore', db.Unicode)
-    _cgignore_version: t.Optional[str] = db.Column(
-        'cgignore_version', db.Unicode
-    )
-    state: _AssignmentStateEnum = db.Column(
+    id = db.Column('id', db.Integer, primary_key=True)
+    name = db.Column('name', db.Unicode, nullable=False)
+    _cgignore = db.Column('cgignore', db.Unicode)
+    _cgignore_version = db.Column('cgignore_version', db.Unicode)
+    state = db.Column(
         'state',
         db.Enum(_AssignmentStateEnum),
         default=_AssignmentStateEnum.hidden,
         nullable=False
     )
-    description: str = db.Column('description', db.Unicode, default='')
-    course_id: int = db.Column(
+    description = db.Column('description', db.Unicode, default='')
+    course_id = db.Column(
         'Course_id', db.Integer, db.ForeignKey('Course.id'), nullable=False
     )
-    created_at: DatetimeWithTimezone = db.Column(
-        db.TIMESTAMP(timezone=True), default=DatetimeWithTimezone.utcnow
+    created_at: ColumnProxy[DatetimeWithTimezone] = db.Column(
+        db.TIMESTAMP(timezone=True),
+        default=DatetimeWithTimezone.utcnow,
+        nullable=False
     )
-    deadline: t.Optional[DatetimeWithTimezone] = db.Column(
-        'deadline', db.TIMESTAMP(timezone=True)
-    )
+    deadline = db.Column('deadline', db.TIMESTAMP(timezone=True))
 
-    _mail_task_id: t.Optional[str] = db.Column(
+    _mail_task_id = db.Column(
         'mail_task_id',
         db.Unicode,
         nullable=True,
         default=None,
     )
-    reminder_email_time: t.Optional[DatetimeWithTimezone] = db.Column(
+    reminder_email_time = db.Column(
         'reminder_email_time',
         db.TIMESTAMP(timezone=True),
         default=None,
         nullable=True,
     )
-    done_email: t.Optional[str] = db.Column(
+    done_email = db.Column(
         'done_email',
         db.Unicode,
         default=None,
         nullable=True,
     )
-    done_type: t.Optional[AssignmentDoneType] = db.Column(
+    done_type = db.Column(
         'done_type',
         db.Enum(AssignmentDoneType),
         nullable=True,
         default=None,
     )
-    _max_grade: t.Optional[float] = db.Column(
-        'max_grade', db.Float, nullable=True, default=None
-    )
-    lti_points_possible: t.Optional[float] = db.Column(
+    _max_grade = db.Column('max_grade', db.Float, nullable=True, default=None)
+    lti_points_possible = db.Column(
         'lti_points_possible',
         db.Float,
         nullable=True,
@@ -399,8 +407,8 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
     )
 
     # All stuff for LTI
-    lti_assignment_id: str = db.Column(db.Unicode, unique=True)
-    lti_outcome_service_url: str = db.Column(db.Unicode)
+    lti_assignment_id = db.Column(db.Unicode, unique=True)
+    lti_outcome_service_url = db.Column(db.Unicode)
 
     assigned_graders: t.MutableMapping[
         int, AssignmentAssignedGrader] = db.relationship(
@@ -409,31 +417,32 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
             collection_class=attribute_mapped_collection('user_id'),
             backref=db.backref('assignment', lazy='select')
         )
-    division_parent_id: t.Optional[int] = db.Column(
+    division_parent_id = db.Column(
         'division_parent_id',
         db.Integer,
         db.ForeignKey('Assignment.id'),
         nullable=True,
     )
     division_parent = db.relationship(
-        'Assignment',
+        lambda: Assignment,
         back_populates='division_children',
         foreign_keys=division_parent_id,
         remote_side=[id],
         lazy='select',
-    )  # type: t.Optional[Assignment]
+    )
     division_children = db.relationship(
-        "Assignment",
+        lambda: Assignment,
         back_populates="division_parent",
         uselist=True,
         lazy='select',
-    )  # type: t.MutableSequence[Assignment]
+    )
 
     finished_graders = db.relationship(
-        'AssignmentGraderDone',
+        lambda: AssignmentGraderDone,
         backref=db.backref('assignment'),
         cascade='delete-orphan, delete',
-    )  # type: t.MutableSequence['AssignmentGraderDone']
+        uselist=True,
+    )
 
     assignment_results: t.MutableMapping[
         int, AssignmentResult] = db.relationship(
@@ -442,27 +451,28 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
             backref=db.backref('assignment', lazy='select')
         )
 
-    course: 'course_models.Course' = db.relationship(
-        'Course',
+    course = db.relationship(
+        lambda: course_models.Course,
         foreign_keys=course_id,
         back_populates='assignments',
         lazy='joined',
         innerjoin=True,
     )
 
-    fixed_max_rubric_points: t.Optional[float] = db.Column(
+    fixed_max_rubric_points = db.Column(
         'fixed_max_rubric_points',
         db.Float,
         nullable=True,
     )
     rubric_rows = db.relationship(
-        'RubricRowBase',
+        lambda: rubric_models.RubricRowBase,
         back_populates='assignment',
         cascade='delete-orphan, delete, save-update',
-        order_by="RubricRowBase.created_at"
-    )  # type: t.MutableSequence['rubric_models.RubricRowBase']
+        order_by=lambda: rubric_models.RubricRowBase.created_at,
+        uselist=True,
+    )
 
-    group_set_id: t.Optional[int] = db.Column(
+    group_set_id = db.Column(
         'group_set_id',
         db.Integer,
         db.ForeignKey('GroupSet.id'),
@@ -470,38 +480,40 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
     )
 
     group_set = db.relationship(
-        'GroupSet',
+        lambda: psef.models.GroupSet,
         back_populates='assignments',
         cascade='all',
-    )  # type: t.Optional['group_models.GroupSet']
+        uselist=False,
+    )
 
     # This variable is available through a backref
-    linters: t.Iterable['AssignmentLinter']
+    linters: ColumnProxy[t.Iterable['AssignmentLinter']]
 
     # This variable is available through a backref
     submissions: t.Iterable['work_models.Work']
 
-    auto_test_id: int = db.Column(
+    auto_test_id = db.Column(
         'auto_test_id',
         db.Integer,
         db.ForeignKey('AutoTest.id'),
         nullable=True,
     )
 
-    auto_test: t.Optional['auto_test_models.AutoTest'] = db.relationship(
-        'AutoTest',
+    auto_test = db.relationship(
+        lambda: auto_test_models.AutoTest,
+        foreign_keys=auto_test_id,
         back_populates="assignment",
         cascade='all',
     )
 
-    files_upload_enabled: bool = db.Column(
+    files_upload_enabled = db.Column(
         'files_upload_enabled',
         db.Boolean,
         default=True,
         server_default='true',
         nullable=False,
     )
-    webhook_upload_enabled: bool = db.Column(
+    webhook_upload_enabled = db.Column(
         'webhook_upload_enabled',
         db.Boolean,
         default=False,
@@ -509,7 +521,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         nullable=False,
     )
 
-    deleted: bool = db.Column(
+    deleted = db.Column(
         'deleted',
         db.Boolean,
         default=False,
@@ -517,7 +529,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         nullable=False,
     )
 
-    _cool_off_period: t.Optional[datetime.timedelta] = db.Column(
+    _cool_off_period = db.Column(
         'cool_off_period', db.Interval, default=None, nullable=True
     )
 
@@ -529,7 +541,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         server_default='1',
     )
 
-    max_submissions: t.Optional[int] = db.Column(
+    max_submissions = db.Column(
         'max_amount_of_submissions', db.Integer, default=None, nullable=True
     )
 
@@ -560,8 +572,8 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
 
     @validates('group_set')
     def validate_group_set(
-        self, _: str, group_set: t.Optional['group_models.GroupSet']
-    ) -> t.Optional['group_models.GroupSet']:
+        self, _: str, group_set: t.Optional['psef.models.GroupSet']
+    ) -> t.Optional['psef.models.GroupSet']:
         """Make sure the course id of the group set is the same as the course
         id of the assignment.
         """
@@ -624,10 +636,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
     """The minimum grade for a submission in this assignment."""
 
     def _submit_grades(self) -> None:
-        subs = t.cast(
-            t.List[t.Tuple[int]],
-            self.get_from_latest_submissions(work_models.Work.id).all()
-        )
+        subs = self.get_from_latest_submissions(work_models.Work.id).all()
         for i in range(0, len(subs), 10):
             psef.tasks.passback_grades(
                 [s[0] for s in subs[i:i + 10]],
@@ -730,7 +739,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
 
         graders = AssignmentGraderDone.query.filter(
             AssignmentGraderDone.assignment_id == self.id,
-            t.cast(t.Any, AssignmentGraderDone.user_id).in_(user_ids),
+            AssignmentGraderDone.user_id.in_(user_ids),
         ).all()
 
         if not ignore_errors and len(graders) != len(user_ids):
@@ -760,8 +769,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
             and_(
                 func.count(rubric_models.WorkRubricItem.rubricitem_id) == 0,
                 # We access _grade here directly as we need it to do this query
-                t.cast(DbColumn[t.Optional[int]],
-                       work_models.Work._grade).is_(None)  # pylint: disable=protected-access
+                work_models.Work._grade.is_(None)  # pylint: disable=protected-access
             )
         ).group_by(work_models.Work.id)
 
@@ -1115,11 +1123,11 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         ]
         if self.group_set_id is not None:
             group_user_id = db.session.query(
-                t.cast(DbColumn[int], group_models.Group.virtual_user_id)
+                t.cast(DbColumn[int], psef.models.Group.virtual_user_id)
             ).filter_by(group_set_id=self.group_set_id).filter(
                 t.cast(
                     DbColumn[t.List['user_models.User']],
-                    group_models.Group.members,
+                    psef.models.Group.members,
                 ).any(user_models.User.id == user.id)
             ).scalar()
             if group_user_id is not None:
@@ -1144,7 +1152,17 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
     @t.overload
     def get_from_latest_submissions(  # pylint: disable=function-redefined,missing-docstring,unused-argument,no-self-use
         self,
-        __to_query: T,
+        __to_query: t.Type[_T_BASE],
+        *,
+        include_deleted: bool = False,
+        include_old_user_submissions: bool = False,
+    ) -> MyQuery[_T_BASE]:
+        ...
+
+    @t.overload
+    def get_from_latest_submissions(  # pylint: disable=function-redefined,missing-docstring,unused-argument,no-self-use
+        self,
+        __to_query: DbColumn[T],
         *,
         include_deleted: bool = False,
         include_old_user_submissions: bool = False,
@@ -1154,8 +1172,8 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
     @t.overload
     def get_from_latest_submissions(  # pylint: disable=function-redefined,missing-docstring,unused-argument,no-self-use
         self,
-        __first: T,
-        __second: Y,
+        __first: DbColumn[T],
+        __second: DbColumn[Y],
         *,
         include_deleted: bool = False,
         include_old_user_submissions: bool = False,
@@ -1208,10 +1226,10 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         res = base_query.filter(
             t.cast(DbColumn[int], work_models.Work.id).in_(sub),
         )
-        if self.group_set is not None and not include_old_user_submissions:
+        if self.group_set_id is not None and not include_old_user_submissions:
             sub_query = db.session.query(work_models.Work).filter(
                 work_models.Work.assignment_id == self.id,
-                work_models.Work.user_id == group_models.Group.virtual_user_id,
+                work_models.Work.user_id == psef.models.Group.virtual_user_id,
             )
             if not include_deleted:
                 # We don't need the intelligent `deleted` attribute here from
@@ -1221,9 +1239,9 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
                 # pylint: disable=protected-access
                 sub_query = sub_query.filter(~work_models.Work._deleted)
             groups_with_submission = db.session.query(
-                t.cast(DbColumn[int], group_models.Group.id)
+                t.cast(DbColumn[int], psef.models.Group.id)
             ).filter(
-                group_models.Group.group_set_id == self.group_set_id,
+                psef.models.Group.group_set_id == self.group_set_id,
                 sub_query.exists(),
             )
             res = res.filter(
@@ -1249,13 +1267,10 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         """
         # get_from_latest_submissions uses SQLAlchemy magic that MyPy cannot
         # encode.
-        return t.cast(
-            MyQuery[work_models.Work],
-            self.get_from_latest_submissions(
-                t.cast(work_models.Work, work_models.Work),
-                include_deleted=include_deleted,
-                include_old_user_submissions=include_old_user_submissions,
-            )
+        return self.get_from_latest_submissions(
+            work_models.Work,
+            include_deleted=include_deleted,
+            include_old_user_submissions=include_old_user_submissions,
         )
 
     def get_divided_amount_missing(
@@ -1596,7 +1611,11 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
             t.cast(DbColumn[int], user_models.User.id).label("id"),
             t.cast(
                 DbColumn[bool],
-                ~t.cast(DbColumn[int], AssignmentGraderDone.user_id).is_(None)
+                # This now can be NULL as we do an outerjoin on assignments
+                # graders done. It is `None` for every grader that is not yet
+                # done.
+                ~t.cast(DbColumn[int],
+                        AssignmentGraderDone.user_id).is_(None)  # type: ignore
             ).label("done"),
             t.cast(DbColumn[int], user_course.c.course_id).label("course_id"),
         ).join(
@@ -1644,7 +1663,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
             ).filter_by(assignment_id=self.id, deleted=False).join(
                 user_models.User,
                 user_models.User.id == work_models.Work.user_id
-            ).join(group_models.Group).exists()
+            ).join(psef.models.Group).exists()
         ).scalar() or False
 
     def get_author_handing_in(

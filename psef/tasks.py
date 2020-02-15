@@ -313,7 +313,7 @@ def _run_plagiarism_control_1(  # pylint: disable=too-many-branches,too-many-sta
                     set_state(p.models.PlagiarismState.comparing)
                     plagiarism_run.submissions_done = 0
                 else:
-                    val = cur + plagiarism_run.submissions_total - tot
+                    val = cur + (plagiarism_run.submissions_total or 0) - tot
                     plagiarism_run.submissions_done = val
                 p.models.db.session.commit()
                 return True
@@ -361,7 +361,7 @@ def _run_autotest_batch_runs_1() -> None:
         p.models.AutoTestRun.auto_test
     ).join(p.models.Assignment).filter(
         t.cast(DbColumn[bool], p.models.AutoTestRun.batch_run_done).is_(False),
-        p.models.Assignment.deadline < now,  # type: ignore
+        p.models.Assignment.deadline < now,
     ).options(contains_eager(p.models.AutoTestRun.auto_test)).order_by(
         p.models.Assignment.deadline
     ).with_for_update().limit(max_runs).all()
@@ -552,16 +552,18 @@ def _update_latest_results_in_broker_1(auto_test_run_id: int) -> None:
 
     def get_latest_date(
         state: m.AutoTestStepResultState,
-        col: t.Optional[DatetimeWithTimezone],
+        col: t.Union[DbColumn[DatetimeWithTimezone], DbColumn[
+            t.Optional[DatetimeWithTimezone]]],
         oldest: bool = True
     ) -> t.Optional[str]:
-        c = t.cast(m.DbColumn[DatetimeWithTimezone], col)  # pylint: disable=invalid-name
-        date = m.db.session.query(c).filter_by(
+        date = m.db.session.query(col).filter_by(
             auto_test_run_id=auto_test_run_id,
             state=state,
-        ).order_by(c if oldest else c.desc()).first()
+        ).order_by(col if oldest else col.desc()).first()
 
-        return date and date[0].isoformat()
+        if date is None or date[0] is None:
+            return None
+        return date[0].isoformat()
 
     # yapf: disable
     results = {

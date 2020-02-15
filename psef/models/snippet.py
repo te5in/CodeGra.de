@@ -16,12 +16,12 @@ class Snippet(Base):
     if t.TYPE_CHECKING:  # pragma: no cover
         query: t.ClassVar[_MyQuery['Snippet']] = Base.query
     __tablename__ = 'Snippet'
-    id: int = db.Column('id', db.Integer, primary_key=True)
-    key: str = db.Column('key', db.Unicode, nullable=False)
-    value: str = db.Column('value', db.Unicode, nullable=False)
-    user_id: int = db.Column('User_id', db.Integer, db.ForeignKey('User.id'))
+    id = db.Column('id', db.Integer, primary_key=True)
+    key = db.Column('key', db.Unicode, nullable=False)
+    value = db.Column('value', db.Unicode, nullable=False)
+    user_id = db.Column('User_id', db.Integer, db.ForeignKey('User.id'))
 
-    user: User = db.relationship('User', foreign_keys=user_id)
+    user = db.relationship(User, foreign_keys=user_id)
 
     @classmethod
     def get_all_snippets(cls: t.Type['Snippet'],
@@ -31,7 +31,7 @@ class Snippet(Base):
         :param user: The user to get the snippets for.
         :returns: List of all snippets of the user.
         """
-        return cls.query.filter_by(user_id=user.id).order_by('id').all()
+        return cls.query.filter_by(user_id=user.id).order_by(cls.id).all()
 
     def __to_json__(self) -> t.Mapping[str, t.Any]:
         """Creates a JSON serializable representation of this object.

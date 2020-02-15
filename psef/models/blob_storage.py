@@ -17,4 +17,4 @@ class BlobStorage(Base, UUIDMixin, TimestampMixin):
 
     :ivar data: The data that is stored in this blob.
     """
-    data: bytes = db.Column('data', db.LargeBinary, nullable=False)
+    data = db.Column('data', db.LargeBinary, nullable=False)

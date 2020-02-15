@@ -55,12 +55,15 @@ class Permission(Base, t.Generic[_T]):  # pylint: disable=unsubscriptable-object
 
     id = db.Column('id', db.Integer, primary_key=True)
 
-    __name: str = db.Column('name', db.Unicode, unique=True, index=True)
+    __name = db.Column(
+        'name', db.Unicode, unique=True, index=True, nullable=False
+    )
 
-    default_value: bool  # NOQA
-    default_value = db.Column('default_value', db.Boolean, default=False)
-    course_permission: bool = db.Column(
-        'course_permission', db.Boolean, index=True
+    default_value = db.Column(
+        'default_value', db.Boolean, default=False, nullable=False
+    )
+    course_permission = db.Column(
+        'course_permission', db.Boolean, index=True, nullable=False
     )
 
     @classmethod

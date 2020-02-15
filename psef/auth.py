@@ -358,6 +358,8 @@ def ensure_can_submit_work(
         if any(
             assig.id not in member.assignment_results for member in members
         ):
+            assert assig.course.lti_provider is not None
+
             lms = assig.course.lti_provider.lms_name
             if author.group:
                 raise APIException(

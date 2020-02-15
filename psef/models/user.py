@@ -14,6 +14,7 @@ from sqlalchemy.sql.expression import false
 from sqlalchemy.orm.collections import attribute_mapped_collection
 
 import psef
+from cg_sqlalchemy_helpers import hybrid_property
 
 from . import UUID_LENGTH, Base, DbColumn, db, course, _MyQuery
 from .role import Role, CourseRole
@@ -25,11 +26,7 @@ from ..permissions import CoursePermission, GlobalPermission
 
 if t.TYPE_CHECKING and not getattr(t, 'SPHINX', False):  # pragma: no cover
     # pylint: disable=unused-import,invalid-name
-    from . import group as group_models
     from .assignment import AssignmentResult, AssignmentAssignedGrader
-    hybrid_property = property
-else:
-    from sqlalchemy.ext.hybrid import hybrid_property  # type: ignore
 
 logger = structlog.get_logger()
 
@@ -68,24 +65,24 @@ class User(NotEqualMixin, Base):
 
     __tablename__ = "User"
 
-    _id: int = db.Column('id', db.Integer, primary_key=True)
+    _id = db.Column('id', db.Integer, primary_key=True)
 
-    @hybrid_property
-    def id(self) -> int:
+    def _get_id(self) -> int:
         """The id of the user
         """
         return self._id
 
-    @id.setter
-    def id(self, n_id: int) -> None:
+    def _set_id(self, n_id: int) -> None:
         assert not hasattr(self, '_id') or self._id is None
         self._id = n_id
 
-    # All stuff for LTI
-    lti_user_id: str = db.Column(db.Unicode, unique=True)
+    id = hybrid_property(_get_id, _set_id)
 
-    name: str = db.Column('name', db.Unicode)
-    active: bool = db.Column('active', db.Boolean, default=True)
+    # All stuff for LTI
+    lti_user_id = db.Column(db.Unicode, unique=True)
+
+    name = db.Column('name', db.Unicode, nullable=False)
+    active = db.Column('active', db.Boolean, default=True, nullable=False)
     virtual = db.Column(
         'virtual', db.Boolean, default=False, nullable=False, index=True
     )
@@ -97,14 +94,14 @@ class User(NotEqualMixin, Base):
         index=True
     )
 
-    role_id: int = db.Column('Role_id', db.Integer, db.ForeignKey('Role.id'))
+    role_id = db.Column('Role_id', db.Integer, db.ForeignKey('Role.id'))
     courses: t.MutableMapping[int, CourseRole] = db.relationship(
         'CourseRole',
         collection_class=attribute_mapped_collection('course_id'),
         secondary=user_course,
         backref=db.backref('users', lazy='dynamic')
     )
-    _username: str = db.Column(
+    _username = db.Column(
         'username',
         db.Unicode,
         unique=True,
@@ -112,18 +109,18 @@ class User(NotEqualMixin, Base):
         index=True,
     )
 
-    @hybrid_property
-    def username(self) -> str:
+    def _get_username(self) -> str:
         """The username of the user
         """
         return self._username
 
-    @username.setter
-    def username(self, username: str) -> None:
+    def _set_username(self, username: str) -> None:
         assert not hasattr(self, '_username') or self._username is None
         self._username = username
 
-    reset_token: t.Optional[str] = db.Column(
+    username = hybrid_property(_get_username, _set_username)
+
+    reset_token = db.Column(
         'reset_token', db.String(UUID_LENGTH), nullable=True
     )
     reset_email_on_lti = db.Column(
@@ -134,13 +131,13 @@ class User(NotEqualMixin, Base):
         nullable=False,
     )
 
-    email: str = db.Column('email', db.Unicode, unique=False, nullable=False)
-    password: str = db.Column(
+    email = db.Column('email', db.Unicode, unique=False, nullable=False)
+    password = db.Column(
         'password',
         PasswordType(schemes=[
             'pbkdf2_sha512',
         ], deprecated=[]),
-        nullable=True
+        nullable=True,
     )
 
     assignments_assigned: t.MutableMapping[
@@ -158,13 +155,13 @@ class User(NotEqualMixin, Base):
         )
 
     group = db.relationship(
-        'Group',
+        lambda: psef.models.Group,
         back_populates='virtual_user',
         lazy='selectin',
         uselist=False,
-    )  # type: t.Optional[group_models.Group]
+    )
 
-    role: Role = db.relationship('Role', foreign_keys=role_id, lazy='select')
+    role = db.relationship(lambda: Role, foreign_keys=role_id, lazy='select')
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, User):
@@ -253,6 +250,8 @@ class User(NotEqualMixin, Base):
 
         if course_id is None:
             assert isinstance(permission, GlobalPermission)
+            if self.role is None:
+                return False
             return self.role.has_permission(permission)
         else:
             assert isinstance(permission, CoursePermission)
@@ -475,12 +474,17 @@ class User(NotEqualMixin, Base):
             course_id = course_id.id
 
         if course_id is None:
-            return self.role.get_all_permissions()
-        elif course_id in self.courses:
-            return self.courses[course_id].get_all_permissions()
+            if self.role is None:
+                g_perms = Permission.get_all_permissions(GlobalPermission)
+                return {perm.value: False for perm in g_perms}
+            else:
+                return self.role.get_all_permissions()
         else:
-            perms = Permission.get_all_permissions(CoursePermission)
-            return {perm.value: False for perm in perms}
+            if course_id in self.courses:
+                return self.courses[course_id].get_all_permissions()
+            else:
+                c_perms = Permission.get_all_permissions(CoursePermission)
+                return {perm.value: False for perm in c_perms}
 
     def get_reset_token(self) -> str:
         """Get a token which a user can use to reset his password.

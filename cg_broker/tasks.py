@@ -105,20 +105,15 @@ def maybe_start_more_runners() -> None:
     ).with_for_update().all()
 
     jobs_needed_runners = db.session.query(
-        t.cast(DbColumn[int], models.Job.id),
-        t.cast(
-            DbColumn[int],
-            models.Job.wanted_runners - sql_func.count(models.Runner.id),
-        ),
+        models.Job.id,
+        models.Job.wanted_runners - sql_func.count(models.Runner.id),
     ).filter(
-        t.cast(DbColumn[int], models.Job.id).in_(list(active_jobs.keys()))
+        models.Job.id.in_(list(active_jobs.keys())),
     ).join(
         models.Runner,
         and_(
             models.Runner.job_id == models.Job.id,
-            t.cast(DbColumn[models.RunnerState], models.Runner.state).in_(
-                models.RunnerState.get_active_states()
-            )
+            models.Runner.state.in_(models.RunnerState.get_active_states())
         ),
         isouter=True
     ).having(

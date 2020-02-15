@@ -9,12 +9,21 @@ import typing as t
 
 from flask import Flask, g
 from sqlalchemy import event
+from sqlalchemy.orm import deferred as _deferred
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy_utils import UUIDType as _UUIDType
 from sqlalchemy_utils import force_auto_coercion
 
 from . import types, mixins
+from .types import hybrid_property
 
 UUID_LENGTH = len(str(uuid.uuid4()))  # 36
+
+UUIDType: types.DbType[uuid.UUID] = _UUIDType
+
+
+T = t.TypeVar('T')
+deferred: t.Callable[[T], T] = _deferred
 
 
 def make_db() -> types.MyDb:

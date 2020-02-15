@@ -114,8 +114,9 @@ class FileLike(Protocol):
         raise NotImplementedError
 
 
-def fix_duplicate_filenames(files: t.Sequence[FileLike]
-                            ) -> t.List[t.Dict[str, str]]:
+def fix_duplicate_filenames(
+    files: t.Union[t.Sequence[FileLike], t.Sequence['models.FileMixin[T]']]
+) -> t.List[t.Dict[str, str]]:
     """Fix duplicate files in a list of files.
 
     :param files: The files to check for.
@@ -297,11 +298,11 @@ def get_stat_information(file: models.NestedFileMixin[T]
         'is_directory': file.is_directory,
         'modification_date': round(mod_date.timestamp()),
         'size': size,
-        'id': str(file.id),
+        'id': str(file.get_id()),
     }
 
 
-def get_file_contents(code: models.FileMixin) -> bytes:
+def get_file_contents(code: models.FileMixin[T]) -> bytes:
     """Get the contents of the given :class:`.models.File`.
 
     :param code: The file object to read.
@@ -310,7 +311,7 @@ def get_file_contents(code: models.FileMixin) -> bytes:
     if code.is_directory:
         raise APIException(
             'Cannot display this file as it is a directory.',
-            f'The selected file with id {code.id} is a directory.',
+            f'The selected file with id {code.get_id()} is a directory.',
             APICodes.OBJECT_WRONG_TYPE, 400
         )
 
@@ -324,7 +325,7 @@ def get_file_contents(code: models.FileMixin) -> bytes:
         )
         raise APIException(
             f'This file is a symlink to `{os.readlink(filename)}`.',
-            'The file {} is a symlink'.format(code.id), APICodes.INVALID_STATE,
+            f'The file {code.get_id()} is a symlink', APICodes.INVALID_STATE,
             410
         )
     with open(filename, 'rb') as codefile:
@@ -438,7 +439,7 @@ def restore_directory_structure(
     code = helpers.filter_single_or_404(
         models.File,
         models.File.work_id == work.id,
-        t.cast(models.DbColumn[int], models.File.parent_id).is_(None),
+        models.File.parent_id.is_(None),
         models.File.fileowner != exclude,
     )
     cache = work.get_file_children_mapping(exclude)
@@ -448,7 +449,7 @@ def restore_directory_structure(
 def _restore_directory_structure(
     code: models.FileMixin[T],
     parent: str,
-    cache: t.Mapping[T, t.Sequence[models.FileMixin[T]]],
+    cache: t.Mapping[t.Optional[T], t.Sequence[models.FileMixin[T]]],
 ) -> FileTree[T]:
     """Worker function for :py:func:`.restore_directory_structure`
 
@@ -460,14 +461,15 @@ def _restore_directory_structure(
     out = safe_join(parent, code.name)
     if code.is_directory:
         os.mkdir(out)
+
         subtree: t.List[FileTree] = [
             _restore_directory_structure(child, out, cache)
-            for child in cache[code.id]
+            for child in cache[code.get_id()]
         ]
-        return FileTree(name=code.name, id=code.id, entries=subtree)
+        return FileTree(name=code.name, id=code.get_id(), entries=subtree)
     else:  # this is a file
         shutil.copyfile(code.get_diskname(), out, follow_symlinks=False)
-        return FileTree(name=code.name, id=code.id, entries=None)
+        return FileTree(name=code.name, id=code.get_id(), entries=None)
 
 
 def rename_directory_structure(

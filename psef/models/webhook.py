@@ -34,6 +34,7 @@ logger = structlog.get_logger()
 def _register(cls: T) -> T:
     name = cls.__mapper_args__['polymorphic_identity']
 
+    assert isinstance(name, str)
     assert name in _ALL_WEBHOOK_TYPES
     assert webhook_handlers.get(name) is None
     webhook_handlers.register(name)(cls)
@@ -49,7 +50,7 @@ class WebhookBase(Base, UUIDMixin, TimestampMixin):
     if t.TYPE_CHECKING:  # pragma: no cover
         query: t.ClassVar[MyQuery['WebhookBase']]
 
-    secret: str = db.Column(
+    secret = db.Column(
         'secret',
         db.Unicode,
         nullable=False,
@@ -68,28 +69,28 @@ class WebhookBase(Base, UUIDMixin, TimestampMixin):
         nullable=False,
     )
 
-    assignment: Assignment = db.relationship(
-        'Assignment',
+    assignment = db.relationship(
+        Assignment,
         foreign_keys=assignment_id,
         lazy='joined',
         innerjoin=True,
     )
 
-    user: User = db.relationship(
-        'User',
+    user = db.relationship(
+        User,
         foreign_keys=user_id,
         lazy='joined',
         innerjoin=True,
     )
 
-    webhook_type: str = db.Column(
+    webhook_type = db.Column(
         'webhook_type',
         db.Enum(*_ALL_WEBHOOK_TYPES, name='webhooktype'),
         nullable=False
     )
 
-    _ssh_key: bytes = db.Column('ssh_key', db.LargeBinary, nullable=False)
-    _ssh_username: str = db.Column('ssh_username', db.Unicode, nullable=False)
+    _ssh_key = db.Column('ssh_key', db.LargeBinary, nullable=False)
+    _ssh_username = db.Column('ssh_username', db.Unicode, nullable=False)
 
     __mapper_args__ = {
         'polymorphic_on': webhook_type,

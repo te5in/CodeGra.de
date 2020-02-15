@@ -7,13 +7,11 @@ import typing as t
 
 import psef
 
-from . import Base, db, _MyQuery
+from . import Base, db
+from . import file as file_models
+from . import user as user_models
+from . import _MyQuery
 from ..permissions import CoursePermission
-
-if t.TYPE_CHECKING:  # pragma: no cover
-    # pylint: disable=unused-import
-    from . import file as file_models
-    from . import user as user_models
 
 
 class Comment(Base):
@@ -25,27 +23,27 @@ class Comment(Base):
     if t.TYPE_CHECKING:  # pragma: no cover
         query: t.ClassVar[_MyQuery['Comment']] = Base.query
     __tablename__ = "Comment"
-    file_id: int = db.Column(
+    file_id = db.Column(
         'File_id',
         db.Integer,
         db.ForeignKey('File.id', ondelete='CASCADE'),
         nullable=False,
     )
-    user_id: int = db.Column(
+    user_id = db.Column(
         'User_id',
         db.Integer,
         db.ForeignKey('User.id', ondelete='CASCADE'),
         nullable=False,
     )
-    line: int = db.Column('line', db.Integer)
-    comment: str = db.Column('comment', db.Unicode)
+    line = db.Column('line', db.Integer, nullable=False)
+    comment = db.Column('comment', db.Unicode, nullable=False)
     __table_args__ = (db.PrimaryKeyConstraint(file_id, line), )
 
-    file: 'file_models.File' = db.relationship(
-        'File', foreign_keys=file_id, innerjoin=True
+    file = db.relationship(
+        lambda: file_models.File, foreign_keys=file_id, innerjoin=True
     )
-    user: 'user_models.User' = db.relationship(
-        'User', foreign_keys=user_id, innerjoin=True
+    user = db.relationship(
+        lambda: user_models.User, foreign_keys=user_id, innerjoin=True
     )
 
     def __to_json__(self) -> t.Mapping[str, t.Any]:
@@ -68,9 +66,10 @@ class Comment(Base):
 
         :returns: A object as described above.
         """
-        res = {
+        res: t.Dict[str, t.Union[int, str, t.Optional[user_models.User]]] = {
             'line': self.line,
             'msg': self.comment,
+            'author': None,
         }
 
         if psef.current_user.has_permission(

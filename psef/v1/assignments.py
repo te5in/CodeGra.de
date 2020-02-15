@@ -312,6 +312,7 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
     lms_name: t.Optional[str]
 
     if assig.is_lti:
+        assert assig.course.lti_provider is not None
         lti_class = assig.course.lti_provider.lti_class
         lms_name = assig.course.lti_provider.lms_name
     else:
@@ -1043,7 +1044,7 @@ def divide_assignments(assignment_id: int) -> EmptyResponse:
             )
         users = helpers.filter_all_or_404(
             models.User,
-            models.User.id.in_(graders.keys())  # type: ignore
+            models.User.id.in_(graders.keys())
         )
     else:
         models.Work.query.filter_by(assignment_id=assignment.id).update(
@@ -1596,14 +1597,14 @@ def start_linting(assignment_id: int) -> JSONResponse[models.AssignmentLinter]:
     )
     auth.ensure_permission(CPerm.can_use_linter, assig.course_id)
 
-    ensure_keys_in_dict(content, [('cfg', str), ('name', str)])
-    cfg = t.cast(str, content['cfg'])
-    name = t.cast(str, content['name'])
+    with get_from_map_transaction(content) as [get, _]:
+        cfg = get('cfg', str)
+        name = get('name', str)
 
     if db.session.query(
         models.LinterInstance.query.filter(
             models.AssignmentLinter.assignment_id == assignment_id,
-            models.AssignmentLinter.name == content['name']
+            models.AssignmentLinter.name == name,
         ).exists()
     ).scalar():
         raise APIException(
