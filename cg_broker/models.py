@@ -177,6 +177,8 @@ class Runner(Base, mixins.TimestampMixin, mixins.UUIDMixin):
         return secrets.compare_digest(self._pass, requesting_pass)
 
     def is_ip_valid(self, requesting_ip: str) -> bool:
+        """Check if the requesting ip is valid for this Runner.
+        """
         if self.ipaddr is None:
             return False
         return secrets.compare_digest(self.ipaddr, requesting_ip)

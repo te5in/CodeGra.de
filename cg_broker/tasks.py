@@ -4,7 +4,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 """
 import uuid
 import random
-import typing as t
 import datetime
 
 import structlog
@@ -16,7 +15,6 @@ from cg_celery import CGCelery
 from cg_logger import bound_to_logger
 from cg_dt_utils import DatetimeWithTimezone
 from cg_flask_helpers import callback_after_this_request
-from cg_sqlalchemy_helpers.types import DbColumn
 
 from . import BrokerFlask, app, utils, models
 from .models import db

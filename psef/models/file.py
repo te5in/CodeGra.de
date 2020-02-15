@@ -63,6 +63,8 @@ class FileMixin(t.Generic[T]):
 
     @abstractmethod
     def get_id(self) -> T:
+        """Get the id of this file.
+        """
         raise NotImplementedError
 
     is_directory: ImmutableColumnProxy[bool]
@@ -127,7 +129,7 @@ class FileMixin(t.Generic[T]):
 NFM_T = t.TypeVar('NFM_T', bound='NestedFileMixin')  # pylint: disable=invalid-name
 
 
-class NestedFileMixin(t.Generic[T], FileMixin[T]):
+class NestedFileMixin(FileMixin[T]):
     """A mixin representing nested files, i.e. a structure of directories where
     the children can be either normal files or directories again.
 
@@ -140,6 +142,12 @@ class NestedFileMixin(t.Generic[T], FileMixin[T]):
         default=DatetimeWithTimezone.utcnow,
         nullable=False,
     )
+
+    @abstractmethod
+    def get_id(self) -> T:
+        """Get the id of this file.
+        """
+        raise NotImplementedError
 
     if t.TYPE_CHECKING:  # pragma: no cover
         # pylint: disable=unused-argument
@@ -249,9 +257,6 @@ class File(NestedFileMixin[int], Base):
     work = db.relationship(
         lambda: work_models.Work,
         foreign_keys=work_id,
-        backref=db.backref(
-            'files', lazy='select', uselist=True, cascade='all,delete'
-        )
     )
 
     @staticmethod
@@ -396,7 +401,10 @@ class AutoTestFixture(Base, FileMixin[int], TimestampMixin):
         psef.helpers.callback_after_this_request(self.delete_from_disk)
 
     @hybrid_property
-    def is_directory(self) -> bool:
+    def is_directory(self) -> bool:  # pylint: disable=no-self-use
+        """An AutoTest fixture is never a directory, as we only allow file
+            uploads.
+        """
         return False
 
     hidden = db.Column('hidden', db.Boolean, nullable=False, default=True)

@@ -355,7 +355,7 @@ class PlagiarismRun(Base):
     cases = db.relationship(
         lambda: PlagiarismCase,
         backref=db.backref('plagiarism_run', innerjoin=True),
-        order_by=lambda: psef.models.PlagiarismCase.match_avg.desc(),
+        order_by=PlagiarismCase.match_avg.desc,
         cascade='all,delete',
         uselist=True,
     )

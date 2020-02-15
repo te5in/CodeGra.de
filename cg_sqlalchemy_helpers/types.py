@@ -654,5 +654,6 @@ if t.TYPE_CHECKING:
     hybrid_expression = staticmethod
 else:
     from sqlalchemy.ext.hybrid import hybrid_property
+
     def hybrid_expression(fun: T) -> T:
         return fun

@@ -225,9 +225,6 @@ class Work(Base):
         default=None,
     )
 
-    # This variable is generated from the backref from all files
-    files: ColumnProxy[t.List["file_models.File"]]
-
     def _get_deleted(self) -> bool:
         """Is this submission deleted.
         """
@@ -237,6 +234,7 @@ class Work(Base):
     def _get_deleted_expr(cls: t.Type['Work']) -> 'DbColumn[bool]':
         """Get a query that checks if this submission is deleted.
         """
+        # pylint: disable=no-self-argument
         return select(
             [sql.or_(cls._deleted, assignment_models.Assignment.deleted)]
         ).where(

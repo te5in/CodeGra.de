@@ -23,6 +23,7 @@ from ..registry import rubric_row_types
 from ..exceptions import APICodes, APIException
 
 if t.TYPE_CHECKING:  # pragma: no cover
+    # pylint: disable=unused-import
     from . import auto_test as auto_test_models
 
 T = t.TypeVar('T', bound=t.Type['RubricRowBase'])
@@ -284,7 +285,7 @@ class RubricRowBase(helpers.NotEqualMixin, Base):
         lambda: RubricItem,
         backref=db.backref("rubricrow"),
         cascade='delete-orphan, delete, save-update',
-        order_by=lambda: RubricItem.points.asc(),
+        order_by=RubricItem.points.asc,
         uselist=True,
     )
 
