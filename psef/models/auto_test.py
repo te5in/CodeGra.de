@@ -1133,6 +1133,7 @@ class AutoTest(Base, TimestampMixin, IdMixin):
         lambda: psef.models.Assignment,
         back_populates='auto_test',
         innerjoin=True,
+        uselist=False,
     )
     sets = db.relationship(
         lambda: AutoTestSet,

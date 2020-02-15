@@ -17,7 +17,7 @@ from sqlalchemy.types import JSON
 
 import psef
 from cg_dt_utils import DatetimeWithTimezone
-from cg_sqlalchemy_helpers import hybrid_property
+from cg_sqlalchemy_helpers import hybrid_property, hybrid_expression
 from cg_sqlalchemy_helpers.types import DbColumn, ColumnProxy
 
 from . import Base, DbColumn, db
@@ -233,7 +233,7 @@ class Work(Base):
         """
         return self._deleted or self.assignment.deleted
 
-    @classmethod
+    @hybrid_expression
     def _get_deleted_expr(cls: t.Type['Work']) -> 'DbColumn[bool]':
         """Get a query that checks if this submission is deleted.
         """

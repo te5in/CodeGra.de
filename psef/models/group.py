@@ -75,7 +75,10 @@ class Group(Base):
     )
 
     group_set = db.relationship(
-        lambda: GroupSet, back_populates='groups', innerjoin=True
+        lambda: GroupSet,
+        back_populates='groups',
+        innerjoin=True,
+        uselist=False,
     )
 
     __table_args__ = (db.UniqueConstraint('group_set_id', 'name'), )

@@ -324,7 +324,21 @@ class MyDb:  # pragma: no cover
         *,
         back_populates: str,
         cascade: str = '',
+        uselist: Literal[True] = True,
+        innerjoin: bool = None,
+    ) -> 'ColumnProxy[t.List[T]]':
+        ...
+
+    @t.overload
+    def relationship(
+        self,
+        name: Union[t.Callable[[], t.Type[T]], t.Type[T]],
+        *,
         innerjoin: Literal[True],
+        uselist: Literal[False],
+        back_populates: str,
+        cascade: str = '',
+        lazy: Literal['select', 'join', 'selectin'] = 'select',
     ) -> 'ColumnProxy[T]':
         ...
 
@@ -333,9 +347,10 @@ class MyDb:  # pragma: no cover
         self,
         name: Union[t.Callable[[], t.Type[T]], t.Type[T]],
         *,
+        uselist: Literal[False],
         back_populates: str,
         cascade: str = '',
-        uselist: Literal[False] = False,
+        innerjoin: Literal[False] = False,
         lazy: Literal['select', 'join', 'selectin'] = 'select',
     ) -> 'ColumnProxy[Opt[T]]':
         ...
@@ -636,5 +651,8 @@ if t.TYPE_CHECKING:
     def hybrid_property(*args: object, **kwargs: object) -> t.Any:
         ...
 
+    hybrid_expression = staticmethod
 else:
     from sqlalchemy.ext.hybrid import hybrid_property
+    def hybrid_expression(fun: T) -> T:
+        return fun
