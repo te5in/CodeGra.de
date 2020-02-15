@@ -479,6 +479,7 @@ def get_in_or_error(
         return dict(res)
     return [item[1] for item in res]
 
+
 @t.overload
 def _filter_or_404(
     model: t.Type[Y],
@@ -490,6 +491,7 @@ def _filter_or_404(
     with_for_update_of: t.Optional[t.Type['Base']] = None,
 ) -> t.Sequence[Y]:
     ...
+
 
 @t.overload
 def _filter_or_404(

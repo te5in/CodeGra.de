@@ -119,7 +119,9 @@ class FileMixin(t.Generic[T]):
                 c._inner_list_contents(cache)  # pylint: disable=protected-access
                 for c in cache[self.get_id()]
             ]
-        return psef.files.FileTree(name=self.name, id=self.get_id(), entries=entries)
+        return psef.files.FileTree(
+            name=self.name, id=self.get_id(), entries=entries
+        )
 
 
 NFM_T = t.TypeVar('NFM_T', bound='NestedFileMixin')  # pylint: disable=invalid-name

@@ -21,7 +21,6 @@ UUID_LENGTH = len(str(uuid.uuid4()))  # 36
 
 UUIDType: types.DbType[uuid.UUID] = _UUIDType
 
-
 T = t.TypeVar('T')
 deferred: t.Callable[[T], T] = _deferred
 

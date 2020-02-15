@@ -29,7 +29,9 @@ class UUIDMixin:
     """
     Provides the :attr:`id` primary key column as a uuid
     """
-    id: ColumnProxy[uuid.UUID] = Column(UUIDType, primary_key=True, default=_make_uuid)
+    id: ColumnProxy[uuid.UUID] = Column(
+        UUIDType, primary_key=True, default=_make_uuid
+    )
 
 
 class TimestampMixin:

@@ -1043,8 +1043,7 @@ def divide_assignments(assignment_id: int) -> EmptyResponse:
                 ), APICodes.INVALID_PARAM, 400
             )
         users = helpers.filter_all_or_404(
-            models.User,
-            models.User.id.in_(graders.keys())
+            models.User, models.User.id.in_(graders.keys())
         )
     else:
         models.Work.query.filter_by(assignment_id=assignment.id).update(

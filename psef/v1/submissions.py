@@ -779,7 +779,7 @@ def get_grade_history(submission_id: int
 
     hist: t.MutableSequence[models.GradeHistory]
     hist = db.session.query(
-        models.GradeHistory
+        models.GradeHistory,
     ).filter_by(work_id=work.id).order_by(
         models.GradeHistory.changed_at.desc(),
     ).all()
