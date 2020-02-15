@@ -238,6 +238,16 @@ class User(NotEqualMixin, Base):
 
         To check a course permission the course_id has to be set.
 
+        >>> user_without_role = User(active=True)
+        >>> user_without_role.has_permission(
+        ...  GlobalPermission.can_edit_own_password
+        ... )
+        False
+        >>> user_without_role.has_permission(
+        ...  CoursePermission.can_submit_own_work, course_id=1
+        ... )
+        False
+
         :param permission: The permission or permission name
         :param course_id: The course or course id
         :returns: Whether the role has the permission or not
@@ -462,8 +472,14 @@ class User(NotEqualMixin, Base):
         all course permissions of the user in a specific
         :class:`.course.Course`.
 
-        :param course_id: The course or course id
+        >>> user_without_role = User()
+        >>> perms = user_without_role.get_all_permissions()
+        >>> assert set(list(GlobalPermission)) == set(perms.keys())
+        >>> assert not any(perms.values())
+        >>> cperms = user_without_role.get_all_permissions(course_id=1)
+        >>> assert not any(perms.values())
 
+        :param course_id: The course or course id
         :returns: A name boolean mapping where the name is the name of the
                   permission and the value indicates if this user has this
                   permission.
@@ -475,16 +491,14 @@ class User(NotEqualMixin, Base):
 
         if course_id is None:
             if self.role is None:
-                g_perms = Permission.get_all_permissions(GlobalPermission)
-                return {perm.value: False for perm in g_perms}
+                return {perm: False for perm in GlobalPermission}
             else:
                 return self.role.get_all_permissions()
         else:
             if course_id in self.courses:
                 return self.courses[course_id].get_all_permissions()
             else:
-                c_perms = Permission.get_all_permissions(CoursePermission)
-                return {perm.value: False for perm in c_perms}
+                return {perm: False for perm in CoursePermission}
 
     def get_reset_token(self) -> str:
         """Get a token which a user can use to reset his password.
