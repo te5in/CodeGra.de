@@ -577,7 +577,7 @@ class Job(Base, mixins.TimestampMixin, mixins.IdMixin):
         return self._state
 
     def _set_state(self, new_state: JobState) -> None:
-        if self.state is not None and new_state < self.state:
+        if new_state < self.state:
             raise ValueError(
                 'Cannot decrease the state!', self.state, new_state
             )

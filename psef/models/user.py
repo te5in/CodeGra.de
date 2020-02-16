@@ -449,9 +449,9 @@ class User(NotEqualMixin, Base):
         res = db.session.query(
             course_roles.c.course_id
         ).join(crp, course_roles.c.course_id == crp.c.course_role_id)
-        link: bool = db.session.query(res.exists()).scalar()
+        link = db.session.query(res.exists()).scalar()
 
-        return (not link) if permission.default_value else link
+        return link ^ permission.default_value
 
     @t.overload
     def get_all_permissions(self) -> t.Mapping[GlobalPermission, bool]:  # pylint: disable=function-redefined,missing-docstring,no-self-use

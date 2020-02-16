@@ -36,7 +36,7 @@ from . import rubric as rubric_models
 from . import auto_test as auto_test_models
 from .. import auth, ignore, helpers
 from .role import CourseRole
-from .permission import Permission
+from .permission import Permission, PermissionComp
 from ..exceptions import (
     APICodes, APIException, PermissionException, InvalidAssignmentState
 )
@@ -1638,7 +1638,10 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
             course_permissions.c.permission_id == Permission.id,
         ).filter(
             CourseRole.course_id == self.course_id,
-            Permission[CPerm].value == CPerm.can_grade_work,
+            t.cast(
+                PermissionComp[CPerm],
+                Permission[CPerm].value,  # type: ignore[misc]
+            ) == CPerm.can_grade_work,
         ).subquery('graders')
 
         res = db.session.query(

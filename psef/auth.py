@@ -141,7 +141,7 @@ def ensure_enrolled(
         )
 
 
-def set_current_user(user: 'psef.models.User') -> None:
+def set_current_user(user: t.Union['psef.models.User', LocalProxy]) -> None:
     """Set the current user for this request.
 
     You probably never should use this method, it is only useful after logging
@@ -154,7 +154,7 @@ def set_current_user(user: 'psef.models.User') -> None:
     # making sure we always assign an actual User object.
     if isinstance(user, LocalProxy):
         # pylint: disable=protected-access
-        user = psef.current_user._get_current_object()
+        user = user._get_current_object()
     # This sets the current user for flask jwt. See
     # https://github.com/vimalloc/flask-jwt-extended/issues/206 to make this
     # easier.

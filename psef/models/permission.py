@@ -5,11 +5,17 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 import typing as t
 
-from . import Base, DbColumn, Comparator, db
+from cg_sqlalchemy_helpers import (
+    Comparator, hybrid_property, hybrid_expression
+)
+from cg_sqlalchemy_helpers.types import DbColumn
+
+from . import Base, db
 from .. import helpers
 from ..permissions import BasePermission, CoursePermission, GlobalPermission
 
 _T = t.TypeVar('_T', bound=BasePermission)  # pylint: disable=invalid-name
+T = t.TypeVar('T')
 
 if getattr(t, 'SPHINX', False):  # pragma: no cover:
     # Sphinx fails with this decorator for whatever reason.
@@ -17,10 +23,11 @@ if getattr(t, 'SPHINX', False):  # pragma: no cover:
 else:
     from ..cache import cache_within_request
 
-if t.TYPE_CHECKING and not getattr(t, 'SPHINX', False):  # pragma: no cover
-    hybrid_property = property  # pylint: disable=invalid-name
-else:
-    from sqlalchemy.ext.hybrid import hybrid_property  # type: ignore
+
+class PermissionComp(t.Generic[_T], Comparator[str]):  # pylint: disable=missing-docstring
+    def __eq__(self, other: _T) -> DbColumn[bool]:  # type: ignore
+        assert isinstance(other, BasePermission)
+        return self.__clause_element__() == other.name
 
 
 class Permission(Base, t.Generic[_T]):  # pylint: disable=unsubscriptable-object
@@ -123,12 +130,12 @@ class Permission(Base, t.Generic[_T]):  # pylint: disable=unsubscriptable-object
         :returns: The correct database permission.
         """
         return helpers.filter_single_or_404(
-            cls, cls.value == perm,
-            cls.course_permission == isinstance(perm, CoursePermission)
+            cls,
+            cls.value == perm,
+            cls.course_permission == isinstance(perm, CoursePermission),
         )
 
-    @hybrid_property
-    def value(self) -> '_T':
+    def _get_value(self) -> '_T':
         """Get the permission value of the database permission.
 
         :returns: The permission of this database permission.
@@ -139,12 +146,8 @@ class Permission(Base, t.Generic[_T]):  # pylint: disable=unsubscriptable-object
         else:
             return t.cast('_T', GlobalPermission[self.__name])
 
-    @value.comparator
-    def value(cls) -> Comparator:  # pylint: disable=no-self-argument,missing-docstring
-        class Comp(Comparator):  # pylint: disable=missing-docstring
-            def __eq__(self, other: object) -> bool:
-                if not isinstance(other, BasePermission):
-                    assert False
-                return self.__clause_element__() == other.name
+    @hybrid_expression
+    def _get_value_comp(cls: t.Type['Permission[_T]']) -> PermissionComp[_T]:  # pylint: disable=no-self-argument,missing-docstring
+        return PermissionComp(cls.__name)
 
-        return Comp(t.cast(DbColumn[str], cls.__name))
+    value = hybrid_property(_get_value, custom_comparator=_get_value_comp)

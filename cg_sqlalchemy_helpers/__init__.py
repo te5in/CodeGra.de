@@ -15,7 +15,7 @@ from sqlalchemy_utils import UUIDType as _UUIDType
 from sqlalchemy_utils import force_auto_coercion
 
 from . import types, mixins
-from .types import hybrid_property, hybrid_expression
+from .types import Comparator, hybrid_property, hybrid_expression
 
 UUID_LENGTH = len(str(uuid.uuid4()))  # 36
 

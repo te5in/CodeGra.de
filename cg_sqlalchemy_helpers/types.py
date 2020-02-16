@@ -26,22 +26,15 @@ QuerySelf = t.TypeVar('QuerySelf', bound='MyNonOrderableQuery')
 _T_BASE = t.TypeVar('_T_BASE', bound='Base')
 
 
-class Comparator:  # pragma: no cover
-    def __init__(self, column: 'DbColumn[T]') -> None:
-        ...
-
-    def __eq__(self, other: object) -> bool:
-        ...
-
-    def __clause_element__(self) -> object:
-        ...
-
-
 class MySession:  # pragma: no cover
     def bulk_save_objects(self, objs: t.Sequence['Base']) -> None:
         ...
 
     def execute(self, query: object) -> object:
+        ...
+
+    @t.overload
+    def query(self, __x: '_ExistsColumn') -> '_MyExistsQuery':
         ...
 
     @t.overload
@@ -103,7 +96,7 @@ class MySession:  # pragma: no cover
     ) -> 'MyQuery[t.Tuple[T, Z, Y, U]]':
         ...
 
-    def query(self, *args: t.Any) -> 'MyQuery[t.Any]':  # NOQA
+    def query(self, *args: t.Any) -> 't.Union[MyQuery, _MyExistsQuery]':
         ...
 
     def add(self, arg: 'Base') -> None:
@@ -138,24 +131,31 @@ class DbType(t.Generic[T]):  # pragma: no cover
     ...
 
 
-class RawTable:  # pragma: no cover
-    c: t.Any
-
-
 class _ForeignKey:  # pragma: no cover
     ...
 
 
-class ImmutableColumnProxy(t.Generic[T]):
+class _ImmutableColumnProxy(t.Generic[T, U]):
     @t.overload
-    def __get__(self, _: None, owner: t.Type[object]) -> 'DbColumn[T]':
+    def __get__(self, _: None, owner: t.Type[object]) -> U:
         ...
 
     @t.overload
-    def __get__(self, _: Z, owner: t.Type[Z]) -> 'T':
+    def __get__(self, _: Z, owner: t.Type[Z]) -> T:
         ...
 
     def __get__(self, *args: t.Any, **kwargs: t.Any) -> t.Any:
+        ...
+
+
+class ImmutableColumnProxy(
+    t.Generic[T], _ImmutableColumnProxy[T, 'DbColumn[T]']
+):
+    ...
+
+
+class _MutableColumnProxy(t.Generic[T, Y, Z], _ImmutableColumnProxy[T, Z]):
+    def __set__(self, instance: object, value: Y) -> None:
         ...
 
 
@@ -169,6 +169,14 @@ class ColumnProxy(t.Generic[T], MutableColumnProxy[T, T]):
 
 
 _CP = ColumnProxy
+
+
+class RawTable:  # pragma: no cover
+    class _Column(t.Generic[T]):
+        def __getattr__(self, _: str) -> T:
+            pass
+
+    c: _Column['DbColumn[t.Any]']
 
 
 class _Backref:
@@ -501,6 +509,10 @@ class DbColumn(t.Generic[T]):  # pragma: no cover
         ...
 
 
+class _ExistsColumn:
+    pass
+
+
 class Mapper(t.Generic[_T_BASE]):
     @property
     def polymorphic_map(self) -> t.Dict[object, 'Mapper[_T_BASE]']:
@@ -523,7 +535,7 @@ class MyNonOrderableQuery(t.Generic[T], t.Iterable):  # pragma: no cover
     subquery: t.Callable[[QuerySelf, str], RawTable]
     limit: t.Callable[[QuerySelf, int], QuerySelf]
     first: t.Callable[[QuerySelf], t.Optional[T]]
-    exists: t.Callable[[QuerySelf], DbColumn[bool]]
+    exists: t.Callable[[QuerySelf], _ExistsColumn]
     count: t.Callable[[QuerySelf], int]
     one: t.Callable[[QuerySelf], T]
     __iter__: t.Callable[[QuerySelf], t.Iterator[T]]
@@ -567,13 +579,15 @@ class MyNonOrderableQuery(t.Generic[T], t.Iterable):  # pragma: no cover
     def join(
         self: QuerySelf,
         to_join: t.Union[t.Type['Base'], RawTable, 'DbColumn[_T_BASE]'],
-        cond: 'DbColumn[bool]' = None,
+        cond: DbColumn[bool] = None,
         *,
         isouter: bool = False,
     ) -> QuerySelf:
         ...
 
-    def filter(self: QuerySelf, *args: DbColumn[bool]) -> 'QuerySelf':
+    def filter(
+        self: QuerySelf, *args: t.Union[DbColumn[bool], _ExistsColumn]
+    ) -> QuerySelf:
         ...
 
     def filter_by(
@@ -631,12 +645,25 @@ class MyQueryTuple(t.Generic[T], MyQuery[t.Tuple[T]]):
         ...
 
 
+class _MyExistsQuery:
+    def scalar(self) -> bool:
+        ...
+
+
 _MyQuery = MyQuery
 
 if t.TYPE_CHECKING:
 
     @t.overload
-    def hybrid_property(fget: t.Callable[[Z], T], ) -> ImmutableColumnProxy[T]:
+    def hybrid_property(fget: t.Callable[[Z], T]) -> ImmutableColumnProxy[T]:
+        ...
+
+    @t.overload
+    def hybrid_property(
+        fget: t.Callable[[Z], T],
+        *,
+        custom_comparator: t.Callable[[t.Type[Z]], Y],
+    ) -> _ImmutableColumnProxy[T, Y]:
         ...
 
     @t.overload
@@ -645,15 +672,31 @@ if t.TYPE_CHECKING:
         fset: t.Callable[[Z, Y], None],
         fdel: None = None,
         expr: t.Callable[[t.Type[Z]], 'DbColumn[T]'] = None,
-    ) -> MutableColumnProxy[T, Y]:
+    ) -> _MutableColumnProxy[T, Y, DbColumn[T]]:
         ...
 
     def hybrid_property(*args: object, **kwargs: object) -> t.Any:
         ...
 
     hybrid_expression = staticmethod
+
+    class Comparator(t.Generic[T]):
+        def __init__(self, __name: DbColumn[T]) -> None:
+            ...
+
+        def __clause_element__(self) -> DbColumn[T]:
+            ...
 else:
     from sqlalchemy.ext.hybrid import hybrid_property
 
     def hybrid_expression(fun: T) -> T:
         return fun
+
+    class FakeGenericMeta(type):
+        def __getitem__(self: T, _: t.Any) -> T:
+            return self
+
+    from . import Comparator as _Comparator
+
+    class Comparator(metaclass=FakeGenericMeta):
+        ...
