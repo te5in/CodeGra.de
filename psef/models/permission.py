@@ -24,7 +24,7 @@ else:
     from ..cache import cache_within_request
 
 
-class PermissionComp(t.Generic[_T], Comparator[str]):  # pylint: disable=missing-docstring
+class PermissionComp(t.Generic[_T], Comparator[str]):  # pylint: disable=missing-docstring,too-many-ancestors
     def __eq__(self, other: _T) -> DbColumn[bool]:  # type: ignore
         assert isinstance(other, BasePermission)
         return self.__clause_element__() == other.name
