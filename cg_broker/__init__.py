@@ -121,7 +121,7 @@ class BrokerFlask(flask.Flask):
 
         self.config['MAX_AMOUNT_OF_RUNNERS_PER_JOB'
                     ] = _parser['General'].getint(
-                        'MAX_AMOUNT_OF_RUNNERS', fallback=1
+                        'MAX_AMOUNT_OF_RUNNERS_PER_JOB', fallback=1
                     )
 
         self.config['RUNNER_MAX_TIME_ALIVE'] = _parser['General'].getint(
