@@ -237,7 +237,7 @@ def register_runner_for_job(job_id: str) -> EmptyResponse:
 
     runner = db.session.query(models.Runner).filter(
         t.cast(DbColumn[models.RunnerState], models.Runner.state).in_(
-            models.RunnerState.get_active_states()
+            models.RunnerState.get_before_running_states()
         ),
         models.Runner.ipaddr == runner_ip,
     ).with_for_update().one_or_none()
@@ -293,6 +293,9 @@ def get_jobs_for_runner(public_runner_id: uuid.UUID
     runner = db.session.query(models.Runner).filter(
         models.Runner.ipaddr == request.remote_addr,
         models.Runner.public_id == public_runner_id,
+        t.cast(DbColumn[models.RunnerState], models.Runner.state).in_(
+            models.RunnerState.get_before_running_states()
+        ),
     ).one_or_none()
     if runner is None:
         raise NotFoundException
