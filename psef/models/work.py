@@ -16,6 +16,7 @@ from sqlalchemy.orm import undefer, selectinload
 from sqlalchemy.types import JSON
 
 import psef
+import cg_timers
 from cg_dt_utils import DatetimeWithTimezone
 
 from . import Base, DbColumn, db
@@ -534,6 +535,7 @@ class Work(Base):
 
         return item
 
+    @cg_timers.timed_function(collect_in_request=True)
     def __extended_to_json__(self) -> t.Mapping[str, t.Any]:
         """Create a extended JSON serializable representation of this object.
 
