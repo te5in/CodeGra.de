@@ -1115,20 +1115,17 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
 
         user_ids = [user.id]
         order_bys = [
-            t.cast(DbColumn[object], work_models.Work.created_at).desc(),
+            work_models.Work.created_at.desc(),
             # Sort by id too so that when the date is exactly the same we can
             # still have well defined behavior (i.e. always get the same
             # submissions for a user.)
-            t.cast(DbColumn[object], work_models.Work.id).desc()
+            work_models.Work.id.desc()
         ]
         if self.group_set_id is not None:
             group_user_id = db.session.query(
-                t.cast(DbColumn[int], psef.models.Group.virtual_user_id)
+                psef.models.Group.virtual_user_id
             ).filter_by(group_set_id=self.group_set_id).filter(
-                t.cast(
-                    DbColumn[t.List['user_models.User']],
-                    psef.models.Group.members,
-                ).any(user_models.User.id == user.id)
+                psef.models.Group.members.any(user_models.User.id == user.id)
             ).scalar()
             if group_user_id is not None:
                 user_ids.append(group_user_id)
@@ -1138,15 +1135,11 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
                 # bit later. This is the same behavior as
                 # `get_from_latest_submission`.
                 order_bys.insert(
-                    0,
-                    t.cast(
-                        DbColumn[object],
-                        work_models.Work.user_id == group_user_id,
-                    ).desc(),
+                    0, (work_models.Work.user_id == group_user_id).desc()
                 )
 
         return base_query.filter(
-            t.cast(DbColumn[int], work_models.Work.user_id).in_(user_ids),
+            work_models.Work.user_id.in_(user_ids),
         ).order_by(*order_bys).limit(1)
 
     @t.overload
@@ -1207,25 +1200,23 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         # different way or do other distincts. But I have no idea how slow this
         # subquery makes the query, as postgres could optimize it out.
         sql = db.session.query(
-            t.cast(DbColumn[int], work_models.Work.id),
+            work_models.Work.id,
         ).filter(
             work_models.Work.assignment_id == self.id,
         ).order_by(
             work_models.Work.user_id,
-            t.cast(DbColumn[object], work_models.Work.created_at).desc(),
+            work_models.Work.created_at.desc(),
             # Sort by id too so that when the date is exactly the same we can
             # still have well defined behavior (i.e. always get the same
             # submissions for a user.)
-            t.cast(DbColumn[object], work_models.Work.id).desc()
+            work_models.Work.id.desc()
         )
         if not include_deleted:
             sql = sql.filter_by(_deleted=False)
 
         sub = sql.distinct(work_models.Work.user_id).subquery('ids')
 
-        res = base_query.filter(
-            t.cast(DbColumn[int], work_models.Work.id).in_(sub),
-        )
+        res = base_query.filter(work_models.Work.id.in_(sub), )
         if self.group_set_id is not None and not include_old_user_submissions:
             sub_query = db.session.query(work_models.Work).filter(
                 work_models.Work.assignment_id == self.id,
@@ -1239,13 +1230,13 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
                 # pylint: disable=protected-access
                 sub_query = sub_query.filter(~work_models.Work._deleted)
             groups_with_submission = db.session.query(
-                t.cast(DbColumn[int], psef.models.Group.id)
+                psef.models.Group.id
             ).filter(
                 psef.models.Group.group_set_id == self.group_set_id,
                 sub_query.exists(),
             )
             res = res.filter(
-                ~t.cast(DbColumn[int], work_models.Work.user_id).in_(
+                ~work_models.Work.user_id.in_(
                     db.session.query(users_groups.c.user_id).filter(
                         users_groups.c.group_id.in_(groups_with_submission)
                     )
@@ -1607,17 +1598,14 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         :returns: A query with items selected as described above.
         """
         done_graders = db.session.query(
-            t.cast(DbColumn[str], user_models.User.name).label("name"),
-            t.cast(DbColumn[int], user_models.User.id).label("id"),
-            t.cast(
-                DbColumn[bool],
-                # This now can be NULL as we do an outerjoin on assignments
-                # graders done. It is `None` for every grader that is not yet
-                # done.
-                ~t.cast(DbColumn[int],
-                        AssignmentGraderDone.user_id).is_(None)  # type: ignore
+            user_models.User.name.label("name"),
+            user_models.User.id.label("id"),
+            # This now can be NULL as we do an outerjoin on assignments graders
+            # done. It is `None` for every grader that is not yet done.
+            ~AssignmentGraderDone.user_id.is_(
+                t.cast(t.Any, None),
             ).label("done"),
-            t.cast(DbColumn[int], user_course.c.course_id).label("course_id"),
+            user_course.c.course_id.label("course_id"),
         ).join(
             AssignmentGraderDone,
             and_(
@@ -1645,9 +1633,11 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         ).subquery('graders')
 
         res = db.session.query(
-            t.cast(str, done_graders.c.name),
-            t.cast(int, done_graders.c.id),
-            t.cast(bool, done_graders.c.done),
+            # We cast here so that we get an accurately types query, as
+            # `RawTable.c.{something}` is currently always typed as `Any`.
+            t.cast(DbColumn[str], done_graders.c.name),
+            t.cast(DbColumn[int], done_graders.c.id),
+            t.cast(DbColumn[bool], done_graders.c.done),
         ).join(graders, done_graders.c.course_id == graders.c.course_role_id)
 
         if sort:

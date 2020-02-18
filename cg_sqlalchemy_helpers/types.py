@@ -24,6 +24,7 @@ E = t.TypeVar('E', bound=enum.Enum)
 DbSelf = t.TypeVar('DbSelf', bound='MyDb')
 QuerySelf = t.TypeVar('QuerySelf', bound='MyNonOrderableQuery')
 _T_BASE = t.TypeVar('_T_BASE', bound='Base')
+_Y_BASE = t.TypeVar('_Y_BASE', bound='Base')
 
 
 class MySession:  # pragma: no cover
@@ -67,32 +68,32 @@ class MySession:  # pragma: no cover
 
     @t.overload  # NOQA
     def query(
-        self, __x: t.Type[T], __y: 'DbColumn[Z]'
-    ) -> 'MyQuery[t.Tuple[T, Z]]':
+        self, __x: t.Type[_T_BASE], __y: 'DbColumn[Z]'
+    ) -> 'MyQuery[t.Tuple[_T_BASE, Z]]':
         ...
 
     @t.overload  # NOQA
     def query(
-        self, __x: t.Type[T], __y: t.Type[Z]
-    ) -> 'MyQuery[t.Tuple[T, Z]]':
+        self, __x: t.Type[_T_BASE], __y: t.Type[_Y_BASE]
+    ) -> 'MyQuery[t.Tuple[_T_BASE, _Y_BASE]]':
         ...
 
     @t.overload  # NOQA
     def query(
         self,
-        __x: T,
-        __y: Z,
-        __z: Y,
+        __x: 'DbColumn[T]',
+        __y: 'DbColumn[Z]',
+        __z: 'DbColumn[Y]',
     ) -> 'MyQuery[t.Tuple[T, Z, Y]]':
         ...
 
     @t.overload  # NOQA
     def query(
         self,
-        __x: T,
-        __y: Z,
-        __z: Y,
-        __j: U,
+        __x: 'DbColumn[T]',
+        __y: 'DbColumn[Z]',
+        __z: 'DbColumn[Y]',
+        __j: 'DbColumn[U]',
     ) -> 'MyQuery[t.Tuple[T, Z, Y, U]]':
         ...
 
