@@ -688,6 +688,7 @@ if t.TYPE_CHECKING:
             ...
 else:
     from sqlalchemy.ext.hybrid import hybrid_property
+    from sqlalchemy.ext.hybrid import Comparator as _Comparator
 
     def hybrid_expression(fun: T) -> T:
         return fun
@@ -696,7 +697,5 @@ else:
         def __getitem__(self: T, _: t.Any) -> T:
             return self
 
-    from . import Comparator as _Comparator
-
-    class Comparator(metaclass=FakeGenericMeta):
+    class Comparator(_Comparator, metaclass=FakeGenericMeta):
         ...
