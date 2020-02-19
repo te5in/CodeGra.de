@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
-<div class="general-feedback-area">
+<div class="general-feedback-area clearfix">
     <textarea :placeholder="placeholder"
               class="form-control"
               :rows="10"
