@@ -15,7 +15,7 @@
                 :id="`collapse${line}`"
                 style="margin: 0">
         <div>
-            <b-input-group class="input-snippet-group">
+            <b-input-group class="input-snippet-group mb-2">
                 <input class="input form-control"
                        v-model="snippetKey"
                        :disabled="snippetDisabled"
@@ -817,30 +817,24 @@ button {
 }
 
 textarea {
-    #app.dark & {
-        border: 0;
-    }
     min-height: 7em;
 }
 
-#app:not(.dark) .snippet-btn {
+.snippet-btn {
     border-top-width: 1px;
     border-top-style: solid;
 }
 
 .snippet-btn .fa-icon {
-    transform: rotate(0);
+    transform: translateY(-1px) rotate(0);
     transition: transform @transition-duration;
 
     &.rotated {
-        transform: rotate(45deg);
+        transform: translateY(-1px) rotate(45deg);
     }
 }
 
 .editable-area {
-    #app.dark & {
-        border: 0.5px solid @color-secondary;
-    }
     padding: 0;
     border-radius: @border-radius;
 }
@@ -854,7 +848,6 @@ textarea {
 }
 
 .editable-feedback-area {
-    font-size: 1em;
     position: relative;
     border-top-right-radius: 0;
     border-bottom-right-radius: 0;
