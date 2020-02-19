@@ -4,7 +4,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 """
 import uuid
 import random
-import typing as t
 import datetime
 
 import structlog
@@ -16,7 +15,6 @@ from cg_celery import CGCelery
 from cg_logger import bound_to_logger
 from cg_dt_utils import DatetimeWithTimezone
 from cg_flask_helpers import callback_after_this_request
-from cg_sqlalchemy_helpers.types import DbColumn
 
 from . import BrokerFlask, app, utils, models
 from .models import db
@@ -105,20 +103,15 @@ def maybe_start_more_runners() -> None:
     ).with_for_update().all()
 
     jobs_needed_runners = db.session.query(
-        t.cast(DbColumn[int], models.Job.id),
-        t.cast(
-            DbColumn[int],
-            models.Job.wanted_runners - sql_func.count(models.Runner.id),
-        ),
+        models.Job.id,
+        models.Job.wanted_runners - sql_func.count(models.Runner.id),
     ).filter(
-        t.cast(DbColumn[int], models.Job.id).in_(list(active_jobs.keys()))
+        models.Job.id.in_(list(active_jobs.keys())),
     ).join(
         models.Runner,
         and_(
             models.Runner.job_id == models.Job.id,
-            t.cast(DbColumn[models.RunnerState], models.Runner.state).in_(
-                models.RunnerState.get_active_states()
-            )
+            models.Runner.state.in_(models.RunnerState.get_active_states())
         ),
         isouter=True
     ).having(

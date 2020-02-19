@@ -21,7 +21,7 @@ def timed_code(code_block_name: str, **other_keys: object
         timed_code_block=code_block_name,
         **other_keys
     )
-    end_time = None
+    end_time: t.Optional[float] = None
 
     try:
         yield lambda: (end_time or time.time()) - start_time

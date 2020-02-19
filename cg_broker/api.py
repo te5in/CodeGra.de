@@ -149,11 +149,8 @@ def remove_runner_of_job(job_id: str) -> EmptyResponse:
 
     runner = db.session.query(models.Runner).filter_by(
         ipaddr=g.data['ipaddr'], job=job
-    ).filter(
-        t.cast(DbColumn[models.RunnerState], models.Runner.state).in_(
-            models.RunnerState.get_active_states()
-        )
-    ).with_for_update().one_or_none()
+    ).filter(models.Runner.state.in_(models.RunnerState.get_active_states())
+             ).with_for_update().one_or_none()
     if runner is None:
         raise NotFoundException
 
@@ -221,9 +218,7 @@ def register_runner_for_job(job_id: str) -> EmptyResponse:
     """
     runner_ip = g.data['runner_ip']
     job = db.session.query(models.Job).filter_by(remote_id=job_id).filter(
-        ~t.cast(DbColumn[models.JobState], models.Job.state).in_(
-            models.JobState.get_finished_states(),
-        )
+        ~models.Job.state.in_(models.JobState.get_finished_states()),
     ).with_for_update().one_or_none()
     if job is None:
         logger.info('Job not found!', job_id=job_id)
@@ -330,14 +325,13 @@ def about() -> cg_json.JSONResponse[t.Mapping[str, object]]:
 
         slow_jobs = db.session.query(models.Job).filter(
             models.Job.created_at < slow_created_date,
-            ~t.cast(DbColumn[models.JobState], models.Job.state).in_(
-                models.JobState.get_finished_states()
-            )
+            ~models.Job.state.in_(models.JobState.get_finished_states())
         ).count()
 
         not_started_created_date = now - timedelta(
             minutes=app.config['SLOW_STARTING_AGE']
         )
+
         not_starting_jobs = db.session.query(models.Job).filter(
             models.Job.created_at < not_started_created_date,
             models.Job.state == models.JobState.waiting_for_runner

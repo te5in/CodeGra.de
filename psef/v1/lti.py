@@ -6,6 +6,7 @@ directly after a successful lti launch.
 
 SPDX-License-Identifier: AGPL-3.0-only
 """
+import uuid
 import typing as t
 import urllib
 import urllib.parse
@@ -116,7 +117,8 @@ def second_phase_lti_launch() -> helpers.JSONResponse[
     :raises APIException: If the given Jwt token is not valid. (INVALID_PARAM)
     """
     content = helpers.ensure_json_dict(flask.request.get_json())
-    helpers.ensure_keys_in_dict(content, [('blob_id', str)])
+    with helpers.get_from_map_transaction(content) as [get, _]:
+        blob_id = get('blob_id', str)
 
     def also_error(b: models.BlobStorage) -> bool:
         age = helpers.get_request_start_time() - b.created_at
@@ -125,7 +127,7 @@ def second_phase_lti_launch() -> helpers.JSONResponse[
 
     blob = helpers.filter_single_or_404(
         models.BlobStorage,
-        models.BlobStorage.id == content['blob_id'],
+        models.BlobStorage.id == uuid.UUID(blob_id),
         with_for_update=True,
         also_error=also_error,
     )

@@ -177,8 +177,6 @@ def _waitpid_noblock(pid: int) -> t.Optional[int]:
     # not be exited (new_pid == status == 0), or should exit normally
     # (os.WIFEXITED), or it exited through a signal (os.WIFSIGNALED).
     assert False
-    # Pylint issue https://github.com/PyCQA/pylint/issues/2908
-    return None  # pragma: no cover
 
 
 def _wait_for_attach(
