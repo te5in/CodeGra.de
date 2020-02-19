@@ -435,19 +435,20 @@ def get_extra_results_to_process(
     :qparam last_call: If there are no extra results mark the requesting runner
         as done.
     """
+    is_last_call = request_arg_true('last_call')
     password = _verify_global_header_password()
 
     run = filter_single_or_404(
         models.AutoTestRun,
         models.AutoTestRun.id == run_id,
         also_error=lambda run: run.auto_test_id != auto_test_id,
-        with_for_update=True,
+        with_for_update=is_last_call,
     )
     runner = _verify_and_get_runner(run, password)
 
     results = run.get_results_to_run().all()
 
-    if request_arg_true('last_call') and not results:
+    if is_last_call and not results:
         run.stop_runners([runner])
         db.session.commit()
 
